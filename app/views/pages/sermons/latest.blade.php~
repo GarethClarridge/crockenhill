@@ -1,0 +1,3 @@
+<h6><a href="sermons/{{$latest_sermon->filename}}">{{ $latest_sermon->title}}</a></h2>
+<p> {{ $latest_sermon->reference}}</p>
+<p> {{ $latest_sermon->preacher}}</p>

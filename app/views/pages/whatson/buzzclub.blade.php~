@@ -1,0 +1,33 @@
+@extends('layouts.layer1')
+
+@section('title', 'Buzz Club - Crockenhill Baptist Church')
+
+@section('description', '<meta name="description" content="Buzz Club - our yearly holiday club at Crockenhill Baptist Church">')
+
+@section('breadcrumbs')
+
+<li> {{ Link_to_route('WhatsOn', 'What\'s On') }} </li><li class="active">Buzz Club</li>
+
+@stop
+
+@section('header', '<h1>Buzz Club at Crockenhill Baptist Church</h1>')
+
+@section('main-content')
+
+<p>A special games, activity and Bible club for children, held in the summer holiday, and led by a visiting youth worker expert in teaching and leading children.</p>
+
+<p>Places are free, but limited, so you need to book in advance to be sure of your place. Booking forms will be available from the children's group leaders, and distributed at local schools.</p>
+
+<p>Make sure you get one!</p>
+
+@stop
+
+@section('aside')
+
+<h3>More Information</h3>
+
+<p>When: A week in August, 10:00 to 12:00</p>
+
+<p>Contact: Keith Milne 01322 666246</p>
+
+@stop

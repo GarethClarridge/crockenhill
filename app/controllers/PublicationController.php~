@@ -1,0 +1,22 @@
+<?php
+
+class PublicationController extends BaseController {
+
+    public function publications()
+    {
+
+        //Create image previews
+
+        $insideout = new Imagick($_SERVER['DOCUMENT_ROOT'] . '/publication_files/InsideOut.pdf[0]');
+        $insideout->setImageFormat('jpg');
+        $insideout->scaleImage(50, 50);
+
+        $whatson = new Imagick($_SERVER['DOCUMENT_ROOT'] . '/publication_files/WhatsOn.pdf[0]');
+        $whatson->setImageFormat('jpg');
+        $whatson->scaleImage(50, 50);
+
+        return View::make('pages.Sermons', array('whatson' => $whatson, 'insideout' => $insideout));
+
+    }
+
+}

@@ -1,0 +1,3 @@
+$(window).resize(function() {
+    $('#main').css("margin-bottom", $("footer").css('height'));
+});

@@ -1,0 +1,15 @@
+@extends('layouts.layer1')
+
+@section('title', 'Links - Crockenhill Baptist Church')
+
+@section('description', '<meta name="description" content="Links to other websites">')
+
+@section('breadcrumbs', '<li class="active">Links</li>')
+
+@section('header', '<h1>Links</h1>')
+
+@section('main-content')
+
+    <p>About Crockenhill Baptist Church</p>
+
+@stop

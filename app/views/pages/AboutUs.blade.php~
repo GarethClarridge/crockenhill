@@ -1,0 +1,41 @@
+@extends('layouts.layer1')
+
+@section('title', 'Crockenhill Baptist Church - About Us')
+
+@section('description', '<meta name="description" content="About Crockenhill Baptist Church">')
+
+@section('breadcrumbs', '<li class="active">About Us</li>')
+
+@section('header', '<h1>About Crockenhill Baptist Church</h1>')
+
+@section('main-content')
+
+    <p>At the heart of all we do is the teaching of the Bible as God's key instrument for announcing that Jesus Christ is the rightful Ruler of the world and of each one of us. (See <a href="">'What we believe'</a> for further details).</p>
+	<p>We encourage people to become active followers of Jesus Christ, and provide opportunities for them to grow in their faith and love. We welcome people of all ages and backgrounds to find out the good news of Jesus Christ who, by his death on the cross, can rescue us from God's rightful displeasure.</p>
+
+@stop
+
+@section('aside')
+
+<h4>More Information:</h4>
+
+<div class="list-group">
+  <a href="{{ route('whatwebelieve') }}" class="list-group-item">
+    <h5 class="list-group-item-heading">What We Believe</h5>
+    <small class="list-group-item-text">A short summary of our beliefs in everyday English. No technical terms here!</small>
+  </a>
+  <a href="{{ route('statementoffaith') }}" class="list-group-item">
+    <h5 class="list-group-item-heading">Statement of Faith</h5>
+    <small class="list-group-item-text">A more complete summary of our beliefs, giving Bible references and using slightly more technical language.</small>
+  </a>
+  <a href="{{ route('history') }}" class="list-group-item">
+    <h5 class="list-group-item-heading">History</h5>
+    <small class="list-group-item-text">Information about our church started.</small>
+  </a>
+    <a href="{{ route('pastor') }}" class="list-group-item">
+    <h5 class="list-group-item-heading">Pastor</h5>
+    <small class="list-group-item-text">Our pastor, Mark Drury.</small>
+  </a>
+</div>
+
+@stop

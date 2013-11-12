@@ -1,0 +1,32 @@
+<?php
+
+$pages = [
+    'AboutUs' => ['route'=> 'AboutUs', 'name' => 'About Us'],
+    'WhatsOn' => ['route'=> 'WhatsOn', 'name' => 'What\'s On'],
+    'Where' => ['route'=> 'Where', 'name' => 'Where'],
+    'Sermons' =>['route'=> 'Sermons', 'name' => 'Sermons'],
+    'Publications' => ['route'=> 'Publications', 'name' => 'Publications'],
+    'Links' => ['route'=> 'Links', 'name' => 'Links'],
+]
+
+?>
+
+<nav>
+	<a href=" {{ URL::route('Home') }} ">
+	    <img src="images/Logov2.png" alt="Crockenhill Baptist Church"/>
+	</a>
+
+	<ul class="nav nav--block nav--fit">
+
+	    @foreach ($pages as $page)
+			@if (Request::is($page['route']))
+			    <li class="active">
+			@else
+			    <li>
+			@endif
+			    <a href=" {{ URL::route($page['route']) }} ">{{$page['name']}}</a>
+			</li>
+		@endforeach
+
+	</ul>
+</nav>

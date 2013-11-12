@@ -1,0 +1,30 @@
+<?php
+
+class BaseController extends Controller {
+
+	/**
+	 * Setup the layout used by the controller.
+	 *
+	 * @return void
+	 */
+	protected function setupLayout()
+	{
+		if ( ! is_null($this->layout))
+		{
+			$this->layout = View::make($this->layout);
+		}
+	}
+
+	public function __construct {
+
+	    //get the latest morning sermon from the database
+        $latest_morning_sermon = Sermon::where('time', '10:30:00')->orderBy('date', 'desc')->first();
+
+        //get the latest evening sermon from the database
+        $latest_evening_sermon = Sermon::where('time', '18:30:00')->orderBy('date', 'desc')->first();
+
+
+        return View::share('latest_morning_sermon', $latest_morning_sermon);
+	}
+
+}
