@@ -16,6 +16,7 @@
 //$gray:                   lighten(#000, 33.5%); // #555
 //$gray-light:             lighten(#000, 60%);   // #999
 //$gray-lighter:           lighten(#000, 93.5%); // #eee
+$gray-lightest:          lighten(#000, 98%);
 
 // Brand colors
 // -------------------------
@@ -29,7 +30,7 @@ $brand-info:            #5bc0de;
 // Scaffolding
 // -------------------------
 
-//$body-bg:               #F3F4F1;
+$body-bg:               $gray-lighter;
 //$text-color:            $gray-dark;
 
 // Links
@@ -52,6 +53,7 @@ $font-family-base:        $font-family-sans-serif;
 
 $line-height-base:        1.6;
 $line-height-computed:    floor($font-size-base * $line-height-base); // ~20px
+$line-height-doubled:      floor($line-height-computed * 2);
 
 $headings-font-family:    $font-family-base;
 $headings-font-weight:    500;
@@ -369,11 +371,11 @@ $state-warning-bg:               darken(#fcf8e3, 20%);
 $state-warning-border:           darken(adjust-hue($state-warning-bg, -10), 3%);
 
 $state-danger-text:              #b94a48;
-$state-danger-bg:                #f2dede;
+$state-danger-bg:                darken(#f2dede, 20%);
 $state-danger-border:            darken(adjust-hue($state-danger-bg, -10), 3%);
 
 $state-success-text:             #468847;
-$state-success-bg:               #dff0d8;
+$state-success-bg:               darken(#dff0d8, 20%);
 $state-success-border:           darken(adjust-hue($state-success-bg, -10), 5%);
 
 //$state-info-text:                #3a87ad;

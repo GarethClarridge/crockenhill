@@ -2,25 +2,22 @@
 
 @section('content')
 
-<div class="container">
 
-    <ol class="breadcrumb">
-        <li><a href="">Home</a></li>
-        @yield('breadcrumbs')
-    </ol>
+<nav class="row">
 
-    <div class="page-header">
+</nav>
+
+<div class="row">
+    <article class="col-md-8">
+        <ol class="">
+            <li> {{ link_to_route('Home', 'Home') }} </li>
+            @yield('breadcrumbs')
+        </ol>
         @yield('header')
-    </div>
-
-    <div class="row">
-        <div class="col-md-8 main-content">
-            @yield('main-content')
-        </div>
-        <aside class="col-md-4">
-            @yield('aside')
-        </aside>
-
-</div>
+        @yield('main-content')
+    </article>
+    <aside class="col-md-3 col-md-offset-1">
+        @yield('aside')
+    </aside>
 
 @stop

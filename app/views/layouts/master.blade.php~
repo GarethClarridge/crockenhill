@@ -12,16 +12,16 @@
         @include('layouts.sections.header')
 	</header>
 
-	<main id="main">
+	<main>
 	    @yield('content')
 	</main>
 
-	<footer>
-		@section('footer')
+	@section('footer')
+	    <footer>
 		    @include('layouts.sections.footer')
-	    @show
-	</footer>
-
+	    </footer>
+    @show
+    
     @include('layouts.sections.foot')
 </body>
 </html>
