@@ -1,5 +1,18 @@
 .references {
-    font-size: $font-size-base*0.9;
+    font-size: $font-size-base;
     font-style: italic;
     text-align: right;
+}
+
+p, dd, address {
+    font-family: $font-family-serif;
+}
+
+p.lead {
+    font-family: $font-family-sans-serif;
+}
+
+h1, h2, h3 {
+    font-weight: 900;
+    line-height: floor($line-height-doubled * 1.33);
 }

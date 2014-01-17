@@ -9,7 +9,7 @@
 @yield('description')
 
 {{ HTML::style('css/styles.min.css') }}
-<link href='http://fonts.googleapis.com/css?family=Roboto:400,100,900,300italic' rel='stylesheet' type='text/css'>
+<link href='http://fonts.googleapis.com/css?family=Poly|Roboto:400,300italic,900' rel='stylesheet' type='text/css'>
 
 <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
 <!--[if lt IE 9]>

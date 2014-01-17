@@ -4,6 +4,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="msvalidate.01" content="2EF7ECDA9644EAD5B1B36A960808B8DB" />
 
 @yield('description')
 
