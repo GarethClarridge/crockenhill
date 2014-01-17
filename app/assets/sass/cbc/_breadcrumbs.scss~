@@ -4,11 +4,10 @@
 
 
 .breadcrumb {
-  padding: 8px 15px;
+  background: none;
+  padding: 8px 0px;
   margin-bottom: $line-height-doubled;
   list-style: none;
-  background-color: $breadcrumb-bg;
-  border-radius: $border-radius-base;
   > li {
     display: inline-block;
     &+li:before {

@@ -1,5 +1,9 @@
+article p {
+    font-size: $font-size-base*1.2;
+}
+
 .references {
     font-size: $font-size-base*0.9;
     font-style: italic;
-    align: right;
+    text-align: right;
 }

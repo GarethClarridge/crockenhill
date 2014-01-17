@@ -1,5 +1,6 @@
 body {
     height: 100%;
+    background: $gray-lighter;
 }
 
 main {
@@ -10,6 +11,13 @@ h1 {
     margin: $line-height-doubled 0%;
 }
 
+article {
+    //background: $gray-lightest;
+    margin-top: -20px;
+    padding-top: 20px;
+    
+}
+
 aside {
-    margin-top: floor($line-height-doubled * 3);
+    //margin-top: floor($line-height-doubled * 3);
 }
