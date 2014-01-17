@@ -5,8 +5,7 @@
 
 .breadcrumb {
   background: none;
-  padding: 8px 0px;
-  margin-bottom: $line-height-doubled;
+  padding: 8px;
   list-style: none;
   > li {
     display: inline-block;

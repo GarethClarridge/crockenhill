@@ -4922,7 +4922,7 @@ article {
 .breadcrumb {
   background: none;
   padding: 8px;
-  margin-bottom: 44px;
+  margin: 0;
   list-style: none; }
   .breadcrumb > li {
     display: inline-block; }
@@ -5053,8 +5053,19 @@ audio {
   box-shadow: 0px 0px 1px #999999; }
 
 article.card {
-  padding: 8%;
-  margin-top: 10px; }
+  margin-top: 10px;
+  padding-top: 0; }
+  article.card .links {
+    padding: 22px 8% 22px 8%; }
+  article.card .content {
+    padding: 0% 8% 8% 8%; }
+  article.card h1 {
+    padding: 12% 8%;
+    margin: 0%;
+    background-image: url(../images/church_blur.png);
+    filter: blur(10px);
+    background-size: cover;
+    color: #fafafa; }
 
 aside.card {
   padding: 8%;

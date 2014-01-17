@@ -3,16 +3,22 @@
 @section('content')
 
 <div class="row">
-    <article class="col-md-9 card">
-        <ol class="breadcrumb">
-            <li> {{ link_to_route('Home', 'Home') }} </li>
-            @yield('breadcrumbs')
-        </ol>
-        @yield('header')
-        @yield('main-content')
-    </article>
-    <aside class="col-md-3 card">
-        @yield('aside')
-    </aside>
+    <div class="col-md-9">
+        <article class="card">
+            @yield('header')
+            <ol class="breadcrumb">
+                <li> {{ link_to_route('Home', 'Home') }} </li>
+                @yield('breadcrumbs')
+            </ol>
+            <div class="content">
+                @yield('main-content')
+            </div>
+        </article>
+    </div>
+    <div class="col-md-3">
+        <aside class="card">
+            @yield('aside')
+        </aside>
+    </div>
 
 @stop
