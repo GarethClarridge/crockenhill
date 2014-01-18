@@ -12,12 +12,36 @@ h1 {
 }
 
 article {
-    //background: $gray-lightest;
-    margin-top: -20px;
-    padding-top: 20px;
+
+    margin-top: 10px;
     
+    .breadcrumb {
+        padding: 0% 0% $line-height-computed 0%;
+    }
+    
+    .header-container { // Headers of all cards have image backgrounds
+
+    }
 }
 
 aside {
-    //margin-top: floor($line-height-doubled * 3);
+    
+    h4 {
+        font-style: italic;
+        text-align: center;
+        line-height: $line-height-doubled;
+    }
+    
+    .list-group-item { 
+        border: none;
+        background: none;
+    }
+    
+    a {
+        color: $text-color;
+        &:hover {
+            text-decoration: none;
+        }
+    }
+
 }

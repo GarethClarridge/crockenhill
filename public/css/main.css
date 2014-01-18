@@ -4907,8 +4907,23 @@ h1 {
   margin: 50px 0%; }
 
 article {
-  margin-top: -20px;
-  padding-top: 20px; }
+  margin-top: 10px; }
+  article .breadcrumb {
+    padding: 0% 0% 25px 0%; }
+
+aside {
+  margin-top: 15px; }
+  aside h4 {
+    font-style: italic;
+    text-align: center;
+    line-height: 50px; }
+  aside .list-group-item {
+    border: none;
+    background: none; }
+  aside a {
+    color: #333333; }
+    aside a:hover {
+      text-decoration: none; }
 
 .navbar-inner .logo {
   background-clip: border-box;
@@ -5062,28 +5077,22 @@ audio {
 
 .card {
   background-color: white;
-  box-shadow: 0px 0px 1px #999999; }
-
-article.card {
-  margin-top: 10px;
-  padding-top: 0; }
-  article.card .links {
-    padding: 25px 8% 25px 8%; }
-  article.card .content {
-    padding: 0% 8% 8% 8%; }
-  article.card h1 {
-    padding: 12% 8%;
-    margin: 0%;
+  box-shadow: 0px 0px 1px #999999;
+  padding: 0% 8% 8% 8%; }
+  .card .header-container {
+    width: 119.047619%;
+    margin-left: -9.5238095%;
+    margin-top: 0;
+    margin-bottom: 25px;
     background-image: url(../images/church_blur.png);
-    filter: blur(10px);
-    background-size: cover;
-    color: #fafafa; }
-
-aside.card {
-  padding: 8%;
-  margin-top: 10px; }
-  aside.card .list-group-item {
-    border: none;
-    background: none; }
-  aside.card h4 {
-    font-style: italic; }
+    background-size: cover; }
+    .card .header-container h1, .card .header-container h2, .card .header-container h3, .card .header-container h4, .card .header-container h5, .card .header-container h6 {
+      padding-left: 9.5238095%;
+      background-color: rgba(0, 0, 0, 0.3);
+      color: #fafafa;
+      line-height: 75px;
+      margin: 0; }
+  .card h1 {
+    min-height: 200px;
+    padding-top: 8%;
+    padding-bottom: 8%; }
