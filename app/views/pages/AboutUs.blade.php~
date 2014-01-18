@@ -38,13 +38,25 @@
         </a>
     </div>
 </aside>
-<a href="{{ route('history') }}">
-<h5 class="">History</h5>
-<small class="">Information about our church started.</small>
-</a>
-<a href="{{ route('pastor') }}">
-<h5 class="">Pastor</h5>
-<small class="">Our pastor, Mark Drury.</small>
-</a>
+<aside class="col-xs-6 col-md-3">
+    <div class="card">
+        <a href="{{ route('history') }}">
+            <div class="header-container">
+                <h5 class="">History</h5>
+            </div>
+            <small class="">Information about our church started.</small>
+        </a>
+    </div>
+</aside>
+<aside class="col-xs-6 col-md-3">
+    <div class="card">
+        <a href="{{ route('pastor') }}">
+            <div class="header-container">
+                <h5 class="">Pastor</h5>
+            </div>
+            <small class="">Our pastor, Mark Drury.</small>
+        </a>
+    </div>
+</aside>
 
 @stop

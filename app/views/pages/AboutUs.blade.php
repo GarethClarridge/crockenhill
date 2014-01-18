@@ -32,9 +32,9 @@
     <div class="card">
         <a href="{{ route('statementoffaith') }}">
             <div class="header-container">
-                <h5 class="">Statement of Faith</h5>
+                <h5>Statement of Faith</h5>
             </div>
-        <small class="">A more complete summary of our beliefs, giving Bible references and using slightly more technical language.</small>
+        <small>A more complete summary of our beliefs, giving Bible references and using slightly more technical language.</small>
         </a>
     </div>
 </aside>
@@ -42,9 +42,9 @@
     <div class="card">
         <a href="{{ route('history') }}">
             <div class="header-container">
-                <h5 class="">History</h5>
+                <h5>History</h5>
             </div>
-            <small class="">Information about our church started.</small>
+            <small>Information about our church started.</small>
         </a>
     </div>
 </aside>
@@ -52,9 +52,9 @@
     <div class="card">
         <a href="{{ route('pastor') }}">
             <div class="header-container">
-                <h5 class="">Pastor</h5>
+                <h5>Pastor</h5>
             </div>
-            <small class="">Our pastor, Mark Drury.</small>
+            <small>Our pastor, Mark Drury.</small>
         </a>
     </div>
 </aside>
