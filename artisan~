@@ -29,6 +29,8 @@ require __DIR__.'/bootstrap/autoload.php';
 
 $app = require_once __DIR__.'/bootstrap/start.php';
 
+$app->boot();
+
 /*
 |--------------------------------------------------------------------------
 | Load The Artisan Console Application
@@ -40,8 +42,6 @@ $app = require_once __DIR__.'/bootstrap/start.php';
 | will allow us to fire commands from Routes when we want to.
 |
 */
-
-$app->setRequestForConsoleEnvironment();
 
 $artisan = Illuminate\Console\Application::start($app);
 

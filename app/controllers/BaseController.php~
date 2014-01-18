@@ -15,16 +15,4 @@ class BaseController extends Controller {
 		}
 	}
 
-	public function __construct {
-
-	    //get the latest morning sermon from the database
-        $latest_morning_sermon = Sermon::where('time', '10:30:00')->orderBy('date', 'desc')->first();
-
-        //get the latest evening sermon from the database
-        $latest_evening_sermon = Sermon::where('time', '18:30:00')->orderBy('date', 'desc')->first();
-
-
-        return View::share('latest_morning_sermon', $latest_morning_sermon);
-	}
-
 }

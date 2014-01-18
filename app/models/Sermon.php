@@ -1,14 +1,13 @@
 <?php
-
-class Sermon extends Eloquent {
-
-	/**
-	 * The database table used by the model.
-	 *
-	 * @var string
-	 */
-	protected $table = 'sermons';
-
-    public $timestamps = false;
-
+namespace App\Models;
+ 
+class Sermon extends \Eloquent {
+ 
+    protected $table = 'sermons';
+ 
+    public function author()
+    {
+        return $this->belongsTo('User');
+    }
+ 
 }

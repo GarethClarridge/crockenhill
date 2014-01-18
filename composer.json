@@ -6,7 +6,10 @@
 	    "way/guard-laravel": "dev-master"
 	},
 	"require": {
-		"laravel/framework": "4.0.*"
+		"laravel/framework": "4.1.*",
+        "cartalyst/sentry": "2.0.*",
+        "dflydev/markdown": "v1.0.2",
+        "imagine/Imagine": "v0.4.1"
 	},
 	"autoload": {
 		"classmap": [
