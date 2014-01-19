@@ -4,46 +4,46 @@ class SermonController extends BaseController {
 
     public function recent()
     {
-        //get the latest 20 sermons from the database
-        $evenings = Sermon::where('service', 'evening')->orderBy('filename', 'desc')->take(10)->get();
-        $mornings = Sermon::where('service', 'morning')->orderBy('filename', 'desc')->take(10)->get();
+        //get the latest 20 OldSermons from the database
+        $evenings = OldSermon::where('service', 'evening')->orderBy('filename', 'desc')->take(10)->get();
+        $mornings = OldSermon::where('service', 'morning')->orderBy('filename', 'desc')->take(10)->get();
 
         // and create a view which we return - note dot syntax to go into folder
-        return View::make('pages.Sermons', array('evenings' => $evenings, 'mornings' => $mornings));
+        return View::make('pages.OldSermons', array('evenings' => $evenings, 'mornings' => $mornings));
     }
 
-    public function current($sermon)
+    public function current($OldSermon)
     {
-        //get the current sermon
-        $current_sermon = Sermon::where('filename', $sermon)->first();
+        //get the current OldSermon
+        $current_OldSermon = OldSermon::where('filename', $OldSermon)->first();
 
         // and create a view to return
-        return View::make('pages.sermons.sermon', array('current_sermon' => $current_sermon));
+        return View::make('pages.OldSermons.OldSermon', array('current_OldSermon' => $current_OldSermon));
     }
 
     public function preacher($preacher)
     {
         $preacher = str_replace('_', ' ', $preacher);
-        $morning_sermons = Sermon::where('preacher', $preacher)->where('service', 'morning')->orderBy('filename', 'desc')->get();
-        $evening_sermons = Sermon::where('preacher', $preacher)->where('service', 'evening')->orderBy('filename', 'desc')->get();
+        $morning_OldSermons = OldSermon::where('preacher', $preacher)->where('service', 'morning')->orderBy('filename', 'desc')->get();
+        $evening_OldSermons = OldSermon::where('preacher', $preacher)->where('service', 'evening')->orderBy('filename', 'desc')->get();
 
-        return View::make('pages.sermons.sermonsbypreacher', array('preacher' => $preacher, 'morning_sermons' => $morning_sermons, 'evening_sermons' => $evening_sermons));
+        return View::make('pages.OldSermons.OldSermonsbypreacher', array('preacher' => $preacher, 'morning_OldSermons' => $morning_OldSermons, 'evening_OldSermons' => $evening_OldSermons));
     }
 
     public function year($year)
     {
-        $morning_sermons = Sermon::where('date', 'LIKE', '%'.$year.'%')->where('service', 'morning')->orderBy('filename', 'desc')->get();
-        $evening_sermons = Sermon::where('date', 'LIKE', '%'.$year.'%')->where('service', 'evening')->orderBy('filename', 'desc')->get();
+        $morning_OldSermons = OldSermon::where('date', 'LIKE', '%'.$year.'%')->where('service', 'morning')->orderBy('filename', 'desc')->get();
+        $evening_OldSermons = OldSermon::where('date', 'LIKE', '%'.$year.'%')->where('service', 'evening')->orderBy('filename', 'desc')->get();
 
-        return View::make('pages.sermons.sermonsbyyear', array('morning_sermons' => $morning_sermons, 'evening_sermons' => $evening_sermons, 'year' => $year));
+        return View::make('pages.OldSermons.OldSermonsbyyear', array('morning_OldSermons' => $morning_OldSermons, 'evening_OldSermons' => $evening_OldSermons, 'year' => $year));
     }
 
     public function series($series)
     {
         $series = str_replace('_', ' ', $series);
-        $sermons = Sermon::where('series', $series)->orderBy('filename', 'desc')->get();
+        $OldSermons = OldSermon::where('series', $series)->orderBy('filename', 'desc')->get();
 
-        return View::make('pages.sermons.sermonsbyseries', array('morning_sermons' => $morning_sermons, 'evening_sermons' => $evening_sermons, 'series' => $series));
+        return View::make('pages.OldSermons.OldSermonsbyseries', array('OldSermons' => $OldSermons, 'series' => $series));
     }
 }
 ?>

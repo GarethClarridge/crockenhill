@@ -103,8 +103,8 @@ Route::filter('csrf', function()
 View::composer('layouts.sections.footer', function($view)
 {
     //get the latest sermons
-    $latest_morning_sermon = Sermon::where('service', 'morning')->orderBy('date', 'desc')->first();
-    $latest_evening_sermon = Sermon::where('service', 'evening')->orderBy('date', 'desc')->first();
+    $latest_morning_sermon = OldSermon::where('service', 'morning')->orderBy('date', 'desc')->first();
+    $latest_evening_sermon = OldSermon::where('service', 'evening')->orderBy('date', 'desc')->first();
 
     // and create the view composer
     $view->with('latest_morning_sermon', $latest_morning_sermon);
@@ -113,20 +113,20 @@ View::composer('layouts.sections.footer', function($view)
 
 View::composer('pages.Home', function($view)
 {
-    //get the latest sermons
-    $latest_morning_sermon = Sermon::where('service', 'morning')->orderBy('date', 'desc')->first();
-    $latest_evening_sermon = Sermon::where('service', 'evening')->orderBy('date', 'desc')->first();
+    //get the latest OldSermons
+    $latest_morning_sermon = OldSermon::where('service', 'morning')->orderBy('date', 'desc')->first();
+    $latest_evening_sermon = OldSermon::where('service', 'evening')->orderBy('date', 'desc')->first();
 
     // and create the view composer
-    $view->with('latest_morning_sermon', $latest_morning_sermon);
-    $view->with('latest_evening_sermon', $latest_evening_sermon);
+    $view->with('latest_morning_sermon', $latest_morning_OldSermon);
+    $view->with('latest_evening_sermon', $latest_evening_OldSermon);
 });
 
 View::composer('layouts.sections.sermonsfragment', function($view)
 {
     //Get the preachers and series from the database
-    $preachers = Sermon::select('preacher')->distinct()->orderBy('preacher', 'asc')->get();
-    $serieses = Sermon::where('series', '!=', 'NULL')->select('series')->distinct()->get();
+    $preachers = OldSermon::select('preacher')->distinct()->orderBy('preacher', 'asc')->get();
+    $serieses = OldSermon::where('series', '!=', 'NULL')->select('series')->distinct()->get();
 
     //bind them to the view
     $view->with('preachers', $preachers);

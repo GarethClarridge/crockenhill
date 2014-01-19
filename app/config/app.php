@@ -115,6 +115,7 @@ return array(
 		'Illuminate\Workbench\WorkbenchServiceProvider',
 		'Way\Console\GuardLaravelServiceProvider',
 		'Cartalyst\Sentry\SentryServiceProvider',
+		'Krucas\Notification\NotificationServiceProvider',
 	),
 
 	/*
@@ -180,6 +181,7 @@ return array(
 		'Validator'       => 'Illuminate\Support\Facades\Validator',
 		'View'            => 'Illuminate\Support\Facades\View',
 		'Sentry' => 'Cartalyst\Sentry\Facades\Laravel\Sentry',
+		'Notification' => 'Krucas\Notification\Facades\Notification',
 
 	),
 

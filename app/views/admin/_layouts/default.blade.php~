@@ -9,14 +9,14 @@
 <body>
 <div class="container">
     <div class="navbar navbar-inverse navbar-fixed-top">
-    <div class="navbar-inner">
-        <div class="container">
-            <a class="brand" href="{{ URL::route('admin.pages.index') }}">L4 Site</a>
+        <div class="navbar-inner">
+            <div class="container">
+                <a class="brand" href="{{ URL::route('admin.pages.index') }}">L4 Site</a>
 
-            @include('admin._partials.navigation')
+                @include('admin._partials.navigation')
+            </div>
         </div>
     </div>
-</div>
  
 <hr>
  

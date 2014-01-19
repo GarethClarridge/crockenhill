@@ -300,3 +300,19 @@ App::missing(function($exception)
 {
     return Response::view('errors.missing', array(), 404);
 });
+
+// CMS Experiment
+
+Route::get('admin/logout', array('as' => 'admin.logout', 'uses' => 'App\Controllers\Admin\AuthController@getLogout'));
+
+Route::get('admin/login', array('as' => 'admin.login', 'uses' => 'Admin\AuthController@getLogin'));
+
+Route::post('admin/login', array('as' => 'admin.login.post', 'uses' => 'App\Controllers\Admin\AuthController@postLogin'));
+
+Route::group(array('prefix' => 'admin', 'before' => 'auth.admin'), function()
+{
+        Route::any('/', 'App\Controllers\Admin\PagesController@index');
+        Route::resource('sermons', 'App\Controllers\Admin\SermonsController');
+        Route::resource('pages', 'App\Controllers\Admin\PagesController');
+});
+
