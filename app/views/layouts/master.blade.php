@@ -12,7 +12,7 @@
         @include('layouts.sections.header')
 	</header>
 
-	<main id="main">
+	<main class="container">
 	    @yield('content')
 	</main>
 

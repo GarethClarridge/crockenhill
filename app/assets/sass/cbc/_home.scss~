@@ -29,7 +29,7 @@
         display: block;
         text-decoration: none;
         color: $gray-darker;
-        background-color: #FFFFFF;
+        background-color: $gray-lightest;
         margin: 2% 1%;
         padding: 30px;
         box-shadow: 1px 1px 4px $gray-light;
@@ -47,15 +47,35 @@
     .media-body {
         margin-left: 20px;
     }
-   
-    /* 1 column by default */
-    .grid-sizer, .home-block { width: 100%; }
-
-    @media screen and (min-width: $screen-md) {
-      /* 2 columns for larger screens */
-      .grid-sizer, .home-block { width: 50%; }
+    
+    .home-block-list
+    {
+        width: 103.125%; /* 990px */
+        overflow: hidden;
     }
-       
+    
+    .home-block
+    {
+        width: 46.876%; /* 305px */
+        float: left;
+        margin: 0 1.515% 1.875em; /* 15px 30px */
+    }
+     
+    @media only screen and ( max-width: $screen-md )
+    {
+        .home-block-list
+        {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        .home-block
+        {
+            width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+        }
+    }
 }
 
 .home-footer {

@@ -79,7 +79,7 @@
 	            <dt><a href="{{ route('familyfunnight') }}">Family Fun Night</a></dt>
 	            <dd>An evening for the family at the end of the school year.</dd>
 	            <dt><a href="{{ route('carolsatthechequers') }}">Carols at the Chequers</a></dt>
-	            <dd>A carol service in the village pub.</p>
+	            <dd>A carol service in the village pub.</dd>
 	            <dt><a href="{{ route('christianityexplored') }}">Christianity Explored course</a></dt>
 	            <dd>A 7 week course for people wanting to find out more about Christianity.</dd>
             </dl>
@@ -88,5 +88,6 @@
 
 </div>
 
-
 @stop
+
+@section('aside', '')

@@ -1,4 +1,4 @@
-guard :concat, :type => "css", :files => %w[main], :input_dir => "public/css", :output => "public/css/styles.min"
+guard :concat, :type => "css", :files => %w[cbc/cards main], :input_dir => "public/css", :output => "public/css/styles.min"
 
 guard :concat, :type => "js", :files => %w[bootstrap.min masonry.pkgd.min], :input_dir => "public/js", :output => "public/js/scripts.min"
 

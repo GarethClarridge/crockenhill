@@ -6,7 +6,7 @@
 
 @section('breadcrumbs', '<li class="active">About Us</li>')
 
-@section('header', '<h1>About Crockenhill Baptist Church</h1>')
+@section('header', 'About Crockenhill Baptist Church')
 
 @section('main-content')
 
@@ -18,25 +18,45 @@
 
 @section('aside')
 
-<h4>More Information:</h4>
-
-<div class="list-group">
-  <a href="{{ route('whatwebelieve') }}" class="list-group-item">
-    <h5 class="list-group-item-heading">What We Believe</h5>
-    <small class="list-group-item-text">A short summary of our beliefs in everyday English. No technical terms here!</small>
-  </a>
-  <a href="{{ route('statementoffaith') }}" class="list-group-item">
-    <h5 class="list-group-item-heading">Statement of Faith</h5>
-    <small class="list-group-item-text">A more complete summary of our beliefs, giving Bible references and using slightly more technical language.</small>
-  </a>
-  <a href="{{ route('history') }}" class="list-group-item">
-    <h5 class="list-group-item-heading">History</h5>
-    <small class="list-group-item-text">Information about our church started.</small>
-  </a>
-    <a href="{{ route('pastor') }}" class="list-group-item">
-    <h5 class="list-group-item-heading">Pastor</h5>
-    <small class="list-group-item-text">Our pastor, Mark Drury.</small>
-  </a>
-</div>
+<aside class="col-xs-6 col-md-3">
+    <div class="card">
+        <a href="{{ route('whatwebelieve') }}">
+            <div class="header-container">
+                <h5>What We Believe</h5>
+            </div>
+            <small>A short summary of our beliefs in everyday English. No technical terms here!</small>
+        </a>
+    </div>
+</aside>
+<aside class="col-xs-6 col-md-3">
+    <div class="card">
+        <a href="{{ route('statementoffaith') }}">
+            <div class="header-container">
+                <h5>Statement of Faith</h5>
+            </div>
+        <small>A more complete summary of our beliefs, giving Bible references and using slightly more technical language.</small>
+        </a>
+    </div>
+</aside>
+<aside class="col-xs-6 col-md-3">
+    <div class="card">
+        <a href="{{ route('history') }}">
+            <div class="header-container">
+                <h5>History</h5>
+            </div>
+            <small>Information about our church started.</small>
+        </a>
+    </div>
+</aside>
+<aside class="col-xs-6 col-md-3">
+    <div class="card">
+        <a href="{{ route('pastor') }}">
+            <div class="header-container">
+                <h5>Pastor</h5>
+            </div>
+            <small>Our pastor, Mark Drury.</small>
+        </a>
+    </div>
+</aside>
 
 @stop
