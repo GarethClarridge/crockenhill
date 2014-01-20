@@ -305,7 +305,7 @@ App::missing(function($exception)
 
 Route::get('admin/logout', array('as' => 'admin.logout', 'uses' => 'App\Controllers\Admin\AuthController@getLogout'));
 
-Route::get('admin/login', array('as' => 'admin.login', 'uses' => 'Admin\AuthController@getLogin'));
+Route::get('admin/login', array('as' => 'admin.login', 'uses' => 'App\Controllers\Admin\AuthController@getLogin'));
 
 Route::post('admin/login', array('as' => 'admin.login.post', 'uses' => 'App\Controllers\Admin\AuthController@postLogin'));
 
@@ -316,3 +316,19 @@ Route::group(array('prefix' => 'admin', 'before' => 'auth.admin'), function()
         Route::resource('pages', 'App\Controllers\Admin\PagesController');
 });
 
+// Stuff he wants to go in public/site/routes.php
+
+Route::get('index', array('as' => 'home', function() {
+    return View::make('index')
+               ->with('entry', Page::where('slug', 'welcome')->first());
+}));
+
+Route::get('blog', array('as' => 'sermon.list', function() {
+    return View::make('sermons')
+               ->with('entries', Sermon::orderBy('created_at', 'desc')->get());
+}));
+
+Route::get('blog/{slug}', array('as' => 'sermon', function($slug) {
+    return View::make('sermon')
+               ->with('entry', Sermon::where('slug', $slug)->first());
+}));

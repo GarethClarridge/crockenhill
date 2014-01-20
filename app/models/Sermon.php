@@ -7,7 +7,7 @@ class Sermon extends \Eloquent {
  
     public function author()
     {
-        return $this->belongsTo('User');
+        return $this->belongsTo('App\Models\User', 'user_id');
     }
  
 }

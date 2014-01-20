@@ -316,3 +316,24 @@ Route::group(array('prefix' => 'admin', 'before' => 'auth.admin'), function()
         Route::resource('pages', 'App\Controllers\Admin\PagesController');
 });
 
+// Stuff he wants to go in public/site/routes.php
+
+Route::get('index', array('as' => 'home', function() {
+    return View::make('index')
+               ->with('entry', Page::where('slug', 'welcome')->first());
+}));
+
+Route::get('blog', array('as' => 'sermon.list', function() {
+    return View::make('sermons')
+               ->with('entries', Sermon::orderBy('created_at', 'desc')->get());
+}));
+
+Route::get('blog/{slug}', array('as' => 'sermon', function($slug) {
+    return View::make('sermon')
+               ->with('entry', Sermon::where('slug', $slug)->first());
+}));
+
+Route::get('page/{slug}', array('as' => 'page', function($slug) {
+    return View::make('page')
+               ->with('entry', Page::where('slug', $slug)->first());
+}))->where('slug', '^((?!admin).)*$');

@@ -180,7 +180,11 @@ return array(
 		'URL'             => 'Illuminate\Support\Facades\URL',
 		'Validator'       => 'Illuminate\Support\Facades\Validator',
 		'View'            => 'Illuminate\Support\Facades\View',
-		'Sentry' => 'Cartalyst\Sentry\Facades\Laravel\Sentry',
+		'Sentry'          => 'Cartalyst\Sentry\Facades\Laravel\Sentry',
+		'Notification'    => 'Krucas\Notification\Facades\Notification',
+		'Sermon'          => 'App\Models\Sermon',
+        'Page'            => 'App\Models\Page',
+        'Image'           => 'App\Facades\ImageFacade'
 
 	),
 

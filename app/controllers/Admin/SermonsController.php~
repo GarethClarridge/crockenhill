@@ -37,7 +37,7 @@ class SermonsController extends \BaseController {
             // Now that we have the article ID we need to move the image
             if (Input::hasFile('image'))
             {
-                $sermon->image = \Image::upload(Input::file('image'), 'sermons/' . $sermon->id);
+                $sermon->image = Image::upload(Input::file('image'), 'sermons/' . $sermon->id);
                 $sermon->save();
             }
  

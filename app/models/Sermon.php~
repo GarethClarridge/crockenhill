@@ -1,4 +1,4 @@
-<?php 
+<?php
 namespace App\Models;
  
 class Sermon extends \Eloquent {
@@ -7,7 +7,7 @@ class Sermon extends \Eloquent {
  
     public function author()
     {
-        return $this->belongsTo('User');
+        return $this->belongsTo('App\Models\User');
     }
  
 }

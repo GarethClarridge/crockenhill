@@ -2,10 +2,7 @@
  
 use App\Models\Page;
 use Input, Redirect, Sentry, Str;
-
-...
 use Notification;
-...
  
 class PagesController extends \BaseController {
  
