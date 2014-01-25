@@ -1,7 +1,0 @@
-* 443d046 2014-01-18 | Side navigation improved (HEAD, styleupdate) [Gareth Clarridge]
-* 49d6de2 2014-01-17 | Typographic changes [Gareth Clarridge]
-* 184e1e9 2014-01-17 | Added header background image [Gareth Clarridge]
-* c66c295 2014-01-17 | Cards added [Gareth Clarridge]
-* 76af3c2 2014-01-17 | Start of 2014 [Gareth Clarridge]
-* 8fc1c93 2013-11-12 | Cleaned up HTML, made minor stylistic changes (submenubar) [Gareth Clarridge]
-* 1215663 2013-11-12 | Initial commit (tag: v1, master, develop) [Gareth Clarridge]

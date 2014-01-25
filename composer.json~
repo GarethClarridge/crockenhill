@@ -2,15 +2,12 @@
 	"name": "laravel/laravel",
 	"description": "The Laravel Framework.",
 	"keywords": ["framework", "laravel"],
+	"license": "MIT",	
 	"require-dev": {
 	    "way/guard-laravel": "dev-master"
 	},
 	"require": {
-		"laravel/framework": "4.1.*",
-        "cartalyst/sentry": "2.0.*",
-        "dflydev/markdown": "v1.0.2",
-        "imagine/Imagine": "v0.4.1",
-        "edvinaskrucas/notification": "1.*"
+		"laravel/framework": "4.1.*"
 	},
 	"autoload": {
 		"classmap": [
@@ -19,19 +16,16 @@
 			"app/models",
 			"app/database/migrations",
 			"app/database/seeds",
-			"app/tests/TestCase.php",
-			"app/services"
+			"app/tests/TestCase.php"
 		]
-
 	},
 	"scripts": {
 		"post-install-cmd": [
+			"php artisan clear-compiled",
 			"php artisan optimize"
 		],
-		"pre-update-cmd": [
-			"php artisan clear-compiled"
-		],
 		"post-update-cmd": [
+			"php artisan clear-compiled",
 			"php artisan optimize"
 		],
 		"post-create-project-cmd": [
@@ -41,5 +35,5 @@
 	"config": {
 		"preferred-install": "dist"
 	},
-	"minimum-stability": "dev"
+	"minimum-stability": "stable"
 }

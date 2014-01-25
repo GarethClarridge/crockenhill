@@ -1,0 +1,4 @@
+@import "base.sass";
+
+// Styles specific for the frontend
+

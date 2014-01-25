@@ -1,0 +1,24 @@
+{
+  "name": "crockenhill.dev",
+  "version": "5.0.0",
+  "description": "A website for Crockenhill Baptist Church, with CMS functionality",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Church",
+    "website",
+    "laravel"
+  ],
+  "author": "Gareth Clarridge",
+  "license": "BSD-2-Clause",
+  "devDependencies": {
+    "grunt": "~0.4.2",
+    "grunt-contrib-concat": "~0.3.0",
+    "grunt-contrib-sass": "~0.6.0",
+    "grunt-contrib-uglify": "~0.3.2",
+    "grunt-contrib-watch": "~0.5.3",
+    "grunt-phpunit": "~0.3.2"
+  }
+}
