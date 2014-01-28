@@ -1,0 +1,18 @@
+[Tue Jan 28 14:51:40.525201 2014] [:error] [pid 1139] [client 127.0.0.1:41253] PHP Parse error:  syntax error, unexpected '->' (T_OBJECT_OPERATOR) in /home/gareth/Projects/crockenhill.dev/app/filters.php on line 109
+[Tue Jan 28 14:55:44.838609 2014] [:error] [pid 1139] [client 127.0.0.1:41295] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:55:46.557891 2014] [:error] [pid 1140] [client 127.0.0.1:41296] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:56:07.166832 2014] [:error] [pid 1142] [client 127.0.0.1:41303] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:56:27.175604 2014] [:error] [pid 1139] [client 127.0.0.1:41306] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:57:01.766250 2014] [:error] [pid 1140] [client 127.0.0.1:41307] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:57:11.437444 2014] [:error] [pid 1141] [client 127.0.0.1:41308] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:57:12.449347 2014] [:error] [pid 2742] [client 127.0.0.1:41309] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:57:55.544182 2014] [:error] [pid 1142] [client 127.0.0.1:41310] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:57:56.415423 2014] [:error] [pid 1138] [client 127.0.0.1:41311] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:59:16.609919 2014] [:error] [pid 1141] [client 127.0.0.1:41314] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 14:59:17.605664 2014] [:error] [pid 2742] [client 127.0.0.1:41315] PHP Fatal error:  Class 'View' not found in /home/gareth/Projects/crockenhill.dev/app/composers.php on line 6
+[Tue Jan 28 15:22:41.107894 2014] [:error] [pid 3448] [client 127.0.0.1:41631] PHP Parse error:  syntax error, unexpected ';' in /home/gareth/Projects/crockenhill.dev/app/routes.php on line 15, referer: http://crockenhill.dev/
+[Tue Jan 28 15:22:47.095010 2014] [:error] [pid 3449] [client 127.0.0.1:41635] PHP Parse error:  syntax error, unexpected ';' in /home/gareth/Projects/crockenhill.dev/app/routes.php on line 15, referer: http://crockenhill.dev/
+[Tue Jan 28 15:22:55.052283 2014] [:error] [pid 3450] [client 127.0.0.1:41638] PHP Parse error:  syntax error, unexpected end of file in /home/gareth/Projects/crockenhill.dev/app/routes.php on line 16, referer: http://crockenhill.dev/
+[Tue Jan 28 15:22:56.542238 2014] [:error] [pid 3451] [client 127.0.0.1:41640] PHP Parse error:  syntax error, unexpected end of file in /home/gareth/Projects/crockenhill.dev/app/routes.php on line 16, referer: http://crockenhill.dev/
+[Tue Jan 28 15:56:44.709036 2014] [:error] [pid 3449] [client 127.0.0.1:42091] PHP Parse error:  syntax error, unexpected end of file in /home/gareth/Projects/crockenhill.dev/app/routes.php on line 18, referer: http://crockenhill.dev/
+[Tue Jan 28 18:23:48.213330 2014] [:error] [pid 19973] [client 127.0.0.1:42590] PHP Parse error:  syntax error, unexpected ''heading'' (T_CONSTANT_ENCAPSED_STRING), expecting ')' in /home/gareth/Projects/crockenhill.dev/app/controllers/PageController.php on line 16, referer: http://crockenhill.dev/about

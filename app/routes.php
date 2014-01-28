@@ -11,7 +11,7 @@
 |
 */
 
-Route::get('/', function()
-{
-	return View::make('hello');
-});
+Route::get('/', array('uses' => 'HomeController@showHome',
+                        'as' => 'Home'));
+                        
+Route::get('/{slug}', array('uses' => 'PageController@showPage'));

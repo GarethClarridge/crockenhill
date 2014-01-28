@@ -78,3 +78,37 @@ Route::filter('csrf', function()
 		throw new Illuminate\Session\TokenMismatchException;
 	}
 });
+
+// A file I've made to house the view composers, 
+// as I couldn't think of a better place for them.
+
+View::composer('includes.header', function($view)
+    {
+        $pages = array(
+
+            'AboutUs' => array('route'=> 'AboutUs', 'name' => 'About Us'),
+            'WhatsOn' => array('route'=> 'WhatsOn', 'name' => 'What\'s On'),
+            'Where' => array('route'=> 'Where', 'name' => 'Where'),
+            'ContactUs' => array('route' => 'ContactUs', 'name' => 'Contact Us'),
+            'Sermons' =>array('route'=> 'Sermons', 'name' => 'Sermons'),
+            'Publications' => array('route'=> 'Publications', 'name' => 'Publications'),
+            'Links' => array('route'=> 'Links', 'name' => 'Links'),
+        
+        );
+        
+        $view->with('pages', $pages);
+        
+    });
+    
+View::composer('includes.footer', function($view)
+    {
+        //get the latest sermons
+        $latest_morning_sermon = 'Morning';//Sermon::where('service', 'morning')
+            //->orderBy('date', 'desc')->first();
+        $latest_evening_sermon = 'Evening';//Sermon::where('service', 'evening')
+            //->orderBy('date', 'desc')->first();
+
+        // and create the view composer
+        $view->with('latest_morning_sermon', $latest_morning_sermon);
+        $view->with('latest_evening_sermon', $latest_evening_sermon);
+    });

@@ -1,0 +1,40 @@
+<?php
+
+// A file I've made to house the view composers, 
+// as I couldn't think of a better place for them.
+
+View::composer('_partials.header', function($view)
+    {
+        $pages = array(
+            'AboutUs' => 'crockenhill.dev/aboutus',
+            'WhatsOn' => 'crockenhill.dev/whatson'
+        /*
+            'AboutUs' => array('route'=> 'AboutUs', 'name' => 'About Us'),
+            'WhatsOn' => array('route'=> 'WhatsOn', 'name' => 'What\'s On'),
+            'Where' => array('route'=> 'Where', 'name' => 'Where'),
+            'ContactUs' => array('route' => 'ContactUs', 'name' => 'Contact Us'),
+            'Sermons' =>array('route'=> 'Sermons', 'name' => 'Sermons'),
+            'Publications' => array('route'=> 'Publications', 'name' => 'Publications'),
+            'Links' => array('route'=> 'Links', 'name' => 'Links'),
+        */
+        
+        );
+        
+        die(10);
+        
+        $view->with('pages', $pages);
+        
+    });
+    
+View::composer('_partials.footer', function($view)
+    {
+        //get the latest sermons
+        $latest_morning_sermon = //Sermon::where('service', 'morning')
+            //->orderBy('date', 'desc')->first();
+        $latest_evening_sermon = //Sermon::where('service', 'evening')
+            //->orderBy('date', 'desc')->first();
+
+        // and create the view composer
+        $view->with('latest_morning_sermon', $latest_morning_sermon);
+        $view->with('latest_evening_sermon', $latest_evening_sermon);
+    });

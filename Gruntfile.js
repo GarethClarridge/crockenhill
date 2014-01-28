@@ -11,9 +11,7 @@ module.exports = function(grunt) {
             },
             files: {
               //compiling frontend.scss into frontend.css
-              "./public/stylesheets/frontend.css":"./app/assets/stylesheets/frontend.scss",
-              //compiling backend.scss into backend.css
-              "./public/stylesheets/backend.css":"./app/assets/stylesheets/backend.scss"
+              "./public/stylesheets/main.css":"./app/assets/stylesheets/main.scss"
             }
         }
     },
@@ -25,6 +23,7 @@ module.exports = function(grunt) {
         src: [
           './bower_components/jquery/jquery.js',
           './bower_components/sass-bootstrap/dist/js/bootstrap.js',
+          './app/assets/javascript/masonry.pkgd.min.js',
           './app/assets/javascript/frontend.js'
         ],
         dest: './public/scripts/frontend.js',
@@ -78,11 +77,17 @@ module.exports = function(grunt) {
             livereload: true                        //reloads the browser
           }
         },
-        less: {
+        sass: {
           files: ['./app/assets/stylesheets/*.scss'],  //watched files
           tasks: ['sass'],                          //tasks to run
           options: {
             livereload: true                        //reloads the browser
+          }
+        },
+        markup: {
+          files: ['./app/**/*.php'],
+          options: {
+            livereload: true,
           }
         },
       }
