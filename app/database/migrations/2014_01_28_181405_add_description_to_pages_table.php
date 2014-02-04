@@ -27,7 +27,7 @@ class AddDescriptionToPagesTable extends Migration {
 	{
 		Schema::table('pages', function(Blueprint $table)
 		{
-			//
+			$table->dropColumn('description');
 		});
 	}
 

@@ -42,7 +42,7 @@ class User extends Eloquent implements UserInterface, RemindableInterface {
     /**
      * Add roles to user to make them a concierge
      */
-    public function givePermission($title)
+    public function makeEmployee($title)
     {
         $assigned_roles = array();
  
