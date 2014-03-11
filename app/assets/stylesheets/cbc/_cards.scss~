@@ -6,9 +6,10 @@
         width: 119.047619%;
         margin-left: -9.5238095%;
         margin-top: 0;
-        margin-bottom: $line-height;
+        margin-bottom: $line-height-computed;
         background-image: url(../images/church_blur.png);
         background-size: cover;
+        background-position: bottom;
         
         h1, h2, h3, h4, h5, h6 {
             padding-left: 9.5238095%;

@@ -13,5 +13,28 @@
 
 Route::get('/', array('uses' => 'HomeController@showHome',
                         'as' => 'Home'));
-                        
+
+Route::get('members/logout', array(
+    'as' => 'members.logout', 
+    'uses' => 'AuthController@getLogout'
+    ));
+    
+Route::get('members/login', array(
+    'as' => 'members.login',
+    'uses' => 'AuthController@getLogin'
+    ));
+    
+Route::post('members/login', array(
+    'as' => 'members.login.post', 
+    'uses' => 'AuthController@postLogin'
+    ));
+
+Route::group(array('prefix' => 'members', 'before' => 'auth.members'), function()
+{
+        Route::any('/', 'MemberPageController@index');
+        Route::resource('sermons', 'AdminSermonsController');
+        Route::resource('pages', 'AdminPagesController');
+});
+
 Route::get('/{slug}', array('uses' => 'PageController@showPage'));
+

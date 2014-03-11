@@ -7,10 +7,10 @@ module.exports = function(grunt) {
     sass: {
         dist: {
             options: {
-              style: 'compressed',  
+              style: 'expanded',  
             },
             files: {
-              //compiling frontend.scss into frontend.css
+              //compiling main.scss into main.css
               "./public/stylesheets/main.css":"./app/assets/stylesheets/main.scss"
             }
         }

@@ -85,9 +85,7 @@ Route::filter('csrf', function()
 View::composer('includes.header', function($view)
     {
         $pages = array(
-            'AboutUs' => 'crockenhill.dev/aboutus',
-            'WhatsOn' => 'crockenhill.dev/whatson'
-        /*
+
             'AboutUs' => array('route'=> 'AboutUs', 'name' => 'About Us'),
             'WhatsOn' => array('route'=> 'WhatsOn', 'name' => 'What\'s On'),
             'Where' => array('route'=> 'Where', 'name' => 'Where'),
@@ -95,7 +93,6 @@ View::composer('includes.header', function($view)
             'Sermons' =>array('route'=> 'Sermons', 'name' => 'Sermons'),
             'Publications' => array('route'=> 'Publications', 'name' => 'Publications'),
             'Links' => array('route'=> 'Links', 'name' => 'Links'),
-        */
         
         );
         

@@ -12,7 +12,7 @@
 
     @yield('description')
 
-    {{ HTML::style('stylesheets/frontend.css') }}
+    {{ HTML::style('stylesheets/main.css') }}
     <link href='http://fonts.googleapis.com/css?family=Poly|Roboto:400,300italic,900' rel='stylesheet' type='text/css'>
 
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -30,8 +30,7 @@
     <header>
         @include('includes.header')
     </header>
-    <main>
-    </main>
+
     @yield('content')
     
     <footer>

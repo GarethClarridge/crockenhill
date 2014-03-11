@@ -5,7 +5,7 @@
 	"license": "MIT",
 	"require": {
 		"laravel/framework": "4.1.*",
-		"zizaco/entrust": "dev-master"
+		"edvinaskrucas/notification": "1.*"
 	},
 	"autoload": {
 		"classmap": [

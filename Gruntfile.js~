@@ -10,7 +10,7 @@ module.exports = function(grunt) {
               style: 'compressed',  
             },
             files: {
-              //compiling frontend.scss into frontend.css
+              //compiling main.scss into main.css
               "./public/stylesheets/main.css":"./app/assets/stylesheets/main.scss"
             }
         }
