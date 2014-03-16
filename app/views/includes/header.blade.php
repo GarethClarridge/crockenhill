@@ -17,7 +17,7 @@
 		            @else
 		                <li>
 		            @endif
-		                <a href=" {{-- URL::route($page['route']) --}} ">{{$page['name']}}</a>
+		                {{ link_to($page['route'], $page['name']) }}
 		            </li>
 	            @endforeach
 
@@ -28,7 +28,7 @@
 	            @else
 	                <li>
 	            @endif
-	                <a href=" {{-- URL::route('Members') --}} ">Members</a>
+	                <a href="/members">Members</a>
 	            </li>
 	            
             </ul>

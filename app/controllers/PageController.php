@@ -16,7 +16,7 @@ class PageController extends BaseController {
 		    'heading'       => $page->heading,
 		    'breadcrumbs'   => $active_breadcrumb,
 		    'description'   => $description,
-		    'content'       => $page->body,
+		    'content'       => htmlspecialchars_decode($page->body),
 		));
 	}
 

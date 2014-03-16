@@ -94,13 +94,13 @@ View::composer('includes.header', function($view)
     {
         $pages = array(
 
-            'AboutUs' => array('route'=> 'AboutUs', 'name' => 'About Us'),
-            'WhatsOn' => array('route'=> 'WhatsOn', 'name' => 'What\'s On'),
-            'Where' => array('route'=> 'Where', 'name' => 'Where'),
-            'ContactUs' => array('route' => 'ContactUs', 'name' => 'Contact Us'),
-            'Sermons' =>array('route'=> 'Sermons', 'name' => 'Sermons'),
-            'Publications' => array('route'=> 'Publications', 'name' => 'Publications'),
-            'Links' => array('route'=> 'Links', 'name' => 'Links'),
+            'AboutUs' => array('route'=> 'about-us', 'name' => 'About Us'),
+            'WhatsOn' => array('route'=> 'whats-on', 'name' => 'What\'s On'),
+            'Where' => array('route'=> 'find-us', 'name' => 'Where'),
+            'ContactUs' => array('route' => 'contact-us', 'name' => 'Contact Us'),
+            'Sermons' =>array('route'=> 'sermons', 'name' => 'Sermons'),
+            'Publications' => array('route'=> 'publications', 'name' => 'Publications'),
+            'Links' => array('route'=> 'links', 'name' => 'Links'),
         
         );
         
