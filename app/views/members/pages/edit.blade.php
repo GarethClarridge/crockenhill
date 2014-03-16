@@ -26,15 +26,20 @@
         </div>
 
         <div class="form-group">
-            {{ Form::label('body', 'Content') }}
-            {{ Form::textarea('body', $value = null, array('class' => 'form-control')) }}
-        </div>
-        
-        <div class="form-group">
             {{ Form::label('description', 'Description') }}
             {{ Form::text('description', $value = null, array('class' => 'form-control')) }}
         </div>
 
+        <div class="form-group">
+            {{ Form::label('parent', 'Website Area') }}
+            {{ Form::select('parent', array('' => 'Top level page', 'aboutus' => 'About Us', 'whatson' => 'What\'s On'), $value = null, array('class' => 'form-control')) }}
+        </div>
+
+        <div class="form-group">
+            {{ Form::label('body', 'Content') }}
+            {{ Form::textarea('body', $value = null, array('class' => 'form-control')) }}
+        </div>
+        
         <div class="form-actions">
             {{ Form::submit('Save', array('class' => 'btn btn-success btn-save btn-large')) }}
             <a href="{{ URL::route('members.pages.index') }}" class="btn btn-large">Cancel</a>

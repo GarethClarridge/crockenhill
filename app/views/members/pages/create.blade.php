@@ -26,9 +26,9 @@
         </div>
 
         <div class="control-group">
-            {{ Form::label('body', 'Content') }}
+            {{ Form::label('parent', 'Parent') }}
             <div class="controls">
-                {{ Form::textarea('body') }}
+                {{ Form::text('parent') }}
             </div>
         </div>
 
@@ -36,6 +36,13 @@
             {{ Form::label('description', 'Description') }}
             <div class="controls">
                 {{ Form::text('description') }}
+            </div>
+        </div>
+
+        <div class="control-group">
+            {{ Form::label('body', 'Content') }}
+            <div class="controls">
+                {{ Form::textarea('body') }}
             </div>
         </div>
 

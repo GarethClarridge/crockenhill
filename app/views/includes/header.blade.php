@@ -6,7 +6,7 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-	        <a class="navbar-brand logo" href=" {{-- URL::route('Home') --}} ">Crockenhill Baptist Church</a>
+	        <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
         </div>
         <div class="navbar-collapse collapse">
             <ul class="nav navbar-nav">

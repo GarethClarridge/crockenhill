@@ -20,7 +20,7 @@
                     <tr>
                         <td><a href="{{ URL::route('members.pages.show', $page->slug) }}">{{ $page->heading }}</a>
                         </td>
-                        <td>{{ $page->created_at }}</td>
+                        <td>{{ $page->updated_at }}</td>
                         <td>
                             {{ Form::open(array('route' => array('members.pages.destroy', $page->slug), 'method' => 'delete', 'data-confirm' => 'Are you sure you want to delete this page?', 'class' => 'form-inline')) }}
                             <a href="{{ URL::route('members.pages.edit', $page->slug) }}" class="btn btn-primary">
