@@ -208,7 +208,7 @@ $dropdown-caret-color:           #000;
 //$screen-phone:               $screen-xs;
 
 //// Small screen / tablet
-//$screen-sm:                  736px;
+//$screen-sm:                  768px;
 //$screen-tablet:              $screen-sm;
 
 //// Medium screen / desktop
@@ -233,14 +233,14 @@ $dropdown-caret-color:           #000;
 //// Padding, to be divided by two and applied to the left and right of all columns
 //$grid-gutter-width:         30px;
 //// Point at which the navbar stops collapsing
-//$grid-float-breakpoint:     936px;
+//$grid-float-breakpoint:     $screen-tablet;
 
 
 //// Navbar
 //// -------------------------
 
 //// Basics of a navbar
-//$navbar-height:                    50px;
+$navbar-height:                    50px;
 //$navbar-margin-bottom:             $line-height-computed;
 //$navbar-default-color:             #777;
 //$navbar-default-bg:                #f8f8f8;

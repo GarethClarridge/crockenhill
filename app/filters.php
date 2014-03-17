@@ -96,9 +96,11 @@ View::composer('includes.header', function($view)
 
             'AboutUs' => array('route'=> 'about-us', 'name' => 'About Us'),
             'WhatsOn' => array('route'=> 'whats-on', 'name' => 'What\'s On'),
-            'FindUs' => array('route'=> 'find-us', 'name' => 'Find Us'),
+            'Where' => array('route'=> 'find-us', 'name' => 'Where'),
             'ContactUs' => array('route' => 'contact-us', 'name' => 'Contact Us'),
             'Sermons' =>array('route'=> 'sermons', 'name' => 'Sermons'),
+            'Publications' => array('route'=> 'publications', 'name' => 'Publications'),
+            'Links' => array('route'=> 'links', 'name' => 'Links'),
         
         );
         

@@ -78,7 +78,7 @@ module.exports = function(grunt) {
           }
         },
         sass: {
-          files: ['./app/assets/stylesheets/cbc/*.scss'],  //watched files
+          files: ['./app/assets/stylesheets/*.scss'],  //watched files
           tasks: ['sass'],                          //tasks to run
           options: {
             livereload: true                        //reloads the browser

@@ -9,28 +9,24 @@
 	        <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
         </div>
         <div class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
 
-            <ul class="nav navbar-nav navbar-right">
+                @foreach ($pages as $page)
+		            @if (Request::is($page['route']))
+		                <li class="active">
+		            @else
+		                <li>
+		            @endif
+		                {{ link_to($page['route'], $page['name']) }}
+		            </li>
+	            @endforeach
 
-              @foreach ($pages as $page)
-                @if (Request::is($page['route']))
-                    <li class="active">
-                    {{ link_to($page['route'], $page['name']) }}
-                    <span class="nav-notch">&nbsp</span>
-                    </li>
-                    
-                @else
-                    <li>
-                    {{ link_to($page['route'], $page['name']) }}
-                    </li>
-                @endif
-
-              @endforeach
-
+            </ul>
+            <ul class="nav navbar-nav pull-right">
 	            @if (Request::is('Members'))
-	                <li class="active members-link">
+	                <li class="active">
 	            @else
-	                <li class="members-link">
+	                <li>
 	            @endif
 	                <a href="/members">Members</a>
 	            </li>

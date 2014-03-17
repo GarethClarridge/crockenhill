@@ -1,39 +1,12 @@
 .navbar-inner {
-  .logo {
-    background-image: url(../images/logo--white.png);
-    background-size: 55px;
-    background-repeat: no-repeat;
-    background-position: 2%, 50%;
-    padding-top: (($navbar-height - $line-height-computed) / 2);
-    padding-bottom: (($navbar-height - $line-height-computed) / 2);
-    padding-left: 70px;
-  }
+    .logo {
+        background-clip: border-box;
+        background-image: url(../images/logo--white.png);
+        background-origin: padding-box;
+        background-size: 55px;
+        background-repeat: no-repeat;
+        background-position: 2%, 50%;
 
-  .members-link {
-    //padding-left: (2 * $padding-large-horizontal);
-  }
-}
-
-@media (min-width: $grid-float-breakpoint) {
-  .navbar {
-    border-bottom: none;
-    height: 50px;
-    background: none;
-  }
-
-  .navbar-inverse .navbar-nav > .active > a, .navbar-inverse .navbar-nav > .active > a:hover, .navbar-inverse .navbar-nav > .active > a:focus {
-    background: none;
-  }
-
-}
-
-.nav-notch {
-  background: url(/images/nav-notch.png);  
-  position: absolute;  
-  top: -50px;  
-  height: 100px;
-  z-index: -1;
-  width: 2500px;
-  left: 50%;
-  margin-left: -1250px;
+        padding-left: 70px;
+    }
 }
