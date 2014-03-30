@@ -37,3 +37,14 @@
   left: 50%;
   margin-left: -1250px;
 }
+
+.nav-no-notch {
+  background: url(/images/nav-no-notch.png);  
+  position: absolute;  
+  top: -50px;  
+  height: 100px;
+  z-index: -1;
+  width: 2500px;
+  left: 50%;
+  margin-left: -1250px;
+}

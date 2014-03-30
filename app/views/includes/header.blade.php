@@ -6,7 +6,12 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-	        <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
+            @if (Request::is('/'))
+                <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
+                <span class="nav-no-notch">&nbsp</span>
+            @else
+                <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
+            @endif
         </div>
         <div class="navbar-collapse collapse">
 
