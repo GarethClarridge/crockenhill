@@ -22,7 +22,7 @@ class AdminPagesController extends BaseController {
         $page = new Page;
         $page->heading = Input::get('heading');
         $page->slug = Str::slug(Input::get('heading'));
-        $page->parent = Input::get('parent');
+        $page->area = Input::get('area');
         $page->body = Input::get('body');
         $page->description = Input::get('description');
         $page->save();
@@ -40,7 +40,7 @@ class AdminPagesController extends BaseController {
         $page = Page::where('slug', $slug)->first();
         $page->heading = Input::get('heading');
         $page->slug = Str::slug(Input::get('heading'));
-        $page->parent = Input::get('parent');
+        $page->area = Input::get('area');
         $page->body = Input::get('body');
         $page->description = Input::get('description');
         $page->save();

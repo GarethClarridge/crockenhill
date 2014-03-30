@@ -25,10 +25,11 @@ class PageController extends BaseController {
 
 	public function showSubPage($area, $slug)
 	{
-	    $page = Page::where('slug', $slug)->first();	    
+	    $page = Page::where('slug', $slug)->first();
+	    $parent = Page::where('slug', $area)->first();
 	    $links = Page::where('area', $area)->where('slug', '!=', $slug)->get();
 	    
-	    $active_breadcrumb = '<li class="active">'.$page->heading.'</li>';
+	    $breadcrumb = '<li>'.link_to($page['area'], $parent->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
 	    $description = '<meta name="description" content="'.$page->description.'">';
 	    
 		$this->layout->content = View::make('pages.page', array(
@@ -36,7 +37,7 @@ class PageController extends BaseController {
 		    'heading'       => $page->heading,		    
 		    'description'   => $description,
 		    'area'					=> $page->area,
-		    'breadcrumbs'   => $active_breadcrumb,
+		    'breadcrumbs'   => $breadcrumb,
 		    'content'       => htmlspecialchars_decode($page->body),
 		    'links'					=> $links,
 		));
