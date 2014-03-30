@@ -1,9 +1,0 @@
-.sermon-details {
-    padding-left: 20px;
-}
-
-audio {
-    padding: 25px;
-    width: 100%;
-    height: 50px;
-}
