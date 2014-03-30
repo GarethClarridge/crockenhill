@@ -36,5 +36,7 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.members'), function(
         Route::resource('pages', 'AdminPagesController');
 });
 
+Route::get('/{area}/{slug}', array('uses' => 'PageController@showSubPage'));
+
 Route::get('/{slug}', array('uses' => 'PageController@showPage'));
 

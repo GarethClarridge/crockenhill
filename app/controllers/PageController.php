@@ -7,16 +7,38 @@ class PageController extends BaseController {
 	public function showPage($slug)
 	{
 	    $page = Page::where('slug', $slug)->first();
+	    $links = Page::where('area', $slug)->where('slug', '!=', $slug)->orderBy(DB::raw('RAND()'))->take(5)->get();
 	    
 	    $active_breadcrumb = '<li class="active">'.$page->heading.'</li>';
 	    $description = '<meta name="description" content="'.$page->description.'">';
 	    
 		$this->layout->content = View::make('pages.page', array(
 		    'slug'          => $page->slug,
-		    'heading'       => $page->heading,
-		    'breadcrumbs'   => $active_breadcrumb,
+		    'heading'       => $page->heading,		    
 		    'description'   => $description,
+		    'area'					=> $page->area,
+		    'breadcrumbs'   => $active_breadcrumb,
 		    'content'       => htmlspecialchars_decode($page->body),
+		    'links'					=> $links,
+		));
+	}
+
+	public function showSubPage($area, $slug)
+	{
+	    $page = Page::where('slug', $slug)->first();	    
+	    $links = Page::where('area', $area)->where('slug', '!=', $slug)->get();
+	    
+	    $active_breadcrumb = '<li class="active">'.$page->heading.'</li>';
+	    $description = '<meta name="description" content="'.$page->description.'">';
+	    
+		$this->layout->content = View::make('pages.page', array(
+		    'slug'          => $page->slug,
+		    'heading'       => $page->heading,		    
+		    'description'   => $description,
+		    'area'					=> $page->area,
+		    'breadcrumbs'   => $active_breadcrumb,
+		    'content'       => htmlspecialchars_decode($page->body),
+		    'links'					=> $links,
 		));
 	}
 

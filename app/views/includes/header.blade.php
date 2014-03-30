@@ -18,12 +18,16 @@
             <ul class="nav navbar-nav navbar-right">
 
               @foreach ($pages as $page)
-                @if (Request::is($page['route']))
+                @if (Request::is($page['route'].'/*'))
                     <li class="active">
                     {{ link_to($page['route'], $page['name']) }}
                     <span class="nav-notch">&nbsp</span>
-                    </li>
-                    
+                    </li>        
+                @elseif  (Request::is($page['route']))
+                    <li class="active">
+                    {{ link_to($page['route'], $page['name']) }}
+                    <span class="nav-notch">&nbsp</span>
+                    </li> 
                 @else
                     <li>
                     {{ link_to($page['route'], $page['name']) }}
@@ -31,14 +35,6 @@
                 @endif
 
               @endforeach
-
-	            @if (Request::is('Members'))
-	                <li class="active members-link">
-	            @else
-	                <li class="members-link">
-	            @endif
-	                <a href="/members">Members</a>
-	            </li>
 	            
             </ul>
         </div>

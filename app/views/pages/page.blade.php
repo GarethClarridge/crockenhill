@@ -23,22 +23,23 @@ z
             </div>
 
             <div class="col-md-3">
-                <aside class="card">
-                    <div class="header-container" style="background-image: url(../images/headings/{{$slug}}.jpg)">
-                        <h3>{{$heading}}</h3>
-                    </div>
-                    {{$description}}
-                </aside>
 
-                <aside class="card">
-                    <div class="header-container" style="background-image: url(../images/headings/{{$slug}}.jpg)">
-                        <h3>{{$heading}}</h3>
-                    </div>
-                    {{$description}}
-                </aside>
+                @foreach ($links as $link)
+
+                        <aside class="card">
+                            <div class="header-container" style="background-image: url(../images/headings/{{$link->slug}}.jpg)">
+                                <h3>{{$link->heading}}</h3>
+                            </div>
+                            {{$link->description}}
+                        </aside>
+
+                @endforeach
+
             </div>
-        </div>
-    @yield('aside')
 
+
+        </div>
+
+    
 	</main>
 @stop
