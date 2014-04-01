@@ -17,7 +17,7 @@
                     </div>
                     <ol class="breadcrumb">
                         <li>{{ link_to_route('Home', 'Home') }}</li>
-                        <li>{{-- link_to_route('Members', 'Members') --}}</li>
+                        <li>{{ link_to('members', 'Members')}}</li>
                         <li class="active">
                             @yield('title')
                         </li>

@@ -7,11 +7,6 @@ class AdminPagesController extends BaseController {
         return View::make('members.pages.index')->with('pages', Page::all());
     }
 
-    public function show($slug)
-    {
-        return View::make('members.pages.show')->with('page', Page::where('slug', $slug)->first());
-    }
-
     public function create()
     {
         return View::make('members.pages.create');
@@ -27,12 +22,12 @@ class AdminPagesController extends BaseController {
         $page->description = Input::get('description');
         $page->save();
 
-        return Redirect::route('members.pages.edit', $page->slug);
+        return Redirect::route('members.pages.index');
     }
 
     public function edit($slug)
     {
-            return View::make('members.pages.edit')->with('page', Page::where('slug', $slug)->first());
+        return View::make('members.pages.edit')->with('page', Page::where('slug', $slug)->first());
     }
 
     public function update($slug)
@@ -45,7 +40,7 @@ class AdminPagesController extends BaseController {
         $page->description = Input::get('description');
         $page->save();
 
-        Notification::success('The page was saved.');
+        Notification::success('The changes to the page were saved.');
 
         return Redirect::route('members.pages.index');
             
@@ -58,5 +53,35 @@ class AdminPagesController extends BaseController {
 
         return Redirect::route('members.pages.index');
     }
+
+    public function changeimage($slug)
+    {
+        return View::make('members.pages.editimage')->with('page', Page::where('slug', $slug)->first());
+    }
+
+    public function updateimage($slug)
+    {
+        $page = Page::where('slug', $slug)->first();
+
+        // Make large image for article
+        Image::make(Input::file('image')
+            ->getRealPath())
+            // resize the image to a width of 300 and constrain aspect ratio (auto height)
+            ->resize(2000, null, true)
+            ->save('images/headings/large/'.$page->slug.'.jpg');
+
+        // Make smaller image for aside
+        Image::make(Input::file('image')
+            ->getRealPath())
+            // resize the image to a width of 300 and constrain aspect ratio (auto height)
+            ->resize(300, null, true)
+            ->save('images/headings/small/'.$page->slug.'.jpg');
+
+        Notification::success('The image was changed.');
+
+        return Redirect::route('members.pages.changeimage', array('page' => $page->slug));
+            
+    }
+
  
 }

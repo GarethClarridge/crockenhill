@@ -5,7 +5,8 @@
 	"license": "MIT",
 	"require": {
 		"laravel/framework": "4.1.*",
-		"edvinaskrucas/notification": "2.*"
+		"edvinaskrucas/notification": "2.*",
+		"intervention/image": "1.*"
 	},
 	"autoload": {
 		"classmap": [

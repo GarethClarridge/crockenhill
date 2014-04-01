@@ -28,4 +28,13 @@
     
     padding: 0% 8% 8% 8%;
 
+    .aside-header-container {
+        @extend .header-container;
+        
+        h1, h2, h3, h4, h5, h6 {
+            line-height: floor($line-height-doubled*1.5);
+        }
+    }
+
 }
+

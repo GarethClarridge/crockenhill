@@ -34,6 +34,14 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.members'), function(
         Route::any('/', 'MemberPageController@index');
         Route::resource('sermons', 'AdminSermonsController');
         Route::resource('pages', 'AdminPagesController');
+        Route::get('pages/{slug}/changeimage', array(
+            'uses'  => 'AdminPagesController@changeimage',
+            'as'    => 'members.pages.changeimage'
+            ));
+        Route::post('pages/{slug}/changeimage', array(
+            'uses'  => 'AdminPagesController@updateimage',
+            'as'    => 'members.pages.updateimage'
+            ));
 });
 
 Route::get('/{area}/{slug}', array('uses' => 'PageController@showSubPage'));

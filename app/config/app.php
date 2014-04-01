@@ -107,6 +107,7 @@ return array(
 		'Illuminate\View\ViewServiceProvider',
 		'Illuminate\Workbench\WorkbenchServiceProvider',
 		'Krucas\Notification\NotificationServiceProvider',
+		'Intervention\Image\ImageServiceProvider'
 	),
 
 	/*
@@ -173,6 +174,7 @@ return array(
 		'Validator'       => 'Illuminate\Support\Facades\Validator',
 		'View'            => 'Illuminate\Support\Facades\View',
 		'Notification'    => 'Krucas\Notification\Facades\Notification',
+		'Image' 					=> 'Intervention\Image\Facades\Image'
 	),
 
 );
