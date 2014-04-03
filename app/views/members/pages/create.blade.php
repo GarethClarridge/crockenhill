@@ -6,46 +6,39 @@
 
 @section('membercontent')
 
-    <div class="header-container"">
-        <h1>Create a Page</h1>
-    </div>
-    <ol class="breadcrumb">
-        <li>{{ link_to_route('Home', 'Home') }}</li>
-        <li class="active">Log In</li>
-    </ol>
- 
-    <h2>Create new page</h2>
+    {{ Form::open(array('route' => 'members.pages.store', 'files' => true)) }}
 
-    {{ Form::open(array('route' => 'members.pages.store')) }}
-
-        <div class="control-group">
-            {{ Form::label('title', 'Title') }}
-            <div class="controls">
-                {{ Form::text('title') }}
-            </div>
+        <div class="form-group">
+            {{ Form::label('heading', 'Heading') }}
+            {{ Form::text('heading', $value = null, array('class' => 'form-control')) }}
         </div>
 
-        <div class="control-group">
-            {{ Form::label('parent', 'Parent') }}
-            <div class="controls">
-                {{ Form::text('parent') }}
+            <div class="form-group">
+              {{ Form::label('image', 'Image') }}
+              {{ Form::file('image') }}
             </div>
+
+        <div class="form-group">
+            {{ Form::label('area', 'Website Area') }}
+            {{ Form::select('area', array(
+                'about-us'      => 'About Us', 
+                'whats-on'      => 'What\'s On', 
+                'find-us'       => 'Find Us', 
+                'contact-us'    => 'Contact Us',
+                'sermons'       => 'Sermons',
+                'members'       => 'Members'
+                ), $value = null, array('class' => 'form-control')) }}
         </div>
 
-        <div class="control-group">
+        <div class="form-group">
             {{ Form::label('description', 'Description') }}
-            <div class="controls">
-                {{ Form::text('description') }}
-            </div>
+            {{ Form::text('description', $value = null, array('class' => 'form-control')) }}
         </div>
 
-        <div class="control-group">
+        <div class="form-group">
             {{ Form::label('body', 'Content') }}
-            <div class="controls">
-                {{ Form::textarea('body') }}
-            </div>
+            {{ Form::textarea('body', $value = null, array('class' => 'form-control')) }}
         </div>
-
         <div class="form-actions">
             {{ Form::submit('Save', array('class' => 'btn btn-success btn-save btn-large')) }}
             <a href="{{ URL::route('members.pages.index') }}" class="btn btn-large">Cancel</a>

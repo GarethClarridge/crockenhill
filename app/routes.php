@@ -31,7 +31,10 @@ Route::post('members/login', array(
 
 Route::group(array('prefix' => 'members', 'before' => 'auth.members'), function()
 {
-        Route::any('/', 'MemberPageController@index');
+        Route::get('/', function()
+            {
+                return Redirect::to('members/homepage');
+            });
         Route::resource('sermons', 'AdminSermonsController');
         Route::resource('pages', 'AdminPagesController');
         Route::get('pages/{slug}/changeimage', array(
@@ -42,6 +45,8 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.members'), function(
             'uses'  => 'AdminPagesController@updateimage',
             'as'    => 'members.pages.updateimage'
             ));
+
+        Route::get('/{slug}', array('uses' => 'PageController@showPage'));
 });
 
 Route::get('/{area}/{slug}', array('uses' => 'PageController@showSubPage'));

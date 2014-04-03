@@ -12,7 +12,7 @@ z
             <div class="col-md-9">
                 <article class="card">
                     @if (file_exists('images/headings/large/'.$slug.'.jpg'))
-                        <div class="header-container" style="background-image: url(images/headings/large/{{$slug}}.jpg)">
+                        <div class="header-container" style="background-image: url(../images/headings/large/{{$slug}}.jpg)">
                     @else
                         <div class="header-container">
                     @endif
@@ -32,7 +32,7 @@ z
 
                         <aside class="card">
                             @if (file_exists('images/headings/large/'.$slug.'.jpg'))
-                                <div class="header-container" style="background-image: url(images/headings/large/{{$slug}}.jpg)">
+                                <div class="header-container" style="background-image: url(../images/headings/large/{{$slug}}.jpg)">
                             @else
                                 <div class="header-container">
                             @endif

@@ -7,9 +7,17 @@ class PageController extends BaseController {
 	public function showPage($slug)
 	{
 	    $page = Page::where('slug', $slug)->first();
-	    $links = Page::where('area', $slug)->where('slug', '!=', $slug)->orderBy(DB::raw('RAND()'))->take(5)->get();
+
+	    if (Request::is('members/*')) {
+	    	$area = 'members';
+		    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li><li class="active">'.$page->heading.'</li>';
+	    } else {
+	    	$area = $slug;
+		    $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
+	    }
+
+	    $links = Page::where('area', $area)->where('slug', '!=', $slug)->orderBy(DB::raw('RAND()'))->take(5)->get();
 	    
-	    $active_breadcrumb = '<li class="active">'.$page->heading.'</li>';
 	    $description = '<meta name="description" content="'.$page->description.'">';
 	    
 		$this->layout->content = View::make('pages.page', array(
@@ -17,7 +25,7 @@ class PageController extends BaseController {
 		    'heading'       => $page->heading,		    
 		    'description'   => $description,
 		    'area'					=> $page->area,
-		    'breadcrumbs'   => $active_breadcrumb,
+		    'breadcrumbs'   => $breadcrumbs,
 		    'content'       => htmlspecialchars_decode($page->body),
 		    'links'					=> $links,
 		));

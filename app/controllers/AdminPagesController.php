@@ -22,6 +22,20 @@ class AdminPagesController extends BaseController {
         $page->description = Input::get('description');
         $page->save();
 
+        // Make large image for article
+        Image::make(Input::file('image')
+            ->getRealPath())
+            // resize the image to a width of 300 and constrain aspect ratio (auto height)
+            ->resize(2000, null, true)
+            ->save('images/headings/large/'.$page->slug.'.jpg');
+
+        // Make smaller image for aside
+        Image::make(Input::file('image')
+            ->getRealPath())
+            // resize the image to a width of 300 and constrain aspect ratio (auto height)
+            ->resize(300, null, true)
+            ->save('images/headings/small/'.$page->slug.'.jpg');
+
         return Redirect::route('members.pages.index');
     }
 
