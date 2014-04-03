@@ -36,9 +36,12 @@ z
                             @else
                                 <div class="header-container">
                             @endif
-                                    <h3>{{$link->heading}}</h3>
+                                    <h3><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></h3>
                                 </div>
-                            <a href="/{{$link->area}}/{{$link->slug}}">{{$link->description}}</a>
+                            {{$link->description}}
+
+                            <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
+
                         </aside>
 
                 @endforeach

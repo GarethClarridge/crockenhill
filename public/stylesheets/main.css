@@ -6621,7 +6621,7 @@ audio {
   box-shadow: 0px 0px 1px #999999;
   padding: 0% 8% 8% 8%;
 }
-.card .header-container, .card .aside-header-container {
+.card .header-container {
   width: 119.047619%;
   margin-left: -9.5238095%;
   margin-top: 0;
@@ -6630,7 +6630,7 @@ audio {
   background-size: cover;
   background-position: 50%;
 }
-.card .header-container h1, .card .aside-header-container h1, .card .header-container h2, .card .aside-header-container h2, .card .header-container h3, .card .aside-header-container h3, .card .header-container h4, .card .aside-header-container h4, .card .header-container h5, .card .aside-header-container h5, .card .header-container h6, .card .aside-header-container h6 {
+.card .header-container h1, .card .header-container h2, .card .header-container h3, .card .header-container h4, .card .header-container h5, .card .header-container h6 {
   padding-left: 9.5238095%;
   background-color: rgba(0, 0, 0, 0.3);
   color: #fafafa;
@@ -6642,8 +6642,19 @@ audio {
   padding-top: 8%;
   padding-bottom: 8%;
 }
-.card .aside-header-container h1, .card .aside-header-container h2, .card .aside-header-container h3, .card .aside-header-container h4, .card .aside-header-container h5, .card .aside-header-container h6 {
-  line-height: 75px;
+
+aside a {
+  color: #fafafa;
+}
+aside a:hover {
+  color: #fafafa;
+}
+aside .read-more {
+  text-align: right;
+  font-style: italic;
+}
+aside .read-more a {
+  color: #222222;
 }
 
 a.membersside {
