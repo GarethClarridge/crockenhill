@@ -1,7 +1,7 @@
 @section('title')
     {{$heading}}
 @stop
-z
+
 @section('description')
     {{$description}}
 @stop

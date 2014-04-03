@@ -119,3 +119,11 @@ View::composer('includes.footer', function($view)
         $view->with('latest_morning_sermon', $latest_morning_sermon);
         $view->with('latest_evening_sermon', $latest_evening_sermon);
     });
+
+View::composer('layouts.members', function($view)
+    {
+        $area = 'members';
+        $links = Page::where('area', $area)->orderBy(DB::raw('RAND()'))->take(5)->get();
+
+        $view->with('links', $links);
+    });

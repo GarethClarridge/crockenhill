@@ -6652,6 +6652,7 @@ aside a:hover {
 aside .read-more {
   text-align: right;
   font-style: italic;
+  padding-top: 2%;
 }
 aside .read-more a {
   color: #222222;

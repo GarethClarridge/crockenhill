@@ -2,15 +2,12 @@
 
 @section('content')
 
-    <main class="container-fluid">
+    <main class="container">
         <div class="row">
-            <div class="col-md-2">
-                @include('includes.membersnav')
-            </div>
             
-            <div class="col-md-8">
+            <div class="col-md-9">
                 <article class="card">
-                    <div class="header-container"">
+                    <div class="header-container">
                         <h1>
                             @yield('title')
                         </h1>
@@ -25,6 +22,29 @@
                     @yield('membercontent')
                     
                 </article>
+            </div>
+
+            <div class="col-md-3">
+
+                @foreach ($links as $link)
+
+                        <aside class="card">
+                            @if (file_exists('images/headings/small/'.$link->slug.'.jpg'))
+                                <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
+                            @else
+                                <div class="header-container">
+                            @endif
+                                    <h3><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></h3>
+                                </div>
+                            {{$link->description}}
+
+                            <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
+
+                        </aside>
+
+                @endforeach
+
+            </div>
             </div>
         </div>
     </main>
