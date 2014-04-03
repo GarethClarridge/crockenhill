@@ -52,6 +52,14 @@ Route::filter('auth.members', function()
         }
 });
 
+Route::filter('auth.admin', function()
+{
+        if (Auth::user()->hasRole('admin') === FALSE)
+        {
+                return Redirect::route('members.login');
+        }
+});
+
 /*
 |--------------------------------------------------------------------------
 | Guest Filter

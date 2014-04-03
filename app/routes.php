@@ -35,24 +35,30 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.members'), function(
             {
                 return Redirect::to('members/homepage');
             });
-        Route::resource('sermons', 'AdminSermonsController');
-        Route::resource('pages', 'AdminPagesController');
-        Route::get('pages/{slug}/changeimage', array(
-            'uses'  => 'AdminPagesController@changeimage',
-            'as'    => 'members.pages.changeimage'
-            ));
-        Route::post('pages/{slug}/changeimage', array(
-            'uses'  => 'AdminPagesController@updateimage',
-            'as'    => 'members.pages.updateimage'
-            ));
-        Route::get('sermons/{slug}/changeimage', array(
-            'uses'  => 'AdminSermonsController@changeimage',
-            'as'    => 'members.sermons.changeimage'
-            ));
-        Route::post('sermons/{slug}/changeimage', array(
-            'uses'  => 'AdminSermonsController@updateimage',
-            'as'    => 'members.sermons.updateimage'
-            ));
+
+        Route::group(array('before' => 'auth.admin'), function()
+        {
+
+            Route::resource('sermons', 'AdminSermonsController');
+            Route::resource('pages', 'AdminPagesController');
+            Route::get('pages/{slug}/changeimage', array(
+                'uses'  => 'AdminPagesController@changeimage',
+                'as'    => 'members.pages.changeimage'
+                ));
+            Route::post('pages/{slug}/changeimage', array(
+                'uses'  => 'AdminPagesController@updateimage',
+                'as'    => 'members.pages.updateimage'
+                ));
+            Route::get('sermons/{slug}/changeimage', array(
+                'uses'  => 'AdminSermonsController@changeimage',
+                'as'    => 'members.sermons.changeimage'
+                ));
+            Route::post('sermons/{slug}/changeimage', array(
+                'uses'  => 'AdminSermonsController@updateimage',
+                'as'    => 'members.sermons.updateimage'
+                ));       
+            
+        });
 
         Route::get('/{slug}', array('uses' => 'PageController@showPage'));
 });
