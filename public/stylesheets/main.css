@@ -6423,9 +6423,9 @@ aside a:hover {
   top: -50px;
   height: 100px;
   z-index: -1;
-  width: 2500px;
+  width: 4000px;
   left: 50%;
-  margin-left: -1250px;
+  margin-left: -2000px;
 }
 
 .nav-no-notch {
@@ -6485,15 +6485,15 @@ footer a {
 .home-head {
   background-image: url(../images/church_blur.png);
   background-size: cover;
-  min-height: 500px;
+  min-height: 300px;
   margin-top: -20px;
 }
 .home-head .container {
-  padding-top: 180px;
+  padding-top: 100px;
   color: #FFFFFF;
 }
 .home-head .container p {
-  padding-top: 100px;
+  padding-top: 40px;
   font-style: italic;
 }
 .home-head h1 {

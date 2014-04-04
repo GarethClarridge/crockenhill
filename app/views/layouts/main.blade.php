@@ -14,7 +14,7 @@
 
     {{ HTML::style('stylesheets/main.css') }}
     <link href='http://fonts.googleapis.com/css?family=Poly|Roboto:400,300italic,900' rel='stylesheet' type='text/css'>
-
+    
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="js/html5shiv.js"></script>
@@ -38,6 +38,8 @@
     </footer>
     
     <!-- Include all compiled plugins -->
+    
+    <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
     {{ HTML::script('scripts/frontend.js') }}
 </body>
 </html>

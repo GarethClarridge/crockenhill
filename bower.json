@@ -1,6 +1,7 @@
 {
   "name": "Crockenhill",
   "dependencies": {
-    "sass-bootstrap": "~3.0.2"
+    "sass-bootstrap": "~3.0.2",
+    "jquery": "1.*"
   }
 }
