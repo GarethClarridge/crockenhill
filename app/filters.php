@@ -118,14 +118,14 @@ View::composer('includes.header', function($view)
 View::composer('includes.footer', function($view)
     {
         //get the latest sermons
-        $latest_morning_sermon = 'Morning';//Sermon::where('service', 'morning')
-            //->orderBy('date', 'desc')->first();
-        $latest_evening_sermon = 'Evening';//Sermon::where('service', 'evening')
-            //->orderBy('date', 'desc')->first();
+        $morning = Sermon::where('service', 'morning')
+            ->orderBy('date', 'desc')->first();
+        $evening = Sermon::where('service', 'evening')
+            ->orderBy('date', 'desc')->first();
 
         // and create the view composer
-        $view->with('latest_morning_sermon', $latest_morning_sermon);
-        $view->with('latest_evening_sermon', $latest_evening_sermon);
+        $view->with('morning', $morning);
+        $view->with('evening', $evening);
     });
 
 View::composer('layouts.members', function($view)
