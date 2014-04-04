@@ -32,7 +32,14 @@
 
         <div class="form-group">
             {{ Form::label('area', 'Website Area') }}
-            {{ Form::select('area', array('about-us' => 'About Us', 'whats-on' => 'What\'s On', 'find-us' => 'Find Us', 'contact-us' => 'Contact Us'), $value = null, array('class' => 'form-control')) }}
+            {{ Form::select('area', array(
+                'about-us'      => 'About Us', 
+                'whats-on'      => 'What\'s On', 
+                'find-us'       => 'Find Us', 
+                'contact-us'    => 'Contact Us',
+                'sermons'       => 'Sermons',
+                'members'       => 'Members'
+                ), $value = null, array('class' => 'form-control')) }}
         </div>
 
         <div class="form-group">

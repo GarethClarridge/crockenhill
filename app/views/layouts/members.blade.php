@@ -39,12 +39,40 @@
                             {{$link->description}}
 
                             <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
-
+                            
                         </aside>
 
                 @endforeach
 
-            </div>
+                @if (Auth::check())
+                    {{ Auth::user()->email }}
+                    @if (Auth::getUser()->hasRole('admin'))
+
+                        <aside class="card">
+                            
+                            <div class="header-container">
+                                <h3><a href="members/pages">Pages</a></h3>
+                            </div>
+                            Create and edit the pages of the website.
+                            <div class="read-more"><a href="/members/pages">Read more ...</a></div>
+
+                        </aside>
+
+                        <aside class="card">
+                            
+                            <div class="header-container">
+                                <h3><a href="members/sermons">Sermons</a></h3>
+                            </div>
+                            Upload new sermons and edit old ones.
+                            <div class="read-more"><a href="/members/sermons">Read more ...</a></div>
+
+                        </aside>
+                    @endif
+                @else
+                    <p>Hello!</p>
+                @endif
+
+
             </div>
         </div>
     </main>

@@ -16,7 +16,13 @@ class PageController extends BaseController {
 		    $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
 	    }
 
-	    $links = Page::where('area', $area)->where('slug', '!=', $slug)->orderBy(DB::raw('RAND()'))->take(5)->get();
+	    $links = Page::where('area', $area)
+	    	->where('slug', '!=', $slug)
+	    	->where('slug', '!=', $area)
+	    	->where('slug', '!=', 'homepage')
+	    	->orderBy(DB::raw('RAND()'))
+	    	->take(5)
+	    	->get();
 	    
 	    $description = '<meta name="description" content="'.$page->description.'">';
 	    
@@ -35,7 +41,10 @@ class PageController extends BaseController {
 	{
 	    $page = Page::where('slug', $slug)->first();
 	    $parent = Page::where('slug', $area)->first();
-	    $links = Page::where('area', $area)->where('slug', '!=', $slug)->get();
+	    $links = Page::where('area', $area)
+	    	->where('slug', '!=', $slug)
+	    	->where('slug', '!=', $area)
+	    	->get();
 	    
 	    $breadcrumb = '<li>'.link_to($page['area'], $parent->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
 	    $description = '<meta name="description" content="'.$page->description.'">';
