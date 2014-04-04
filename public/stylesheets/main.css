@@ -6566,11 +6566,6 @@ p.lead {
   font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-h1, h2, h3 {
-  font-weight: 900;
-  line-height: 66px;
-}
-
 .sermon-details {
   padding-left: 20px;
 }
@@ -6636,6 +6631,7 @@ audio {
   color: #fafafa;
   line-height: 75px;
   margin: 0;
+  font-weight: 900;
 }
 .card h1 {
   min-height: 200px;

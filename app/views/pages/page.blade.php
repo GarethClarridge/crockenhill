@@ -23,6 +23,7 @@
                         {{$breadcrumbs}}
                     </ol>
                     {{$content}}
+                    @yield('dynamic_content')
                 </article>
             </div>
 
