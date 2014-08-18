@@ -7,7 +7,9 @@
                 <span class="icon-bar"></span>
             </button>
             @if (Request::is('/'))
-                <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
+                <a class="navbar-brand logo" href="/">
+                Crockenhill Baptist Church
+                </a>
                 <span class="nav-no-notch">&nbsp</span>
             @else
                 <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
@@ -35,6 +37,24 @@
                 @endif
 
               @endforeach
+              
+                <li>
+                    <a href="http://www.facebook.com/crockenhill">
+                        <i class="fa fa-facebook"></i>
+                    </a>
+                </li>
+                
+                <li>
+                    <a href="http://www.twitter.com/crockenhill">
+                        <i class="fa fa-twitter"></i>
+                    </a>
+                </li>
+	            
+                <li>
+                    <a href="http://www.facebook.com/crockenhill">
+                        <i class="fa fa-google-plus"></i>
+                    </a>
+                </li>
 	            
             </ul>
         </div>

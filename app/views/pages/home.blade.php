@@ -6,16 +6,22 @@
 
 @section('content')
 
-    <main>
+    <main class="home">
         <div class="home-head">
             <div class="container">
                 <h1 class="text-center">Crockenhill Baptist Church</h1>
                 <p class="text-center lead">A friendly, Bible believing church just outside Swanley.</p>
+                <p class="text-center arrow"><span class="glyphicon glyphicon-chevron-down"></span></p>
             </div>
         </div>
 
         <div class="home-body">
             <div class="container">
+            
+                <video src="videos/Welcome.mp4" controls>
+                  Your browser does not support the <code>video</code> element.
+                </video>
+                
                 <div id="container" class="js-masonry" data-masonry-options='{"itemSelector": ".home-block"}'>
                     <div class="home-block-list">
                         <a href="{{-- route('AboutUs') --}}" class="home-block">

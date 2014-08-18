@@ -17,9 +17,15 @@
     </section>
 
     <section class="col-md-6 col-lg-3">
-        <h4 class="text-center">Contact our pastor</h4>
-                <p class="text-center"><span class="glyphicon glyphicon-earphone"></span> &nbsp&nbsp 01322 663995</p>
-                <p class="text-center"><span class="glyphicon glyphicon-envelope"></span> &nbsp&nbsp {{HTML::mailto('pastor@crockenhill.org', 'pastor@crockenhill.org')}}</span></p>
+        <h4 class="text-center">Get in touch</h4>
+        <p class="text-center"><span class="glyphicon glyphicon-earphone"></span> &nbsp&nbsp 01322 663995</p>
+        <p class="text-center"><span class="glyphicon glyphicon-envelope"></span> &nbsp&nbsp {{HTML::mailto('pastor@crockenhill.org', 'pastor@crockenhill.org')}}</span></p>
+        <p class="text-center"><i class="fa fa-facebook"></i> &nbsp&nbsp 
+            <a href="http://www.facebook.com/crockenhill">Like us on Facebook</a>
+        </p>
+        <p class="text-center"><i class="fa fa-twitter"></i> &nbsp&nbsp 
+            <a href="http://www.twitter.com/crockenhill">Follow us on Twitter</a>
+        </p>
     </section>
 
     <section class="col-md-6 col-lg-3">
@@ -33,4 +39,16 @@
         </address>
     </section>
 </div>
-<p class="text-center copyright"><small>&copy; {{ date('Y') }} Crockenhill Baptist Church</small></p>
+
+<div class="row">
+    <section class="col-md-6 col-md-offset-3">
+        <a href="http://www.fiec.org.uk">
+            <img src="/images/fiec-affiliated-tagline-white.png" width="100%">
+        </a>
+    </section>
+    
+    <section class="col-sm-12">
+        <p class="text-center copyright"><small>&copy; {{ date('Y') }} Crockenhill Baptist Church</small></p>
+    </section>
+</div>
+

@@ -1,5 +1,6 @@
 footer {
     background-color: $brand-primary;
+    color: $inverse-text-color;
     padding: 0 20px;
     margin-top: 50px;
 
@@ -13,7 +14,11 @@ footer {
     }
 
     a {
-        color: darken($link-color, 15%);
+        color: $inverse-link-color;
+    }
+    
+    a:hover {
+        color: $inverse-link-color;
     }
 
 }
@@ -24,5 +29,5 @@ footer {
 }
 
 .copyright {
-    padding: 15px;
+    padding: 30px 15px 0px;
 }

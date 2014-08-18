@@ -52,3 +52,10 @@ aside {
         }
     }
 }
+
+.social_sharing {
+    position: relative;
+    float: right;
+    top: -5px;
+    font-size: floor($font-size-large*1.2);
+}

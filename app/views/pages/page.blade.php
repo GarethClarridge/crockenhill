@@ -16,13 +16,20 @@
                     @else
                         <div class="header-container">
                     @endif
-                            <h1>{{$heading}}</h1>
+                    
+                        <h1>{{$heading}}</h1>
+                                
                         </div>
+                    
+                    @yield('social_sharing')   
+                        
                     <ol class="breadcrumb">
                         <li>{{ link_to_route('Home', 'Home') }}</li>
-                        {{$breadcrumbs}}
+                        @yield('breadcrumbs', $breadcrumbs)
                     </ol>
+         
                     {{$content}}
+                    
                     @yield('dynamic_content')
                 </article>
             </div>
@@ -32,8 +39,8 @@
                 @foreach ($links as $link)
 
                         <aside class="card">
-                            @if (file_exists('images/headings/large/'.$slug.'.jpg'))
-                                <div class="header-container" style="background-image: url(../images/headings/large/{{$slug}}.jpg)">
+                            @if (file_exists('images/headings/large/'.$link->slug.'.jpg'))
+                                <div class="header-container" style="background-image: url(../images/headings/large/{{$link->slug}}.jpg)">
                             @else
                                 <div class="header-container">
                             @endif

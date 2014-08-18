@@ -1,11 +1,9 @@
 .navbar-inner {
   .logo {
-    background-image: url(../images/logo--white.png);
-    background-size: 55px;
+    background-image: url(../images/square-oswald-compressed-optimised-white.png);
+    background-size: 40px;
+    background-position: 5% 30%;
     background-repeat: no-repeat;
-    background-position: 2%, 50%;
-    padding-top: (($navbar-height - $line-height-computed) / 2);
-    padding-bottom: (($navbar-height - $line-height-computed) / 2);
     padding-left: 70px;
   }
 
@@ -25,6 +23,14 @@
     background: none;
   }
 
+}
+
+.navbar-inverse .navbar-nav > li > a{
+    color: $brand-secondary;
+}
+
+.navbar-inverse .navbar-brand{
+    color: #fff;
 }
 
 .nav-notch {
