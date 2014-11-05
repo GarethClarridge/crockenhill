@@ -6513,7 +6513,16 @@ footer a:hover {
 .home-head .arrow {
   font-size: 80px;
 }
+.home-head .arrow a {
+  color: #e5e3d7;
+}
 
+.home-body .jump-destination {
+  display: inline;
+  margin-bottom: 0;
+  padding: 0;
+  height: 50px;
+}
 .home-body video {
   width: 100%;
   margin-bottom: 25px;

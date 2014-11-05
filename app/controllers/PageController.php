@@ -19,7 +19,6 @@ class PageController extends BaseController {
 	    $links = Page::where('area', $area)
 	    	->where('slug', '!=', $slug)
 	    	->where('slug', '!=', $area)
-	    	->where('slug', '!=', 'homepage')
 	    	->orderBy(DB::raw('RAND()'))
 	    	->take(5)
 	    	->get();

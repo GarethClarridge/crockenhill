@@ -28,15 +28,27 @@
     
     .arrow {
         font-size: $font-size-base*5;
+        
+        a {
+            color: $brand-color-lighter;
+        }
     }
+    
 
 }
 
 .home-body {
 
+    .jump-destination {
+        display: inline;
+        margin-bottom: 0;
+        padding: 0;
+        height: 50px;
+    }
+
     video {
         width: 100%;
-        margin-bottom: $line-height-computed
+        margin-bottom: $line-height-computed;
     }
 
     a {

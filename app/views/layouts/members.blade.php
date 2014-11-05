@@ -28,24 +28,23 @@
 
                 @foreach ($links as $link)
 
-                        <aside class="card">
-                            @if (file_exists('images/headings/small/'.$link->slug.'.jpg'))
-                                <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
-                            @else
-                                <div class="header-container">
-                            @endif
-                                    <h3><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></h3>
-                                </div>
-                            {{$link->description}}
+                    <aside class="card">
+                        @if (file_exists('images/headings/small/'.$link->slug.'.jpg'))
+                            <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
+                        @else
+                            <div class="header-container">
+                        @endif
+                                <h3><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></h3>
+                            </div>
+                        {{$link->description}}
 
-                            <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
-                            
-                        </aside>
+                        <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
+                        
+                    </aside>
 
                 @endforeach
 
                 @if (Auth::check())
-                    {{ Auth::user()->email }}
                     @if (Auth::getUser()->hasRole('admin'))
 
                         <aside class="card">

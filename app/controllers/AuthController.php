@@ -30,7 +30,7 @@ class AuthController extends BaseController {
                 else 
                 {
                     return Redirect::route('members.login')->withErrors(array(
-                            'login' => 'Sorry, we couldn\'t find those details. Please try again!'
+                            'login' => 'Sorry, that combination doesn\'t seem to be correct. Please try again!'
                         ));
                 }
         }

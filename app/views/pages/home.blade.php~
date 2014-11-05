@@ -6,18 +6,23 @@
 
 @section('content')
 
-    <main>
+    <main class="home">
         <div class="home-head">
             <div class="container">
                 <h1 class="text-center">Crockenhill Baptist Church</h1>
                 <p class="text-center lead">A friendly, Bible believing church just outside Swanley.</p>
-                <p class="text-center arrow"><span class="glyphicon glyphicon-chevron-down"></span></p>
+                <p class="text-center arrow">
+                    <a class="jump" href="#video">
+                        <span class="glyphicon glyphicon-chevron-down"></span>
+                    </a>
+                </p>
             </div>
         </div>
 
         <div class="home-body">
             <div class="container">
-            
+                
+                <a class="jump-destination" name="video"></br></br></a>
                 <video src="videos/Welcome.mp4" controls>
                   Your browser does not support the <code>video</code> element.
                 </video>

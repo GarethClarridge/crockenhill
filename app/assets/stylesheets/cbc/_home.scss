@@ -28,11 +28,23 @@
     
     .arrow {
         font-size: $font-size-base*5;
+        
+        a {
+            color: $brand-lightest;
+        }
     }
+    
 
 }
 
 .home-body {
+
+    .jump-destination {
+        display: inline;
+        margin-bottom: 0;
+        padding: 0;
+        height: 50px;
+    }
 
     video {
         width: 100%;
