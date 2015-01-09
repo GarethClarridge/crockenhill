@@ -1,8 +1,0 @@
-.sermon-details {
-    padding-left: 20px;
-}
-
-audio {
-    padding: floor($padding-large-vertical*2) 0px $padding-large-vertical;
-    width: 100%;
-}

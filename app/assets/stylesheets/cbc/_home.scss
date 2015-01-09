@@ -8,7 +8,7 @@
     background-image: url(../images/church_blur.png);
     background-size: cover;
     background-repeat: no-repeat;
-    min-height: 550px;
+    min-height: 500px;
     margin-top: -20px;
 
     .container {
@@ -38,6 +38,8 @@
 }
 
 .home-body {
+
+    background: $brand-lightest;
 
     .jump-destination {
         display: inline;
@@ -77,6 +79,7 @@
     .home-block-list
     {
         width: 103.125%; /* 990px */
+        margin-top: 3em;
         overflow: hidden;
     }
     

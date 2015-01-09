@@ -38,7 +38,7 @@
 
               @endforeach
               
-                <li>
+                <!-- <li>
                     <a href="http://www.facebook.com/crockenhill">
                         <i class="fa fa-facebook"></i>
                     </a>
@@ -54,7 +54,7 @@
                     <a href="http://www.facebook.com/crockenhill">
                         <i class="fa fa-google-plus"></i>
                     </a>
-                </li>
+                </li> -->
 	            
             </ul>
         </div>

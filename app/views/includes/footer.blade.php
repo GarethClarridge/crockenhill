@@ -21,11 +21,11 @@
         <p class="text-center"><span class="glyphicon glyphicon-earphone"></span> &nbsp&nbsp 01322 663995</p>
         <p class="text-center"><span class="glyphicon glyphicon-envelope"></span> &nbsp&nbsp {{HTML::mailto('pastor@crockenhill.org', 'pastor@crockenhill.org')}}</span></p>
         <p class="text-center"><i class="fa fa-facebook"></i> &nbsp&nbsp 
-            <a href="http://www.facebook.com/crockenhill">Like us on Facebook</a>
+            <a href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
         </p>
-        <p class="text-center"><i class="fa fa-twitter"></i> &nbsp&nbsp 
+<!--         <p class="text-center"><i class="fa fa-twitter"></i> &nbsp&nbsp 
             <a href="http://www.twitter.com/crockenhill">Follow us on Twitter</a>
-        </p>
+        </p> -->
     </section>
 
     <section class="col-md-6 col-lg-3">

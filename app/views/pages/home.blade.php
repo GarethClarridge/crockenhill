@@ -11,25 +11,25 @@
             <div class="container">
                 <h1 class="text-center">Crockenhill Baptist Church</h1>
                 <p class="text-center lead">A friendly, Bible believing church just outside Swanley.</p>
-                <p class="text-center arrow">
+                <!-- <p class="text-center arrow">
                     <a href="#video">
                         <span class="glyphicon glyphicon-chevron-down"></span>
                     </a>
-                </p>
+                </p> -->
             </div>
         </div>
 
         <div class="home-body">
             <div class="container">
                 
-                <a class="jump-destination" name="video"></br></br></a>
+                <!-- <a class="jump-destination" name="video"></br></br></a>
                 <video src="videos/Welcome.mp4" controls>
                   Your browser does not support the <code>video</code> element.
-                </video>
+                </video> -->
                 
                 <div id="container" class="js-masonry" data-masonry-options='{"itemSelector": ".home-block"}'>
                     <div class="home-block-list">
-                        <a href="{{-- route('AboutUs') --}}" class="home-block">
+                        <a href="/about-us" class="home-block">
                             <section class="media">
                                 <div class="pull-left glyphicon glyphicon-user media-object"></div>
                                 <div class="media-body">
@@ -40,7 +40,7 @@
                             </section>
                         </a>
 
-                        <a href="{{-- route('WhatsOn') --}}" class="home-block">
+                        <a href="/whats-on" class="home-block">
                             <section class="media">
                                 <div class="pull-left glyphicon glyphicon-calendar media-object"></div>
                                 <div class="media-body">
@@ -51,7 +51,7 @@
                             </section>
                         </a>
 
-                        <a href="{{-- route('Where') --}}" class="home-block">               
+                        <a href="/find-us" class="home-block">               
                             <section class="media">
                                 <div class="pull-left glyphicon glyphicon-home media-object"></div>
                                 <div class="media-body">
@@ -62,7 +62,7 @@
                             </section>
                         </a>
 
-                        <a href="{{-- route('sunday') --}}" class="home-block">
+                        <a href="whats-on/sunday-services" class="home-block">
                             <section class="media">
                                 <div class="pull-left glyphicon glyphicon-time media-object"></div>
                                 <div class="media-body">
@@ -73,7 +73,7 @@
                             </section>
                         </a>
 
-                        <a href="{{-- route('AboutUs') --}}" class="home-block">
+                        <a href="/about-us" class="home-block">
                             <section class="media">
                                 <div class="pull-left glyphicon glyphicon-question-sign media-object"></div>
                                 <div class="media-body">
