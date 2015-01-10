@@ -9,7 +9,7 @@
     <main class="home">
         <div class="home-head">
             <div class="container">
-                <h1 class="text-center">Crockenhill Church</h1>
+                <h1 class="text-center">Crockenhill Baptist Church</h1>
                 <p class="text-center lead">A friendly, Bible believing church just outside Swanley.</p>
                 <!-- <p class="text-center arrow">
                     <a href="#video">
