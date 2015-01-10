@@ -13,8 +13,9 @@
     @yield('description')
 
     {{ HTML::style('stylesheets/main.css') }}
-    <link href='http://fonts.googleapis.com/css?family=Poly|Roboto:400,300italic,900' rel='stylesheet' type='text/css'>
-
+    <link href='http://fonts.googleapis.com/css?family=Lato:400,300italic|Oswald' rel='stylesheet' type='text/css'>
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+    
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="js/html5shiv.js"></script>
@@ -38,6 +39,8 @@
     </footer>
     
     <!-- Include all compiled plugins -->
+    
+    <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
     {{ HTML::script('scripts/frontend.js') }}
 </body>
 </html>

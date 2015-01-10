@@ -1,4 +1,5 @@
 .navbar-inner {
+<<<<<<< HEAD
     .logo {
         background-clip: border-box;
         background-image: url(../images/logo--white.png);
@@ -10,3 +11,61 @@
         padding-left: 70px;
     }
 }
+=======
+  .logo {
+    // background-image: url(../images/square-oswald-compressed-optimised-white.png);
+    // background-size: 40px;
+    // background-position: 5% 30%;
+    // background-repeat: no-repeat;
+    padding: 12.5px;
+    // padding-left: 70px;
+  }
+
+  .members-link {
+    //padding-left: (2 * $padding-large-horizontal);
+  }
+}
+
+@media (min-width: $grid-float-breakpoint) {
+  .navbar {
+    border-bottom: none;
+    height: 50px;
+    background: none;
+  }
+
+  .navbar-inverse .navbar-nav > .active > a, .navbar-inverse .navbar-nav > .active > a:hover, .navbar-inverse .navbar-nav > .active > a:focus {
+    background: none;
+  }
+
+}
+
+.navbar-inverse .navbar-nav > li > a{
+    color: $brand-secondary;
+}
+
+.navbar-inverse .navbar-brand{
+    color: #fff;
+}
+
+.nav-notch {
+  background: url(/images/nav-notch.png);  
+  position: absolute;  
+  top: -50px;  
+  height: 100px;
+  z-index: -1;
+  width: 4000px;
+  left: 50%;
+  margin-left: -2000px;
+}
+
+.nav-no-notch {
+  background: url(/images/nav-no-notch.png);  
+  position: absolute;  
+  top: -50px;  
+  height: 100px;
+  z-index: -1;
+  width: 2500px;
+  left: 50%;
+  margin-left: -1250px;
+}
+>>>>>>> develop

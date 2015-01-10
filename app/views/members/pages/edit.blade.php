@@ -31,8 +31,15 @@
         </div>
 
         <div class="form-group">
-            {{ Form::label('parent', 'Website Area') }}
-            {{ Form::select('parent', array('' => 'Top level page', 'aboutus' => 'About Us', 'whatson' => 'What\'s On'), $value = null, array('class' => 'form-control')) }}
+            {{ Form::label('area', 'Website Area') }}
+            {{ Form::select('area', array(
+                'about-us'      => 'About Us', 
+                'whats-on'      => 'What\'s On', 
+                'find-us'       => 'Find Us', 
+                'contact-us'    => 'Contact Us',
+                'sermons'       => 'Sermons',
+                'members'       => 'Members'
+                ), $value = null, array('class' => 'form-control')) }}
         </div>
 
         <div class="form-group">

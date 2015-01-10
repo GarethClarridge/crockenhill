@@ -6,11 +6,19 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-	        <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
+            @if (Request::is('/'))
+                <a class="navbar-brand logo" href="/">
+                Crockenhill Baptist Church
+                </a>
+                <span class="nav-no-notch">&nbsp</span>
+            @else
+                <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
+            @endif
         </div>
         <div class="navbar-collapse collapse">
             <ul class="nav navbar-nav">
 
+<<<<<<< HEAD
                 @foreach ($pages as $page)
 		            @if (Request::is($page['route']))
 		                <li class="active">
@@ -30,6 +38,46 @@
 	            @endif
 	                <a href="/members">Members</a>
 	            </li>
+=======
+            <ul class="nav navbar-nav navbar-right">
+
+              @foreach ($pages as $page)
+                @if (Request::is($page['route'].'/*'))
+                    <li class="active">
+                    {{ link_to($page['route'], $page['name']) }}
+                    <span class="nav-notch">&nbsp</span>
+                    </li>        
+                @elseif  (Request::is($page['route']))
+                    <li class="active">
+                    {{ link_to($page['route'], $page['name']) }}
+                    <span class="nav-notch">&nbsp</span>
+                    </li> 
+                @else
+                    <li>
+                    {{ link_to($page['route'], $page['name']) }}
+                    </li>
+                @endif
+
+              @endforeach
+              
+                <!-- <li>
+                    <a href="http://www.facebook.com/crockenhill">
+                        <i class="fa fa-facebook"></i>
+                    </a>
+                </li>
+                
+                <li>
+                    <a href="http://www.twitter.com/crockenhill">
+                        <i class="fa fa-twitter"></i>
+                    </a>
+                </li>
+	            
+                <li>
+                    <a href="http://www.facebook.com/crockenhill">
+                        <i class="fa fa-google-plus"></i>
+                    </a>
+                </li> -->
+>>>>>>> develop
 	            
             </ul>
         </div>

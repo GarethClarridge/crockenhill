@@ -1,15 +1,22 @@
+.home {
+    background-image: url(../images/church_blur.png);
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
 .home-head {
     background-image: url(../images/church_blur.png);
     background-size: cover;
+    background-repeat: no-repeat;
     min-height: 500px;
     margin-top: -20px;
 
     .container {
-        padding-top: 180px;
+        padding-top: 100px;
         color: #FFFFFF;
 
         p {
-            padding-top: 100px;
+            padding-top: 40px;
             font-style: italic;
         }
     }
@@ -18,14 +25,34 @@
         font-size: $font-size-base*5;
         font-weight: 800;
     }
+    
+    .arrow {
+        font-size: $font-size-base*5;
+        
+        a {
+            color: $brand-lightest;
+        }
+    }
+    
 
 }
 
 .home-body {
 
-    background-color: $gray-lighter; 
-    padding: 30px 0px;
-    
+    background: $brand-lightest;
+
+    .jump-destination {
+        display: inline;
+        margin-bottom: 0;
+        padding: 0;
+        height: 50px;
+    }
+
+    video {
+        width: 100%;
+        margin-bottom: $line-height-computed;
+    }
+
     a {
         display: block;
         text-decoration: none;
@@ -52,6 +79,7 @@
     .home-block-list
     {
         width: 103.125%; /* 990px */
+        margin-top: 3em;
         overflow: hidden;
     }
     

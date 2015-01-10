@@ -52,6 +52,14 @@ Route::filter('auth.members', function()
         }
 });
 
+Route::filter('auth.admin', function()
+{
+        if (Auth::user()->hasRole('admin') === FALSE)
+        {
+                return Redirect::route('members.login');
+        }
+});
+
 /*
 |--------------------------------------------------------------------------
 | Guest Filter
@@ -99,8 +107,12 @@ View::composer('includes.header', function($view)
             'Where' => array('route'=> 'find-us', 'name' => 'Where'),
             'ContactUs' => array('route' => 'contact-us', 'name' => 'Contact Us'),
             'Sermons' =>array('route'=> 'sermons', 'name' => 'Sermons'),
+<<<<<<< HEAD
             'Publications' => array('route'=> 'publications', 'name' => 'Publications'),
             'Links' => array('route'=> 'links', 'name' => 'Links'),
+=======
+            'Members' =>array('route'=> 'members', 'name' => 'Members'),
+>>>>>>> develop
         
         );
         
@@ -111,12 +123,20 @@ View::composer('includes.header', function($view)
 View::composer('includes.footer', function($view)
     {
         //get the latest sermons
-        $latest_morning_sermon = 'Morning';//Sermon::where('service', 'morning')
-            //->orderBy('date', 'desc')->first();
-        $latest_evening_sermon = 'Evening';//Sermon::where('service', 'evening')
-            //->orderBy('date', 'desc')->first();
+        $morning = Sermon::where('service', 'morning')
+            ->orderBy('date', 'desc')->first();
+        $evening = Sermon::where('service', 'evening')
+            ->orderBy('date', 'desc')->first();
 
         // and create the view composer
-        $view->with('latest_morning_sermon', $latest_morning_sermon);
-        $view->with('latest_evening_sermon', $latest_evening_sermon);
+        $view->with('morning', $morning);
+        $view->with('evening', $evening);
+    });
+
+View::composer('layouts.members', function($view)
+    {
+        $area = 'members';
+        $links = Page::where('area', $area)->orderBy(DB::raw('RAND()'))->take(5)->get();
+
+        $view->with('links', $links);
     });

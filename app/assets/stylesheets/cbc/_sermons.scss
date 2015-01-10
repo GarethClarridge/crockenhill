@@ -3,6 +3,6 @@
 }
 
 audio {
-    padding: 25px;
+    padding: floor($padding-large-vertical*4) 0px $padding-large-vertical;
     width: 100%;
 }

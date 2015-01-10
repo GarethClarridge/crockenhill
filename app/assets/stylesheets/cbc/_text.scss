@@ -5,14 +5,18 @@
 }
 
 p, dd, address {
-    font-family: $font-family-serif;
+    font-family: $font-family-sans-serif;
 }
 
 p.lead {
     font-family: $font-family-sans-serif;
 }
 
-h1, h2, h3 {
-    font-weight: 900;
-    line-height: floor($line-height-doubled * 1.33);
+header {
+    font-family: $font-family-headings;
+    text-transform: uppercase;
+}
+
+h4, h5, h6 {
+    font-family: $font-family-sans-serif;
 }

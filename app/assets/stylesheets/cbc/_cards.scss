@@ -10,13 +10,15 @@
         background-image: url(../images/church_blur.png);
         background-size: cover;
         background-position: 50%;
-        
+
+
         h1, h2, h3, h4, h5, h6 {
             padding-left: 9.5238095%;
             background-color:rgba(0,0,0,0.3);
             color: $gray-lightest;
             line-height: floor($line-height-doubled*1.5);
             margin: 0;
+            font-weight: 900;
         }
     }
     
@@ -28,4 +30,32 @@
     
     padding: 0% 8% 8% 8%;
 
+}
+
+aside {
+
+    a {
+        color: $gray-lightest;
+    }
+    
+    a:hover {
+        color: $gray-lightest;
+    }
+
+    .read-more {
+        text-align: right;
+        font-style: italic;
+        padding-top: 2%;
+
+        a {
+            color: $gray-darker;
+        }
+    }
+}
+
+.social_sharing {
+    position: relative;
+    float: right;
+    top: -5px;
+    font-size: floor($font-size-large*1.2);
 }

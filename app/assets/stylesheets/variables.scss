@@ -21,7 +21,12 @@ $gray-lightest:          lighten(#000, 98%);
 // Brand colors
 // -------------------------
 
-$brand-primary:         #85A71E;
+$brand-primary:         #6a3121;
+$brand-secondary:       #b66d5c;
+$brand-dark:            #252a2e;
+$brand-light:           #dbcaab;
+$brand-lightest:        #e5e3d7;
+
 $brand-success:         #2B79A1;
 $brand-warning:         #f0ad4e;
 $brand-danger:          #d9534f;
@@ -30,22 +35,25 @@ $brand-info:            #5bc0de;
 // Scaffolding
 // -------------------------
 
-$body-bg:               $gray-lightest;
-//$text-color:            $gray-dark;
+$body-bg:               $brand-lightest;
+$text-color:            $brand-dark;
+$inverse-text-color:    $brand-lightest;
 
 // Links
 // -------------------------
 
-$link-color:            darken($brand-primary, 15%);
+$link-color:            $brand-secondary;
 $link-hover-color:      darken($link-color, 15%);
+$inverse-link-color:    darken($brand-light, 15%);
 
 // Typography
 // -------------------------
 
-$font-family-sans-serif:  "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
-$font-family-serif:       "Poly", Georgia, "Times New Roman", Times, serif;
-//$font-family-monospace:   Monaco, Menlo, Consolas, "Courier New", monospace;
+$font-family-sans-serif:  "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
+$font-family-serif:       Georgia, "Times New Roman", Times, serif;
+$font-family-monospace:   Monaco, Menlo, Consolas, "Courier New", monospace;
 $font-family-base:        $font-family-sans-serif;
+$font-family-headings:    "Oswald", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
 $font-size-base:          16px;
 $font-size-large:         ceil($font-size-base * 1.25); // ~18px
@@ -55,8 +63,8 @@ $line-height-base:        1.6;
 $line-height-computed:    floor($font-size-base * $line-height-base); // ~20px
 $line-height-doubled:      floor($line-height-computed * 2);
 
-$headings-font-family:    $font-family-base;
-$headings-font-weight:    500;
+$headings-font-family:    $font-family-headings;
+$headings-font-weight:    400;
 $headings-line-height:    1.1;
 
 // Iconography
@@ -114,9 +122,9 @@ $component-active-bg:            $brand-primary;
 //$btn-default-bg:                 #fff;
 //$btn-default-border:             #ccc;
 
-$btn-primary-color:              #fff;
+$btn-primary-color:              $brand-light;
 $btn-primary-bg:                 $brand-primary;
-$btn-primary-border:             darken($btn-primary-bg, 5%);
+$btn-primary-border:             $btn-primary-bg;
 
 //$btn-success-color:              #fff;
 //$btn-success-bg:                 $brand-success;

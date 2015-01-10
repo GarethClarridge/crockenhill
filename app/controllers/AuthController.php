@@ -24,13 +24,13 @@ class AuthController extends BaseController {
  
                 if (Auth::attempt($credentials))
                 {
-                    return Redirect::intended('members/pages');
+                    return Redirect::intended('members/homepage');
                 }
                 
                 else 
                 {
                     return Redirect::route('members.login')->withErrors(array(
-                            'login' => 'Sorry, we couldn\'t find those details. Please try again!'
+                            'login' => 'Sorry, that combination doesn\'t seem to be correct. Please try again!'
                         ));
                 }
         }
