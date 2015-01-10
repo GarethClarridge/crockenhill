@@ -3,6 +3,7 @@
 /bower_components
 /node_modules
 /public/media
+/app/config/database.php
 composer.phar
 composer.lock
 .DS_Store

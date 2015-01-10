@@ -2,7 +2,7 @@
 
 @section('social_sharing')
 
-<ul class="social_sharing list-inline">
+<!-- <ul class="social_sharing list-inline">
     <li>
         <a href="http://www.facebook.com/crockenhill">
             <i class="fa fa-facebook-square"></i>
@@ -20,7 +20,7 @@
             <i class="fa fa-google-plus-square"></i>
         </a>
     </li>
-</ul>
+</ul> -->
 
 @stop
 
