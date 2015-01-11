@@ -4,14 +4,24 @@ class UserSeeder extends Seeder {
  
     public function run()
     {
+        Eloquent::unguard();
+
         DB::table('users')->delete();
 
         User::create(array(
-            'email'     => 'garethclarridge@hotmail.co.uk',
-            'password'  => Hash::make('password'),
-            'username'  => 'Gareth.Clarridge',
-            'first_name'=> 'Gareth',
-            'last_name' => 'Clarridge',
+            'email'     => 'admin@crockenhill.org',
+            'password'  => Hash::make('1Cor922'),
+            'username'  => 'admin',
+            'first_name'=> 'ad',
+            'last_name' => 'min',
+        ));
+
+        User::create(array(
+            'email'     => 'member@crockenhill.org',
+            'password'  => Hash::make('1Cor922'),
+            'username'  => 'member',
+            'first_name'=> 'mem',
+            'last_name' => 'ber',
         ));
 
     }

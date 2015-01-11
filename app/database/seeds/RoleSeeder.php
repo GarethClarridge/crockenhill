@@ -4,6 +4,8 @@ class RoleSeeder extends Seeder {
  
     public function run()
     {
+        Eloquent::unguard();
+
         DB::table('roles')->delete();
  
         Role::create(array(
@@ -13,9 +15,9 @@ class RoleSeeder extends Seeder {
         // Seed the users_roles table
         
         $adminRole = Role::where('name','=','Admin')->first()->id;
-        $gareth = User::where('username','=','Gareth.Clarridge')->first()->id;
+        $admin = User::where('username','=','admin')->first()->id;
         $role_user = array(
-            array('role_id' => $adminRole, 'user_id' => $gareth)
+            array('role_id' => $adminRole, 'user_id' => $admin)
         );
 
         // Uncomment the below to run the seeder
