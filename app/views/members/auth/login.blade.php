@@ -18,7 +18,8 @@
                     <li class="active">Log In</li>
                 </ol>
                 
-                <p>This is the private area of the website for members. If you're a member, please log in. If you're not a member - don't worry, you're not missing out on anything interesting.</p>
+                <p>This is the private area of the website for members. 
+                If you're a member, please log in. 
                 <br>
                 
                 {{ Form::open(array(
@@ -48,12 +49,12 @@
                             <input class="form-control" tabindex="2" placeholder="{{{ Lang::get('confide::confide.password') }}}" type="password" name="password" id="password">                        </div>
                     </div>
                     
-                    <div class="checkbox">
-                        <label for="remember">
-                            <input type="hidden" name="remember" value="0">
-                            <input tabindex="4" type="checkbox" name="remember" id="remember" value="1"> {{{ Lang::get('confide::confide.login.remember') }}}
-                        </label>
-                    </div>
+<!--                     <div class="checkbox">
+    <label for="remember">
+        <input type="hidden" name="remember" value="0">
+        <input tabindex="4" type="checkbox" name="remember" id="remember" value="1"> {{{ Lang::get('confide::confide.login.remember') }}}
+    </label>
+</div> -->
                     @if (Session::get('error'))
                         <div class="alert alert-error alert-danger">{{{ Session::get('error') }}}</div>
                     @endif

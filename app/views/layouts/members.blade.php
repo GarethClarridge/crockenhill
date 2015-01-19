@@ -25,7 +25,6 @@
             </div>
 
             <div class="col-md-3">
-
                 @foreach ($links as $link)
 
                     <aside class="card">
@@ -45,7 +44,7 @@
                 @endforeach
 
                 @if (Auth::check())
-                    @if (Auth::getUser()->hasRole('admin'))
+                    @if (Auth::user()->hasRole('Admin'))
 
                         <aside class="card">
                             

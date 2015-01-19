@@ -54,7 +54,7 @@
 
                 @endforeach
 
-                @if (Auth::check() && Auth::getUser()->hasRole('admin') &&  Request::is('members/*'))
+                @if (Auth::check() && Auth::getUser()->hasRole('Admin') &&  Request::is('members/*'))
 
                     <aside class="card">
                         
