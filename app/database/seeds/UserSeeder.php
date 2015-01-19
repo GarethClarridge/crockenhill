@@ -1,6 +1,6 @@
 <?php
 
-class UserTableSeeder extends Seeder {
+class UserSeeder extends Seeder {
 
   public function run()
   {
@@ -17,6 +17,9 @@ class UserTableSeeder extends Seeder {
       Log::info('Created user "'.$admin->username.'" <'.$admin->email.'>');
     }
 
+    $admin_role = Role::where('name','=','Admin')->first();
+    $admin->attachRole( $admin_role->id, $admin_role->user_id );
+
     $member = new User;
     $member->username = 'member';
     $member->email = 'member@crockenhill.org';
@@ -29,5 +32,8 @@ class UserTableSeeder extends Seeder {
     } else {
       Log::info('Created user "'.$member->username.'" <'.$member->email.'>');
     }
+
+    $member_role = Role::where('name','=','Member')->first();
+    $member->attachRole( $member_role->id, $member_role->user_id );
   }
 }
