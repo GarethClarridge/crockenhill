@@ -54,7 +54,9 @@ return array(
 	|
 	*/
 
-	'from' => array('address' => null, 'name' => null),
+	'from' => array(
+			'address' => 'noreply@crockenhill.org',
+			'name' 		=> 'Crockenhill Baptist Church'),
 
 	/*
 	|--------------------------------------------------------------------------
@@ -119,6 +121,6 @@ return array(
 	|
 	*/
 
-	'pretend' => false,
+	'pretend' => true,
 
 );
