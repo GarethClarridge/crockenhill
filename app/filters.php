@@ -44,20 +44,20 @@ Route::filter('auth.basic', function()
 	return Auth::basic();
 });
 
-Route::filter('auth.members', function()
+Route::filter('auth.member', function()
 {
-        if (Auth::guest())
-        {
-                return Redirect::route('members.login');
-        }
+    if (! Entrust::hasRole('Member') && ! Entrust::hasRole('Admin') ) // Checks the current user
+    {
+        return Redirect::to('/members/login');
+    }
 });
 
 Route::filter('auth.admin', function()
 {
-        if (Auth::user()->hasRole('admin') === FALSE)
-        {
-                return Redirect::route('members.login');
-        }
+    if (! Entrust::hasRole('Admin') ) // Checks the current user
+    {
+        return Redirect::to('/members/login');
+    }
 });
 
 /*

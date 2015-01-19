@@ -53,8 +53,7 @@ Route::group(array('prefix' => 'sermons'), function()
 // Members Area Routes
 
 // Confide routes
-Route::get('members/create', 'MemberController@create');
-Route::post('members', 'MemberController@store');
+
 Route::get('members/login', 'MemberController@login');
 Route::post('members/login', 'MemberController@doLogin');
 Route::get('members/confirm/{code}', 'MemberController@confirm');
@@ -64,9 +63,15 @@ Route::get('members/reset_password/{token}', 'MemberController@resetPassword');
 Route::post('members/reset_password', 'MemberController@doResetPassword');
 Route::get('members/logout', 'MemberController@logout');
 
+Route::group(array('before' => 'auth.admin'), function()
+{
+    Route::get('members/create', 'MemberController@create');
+    Route::post('members', 'MemberController@store');
+});
+
 // Custom Routes
 
-Route::group(array('prefix' => 'members', 'before' => 'auth.members'), function()
+Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
 {
     Route::get('/', function()
         {
