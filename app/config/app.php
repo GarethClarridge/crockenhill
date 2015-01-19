@@ -109,6 +109,7 @@ return array(
 		'Krucas\Notification\NotificationServiceProvider',
 		'Intervention\Image\ImageServiceProvider',
 		'Zizaco\Confide\ServiceProvider',
+		'Zizaco\Entrust\EntrustServiceProvider'
 	),
 
 	/*
@@ -176,7 +177,8 @@ return array(
 		'View'            => 'Illuminate\Support\Facades\View',
 		'Notification'    => 'Krucas\Notification\Facades\Notification',
 		'Image' 					=> 'Intervention\Image\Facades\Image',
-		'Confide'					=> 'Zizaco\Confide\Facade'
+		'Confide'					=> 'Zizaco\Confide\Facade',
+		'Entrust'					=> 'Zizaco\Entrust\EntrustFacade'
 	),
 
 );

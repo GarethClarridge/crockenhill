@@ -7,7 +7,8 @@
 		"laravel/framework": "4.2.*",
 		"edvinaskrucas/notification": "3.*",
 		"intervention/image": "1.*",
-		"zizaco/confide":	"~4.0@dev"
+		"zizaco/confide":	"4.*",
+		"zizaco/entrust":	"1.*"
 	},
 	"autoload": {
 		"classmap": [
