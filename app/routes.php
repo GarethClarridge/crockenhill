@@ -66,7 +66,7 @@ Route::get('members/logout', 'MemberController@logout');
 Route::group(array('before' => 'auth.admin'), function()
 {
     Route::get('members/create', 'MemberController@create');
-    Route::post('members', 'MemberController@store');
+    Route::post('users', 'MemberController@store');
 });
 
 // Custom Routes
@@ -100,7 +100,7 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
             ));
     });
 
-    Route::get('/{slug}', array('uses' => 'PageController@showPage'));
+    Route::get('/{slug}', array('uses' => 'PageController@showMemberPage'));
 });
 
 // General Routes

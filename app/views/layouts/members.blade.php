@@ -1,4 +1,4 @@
-@extends('layouts.main')
+<!-- @extends('layouts.main')
 
 @section('content')
 
@@ -27,48 +27,26 @@
             <div class="col-md-3">
                 @foreach ($links as $link)
 
-                    <aside class="card">
-                        @if (file_exists('images/headings/small/'.$link->slug.'.jpg'))
-                            <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
-                        @else
-                            <div class="header-container">
-                        @endif
-                                <h3><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></h3>
-                            </div>
-                        {{$link->description}}
+                    @if ($link->slug != 'homepage')
 
-                        <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
-                        
-                    </aside>
+                        <aside class="card">
+                            @if (file_exists('images/headings/small/'.$link->slug.'.jpg'))
+                                <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
+                            @else
+                                <div class="header-container">
+                            @endif
+                                    <h3><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></h3>
+                                </div>
+                            {{$link->description}}
+
+                            <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
+                            
+                        </aside>
+                    @endif
 
                 @endforeach
 
-                @if (Auth::check())
-                    @if (Auth::user()->hasRole('Admin'))
-
-                        <aside class="card">
-                            
-                            <div class="header-container">
-                                <h3><a href="members/pages">Pages</a></h3>
-                            </div>
-                            Create and edit the pages of the website.
-                            <div class="read-more"><a href="/members/pages">Read more ...</a></div>
-
-                        </aside>
-
-                        <aside class="card">
-                            
-                            <div class="header-container">
-                                <h3><a href="members/sermons">Sermons</a></h3>
-                            </div>
-                            Upload new sermons and edit old ones.
-                            <div class="read-more"><a href="/members/sermons">Read more ...</a></div>
-
-                        </aside>
-                    @endif
-                @else
-                    <p>Hello!</p>
-                @endif
+                @include('includes.membersadminnav');
 
 
             </div>
@@ -76,3 +54,4 @@
     </main>
         
 @stop
+ -->

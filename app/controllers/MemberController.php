@@ -44,7 +44,7 @@ class MemberController extends Controller
                 );
             }
 
-            return Redirect::action('MemberController@login')
+            return Redirect::to('/members/homepage')
                 ->with('notice', Lang::get('confide::confide.alerts.account_created'));
         } else {
             $error = $user->errors()->all(':message');

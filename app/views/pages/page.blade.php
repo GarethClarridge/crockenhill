@@ -38,6 +38,7 @@
 
                 @foreach ($links as $link)
 
+                    @if ($link->slug != 'homepage')
                         <aside class="card">
                             @if (file_exists('images/headings/large/'.$link->slug.'.jpg'))
                                 <div class="header-container" style="background-image: url(../images/headings/large/{{$link->slug}}.jpg)">
@@ -51,31 +52,11 @@
                             <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
 
                         </aside>
+                    @endif
 
                 @endforeach
 
-                @if (Auth::check() && Auth::getUser()->hasRole('Admin') &&  Request::is('members/*'))
-
-                    <aside class="card">
-                        
-                        <div class="header-container">
-                            <h3><a href="pages">Pages</a></h3>
-                        </div>
-                        Create and edit the pages of the website.
-                        <div class="read-more"><a href="pages">Read more ...</a></div>
-
-                    </aside>
-
-                    <aside class="card">
-                        
-                        <div class="header-container">
-                            <h3><a href="sermons">Sermons</a></h3>
-                        </div>
-                        Upload new sermons and edit old ones.
-                        <div class="read-more"><a href="sermons">Read more ...</a></div>
-
-                    </aside>
-                @endif
+                @include('includes.membersadminnav')
 
 
             </div>
