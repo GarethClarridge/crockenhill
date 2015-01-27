@@ -2,7 +2,7 @@
 /vendor
 /bower_components
 /node_modules
-/public/media
+/public_html/media/*.mp3
 /app/config/database.php
 composer.phar
 composer.lock
