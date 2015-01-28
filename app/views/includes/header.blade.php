@@ -7,7 +7,7 @@
                 <span class="icon-bar"></span>
             </button>
             @if (Request::is('/'))
-                <a class="navbar-brand logo" href="/">
+                <a class="navbar-brand" href="/">
                 Crockenhill Baptist Church
                 </a>
                 <span class="nav-no-notch">&nbsp</span>

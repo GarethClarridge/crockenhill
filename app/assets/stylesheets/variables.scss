@@ -241,7 +241,7 @@ $dropdown-caret-color:           #000;
 //// Padding, to be divided by two and applied to the left and right of all columns
 //$grid-gutter-width:         30px;
 //// Point at which the navbar stops collapsing
-//$grid-float-breakpoint:     $screen-tablet;
+$grid-float-breakpoint:     862px;
 
 
 //// Navbar
@@ -282,7 +282,7 @@ $navbar-height:                    50px;
 //// Reset inverted navbar basics
 //$navbar-inverse-color:                      $gray-light;
 $navbar-inverse-bg:                         $brand-primary;
-$navbar-inverse-border:                     darken($navbar-inverse-bg, 10%);
+$navbar-inverse-border:                     transparent;
 
 //// Inverted navbar links
 $navbar-inverse-link-color:                 lighten($navbar-inverse-bg, 40%);
@@ -306,9 +306,9 @@ $navbar-inverse-brand-color:                $navbar-inverse-link-color;
 //$navbar-inverse-search-placeholder-color:   #ccc;
 
 //// Inverted navbar toggle
-//$navbar-inverse-toggle-hover-bg:            #333;
-//$navbar-inverse-toggle-icon-bar-bg:         #fff;
-//$navbar-inverse-toggle-border-color:        #333;
+$navbar-inverse-toggle-hover-bg:            transparent;
+$navbar-inverse-toggle-icon-bar-bg:         $brand-lightest;
+$navbar-inverse-toggle-border-color:        transparent;
 
 
 //// Navs
