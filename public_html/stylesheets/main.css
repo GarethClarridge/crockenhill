@@ -4550,11 +4550,7 @@ header {
 h4, h5, h6 {
   font-family: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif; }
 
-.sermon-details {
-  padding-left: 20px; }
-
 audio {
-  padding: 40px 0px 10px;
   width: 100%; }
 
 .members-nav {
