@@ -17,7 +17,10 @@ class PageController extends BaseController {
 	    }
 
 	    $links = Page::where('area', $area)
-	    	->where('slug', '!=', $slug)
+	    	->where('slug', '!=', $slug)	    	
+	    	->where('slug', '!=', 'buzz-club')
+	    	->where('slug', '!=', 'carols-in-the-chequers')
+	    	->where('slug', '!=', 'family-fun-night')
 	    	->where('slug', '!=', $area)
 	    	->orderBy(DB::raw('RAND()'))
 	    	->take(5)
@@ -42,6 +45,9 @@ class PageController extends BaseController {
 	    $parent = Page::where('slug', $area)->first();
 	    $links = Page::where('area', $area)
 	    	->where('slug', '!=', $slug)
+	    	->where('slug', '!=', 'buzz-club')
+	    	->where('slug', '!=', 'carols-in-the-chequers')
+	    	->where('slug', '!=', 'family-fun-night')
 	    	->where('slug', '!=', $area)
 	    	->get();
 	    
@@ -73,6 +79,9 @@ public function showMemberPage($slug)
 
 	    $links = Page::where('area', $area)
 	    	->where('slug', '!=', $slug)
+	    	->where('slug', '!=', 'buzz-club')
+	    	->where('slug', '!=', 'carols-in-the-chequers')
+	    	->where('slug', '!=', 'family-fun-night')
 	    	->where('slug', '!=', $area)
 	    	->orderBy(DB::raw('RAND()'))
 	    	->take(5)
