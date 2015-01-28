@@ -16,7 +16,7 @@ gulp.task('browser-sync', function() {
 // Task sass
 gulp.task('sass', function () {
     gulp.src('app/assets/stylesheets/main.scss')
-        .pipe(sass())
+        .pipe(sass({errLogToConsole: true}))
         .pipe(gulp.dest('public_html/stylesheets'));
 });
 
