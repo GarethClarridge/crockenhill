@@ -4445,9 +4445,7 @@ aside {
 
 footer {
   background-color: #6a3121;
-  color: #e5e3d7;
-  padding: 0 20px;
-  margin-top: 50px; }
+  color: #e5e3d7; }
   footer h4 {
     margin-bottom: 30px;
     font-style: italic; }
@@ -4553,9 +4551,6 @@ h4, h5, h6 {
 audio {
   width: 100%; }
 
-.members-nav {
-  background: #d79380; }
-
 .form-narrow {
   width: 80%; }
 
@@ -4617,6 +4612,3 @@ aside .read-more {
   float: right;
   top: -5px;
   font-size: 24px; }
-
-a.membersside {
-  border-radius: 0px; }
