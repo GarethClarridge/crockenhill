@@ -21,6 +21,31 @@
       <script src="js/html5shiv.js"></script>
       <script src="js/respond.min.js"></script>
     <![endif]-->
+
+    <!-- Begin Cookie Consent plugin by Silktide - http://silktide.com/cookieconsent -->
+      <link rel="stylesheet" type="text/css" href="http://assets.cookieconsent.silktide.com/current/style.min.css"/>
+      <script type="text/javascript" src="http://assets.cookieconsent.silktide.com/current/plugin.min.js"></script>
+      <script type="text/javascript">
+      // <![CDATA[
+      cc.initialise({
+        cookies: {
+          analytics: {},
+          necessary: {}
+        },
+        settings: {
+          consenttype: "implicit",
+          style: "monochrome",
+          onlyshowbanneronce: true,
+          bannerPosition: "bottom"
+        },
+        strings: {
+          analyticsDefaultDescription: 'Like nearly all sites, we anonymously measure use of our website to help us improve it for users.'
+        }
+      });
+      // ]]>
+      </script>
+      <!-- End Cookie Consent plugin -->
+
 </head>
 
 <body>
@@ -40,9 +65,9 @@
     
     <!-- Include all compiled plugins -->
     
-    <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
-    {{ HTML::script('scripts/frontend.js') }}
-    <script>
+    <script type="text/plain" class="cc-onconsent-necessary" src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script type="text/plain" class="cc-onconsent-necessary" src="/scripts/all.js"></script>
+    <script type="text/plain" class="cc-onconsent-analytics">
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
       (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
