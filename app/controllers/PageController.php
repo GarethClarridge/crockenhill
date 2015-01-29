@@ -19,6 +19,7 @@ class PageController extends BaseController {
 	    $links = Page::where('area', $area)
 	    	->where('slug', '!=', $slug)
 	    	->where('slug', '!=', $area)
+	    	->where('slug', '!=', 'privacy-policy')
 	    	->orderBy(DB::raw('RAND()'))
 	    	->take(5)
 	    	->get();
@@ -42,6 +43,7 @@ class PageController extends BaseController {
 	    $parent = Page::where('slug', $area)->first();
 	    $links = Page::where('area', $area)
 	    	->where('slug', '!=', $slug)
+	    	->where('slug', '!=', 'privacy-policy')
 	    	->where('slug', '!=', $area)
 	    	->get();
 	    

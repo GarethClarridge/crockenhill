@@ -22,15 +22,15 @@
 	},
 	"scripts": {
 		"post-install-cmd": [
-			"php-5.4 artisan clear-compiled",
-			"php-5.4 artisan optimize"
+			"php artisan clear-compiled",
+			"php artisan optimize"
 		],
 		"post-update-cmd": [
-			"php-5.4 artisan clear-compiled",
-			"php-5.4 artisan optimize"
+			"php artisan clear-compiled",
+			"php artisan optimize"
 		],
 		"post-create-project-cmd": [
-			"php-5.4 artisan key:generate"
+			"php artisan key:generate"
 		]
 	},
 	"config": {
