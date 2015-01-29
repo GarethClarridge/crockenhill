@@ -4593,3 +4593,15 @@ aside .read-more {
   float: right;
   top: -5px;
   font-size: 24px; }
+
+#cookie-law {
+  position: absolute;
+  width: 90%;
+  margin-top: 12px;
+  margin-right: 5%;
+  margin-left: 5%;
+  z-index: 10; }
+
+#cookie-message {
+  margin-bottom: 0px !important;
+  padding: 12px 25px; }

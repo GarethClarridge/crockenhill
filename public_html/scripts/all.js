@@ -1,2 +1,0 @@
-$(function(){$("form[data-confirm]").submit(function(){return confirm($(this).attr("data-confirm"))?void 0:!1})});
-$(function(){$("form[data-confirm]").submit(function(){return confirm($(this).attr("data-confirm"))?void 0:!1})});

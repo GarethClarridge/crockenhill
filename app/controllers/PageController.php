@@ -22,6 +22,7 @@ class PageController extends BaseController {
 	    	->where('slug', '!=', 'carols-in-the-chequers')
 	    	->where('slug', '!=', 'family-fun-night')
 	    	->where('slug', '!=', $area)
+	    	->where('slug', '!=', 'privacy-policy')
 	    	->orderBy(DB::raw('RAND()'))
 	    	->take(5)
 	    	->get();
@@ -48,6 +49,7 @@ class PageController extends BaseController {
 	    	->where('slug', '!=', 'buzz-club')
 	    	->where('slug', '!=', 'carols-in-the-chequers')
 	    	->where('slug', '!=', 'family-fun-night')
+	    	->where('slug', '!=', 'privacy-policy')
 	    	->where('slug', '!=', $area)
 	    	->get();
 	    
