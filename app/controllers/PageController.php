@@ -6,38 +6,41 @@ class PageController extends BaseController {
 
 	public function showPage($slug)
 	{
-	    $page = Page::where('slug', $slug)->first();
+	    if ($page = Page::where('slug', $slug)->first()) {
 
-	    if (Request::is('members/*')) {
-	    	$area = 'members';
-		    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li><li class="active">'.$page->heading.'</li>';
-	    } else {
-	    	$area = $slug;
-		    $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
-	    }
+		    if (Request::is('members/*')) {
+		    	$area = 'members';
+			    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li><li class="active">'.$page->heading.'</li>';
+		    } else {
+		    	$area = $slug;
+			    $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
+		    }
 
-	    $links = Page::where('area', $area)
-	    	->where('slug', '!=', $slug)	    	
-	    	->where('slug', '!=', 'buzz-club')
-	    	->where('slug', '!=', 'carols-in-the-chequers')
-	    	->where('slug', '!=', 'family-fun-night')
-	    	->where('slug', '!=', $area)
-	    	->where('slug', '!=', 'privacy-policy')
-	    	->orderBy(DB::raw('RAND()'))
-	    	->take(5)
-	    	->get();
-	    
-	    $description = '<meta name="description" content="'.$page->description.'">';
-	    
-		$this->layout->content = View::make('pages.page', array(
-		    'slug'          => $page->slug,
-		    'heading'       => $page->heading,		    
-		    'description'   => $description,
-		    'area'					=> $page->area,
-		    'breadcrumbs'   => $breadcrumbs,
-		    'content'       => htmlspecialchars_decode($page->body),
-		    'links'					=> $links,
-		));
+		    $links = Page::where('area', $area)
+		    	->where('slug', '!=', $slug)	    	
+		    	->where('slug', '!=', 'buzz-club')
+		    	->where('slug', '!=', 'carols-in-the-chequers')
+		    	->where('slug', '!=', 'family-fun-night')
+		    	->where('slug', '!=', $area)
+		    	->where('slug', '!=', 'privacy-policy')
+		    	->orderBy(DB::raw('RAND()'))
+		    	->take(5)
+		    	->get();
+		    
+		    $description = '<meta name="description" content="'.$page->description.'">';
+		    
+			$this->layout->content = View::make('pages.page', array(
+			    'slug'          => $page->slug,
+			    'heading'       => $page->heading,		    
+			    'description'   => $description,
+			    'area'					=> $page->area,
+			    'breadcrumbs'   => $breadcrumbs,
+			    'content'       => htmlspecialchars_decode($page->body),
+			    'links'					=> $links,
+			));
+		} else {
+			App::abort(404);
+		};
 	}
 
 	public function showSubPage($area, $slug)

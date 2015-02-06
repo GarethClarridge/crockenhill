@@ -183,3 +183,10 @@ Route::get('publications', function(){
 Route::get('/{area}/{slug}', array('uses' => 'PageController@showSubPage'));
 
 Route::get('/{slug}', array('uses' => 'PageController@showPage'));
+
+//Error pages
+
+App::missing(function($exception)
+{
+    return Response::view('errors.missing', array(), 404);
+});
