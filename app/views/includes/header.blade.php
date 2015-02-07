@@ -33,7 +33,6 @@
                 @else
                     <li>
                     {{ link_to($page['route'], $page['name']) }}
-                    <span class="nav-no-notch">&nbsp</span>
                     </li>
                 @endif
 

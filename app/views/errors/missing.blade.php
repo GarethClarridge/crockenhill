@@ -6,6 +6,8 @@
 
 @section('content')
 
+<span class="nav-no-notch fixed-top-float">&nbsp</span>
+
   <main class="container">
       <div class="row">
             <div class="col-md-9">
