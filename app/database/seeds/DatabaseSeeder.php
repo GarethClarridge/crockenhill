@@ -11,8 +11,12 @@ class DatabaseSeeder extends Seeder {
 	{
 		Eloquent::unguard();
 
-		//$this->call('SermonSeeder');
-      //$this->command->info('Sermons table seeded!');
+    //Sermon seeding
+
+    $this->call('SermonSeeder');
+      $this->command->info('Sermons table seeded!');
+
+    // Users seeding
 
     DB::table('users')->delete();
     DB::table('password_reminders')->delete();
@@ -20,8 +24,6 @@ class DatabaseSeeder extends Seeder {
     DB::table('assigned_roles')->delete();
     DB::table('roles')->delete();
     DB::table('permissions')->delete();
-
-
 
 		$this->call('PermissionSeeder');
       $this->command->info('Permissions table seeded!');
@@ -31,6 +33,13 @@ class DatabaseSeeder extends Seeder {
 
 		$this->call('UserSeeder');
       $this->command->info('Users tables seeded!');
+
+    // Pages seeding
+
+      // !!Do not use, as there is no way of seeding the pages table!!
+
+    //$this->call('PageSeeder');
+      //$this->command->info('Pages table seeded!');
 	}
 
 }

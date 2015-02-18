@@ -7,14 +7,26 @@ class SermonSeeder extends Seeder {
         DB::table('sermons')->delete();
  
         Sermon::create(array(
-            'title'     => 'The Title of the Sermon',
-            'slug'      => '600a',
-            'preacher'  => 'Mark Drury',
-            'date'      => 2014-02-04,
+            'date'      => 2015-01-11,
             'service'   => 'morning',
-            'scripture' => 'John 1:1-14',
-            'body'      => 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
-            'series'    => 'John\'s Gospel',
+            'filename'  => '614a',
+            'filetype'  => 'mp3',
+            'title'     => 'Being Witnesses',
+            'slug'     => 'being-witnesses',
+            'reference' => 'Acts 3:11-26',
+            'preacher'  => 'Mark Drury',
+            'series'    => 'Acts'
+        ));
+
+        Sermon::create(array(
+            'date'      => 2015-01-11,
+            'service'   => 'evening',
+            'filename'  => '614b',
+            'filetype'  => 'mp3',
+            'title'     => 'In Adam or in Christ',
+            'slug'     => 'in-adam-or-in-christ',
+            'reference' => 'Ephesians 2:1-10',
+            'preacher'  => 'Mark Drury'
         ));
  
     }
