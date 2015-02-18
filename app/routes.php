@@ -100,6 +100,8 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
             ));
     });
 
+    Route::controller('songs', 'SongController');
+
     Route::get('/{slug}', array('uses' => 'PageController@showMemberPage'));
 });
 

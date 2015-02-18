@@ -14,7 +14,7 @@ class CreateSongsTable extends Migration {
 	{
 		Schema::create('songs', function ($table)
       {
-        $table->increments('song_id');
+        $table->increments('id');
         $table->string('praise_number', 5);
         $table->string('title', 100);
         $table->string('author', 100);
