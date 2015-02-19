@@ -4609,3 +4609,17 @@ aside .read-more {
 #cookie-message {
   margin-bottom: 0px !important;
   padding: 12px 25px; }
+
+.praise-icon {
+  float: left;
+  height: 128px; }
+  .praise-icon .praise-number {
+    z-index: 10;
+    position: relative;
+    top: -90px;
+    left: 45px;
+    color: #e5e3d7;
+    font-size: 30px; }
+
+.song-body {
+  padding-left: 20px; }
