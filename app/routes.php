@@ -100,8 +100,11 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
             ));
     });
 
-    Route::get('songs/{id}', 'SongController@showSong');
-    
+    Route::get('songs/scripture-reference', 'SongController@getScriptureReference');
+    Route::get('songs/scripture-reference/{reference}', 'SongController@getReferenceSongs');
+
+    Route::get('songs/{id}/{title}', 'SongController@showSong');
+
     Route::controller('songs', 'SongController');
 
 

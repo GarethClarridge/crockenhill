@@ -2,6 +2,11 @@
 
 @section('dynamic_content')
 
+  <br>
+  <br>
+  <a href="/members/songs/scripture-reference" class="btn btn-primary btn-lg btn-block">Search by scripture reference</a>
+  <br>
+
   @foreach ($songs as $song)
     <div class="media song">
       @if ($song->praise_number)
@@ -13,7 +18,7 @@
 
       <div class="media-body media-middle song-body">
         <h3 class="media-heading">
-          {{$song->title}}
+          <a href="/members/songs/{{$song->id}}/{{Str::slug($song->title)}}">{{$song->title}}</a>
         </h3>
         @if ($song->author)
           <p>

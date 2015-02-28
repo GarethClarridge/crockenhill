@@ -2,7 +2,7 @@
 
 class ScriptureReference extends Eloquent {
  
-    protected $table = 'scripture_reference';
+    protected $table = 'scripture_references';
 
     public function post()
     {
