@@ -32,15 +32,16 @@ class SongController extends BaseController {
     // Load songs
     $songs = Song::all();
       
+    // Present page
     $this->layout->content = View::make('pages.songs.index', array(
-        'slug'        => $slug,
-        'heading'     => $heading,        
-        'description' => '<meta name="description" content="Songs sung at Crockenhill Baptist Church.">',
-        'area'        => $area,
-        'breadcrumbs' => $breadcrumbs,
-        'content'     => $content,
-        'links'       => $links,
-        'songs'       => $songs
+      'slug'        => $slug,
+      'heading'     => $heading,        
+      'description' => '<meta name="description" content="Songs sung at Crockenhill Baptist Church.">',
+      'area'        => $area,
+      'breadcrumbs' => $breadcrumbs,
+      'content'     => $content,
+      'links'       => $links,
+      'songs'       => $songs
     ));
   }
 
@@ -68,62 +69,63 @@ class SongController extends BaseController {
                     <li><a href="/members/songs">Songs</a></li>
                     <li class="active">'.$song->title.'</li>';
 
+    // Present lyrics in a readable format
     $lyrics = nl2br(trim($song->lyrics));
 
+    // Information about when last sung
     $last_played = PlayDate::where('song_id', $song->id)
                               ->orderBy('date', 'desc')
                               ->first()
                               ->date;
 
+    // Information about how often we've sung it recently
     $years = 2;
-
     $frequency = PlayDate::where('song_id', $song->id)
                               ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
                               ->count();
 
+    // Scripture References
+    $scripture = ScriptureReference::where('song_id', $song->id)->get();
+
+    // Graph information
+    // Morning vs Evening Pie Chart Data
     $sung_morning = PlayDate::where('song_id', $song->id)
                               ->where('time', 'a')
                               ->count();
-
     $sung_evening = PlayDate::where('song_id', $song->id)
                               ->where('time', 'p')
                               ->count();
 
-
+    // Popularity over time Line Graph Data
     $sung_year = [];
-
     $now = date('Y');
-
     while ($now > 2003) {
-
       $times = PlayDate::where('song_id', $song->id)
                           ->where('date', 'LIKE', $now.'%')
                           ->count();
-
       $sung_year[$now] = $times;
       $now--;
     }
-
-    $scripture = ScriptureReference::where('song_id', $song->id)->get();
       
+    // Present page
     $this->layout->content = View::make('pages.songs.song', array(
-        'song'        => $song,
-        'slug'        => $slug,
-        'heading'     => $song->title,     
-        'description' => '<meta name="description" content="Songs sung at Crockenhill Baptist Church.">',
-        'area'        => $area,
-        'breadcrumbs' => $breadcrumbs,
-        'links'       => $links,
-        'content'     => '',
-        'lyrics'      => $lyrics,
-        'last_played' => $last_played,
-        'frequency'   => $frequency,
-        'years'       => $years,
-        'scripture'   => $scripture,
-        'sungmorning' => $sung_morning,
-        'sungevening' => $sung_evening,
-        'sungyear'    => array_reverse($sung_year, true),
-        'year'        => date('Y')
+      'song'        => $song,
+      'slug'        => $slug,
+      'heading'     => $song->title,     
+      'description' => '<meta name="description" content="Songs sung at Crockenhill Baptist Church.">',
+      'area'        => $area,
+      'breadcrumbs' => $breadcrumbs,
+      'links'       => $links,
+      'content'     => '',
+      'lyrics'      => $lyrics,
+      'last_played' => $last_played,
+      'frequency'   => $frequency,
+      'years'       => $years,
+      'scripture'   => $scripture,
+      'sungmorning' => $sung_morning,
+      'sungevening' => $sung_evening,
+      'sungyear'    => array_reverse($sung_year, true),
+      'year'        => date('Y')
     ));
   }
 
@@ -150,23 +152,26 @@ class SongController extends BaseController {
     // Load content
     $content = '';
       
+    // Present page
     $this->layout->content = View::make('pages.songs.scripture-reference', array(
-        'slug'        => $slug,
-        'heading'     => $heading,        
-        'description' => '<meta name="description" content="Songs sung at Crockenhill Baptist Church.">',
-        'area'        => $area,
-        'breadcrumbs' => $breadcrumbs,
-        'content'     => $content,
-        'links'       => $links,
+      'slug'        => $slug,
+      'heading'     => $heading,        
+      'description' => '<meta name="description" content="Songs sung at Crockenhill Baptist Church.">',
+      'area'        => $area,
+      'breadcrumbs' => $breadcrumbs,
+      'content'     => $content,
+      'links'       => $links,
     ));
   }
 
-  public function postScriptureReference() {
-
+  public function postScriptureReference() 
+  {
+    // Get user's search
     $book     = Input::get('book');
     $chapter  = Input::get('chapter');
     $verse    = Input::get('verse');
 
+    // Send user to search results page
     return Redirect::to('/members/songs/scripture-reference/'.$book.'.'.$chapter.'.'.$verse);
   }
 
@@ -185,33 +190,32 @@ class SongController extends BaseController {
     // Set values
     $heading = 'Songs for '.$reference;
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
-                      <li><a href="/members/songs">Songs</a></li>
-                      <li><a href="/members/songs/scripture-reference">Scripture Reference</a></li>
-                      <li class="active">'.$reference.'</li>';    
+                    <li><a href="/members/songs">Songs</a></li>
+                    <li><a href="/members/songs/scripture-reference">Scripture Reference</a></li>
+                    <li class="active">'.$reference.'</li>';    
 
     // Load songs
+    // Get list of references
     $references = ScriptureReference::where('reference', $reference)->get();
-
+    // Get song ids for each reference
     $ref = [];
-
     foreach ($references as $reference) {
       $ref[] = $reference->song_id;
     }
-
+    // Get songs for each song id
     $songs = Song::whereIn('id', $ref)->get();
       
+    // Present page
     $this->layout->content = View::make('pages.songs.scripture-reference-songs', array(
-        'slug'        => $reference,
-        'heading'     => $heading,        
-        'description' => '<meta name="description" content="Songs sung at Crockenhill Baptist Church.">',
-        'area'        => $area,
-        'breadcrumbs' => $breadcrumbs,
-        'content'     => '',
-        'links'       => $links,
-        'songs'       => $songs,
-        'reference'   => $reference
+      'slug'        => $reference,
+      'heading'     => $heading,        
+      'description' => '<meta name="description" content="Songs sung at Crockenhill Baptist Church.">',
+      'area'        => $area,
+      'breadcrumbs' => $breadcrumbs,
+      'content'     => '',
+      'links'       => $links,
+      'songs'       => $songs,
+      'reference'   => $reference
     ));
   }
-
-
 }
