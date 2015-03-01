@@ -81,6 +81,30 @@ class SongController extends BaseController {
                               ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
                               ->count();
 
+    $sung_morning = PlayDate::where('song_id', $song->id)
+                              ->where('time', 'a')
+                              ->count();
+
+    $sung_evening = PlayDate::where('song_id', $song->id)
+                              ->where('time', 'p')
+                              ->count();
+
+
+    $sung_year = [];
+
+    $now = date('Y');
+
+    while ($now > 2003) {
+
+      $times = PlayDate::where('song_id', $song->id)
+                          ->where('date', '>', date('Y-m-d', strtotime($now.'-1')))
+                          ->where('date', '<', date('Y-m-d', strtotime($now.'+1')))
+                          ->count();
+
+      $sung_year[$now] = $times;
+      $now--;
+    }
+
     $scripture = ScriptureReference::where('song_id', $song->id)->get();
       
     $this->layout->content = View::make('pages.songs.song', array(
@@ -96,7 +120,11 @@ class SongController extends BaseController {
         'last_played' => $last_played,
         'frequency'   => $frequency,
         'years'       => $years,
-        'scripture'   => $scripture
+        'scripture'   => $scripture,
+        'sungmorning' => $sung_morning,
+        'sungevening' => $sung_evening,
+        'sungyear'    => array_reverse($sung_year, true),
+        'year'        => date('Y')
     ));
   }
 
