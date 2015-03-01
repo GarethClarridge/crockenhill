@@ -152,6 +152,7 @@
 
     var lineOptions = {
       responsive: true,
+      bezierCurve: false,
       legendTemplate : '<div>'
                   +'<% for (var i=0; i<lineData.length; i++) { %>'
                     +'<p><span class="badge" style=\"background-color:<%=lineData[i].color%>\">'

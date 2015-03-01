@@ -97,8 +97,7 @@ class SongController extends BaseController {
     while ($now > 2003) {
 
       $times = PlayDate::where('song_id', $song->id)
-                          ->where('date', '>', date('Y-m-d', strtotime($now.'-1')))
-                          ->where('date', '<', date('Y-m-d', strtotime($now.'+1')))
+                          ->where('date', 'LIKE', $now.'%')
                           ->count();
 
       $sung_year[$now] = $times;
