@@ -35,11 +35,11 @@
               <span class="label label-success">{{$frequency}}</span>
             @endif
 
-            @if ($frequency > 2)
+            @if ($frequency > 1)
               <span class="label label-warning">{{$frequency}}</span>
             @endif
 
-            @if ($frequency <= 2)
+            @if ($frequency <= 1)
               <span class="label label-danger">{{$frequency}}</span>
             @endif
 
@@ -63,11 +63,19 @@
         <p>
           <span class="glyphicon glyphicon-book"></span> &nbsp
           Scripture References: 
-          @foreach ($scripture as $scripture)
-          {{ $scripture->reference }} 
-          @endforeach
+            @foreach ($scripture as $s)
+              <i>{{ $s->reference }}</i>
+            @endforeach
         </p>
       @endif
+    </div>
+  </div>
+
+  <h4>Popularity over time:</h4>
+
+  <div class="row">
+    <div class="col-sm-12">
+      <canvas id="per-year"></canvas>
     </div>
   </div>
 
@@ -79,14 +87,6 @@
     </div>
     <div class="col-sm-4">
       <div id="pieLegend"></div>
-    </div>
-  </div>
-
-  <h4>Popularity over time:</h4>
-
-  <div class="row">
-    <div class="col-sm-12">
-      <canvas id="per-year"></canvas>
     </div>
   </div>
 
@@ -126,7 +126,7 @@
     document.getElementById("pieLegend").innerHTML = myPieChart.generateLegend();
 
 
-    var lineData = {
+    var barData = {
         labels: [
           @foreach ($sungyear as $key => $value)
             {{ $key }},
@@ -150,20 +150,19 @@
         ]
     };
 
-    var lineOptions = {
+    var barOptions = {
       responsive: true,
-      bezierCurve: false,
       legendTemplate : '<div>'
-                  +'<% for (var i=0; i<lineData.length; i++) { %>'
-                    +'<p><span class="badge" style=\"background-color:<%=lineData[i].color%>\">'
-                    +'<% if (lineData[i].label) { %><%= lineData[i].label %><% } %>'
+                  +'<% for (var i=0; i<barData.length; i++) { %>'
+                    +'<p><span class="badge" style=\"background-color:<%=barData[i].color%>\">'
+                    +'<% if (barData[i].label) { %><%= barData[i].label %><% } %>'
                     +'</span></p>'
                 +'<% } %>'
               +'</div>'
     };
 
     var ctx2 = document.getElementById("per-year").getContext("2d");
-    var myLineChart = new Chart(ctx2).Line(lineData,lineOptions);
+    var myLineChart = new Chart(ctx2).Bar(barData,barOptions);
   </script>
 
 @stop
