@@ -42,6 +42,7 @@
     <!-- Include all compiled plugins -->
     
     <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+    <script src="/scripts/bootstrap.min.js"></script>
     <script src="/scripts/all.js"></script>
 
 </body>
