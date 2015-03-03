@@ -75,7 +75,7 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
 {
     Route::get('/', function()
         {
-            return Redirect::to('members/homepage');
+            return Redirect::to('members/members-area');
         });
 
     Route::group(array('before' => 'auth.admin'), function()
