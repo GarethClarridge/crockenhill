@@ -17,7 +17,7 @@ class CreateDocumentsTable extends Migration {
         $table->increments('id');
         $table->string('title', 75);
         $table->string('type', 50);
-        $table->string('filename', 9);
+        $table->string('filename', 50);
         $table->string('filetype', 8);
         $table->string('owner', 50);
         $table->timestamps();

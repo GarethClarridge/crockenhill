@@ -44,7 +44,7 @@ class MemberController extends Controller
                 );
             }
 
-            return Redirect::to('/members/homepage')
+            return Redirect::to('/members/members-area')
                 ->with('notice', Lang::get('confide::confide.alerts.account_created'));
         } else {
             $error = $user->errors()->all(':message');
@@ -80,7 +80,7 @@ class MemberController extends Controller
         $input = Input::all();
 
         if ($repo->login($input)) {
-            return Redirect::intended('/members/homepage');
+            return Redirect::intended('/members/members-area');
         } else {
             if ($repo->isThrottled($input)) {
                 $err_msg = Lang::get('confide::confide.alerts.too_many_attempts');

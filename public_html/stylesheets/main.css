@@ -4609,3 +4609,25 @@ aside .read-more {
 #cookie-message {
   margin-bottom: 0px !important;
   padding: 12px 25px; }
+
+.document-container {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  margin-left: -9.52381%;
+  width: 119.04762%;
+  min-height: 200px;
+  background-color: #eeeeee; }
+
+.file {
+  display: block;
+  background-color: white;
+  text-align: center; }
+
+.document-icon {
+  height: 1.25em;
+  font-size: 5em;
+  color: #252a2e; }
+
+.document-sub-container {
+  margin-left: 12px;
+  margin-right: 12px; }
