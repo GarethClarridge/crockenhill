@@ -107,6 +107,23 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
     Route::resource('document', 'DocumentController');
     Route::get('documents', array('uses' => 'DocumentController@index'));
 
+    // Songs
+    Route::get('songs/scripture-reference', 'SongController@getScriptureReference');
+    Route::get('songs/scripture-reference/{reference}', 'SongController@getReferenceSongs');
+
+    Route::get('songs/search', 'SongController@getSearch');
+    Route::get('songs/search/{search}', 'SongController@getSearchSongs');
+ 
+    Route::get('songs/service-record', 'SongController@getServiceRecord');
+
+    Route::get('songs/upload', 'SongController@getUpload');
+
+    Route::get('songs/{id}/{title}', 'SongController@showSong');
+
+    Route::controller('songs', 'SongController');
+
+
+    // Catch-all
     Route::get('/{slug}', array('uses' => 'PageController@showMemberPage'));
 });
 
