@@ -35,4 +35,5 @@ gulp.task('default', ['browser-sync'], function () {
     gulp.watch('./**/*.php', browserSync.reload);
     gulp.watch('./app/assets/javascript/*.js', ['js', browserSync.reload]);
     gulp.watch(['./app/assets/stylesheets/**/*.scss'], ['sass', browserSync.reload]);
+    gulp.watch(['./app/assets/stylesheets/cbc/*.scss'], ['sass', browserSync.reload]);
 });

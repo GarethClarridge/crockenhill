@@ -21,11 +21,12 @@ $gray-lightest:          lighten(#000, 98%);
 // Brand colors
 // -------------------------
 
-$brand-primary:         #6a3121;
-$brand-secondary:       #b66d5c;
-$brand-dark:            #252a2e;
-$brand-light:           #dbcaab;
-$brand-lightest:        #e5e3d7;
+$brand-primary:         #34495e;
+$brand-secondary:       #16A085;
+$brand-dark:            $brand-primary;
+$brand-light:           #3498db;
+$brand-lightest:        lighten($brand-light, 20%);
+$brand-secondary-light: #1abc9c;
 
 $brand-success:         #2B79A1;
 $brand-warning:         #f0ad4e;
@@ -35,14 +36,14 @@ $brand-info:            #5bc0de;
 // Scaffolding
 // -------------------------
 
-$body-bg:               $brand-lightest;
-$text-color:            $brand-dark;
+$body-bg:               $gray-lighter;
+$text-color:            darken($brand-dark, 60%);
 $inverse-text-color:    $brand-lightest;
 
 // Links
 // -------------------------
 
-$link-color:            $brand-secondary;
+$link-color:            $brand-dark;
 $link-hover-color:      darken($link-color, 15%);
 $inverse-link-color:    darken($brand-light, 15%);
 
@@ -122,8 +123,8 @@ $component-active-bg:            $brand-primary;
 //$btn-default-bg:                 #fff;
 //$btn-default-border:             #ccc;
 
-$btn-primary-color:              $brand-light;
-$btn-primary-bg:                 $brand-primary;
+$btn-primary-color:              $gray-lightest;
+$btn-primary-bg:                 $brand-dark;
 $btn-primary-border:             $btn-primary-bg;
 
 //$btn-success-color:              #fff;
@@ -281,15 +282,15 @@ $navbar-height:                    50px;
 ////
 //// Reset inverted navbar basics
 //$navbar-inverse-color:                      $gray-light;
-$navbar-inverse-bg:                         $brand-primary;
+$navbar-inverse-bg:                         $brand-dark;
 $navbar-inverse-border:                     transparent;
 
 //// Inverted navbar links
-$navbar-inverse-link-color:                 lighten($navbar-inverse-bg, 40%);
-//$navbar-inverse-link-hover-color:           #fff;
+$navbar-inverse-link-color:                 $gray-lightest;
+$navbar-inverse-link-hover-color:           $brand-secondary;
 //$navbar-inverse-link-hover-bg:              transparent;
-//$navbar-inverse-link-active-color:          $navbar-inverse-link-hover-color;
-$navbar-inverse-link-active-bg:             darken($navbar-inverse-bg, 10%);
+$navbar-inverse-link-active-color:          $navbar-inverse-link-hover-color;
+$navbar-inverse-link-active-bg:             $brand-dark;
 //$navbar-inverse-link-disabled-color:        #444;
 //$navbar-inverse-link-disabled-bg:           transparent;
 

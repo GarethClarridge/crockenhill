@@ -1,6 +1,6 @@
 footer {
-    background-color: $brand-primary;
-    color: $inverse-text-color;
+    background-color: $brand-dark;
+    color: $gray-lightest;
     margin-top: 50px;
 
     h4 {
@@ -13,18 +13,13 @@ footer {
     }
 
     a {
-        color: $inverse-link-color;
+        color: $brand-secondary;
     }
     
     a:hover {
-        color: $inverse-link-color;
+        color: $gray-lightest;
     }
 
-}
-
-.mark-icon {
-    width: 125%;
-    max-width: 100px;
 }
 
 .copyright {

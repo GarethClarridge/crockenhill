@@ -8,11 +8,15 @@
             </button>
             @if (Request::is('/'))
                 <a class="navbar-brand" href="/">
-                Crockenhill Baptist Church
+                    <img src="/images/White.png" alt="" height="40px">
+                    Crockenhill Baptist Church
                 </a>
                 <span class="nav-no-notch">&nbsp</span>
             @else
-                <a class="navbar-brand logo" href="/">Crockenhill Baptist Church</a>
+                <a class="navbar-brand logo" href="/">
+                    <img src="/images/White.png" alt="" height="40px">
+                    Crockenhill Baptist Church
+                </a>
             @endif
         </div>
         <div class="navbar-collapse collapse">
