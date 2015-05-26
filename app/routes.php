@@ -75,12 +75,12 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
 {
     Route::get('/', function()
         {
-            return Redirect::to('members/homepage');
+            return Redirect::to('members/members-area');
         });
 
     Route::group(array('before' => 'auth.admin'), function()
     {
-        Route::resource('sermons', 'AdminSermonsController');
+        // Manage pages
         Route::resource('pages', 'AdminPagesController');
         Route::get('pages/{slug}/changeimage', array(
             'uses'  => 'AdminPagesController@changeimage',
@@ -90,6 +90,9 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
             'uses'  => 'AdminPagesController@updateimage',
             'as'    => 'members.pages.updateimage'
             ));
+
+        // Manage sermons
+        Route::resource('sermons', 'AdminSermonsController');
         Route::get('sermons/{slug}/changeimage', array(
             'uses'  => 'AdminSermonsController@changeimage',
             'as'    => 'members.sermons.changeimage'
@@ -99,6 +102,10 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
             'as'    => 'members.sermons.updateimage'
             ));
     });
+
+    // Manage documents
+    Route::resource('document', 'DocumentController');
+    Route::get('documents', array('uses' => 'DocumentController@index'));
 
     Route::get('/{slug}', array('uses' => 'PageController@showMemberPage'));
 });
