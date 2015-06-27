@@ -4471,12 +4471,12 @@ footer {
   padding: 30px 15px 0px; }
 
 .home {
-  background-image: url(../images/church_blur.png);
+  background-image: url(../images/church_blur.jpg);
   background-size: contain;
   background-repeat: no-repeat; }
 
 .home-head {
-  background-image: url(../images/church_blur.png);
+  background-image: url(../images/church_blur.jpg);
   background-size: cover;
   background-repeat: no-repeat;
   min-height: 500px;
@@ -4568,7 +4568,7 @@ audio {
     margin-left: -9.52381%;
     margin-top: 0;
     margin-bottom: 25px;
-    background-image: url(../images/church_blur.png);
+    background-image: url(../images/church_blur.jpg);
     background-size: cover;
     background-position: 50%; }
     .card .header-container h1, .card .header-container h2, .card .header-container h3, .card .header-container h4, .card .header-container h5, .card .header-container h6 {
