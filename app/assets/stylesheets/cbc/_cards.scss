@@ -59,3 +59,25 @@ aside {
     top: -5px;
     font-size: floor($font-size-large*1.2);
 }
+
+.full-width {
+    width: 119.047619%;
+    margin-left: -9.5238095%;
+    margin-top: 0;
+    margin-bottom: $line-height-computed;
+}
+
+.meeting-details {
+    margin-top: 3em;
+    background-color: $brand-primary;
+    color: white;
+    padding: 3em;
+
+    table {
+        font-size: 2em;
+
+        th {
+            padding: 0em 1em;
+        }
+    }
+}

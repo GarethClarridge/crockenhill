@@ -4600,6 +4600,22 @@ aside .read-more {
   top: -5px;
   font-size: 24px; }
 
+.full-width {
+  width: 119.04762%;
+  margin-left: -9.52381%;
+  margin-top: 0;
+  margin-bottom: 25px; }
+
+.meeting-details {
+  margin-top: 3em;
+  background-color: #34495e;
+  color: white;
+  padding: 3em; }
+  .meeting-details table {
+    font-size: 2em; }
+    .meeting-details table th {
+      padding: 0em 1em; }
+
 #cookie-law {
   position: absolute;
   width: 90%;
