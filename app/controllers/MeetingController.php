@@ -12,10 +12,7 @@ class MeetingController extends \BaseController {
 		$slug 				= 'whats-on';
 		$area 				= $slug;
   	$page 				= Page::where('slug', $slug)->first();
-		$links 				= Page::where('area', $area)
-							    	->where('slug', '!=', $slug)
-							    	->where('slug', '!=', $area)
-							    	->where('slug', '!=', 'homepage')
+		$links 				= Meeting::where('slug', '!=', $slug)
 							    	->orderBy(DB::raw('RAND()'))
 							    	->take(8)
 							    	->get();

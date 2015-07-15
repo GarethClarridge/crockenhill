@@ -38,7 +38,21 @@
 
                 @foreach ($links as $link)
 
-                    @if ($link->slug != 'homepage')
+                    @if (Request::is('whats-on') || Request::is('whats-on/*'))
+                        <aside class="card">
+                            @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                                <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
+                            @else
+                                <div class="header-container">
+                            @endif
+                                    <h3><a href="/whats-on/{{$link->slug}}">{{$link->heading}}</a></h3>
+                                </div>
+                            {{$link->description}}
+
+                            <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
+                        </aside>
+
+                    @elseif ($link->slug != 'homepage')
                         <aside class="card">
                             @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
                                 <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
@@ -50,7 +64,6 @@
                             {{$link->description}}
 
                             <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
-
                         </aside>
                     @endif
 
