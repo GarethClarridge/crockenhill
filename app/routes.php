@@ -50,6 +50,8 @@ Route::group(array('prefix' => 'sermons'), function()
 
 });
 
+Route::resource('whats-on', 'MeetingController');
+
 // Members Area Routes
 
 // Confide routes
