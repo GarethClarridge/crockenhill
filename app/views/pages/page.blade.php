@@ -11,8 +11,8 @@
 	    <div class="row">
             <div class="col-md-9">
                 <article class="card">
-                    @if (file_exists('images/headings/large/'.$slug.'.jpg'))
-                        <div class="header-container" style="background-image: url(../images/headings/large/{{$slug}}.jpg)">
+                    @if (file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
+                        <div class="header-container" style="background-image: url({{$headingpicture}})">
                     @else
                         <div class="header-container">
                     @endif
@@ -40,8 +40,8 @@
 
                     @if ($link->slug != 'homepage')
                         <aside class="card">
-                            @if (file_exists('images/headings/large/'.$link->slug.'.jpg'))
-                                <div class="header-container" style="background-image: url(../images/headings/large/{{$link->slug}}.jpg)">
+                            @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                                <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
                             @else
                                 <div class="header-container">
                             @endif

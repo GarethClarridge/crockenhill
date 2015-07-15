@@ -20,13 +20,15 @@ class MeetingController extends \BaseController {
 							    	->take(8)
 							    	->get();
     $heading 			= $page->heading;
+    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
     $breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
     $description 	= '<meta name="description" content="'.$page->description.'">';
     $content 			= $page->body;
 
 		$this->layout->content = View::make('pages.page', array(
 		    'slug'          => $slug,
-		    'heading'       => $heading,		    
+		    'heading'       => $heading,	
+		    'headingpicture'=> $headingpicture,	    
 		    'description'   => $description,
         'area'					=> $area,
 		    'breadcrumbs'   => $breadcrumbs,
@@ -73,6 +75,7 @@ class MeetingController extends \BaseController {
 							    	->take(4)
 							    	->get();
     $heading 			= $page->heading;
+    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
     $breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
     $description 	= '<meta name="description" content="'.$page->description.'">';
     $content 			= $page->body;
@@ -87,7 +90,8 @@ class MeetingController extends \BaseController {
 
 		$this->layout->content = View::make('pages.meetings.meeting', array(
 		    'slug'          => $slug,
-		    'heading'       => $heading,		    
+		    'heading'       => $heading,		
+		    'headingpicture'=> $headingpicture,    
 		    'description'   => $description,
         'area'					=> $area,
 		    'breadcrumbs'   => $breadcrumbs,
