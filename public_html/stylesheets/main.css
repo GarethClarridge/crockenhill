@@ -4375,7 +4375,8 @@ th.hidden-lg, td.hidden-lg {
     display: none !important; } }
 
 main {
-  margin-top: 70px; }
+  margin-top: 70px;
+  margin-bottom: 50px; }
 
 h1 {
   margin: 50px 0%; }
@@ -4455,8 +4456,7 @@ aside {
 
 footer {
   background-color: #34495e;
-  color: #fafafa;
-  margin-top: 50px; }
+  color: #fafafa; }
   footer h4 {
     margin-bottom: 30px;
     font-style: italic; }
@@ -4470,9 +4470,10 @@ footer {
 .copyright {
   padding: 30px 15px 0px; }
 
-.home {
-  color: #FFFFFF; }
-  .home p {
+#home {
+  color: #FFFFFF;
+  margin-bottom: 0px; }
+  #home p {
     padding-top: 40px;
     font-style: italic; }
 

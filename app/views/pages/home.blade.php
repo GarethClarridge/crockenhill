@@ -6,7 +6,7 @@
 
 @section('content')
 
-  <main class="home">
+  <main id="home">
     <div class="home-head">
       <div class="container">
         <h1 class="text-center">Crockenhill Baptist Church</h1>
