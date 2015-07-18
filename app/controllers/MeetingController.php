@@ -90,7 +90,7 @@ class MeetingController extends \BaseController {
     	$filelist = scandir($_SERVER['DOCUMENT_ROOT'].'/images/meetings/'.$slug);
     	$photos 	= array_slice($filelist, 2);
     } else {
-    	$photos = 'Ooops';
+    	$photos = '';
     }
 
 		$this->layout->content = View::make('pages.meetings.meeting', array(
