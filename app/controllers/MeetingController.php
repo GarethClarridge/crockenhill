@@ -85,6 +85,14 @@ class MeetingController extends \BaseController {
     $phone				= $page->LeadersPhone;
     $email				= $page->LeadersEmail;
 
+    //Photos
+    if ($page->pictures === '1') {
+    	$filelist = scandir($_SERVER['DOCUMENT_ROOT'].'/images/meetings/'.$slug);
+    	$photos 	= array_slice($filelist, 2);
+    } else {
+    	$photos = 'Ooops';
+    }
+
 		$this->layout->content = View::make('pages.meetings.meeting', array(
 		    'slug'          => $slug,
 		    'heading'       => $heading,		
@@ -101,7 +109,8 @@ class MeetingController extends \BaseController {
         'location'			=> $location,
         'who'						=> $who,
         'phone'					=> $phone,
-        'email'					=> $email
+        'email'					=> $email,
+        'photos'				=> $photos
 		));
 	}
 

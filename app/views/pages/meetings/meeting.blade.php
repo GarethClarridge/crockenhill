@@ -72,6 +72,20 @@
     </div>
   </div>
 
+  @if ($photos != '')
+    <div class="row">
+
+      @foreach ($photos as $photo)
+
+      <div class="col-md-6">
+        <img src="/images/meetings/{{$slug}}/{{$photo}}" width="100%" alt="">
+      </div>
+
+      @endforeach
+
+    </div>
+  @endif
+
 {{-- Child Protection --}}
 
   @if ($type === 'ChildrenAndYoungPeople' 
@@ -86,3 +100,4 @@
   @endif
 
 @stop
+
