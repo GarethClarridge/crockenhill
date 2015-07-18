@@ -4471,9 +4471,10 @@ footer {
   padding: 30px 15px 0px; }
 
 .home {
-  background-image: url(../images/church_blur.jpg);
-  background-size: contain;
-  background-repeat: no-repeat; }
+  color: #FFFFFF; }
+  .home p {
+    padding-top: 40px;
+    font-style: italic; }
 
 .home-head {
   background-image: url(../images/church_blur.jpg);
@@ -4482,46 +4483,34 @@ footer {
   min-height: 500px;
   margin-top: -20px; }
   .home-head .container {
-    padding-top: 100px;
-    color: #FFFFFF; }
-    .home-head .container p {
-      padding-top: 40px;
-      font-style: italic; }
+    padding-top: 100px; }
   .home-head h1 {
     font-size: 80px;
     font-weight: 800; }
-  .home-head .arrow {
-    font-size: 80px; }
-    .home-head .arrow a {
-      color: #8bc4ea; }
 
-.home-body {
-  background: #eeeeee;
-  /*     .jump-destination {
-        display: inline;
-        margin-bottom: 0;
-        padding: 0;
-        height: 50px;
-    } */
-  /*     video {
-        width: 100%;
-        margin-bottom: $line-height-computed;
-    } */ }
-  .home-body a {
-    display: block;
-    text-decoration: none;
-    color: #222222;
-    background-color: #fafafa;
-    margin: 10px;
-    padding: 5%;
-    box-shadow: 1px 1px 4px #999999; }
-    .home-body a:hover {
-      background-color: #eeeeee; }
-  .home-body .glyphicon {
-    font-size: 5em;
-    margin-right: 0.5em; }
-  .home-body .media-body {
-    margin-left: 20px; }
+.home-body .container {
+  width: 100%; }
+
+.home-block {
+  padding: 10% 20%;
+  background-size: cover;
+  background-position: 50%; }
+  .home-block p {
+    font-size: 28.8px; }
+  .home-block h2 {
+    font-size: 48px; }
+
+.greeting {
+  background-image: url(../images/homepage/greeting.JPG); }
+
+.listening {
+  background-image: url(../images/homepage/listening.JPG); }
+
+.building {
+  background-image: url(../images/homepage/building.JPG); }
+
+.eating {
+  background-image: url(../images/homepage/eating.JPG); }
 
 .references {
   font-size: 16px;

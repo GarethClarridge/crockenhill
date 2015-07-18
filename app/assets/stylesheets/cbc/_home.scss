@@ -1,78 +1,59 @@
 .home {
-    background-image: url(../images/church_blur.jpg);
-    background-size: contain;
-    background-repeat: no-repeat;
+  color: #FFFFFF;
+
+  p {
+    padding-top: 40px;
+    font-style: italic;
+  }
 }
 
 .home-head {
-    background-image: url(../images/church_blur.jpg);
-    background-size: cover;
-    background-repeat: no-repeat;
-    min-height: 500px;
-    margin-top: -20px;
+  background-image: url(../images/church_blur.jpg);
+  background-size: cover;
+  background-repeat: no-repeat;
+  min-height: 500px;
+  margin-top: -20px;
 
-    .container {
-        padding-top: 100px;
-        color: #FFFFFF;
+  .container {
+    padding-top: 100px;
+  }
 
-        p {
-            padding-top: 40px;
-            font-style: italic;
-        }
-    }
-
-    h1 {
-        font-size: $font-size-base*5;
-        font-weight: 800;
-    }
-    
-    .arrow {
-        font-size: $font-size-base*5;
-        
-        a {
-            color: $brand-lightest;
-        }
-    }
-    
-
+  h1 {
+    font-size: $font-size-base*5;
+    font-weight: 800;
+  }
 }
 
 .home-body {
+  .container {
+    width: 100%;
+  }
+}
 
-    background: $gray-lighter;
+.home-block {
+  padding: 10% 20%;
+  background-size: cover;
+  background-position: 50%;
+  p {
+    font-size: $font-size-base*1.8;
+  }
+  h2 {
+    font-size: $font-size-base*3;
+  }
+}
 
-    /*     .jump-destination {
-        display: inline;
-        margin-bottom: 0;
-        padding: 0;
-        height: 50px;
-    } */
+.greeting {
+  background-image: url(../images/homepage/greeting.JPG);
+}
 
-    /*     video {
-        width: 100%;
-        margin-bottom: $line-height-computed;
-    } */
+.listening {
+  background-image: url(../images/homepage/listening.JPG);
+}
 
-    a {
-        display: block;
-        text-decoration: none;
-        color: $gray-darker;
-        background-color: $gray-lightest;
-        margin: 10px;
-        padding: 5%;
-        box-shadow: 1px 1px 4px $gray-light;
-        
-        &:hover {
-            background-color: $gray-lighter;
-        }
-    }
-    
-    .glyphicon {
-        font-size: 5em;
-        margin-right: 0.5em;
-    }
-    
-    .media-body {
-        margin-left: 20px;
-    }
+.building {
+  background-image: url(../images/homepage/building.JPG);
+}
+
+.eating {
+  background-image: url(../images/homepage/eating.JPG);
 }
