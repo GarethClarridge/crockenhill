@@ -8,21 +8,19 @@ class PageController extends BaseController {
 	{
     if ($page = Page::where('slug', $slug)->first()) {
 
-	    if (Request::is('members/*')) {
+	    if (Request::is('members/members-area')) {
 	    	$area = 'members';
-		    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li><li class="active">'.$page->heading.'</li>';
+		    $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
 	    } else {
 	    	$area = $slug;
 		    $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
 	    }
 
 	    $links = Page::where('area', $area)
-	    	->where('slug', '!=', $slug)	    	
-	    	->where('slug', '!=', 'buzz-club')
-	    	->where('slug', '!=', 'carols-in-the-chequers')
-	    	->where('slug', '!=', 'family-fun-night')
+	    	->where('slug', '!=', $slug)
 	    	->where('slug', '!=', $area)
 	    	->where('slug', '!=', 'privacy-policy')
+	    	->where('admin', '!=', 'yes')
 	    	->orderBy(DB::raw('RAND()'))
 	    	->take(5)
 	    	->get();
@@ -57,6 +55,7 @@ class PageController extends BaseController {
 		    	->where('slug', '!=', 'family-fun-night')
 		    	->where('slug', '!=', 'privacy-policy')
 		    	->where('slug', '!=', $area)
+		    	->where('admin', '!=', 'yes')
 		    	->get();
 		    
 		    $breadcrumb = '<li>'.link_to($page['area'], $parent->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
@@ -78,44 +77,4 @@ class PageController extends BaseController {
 				App::abort(404);
 			};
 	}
-
-public function showMemberPage($slug)
-	{
-    if ($page = Page::where('slug', $slug)->first()) {
-
-	    if (Request::is('members/*')) {
-	    	$area = 'members';
-		    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li><li class="active">'.$page->heading.'</li>';
-	    } else {
-	    	$area = $slug;
-		    $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
-	    }
-
-	    $links = Page::where('area', $area)
-	    	->where('slug', '!=', $slug)
-	    	->where('slug', '!=', $area)
-	    	->orderBy(DB::raw('RAND()'))
-	    	->take(5)
-	    	->get();
-	    
-	    $description = '<meta name="description" content="'.$page->description.'">';
-	    
-	    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
-
-			$this->layout->content = View::make('pages.page', array(
-		    'slug'          => $page->slug,
-		    'heading'       => $page->heading,		    
-		    'description'   => $description,
-		    'area'					=> $page->area,
-		    'breadcrumbs'   => $breadcrumbs,
-		    'content'       => htmlspecialchars_decode($page->body),
-		    'links'					=> $links,
-		    'headingpicture'=> $headingpicture
-			));
-		} else {
-			App::abort(404);
-		};
-
-	}
-
 }

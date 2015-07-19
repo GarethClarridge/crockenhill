@@ -63,7 +63,7 @@ class MemberController extends Controller
     public function login()
     {
         if (Confide::user()) {
-            return Redirect::to('/');
+            return Redirect::to('/members/members-area');
         } else {
             return View::make(Config::get('confide::login_form'));
         }

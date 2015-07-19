@@ -36,6 +36,8 @@ class UserRepository
         // Save if valid. Password field will be hashed before save
         $this->save($user);
 
+        $user->attachRole('Member');
+
         return $user;
     }
 

@@ -49,10 +49,9 @@
                                 </div>
                             {{$link->description}}
 
-                            <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
+                            <div class="read-more"><a href="/whats-on/{{$link->slug}}">Read more ...</a></div>
                         </aside>
-
-                    @elseif ($link->slug != 'homepage')
+                    @else
                         <aside class="card">
                             @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
                                 <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
