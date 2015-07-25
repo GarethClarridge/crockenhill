@@ -64,12 +64,8 @@ Route::post('members/forgot_password', 'MemberController@doForgotPassword');
 Route::get('members/reset_password/{token}', 'MemberController@resetPassword');
 Route::post('members/reset_password', 'MemberController@doResetPassword');
 Route::get('members/logout', 'MemberController@logout');
-
-Route::group(array('before' => 'auth.admin'), function()
-{
-    Route::get('members/create', 'MemberController@create');
-    Route::post('users', 'MemberController@store');
-});
+Route::get('members/register', 'MemberController@create');
+Route::post('users', 'MemberController@store');
 
 // Custom Routes
 
@@ -77,7 +73,7 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
 {
     Route::get('/', function()
         {
-            return Redirect::to('members/members-area');
+            return Redirect::to('members-area');
         });
 
     Route::group(array('before' => 'auth.admin'), function()
@@ -126,7 +122,7 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
 
 
     // Catch-all
-    Route::get('/{slug}', array('uses' => 'PageController@showMemberPage'));
+    Route::get('/{slug}', array('uses' => 'PageController@showPage'));
 });
 
 // Permanent Redirects

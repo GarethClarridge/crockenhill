@@ -1,10 +1,6 @@
-@extends('layouts.members')
+@extends('pages.page')
 
-@section('title', 'Pages')
-
-@section('description', '<meta name="description" content="Admin tasks for website pages">')
-
-@section('membercontent')
+@section('dynamic_content')
 
 <a href="pages/create" class="btn btn-default btn-lg btn-block" role="button">Create a new page</a>
 

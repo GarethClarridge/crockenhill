@@ -1,10 +1,6 @@
-@extends('layouts.members')
+@extends('pages.page')
 
-@section('title', 'Sermons')
-
-@section('description', '<meta name="description" content="Admin tasks for sermons">')
-
-@section('membercontent')
+@section('dynamic_content')
 
 <a href="sermons/create" class="btn btn-default btn-lg btn-block" role="button">Upload a new sermon</a>
 
