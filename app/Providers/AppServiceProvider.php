@@ -1,4 +1,4 @@
-<?php namespace App\Providers;
+<?php namespace Crockenhill\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
@@ -27,8 +27,12 @@ class AppServiceProvider extends ServiceProvider {
 	{
 		$this->app->bind(
 			'Illuminate\Contracts\Auth\Registrar',
-			'App\Services\Registrar'
+			'Crockenhill\Services\Registrar'
 		);
+
+		$this->app->bind('path.public', function() {
+			return base_path() . '/public_html';
+		});
 	}
 
 }

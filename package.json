@@ -1,7 +1,26 @@
 {
-  "private": true,
+  "name": "crockenhill.dev",
+  "version": "5.0.0",
+  "description": "A website for Crockenhill Baptist Church, with CMS functionality",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Church",
+    "website",
+    "laravel"
+  ],
+  "author": "Gareth Clarridge",
+  "license": "BSD-2-Clause",
   "devDependencies": {
-    "gulp": "^3.8.8",
-    "laravel-elixir": "^1.0.0"
+    "gulp": "^3.8.10",
+    "gulp-uglify": "^1.1.0",
+    "browser-sync": "^1.9.1",
+    "gulp-connect": "^2.2.0",
+    "gulp-sass": "^1.3.2",
+    "gulp-concat": "^2.4.3",
+    "gulp-util": "^3.0.2",
+    "gulp-imagemin": "^2.3.0"
   }
 }
