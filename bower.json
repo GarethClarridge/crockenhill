@@ -1,0 +1,8 @@
+{
+  "name": "Crockenhill",
+  "dependencies": {
+    "sass-bootstrap": "~3.0.2",
+    "jquery": "1.*",
+    "Chart.js": "~1.0.1"
+  }
+}

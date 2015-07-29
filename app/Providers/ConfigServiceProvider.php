@@ -1,4 +1,4 @@
-<?php namespace App\Providers;
+<?php namespace Crockenhill\Providers;
 
 use Illuminate\Support\ServiceProvider;
 

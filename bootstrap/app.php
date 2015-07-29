@@ -15,6 +15,11 @@ $app = new Illuminate\Foundation\Application(
 	realpath(__DIR__.'/../')
 );
 
+//set the public path to this directory
+$app->bind('path.public', function() {
+    return __DIR__;
+});
+
 /*
 |--------------------------------------------------------------------------
 | Bind Important Interfaces
@@ -28,17 +33,17 @@ $app = new Illuminate\Foundation\Application(
 
 $app->singleton(
 	'Illuminate\Contracts\Http\Kernel',
-	'App\Http\Kernel'
+	'Crockenhill\Http\Kernel'
 );
 
 $app->singleton(
 	'Illuminate\Contracts\Console\Kernel',
-	'App\Console\Kernel'
+	'Crockenhill\Console\Kernel'
 );
 
 $app->singleton(
 	'Illuminate\Contracts\Debug\ExceptionHandler',
-	'App\Exceptions\Handler'
+	'Crockenhill\Exceptions\Handler'
 );
 
 /*

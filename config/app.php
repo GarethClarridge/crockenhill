@@ -26,7 +26,7 @@ return [
 	|
 	*/
 
-	'url' => 'http://localhost',
+	'url' => 'http://crockenhill.org',
 
 	/*
 	|--------------------------------------------------------------------------
@@ -39,7 +39,7 @@ return [
 	|
 	*/
 
-	'timezone' => 'UTC',
+	'timezone' => 'GMT',
 
 	/*
 	|--------------------------------------------------------------------------
@@ -135,15 +135,17 @@ return [
 		'Illuminate\Translation\TranslationServiceProvider',
 		'Illuminate\Validation\ValidationServiceProvider',
 		'Illuminate\View\ViewServiceProvider',
+		'Illuminate\Html\HtmlServiceProvider',
 
 		/*
 		 * Application Service Providers...
 		 */
-		'App\Providers\AppServiceProvider',
-		'App\Providers\BusServiceProvider',
-		'App\Providers\ConfigServiceProvider',
-		'App\Providers\EventServiceProvider',
-		'App\Providers\RouteServiceProvider',
+		'Crockenhill\Providers\AppServiceProvider',
+		'Crockenhill\Providers\BusServiceProvider',
+		'Crockenhill\Providers\ConfigServiceProvider',
+		'Crockenhill\Providers\EventServiceProvider',
+		'Crockenhill\Providers\RouteServiceProvider',
+		'Crockenhill\Providers\ComposerServiceProvider',
 
 	],
 
@@ -192,6 +194,8 @@ return [
 		'URL'       => 'Illuminate\Support\Facades\URL',
 		'Validator' => 'Illuminate\Support\Facades\Validator',
 		'View'      => 'Illuminate\Support\Facades\View',
+		'Form'			=> 'Illuminate\Html\FormFacade',
+		'HTML'			=> 'Illuminate\Html\HtmlFacade',
 
 	],
 
