@@ -1,3 +1,6 @@
 /vendor
+/bower_components
 /node_modules
+/public_html/media/*.mp3
+/public_html/images
 .env
