@@ -141,9 +141,22 @@ class SermonController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function edit($id)
+	public function edit($slug)
 	{
-		//
+    $sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
+    $series = array_unique(\Crockenhill\Sermon::lists('series'));
+
+    return view('sermons.edit', array(
+      'sermon'        => $sermon,
+      'series'        => $series,
+      'heading'       => 'Edit this sermon',
+      'description'   => '<meta name="description" content="Edit this sermon.">',
+      'breadcrumbs'   => '<li><a href="/sermons">Sermons</a></li>
+                          <li><a href="series/'.$sermon->series.'">'.$sermon->series.'</a></li>
+                          <li><a href="series/'.$sermon->title.'">'.$sermon->title.'</a></li>
+                          <li class="active">Edit</li>',
+      'content'       => '',
+    ));
 	}
 
 	/**
@@ -152,9 +165,24 @@ class SermonController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function update($id)
+	public function update($slug)
 	{
-		//
+		if (\Input::get('series')){
+            $series = \Input::get('series');
+        } else {
+            $series = \Input::get('new_series');
+        }
+
+        $sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
+        $sermon->title      = \Input::get('title');
+        $sermon->date       = \Input::get('date');
+        $sermon->slug       = \Illuminate\Support\Str::slug(\Input::get('title'));
+        $sermon->series     = $series;
+        $sermon->reference  = \Input::get('reference');
+        $sermon->preacher   = \Input::get('preacher');
+        $sermon->save();
+
+        return redirect('/sermons/'.$slug);
 	}
 
 	/**
@@ -163,9 +191,12 @@ class SermonController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function destroy($id)
+	public function destroy($slug)
 	{
-		//
+		$sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
+    $sermon->delete();
+
+    return redirect('sermons');
 	}
 
 	public function getPreachers()
