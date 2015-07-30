@@ -12,10 +12,6 @@ class MeetingController extends Controller {
 		$slug 				= 'whats-on';
 		$area 				= $slug;
   	$page 				= \Crockenhill\Page::where('slug', $slug)->first();
-		$links 				= \Crockenhill\Meeting::where('slug', '!=', $slug)
-							    	->orderBy(\DB::raw('RAND()'))
-							    	->take(8)
-							    	->get();
     $heading 			= $page->heading;
     $breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
     $description 	= '<meta name="description" content="'.$page->description.'">';
@@ -28,7 +24,6 @@ class MeetingController extends Controller {
         'area'					=> $area,
 		    'breadcrumbs'   => $breadcrumbs,
 		    'content'      	=> $content,
-        'links'					=> $links
 		));
 	}
 
@@ -65,12 +60,8 @@ class MeetingController extends Controller {
 	{
 		$area 				= 'whats-on';
   	$page 				= \Crockenhill\Meeting::where('slug', $slug)->first();
-		$links 				= \Crockenhill\Meeting::where('slug', '!=', $slug)
-							    	->orderBy(\DB::raw('RAND()'))
-							    	->take(4)
-							    	->get();
     $heading 			= $page->heading;
-    $breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
+    $breadcrumbs 	= '<li><a href="whats-on">What\'s On </a> <li class="active">'.$page->heading.'</li>';
     $description 	= '<meta name="description" content="'.$page->description.'">';
     $content 			= $page->body;
     $type					= $page->type;
@@ -97,7 +88,6 @@ class MeetingController extends Controller {
         'area'					=> $area,
 		    'breadcrumbs'   => $breadcrumbs,
 		    'content'      	=> $content,
-        'links'					=> $links,
         'type'					=> $type,
         'starttime'			=> $starttime,
         'endtime'				=> $endtime,
