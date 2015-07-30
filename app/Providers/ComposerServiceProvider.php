@@ -60,11 +60,17 @@ class ComposerServiceProvider extends ServiceProvider {
       }
       
       $headingpicture = '/images/headings/large/'.$slug.'.jpg';
-      $links = \Crockenhill\Page::where('area', $area)
-        ->where('slug', '!=', $slug)
-        ->where('slug', '!=', $area)
-        ->take(5)
-        ->get();
+      if ($area != 'whats-on') {
+        $links = \Crockenhill\Page::where('area', $area)
+          ->where('slug', '!=', $slug)
+          ->where('slug', '!=', $area)
+          ->take(5)
+          ->get();
+      } else {
+        $links = \Crockenhill\Meeting::where('slug', '!=', $slug)
+          ->get();
+      }
+      
       $view->with('headingpicture', $headingpicture);
       $view->with('links', $links);
     });
