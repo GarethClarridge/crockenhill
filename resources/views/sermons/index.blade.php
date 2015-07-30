@@ -19,6 +19,17 @@
         <span class="glyphicon glyphicon-book"></span> &nbsp
         {{ $sermon->reference }}
       </p>
+      {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
+        <div class="btn-group">
+          <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
+            Edit this sermon
+          </a>
+          
+          <button type="submit" class="btn btn-danger">
+            Delete this sermon
+          </button>
+        </div>
+      {!! Form::close() !!}
     @endforeach
   </div>
   <div class="col-md-6">
@@ -37,6 +48,17 @@
         <span class="glyphicon glyphicon-book"></span> &nbsp
         {{ $sermon->reference }}
       </p>
+      {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
+        <div class="btn-group">
+          <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
+            Edit this sermon
+          </a>
+          
+          <button type="submit" class="btn btn-danger">
+            Delete this sermon
+          </button>
+        </div>
+      {!! Form::close() !!}
     @endforeach
   </div>
 </div>
