@@ -33,7 +33,7 @@ class DocumentController extends Controller {
     // Get documents
     $documents = Document::get();
 
-    return \View::make('pages.documents.index', array(
+    return view('documents.index', array(
         'slug'        => $slug,
         'heading'     => $heading,        
         'description' => '<meta name="description" content="{{$heading}}">',
@@ -68,7 +68,7 @@ class DocumentController extends Controller {
     $heading = 'Create a New Document';
     $breadcrumbs = '<li class="active">'.$heading.'</li>';
 
-    return \View::make('pages.documents.create', array(
+    return view('documents.create', array(
         'slug'        => 'create',
         'heading'     => $heading,        
         'description' => '<meta name="description" content="{{$heading}}">',

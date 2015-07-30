@@ -42,13 +42,34 @@ class ComposerServiceProvider extends ServiceProvider {
 		    });
 
 		\View::composer('layouts.members', function($view)
-		    {
-	        $area = 'members';
-	        $links = \Crockenhill\Page::where('area', $area)->orderBy(\DB::raw('RAND()'))->take(5)->get();
+    {
+      $area = 'members';
+      $links = \Crockenhill\Page::where('area', $area)->orderBy(\DB::raw('RAND()'))->take(5)->get();
 
-	        $view->with('links', $links);
-		    });
-			}
+      $view->with('links', $links);
+    });
+
+    \View::composer('page', function($view)
+    {
+      if (\Request::segment(2)) {
+        $slug = \Request::segment(2);
+        $area = \Request::segment(1);
+      } else {
+        $slug = \Request::segment(1);
+        $area = \Request::segment(1);
+      }
+      
+      $headingpicture = '/images/headings/large/'.$slug.'.jpg';
+      $links = \Crockenhill\Page::where('area', $area)
+        ->where('slug', '!=', $slug)
+        ->where('slug', '!=', $area)
+        ->take(5)
+        ->get();
+      $view->with('headingpicture', $headingpicture);
+      $view->with('links', $links);
+    });
+
+  }
 
 	/**
 	 * Register the application services.

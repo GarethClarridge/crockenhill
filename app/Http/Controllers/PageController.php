@@ -26,10 +26,8 @@ class PageController extends BaseController {
 	    	->get();
 	    
 	    $description = '<meta name="description" content="'.$page->description.'">';
-
-	    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
 	    
-			return \View::make('pages.page', array(
+			return view('page', array(
 		    'slug'          => $page->slug,
 		    'heading'       => $page->heading,		    
 		    'description'   => $description,
@@ -37,7 +35,6 @@ class PageController extends BaseController {
 		    'breadcrumbs'   => $breadcrumbs,
 		    'content'       => htmlspecialchars_decode($page->body),
 		    'links'					=> $links,
-		    'headingpicture'=> $headingpicture
 			));
 		} else {
 			\App::abort(404);
@@ -60,10 +57,8 @@ class PageController extends BaseController {
 		    
 		    $breadcrumb = '<li>'.link_to($page['area'], $parent->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
 		    $description = '<meta name="description" content="'.$page->description.'">';
-		    
-	    	$headingpicture = '/images/headings/large/'.$slug.'.jpg';
 
-				return \View::make('pages.page', array(
+				return view('page', array(
 			    'slug'          => $page->slug,
 			    'heading'       => $page->heading,		    
 			    'description'   => $description,
@@ -71,7 +66,6 @@ class PageController extends BaseController {
 			    'breadcrumbs'   => $breadcrumb,
 			    'content'       => htmlspecialchars_decode($page->body),
 			    'links'					=> $links,
-		    	'headingpicture'=> $headingpicture
 				));
 			} else {
 				\App::abort(404);
