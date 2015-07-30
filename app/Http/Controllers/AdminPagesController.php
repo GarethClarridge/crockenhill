@@ -19,10 +19,8 @@ class AdminPagesController extends BaseController {
       
       $breadcrumbs = '<li>'.link_to($page['area'], $parent->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
       $description = '<meta name="description" content="'.$page->description.'">';
-          
-      $headingpicture = '/images/headings/large/'.$slug.'.jpg';
       
-        return \View::make('members.pages.index', array(
+        return view('members.pages.index', array(
         'slug'          => $page->slug,
         'heading'       => $page->heading,          
         'description'   => $description,
@@ -30,7 +28,6 @@ class AdminPagesController extends BaseController {
         'breadcrumbs'   => $breadcrumbs,
         'content'       => htmlspecialchars_decode($page->body),
         'links'         => $links,
-        'headingpicture'=> $headingpicture,
         'pages'         => \Crockenhill\Page::all()
         ));
       } else {

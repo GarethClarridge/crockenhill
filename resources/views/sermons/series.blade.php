@@ -1,4 +1,4 @@
-@extends('pages.page')
+@extends('page')
 
 @section('dynamic_content')
 
