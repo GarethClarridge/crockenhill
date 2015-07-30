@@ -13,44 +13,32 @@
 
 Route::get('/', ['as' => 'Home', function()
 {
-    return view('pages.home');
+    return view('home');
 }]);
 
 // Sermon Routes
 
 Route::group(array('prefix' => 'sermons'), function()
 {
-
-    Route::get('/', array(
-        'as' => 'sermons',
-        'uses' => 'SermonController@index'
+    Route::get('preachers', array(
+        'as' => 'getPreachers',
+        'uses' => 'SermonController@getPreachers'
     ));
-
-    Route::get('preacher', array(
-        'as' => 'preacherIndex',
-        'uses' => 'SermonController@preacherIndex'
+    Route::get('preachers/{preacher}', array(
+        'as' => 'getPreacher',
+        'uses' => 'SermonController@getPreacher'
     ));
-
-    Route::get('preacher/{preacher}', array(
-        'as' => 'preacherShow',
-        'uses' => 'SermonController@preacherShow'
-    ));
-
     Route::get('series', array(
-        'as' => 'seriesIndex',
-        'uses' => 'SermonController@seriesIndex'
+        'as' => 'getSerieses',
+        'uses' => 'SermonController@getSerieses'
     ));
-
     Route::get('series/{series}', array(
-        'as' => 'seriesShow',
-        'uses' => 'SermonController@seriesShow'
+        'as' => 'getSeries',
+        'uses' => 'SermonController@getSeries'
     ));
-
-    Route::get('/{slug}', array(
-        'uses' => 'SermonController@show'
-    ));
-
 });
+
+Route::resource('sermons', 'SermonController');
 
 Route::resource('whats-on', 'MeetingController');
 

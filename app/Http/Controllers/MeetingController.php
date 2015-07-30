@@ -17,15 +17,13 @@ class MeetingController extends Controller {
 							    	->take(8)
 							    	->get();
     $heading 			= $page->heading;
-    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
     $breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
     $description 	= '<meta name="description" content="'.$page->description.'">';
     $content 			= $page->body;
 
-		return \View::make('pages.page', array(
+		return view('page', array(
 		    'slug'          => $slug,
-		    'heading'       => $heading,	
-		    'headingpicture'=> $headingpicture,	    
+		    'heading'       => $heading,
 		    'description'   => $description,
         'area'					=> $area,
 		    'breadcrumbs'   => $breadcrumbs,
@@ -72,7 +70,6 @@ class MeetingController extends Controller {
 							    	->take(4)
 							    	->get();
     $heading 			= $page->heading;
-    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
     $breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
     $description 	= '<meta name="description" content="'.$page->description.'">';
     $content 			= $page->body;
@@ -93,10 +90,9 @@ class MeetingController extends Controller {
     	$photos = '';
     }
 
-		return \View::make('pages.meetings.meeting', array(
+		return view('meetings.meeting', array(
 		    'slug'          => $slug,
-		    'heading'       => $heading,		
-		    'headingpicture'=> $headingpicture,    
+		    'heading'       => $heading,   
 		    'description'   => $description,
         'area'					=> $area,
 		    'breadcrumbs'   => $breadcrumbs,

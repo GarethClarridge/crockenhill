@@ -103,7 +103,7 @@ class SongController extends BaseController {
               );
 
     // Present page
-    return \View::make('pages.songs.index', array(
+    return view('songs.index', array(
       'slug'        => $slug,
       'heading'     => $heading,        
       'description' => '<meta name="description" content="'.$heading.'">',
@@ -213,7 +213,7 @@ class SongController extends BaseController {
     }
       
     // Present page
-    return \View::make('pages.songs.song', array(
+    return view('songs.song', array(
       'song'        => $song,
       'slug'        => $slug,
       'heading'     => $song->title,     
@@ -259,7 +259,7 @@ class SongController extends BaseController {
     $content = '';
       
     // Present page
-    return \View::make('pages.songs.scripture-reference', array(
+    return view('songs.scripture-reference', array(
       'slug'        => $slug,
       'heading'     => $heading,        
       'description' => '<meta name="description" content="'.$heading.'">',
@@ -312,7 +312,7 @@ class SongController extends BaseController {
     $songs = Song::whereIn('id', $ref)->get();
       
     // Present page
-    return \View::make('pages.songs.scripture-reference-songs', array(
+    return view('songs.scripture-reference-songs', array(
       'slug'        => $reference,
       'heading'     => $heading,        
       'description' => '<meta name="description" content="'.$heading.'">',
@@ -362,7 +362,7 @@ class SongController extends BaseController {
                     ->get();
       
     // Present page
-    return \View::make('pages.songs.search-songs', array(
+    return view('songs.search-songs', array(
       'slug'        => Str::slug($search),
       'heading'     => $heading,
       'description' => '<meta name="description" content="'.$heading.'">',
@@ -416,7 +416,7 @@ class SongController extends BaseController {
     }
       
     // Present page
-    return \View::make('pages.songs.service-record', array(
+    return view('songs.service-record', array(
       'slug'        => $slug,
       'heading'     => $heading,        
       'description' => '<meta name="description" content="'.$heading.'">',
@@ -485,7 +485,7 @@ class SongController extends BaseController {
     $content = '';
       
     // Present page
-    return \View::make('pages.songs.upload', array(
+    return view('songs.upload', array(
       'slug'        => $slug,
       'heading'     => $heading,        
       'description' => '<meta name="description" content="'.$heading.'">',
