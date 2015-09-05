@@ -75,6 +75,16 @@ class ComposerServiceProvider extends ServiceProvider {
       $view->with('links', $links);
     });
 
+    \View::composer('sermons.index', function($view)
+    {
+      if (\Auth::user()) {
+        $user = \Auth::user();
+      } else {
+        $user = null;
+      }
+      
+      $view->with('user', $user);
+    });
   }
 
 	/**
