@@ -63,7 +63,9 @@ class SermonController extends Controller {
 	public function store()
 	{
 		$file = \Input::file('file');
+    $file->move('media/sermons', $file->getClientOriginalName());
     $filename = substr($file->getClientOriginalName(), 0, -4);
+
     if (substr($filename, -1) === 'b') {
         $service = 'evening';
     } else {

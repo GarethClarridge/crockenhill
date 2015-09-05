@@ -11,11 +11,6 @@
 |
 */
 
-Route::get('/', ['as' => 'Home', function()
-{
-    return view('home');
-}]);
-
 // Sermon Routes
 
 Route::group(array('prefix' => 'sermons'), function()
@@ -42,60 +37,45 @@ Route::resource('sermons', 'SermonController');
 
 Route::resource('whats-on', 'MeetingController');
 
-// Members Area Routes
-
-// Confide routes
-
-Route::get('members/login', 'MemberController@login');
-Route::post('members/login', 'MemberController@doLogin');
-Route::get('members/confirm/{code}', 'MemberController@confirm');
-Route::get('members/forgot_password', 'MemberController@forgotPassword');
-Route::post('members/forgot_password', 'MemberController@doForgotPassword');
-Route::get('members/reset_password/{token}', 'MemberController@resetPassword');
-Route::post('members/reset_password', 'MemberController@doResetPassword');
-Route::get('members/logout', 'MemberController@logout');
-Route::get('members/register', 'MemberController@create');
-Route::post('users', 'MemberController@store');
-
 // Custom Routes
 
-Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
+//Members
+
+Route::controllers([
+    'members' => 'Auth\AuthController',
+    'members/password' => 'Auth\PasswordController',
+]);
+
+Route::group(array('prefix' => 'members'), function()
 {
-    Route::get('/', function()
-        {
-            return Redirect::to('members-area');
-        });
+    // Manage pages
+    Route::resource('pages', 'AdminPagesController');
+    Route::get('pages/{slug}/changeimage', array(
+        'uses'  => 'AdminPagesController@changeimage',
+        'as'    => 'members.pages.changeimage'
+        ));
+    Route::post('pages/{slug}/changeimage', array(
+        'uses'  => 'AdminPagesController@updateimage',
+        'as'    => 'members.pages.updateimage'
+        ));
 
-    Route::group(array('before' => 'auth.admin'), function()
-    {
-        // Manage pages
-        Route::resource('pages', 'AdminPagesController');
-        Route::get('pages/{slug}/changeimage', array(
-            'uses'  => 'AdminPagesController@changeimage',
-            'as'    => 'members.pages.changeimage'
-            ));
-        Route::post('pages/{slug}/changeimage', array(
-            'uses'  => 'AdminPagesController@updateimage',
-            'as'    => 'members.pages.updateimage'
-            ));
-
-        // Manage sermons
-        Route::resource('sermons', 'AdminSermonsController');
-        Route::get('sermons/{slug}/changeimage', array(
-            'uses'  => 'AdminSermonsController@changeimage',
-            'as'    => 'members.sermons.changeimage'
-            ));
-        Route::post('sermons/{slug}/changeimage', array(
-            'uses'  => 'AdminSermonsController@updateimage',
-            'as'    => 'members.sermons.updateimage'
-            ));
-    });
+    // Manage sermons
+    Route::resource('sermons', 'AdminSermonsController');
+    Route::get('sermons/{slug}/changeimage', array(
+        'uses'  => 'AdminSermonsController@changeimage',
+        'as'    => 'members.sermons.changeimage'
+        ));
+    Route::post('sermons/{slug}/changeimage', array(
+        'uses'  => 'AdminSermonsController@updateimage',
+        'as'    => 'members.sermons.updateimage'
+        ));
 
     // Manage documents
     Route::resource('document', 'DocumentController');
     Route::get('documents', array('uses' => 'DocumentController@index'));
 
     // Songs
+
     Route::get('songs/scripture-reference', 'SongController@getScriptureReference');
     Route::get('songs/scripture-reference/{reference}', 'SongController@getReferenceSongs');
 
@@ -103,12 +83,15 @@ Route::group(array('prefix' => 'members', 'before' => 'auth.member'), function()
     Route::get('songs/search/{search}', 'SongController@getSearchSongs');
  
     Route::get('songs/service-record', 'SongController@getServiceRecord');
+    Route::post('songs/service-record', 'SongController@postServiceRecord');
 
     Route::get('songs/upload', 'SongController@getUpload');
 
     Route::get('songs/{id}/{title}', 'SongController@showSong');
 
-    Route::controller('songs', 'SongController');
+    Route::resource('songs', 'SongController');
+
+
 
 
     // Catch-all
@@ -200,3 +183,9 @@ Route::controllers([
 	'auth' => 'Auth\AuthController',
 	'password' => 'Auth\PasswordController',
 ]);
+
+Route::get('/', ['as' => 'Home', function()
+{
+    return view('home');
+}]);
+
