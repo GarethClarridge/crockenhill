@@ -1,4 +1,4 @@
-@extends('pagee', 
+@extends('page', 
 	['heading' => 'Register', 
 	'description' => '<meta name="description" content="Register a new member">']
 	)
