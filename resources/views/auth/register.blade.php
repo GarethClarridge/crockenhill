@@ -1,15 +1,21 @@
-@extends('app')
+@extends('pagee', 
+	['heading' => 'Register', 
+	'description' => '<meta name="description" content="Register a new member">']
+	)
 
 @section('content')
 <div class="container-fluid">
 	<div class="row">
 		<div class="col-md-8 col-md-offset-2">
-			<div class="panel panel-default">
-				<div class="panel-heading">Register</div>
-				<div class="panel-body">
+		<br><br><br>
+			<article class="card">
+        <div class="header-container">
+            <h1>Register a new member account</h1>
+        </div>
+				<div>
 					@if (count($errors) > 0)
 						<div class="alert alert-danger">
-							<strong>Whoops!</strong> There were some problems with your input.<br><br>
+							<strong>Whoops!</strong> There were some problems with those details:<br><br>
 							<ul>
 								@foreach ($errors->all() as $error)
 									<li>{{ $error }}</li>
@@ -29,7 +35,7 @@
 						</div>
 
 						<div class="form-group">
-							<label class="col-md-4 control-label">E-Mail Address</label>
+							<label class="col-md-4 control-label">Email Address</label>
 							<div class="col-md-6">
 								<input type="email" class="form-control" name="email" value="{{ old('email') }}">
 							</div>
@@ -51,14 +57,15 @@
 
 						<div class="form-group">
 							<div class="col-md-6 col-md-offset-4">
-								<button type="submit" class="btn btn-primary">
+								<button type="submit" class="btn btn-primary btn-block">
 									Register
 								</button>
 							</div>
 						</div>
 					</form>
 				</div>
-			</div>
+			</article>
+			<br><br>
 		</div>
 	</div>
 </div>

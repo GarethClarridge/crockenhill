@@ -1,12 +1,17 @@
-@extends('app')
+@extends('pages.page', 
+	['heading' => 'Request a new password', 
+	'description' => '<meta name="description" content="Request a new password">']
+	)
 
 @section('content')
 <div class="container-fluid">
 	<div class="row">
 		<div class="col-md-8 col-md-offset-2">
-			<div class="panel panel-default">
-				<div class="panel-heading">Reset Password</div>
-				<div class="panel-body">
+		<br><br><br>
+			<article class="card">
+        <div class="header-container">
+            <h1>Request a new password</h1>
+        </div>
 					@if (session('status'))
 						<div class="alert alert-success">
 							{{ session('status') }}
@@ -24,7 +29,7 @@
 						</div>
 					@endif
 
-					<form class="form-horizontal" role="form" method="POST" action="{{ url('/password/email') }}">
+					<form class="form-horizontal" role="form" method="POST" action="{{ url('/members/password/email') }}">
 						<input type="hidden" name="_token" value="{{ csrf_token() }}">
 
 						<div class="form-group">
@@ -36,7 +41,7 @@
 
 						<div class="form-group">
 							<div class="col-md-6 col-md-offset-4">
-								<button type="submit" class="btn btn-primary">
+								<button type="submit" class="btn btn-primary btn-block">
 									Send Password Reset Link
 								</button>
 							</div>

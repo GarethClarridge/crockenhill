@@ -1,10 +1,17 @@
 <?php namespace Crockenhill\Http\Controllers;
 
-class SongController extends BaseController {
-  
-  protected $layout = 'layouts.main';
+use Crockenhill\Http\Requests;
+use Crockenhill\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 
-  public function getIndex()
+class SongController extends Controller {
+
+  /**
+   * Display a listing of the resource.
+   *
+   * @return Response
+   */
+  public function index()
   {
     // Define slug and area to enable lookup of page in database
     $slug = 'songs';
@@ -12,15 +19,6 @@ class SongController extends BaseController {
 
     // Look up page in pages table of database
     $page = \Crockenhill\Page::where('slug', $slug)->first();
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $slug)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
 
     // Set values
     $heading = 'Songs';
@@ -30,7 +28,7 @@ class SongController extends BaseController {
     $content = $page->body;
 
     // Load songs
-    $songs = Song::all();
+    $songs =\Crockenhill\Song::all();
       
     // Books of the Bible
     $books = array(
@@ -110,7 +108,6 @@ class SongController extends BaseController {
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
       'content'     => $content,
-      'links'       => $links,
       'songs'       => $songs,
       'books'       => $books
     ));
@@ -119,7 +116,7 @@ class SongController extends BaseController {
   public function showSong($id, $title)
   {
     // Look up song in songs table of database
-    $song = Song::where('id', $id)->first();
+    $song =\Crockenhill\Song::where('id', $id)->first();
 
     // Define slug to enable card logic to work
     $slug = $song->title;
@@ -144,19 +141,19 @@ class SongController extends BaseController {
     $lyrics = nl2br(trim($song->lyrics));
 
     // Information about when last sung
-    $last_played = PlayDate::where('song_id', $song->id)
+    $last_played = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->orderBy('date', 'desc')
                               ->first()
                               ->date;
 
     // Information about how often we've sung it recently
     $years = 2;
-    $frequency = PlayDate::where('song_id', $song->id)
+    $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
                               ->count();
 
     // Scripture References
-    $scripture = ScriptureReference::where('song_id', $song->id)->get();
+    $scripture = \Crockenhill\ScriptureReference::where('song_id', $song->id)->get();
 /*    $references = array();
     foreach ($scripture as $script) {
       $section = array();
@@ -194,10 +191,10 @@ class SongController extends BaseController {
 
     // Graph information
     // Morning vs Evening Pie Chart Data
-    $sung_morning = PlayDate::where('song_id', $song->id)
+    $sung_morning = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->where('time', 'a')
                               ->count();
-    $sung_evening = PlayDate::where('song_id', $song->id)
+    $sung_evening = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->where('time', 'p')
                               ->count();
 
@@ -205,7 +202,7 @@ class SongController extends BaseController {
     $sung_year = [];
     $now = date('Y');
     while ($now > 2003) {
-      $times = PlayDate::where('song_id', $song->id)
+      $times = \Crockenhill\PlayDate::where('song_id', $song->id)
                           ->where('date', 'LIKE', $now.'%')
                           ->count();
       $sung_year[$now] = $times;
@@ -302,14 +299,14 @@ class SongController extends BaseController {
 
     // Load songs
     // Get list of references
-    $references = ScriptureReference::where('reference', $reference)->get();
+    $references = \Crockenhill\ScriptureReference::where('reference', $reference)->get();
     // Get song ids for each reference
     $ref = [];
     foreach ($references as $reference) {
       $ref[] = $reference->song_id;
     }
     // Get songs for each song id
-    $songs = Song::whereIn('id', $ref)->get();
+    $songs =\Crockenhill\Song::whereIn('id', $ref)->get();
       
     // Present page
     return view('songs.scripture-reference-songs', array(
@@ -357,7 +354,7 @@ class SongController extends BaseController {
                     <li class="active">Search: '.$search.'</li>';    
 
     // Load songs
-    $songs = Song::where('title', 'like', '%'.$words.'%')
+    $songs =\Crockenhill\Song::where('title', 'like', '%'.$words.'%')
                     ->orWhere('lyrics', 'like', '%'.$words.'%')
                     ->get();
       
@@ -403,7 +400,7 @@ class SongController extends BaseController {
     $services = array('a' => 'Morning', 'p' => 'Evening');
 
     // Get NIP titles
-    $nips = Song::where('praise_number', '')
+    $nips =\Crockenhill\Song::where('praise_number', '')
                   ->orWhere('praise_number', null)
                   ->select('title')
                   ->orderBy('title', 'asc')
@@ -432,7 +429,7 @@ class SongController extends BaseController {
 
   public function postServiceRecord() 
   {
-    $date = Input::get('date');
+    $date = \Input::get('date');
 
     $service = array('a' => 'Morning', 'p' => 'Evening');
 
@@ -440,14 +437,14 @@ class SongController extends BaseController {
       $array = array();
 
       for ($i=1; $i < 10; $i++) {         
-        $array[] = Input::get($key.'m'.$i.'-title');
+        $array[] = \Input::get($key.'m'.$i.'-title');
       }
 
       foreach ($array as $value) {
         if ($value !== '') {
-          $song = Song::where('title', $value)->first();
+          $song =\Crockenhill\Song::where('title', $value)->first();
 
-          $playdate = new PlayDate;
+          $playdate = new \Crockenhill\PlayDate;
           $playdate->song_id = $song->id;
           $playdate->date = $date;
           $playdate->time = $key;
@@ -457,7 +454,7 @@ class SongController extends BaseController {
     }
 
     // Send user back to index
-    return Redirect::to('/members/songs/');
+    return redirect('/members/songs/');
   }
 
   public function getUpload()
