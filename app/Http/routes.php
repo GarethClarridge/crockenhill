@@ -41,12 +41,7 @@ Route::resource('whats-on', 'MeetingController');
 
 //Members
 
-Route::controllers([
-    'members' => 'Auth\AuthController',
-    'members/password' => 'Auth\PasswordController',
-]);
-
-Route::group(array('prefix' => 'members'), function()
+Route::group(['prefix' => 'members', 'middleware' => 'auth'], function()
 {
     // Manage pages
     Route::resource('pages', 'AdminPagesController');
@@ -72,7 +67,9 @@ Route::group(array('prefix' => 'members'), function()
 
     // Manage documents
     Route::resource('document', 'DocumentController');
-    Route::get('documents', array('uses' => 'DocumentController@index'));
+    Route::get('documents', array(
+        'uses'          => 'DocumentController@index'
+        ));
 
     // Songs
 
@@ -90,13 +87,21 @@ Route::group(array('prefix' => 'members'), function()
     Route::get('songs/{id}/{title}', 'SongController@showSong');
 
     Route::resource('songs', 'SongController');
+});
 
-
-
+    Route::controllers([
+        'members' => 'Auth\AuthController',
+        'members/password' => 'Auth\PasswordController',
+    ]);
 
     // Catch-all
-    Route::get('/{slug}', array('uses' => 'PageController@showPage'));
-});
+    Route::get('members/{slug}', array(
+        'middleware'    => 'auth',
+        'uses' => 'PageController@showPage'
+    ));
+
+
+
 
 // Permanent Redirects
 
