@@ -45,16 +45,7 @@ class PageController extends BaseController {
 	{
 	    if ($page = \Crockenhill\Page::where('slug', $slug)->first()) {
 		    $parent = \Crockenhill\Page::where('slug', $area)->first();
-		    $links = \Crockenhill\Page::where('area', $area)
-		    	->where('slug', '!=', $slug)
-		    	->where('slug', '!=', 'buzz-club')
-		    	->where('slug', '!=', 'carols-in-the-chequers')
-		    	->where('slug', '!=', 'family-fun-night')
-		    	->where('slug', '!=', 'privacy-policy')
-		    	->where('slug', '!=', $area)
-		    	->where('admin', '!=', 'yes')
-		    	->get();
-		    
+
 		    $breadcrumb = '<li>'.link_to($page['area'], $parent->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
 		    $description = '<meta name="description" content="'.$page->description.'">';
 
@@ -65,10 +56,31 @@ class PageController extends BaseController {
 			    'area'					=> $page->area,
 			    'breadcrumbs'   => $breadcrumb,
 			    'content'       => htmlspecialchars_decode($page->body),
-			    'links'					=> $links,
 				));
 			} else {
 				\App::abort(404);
 			};
+	}
+
+	public function showMemberHomepage()
+	{
+    if ($page = \Crockenhill\Page::where('slug', 'members')->first()) {
+	    
+    	$area = 'members';
+	    $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
+	    
+	    $description = '<meta name="description" content="'.$page->description.'">';
+	    
+			return view('page', array(
+		    'slug'          => $page->slug,
+		    'heading'       => $page->heading,		    
+		    'description'   => $description,
+		    'area'					=> $page->area,
+		    'breadcrumbs'   => $breadcrumbs,
+		    'content'       => htmlspecialchars_decode($page->body)
+			));
+		} else {
+			\App::abort(404);
+		};
 	}
 }
