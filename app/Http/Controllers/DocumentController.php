@@ -1,5 +1,9 @@
 <?php namespace Crockenhill\Http\Controllers;
 
+use Crockenhill\Http\Requests;
+use Crockenhill\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
 class DocumentController extends Controller {
 
 	/**
@@ -16,22 +20,13 @@ class DocumentController extends Controller {
     // Look up page
     $page = \Crockenhill\Page::where('slug', $slug)->first();
 
-    // Load links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $slug)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
     // Set details
     $heading = 'Documents';
     $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
     $content = $page->body;
 
     // Get documents
-    $documents = Document::get();
+    $documents = \Crockenhill\Document::get();
 
     return view('documents.index', array(
         'slug'        => $slug,
@@ -40,7 +35,6 @@ class DocumentController extends Controller {
         'area'        => $area,
         'breadcrumbs' => $breadcrumbs,
         'content'     => $content,
-        'links'       => $links,
         'documents'   => $documents,
     ));
 	}
@@ -56,14 +50,6 @@ class DocumentController extends Controller {
 // Set information about page to enable lookup
     $area = 'members';
 
-    // Load links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
     // Set details
     $heading = 'Create a New Document';
     $breadcrumbs = '<li class="active">'.$heading.'</li>';
@@ -75,7 +61,6 @@ class DocumentController extends Controller {
         'area'        => $area,
         'breadcrumbs' => $breadcrumbs,
         'content'     => '',
-        'links'       => $links,
     ));
 	}
 
@@ -88,15 +73,17 @@ class DocumentController extends Controller {
 	public function store()
 	{
 		// Get Input
-		$title = Input::get('title');
-		$type = Input::get('type');
-		$file = Input::file('document');
+		$title = \Input::get('title');
+		$type = \Input::get('type');
+		$file = \Input::file('document');
 		$filename = $file->getClientOriginalName();
 		$filetype = $file->getClientOriginalExtension();
-		$user = Auth::user()->username;
+    $user = "Test";
+    //Reinstate when Auth working
+		//$user = \Auth::user()->username;
 
 		// Save details to database
-		$document = new Document;
+		$document = new \Crockenhill\Document;
 		$document->title = $title;
 		$document->type = $type;
 		$document->filename = $filename;
@@ -109,7 +96,7 @@ class DocumentController extends Controller {
 		$file->move($destinationPath, $filename);
 
 		// Return user to index
-		return Redirect::to('/members/documents');
+		return redirect('/members/documents');
 	}
 
 

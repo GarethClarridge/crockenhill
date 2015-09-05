@@ -2,6 +2,8 @@
 
 @section('dynamic_content')
 
+<a href="/sermons/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new sermon</a>
+
 <div class="row">
   <div class="col-md-6">
     <h2>Morning</h2>

@@ -1,11 +1,11 @@
-@extends('pages.page')
+@extends('page')
 
 @section('dynamic_content')
 
-  {{ Form::open(array('url' => '/members/songs/service-record')) }}
+  {!! Form::open(array('url' => '/members/songs/service-record')) !!}
     <div class="form-group">
-      {{ Form::label('date', 'Date', array('class' => 'control-label')) }}
-      {{ Form::input('date', 'date', $lastsunday, array('class'=>'form-control')) }}
+      {!! Form::label('date', 'Date', array('class' => 'control-label')) !!}
+      {!! Form::input('date', 'date', $lastsunday, array('class'=>'form-control')) !!}
 
       @foreach ($services as $key => $value)
 
@@ -17,12 +17,12 @@
               <h4>Song {{$i}}</h4>
             </div>
             <div class="col-xs-3">
-              {{ Form::label($key.'m'.$i.'-number', 'Praise Number') }}
-              {{ Form::text($key.'m'.$i.'-number', null, array('class' => 'form-control')) }}
+              {!! Form::label($key.'m'.$i.'-number', 'Praise Number') !!}
+              {!! Form::text($key.'m'.$i.'-number', null, array('class' => 'form-control')) !!}
             </div>
             <div class="col-xs-9">
-              {{ Form::label($key.'m'.$i.'-title', 'NIP Title') }}
-              {{ Form::select($key.'m'.$i.'-title', $nips, 'Select a song', array('class' => 'form-control')) }}
+              {!! Form::label($key.'m'.$i.'-title', 'NIP Title') !!}
+              {!! Form::select($key.'m'.$i.'-title', $nips, 'Select a song', array('class' => 'form-control')) !!}
             </div>
           @endfor
 
@@ -45,12 +45,12 @@
                         <h4>Song {{$i}}</h4>
                       </div>
                       <div class="col-xs-4">
-                        {{ Form::label($key.'m'.$i.'-number', 'Praise Number') }}
-                        {{ Form::text($key.'m'.$i.'-number', null, array('class' => 'form-control')) }}
+                        {!! Form::label($key.'m'.$i.'-number', 'Praise Number') !!}
+                        {!! Form::text($key.'m'.$i.'-number', null, array('class' => 'form-control')) !!}
                       </div>
                       <div class="col-xs-8">
-                        {{ Form::label($key.'m'.$i.'-title', 'NIP Title') }}
-                        {{ Form::select($key.'m'.$i.'-title', $nips, 'Select a song', array('class' => 'form-control')) }}
+                        {!! Form::label($key.'m'.$i.'-title', 'NIP Title') !!}
+                        {!! Form::select($key.'m'.$i.'-title', $nips, 'Select a song', array('class' => 'form-control')) !!}
                       </div>
                     @endfor
 
@@ -65,8 +65,8 @@
       
 
       <br>
-      {{ Form::submit('Save', array('class' => 'btn btn-primary btn-lg btn-block')) }}
+      {!! Form::submit('Save', array('class' => 'btn btn-primary btn-lg btn-block')) !!}
     </div>
-  {{ Form::close() }}
+  {!! Form::close() !!}
 
 @stop
