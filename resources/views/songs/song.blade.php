@@ -1,4 +1,4 @@
-@extends('pages.page')
+@extends('page')
 
 @section('dynamic_content')
 
@@ -49,7 +49,7 @@
       @endif
 
       @if ($lyrics)
-        <i>{{$lyrics}}</i>
+        <i>{!!$lyrics!!}</i>
       @endif
 
       @if ($song->copyright)
