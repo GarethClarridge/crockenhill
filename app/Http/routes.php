@@ -43,6 +43,10 @@ Route::resource('whats-on', 'MeetingController');
 
 Route::group(['prefix' => 'members', 'middleware' => 'auth'], function()
 {
+    Route::get('', [
+        'uses' => 'PageController@showMemberHomepage'
+    ]);
+
     // Manage pages
     Route::resource('pages', 'AdminPagesController');
     Route::get('pages/{slug}/changeimage', array(
