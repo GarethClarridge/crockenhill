@@ -2,7 +2,9 @@
 
 @section('dynamic_content')
 
-<a href="/sermons/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new sermon</a>
+@if ($user != null && $user->email == "admin@crockenhill.org")
+    <a href="/sermons/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new sermon</a>
+@endif
 
 <div class="row">
   <div class="col-md-6">
@@ -21,17 +23,19 @@
         <span class="glyphicon glyphicon-book"></span> &nbsp
         {{ $sermon->reference }}
       </p>
-      {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
-        <div class="btn-group">
-          <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
-            Edit this sermon
-          </a>
-          
-          <button type="submit" class="btn btn-danger">
-            Delete this sermon
-          </button>
-        </div>
-      {!! Form::close() !!}
+      @if ($user != null && $user->email == "admin@crockenhill.org")
+        {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
+          <div class="btn-group">
+            <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
+              Edit this sermon
+            </a>
+            
+            <button type="submit" class="btn btn-danger">
+              Delete this sermon
+            </button>
+          </div>
+        {!! Form::close() !!}
+      @endif
     @endforeach
   </div>
   <div class="col-md-6">
@@ -50,17 +54,19 @@
         <span class="glyphicon glyphicon-book"></span> &nbsp
         {{ $sermon->reference }}
       </p>
-      {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
-        <div class="btn-group">
-          <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
-            Edit this sermon
-          </a>
-          
-          <button type="submit" class="btn btn-danger">
-            Delete this sermon
-          </button>
-        </div>
-      {!! Form::close() !!}
+      @if ($user != null && $user->email == "admin@crockenhill.org")
+        {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
+          <div class="btn-group">
+            <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
+              Edit this sermon
+            </a>
+            
+            <button type="submit" class="btn btn-danger">
+              Delete this sermon
+            </button>
+          </div>
+        {!! Form::close() !!}
+      @endif
     @endforeach
   </div>
 </div>
