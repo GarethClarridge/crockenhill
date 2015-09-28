@@ -1,0 +1,14 @@
+.references {
+    font-size: $font-size-base;
+    font-style: italic;
+    text-align: right;
+}
+
+header {
+    font-family: $font-family-headings;
+    text-transform: uppercase;
+}
+
+h4, h5, h6 {
+    font-family: $font-family-sans-serif;
+}

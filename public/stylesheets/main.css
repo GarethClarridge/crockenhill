@@ -4471,47 +4471,54 @@ footer {
   padding: 30px 15px 0px; }
 
 #home {
-  color: #FFFFFF;
   margin-bottom: 0px; }
-  #home p {
-    padding-top: 40px;
-    font-style: italic; }
 
 .home-head {
   background-image: url(../images/church_blur.jpg);
   background-size: cover;
   background-repeat: no-repeat;
   min-height: 500px;
-  margin-top: -20px; }
+  margin-top: -20px;
+  color: #FFFFFF; }
   .home-head .container {
     padding-top: 100px; }
   .home-head h1 {
     font-size: 80px;
     font-weight: 800; }
+  .home-head p {
+    font-style: italic; }
 
-.home-body .container {
-  width: 100%; }
+.white-background {
+  font-size: 1.5em;
+  text-align: center; }
+  .white-background h2 {
+    font-size: 2.5em;
+    line-height: 2em; }
+  .white-background a {
+    font-style: italic; }
 
-.home-block {
-  padding: 10% 20%;
-  background-size: cover;
-  background-position: 50%; }
-  .home-block p {
-    font-size: 28.8px; }
-  .home-block h2 {
-    font-size: 48px; }
+section {
+  padding: 5% 0%; }
 
-.greeting {
-  background-image: url(../images/homepage/greeting.JPG); }
+.background-image {
+  background-attachment: fixed;
+  background-position: center;
+  background-size: 100%; }
+  .background-image section {
+    color: #FFFFFF;
+    font-size: 1.5em;
+    text-align: center; }
+    .background-image section a {
+      font-style: normal; }
 
-.listening {
-  background-image: url(../images/homepage/listening.JPG); }
+#building {
+  background-image: url(/images/homepage/building.JPG); }
 
-.building {
-  background-image: url(../images/homepage/building.JPG); }
+#listening {
+  background-image: url(/images/homepage/listening.JPG); }
 
-.eating {
-  background-image: url(../images/homepage/eating.JPG); }
+#three {
+  background-image: url(/images/homepage/drinking.JPG); }
 
 .references {
   font-size: 16px;
