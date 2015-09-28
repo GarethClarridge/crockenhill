@@ -1,0 +1,71 @@
+#home {
+  margin-bottom: 0px;
+}
+
+.home-head {
+  background-image: url(../images/church_blur.jpg);
+  background-size: cover;
+  background-repeat: no-repeat;
+  min-height: 500px;
+  margin-top: -20px;
+  color: #FFFFFF;
+
+  .container {
+    padding-top: 100px;
+  }
+
+  h1 {
+    font-size: $font-size-base*5;
+    font-weight: 800;
+  }
+
+  p {
+    font-style: italic;
+  }
+}
+
+.white-background {
+  font-size: 1.5em;
+  text-align: center;
+
+  h2 {
+    font-size: 2.5em;
+    line-height: 2em;
+  }
+
+  a {
+    font-style: italic;
+  }
+}
+
+section {
+  padding: 5% 0%;
+}
+
+.background-image {
+  background-attachment: fixed;
+  background-position: center;
+  background-size: 100%;
+
+  section {
+    color: #FFFFFF;
+    font-size: 1.5em;
+    text-align: center;
+
+    a {
+      font-style: normal;
+    }
+  }
+}
+
+#building {
+  background-image: url(/images/homepage/building.JPG);
+}
+
+#listening {
+  background-image: url(/images/homepage/listening.JPG);
+}
+
+#three {
+  background-image: url(/images/homepage/drinking.JPG);
+}
