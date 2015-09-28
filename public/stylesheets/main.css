@@ -4496,6 +4496,13 @@ footer {
     line-height: 2em; }
   .white-background a {
     font-style: italic; }
+  @media (max-width: 768px) {
+    .white-background {
+      font-size: 1.1em;
+      padding-left: 15%;
+      padding-right: 15%; }
+      .white-background h2 {
+        font-size: 2em; } }
 
 section {
   padding: 5% 0%; }
@@ -4510,6 +4517,11 @@ section {
     text-align: center; }
     .background-image section a {
       font-style: normal; }
+    @media (max-width: 768px) {
+      .background-image section {
+        font-size: 1.1em;
+        padding-left: 15%;
+        padding-right: 15%; } }
 
 #building {
   background-image: url(/images/homepage/building.JPG); }

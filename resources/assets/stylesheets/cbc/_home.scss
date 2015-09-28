@@ -36,6 +36,16 @@
   a {
     font-style: italic;
   }
+
+  @media (max-width: $screen-sm) {
+    font-size: 1.1em;
+    padding-left: 15%;
+    padding-right: 15%;
+    h2 {
+      font-size: 2em;
+    }
+
+  }
 }
 
 section {
@@ -54,6 +64,12 @@ section {
 
     a {
       font-style: normal;
+    }
+
+    @media (max-width: $screen-sm) {
+      font-size: 1.1em;
+      padding-left: 15%;
+      padding-right: 15%;
     }
   }
 }
