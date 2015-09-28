@@ -33,7 +33,7 @@
 
       </h2>
       <p>
-        <a href="/whats-on/sundays">Find out more</a>
+        <a href="/whats-on/sunday-services">Find out more</a>
       </p>
     </section>
 
