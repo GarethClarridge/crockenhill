@@ -1,0 +1,13 @@
+#cookie-law { 
+  position: absolute;
+  width: 90%;
+  margin-top: floor($line-height-computed / 2);
+  margin-right: 5%;
+  margin-left: 5%;
+  z-index: 10;
+}
+ 
+#cookie-message { 
+  margin-bottom: 0px !important;
+  padding: floor($line-height-computed / 2) $line-height-computed;
+}
