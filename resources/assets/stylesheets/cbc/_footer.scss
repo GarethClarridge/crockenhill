@@ -1,0 +1,26 @@
+footer {
+    background-color: $brand-dark;
+    color: $gray-lightest;
+
+    h4 {
+        margin-bottom: 30px;
+        font-style: italic;
+    }
+
+    section {
+        padding: 20px;
+    }
+
+    a {
+        color: $brand-secondary;
+    }
+    
+    a:hover {
+        color: $gray-lightest;
+    }
+
+}
+
+.copyright {
+    padding: 30px 15px 0px;
+}
