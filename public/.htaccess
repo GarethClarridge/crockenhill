@@ -13,9 +13,3 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
-
-; Maximum file size of post data that PHP will accept.
-php_value post_max_size = 20M
-
-; Maximum allowed file size for uploaded files.
-php_value upload_max_filesize = 20M
