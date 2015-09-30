@@ -4410,7 +4410,10 @@ aside {
     padding-right: 12.5px; }
 
 .navbar-collapse, .navbar-toggle {
-  border: #34495e; }
+  border: #34495e;
+  color: #fff;
+  font-size: 0.8em;
+  font-family: "Oswald", "Helvetica Neue", Helvetica, Arial, sans-serif; }
 
 .nav-notch {
   display: none; }
