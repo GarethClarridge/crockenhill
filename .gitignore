@@ -1,7 +1,7 @@
 /vendor
 /bower_components
 /node_modules
-/public/media/*.mp3
+/public/media/sermons/*.mp3
 /public/images
 /public/documents
 .env
