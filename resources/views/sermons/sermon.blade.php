@@ -26,17 +26,19 @@
 
 @section('dynamic_content')
 
-  {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
-    <div class="btn-group">
-      <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
-        Edit this sermon
-      </a>
-      
-      <button type="submit" class="btn btn-danger">
-        Delete this sermon
-      </button>
-    </div>
-  {!! Form::close() !!}
+  @if ($user != null && $user->email == "admin@crockenhill.org")
+    {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
+      <div class="btn-group">
+        <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
+          Edit this sermon
+        </a>
+        
+        <button type="submit" class="btn btn-danger">
+          Delete this sermon
+        </button>
+      </div>
+    {!! Form::close() !!}
+  @endif
 
   <br>
 
