@@ -15,8 +15,12 @@
 
 Route::group(array('prefix' => 'sermons'), function()
 {
+    Route::get('/{year}/{month}/{slug}', array(
+        'as' => 'showSermon',
+        'uses' => 'SermonController@show'
+    ));
     Route::get('all', array(
-        'as' => 'all',
+        'as' => 'allSermons',
         'uses' => 'SermonController@getAll'
     ));
     Route::get('preachers', array(

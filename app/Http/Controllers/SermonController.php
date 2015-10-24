@@ -122,9 +122,11 @@ class SermonController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function show($slug)
+	public function show($year, $month, $slug)
 	{
-		$sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
+		$sermon = \Crockenhill\Sermon::where('slug', $slug)
+                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
+                                    ->first();
    	$heading = $sermon->title;
   	$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
   	                <li><a href="series/'.$sermon->series.'">'.$sermon->series.'</a></li>
@@ -257,7 +259,9 @@ class SermonController extends Controller {
 		$area = 'sermons';
 		$area_heading = \Illuminate\Support\Str::title($area);
   	$breadcrumbs = '<li><a href="/'.$area.'">'.$area_heading.'</a></li><li class="active">'.$preacher_name.'</li>';
-  	$sermons = \Crockenhill\Sermon::where('preacher', $preacher_name)->orderBy('date')->get();
+  	$sermons = \Crockenhill\Sermon::where('preacher', $preacher_name)
+                  ->orderBy('date', 'desc')
+                  ->paginate(8);
 
   	return view('sermons.preacher', array(
       'slug'        => '',
@@ -295,7 +299,9 @@ class SermonController extends Controller {
 		$area = 'sermons';
 		$area_heading = \Illuminate\Support\Str::title($area);
       	$breadcrumbs = '<li><a href="/'.$area.'">'.$area_heading.'</a></li><li class="active">'.$series_name.'</li>';
-      	$sermons = \Crockenhill\Sermon::where('series', $series_name)->orderBy('date')->get();
+      	$sermons = \Crockenhill\Sermon::where('series', $series_name)
+                      ->orderBy('date', 'desc')
+                      ->paginate(8);
 
       	return view('sermons.series', array(
 	        'slug'        => '',
