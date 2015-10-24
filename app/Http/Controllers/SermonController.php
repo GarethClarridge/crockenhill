@@ -96,19 +96,13 @@ class SermonController extends Controller {
         $service = 'morning';
     }
 
-    if (\Input::get('series')){
-        $series = \Input::get('series');
-    } else {
-        $series = \Input::get('new_series');
-    }
-
     $sermon = new \Crockenhill\Sermon;
     $sermon->title      = \Input::get('title');
     $sermon->filename   = $filename;
     $sermon->date       = \Input::get('date');
     $sermon->service    = $service;
     $sermon->slug       = \Illuminate\Support\Str::slug(\Input::get('title'));
-    $sermon->series     = $series;
+    $sermon->series     = \Input::get('series');
     $sermon->reference  = \Input::get('reference');
     $sermon->preacher   = \Input::get('preacher');
     $sermon->save();
@@ -195,22 +189,16 @@ class SermonController extends Controller {
 	 */
 	public function update($slug)
 	{
-		if (\Input::get('series')){
-            $series = \Input::get('series');
-        } else {
-            $series = \Input::get('new_series');
-        }
+    $sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
+    $sermon->title      = \Input::get('title');
+    $sermon->date       = \Input::get('date');
+    $sermon->slug       = \Illuminate\Support\Str::slug(\Input::get('title'));
+    $sermon->series     = \Input::get('series');
+    $sermon->reference  = \Input::get('reference');
+    $sermon->preacher   = \Input::get('preacher');
+    $sermon->save();
 
-        $sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
-        $sermon->title      = \Input::get('title');
-        $sermon->date       = \Input::get('date');
-        $sermon->slug       = \Illuminate\Support\Str::slug(\Input::get('title'));
-        $sermon->series     = $series;
-        $sermon->reference  = \Input::get('reference');
-        $sermon->preacher   = \Input::get('preacher');
-        $sermon->save();
-
-        return redirect('/sermons/'.$slug);
+    return redirect('/sermons/'.$slug);
 	}
 
 	/**
