@@ -5,3 +5,4 @@
 /public/images
 /public/documents
 .env
+composer.lock
