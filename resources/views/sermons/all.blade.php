@@ -2,10 +2,6 @@
 
 @section('dynamic_content')
 
-@if ($user != null && $user->email == "admin@crockenhill.org")
-    <a href="/sermons/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new sermon</a>
-@endif
-
 <div class="row">
   <div class="col-md-6">
     <h2>Morning</h2>
@@ -71,6 +67,6 @@
   </div>
 </div>
 <br>
-<a href="/sermons/all" class="btn btn-primary btn-lg btn-block" role="button">Find older sermons</a>
+{!! $latest_morning_sermons->render() !!}
 
 @stop
