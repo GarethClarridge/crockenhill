@@ -98,6 +98,16 @@ class ComposerServiceProvider extends ServiceProvider {
       
       $view->with('user', $user);
     });
+    \View::composer('sermons.all', function($view)
+    {
+      if (\Auth::user()) {
+        $user = \Auth::user();
+      } else {
+        $user = null;
+      }
+      
+      $view->with('user', $user);
+    });
   }
 
 	/**
