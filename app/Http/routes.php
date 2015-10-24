@@ -15,6 +15,10 @@
 
 Route::group(array('prefix' => 'sermons'), function()
 {
+    Route::get('all', array(
+        'as' => 'all',
+        'uses' => 'SermonController@getAll'
+    ));
     Route::get('preachers', array(
         'as' => 'getPreachers',
         'uses' => 'SermonController@getPreachers'
