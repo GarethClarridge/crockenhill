@@ -107,7 +107,7 @@ class SermonController extends Controller {
     $sermon->preacher   = \Input::get('preacher');
     $sermon->save();
 
-    return redirect('sermons');
+    return redirect('sermons')->with('message', '"'.\Input::get('title').'" successfully uploaded!');
 	}
 
 	/**
@@ -198,7 +198,7 @@ class SermonController extends Controller {
     $sermon->preacher   = \Input::get('preacher');
     $sermon->save();
 
-    return redirect('/sermons/'.$slug);
+    return redirect('/sermons/'.$slug)->with('message', '"'.\Input::get('title').'" successfully updated!');;
 	}
 
 	/**
@@ -212,7 +212,7 @@ class SermonController extends Controller {
 		$sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
     $sermon->delete();
 
-    return redirect('sermons');
+    return redirect('sermons')->with('message', 'Sermon successfully deleted!');;
 	}
 
 	public function getPreachers()
