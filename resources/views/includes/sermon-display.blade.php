@@ -7,7 +7,7 @@
 </p>
 <p>
   <span class="glyphicon glyphicon-user"></span> &nbsp
-  {{ $sermon->preacher }}
+  <a href="/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
 </p>
 <p>
   <span class="glyphicon glyphicon-book"></span> &nbsp

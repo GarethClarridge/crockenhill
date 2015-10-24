@@ -253,7 +253,7 @@ class SermonController extends Controller {
 
   	return view('sermons.preacher', array(
       'slug'        => '',
-      'heading'     => $preacher_name,		    
+      'heading'     => 'Sermons by '.$preacher_name,		    
       'description' => '<meta name="description" content="Sermons by '.$preacher_name.'">',
       'breadcrumbs' => $breadcrumbs,
       'content'			=> '',
@@ -293,7 +293,7 @@ class SermonController extends Controller {
 
       	return view('sermons.series', array(
 	        'slug'        => '',
-	        'heading'     => $series_name,		    
+	        'heading'     => 'Sermons in the "'.$series_name.'" series',		    
 	        'description' => '<meta name="description" content="Sermons by '.$series_name.'">',
 	        'breadcrumbs' => $breadcrumbs,
 	        'content'			=> '',
