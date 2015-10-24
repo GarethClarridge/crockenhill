@@ -19,11 +19,11 @@ class SermonController extends Controller {
 
   	$latest_morning_sermons = \Crockenhill\Sermon::where('service', 'morning')
 											->orderBy('date', 'desc')
-											->take(3)
+											->take(4)
 											->get();
   	$latest_evening_sermons = \Crockenhill\Sermon::where('service', 'evening')
 												->orderBy('date', 'desc')
-												->take(3)
+												->take(4)
 												->get();
 	    
 		return view('sermons.index', array(
@@ -36,6 +36,30 @@ class SermonController extends Controller {
 	    'latest_evening_sermons' 	=> $latest_evening_sermons
 		));
 	}
+
+  public function getAll()
+  {
+    $slug = 'all';
+    $page = \Crockenhill\Page::where('slug', $slug)->first();
+    $area = $page->area;
+
+    $latest_morning_sermons = \Crockenhill\Sermon::where('service', 'morning')
+                      ->orderBy('date', 'desc')
+                      ->paginate(8);
+    $latest_evening_sermons = \Crockenhill\Sermon::where('service', 'evening')
+                        ->orderBy('date', 'desc')
+                        ->paginate(8);
+      
+    return view('sermons.all', array(
+      'slug'                    => $slug,
+      'heading'                 => $page->heading,
+      'description'             => '<meta name="description" content="Recent sermons preached at Crockenhill Baptist Church.">',
+      'breadcrumbs'             => '<li><a href="/sermons">Sermons</a></li><li class="active">'.$page->heading.'</li>',
+      'content'                 => $page->body,
+      'latest_morning_sermons'  => $latest_morning_sermons,
+      'latest_evening_sermons'  => $latest_evening_sermons
+    ));
+  }
 
 	/**
 	 * Show the form for creating a new resource.
