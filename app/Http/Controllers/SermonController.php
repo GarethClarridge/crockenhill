@@ -246,7 +246,7 @@ class SermonController extends Controller {
 		$preacher_name = str_replace('-', ' ', \Illuminate\Support\Str::title($preacher));
 		$area = 'sermons';
 		$area_heading = \Illuminate\Support\Str::title($area);
-  	$breadcrumbs = '<li><a href="/'.$area.'">'.$area_heading.'</a></li><li class="active">'.$preacher_name.'</li>';
+  	$breadcrumbs = '<li><a href="/'.$area.'">'.$area_heading.'</a></li><li><a href="/sermons/preachers">Preachers</a></li><li class="active">'.$preacher_name.'</li>';
   	$sermons = \Crockenhill\Sermon::where('preacher', $preacher_name)
                   ->orderBy('date', 'desc')
                   ->paginate(8);
@@ -286,7 +286,7 @@ class SermonController extends Controller {
 		$series_name = str_replace('-', ' ', \Illuminate\Support\Str::title($series));
 		$area = 'sermons';
 		$area_heading = \Illuminate\Support\Str::title($area);
-      	$breadcrumbs = '<li><a href="/'.$area.'">'.$area_heading.'</a></li><li class="active">'.$series_name.'</li>';
+      	$breadcrumbs = '<li><a href="/'.$area.'">'.$area_heading.'</a></li><li><a href="/sermons/series">Series</a></li><li class="active">'.$series_name.'</li>';
       	$sermons = \Crockenhill\Sermon::where('series', $series_name)
                       ->orderBy('date', 'desc')
                       ->paginate(8);
