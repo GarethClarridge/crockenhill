@@ -4550,6 +4550,13 @@ h4, h5, h6 {
 audio {
   width: 100%; }
 
+#title {
+  font-family: "Oswald", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  height: 60px;
+  font-size: 40px;
+  line-height: 1.1;
+  color: black; }
+
 .form-narrow {
   width: 80%; }
 
