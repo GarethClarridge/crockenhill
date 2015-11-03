@@ -2,7 +2,7 @@
 
 @section('dynamic_content')
 
-  <form method="POST" action="//localhost:3000/sermons" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
+  <form method="POST" action="SermonController@create" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
     {!! Form::token() !!}
 
     <div class="form-group">
@@ -41,7 +41,7 @@
 
     <div class="form-actions">
       <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
-      <a href="//localhost:3000/members/sermons" class="btn btn-large">Cancel</a>
+      <a href="{!! URL::route('members.sermons.index') !!}" class="btn btn-large">Cancel</a>
     </div>
 
   </form>
