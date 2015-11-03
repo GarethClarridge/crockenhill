@@ -2,7 +2,7 @@
 
 @section('dynamic_content')
 
-  <form method="POST" action="SermonController@create" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
+  <form method="POST" action="/sermons" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
     {!! Form::token() !!}
 
     <div class="form-group">
