@@ -115,6 +115,7 @@ return [
 		 */
 		'Illuminate\Foundation\Providers\ArtisanServiceProvider',
 		'Illuminate\Auth\AuthServiceProvider',
+		'Illuminate\Broadcasting\BroadcastServiceProvider',
 		'Illuminate\Bus\BusServiceProvider',
 		'Illuminate\Cache\CacheServiceProvider',
 		'Illuminate\Foundation\Providers\ConsoleSupportServiceProvider',
@@ -141,6 +142,7 @@ return [
 		 * Application Service Providers...
 		 */
 		'Crockenhill\Providers\AppServiceProvider',
+		'Crockenhill\Providers\AuthServiceProvider',
 		'Crockenhill\Providers\BusServiceProvider',
 		'Crockenhill\Providers\ConfigServiceProvider',
 		'Crockenhill\Providers\EventServiceProvider',
@@ -175,6 +177,7 @@ return [
 		'Eloquent'  => 'Illuminate\Database\Eloquent\Model',
 		'Event'     => 'Illuminate\Support\Facades\Event',
 		'File'      => 'Illuminate\Support\Facades\File',
+		'Gate' 			=> 'Illuminate\Support\Facades\Gate',
 		'Hash'      => 'Illuminate\Support\Facades\Hash',
 		'Input'     => 'Illuminate\Support\Facades\Input',
 		'Inspiring' => 'Illuminate\Foundation\Inspiring',
@@ -196,6 +199,7 @@ return [
 		'View'      => 'Illuminate\Support\Facades\View',
 		'Form'			=> 'Collective\Html\FormFacade',
 		'HTML'			=> 'Collective\Html\HtmlFacade',
+
 
 	],
 
