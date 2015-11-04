@@ -68,7 +68,7 @@ class SermonController extends Controller {
 	 */
 	public function create()
 	{
-		$series = array_unique(\Crockenhill\Sermon::lists('series'));
+		$series = array_unique(\Crockenhill\Sermon::lists('series')->all());
     return view('sermons.create', array(
       'series'        => $series,
       'heading'       => 'Upload a new sermon',
@@ -166,7 +166,7 @@ class SermonController extends Controller {
 	public function edit($slug)
 	{
     $sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
-    $series = array_unique(\Crockenhill\Sermon::lists('series'));
+    $series = array_unique(\Crockenhill\Sermon::lists('series')->all());
 
     return view('sermons.edit', array(
       'sermon'        => $sermon,
