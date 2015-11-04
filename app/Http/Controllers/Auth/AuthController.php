@@ -1,9 +1,9 @@
 <?php namespace Crockenhill\Http\Controllers\Auth;
 
 use Crockenhill\Http\Controllers\Controller;
-use Illuminate\Contracts\Auth\Guard;
-use Illuminate\Contracts\Auth\Registrar;
 use Illuminate\Foundation\Auth\AuthenticatesAndRegistersUsers;
+use Crockenhill\User;
+use Validator;
 
 class AuthController extends Controller {
 
@@ -33,6 +33,30 @@ class AuthController extends Controller {
 		$this->registrar = $registrar;
 
 		$this->middleware('guest', ['except' => 'getLogout']);
+	}
+
+	public function validator(array $data)
+	{
+		return Validator::make($data, [
+			'name' => 'required|max:255',
+			'email' => 'required|email|max:255|unique:users',
+			'password' => 'required|confirmed|min:6',
+		]);
+	}
+
+	/**
+	 * Create a new user instance after a valid registration.
+	 *
+	 * @param  array  $data
+	 * @return User
+	 */
+	public function create(array $data)
+	{
+		return User::create([
+			'name' => $data['name'],
+			'email' => $data['email'],
+			'password' => bcrypt($data['password']),
+		]);
 	}
 
 }
