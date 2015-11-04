@@ -13,7 +13,7 @@ class User extends Model implements AuthenticatableContract,
 																		CanResetPasswordContract 
 {
 
-	use Authenticatable, CanResetPassword;
+	use Authenticatable, Authorizable, CanResetPassword;
 
 	/**
 	 * The database table used by the model.
