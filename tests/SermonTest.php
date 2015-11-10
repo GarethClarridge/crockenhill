@@ -49,4 +49,10 @@ class SermonTest extends TestCase
 
       Auth::logout();
     }
+
+    public function testSermon()
+    {
+      $this->visit('sermons/2015/10/justification-by-faith')
+        ->see('Justification by faith');
+    }
 }
