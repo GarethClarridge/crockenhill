@@ -27,16 +27,26 @@ class SermonTest extends TestCase
         Auth::logout();
     }
 
-    public function testAdminCanClickUpload()
+    public function testAll()
     {
-        Auth::loginUsingId(2);
-
-        $this->visit('/sermons')
-          ->click('Upload a new sermon')
-          ->seePageIs('/sermons/create');
-
-        Auth::logout();
+      $this->visit('/sermons')
+        ->click('Find older sermons')
+        ->seePageIs('/sermons/all');
     }
 
+    public function testCreate()
+    {
+      Auth::loginUsingId(2);
 
+      $this->visit('/sermons')
+        ->click('Upload a new sermon')
+        ->seePageIs('/sermons/create')
+        ->attach('/home/gareth/Projects/crockenhill/public/media/sermons/614b.mp3', 'file')
+        ->type('1 Corinthians', 'series')
+        ->type('1 Cor 9:1-10', 'reference')
+        ->press('Save')
+        ->see('successfully uploaded!');
+
+      Auth::logout();
+    }
 }
