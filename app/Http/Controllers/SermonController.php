@@ -163,9 +163,11 @@ class SermonController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function edit($slug)
+	public function edit($year, $month, $slug)
 	{
-    $sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
+    $sermon = \Crockenhill\Sermon::where('slug', $slug)
+                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
+                                    ->first();
     $series = array_unique(\Crockenhill\Sermon::lists('series')->all());
 
     return view('sermons.edit', array(
@@ -187,9 +189,11 @@ class SermonController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function update($slug)
+	public function update($year, $month, $slug)
 	{
-    $sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
+    $sermon = \Crockenhill\Sermon::where('slug', $slug)
+                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
+                                    ->first();
     $sermon->title      = \Input::get('title');
     $sermon->date       = \Input::get('date');
     $sermon->slug       = \Illuminate\Support\Str::slug(\Input::get('title'));
@@ -198,7 +202,7 @@ class SermonController extends Controller {
     $sermon->preacher   = \Input::get('preacher');
     $sermon->save();
 
-    return redirect('/sermons/'.$slug)->with('message', '"'.\Input::get('title').'" successfully updated!');;
+    return redirect('sermons')->with('message', '"'.\Input::get('title').'" successfully updated!');
 	}
 
 	/**
@@ -207,9 +211,11 @@ class SermonController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function destroy($slug)
+	public function destroy($year, $month, $slug)
 	{
-		$sermon = \Crockenhill\Sermon::where('slug', $slug)->first();
+    $sermon = \Crockenhill\Sermon::where('slug', $slug)
+                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
+                                    ->first();
     $sermon->delete();
 
     return redirect('sermons')->with('message', 'Sermon successfully deleted!');;
