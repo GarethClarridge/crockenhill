@@ -29,7 +29,7 @@
   @if ($user != null && $user->email == "admin@crockenhill.org")
     {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
       <div class="btn-group">
-        <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
+        <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
           Edit this sermon
         </a>
         
