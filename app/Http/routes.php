@@ -15,9 +15,33 @@
 
 Route::group(array('prefix' => 'sermons'), function()
 {
+    Route::get('/', array(
+        'as' => 'sermonIndex',
+        'uses' => 'SermonController@index'
+    ));
+    Route::get('/create', array(
+        'as' => 'sermonCreate',
+        'uses' => 'SermonController@create'
+    ));
+    Route::post('/', array(
+        'as' => 'sermonStore',
+        'uses' => 'SermonController@store'
+    ));
     Route::get('/{year}/{month}/{slug}', array(
         'as' => 'showSermon',
         'uses' => 'SermonController@show'
+    ));
+    Route::get('/{year}/{month}/{slug}/edit', array(
+        'as' => 'editSermon',
+        'uses' => 'SermonController@edit'
+    ));
+    Route::post('/{year}/{month}/{slug}/edit', array(
+        'as' => 'updateSermon',
+        'uses' => 'SermonController@update'
+    ));
+    Route::post('/{year}/{month}/{slug}/delete', array(
+        'as' => 'destroySermon',
+        'uses' => 'SermonController@destroy'
     ));
     Route::get('all', array(
         'as' => 'allSermons',
@@ -40,8 +64,6 @@ Route::group(array('prefix' => 'sermons'), function()
         'uses' => 'SermonController@getSeries'
     ));
 });
-
-Route::resource('sermons', 'SermonController');
 
 Route::resource('whats-on', 'MeetingController');
 
