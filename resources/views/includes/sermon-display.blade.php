@@ -1,5 +1,5 @@
 <h3>
-  <a href="sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">{{$sermon->title}}</a>
+  <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">{{$sermon->title}}</a>
 </h3> 
 <p>
   <span class="glyphicon glyphicon-calendar"></span>
@@ -14,9 +14,10 @@
   {{ $sermon->reference }}
 </p>
 @if ($user != null && $user->email == "admin@crockenhill.org")
-  {!! Form::open(array('action' => array('SermonController@destroy', $sermon->slug), 'method' => 'delete')) !!}
+  <form method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8">
+    {!! Form::token() !!}
     <div class="btn-group">
-      <a href="/sermons/{{$sermon->slug}}/edit" class="btn btn-primary">
+      <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
         Edit this sermon
       </a>
       
@@ -24,5 +25,5 @@
         Delete this sermon
       </button>
     </div>
-  {!! Form::close() !!}
+  </form>
 @endif

@@ -2,51 +2,49 @@
 
 @section('dynamic_content')
 
-    {!! Form::model($sermon, array('method' => 'put', 'action' => array('SermonController@update', $sermon->slug), 'role' => 'form')) !!}
+  @if (session('message'))
+    <div class="alert alert-success" role="alert">
+      {{ session('message') }}
+    </div>
+  @endif
 
-        <div class="form-group">
-            {!! Form::label('title', 'Title') !!}
-            {!! Form::text('title', $value = null, array('class' => 'form-control')) !!}
-        </div>
+  <form method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" accept-charset="UTF-8">
+    {!! Form::token() !!}
 
-        <div class="form-group">
-            {!! Form::label('date', 'Date') !!}
-            <input type="date" class="form-control" id="date" name="date">
-        </div>
+    <div class="form-group">
+      <label for="title">Title</label>
+      <input class="form-control h1" id="title" name="title" type="text" value="{{$sermon->title}}">
+    </div>
 
-        <div class="form-group">
-            {!! Form::label('series', 'Series') !!}
-            <select class="form-control" id="series" name="series">
-                @foreach ($series as $s)
-                    @if ($s === NULL)
-                    <option value="NULL">No series</option>
-                    @else
-                    <option value="{!!$s!!}">{!!$s!!}</option>
-                    @endif
-                @endforeach
-            </select>
-        </div>
+    <div class="form-group">
+      <label for="date">Date</label>
+      @if (date('D') === 'Sun')
+        <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d')!!}">
+      @else 
+        <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d',strtotime('last sunday'))!!}">
+      @endif
+    </div>
 
-        <div class="form-group">
-            {!! Form::label('new_series', 'New Series (if necessary)') !!}
-            {!! Form::text('new_series', $value = null, array('class' => 'form-control')) !!}
-        </div>
+    <div class="form-group">
+      <label for="series">Series</label>
+      <input class="form-control" id="series" name="series" type="text" value="{{$sermon->series}}">
+    </div>
 
-        <div class="form-group">
-            {!! Form::label('reference', 'Reference') !!}
-            {!! Form::text('reference', $value = null, array('class' => 'form-control')) !!}
-        </div>
+    <div class="form-group">
+      <label for="reference">Reference</label>
+      <input class="form-control" name="reference" type="text" id="reference" value="{{$sermon->reference}}">
+    </div>
 
-        <div class="form-group">
-            {!! Form::label('preacher', 'Preacher') !!}
-            {!! Form::text('preacher', $value = null, array('class' => 'form-control')) !!}
-        </div>
+    <div class="form-group">
+      <label for="preacher">Preacher</label>
+      <input class="form-control" id="preacher" name="preacher" type="text" value="{{$sermon->preacher}}">
+    </div>
 
-        <div class="form-actions">
-            {!! Form::submit('Save', array('class' => 'btn btn-success btn-save btn-large')) !!}
-            <a href="{!! URL::route('members.sermons.index') !!}" class="btn btn-large">Cancel</a>
-        </div>
+    <div class="form-actions">
+      <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
+      <a href="{!! URL::route('members.sermons.index') !!}" class="btn btn-large">Cancel</a>
+    </div>
 
-    {!! Form::close() !!}
+  </form>
  
 @stop
