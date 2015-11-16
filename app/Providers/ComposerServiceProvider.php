@@ -76,7 +76,7 @@ class ComposerServiceProvider extends ServiceProvider {
     });
 
     //Get user in sermons index page
-    \View::composer('sermons.*', function($view)
+    \View::composer('page', function($view)
     {
       if (\Auth::user()) {
         $user = \Auth::user();
