@@ -12,16 +12,22 @@ class PageController extends BaseController {
 
     if ($page = \Crockenhill\Page::where('slug', $slug)->first()) {
 		  
-		  $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
-	    $links = \Crockenhill\Page::where('area', $area)
-	    	->where('slug', '!=', $slug)
-	    	->where('slug', '!=', $area)
-	    	->where('slug', '!=', 'privacy-policy')
-	    	->where('admin', '!=', 'yes')
-	    	->orderBy(\DB::raw('RAND()'))
-	    	->take(5)
-	    	->get();
-	    $description = '<meta name="description" content="'.$page->description.'">';
+		  if ($area != $slug) {
+		  	$areapage = \Crockenhill\Page::where('slug', $area)->first();
+		  	$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'  </a>  </li>  <li class="active">'.$page->heading.'</li>';
+		  } else {
+		  	$breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
+			}
+	    $links 				= \Crockenhill\Page::where('area', $area)
+																	    	->where('slug', '!=', $slug)
+																	    	->where('slug', '!=', $area)
+																	    	->where('slug', '!=', 'privacy-policy')
+																	    	->where('admin', '!=', 'yes')
+																	    	->orderBy(\DB::raw('RAND()'))
+																	    	->take(5)
+																	    	->get();
+	    $description 	= '<meta name="description" content="'.$page->description.'">';
+	    $admin 				= 'members/pages/'.$slug;
 	    
 			return view('page', array(
 		    'slug'          => $page->slug,
@@ -29,6 +35,7 @@ class PageController extends BaseController {
 		    'description'   => $description,
 		    'area'					=> $page->area,
 		    'breadcrumbs'   => $breadcrumbs,
+		    'admin'					=> $admin,
 		    'content'       => htmlspecialchars_decode($page->body),
 		    'links'					=> $links,
 			));
