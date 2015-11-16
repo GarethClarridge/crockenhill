@@ -74,7 +74,7 @@ Route::resource('whats-on', 'MeetingController');
 Route::group(['prefix' => 'members', 'middleware' => 'auth'], function()
 {
     Route::get('', [
-        'uses' => 'PageController@showMemberHomepage'
+        'uses' => 'PageController@showPage'
     ]);
 
     // Manage pages
@@ -123,19 +123,10 @@ Route::group(['prefix' => 'members', 'middleware' => 'auth'], function()
     Route::resource('songs', 'SongController');
 });
 
-    Route::controllers([
-        'members' => 'Auth\AuthController',
-        'members/password' => 'Auth\PasswordController',
-    ]);
-
-    // Catch-all
-    Route::get('members/{slug}', array(
-        'middleware'    => 'auth',
-        'uses' => 'PageController@showPage'
-    ));
-
-
-
+Route::controllers([
+    'members' => 'Auth\AuthController',
+    'members/password' => 'Auth\PasswordController',
+]);
 
 // Permanent Redirects
 
@@ -214,9 +205,7 @@ Route::get('publications', function(){
 
 // General Routes
 
-Route::get('/{area}/{slug}', array('uses' => 'PageController@showSubPage'));
-
-Route::get('/{slug}', array('uses' => 'PageController@showPage'));
+Route::get('/{area}/{slug?}', array('uses' => 'PageController@showPage'));
 
 Route::controllers([
 	'auth' => 'Auth\AuthController',
@@ -227,4 +216,3 @@ Route::get('/', ['as' => 'Home', function()
 {
     return view('home');
 }]);
-
