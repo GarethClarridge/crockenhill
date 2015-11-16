@@ -78,13 +78,14 @@ Route::group(['prefix' => 'members', 'middleware' => 'auth'], function()
     ]);
 
     // Manage pages
-    Route::resource('pages', 'AdminPagesController');
+    Route::resource('pages', 'PageController');
+    
     Route::get('pages/{slug}/changeimage', array(
-        'uses'  => 'AdminPagesController@changeimage',
+        'uses'  => 'PageController@changeimage',
         'as'    => 'members.pages.changeimage'
         ));
     Route::post('pages/{slug}/changeimage', array(
-        'uses'  => 'AdminPagesController@updateimage',
+        'uses'  => 'PageController@updateimage',
         'as'    => 'members.pages.updateimage'
         ));
 

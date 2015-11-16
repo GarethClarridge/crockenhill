@@ -1,6 +1,6 @@
 <?php namespace Crockenhill\Http\Controllers;
 
-use Crockenhill\Http\Requests;
+/*use Crockenhill\Http\Requests;
 use Crockenhill\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
@@ -122,3 +122,4 @@ class AdminPagesController extends Controller {
 
  
 }
+*/
