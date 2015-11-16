@@ -46,27 +46,20 @@ class PageController extends BaseController {
 
 	public function index()
   {
-    $slug = 'pages';
-    $area = 'members';
+    $page = \Crockenhill\Page::where('slug', 'pages')->first();
+    $areapage = \Crockenhill\Page::where('slug', 'members')->first();
+    $breadcrumbs = '<li>'.link_to($page['area'], $areapage->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
+    $description = '<meta name="description" content="'.$page->description.'">';
     
-    if ($page = \Crockenhill\Page::where('slug', $slug)->first()) {
-      $parent = \Crockenhill\Page::where('slug', $area)->first();
-      
-      $breadcrumbs = '<li>'.link_to($page['area'], $parent->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
-      $description = '<meta name="description" content="'.$page->description.'">';
-      
-        return view('pages.index', array(
-        'slug'          => $page->slug,
-        'heading'       => $page->heading,          
-        'description'   => $description,
-        'area'          => $page->area,
-        'breadcrumbs'   => $breadcrumbs,
-        'content'       => htmlspecialchars_decode($page->body),
-        'pages'         => \Crockenhill\Page::all()
-        ));
-      } else {
-        \App::abort(404);
-      };
+    return view('pages.index', array(
+	    'slug'          => $page->slug,
+	    'heading'       => $page->heading,          
+	    'description'   => $description,
+	    'area'          => $page->area,
+	    'breadcrumbs'   => $breadcrumbs,
+	    'content'       => htmlspecialchars_decode($page->body),
+	    'pages'         => \Crockenhill\Page::all()
+    ));
   }
 
   public function create()
