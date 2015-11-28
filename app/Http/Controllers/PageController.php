@@ -64,7 +64,12 @@ class PageController extends BaseController {
 
   public function create()
   {
-    return View::make('pages.create');
+    return view('pages.create', array(
+      'heading'       => 'Create a new page',
+      'description'   => '<meta name="description" content="Create a new website page.">',
+      'breadcrumbs'   => '<li><a href="/members">Members</a></li><li><a href="/members/pages">Pages</a></li><li class="active">Create</li>',
+      'content'       => '',
+    ));
   }
 
   public function store()
