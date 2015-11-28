@@ -1,10 +1,8 @@
-@extends('layouts.members')
+@extends('page')
 
-@section('title', 'Create a New Page')
+@section('dynamic_content')
 
-@section('description', '<meta name="description" content="Create a new page">')
-
-@section('membercontent')
+  <form method="POST" action="/members/pages" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
 
     {{ Form::open(array('route' => 'members.pages.store', 'files' => true)) }}
 
