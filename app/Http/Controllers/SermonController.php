@@ -90,17 +90,11 @@ class SermonController extends Controller {
     $file->move('public/media/sermons', $file->getClientOriginalName());
     $filename = substr($file->getClientOriginalName(), 0, -4);
 
-    if (substr($filename, -1) === 'b') {
-        $service = 'evening';
-    } else {
-        $service = 'morning';
-    }
-
     $sermon = new \Crockenhill\Sermon;
     $sermon->title      = \Input::get('title');
     $sermon->filename   = $filename;
     $sermon->date       = \Input::get('date');
-    $sermon->service    = $service;
+    $sermon->service    = \Input::get('service');
     $sermon->slug       = \Illuminate\Support\Str::slug(\Input::get('title'));
     $sermon->series     = \Input::get('series');
     $sermon->reference  = \Input::get('reference');
