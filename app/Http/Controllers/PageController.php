@@ -124,10 +124,10 @@ class PageController extends BaseController {
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->delete();
 
-    return Redirect::route('members.pages.index');
+    return redirect('/members/pages')->with('message', 'Page successfully deleted!');
   }
 
-  public function changeimage($slug)
+  /*public function changeimage($slug)
   {
       return view('pages.editimage')->with('page', \Crockenhill\Page::where('slug', $slug)->first());
   }
@@ -154,5 +154,5 @@ class PageController extends BaseController {
 
     return Redirect::route('members.pages.changeimage', array('page' => $page->slug));
           
-  }
+  }*/
 }

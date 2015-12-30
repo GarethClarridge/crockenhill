@@ -24,6 +24,15 @@
             </div>
           @endif
 
+              {!! Form::open(array('route' => array('members.pages.destroy', $page->slug), 
+                          'method' => 'delete', 
+                          'data-confirm' => 'Are you sure you want to delete this page?', 
+                          'class' => 'form-inline')) !!}
+              <button type="submit" href="{{ URL::route('members.pages.destroy', $page->slug) }}" class="btn btn-danger">
+                Delete
+              </button>
+              {!! Form::close() !!}
+              
           {{-- A form to edit the page. --}}
 
           {!! Form::model($page, array('method' => 'put', 'route' => array('members.pages.update', $page->slug), 'role' => 'form')) !!}
