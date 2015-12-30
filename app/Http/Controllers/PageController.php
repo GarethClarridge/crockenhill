@@ -74,9 +74,9 @@ class PageController extends BaseController {
 
   public function store()
   {
-    $page = new Page;
+    $page = new \Crockenhill\Page;
     $page->heading = \Input::get('heading');
-    $page->slug = Str::slug(\Input::get('heading'));
+    $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
     $page->area = \Input::get('area');
     $page->body = \Input::get('body');
     $page->description = \Input::get('description');
@@ -84,21 +84,21 @@ class PageController extends BaseController {
 
     if (\Input::file('image')) {
       // Make large image for article
-      Image::make(\Input::file('image')
+      \Image::make(\Input::file('image')
         ->getRealPath())
         // resize the image to a width of 300 and constrain aspect ratio (auto height)
-        ->resize(2000, null, true)
+        ->resize(2000)
         ->save('images/headings/large/'.$page->slug.'.jpg');
 
       // Make smaller image for aside
-      Image::make(\Input::file('image')
+      \Image::make(\Input::file('image')
         ->getRealPath())
         // resize the image to a width of 300 and constrain aspect ratio (auto height)
-        ->resize(300, null, true)
+        ->resize(300)
         ->save('images/headings/small/'.$page->slug.'.jpg');
     };
 
-    return Redirect::route('members.pages.index');
+    return redirect('/members/pages')->with('message', 'New page successfully created!');
   }
 
   public function edit($slug)
