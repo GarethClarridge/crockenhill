@@ -4550,15 +4550,15 @@ h4, h5, h6 {
 audio {
   width: 100%; }
 
-#title {
+.form-narrow {
+  width: 80%; }
+
+.form-control.h1 {
   font-family: "Oswald", "Helvetica Neue", Helvetica, Arial, sans-serif;
   height: 60px;
   font-size: 40px;
   line-height: 1.1;
   color: black; }
-
-.form-narrow {
-  width: 80%; }
 
 .flexible-map-container {
   position: relative;
