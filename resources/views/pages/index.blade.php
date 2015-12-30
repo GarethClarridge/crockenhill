@@ -2,8 +2,16 @@
 
 @section('dynamic_content')
 
-<!-- <a href="pages/create" class="btn btn-primary btn-lg btn-block" role="button">Create a new page</a>
- -->
+  @if (session('message'))
+  <div class="alert alert-success" role="alert">
+    {{ session('message') }}
+  </div>
+  @endif
+
+  @if ($user != null && $user->email == "admin@crockenhill.org")
+    <a href="/pages/create" class="btn btn-primary btn-lg btn-block" role="button">Create a new page</a>
+  @endif
+
   <div>
     <table class="table table-hover">
       <thead>

@@ -116,7 +116,7 @@ class PageController extends BaseController {
     $page->description = \Input::get('description');
     $page->save();
 
-    return redirect('/members/pages');    
+    return redirect('/members/pages')->with('message', 'Page successfully updated!');  
   }
 
   public function destroy($slug)
