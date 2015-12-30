@@ -17,14 +17,15 @@ class SermonController extends Controller {
 		$slug = 'sermons';
   	$page = \Crockenhill\Page::where('slug', $slug)->first();
 
-  	$latest_morning_sermons = \Crockenhill\Sermon::where('service', 'morning')
-											->orderBy('date', 'desc')
-											->take(4)
-											->get();
-  	$latest_evening_sermons = \Crockenhill\Sermon::where('service', 'evening')
-												->orderBy('date', 'desc')
-												->take(4)
-												->get();
+    $last_6_weeks = \Crockenhill\Sermon::orderBy('date', 'desc')
+                      ->take(6)
+                      ->lists('date');
+
+    $latest_sermons = [];
+
+    foreach ($last_6_weeks as $week) {
+      $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)->get();
+    }
 	    
 		return view('sermons.index', array(
 	    'slug'                    => $slug,
@@ -32,8 +33,8 @@ class SermonController extends Controller {
 	    'description'   			    => '<meta name="description" content="Recent sermons preached at Crockenhill Baptist Church.">',
 	    'breadcrumbs'   					=> '<li class="active">'.$page->heading.'</li>',
 	    'content'       					=> $page->body,
-	    'latest_morning_sermons' 	=> $latest_morning_sermons,
-	    'latest_evening_sermons' 	=> $latest_evening_sermons
+      'last_6_weeks'            => $last_6_weeks,
+      'latest_sermons'          => $latest_sermons
 		));
 	}
 
