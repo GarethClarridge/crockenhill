@@ -14,15 +14,14 @@
 
 <div class="row">
   <div class="col-md-6">
-    <h2>Morning</h2>
-    @foreach ($latest_morning_sermons as $sermon)
-      @include('includes.sermon-display')
-    @endforeach
-  </div>
-  <div class="col-md-6">
-    <h2>Evening</h2>
-    @foreach ($latest_evening_sermons as $sermon)
-      @include('includes.sermon-display')
+    <h2>Sermons</h2>
+    @foreach ($latest_sermons as $date => $sermon)
+      <br>
+      <h4>{{ $date }}</h4>
+      @foreach ($sermon as $sermon)
+        @include('includes.sermon-display')
+      @endforeach
+      <br>
     @endforeach
   </div>
 </div>
