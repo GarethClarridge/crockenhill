@@ -3,8 +3,7 @@
 @section('dynamic_content')
 
   <form method="POST" action="/members/pages" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
-
-  {{ Form::open(array('route' => 'members.pages.store', 'files' => true)) }}
+    <input type="hidden" name="_token" id="csrf-token" value="{{ Session::token() }}" />
 
     <div class="form-group">
       <label for="heading">Heading</label>
@@ -35,7 +34,7 @@
 
     <div class="form-group">
       <label for="body">Page content</label>
-      <input class="form-control" name="body" type="textarea" id="body">
+      <textarea class="form-control" name="body" id="body"></textarea>
     </div>
 
     <div class="form-actions">
@@ -43,6 +42,6 @@
       <a href="{!! URL::route('members.pages.index') !!}" class="btn btn-large">Cancel</a>
     </div>
 
-  {{ Form::close() }}
+  </form>
  
 @stop
