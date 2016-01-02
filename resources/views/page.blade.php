@@ -19,7 +19,7 @@
             <div class="header-container">
           @endif
           
-            <h1>{{$heading}}</h1>
+            <h1><span>{{$heading}}</span></h1>
                 
             </div>
           
@@ -60,7 +60,7 @@
                 @else
                   <div class="header-container">
                 @endif
-                    <h3><a href="/whats-on/{{$link->slug}}">{{$link->heading}}</a></h3>
+                    <h3><span><a href="/whats-on/{{$link->slug}}">{{$link->heading}}</a></span></h3>
                   </div>
                 {{$link->description}}
 
@@ -73,7 +73,7 @@
                 @else
                   <div class="header-container">
                 @endif
-                    <h3><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></h3>
+                    <h3><span><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></span></h3>
                   </div>
                 {{$link->description}}
 
