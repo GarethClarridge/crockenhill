@@ -1,18 +1,30 @@
 <h3>
   <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">{{$sermon->title}}</a>
 </h3> 
-<p>
-  <span class="glyphicon glyphicon-calendar"></span>
-  &nbsp; {{date ('jS \of F Y', strtotime($sermon->date))}}
-</p>
-<p>
-  <span class="glyphicon glyphicon-user"></span> &nbsp
-  <a href="/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
-</p>
-<p>
-  <span class="glyphicon glyphicon-book"></span> &nbsp
-  {{ $sermon->reference }}
-</p>
+@if (($sermon->date != null) && (!Request::url('sermons')))
+  <p>
+    <span class="glyphicon glyphicon-calendar"></span>
+    &nbsp; {{ date('j F Y', strtotime($sermon->date)) }}
+  </p>
+@endif
+@if ($sermon->service != null)
+  <p>
+    <span class="glyphicon glyphicon-time"></span>
+    &nbsp; {{ \Illuminate\Support\Str::title($sermon->service) }}
+  </p>
+@endif
+@if ($sermon->preacher != null)
+  <p>
+    <span class="glyphicon glyphicon-user"></span> &nbsp
+    <a href="/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
+  </p>
+@endif
+@if ($sermon->reference != null)
+  <p>
+    <span class="glyphicon glyphicon-book"></span> &nbsp
+    {{ $sermon->reference }}
+  </p>
+@endif
 @if ($user != null && $user->email == "admin@crockenhill.org")
   <form method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8">
     {!! Form::token() !!}
