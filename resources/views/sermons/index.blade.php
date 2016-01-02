@@ -17,7 +17,7 @@
       <div class="row">
         <div class="col-sm-2">
           <h2 class="panel panel-primary">
-            <p class="panel-heading text-center">{{ date('M', strtotime($date)) }}</p>
+            <p class="panel-heading text-center">{{ date('M \'y', strtotime($date)) }}</p>
             <p class="panel-body text-center">{{ date('j', strtotime($date)) }}</p>
           </h2>
         </div>
