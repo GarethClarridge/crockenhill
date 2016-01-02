@@ -3526,17 +3526,17 @@ a.list-group-item {
     border-bottom-color: #ddd; }
 
 .panel-primary {
-  border-color: #428bca; }
+  border-color: #34495e; }
   .panel-primary > .panel-heading {
     color: #fff;
-    background-color: #428bca;
-    border-color: #428bca; }
+    background-color: #34495e;
+    border-color: #34495e; }
     .panel-primary > .panel-heading + .panel-collapse .panel-body {
-      border-top-color: #428bca; }
+      border-top-color: #34495e; }
     .panel-primary > .panel-heading > .dropdown .caret {
       border-color: #fff transparent; }
   .panel-primary > .panel-footer + .panel-collapse .panel-body {
-    border-bottom-color: #428bca; }
+    border-bottom-color: #34495e; }
 
 .panel-success {
   border-color: #d6e9c6; }
@@ -4549,6 +4549,9 @@ h4, h5, h6 {
 
 audio {
   width: 100%; }
+
+.panel-heading {
+  font-size: 0.75em; }
 
 .form-narrow {
   width: 80%; }
