@@ -17,10 +17,22 @@
   h1 {
     font-size: $font-size-base*4.5;
     font-weight: 800;
+
+      span {
+      padding: 0.15em;
+      background-color: $brand-secondary;
+    }
+
+    margin-bottom: 1em;
   }
 
   p {
     font-style: italic;
+
+    span {
+      padding: 0.33em 0.5em;
+      background-color: $brand-primary;
+    }
   }
 }
 

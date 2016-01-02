@@ -4,18 +4,10 @@
       <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
         MENU
       </button>
-      @if (\Request::is('/'))
-        <a class="navbar-brand" href="/">
-            <img src="/images/White.png" alt="" height="40px">
-            Crockenhill Baptist Church
-        </a>
-        <span class="nav-no-notch">&nbsp</span>
-      @else
-        <a class="navbar-brand logo" href="/">
-            <img src="/images/White.png" alt="" height="40px">
-            Crockenhill Baptist Church
-        </a>
-      @endif
+      <a class="navbar-brand" href="/">
+          <img src="/images/White.png" alt="" height="40px">
+          Crockenhill Baptist Church
+      </a>
     </div>
     <div class="navbar-collapse collapse">
 
@@ -25,12 +17,10 @@
           @if (\Request::is($page['route'].'/*'))
             <li class="active">
             {!! link_to($page['route'], $page['name']) !!}
-            <span class="nav-notch">&nbsp</span>
             </li>        
           @elseif  (\Request::is($page['route']))
             <li class="active">
             {!! link_to($page['route'], $page['name']) !!}
-            <span class="nav-notch">&nbsp</span>
             </li> 
           @else
             <li>

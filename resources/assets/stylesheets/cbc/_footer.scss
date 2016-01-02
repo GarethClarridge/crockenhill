@@ -1,26 +1,40 @@
 footer {
-    background-color: $brand-dark;
-    color: $gray-lightest;
+  background-color: $brand-dark;
+  color: $gray-lightest;
 
-    h4 {
-        margin-bottom: 30px;
-        font-style: italic;
-    }
-
-    section {
-        padding: 20px;
-    }
-
+  h4 {
+    margin: 30px 0;
+    font-style: italic;
     a {
-        color: $brand-secondary;
+      color: $gray-lightest;
     }
-    
-    a:hover {
-        color: $gray-lightest;
-    }
+    //font-style: italic;
+  }
+  #sermons-footer {
+    margin-left: 1em;
+  }
 
+  section {
+    padding: 20px;
+  }
+
+  a {
+    color: $gray-lightest;
+  }
+  
+  a:hover {
+    color: $gray-lightest;
+  }
+
+  h3 {
+    margin-top: 0px;
+  }
+
+  .footer-sermons {
+    margin-left: 1em;
+  }
 }
 
 .copyright {
-    padding: 30px 15px 0px;
+  padding: 30px 15px 0px;
 }

@@ -1,29 +1,23 @@
 <div class="row">
 
-  <section class="col-md-6 col-lg-3">
-    <h4 class="text-center">Latest Morning Sermon</h4>
-    <p class="text-center">
-      <a href="sermons/{{$morning->slug}}">{{$morning->title}}</a>
-    </p>
-    <p class="text-center">{{ $morning->reference }}</p>
+  <section class="col-md-12 col-lg-6">
+    <div class="row" id="sermons-footer">
+      <h4><a href="/sermons">&nbsp&nbsp&nbsp Latest Sermons</a></h4>
+      <div class="col-md-6">
+        @include('includes.sermon-display', ['sermon' => $morning])
+      </div>
+      <div class="col-md-6">
+        @include('includes.sermon-display', ['sermon' => $evening])
+      </div>
+    </div>
   </section>
 
   <section class="col-md-6 col-lg-3">
-    <h4 class="text-center">Latest Evening Sermon</h4>
-    <p class="text-center">
-      <a href="sermons/{{$evening->slug}}">{{$evening->title}}</a>
+    <h4><a href="/contact-us">Get in touch</a></h4>
+    <p><span class="glyphicon glyphicon-earphone"></span> &nbsp 01322 663995</p>
+    <p><span class="glyphicon glyphicon-envelope"></span> &nbsp <a href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
     </p>
-    <p class="text-center">{{ $evening->reference }}</p>
-  </section>
-
-  <section class="col-md-6 col-lg-3">
-    <h4 class="text-center">Get in touch</h4>
-    <p class="text-center"><span class="glyphicon glyphicon-earphone"></span> &nbsp&nbsp 01322 663995</p>
-    <p class="text-center"><span class="glyphicon glyphicon-envelope"></span> &nbsp&nbsp 
-      <a href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
-    </p>
-    <p class="text-center"><i class="fa fa-facebook"></i> &nbsp&nbsp 
-        <a href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
+    <p><i class="fa fa-facebook"></i> &nbsp&nbsp&nbsp <a href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
     </p>
     <!--<p class="text-center"><i class="fa fa-twitter"></i> &nbsp&nbsp 
       <a href="http://www.twitter.com/crockenhill">Follow us on Twitter</a>
@@ -31,8 +25,8 @@
   </section>
 
   <section class="col-md-6 col-lg-3">
-    <h4 class="text-center">Address</h4>
-    <address class="text-center">
+    <h4><a href="/find-us">Address</a></h4>
+    <address>
       Crockenhill Baptist Church<br />
       Eynsford Road<br />
       Crockenhill<br />
@@ -43,7 +37,7 @@
 </div>
 
 <div class="row">
-    <section class="col-md-6 col-md-offset-3">
+    <section class="col-md-4 col-md-offset-4">
         <a href="http://www.fiec.org.uk">
             <img src="/images/fiec-affiliated-tagline-white.png" width="100%">
         </a>
