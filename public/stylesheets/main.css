@@ -4560,16 +4560,21 @@ audio {
     margin-left: -9.52381%;
     margin-top: 0;
     margin-bottom: 25px;
-    background-image: url(../images/church_blur.jpg);
+    background-color: #34495e;
     background-size: cover;
     background-position: 50%; }
     .card .header-container h1, .card .header-container h2, .card .header-container h3, .card .header-container h4, .card .header-container h5, .card .header-container h6 {
-      padding-left: 9.52381%;
+      padding-left: 1.9em;
       background-color: rgba(0, 0, 0, 0.3);
       color: #fafafa;
       line-height: 75px;
       margin: 0;
       font-weight: 900; }
+      .card .header-container h1 span, .card .header-container h2 span, .card .header-container h3 span, .card .header-container h4 span, .card .header-container h5 span, .card .header-container h6 span {
+        padding: 0.33em 0.5em;
+        background-color: #16A085; }
+    .card .header-container h3 {
+      padding-left: 0.9em; }
   .card h1 {
     min-height: 200px;
     padding-top: 8%;
