@@ -24,7 +24,9 @@ class SermonController extends Controller {
     $latest_sermons = [];
 
     foreach ($last_6_weeks as $week) {
-      $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)->get();
+      $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)
+                                  ->orderBy('service', 'asc')
+                                  ->get();
     }
 	    
 		return view('sermons.index', array(
