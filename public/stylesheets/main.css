@@ -4426,14 +4426,22 @@ footer {
   background-color: #34495e;
   color: #fafafa; }
   footer h4 {
-    margin-bottom: 30px;
+    margin: 30px 0;
     font-style: italic; }
+    footer h4 a {
+      color: #fafafa; }
+  footer #sermons-footer {
+    margin-left: 1em; }
   footer section {
     padding: 20px; }
   footer a {
-    color: #16A085; }
+    color: #fafafa; }
   footer a:hover {
     color: #fafafa; }
+  footer h3 {
+    margin-top: 0px; }
+  footer .footer-sermons {
+    margin-left: 1em; }
 
 .copyright {
   padding: 30px 15px 0px; }
