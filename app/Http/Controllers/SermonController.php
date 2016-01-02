@@ -25,7 +25,6 @@ class SermonController extends Controller {
 
     foreach ($last_6_weeks as $week) {
       $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)
-                                  ->orderBy('service', 'asc')
                                   ->get();
     }
 	    
@@ -35,7 +34,6 @@ class SermonController extends Controller {
 	    'description'   			    => '<meta name="description" content="Recent sermons preached at Crockenhill Baptist Church.">',
 	    'breadcrumbs'   					=> '<li class="active">'.$page->heading.'</li>',
 	    'content'       					=> $page->body,
-      'last_6_weeks'            => $last_6_weeks,
       'latest_sermons'          => $latest_sermons
 		));
 	}
@@ -46,12 +44,15 @@ class SermonController extends Controller {
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $area = $page->area;
 
-    $latest_morning_sermons = \Crockenhill\Sermon::where('service', 'morning')
-                      ->orderBy('date', 'desc')
-                      ->paginate(8);
-    $latest_evening_sermons = \Crockenhill\Sermon::where('service', 'evening')
-                        ->orderBy('date', 'desc')
-                        ->paginate(8);
+    $weeks = \Crockenhill\Sermon::orderBy('date', 'desc')
+                      ->lists('date');
+
+    $latest_sermons = [];
+
+    foreach ($weeks as $week) {
+      $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)
+                                  ->get();
+    }
       
     return view('sermons.all', array(
       'slug'                    => $slug,
@@ -59,8 +60,7 @@ class SermonController extends Controller {
       'description'             => '<meta name="description" content="Recent sermons preached at Crockenhill Baptist Church.">',
       'breadcrumbs'             => '<li><a href="/sermons">Sermons</a></li><li class="active">'.$page->heading.'</li>',
       'content'                 => $page->body,
-      'latest_morning_sermons'  => $latest_morning_sermons,
-      'latest_evening_sermons'  => $latest_evening_sermons
+      'latest_sermons'          => $latest_sermons,
     ));
   }
 
