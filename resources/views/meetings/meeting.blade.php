@@ -1,7 +1,5 @@
 @extends('page')
 
-@stop
-
 @section('dynamic_content')
 
 {{-- Details --}}
