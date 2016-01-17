@@ -91,9 +91,9 @@
     <hr>
     <small>
       All activities at the church are carried out in accordance with our 
-      <a href="/media/documents/ChildProtection.pdf">Child Protection Policy</a>
+      <a href="/media/documents/ChildProtectionPolicy.pdf">Child Protection Policy</a>
       and our our 
-      <a href="/media/documents/positive-behaviour-policy.pdf">Positive Behaviour Policy</a>.
+      <a href="/media/documents/BehaviourPolicy.pdf">Positive Behaviour Policy</a>.
     </small>
   @endif
 
