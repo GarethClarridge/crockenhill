@@ -5,8 +5,8 @@
         MENU
       </button>
       <a class="navbar-brand" href="/">
-          <img src="/images/White.png" alt="" height="40px">
-          Crockenhill Baptist Church
+          <img src="/images/White.png" alt="Crockenhill Baptist Church logo">
+          <span>Crockenhill Baptist Church</span>
       </a>
     </div>
     <div class="navbar-collapse collapse">
