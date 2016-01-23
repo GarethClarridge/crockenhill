@@ -242,7 +242,7 @@ $dropdown-caret-color:           #000;
 //// Padding, to be divided by two and applied to the left and right of all columns
 //$grid-gutter-width:         30px;
 //// Point at which the navbar stops collapsing
-$grid-float-breakpoint:     862px;
+$grid-float-breakpoint:     $screen-md;
 
 
 //// Navbar
