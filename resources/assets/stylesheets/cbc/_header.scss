@@ -1,11 +1,18 @@
+.navbar {
+  height: 50px;
+}
+
 .navbar-brand {
-  padding: 12.5px;
-  height: 1.4em;
-  font-size: 1.4em;
-  text-transform: none;
+  height: 50px;
+  padding: 5px;
   img {
-    margin-top: -7.5px;
+    height: 2em;
     padding-right: 12.5px;
+  }
+  @media (max-width: $screen-xs) {
+    span {
+      display: none;
+    }
   }
 }
 
@@ -14,6 +21,8 @@
 .navbar-collapse, .navbar-toggle {
   color: $gray-lightest;
   font-family: "Oswald", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  line-height: 24px;
+  margin: 3px;
 }
 
 // Centre collapsed navs
