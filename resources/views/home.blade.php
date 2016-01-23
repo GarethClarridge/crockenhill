@@ -64,7 +64,7 @@
             <p>
               There are many activities at Crockenhill Baptist Church.  
               We have groups during term time for children and young people, 
-              bible study and prayer groups, a men's group, and more.
+              bible study and prayer groups and more.
             </p>   
             <br>
             <p class="text-center">
