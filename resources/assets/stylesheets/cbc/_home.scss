@@ -17,10 +17,14 @@
   h1 {
     font-size: $font-size-base*4.5;
     font-weight: 800;
+    line-height: $font-size-base*9;
 
       span {
       padding: 0.15em;
       background-color: $brand-secondary;
+
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
     }
 
     margin-bottom: 1em;
@@ -32,6 +36,10 @@
     span {
       padding: 0.33em 0.5em;
       background-color: $brand-primary;
+      line-height: 3em;
+
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
     }
   }
 }
