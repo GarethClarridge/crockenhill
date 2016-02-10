@@ -19,6 +19,12 @@
     <a href="/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
   </p>
 @endif
+@if ($sermon->series != null)
+  <p>
+    <span class="glyphicon glyphicon-tag"></span> &nbsp
+    <a href="/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}">{{ $sermon->series }}</a>
+  </p>
+@endif
 @if ($sermon->reference != null)
   <p>
     <span class="glyphicon glyphicon-book"></span> &nbsp
