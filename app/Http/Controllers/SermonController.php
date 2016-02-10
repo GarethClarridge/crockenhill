@@ -120,7 +120,7 @@ class SermonController extends Controller {
                                     ->first();
    	$heading = $sermon->title;
   	$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
-  	                <li><a href="series/'.$sermon->series.'">'.$sermon->series.'</a></li>
+  	                <li><a href="/sermons/series/'.$sermon->series.'">'.$sermon->series.'</a></li>
   	                <li class="active">'.$sermon->title.'</li>
   	                ';
 
