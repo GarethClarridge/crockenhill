@@ -1,7 +1,7 @@
 <h3>
   <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">{{$sermon->title}}</a>
 </h3> 
-@if (($sermon->date != null) && (!Request::url('sermons')))
+@if (($sermon->date != null))
   <p>
     <span class="glyphicon glyphicon-calendar"></span>
     &nbsp; {{ date('j F Y', strtotime($sermon->date)) }}
