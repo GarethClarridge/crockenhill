@@ -42,18 +42,36 @@
 
   <br>
 
+  @if (($sermon->date != null))
   <p>
     <span class="glyphicon glyphicon-calendar"></span>
-    &nbsp; {{date ('jS \of F', strtotime($sermon->date))}}
+    &nbsp; {{ date('j F Y', strtotime($sermon->date)) }}
   </p>
+@endif
+@if ($sermon->service != null)
+  <p>
+    <span class="glyphicon glyphicon-time"></span>
+    &nbsp; {{ \Illuminate\Support\Str::title($sermon->service) }}
+  </p>
+@endif
+@if ($sermon->preacher != null)
   <p>
     <span class="glyphicon glyphicon-user"></span> &nbsp
-    {{ $sermon->preacher }}
+    <a href="/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
   </p>
+@endif
+@if ($sermon->series != null)
+  <p>
+    <span class="glyphicon glyphicon-tag"></span> &nbsp
+    <a href="/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}">{{ $sermon->series }}</a>
+  </p>
+@endif
+@if ($sermon->reference != null)
   <p>
     <span class="glyphicon glyphicon-book"></span> &nbsp
     {{ $sermon->reference }}
   </p>
+@endif
   <p>
     <span class="glyphicon glyphicon-download-alt"></span> &nbsp;
     <a href="/media/sermons/{{$sermon->filename}}.mp3" download>
