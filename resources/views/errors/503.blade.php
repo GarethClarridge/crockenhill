@@ -1,41 +1,30 @@
-<html>
-	<head>
-		<link href='//fonts.googleapis.com/css?family=Lato:100' rel='stylesheet' type='text/css'>
+@extends('layouts.main')
 
-		<style>
-			body {
-				margin: 0;
-				padding: 0;
-				width: 100%;
-				height: 100%;
-				color: #B0BEC5;
-				display: table;
-				font-weight: 100;
-				font-family: 'Lato';
-			}
+@section('title', 'Page not found')
 
-			.container {
-				text-align: center;
-				display: table-cell;
-				vertical-align: middle;
-			}
+@section('description', '<meta name="description" content="Page not found">')
 
-			.content {
-				text-align: center;
-				display: inline-block;
-			}
+@section('content')
 
-			.title {
-				font-size: 72px;
-				margin-bottom: 40px;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="container">
-			<div class="content">
-				<div class="title">Be right back.</div>
-			</div>
-		</div>
-	</body>
-</html>
+<span class="nav-no-notch fixed-top-float">&nbsp</span>
+
+  <main class="container">
+      <div class="row">
+            <div class="col-md-9">
+                <article class="card">
+                    <div class="header-container">
+                
+                    <h1><span>Sorry!<span></h1>
+                            
+                    </div>  
+         
+                    <p>Sorry, you don't have permission to access that page.</p>
+                    <br>
+
+                    <a class="btn btn-primary btn-lg btn-block" href="/">Go to the homepage</a>
+                    
+                </article>
+            </div>
+        </div>
+  </main>
+@stop
