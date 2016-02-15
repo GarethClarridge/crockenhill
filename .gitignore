@@ -6,3 +6,9 @@
 /public/documents
 .env
 composer.lock
+*.mp3
+*.jpg
+*.JPG
+*.jpeg
+*.JPEG
+*.png
