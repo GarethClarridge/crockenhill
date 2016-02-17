@@ -1,6 +1,6 @@
 <?php namespace Crockenhill\Http\Controllers;
 
-class PageController extends BaseController {
+class PageController extends Controller {
 
 	public function showPage($area = 'members', $slug = NULL)
 	{
