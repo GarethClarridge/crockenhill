@@ -77,7 +77,7 @@ return [
     |
     */
     'key' => env('APP_KEY', 'SomeRandomString'),
-    'cipher' => 'MCRYPT_RIJNDAEL_128',
+    'cipher' => 'AES-256-CBC',
     /*
     |--------------------------------------------------------------------------
     | Logging Configuration
@@ -136,6 +136,7 @@ return [
         Crockenhill\Providers\AuthServiceProvider::class,
         Crockenhill\Providers\EventServiceProvider::class,
         Crockenhill\Providers\RouteServiceProvider::class,
+        Crockenhill\Providers\ComposerServiceProvider::class,
     ],
     /*
     |--------------------------------------------------------------------------
