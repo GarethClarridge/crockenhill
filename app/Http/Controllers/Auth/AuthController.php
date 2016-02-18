@@ -1,26 +1,29 @@
-<?php namespace Crockenhill\Http\Controllers\Auth;
-
+<?php
+namespace Crockenhill\Http\Controllers\Auth;
 use Crockenhill\User;
 use Validator;
 use Crockenhill\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\ThrottlesLogins;
 use Illuminate\Foundation\Auth\AuthenticatesAndRegistersUsers;
-
-
-class AuthController extends Controller {
-
-	/*
-	|--------------------------------------------------------------------------
-	| Registration & Login Controller
-	|--------------------------------------------------------------------------
-	|
-	| This controller handles the registration of new users, as well as the
-	| authentication of existing users. By default, this controller uses
-	| a simple trait to add these behaviors. Why don't you explore it?
-	|
-	*/
-
-use AuthenticatesAndRegistersUsers, ThrottlesLogins;
+class AuthController extends Controller
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Registration & Login Controller
+    |--------------------------------------------------------------------------
+    |
+    | This controller handles the registration of new users, as well as the
+    | authentication of existing users. By default, this controller uses
+    | a simple trait to add these behaviors. Why don't you explore it?
+    |
+    */
+    use AuthenticatesAndRegistersUsers, ThrottlesLogins;
+    /**
+     * Where to redirect users after login / registration.
+     *
+     * @var string
+     */
+    protected $redirectTo = '/members';
     /**
      * Create a new authentication controller instance.
      *
@@ -28,7 +31,7 @@ use AuthenticatesAndRegistersUsers, ThrottlesLogins;
      */
     public function __construct()
     {
-        $this->middleware('guest', ['except' => 'getLogout']);
+        $this->middleware('guest', ['except' => 'logout']);
     }
     /**
      * Get a validator for an incoming registration request.
@@ -58,5 +61,4 @@ use AuthenticatesAndRegistersUsers, ThrottlesLogins;
             'password' => bcrypt($data['password']),
         ]);
     }
-
 }

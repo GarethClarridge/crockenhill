@@ -4599,10 +4599,10 @@ audio {
         -webkit-box-decoration-break: clone; }
     .card .header-container h3 {
       padding-left: 0.9em; }
-  .card h1 {
-    min-height: 200px;
-    padding-top: 8%;
-    padding-bottom: 8%; }
+    .card .header-container h1 {
+      min-height: 200px;
+      padding-top: 8%;
+      padding-bottom: 8%; }
 
 aside a {
   color: #fafafa; }
