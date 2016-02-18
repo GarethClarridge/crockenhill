@@ -10,7 +10,7 @@
 		<br><br><br>
 			<article class="card">
         <div class="header-container">
-            <h1>Log in</h1>
+            <h1><span>Log in</span></h1>
         </div>
 				<div>
 					@if (count($errors) > 0)
