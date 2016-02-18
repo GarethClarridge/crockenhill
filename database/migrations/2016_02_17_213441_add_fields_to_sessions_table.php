@@ -13,8 +13,8 @@ class AddFieldsToSessionsTable extends Migration
     public function up()
     {
         Schema::table('sessions', function (Blueprint $table) { 
-            $table->integer('user_id')->nullable;
-            $table->string('ip_address')->nullable;
+            $table->integer('user_id')->nullable();
+            $table->string('ip_address')->nullable();
             $table->text('user_agent');
         });
     }
