@@ -10,7 +10,7 @@
 		<br><br><br>
 			<article class="card">
         <div class="header-container">
-            <h1>Register a new member account</h1>
+            <h1><span>Register a new account</span></h1>
         </div>
 				<div>
 					@if (count($errors) > 0)
