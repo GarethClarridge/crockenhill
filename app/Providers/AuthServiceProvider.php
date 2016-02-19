@@ -61,5 +61,13 @@ class AuthServiceProvider extends ServiceProvider
             ];
             return in_array($user->email, $emails);
         });
+
+        $gate->define('edit-documents', function ($user) {
+            $emails = [
+                "garethclarridge@hotmail.co.uk",
+                ""
+            ];
+            return in_array($user->email, $emails);
+        });
     }
 }

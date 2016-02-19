@@ -51,7 +51,11 @@ class DocumentController extends Controller {
 	 */
 	public function create()
 	{
-// Set information about page to enable lookup
+    if (\Gate::denies('edit-documents')) {
+      abort(403);
+    }
+
+    /*// Set information about page to enable lookup
     $area = 'members';
 
     // Set details
@@ -65,7 +69,7 @@ class DocumentController extends Controller {
         'area'        => $area,
         'breadcrumbs' => $breadcrumbs,
         'content'     => '',
-    ));
+    ));*/
 	}
 
 
@@ -76,7 +80,11 @@ class DocumentController extends Controller {
 	 */
 	public function store()
 	{
-		// Get Input
+    if (\Gate::denies('edit-documents')) {
+      abort(403);
+    }
+
+		/*// Get Input
 		$title = \Input::get('title');
 		$type = \Input::get('type');
 		$file = \Input::file('document');
@@ -100,7 +108,7 @@ class DocumentController extends Controller {
 		$file->move($destinationPath, $filename);
 
 		// Return user to index
-		return redirect('/members/documents');
+		return redirect('/members/documents');*/
 	}
 
 
@@ -124,7 +132,10 @@ class DocumentController extends Controller {
 	 */
 	public function edit($id)
 	{
-		//
+    if (\Gate::denies('edit-documents')) {
+      abort(403);
+    }
+    //
 	}
 
 
@@ -136,6 +147,9 @@ class DocumentController extends Controller {
 	 */
 	public function update($id)
 	{
+    if (\Gate::denies('edit-documents')) {
+      abort(403);
+    }
 		//
 	}
 
@@ -148,6 +162,9 @@ class DocumentController extends Controller {
 	 */
 	public function destroy($id)
 	{
+    if (\Gate::denies('edit-documents')) {
+      abort(403);
+    }
 		//
 	}
 
