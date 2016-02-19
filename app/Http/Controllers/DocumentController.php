@@ -13,6 +13,10 @@ class DocumentController extends Controller {
 	 */
 	public function index()
 	{
+    if (\Gate::denies('see-member-content')) {
+      abort(403);
+    }
+
     // Set information about page to enable lookup
     $slug = 'documents';
     $area = 'members';
