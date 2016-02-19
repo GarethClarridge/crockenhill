@@ -30,11 +30,11 @@
               <li>{!! link_to_route('Home', 'Home') !!}</li>
               @yield('breadcrumbs', $breadcrumbs)
               @if (isset ($admin))
-                @if ($user != null && $user->email == "admin@crockenhill.org")
+                @can ('edit-pages')
                   <li><a href="{{ $admin }}/edit" class="btn btn-primary">
                     Edit this page
                   </a></li>
-                @endif
+                @endcan
               @endif
             </ol>
           @endif
