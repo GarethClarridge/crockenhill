@@ -46,6 +46,10 @@ class PageController extends Controller {
 
 	public function index()
   {
+    if (\Gate::denies('edit-pages')) {
+      abort(403);
+    }
+
     $page = \Crockenhill\Page::where('slug', 'pages')->first();
     $areapage = \Crockenhill\Page::where('slug', 'members')->first();
     $breadcrumbs = '<li>'.link_to($page['area'], $areapage->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
@@ -64,6 +68,10 @@ class PageController extends Controller {
 
   public function create()
   {
+    if (\Gate::denies('edit-pages')) {
+      abort(403);
+    }
+
     return view('pages.create', array(
       'heading'       => 'Create a new page',
       'description'   => '<meta name="description" content="Create a new website page.">',
@@ -74,6 +82,10 @@ class PageController extends Controller {
 
   public function store()
   {
+    if (\Gate::denies('edit-pages')) {
+      abort(403);
+    }
+
     $page = new \Crockenhill\Page;
     $page->heading = \Input::get('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
@@ -103,11 +115,19 @@ class PageController extends Controller {
 
   public function edit($slug)
   {
+    if (\Gate::denies('edit-pages')) {
+      abort(403);
+    }
+
     return view('pages.edit')->with('page', \Crockenhill\Page::where('slug', $slug)->first());
   }
 
   public function update($slug)
   {
+    if (\Gate::denies('edit-pages')) {
+      abort(403);
+    }
+
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->heading = \Input::get('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
@@ -121,6 +141,10 @@ class PageController extends Controller {
 
   public function destroy($slug)
   {
+    if (\Gate::denies('edit-pages')) {
+      abort(403);
+    }
+
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->delete();
 
