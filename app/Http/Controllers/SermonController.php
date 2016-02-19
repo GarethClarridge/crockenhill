@@ -71,6 +71,10 @@ class SermonController extends Controller {
 	 */
 	public function create()
 	{
+    if (\Gate::denies('edit-sermons')) {
+      abort(403);
+    }
+
 		$series = array_unique(\Crockenhill\Sermon::lists('series')->all());
     return view('sermons.create', array(
       'series'        => $series,
@@ -89,6 +93,10 @@ class SermonController extends Controller {
 	 */
 	public function store()
 	{
+    if (\Gate::denies('edit-sermons')) {
+      abort(403);
+    }
+
 		$file = \Input::file('file');
     $file->move('media/sermons', $file->getClientOriginalName());
     $filename = substr($file->getClientOriginalName(), 0, -4);
@@ -162,6 +170,10 @@ class SermonController extends Controller {
 	 */
 	public function edit($year, $month, $slug)
 	{
+    if (\Gate::denies('edit-sermons')) {
+      abort(403);
+    }
+
     $sermon = \Crockenhill\Sermon::where('slug', $slug)
                                     ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
                                     ->first();
@@ -188,6 +200,10 @@ class SermonController extends Controller {
 	 */
 	public function update($year, $month, $slug)
 	{
+    if (\Gate::denies('edit-sermons')) {
+      abort(403);
+    }
+
     $sermon = \Crockenhill\Sermon::where('slug', $slug)
                                     ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
                                     ->first();
@@ -210,6 +226,10 @@ class SermonController extends Controller {
 	 */
 	public function destroy($year, $month, $slug)
 	{
+    if (\Gate::denies('edit-sermons')) {
+      abort(403);
+    }
+
     $sermon = \Crockenhill\Sermon::where('slug', $slug)
                                     ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
                                     ->first();

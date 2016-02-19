@@ -8,16 +8,16 @@
     </div>
   @endif
 
-  @if ($user != null && $user->email == "admin@crockenhill.org")
+  @can ('edit-sermons')
       <a href="/sermons/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new sermon</a>
-  @endif
+  @endcan
 
   @foreach ($latest_sermons as $date => $sermons)
     <section class="week">
       <div class="row">
         <div class="col-sm-2">
           <h2 class="panel panel-primary">
-            <p class="panel-heading text-center">{{ date('M \'y', strtotime($date)) }}</p>
+            <p class="panel-heading text-center">{{ date('M', strtotime($date)) }}</p>
             <p class="panel-body text-center">{{ date('j', strtotime($date)) }}</p>
           </h2>
         </div>
