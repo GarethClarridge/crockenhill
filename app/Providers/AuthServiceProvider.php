@@ -24,6 +24,42 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies($gate);
 
-        //
+        $gate->before(function ($user, $ability) {
+            if ($user->email === "admin@crockenhill.org") {
+                return true;
+            }
+        });
+
+        $gate->define('see-member-content', function ($user) {
+            $member_emails = [
+                "garethclarridge@hotmail.co.uk",
+                ""
+            ];
+            return in_array($user->email, $member_emails);
+        });
+
+        $gate->define('edit-sermons', function ($user) {
+            $emails = [
+                "garethclarridge@hotmail.co.uk",
+                ""
+            ];
+            return in_array($user->email, $emails);
+        });
+
+        $gate->define('edit-songs', function ($user) {
+            $emails = [
+                "garethclarridge@hotmail.co.uk",
+                ""
+            ];
+            return in_array($user->email, $emails);
+        });
+
+        $gate->define('edit-pages', function ($user) {
+            $emails = [
+                "garethclarridge@hotmail.co.uk",
+                ""
+            ];
+            return in_array($user->email, $emails);
+        });
     }
 }
