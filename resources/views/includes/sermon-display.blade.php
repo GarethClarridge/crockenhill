@@ -31,17 +31,17 @@
     {{ $sermon->reference }}
   </p>
 @endif
-@if ($user != null && $user->email == "admin@crockenhill.org")
+@can ('edit-sermons')
   <form method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8">
     {!! Form::token() !!}
     <div class="btn-group">
       <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
-        Edit this sermon
+        Edit
       </a>
       
       <button type="submit" class="btn btn-danger">
-        Delete this sermon
+        Delete
       </button>
     </div>
   </form>
-@endif
+@endcan
