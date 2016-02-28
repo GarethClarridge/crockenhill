@@ -374,6 +374,10 @@ class SongController extends Controller {
 
   public function getServiceRecord() 
   {
+    if (\Gate::denies('edit-songs')) {
+      abort(403);
+    }
+
     // Define slug and area to enable lookup of page in database
     $slug = 'service-record';
     $area = 'members';
@@ -429,6 +433,10 @@ class SongController extends Controller {
 
   public function postServiceRecord() 
   {
+    if (\Gate::denies('edit-songs')) {
+      abort(403);
+    }
+
     $date = \Input::get('date');
 
     $service = array('a' => 'Morning', 'p' => 'Evening');
@@ -457,8 +465,12 @@ class SongController extends Controller {
     return redirect('/members/songs/');
   }
 
-  public function getUpload()
+  public function create()
   {
+    if (\Gate::denies('edit-songs')) {
+      abort(403);
+    }
+
     // Define slug and area to enable lookup of page in database
     $slug = 'scripture-reference';
     $area = 'members';
@@ -473,7 +485,7 @@ class SongController extends Controller {
       ->get();
 
     // Set values
-    $heading = 'Upload a new song';
+    $heading = 'Add a new song to the list';
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
                       <li><a href="/members/songs">Songs</a></li>
                       <li class="active">'.$heading.'</li>';
@@ -482,7 +494,7 @@ class SongController extends Controller {
     $content = '';
       
     // Present page
-    return view('songs.upload', array(
+    return view('songs.create', array(
       'slug'        => $slug,
       'heading'     => $heading,        
       'description' => '<meta name="description" content="'.$heading.'">',
@@ -493,17 +505,21 @@ class SongController extends Controller {
     ));
   }
 
-  public function postUpload()
+  public function store()
   {
+    if (\Gate::denies('edit-songs')) {
+      abort(403);
+    }
+
     // Get input
-    $title        = Input::get('title');
-    $alternative  = Input::get('alternative');
-    $author       = Input::get('author');
-    $copyright    = Input::get('copyright');
-    $lyrics       = Input::get('lyrics');
+    $title        = \Input::get('title');
+    $alternative  = \Input::get('alternative');
+    $author       = \Input::get('author');
+    $copyright    = \Input::get('copyright');
+    $lyrics       = \Input::get('lyrics');
 
     // Save new song
-    $song = new Song;
+    $song = new \Crockenhill\Song;
     $song->title              = $title;
     $song->alternative_title  = $alternative;
     $song->author             = $author;
@@ -512,7 +528,7 @@ class SongController extends Controller {
     $song->save();
 
     // Send user back to index
-    return Redirect::to('/members/songs/');
+    return redirect('/members/songs')->with('message', '"'.\Input::get('title').'" successfully uploaded!');
   }
 
 }
