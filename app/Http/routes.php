@@ -121,8 +121,6 @@ Route::group(['middleware' => ['web']], function() {
         Route::get('songs/service-record', 'SongController@getServiceRecord');
         Route::post('songs/service-record', 'SongController@postServiceRecord');
 
-        Route::get('songs/upload', 'SongController@getUpload');
-
         Route::get('songs/{id}/{title}', 'SongController@showSong');
 
         Route::resource('songs', 'SongController');
