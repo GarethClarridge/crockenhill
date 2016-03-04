@@ -1,12 +1,18 @@
-@extends('app')
+@extends('page',
+	['heading' => 'Forgotten password',
+	'description' => '<meta name="description" content="Forgotten password">']
+	)
 
 @section('content')
 <div class="container-fluid">
-	<div class="row">
-		<div class="col-md-8 col-md-offset-2">
-			<div class="panel panel-default">
-				<div class="panel-heading">Reset Password</div>
-				<div class="panel-body">
+  <div class="row">
+    <div class="col-md-8 col-md-offset-2">
+      <br><br><br>
+			<article class="card">
+        <div class="header-container">
+            <h1><span>Forgotten password</span></h1>
+        </div>
+				<div>
 					@if (count($errors) > 0)
 						<div class="alert alert-danger">
 							<strong>Whoops!</strong> There were some problems with your input.<br><br>
@@ -52,7 +58,8 @@
 						</div>
 					</form>
 				</div>
-			</div>
+			</article>
+			<br><br>
 		</div>
 	</div>
 </div>
