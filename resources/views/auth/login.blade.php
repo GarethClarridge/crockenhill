@@ -1,5 +1,5 @@
-@extends('page', 
-	['heading' => 'Log in', 
+@extends('page',
+	['heading' => 'Log in',
 	'description' => '<meta name="description" content="Log in to the member area">']
 	)
 
@@ -43,22 +43,17 @@
 
 						<div class="form-group">
 							<div class="col-md-6 col-md-offset-4">
-								<div class="checkbox">
-									<label>
-										<input type="checkbox" name="remember"> Remember Me
-									</label>
-								</div>
-							</div>
-						</div>
-
-						<div class="form-group">
-							<div class="col-md-6 col-md-offset-4">
 								<input type="submit" class="btn btn-primary" value="Login"></input>
 
 								<a class="btn btn-link" href="{{ url('/members/password/email') }}">Forgot Your Password?</a>
 							</div>
 						</div>
 					</form>
+					<br>
+					<p>
+						If you haven't got an account you can <a href="{{ url('/register') }}">register here</a>.
+						Use your email address from the church members' contact list to get access to members' content.
+					</p>
 				</div>
 			</article>
 			<br><br>
