@@ -22,6 +22,8 @@ class PasswordController extends Controller {
    *
    * @return void
    */
+  protected $redirectTo = '/members';
+
   public function __construct()
   {
       $this->middleware('guest');
