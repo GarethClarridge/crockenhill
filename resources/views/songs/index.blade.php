@@ -12,7 +12,7 @@
      </a>
    </div>
    <div class="col-sm-6">
-     <a href="/members/songs/upload" class="btn btn-default btn-lg btn-block">
+     <a href="/members/songs/create" class="btn btn-default btn-lg btn-block">
        <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp
        Upload a new song
      </a>

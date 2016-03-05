@@ -6,6 +6,10 @@
     <div class="form-group">
       {!! Form::token() !!}
 
+      {{ Form::label('praise_number', 'Praise number') }}
+      {{ Form::text('praise_number', null, array('class' => 'form-control')) }}
+
+      <br />
       {{ Form::label('title', 'Title') }}
       {{ Form::text('title', null, array('class' => 'form-control')) }}
 
