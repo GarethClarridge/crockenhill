@@ -141,10 +141,14 @@ class SongController extends Controller {
     $lyrics = nl2br(trim($song->lyrics));
 
     // Information about when last sung
-    $last_played = \Crockenhill\PlayDate::where('song_id', $song->id)
+    $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->orderBy('date', 'desc')
-                              ->first()
-                              ->date;
+                              ->first();
+    if ($last_played_record) {
+      $last_played = $last_played_record->date;
+    } else {
+      $last_played = NULL;
+    }
 
     // Information about how often we've sung it recently
     $years = 2;
