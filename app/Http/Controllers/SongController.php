@@ -23,16 +23,16 @@ class SongController extends Controller {
     // Set values
     $heading = 'Songs';
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li><li class="active">'.$page->heading.'</li>';
-    
+
     // Load content
     $content = $page->body;
 
     // Load songs
     $songs =\Crockenhill\Song::all();
-      
+
     // Books of the Bible
     $books = array(
-              'Gen'   => 'Genesis', 
+              'Gen'   => 'Genesis',
               'Exod'  => 'Exodus',
               'Lev'   => 'Leviticus',
               'Num'   => 'Numbers',
@@ -103,7 +103,7 @@ class SongController extends Controller {
     // Present page
     return view('songs.index', array(
       'slug'        => $slug,
-      'heading'     => $heading,        
+      'heading'     => $heading,
       'description' => '<meta name="description" content="'.$heading.'">',
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
@@ -181,7 +181,7 @@ class SongController extends Controller {
       $references[] = $section;
     }*/
 
-    //Implement with: 
+    //Implement with:
       /*    <!-- @foreach ($texts as $key => $value)
         @foreach ($value as $key => $value)
           {{$value}}
@@ -208,12 +208,12 @@ class SongController extends Controller {
       $sung_year[$now] = $times;
       $now--;
     }
-      
+
     // Present page
     return view('songs.song', array(
       'song'        => $song,
       'slug'        => $slug,
-      'heading'     => $song->title,     
+      'heading'     => $song->title,
       'description' => '<meta name="description" content="'.$song->title.'">',
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
@@ -251,14 +251,14 @@ class SongController extends Controller {
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
                       <li><a href="/members/songs">Songs</a></li>
                       <li class="active">'.$heading.'</li>';
-    
+
     // Load content
     $content = '';
-      
+
     // Present page
     return view('songs.scripture-reference', array(
       'slug'        => $slug,
-      'heading'     => $heading,        
+      'heading'     => $heading,
       'description' => '<meta name="description" content="'.$heading.'">',
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
@@ -267,7 +267,7 @@ class SongController extends Controller {
     ));
   }
 
-  public function postScriptureReference() 
+  public function postScriptureReference()
   {
     // Get user's search
     $book     = Input::get('book');
@@ -295,7 +295,7 @@ class SongController extends Controller {
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
                     <li><a href="/members/songs">Songs</a></li>
                     <li><a href="/members/songs/scripture-reference">Scripture Reference</a></li>
-                    <li class="active">'.$reference.'</li>';    
+                    <li class="active">'.$reference.'</li>';
 
     // Load songs
     // Get list of references
@@ -307,11 +307,11 @@ class SongController extends Controller {
     }
     // Get songs for each song id
     $songs =\Crockenhill\Song::whereIn('id', $ref)->get();
-      
+
     // Present page
     return view('songs.scripture-reference-songs', array(
       'slug'        => $reference,
-      'heading'     => $heading,        
+      'heading'     => $heading,
       'description' => '<meta name="description" content="'.$heading.'">',
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
@@ -322,7 +322,7 @@ class SongController extends Controller {
     ));
   }
 
-  public function postSearch() 
+  public function postSearch()
   {
     // Get user's search
     $search     = Str::slug(Input::get('search'));
@@ -351,13 +351,13 @@ class SongController extends Controller {
     $heading = 'Songs containing "'.$search.'"';
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
                     <li><a href="/members/songs">Songs</a></li>
-                    <li class="active">Search: '.$search.'</li>';    
+                    <li class="active">Search: '.$search.'</li>';
 
     // Load songs
     $songs =\Crockenhill\Song::where('title', 'like', '%'.$words.'%')
                     ->orWhere('lyrics', 'like', '%'.$words.'%')
                     ->get();
-      
+
     // Present page
     return view('songs.search-songs', array(
       'slug'        => Str::slug($search),
@@ -372,7 +372,7 @@ class SongController extends Controller {
     ));
   }
 
-  public function getServiceRecord() 
+  public function getServiceRecord()
   {
     if (\Gate::denies('edit-songs')) {
       abort(403);
@@ -396,7 +396,7 @@ class SongController extends Controller {
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
                       <li><a href="/members/songs">Songs</a></li>
                       <li class="active">'.$heading.'</li>';
-    
+
     // Load content
     $content = '';
 
@@ -415,11 +415,11 @@ class SongController extends Controller {
     foreach ($nips as $nip) {
       $nips_titles[$nip->title] = $nip->title;
     }
-      
+
     // Present page
     return view('songs.service-record', array(
       'slug'        => $slug,
-      'heading'     => $heading,        
+      'heading'     => $heading,
       'description' => '<meta name="description" content="'.$heading.'">',
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
@@ -431,7 +431,7 @@ class SongController extends Controller {
     ));
   }
 
-  public function postServiceRecord() 
+  public function postServiceRecord()
   {
     if (\Gate::denies('edit-songs')) {
       abort(403);
@@ -444,13 +444,21 @@ class SongController extends Controller {
     foreach ($service as $key => $value) {
       $array = array();
 
-      for ($i=1; $i < 10; $i++) {         
-        $array[] = \Input::get($key.'m'.$i.'-title');
+      for ($i=1; $i < 10; $i++) {
+        if (\Input::get($key.'m'.$i.'-number') !== '') {
+          $array[] = \Input::get($key.'m'.$i.'-number');
+        } elseif (\Input::get($key.'m'.$i.'-title') !== '') {
+          $array[] = \Input::get($key.'m'.$i.'-title');
+        }
       }
 
       foreach ($array as $value) {
         if ($value !== '') {
-          $song =\Crockenhill\Song::where('title', $value)->first();
+          if (\Crockenhill\Song::where('praise_number', $value)->first()) {
+            $song =\Crockenhill\Song::where('praise_number', $value)->first();
+          } elseif (\Crockenhill\Song::where('title', $value)->first()) {
+            $song =\Crockenhill\Song::where('title', $value)->first();
+          }
 
           $playdate = new \Crockenhill\PlayDate;
           $playdate->song_id = $song->id;
@@ -489,14 +497,14 @@ class SongController extends Controller {
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
                       <li><a href="/members/songs">Songs</a></li>
                       <li class="active">'.$heading.'</li>';
-    
+
     // Load content
     $content = '';
-      
+
     // Present page
     return view('songs.create', array(
       'slug'        => $slug,
-      'heading'     => $heading,        
+      'heading'     => $heading,
       'description' => '<meta name="description" content="'.$heading.'">',
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
