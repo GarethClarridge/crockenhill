@@ -20,7 +20,7 @@
  </div>
  <br>
 
- {!! Form::open(array('url' => '/members/songs/scripture-reference')) !!}
+ {!! Form::open(array('url' => '/members/songs/scripture-reference-search')) !!}
    <div class="form-group">
      <div class="row">
        <div class="col-sm-3">
