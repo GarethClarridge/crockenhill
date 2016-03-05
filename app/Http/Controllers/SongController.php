@@ -236,53 +236,18 @@ class SongController extends Controller {
     ));
   }
 
-  public function getScriptureReference() {
-    // Define slug and area to enable lookup of page in database
-    $slug = 'scripture-reference';
-    $area = 'members';
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $slug)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
-    // Set values
-    $heading = 'Search Scripture References';
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
-                      <li><a href="/members/songs">Songs</a></li>
-                      <li class="active">'.$heading.'</li>';
-
-    // Load content
-    $content = '';
-
-    // Present page
-    return view('songs.scripture-reference', array(
-      'slug'        => $slug,
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$heading.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'content'     => $content,
-      'links'       => $links,
-    ));
-  }
-
-  public function postScriptureReference()
+  public function postScriptureReferenceSearch()
   {
     // Get user's search
-    $book     = Input::get('book');
-    $chapter  = Input::get('chapter');
-    $verse    = Input::get('verse');
+    $book     = \Input::get('book');
+    $chapter  = \Input::get('chapter');
+    $verse    = \Input::get('verse');
 
     // Send user to search results page
-    return Redirect::to('/members/songs/scripture-reference/'.$book.'.'.$chapter.'.'.$verse);
+    return redirect('/members/songs/scripture-reference-search/'.$book.'.'.$chapter.'.'.$verse);
   }
 
-  public function getReferenceSongs($reference) {
+  public function getScriptureReferenceSongs($reference) {
     // Define area to enable lookup of page in database
     $area = 'members';
 
@@ -295,7 +260,9 @@ class SongController extends Controller {
       ->get();
 
     // Set values
-    $heading = 'Songs for '.$reference;
+    $reference_array = explode('.', $reference);
+    $formatted_reference = $reference_array[0].' '.$reference_array[1].':'.$reference_array[2];
+    $heading = 'Songs for '.$formatted_reference;
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
                     <li><a href="/members/songs">Songs</a></li>
                     <li><a href="/members/songs/scripture-reference">Scripture Reference</a></li>
@@ -326,16 +293,16 @@ class SongController extends Controller {
     ));
   }
 
-  public function postSearch()
+  public function postTextSearch()
   {
     // Get user's search
-    $search     = Str::slug(Input::get('search'));
+    $search     = \Illuminate\Support\Str::slug(\Input::get('search'));
 
     // Send user to search results page
-    return Redirect::to('/members/songs/search/'.$search);
+    return redirect('/members/songs/search/'.$search);
   }
 
-  public function getSearchSongs($search) {
+  public function getTextSearchSongs($search) {
     // Define area to enable lookup of page in database
     $area = 'members';
 
@@ -364,7 +331,7 @@ class SongController extends Controller {
 
     // Present page
     return view('songs.search-songs', array(
-      'slug'        => Str::slug($search),
+      'slug'        => \Illuminate\Support\Str::slug($search),
       'heading'     => $heading,
       'description' => '<meta name="description" content="'.$heading.'">',
       'area'        => $area,
