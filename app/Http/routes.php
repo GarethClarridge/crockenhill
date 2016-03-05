@@ -83,7 +83,7 @@ Route::group(['middleware' => ['web']], function() {
 
         // Manage pages
         Route::resource('pages', 'PageController');
-        
+
         Route::get('pages/{slug}/changeimage', array(
             'uses'  => 'PageController@changeimage',
             'as'    => 'members.pages.changeimage'
@@ -112,12 +112,12 @@ Route::group(['middleware' => ['web']], function() {
 
         // Songs
 
-        Route::get('songs/scripture-reference', 'SongController@getScriptureReference');
-        Route::get('songs/scripture-reference/{reference}', 'SongController@getReferenceSongs');
+        Route::post('songs/scripture-reference-search', 'SongController@postScriptureReferenceSearch');
+        Route::get('songs/scripture-reference-search/{reference}', 'SongController@getScriptureReferenceSongs');
 
-        Route::get('songs/search', 'SongController@getSearch');
-        Route::get('songs/search/{search}', 'SongController@getSearchSongs');
-     
+        Route::post('songs/search', 'SongController@postTextSearch');
+        Route::get('songs/search/{search}', 'SongController@getTextSearchSongs');
+
         Route::get('songs/service-record', 'SongController@getServiceRecord');
         Route::post('songs/service-record', 'SongController@postServiceRecord');
 
