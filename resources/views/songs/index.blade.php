@@ -2,32 +2,32 @@
 
 @section('dynamic_content')
 
- <!--  <br>
+ <br>
  <br>
  <div class="row">
    <div class="col-sm-6">
      <a href="/members/songs/service-record" class="btn btn-default btn-lg btn-block">
-       <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp 
+       <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp
        Upload a new service record
      </a>
    </div>
    <div class="col-sm-6">
      <a href="/members/songs/upload" class="btn btn-default btn-lg btn-block">
-       <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp 
+       <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp
        Upload a new song
      </a>
    </div>
  </div>
  <br>
- 
+
  {!! Form::open(array('url' => '/members/songs/scripture-reference')) !!}
    <div class="form-group">
      <div class="row">
        <div class="col-sm-3">
          {!! Form::label('book', 'Book') !!}
-         {!! Form::select('book', 
+         {!! Form::select('book',
            $books,
-           null, 
+           null,
            array('class' => 'form-control')) !!}
        </div>
        <div class="col-sm-2">
@@ -45,7 +45,7 @@
      </div>
    </div>
  {!! Form::close() !!}
- 
+
  {!! Form::open(array('url' => '/members/songs/search')) !!}
    <div class="form-group">
      <div class="row">
@@ -60,7 +60,7 @@
      </div>
    </div>
  {!! Form::close() !!}
- <br> -->
+ <br>
 
   @foreach ($songs as $song)
     <div class="media song">
