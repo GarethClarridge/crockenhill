@@ -217,7 +217,7 @@ class SongController extends Controller {
     return view('songs.song', array(
       'song'        => $song,
       'slug'        => $slug,
-      'heading'     => $song->title,
+      'heading'     => $song->title.' - ('.$song->alternative_title.')',
       'description' => '<meta name="description" content="'.$song->title.'">',
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
@@ -296,7 +296,7 @@ class SongController extends Controller {
   public function postTextSearch()
   {
     // Get user's search
-    $search     = \Illuminate\Support\Str::slug(\Input::get('search'));
+    $search = \Illuminate\Support\Str::slug(\Input::get('search'));
 
     // Send user to search results page
     return redirect('/members/songs/search/'.$search);
