@@ -136,6 +136,11 @@ class SongController extends Controller {
     $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
                     <li><a href="/members/songs">Songs</a></li>
                     <li class="active">'.$song->title.'</li>';
+    if (is_null($song->alternative_title)) {
+      $heading = $song->title;
+    } else {
+      $heading = $song->title.' - ('.$song->alternative_title.')';
+    }
 
     // Present lyrics in a readable format
     $lyrics = nl2br(trim($song->lyrics));
@@ -217,7 +222,7 @@ class SongController extends Controller {
     return view('songs.song', array(
       'song'        => $song,
       'slug'        => $slug,
-      'heading'     => $song->title.' - ('.$song->alternative_title.')',
+      'heading'     => $heading,
       'description' => '<meta name="description" content="'.$song->title.'">',
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
