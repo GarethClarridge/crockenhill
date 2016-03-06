@@ -75,7 +75,11 @@
 
       <div class="media-body media-middle song-body">
         <h3 class="media-heading">
-          <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}">{!!$song->title!!} - ({!!$song->alternative_title!!})</a>
+          @if (is_null($song->alternative_title))
+            <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}">{!!$song->title!!}</a>
+          @elseif (!is_null($song->alternative_title))
+            <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}">{!!$song->title!!} - ({!!$song->alternative_title!!})</a>
+          @endif
         </h3>
         @if ($song->author)
           <p>
