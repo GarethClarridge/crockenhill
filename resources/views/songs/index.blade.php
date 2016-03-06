@@ -64,16 +64,18 @@
 
   @foreach ($songs as $song)
     <div class="media song">
-      @if ($song->praise_number)
-        <div class="media-left media-middle praise-icon">
+      <div class="media-left media-middle praise-icon">
+        @if ($song->praise_number)
           <img class="media-object" src="/images/praise.png" alt="">
           <span class="praise-number">{!! $song->praise_number !!}</span>
-        </div>
-      @endif
+        @else
+          <img class="media-object" src="/images/Primary.png" width="128px" height="128px" alt="">
+        @endif
+      </div>
 
       <div class="media-body media-middle song-body">
         <h3 class="media-heading">
-          <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}">{!!$song->title!!}</a>
+          <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}">{!!$song->title!!} - ({!!$song->alternative_title!!})</a>
         </h3>
         @if ($song->author)
           <p>
