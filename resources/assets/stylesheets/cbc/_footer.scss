@@ -8,10 +8,6 @@ footer {
     a {
       color: $gray-lightest;
     }
-    //font-style: italic;
-  }
-  #sermons-footer {
-    margin-left: 1em;
   }
 
   section {
@@ -21,17 +17,13 @@ footer {
   a {
     color: $gray-lightest;
   }
-  
+
   a:hover {
     color: $gray-lightest;
   }
 
   h3 {
     margin-top: 0px;
-  }
-
-  .footer-sermons {
-    margin-left: 1em;
   }
 }
 
