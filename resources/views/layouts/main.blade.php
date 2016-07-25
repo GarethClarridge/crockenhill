@@ -34,7 +34,18 @@
     <meta name="msapplication-TileColor" content="#34495e">
     <meta name="msapplication-TileImage" content="/mstile-144x144.png">
     <meta name="theme-color" content="#34495e">
-    
+
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-81335303-1', 'auto');
+      ga('send', 'pageview');
+
+    </script>
+
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="js/html5shiv.js"></script>
@@ -53,13 +64,13 @@
     </header>
 
     @yield('content')
-    
+
     <footer>
         @include('includes.footer')
     </footer>
-    
+
     <!-- Include all compiled plugins -->
-    
+
     <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
     <script src="/scripts/bootstrap.min.js"></script>
     <script src="/scripts/all.js"></script>
