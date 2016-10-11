@@ -163,40 +163,6 @@ class SongController extends Controller {
 
     // Scripture References
     $scripture = \Crockenhill\ScriptureReference::where('song_id', $song->id)->get();
-/*    $references = array();
-    foreach ($scripture as $script) {
-      $section = array();
-      $key = "IP";
-      $ref = '<h4>'.$script->reference.'</h4>';
-      $section['reference'] = $ref;
-      $passage = urlencode($ref);
-      $options = "include-passage-references=false&audio-format=flash";
-      $url = "http://www.esvapi.org/v2/rest/passageQuery?key=$key&passage=$passage&$options";
-      $data = fopen($url, "r") ;
-
-      if ($data)
-      {
-         while (!feof($data))
-         {
-            $buffer = fgets($data, 4096);
-            $section[] = $buffer;
-         }
-         fclose($data);
-      }
-      else
-      {
-         die("fopen failed for url to webservice");
-      }
-      $references[] = $section;
-    }*/
-
-    //Implement with:
-      /*    <!-- @foreach ($texts as $key => $value)
-        @foreach ($value as $key => $value)
-          {{$value}}
-        @endforeach
-      @endforeach -->
-      */
 
     // Graph information
     // Morning vs Evening Pie Chart Data
