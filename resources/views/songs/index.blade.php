@@ -20,57 +20,25 @@
  </div>
  <br>
 
- <!-- {!! Form::open(array('url' => '/members/songs/scripture-reference-search')) !!}
-   <div class="form-group">
-     <div class="row">
-       <div class="col-sm-3">
-         {!! Form::label('book', 'Book') !!}
-         {!! Form::select('book',
-           $books,
-           null,
-           array('class' => 'form-control')) !!}
-       </div>
-       <div class="col-sm-2">
-         {!! Form::label('chapter', 'Chapter') !!}
-         {!! Form::number('chapter', 'value', array('class' => 'form-control')) !!}
-       </div>
-       <div class="col-sm-2">
-         {!! Form::label('verse', 'Verse') !!}
-         {!! Form::number('verse', 'value', array('class' => 'form-control')) !!}
-       </div>
-       <div class="col-sm-5">
-         <br>
-         {!! Form::submit('Search by scripture reference', array('class' => 'btn btn-primary btn-block')) !!}
-       </div>
-     </div>
-   </div>
- {!! Form::close() !!}
-
- {!! Form::open(array('url' => '/members/songs/search')) !!}
-   <div class="form-group">
-     <div class="row">
-       <div class="col-sm-7">
-         {!! Form::label('search', 'Text search') !!}
-         {!! Form::text('search', null, array('class' => 'form-control')) !!}
-       </div>
-       <div class="col-sm-5">
-         <br>
-         {!! Form::submit('Search for text', array('class' => 'btn btn-primary btn-block')) !!}
-       </div>
-     </div>
-   </div>
- {!! Form::close() !!} -->
  <br>
 
   <section id="song-list">
     <div class="form-group" id="song-list-controls">
       <label for="text-filter">Filter songs</label>
       <input class="search form-control" id='text-filter' />
-
+      <br>
+      Sort by: &nbsp &nbsp
       <button class="sort btn btn-default" data-sort="song-title">
-        Sort by title
+        Title
+      </button>
+      <button class="sort btn btn-default" data-sort="praise-number">
+        Praise! number
+      </button>
+      <button class="sort btn btn-default" data-sort="song-frequency">
+        Popularity
       </button>
     </div>
+
     <ul class="list">
 
       @foreach ($songs as $song)
@@ -95,12 +63,28 @@
               </p>
             @endif
 
-            @if ($song->copyright)
+            @if ($song->frequency)
               <p>
-                <span class="glyphicon glyphicon-copyright-mark"></span> &nbsp
-                {!! $song->copyright !!}
+                <span class="glyphicon glyphicon-info-sign"></span> &nbsp
+
+                Sung
+
+                @if ($song->frequency > 5)
+                  <span class="label label-success song-frequency">{{$song->frequency}}</span>
+                @endif
+
+                @if ($song->frequency > 1 && $song->frequency <= 5)
+                  <span class="label label-warning song-frequency">{{$song->frequency}}</span>
+                @endif
+
+                @if ($song->frequency <= 1)
+                  <span class="label label-danger song-frequency">{{$song->frequency}}</span>
+                @endif
+
+                 times in the last 2 years
               </p>
             @endif
+
           </div>
         </li>
 
@@ -110,7 +94,7 @@
   <script src="/scripts/list.min.js"></script>
   <script type="text/javascript">
     var options = {
-      valueNames: [ 'song-title', 'song-author', 'praise-number' ]
+      valueNames: [ 'song-title', 'song-author', 'praise-number', 'song-frequency' ]
     };
 
     var songList = new List('song-list', options);
