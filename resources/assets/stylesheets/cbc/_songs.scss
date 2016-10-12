@@ -13,5 +13,38 @@
 }
 
 .song-body {
-  padding-left: floor(2 * $padding-large-vertical);
+  padding: 3% 3% 3% floor(2 * $padding-large-vertical);
+  background: $gray-lightest;
+  margin-right: 2%;
+}
+
+.song-filters {
+  background-color: $brand-secondary;
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  padding: $line-height-computed;
+  color: $gray-lightest;
+
+  button {
+    background: $brand-primary;
+    color: $gray-lightest;
+    border: none;
+  }
+}
+
+ul.list {
+  background-color: $gray-lighter;
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  padding-top: $line-height-computed;
+  padding-bottom: $line-height-computed;
+  list-style: none;
+}
+
+.song-unknown {
+  background: $gray-light;
+
+  h3.media-heading {
+    color: $gray-darker;
+  }
 }
