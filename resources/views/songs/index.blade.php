@@ -35,6 +35,11 @@
         <button class="sort btn btn-default" data-sort="song-frequency">
           Popularity
         </button>
+        <br>
+        <!-- Filter: &nbsp &nbsp
+        <select class="filter">
+          <option value="value3">Value 3</option>
+        </select> -->
     </div>
 
     <ul class="list">
@@ -46,7 +51,7 @@
               <img class="media-object" src="/images/praise.png" alt="">
               <span class="praise-number">{!! $song->praise_number !!}</span>
             @else
-              <img class="media-object" src="/images/Primary.png" width="128px" height="128px" alt="">
+              <img class="media-object" src="/images/nip.png" width="128px" height="128px" alt="">
             @endif
           </div>
 
@@ -88,6 +93,19 @@
             @else
               We've never sung this song.
             @endif
+
+            @if ($song->major_category)
+              <p>
+                <span class="glyphicon glyphicon-tag"></span> &nbsp
+                {{ $song->major_category }}
+                &nbsp &nbsp <span class="glyphicon glyphicon-tag"></span> &nbsp
+                @if ($song->minor_category)
+                    {{ $song->minor_category }}
+                @endif
+              </p>
+            @endif
+
+
 
           </div>
         </li>
