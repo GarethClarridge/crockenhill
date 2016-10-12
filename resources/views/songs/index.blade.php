@@ -20,23 +20,21 @@
  </div>
  <br>
 
- <br>
-
   <section id="song-list">
-    <div class="form-group" id="song-list-controls">
-      <label for="text-filter">Filter songs</label>
-      <input class="search form-control" id='text-filter' />
-      <br>
-      Sort by: &nbsp &nbsp
-      <button class="sort btn btn-default" data-sort="song-title">
-        Title
-      </button>
-      <button class="sort btn btn-default" data-sort="praise-number">
-        Praise! number
-      </button>
-      <button class="sort btn btn-default" data-sort="song-frequency">
-        Popularity
-      </button>
+    <div class="song-filters">
+        <label for="text-filter">Filter songs</label>
+        <input class="search form-control" id='text-filter' placeholder="Try typing a song title, Praise! number or author"/>
+        <br>
+        Sort by: &nbsp &nbsp
+        <button class="sort btn btn-default" data-sort="song-title">
+          Title
+        </button>
+        <button class="sort btn btn-default" data-sort="praise-number">
+          Praise! number
+        </button>
+        <button class="sort btn btn-default" data-sort="song-frequency">
+          Popularity
+        </button>
     </div>
 
     <ul class="list">
@@ -52,7 +50,11 @@
             @endif
           </div>
 
-          <div class="media-body media-middle song-body">
+          @if (!$song->last_played)
+            <div class="media-body media-middle song-body song-unknown">
+          @else
+            <div class="media-body media-middle song-body">
+          @endif
             <h3 class="media-heading">
                 <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}" class="song-title">{{$song->title}}</a>
             </h3>
@@ -63,26 +65,28 @@
               </p>
             @endif
 
+
+            <p>
+              <span class="glyphicon glyphicon-info-sign"></span> &nbsp
             @if ($song->last_played)
-              <p>
-                <span class="glyphicon glyphicon-info-sign"></span> &nbsp
+              Sung
 
-                Sung
+              @if ($song->frequency > 5)
+                <span class="label label-success song-frequency">{{$song->frequency}}</span>
+              @endif
 
-                @if ($song->frequency > 5)
-                  <span class="label label-success song-frequency">{{$song->frequency}}</span>
-                @endif
+              @if ($song->frequency > 1 && $song->frequency <= 5)
+                <span class="label label-warning song-frequency">{{$song->frequency}}</span>
+              @endif
 
-                @if ($song->frequency > 1 && $song->frequency <= 5)
-                  <span class="label label-warning song-frequency">{{$song->frequency}}</span>
-                @endif
+              @if ($song->frequency <= 1)
+                <span class="label label-danger song-frequency">{{$song->frequency}}</span>
+              @endif
 
-                @if ($song->frequency <= 1)
-                  <span class="label label-danger song-frequency">{{$song->frequency}}</span>
-                @endif
-
-                 times in the last 2 years
-              </p>
+               times in the last 2 years
+            </p>
+            @else
+              We've never sung this song.
             @endif
 
           </div>
