@@ -23,7 +23,9 @@
   <section id="song-list">
     <div class="song-filters">
         <label for="text-filter">Filter songs</label>
-        <input class="search form-control" id='text-filter' placeholder="Try typing a song title, Praise! number or author"/>
+        <input  class="search form-control"
+                id='text-filter'
+                placeholder="Try typing a song title, Praise! number, category or author"/>
         <br>
         Sort by: &nbsp &nbsp
         <button class="sort btn btn-default" data-sort="song-title">
@@ -97,10 +99,10 @@
             @if ($song->major_category)
               <p>
                 <span class="glyphicon glyphicon-tag"></span> &nbsp
-                {{ $song->major_category }}
+                <span class="song-major-category">{{ $song->major_category }}</span>
                 &nbsp &nbsp <span class="glyphicon glyphicon-tag"></span> &nbsp
                 @if ($song->minor_category)
-                    {{ $song->minor_category }}
+                    <span class="song-minor-category">{{ $song->minor_category }}</span>
                 @endif
               </p>
             @endif
@@ -116,7 +118,7 @@
   <script src="/scripts/list.min.js"></script>
   <script type="text/javascript">
     var options = {
-      valueNames: [ 'song-title', 'song-author', 'praise-number', 'song-frequency' ]
+      valueNames: [ 'song-title', 'song-author', 'praise-number', 'song-frequency', 'song-major-category', 'song-minor-category' ]
     };
 
     var songList = new List('song-list', options);
