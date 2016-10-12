@@ -46,7 +46,11 @@ class SongController extends Controller {
       $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
                                 ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
                                 ->count();
-      $song['frequency'] = $frequency;
+      if ($frequency >= 1) {
+        $song['frequency'] = $frequency;
+      } else {
+        $song['frequency'] = 0;
+      }
     }
 
     // Present page

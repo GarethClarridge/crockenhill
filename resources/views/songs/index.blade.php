@@ -63,7 +63,7 @@
               </p>
             @endif
 
-            @if ($song->frequency)
+            @if ($song->last_played)
               <p>
                 <span class="glyphicon glyphicon-info-sign"></span> &nbsp
 
