@@ -97,7 +97,22 @@ class SongController extends Controller {
     // Present lyrics in a readable format
     $lyrics = nl2br(trim($song->lyrics));
 
-    // Information about when last sung
+    // // Information about when last sung
+    // $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
+    //                           ->orderBy('date', 'desc')
+    //                           ->first();
+    // if ($last_played_record) {
+    //   $last_played = $last_played_record->date;
+    // } else {
+    //   $last_played = NULL;
+    // }
+    //
+    // // Information about how often we've sung it recently
+    // $years = 2;
+    // $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
+    //                           ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
+    //                           ->count();
+
     $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->orderBy('date', 'desc')
                               ->first();
@@ -106,12 +121,18 @@ class SongController extends Controller {
     } else {
       $last_played = NULL;
     }
+    $song['last_played'] = $last_played;
 
     // Information about how often we've sung it recently
     $years = 2;
     $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
                               ->count();
+    if ($frequency >= 1) {
+      $song['frequency'] = $frequency;
+    } else {
+      $song['frequency'] = 0;
+    }
 
     // Scripture References
     $scripture = \Crockenhill\ScriptureReference::where('song_id', $song->id)->get();
