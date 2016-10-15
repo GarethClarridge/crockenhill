@@ -30,75 +30,28 @@ class SongController extends Controller {
     // Load songs
     $songs =\Crockenhill\Song::all();
 
-    // Books of the Bible
-    $books = array(
-              'Gen'   => 'Genesis',
-              'Exod'  => 'Exodus',
-              'Lev'   => 'Leviticus',
-              'Num'   => 'Numbers',
-              'Deut'  => 'Deuteronomy',
-              'Josh'  => 'Joshua',
-              'Judg'  => 'Judges',
-              'Ruth'  => 'Ruth',
-              '1Sam'  => '1 Samuel',
-              '2Sam'  => '2 Samuel',
-              '1Kgs'  => '1 Kings',
-              '2Kgs'  => '2 Kings',
-              '1Chr'  => '1 Chronicles',
-              '2Chr'  => '2 Chronicles',
-              'Ezr'   => 'Ezra',
-              'Neh'   => 'Nehemiah',
-              'Est'   => 'Esther',
-              'Job'   => 'Job',
-              'Ps'    => 'Psalms',
-              'Prov'  => 'Proverbs',
-              'Eccl'  => 'Ecclesiastes',
-              'Song'  => 'Song of Songs',
-              'Isa'   => 'Isaiah',
-              'Jer'   => 'Jeremiah',
-              'Lam'   => 'Lamentations',
-              'Exek'  => 'Exekiel',
-              'Dan'   => 'Daniel',
-              'Hos'   => 'Hosea',
-              'Joel'  => 'Joel',
-              'Amos'  => 'Amos',
-              'Obed'  => 'Obediah',
-              'Jonah' => 'Jonah',
-              'Mic'   => 'Micah',
-              'Nah'   => 'Nahum',
-              'Hab'   => 'Habbukuk',
-              'Zeph'  => 'Zephaniah',
-              'Hag'   => 'Haggai',
-              'Zech'  => 'Zechariah',
-              'Mal'   => 'Malachi',
-              'Matt'  => 'Matthew',
-              'Mark'  => 'Mark',
-              'Luke'  => 'Luke',
-              'John'  => 'John',
-              'Acts'  => 'Acts',
-              'Rom'   => 'Romans',
-              '1Cor'  => '1 Corinthians',
-              '2Cor'  => '2 Corinthians',
-              'Gal'   => 'Galatians',
-              'Eph'   => 'Ephesians',
-              'Phil'  => 'Phillipians',
-              'Col'   => 'Colossians',
-              '1Thess'=> '1 Thessalonians',
-              '2Thess'=> '2 Thessalonians',
-              '1Tim'  => '1 Timothy',
-              '2Tim'  => '2 Timothy',
-              'Titus' => 'Titus',
-              'Phm'   => 'Philemon',
-              'Heb'   => 'Hebrews',
-              'Jas'   => 'James',
-              '1Pet'  => '1 Peter',
-              '2Pet'  => '2 Peter',
-              '1John' => '1 John',
-              '2John' => '2 John',
-              '3John' => '3 John',
-              'Jude'  => 'Jude',
-              'Rev'   => 'Revelation'
-              );
+    foreach ($songs as $song) {
+      $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
+                                ->orderBy('date', 'desc')
+                                ->first();
+      if ($last_played_record) {
+        $last_played = $last_played_record->date;
+      } else {
+        $last_played = NULL;
+      }
+      $song['last_played'] = $last_played;
+
+      // Information about how often we've sung it recently
+      $years = 2;
+      $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
+                                ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
+                                ->count();
+      if ($frequency >= 1) {
+        $song['frequency'] = $frequency;
+      } else {
+        $song['frequency'] = 0;
+      }
+    }
 
     // Present page
     return view('songs.index', array(
@@ -108,8 +61,7 @@ class SongController extends Controller {
       'area'        => $area,
       'breadcrumbs' => $breadcrumbs,
       'content'     => $content,
-      'songs'       => $songs,
-      'books'       => $books
+      'songs'       => $songs->sortByDesc('frequency')
     ));
   }
 
@@ -145,7 +97,22 @@ class SongController extends Controller {
     // Present lyrics in a readable format
     $lyrics = nl2br(trim($song->lyrics));
 
-    // Information about when last sung
+    // // Information about when last sung
+    // $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
+    //                           ->orderBy('date', 'desc')
+    //                           ->first();
+    // if ($last_played_record) {
+    //   $last_played = $last_played_record->date;
+    // } else {
+    //   $last_played = NULL;
+    // }
+    //
+    // // Information about how often we've sung it recently
+    // $years = 2;
+    // $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
+    //                           ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
+    //                           ->count();
+
     $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->orderBy('date', 'desc')
                               ->first();
@@ -154,49 +121,21 @@ class SongController extends Controller {
     } else {
       $last_played = NULL;
     }
+    $song['last_played'] = $last_played;
 
     // Information about how often we've sung it recently
     $years = 2;
     $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
                               ->count();
+    if ($frequency >= 1) {
+      $song['frequency'] = $frequency;
+    } else {
+      $song['frequency'] = 0;
+    }
 
     // Scripture References
     $scripture = \Crockenhill\ScriptureReference::where('song_id', $song->id)->get();
-/*    $references = array();
-    foreach ($scripture as $script) {
-      $section = array();
-      $key = "IP";
-      $ref = '<h4>'.$script->reference.'</h4>';
-      $section['reference'] = $ref;
-      $passage = urlencode($ref);
-      $options = "include-passage-references=false&audio-format=flash";
-      $url = "http://www.esvapi.org/v2/rest/passageQuery?key=$key&passage=$passage&$options";
-      $data = fopen($url, "r") ;
-
-      if ($data)
-      {
-         while (!feof($data))
-         {
-            $buffer = fgets($data, 4096);
-            $section[] = $buffer;
-         }
-         fclose($data);
-      }
-      else
-      {
-         die("fopen failed for url to webservice");
-      }
-      $references[] = $section;
-    }*/
-
-    //Implement with:
-      /*    <!-- @foreach ($texts as $key => $value)
-        @foreach ($value as $key => $value)
-          {{$value}}
-        @endforeach
-      @endforeach -->
-      */
 
     // Graph information
     // Morning vs Evening Pie Chart Data
@@ -238,113 +177,6 @@ class SongController extends Controller {
       'sungevening' => $sung_evening,
       'sungyear'    => array_reverse($sung_year, true),
       'year'        => date('Y')
-    ));
-  }
-
-  public function postScriptureReferenceSearch()
-  {
-    // Get user's search
-    $book     = \Input::get('book');
-    $chapter  = \Input::get('chapter');
-    $verse    = \Input::get('verse');
-
-    // Send user to search results page
-    return redirect('/members/songs/scripture-reference-search/'.$book.'.'.$chapter.'.'.$verse);
-  }
-
-  public function getScriptureReferenceSongs($reference) {
-    // Define area to enable lookup of page in database
-    $area = 'members';
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
-    // Set values
-    $reference_array = explode('.', $reference);
-    $formatted_reference = $reference_array[0].' '.$reference_array[1].':'.$reference_array[2];
-    $heading = 'Songs for '.$formatted_reference;
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
-                    <li><a href="/members/songs">Songs</a></li>
-                    <li><a href="/members/songs/scripture-reference">Scripture Reference</a></li>
-                    <li class="active">'.$reference.'</li>';
-
-    // Load songs
-    // Get list of references
-    $references = \Crockenhill\ScriptureReference::where('reference', $reference)->get();
-    // Get song ids for each reference
-    $ref = [];
-    foreach ($references as $reference) {
-      $ref[] = $reference->song_id;
-    }
-    // Get songs for each song id
-    $songs =\Crockenhill\Song::whereIn('id', $ref)->get();
-
-    // Present page
-    return view('songs.scripture-reference-songs', array(
-      'slug'        => $reference,
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$heading.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'content'     => '',
-      'links'       => $links,
-      'songs'       => $songs,
-      'reference'   => $reference
-    ));
-  }
-
-  public function postTextSearch()
-  {
-    // Get user's search
-    $search = \Illuminate\Support\Str::slug(\Input::get('search'));
-
-    // Send user to search results page
-    return redirect('/members/songs/search/'.$search);
-  }
-
-  public function getTextSearchSongs($search) {
-    // Define area to enable lookup of page in database
-    $area = 'members';
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
-    // Convert search back into a string
-    $search = str_replace('-', ' ', $search);
-    $words = str_replace(' ', '%', $search);
-
-    // Set values
-    $heading = 'Songs containing "'.$search.'"';
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
-                    <li><a href="/members/songs">Songs</a></li>
-                    <li class="active">Search: '.$search.'</li>';
-
-    // Load songs
-    $songs =\Crockenhill\Song::where('title', 'like', '%'.$words.'%')
-                    ->orWhere('lyrics', 'like', '%'.$words.'%')
-                    ->get();
-
-    // Present page
-    return view('songs.search-songs', array(
-      'slug'        => \Illuminate\Support\Str::slug($search),
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$heading.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'content'     => '',
-      'links'       => $links,
-      'songs'       => $songs,
-      'search'      => $search
     ));
   }
 
@@ -456,7 +288,7 @@ class SongController extends Controller {
     }
 
     // Define slug and area to enable lookup of page in database
-    $slug = 'scripture-reference';
+    $slug = 'create-song';
     $area = 'members';
 
     // Find relevant links
@@ -514,5 +346,72 @@ class SongController extends Controller {
     // Send user back to index
     return redirect('/members/songs')->with('message', '"'.\Input::get('title').'" successfully uploaded!');
   }
+
+  public function editSong($id, $title)
+  {
+    if (\Gate::denies('edit-songs')) {
+      abort(403);
+    }
+
+    // Look up song in songs table of database
+    $song =\Crockenhill\Song::where('id', $id)->first();
+
+    // Define slug and area to enable lookup of page in database
+    $slug = 'edit-song';
+    $area = 'members';
+
+    // Find relevant links
+    $links = \Crockenhill\Page::where('area', $area)
+      ->where('slug', '!=', $slug)
+      ->where('slug', '!=', $area)
+      ->where('slug', '!=', 'homepage')
+      ->orderBy(\DB::raw('RAND()'))
+      ->take(5)
+      ->get();
+
+    // Set values
+    $heading = 'Edit '.$song->title;
+    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
+                      <li><a href="/members/songs">Songs</a></li>
+                      <li class="active">'.$heading.'</li>';
+
+    // Load content
+    $content = '';
+
+    // Present page
+    return view('songs.edit', array(
+      'slug'        => $slug,
+      'heading'     => $heading,
+      'description' => '<meta name="description" content="'.$heading.'">',
+      'area'        => $area,
+      'breadcrumbs' => $breadcrumbs,
+      'content'     => $content,
+      'links'       => $links,
+      'song'        => $song
+    ));
+  }
+
+  public function updateSong($id, $title)
+	{
+    if (\Gate::denies('edit-songs')) {
+      abort(403);
+    }
+
+    // Look up song in songs table of database
+    $song =\Crockenhill\Song::where('id', $id)->first();
+
+    $song->title      = \Input::get('title');
+    $song->alternative_title       = \Input::get('alternative_title');
+    $song->major_category     = \Input::get('major_category');
+    $song->minor_category  = \Input::get('minor_category');
+    $song->author   = \Input::get('author');
+    $song->copyright   = \Input::get('copyright');
+    $song->lyrics   = \Input::get('lyrics');
+    $song->recommended   = \Input::get('recommended');
+    $song->save();
+
+    // Send user back to index
+    return redirect('/members/songs')->with('message', '"'.\Input::get('title').'" successfully updated '.$song->title.'!');
+	}
 
 }
