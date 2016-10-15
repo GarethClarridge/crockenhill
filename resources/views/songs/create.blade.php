@@ -6,9 +6,6 @@
     <div class="form-group">
       {!! Form::token() !!}
 
-      {{ Form::label('praise_number', 'Praise number') }}
-      {{ Form::text('praise_number', null, array('class' => 'form-control')) }}
-
       <br />
       {{ Form::label('title', 'Title') }}
       {{ Form::text('title', null, array('class' => 'form-control')) }}
@@ -17,6 +14,16 @@
       {{ Form::label('alternative-title', 'Alternative Title') }}
       <small><i>Optional</i></small>
       {{ Form::text('alternative-title', null, array('class' => 'form-control')) }}
+
+      <br>
+      {{ Form::label('major-category', 'Praise! category') }}
+      <small><i>Optional</i></small>
+      {{ Form::text('major-category', null, array('class' => 'form-control')) }}
+
+      <br>
+      {{ Form::label('minor-category', 'Praise! subcategory') }}
+      <small><i>Optional</i></small>
+      {{ Form::text('minor-category', null, array('class' => 'form-control')) }}
 
       <br>
       {{ Form::label('author', 'Author') }}
@@ -30,10 +37,14 @@
 
       <br>
       {{ Form::label('lyrics', 'Lyrics') }}
-      <br>
       <small><b>Do not upload lyrics unless the song is out of copyright.</b></small>
       {{ Form::textarea('lyrics', null, array('class' => 'form-control')) }}
 
+      <br>
+      {{ Form::label('recommended', 'Recommended?') }}
+      {{ Form::checkbox('recommended', null, array('class' => 'form-control')) }}
+
+      <br>
       <br>
       {{ Form::submit('Save', array('class' => 'btn btn-primary btn-lg btn-block')) }}
     </div>
