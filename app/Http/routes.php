@@ -112,16 +112,12 @@ Route::group(['middleware' => ['web']], function() {
 
         // Songs
 
-        Route::post('songs/scripture-reference-search', 'SongController@postScriptureReferenceSearch');
-        Route::get('songs/scripture-reference-search/{reference}', 'SongController@getScriptureReferenceSongs');
-
-        Route::post('songs/search', 'SongController@postTextSearch');
-        Route::get('songs/search/{search}', 'SongController@getTextSearchSongs');
-
         Route::get('songs/service-record', 'SongController@getServiceRecord');
         Route::post('songs/service-record', 'SongController@postServiceRecord');
 
         Route::get('songs/{id}/{title}', 'SongController@showSong');
+        Route::get('songs/{id}/{title}/edit', 'SongController@editSong');
+        Route::post('songs/{id}/{title}/edit', 'SongController@updateSong');
 
         Route::resource('songs', 'SongController');
     });
