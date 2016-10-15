@@ -111,12 +111,9 @@
               </p>
             @endif
 
-
-            <p>
-              <span class="glyphicon glyphicon-info-sign"></span> &nbsp
-            @if ($song->last_played)
-              Sung
-
+            @if ($song->frequency)
+              <p>
+                <span class="glyphicon glyphicon-info-sign"></span> &nbsp Sung
               @if ($song->frequency > 5)
                 <span class="label label-success song-frequency">{{$song->frequency}}</span>
               @endif
@@ -132,16 +129,25 @@
                times in the last 2 years
             </p>
             @else
-              We've never sung this song.
+              @if ($song->last_played)
+                <p>
+                  <span class="glyphicon glyphicon-calendar"></span> &nbsp
+                  Last Sung: {{date("d F Y",strtotime($song->last_played))}}
+                <p>
+              @else
+              <p>
+                <span class="glyphicon glyphicon-info-sign"></span> &nbsp
+                  We've never sung this song.
+              @endif
             @endif
 
             @if ($song->major_category != '')
               <p>
                 <span class="glyphicon glyphicon-tag"></span> &nbsp
                 <span class="song_major_category">{{ $song->major_category }}</span>
-                &nbsp &nbsp <span class="glyphicon glyphicon-tag"></span> &nbsp
-                @if ($song->minor_category)
-                    <span class="song_minor_category">{{ $song->minor_category }}</span>
+                @if (!empty($song->minor_category))
+                  &nbsp &nbsp <span class="glyphicon glyphicon-tag"></span> &nbsp
+                  <span class="song_minor_category">{{ $song->minor_category }}</span>
                 @endif
               </p>
             @endif
@@ -254,7 +260,7 @@
                                                 "Perseverance",
                                                 "Facing death"
                                               ],
-      "Christ's lordship over all of life"  : [ "The earth and harvest",
+      "Christ’s lordship over all of life"  : [ "The earth and harvest",
                                                 "Christian citizenship",
                                                 "Christian marriage",
                                                 "Families and children",
