@@ -180,113 +180,6 @@ class SongController extends Controller {
     ));
   }
 
-  public function postScriptureReferenceSearch()
-  {
-    // Get user's search
-    $book     = \Input::get('book');
-    $chapter  = \Input::get('chapter');
-    $verse    = \Input::get('verse');
-
-    // Send user to search results page
-    return redirect('/members/songs/scripture-reference-search/'.$book.'.'.$chapter.'.'.$verse);
-  }
-
-  public function getScriptureReferenceSongs($reference) {
-    // Define area to enable lookup of page in database
-    $area = 'members';
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
-    // Set values
-    $reference_array = explode('.', $reference);
-    $formatted_reference = $reference_array[0].' '.$reference_array[1].':'.$reference_array[2];
-    $heading = 'Songs for '.$formatted_reference;
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
-                    <li><a href="/members/songs">Songs</a></li>
-                    <li><a href="/members/songs/scripture-reference">Scripture Reference</a></li>
-                    <li class="active">'.$reference.'</li>';
-
-    // Load songs
-    // Get list of references
-    $references = \Crockenhill\ScriptureReference::where('reference', $reference)->get();
-    // Get song ids for each reference
-    $ref = [];
-    foreach ($references as $reference) {
-      $ref[] = $reference->song_id;
-    }
-    // Get songs for each song id
-    $songs =\Crockenhill\Song::whereIn('id', $ref)->get();
-
-    // Present page
-    return view('songs.scripture-reference-songs', array(
-      'slug'        => $reference,
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$heading.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'content'     => '',
-      'links'       => $links,
-      'songs'       => $songs,
-      'reference'   => $reference
-    ));
-  }
-
-  public function postTextSearch()
-  {
-    // Get user's search
-    $search = \Illuminate\Support\Str::slug(\Input::get('search'));
-
-    // Send user to search results page
-    return redirect('/members/songs/search/'.$search);
-  }
-
-  public function getTextSearchSongs($search) {
-    // Define area to enable lookup of page in database
-    $area = 'members';
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
-    // Convert search back into a string
-    $search = str_replace('-', ' ', $search);
-    $words = str_replace(' ', '%', $search);
-
-    // Set values
-    $heading = 'Songs containing "'.$search.'"';
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
-                    <li><a href="/members/songs">Songs</a></li>
-                    <li class="active">Search: '.$search.'</li>';
-
-    // Load songs
-    $songs =\Crockenhill\Song::where('title', 'like', '%'.$words.'%')
-                    ->orWhere('lyrics', 'like', '%'.$words.'%')
-                    ->get();
-
-    // Present page
-    return view('songs.search-songs', array(
-      'slug'        => \Illuminate\Support\Str::slug($search),
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$heading.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'content'     => '',
-      'links'       => $links,
-      'songs'       => $songs,
-      'search'      => $search
-    ));
-  }
-
   public function getServiceRecord()
   {
     if (\Gate::denies('edit-songs')) {
@@ -395,7 +288,7 @@ class SongController extends Controller {
     }
 
     // Define slug and area to enable lookup of page in database
-    $slug = 'scripture-reference';
+    $slug = 'create-song';
     $area = 'members';
 
     // Find relevant links
@@ -453,5 +346,72 @@ class SongController extends Controller {
     // Send user back to index
     return redirect('/members/songs')->with('message', '"'.\Input::get('title').'" successfully uploaded!');
   }
+
+  public function editSong($id, $title)
+  {
+    if (\Gate::denies('edit-songs')) {
+      abort(403);
+    }
+
+    // Look up song in songs table of database
+    $song =\Crockenhill\Song::where('id', $id)->first();
+
+    // Define slug and area to enable lookup of page in database
+    $slug = 'edit-song';
+    $area = 'members';
+
+    // Find relevant links
+    $links = \Crockenhill\Page::where('area', $area)
+      ->where('slug', '!=', $slug)
+      ->where('slug', '!=', $area)
+      ->where('slug', '!=', 'homepage')
+      ->orderBy(\DB::raw('RAND()'))
+      ->take(5)
+      ->get();
+
+    // Set values
+    $heading = 'Edit '.$song->title;
+    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
+                      <li><a href="/members/songs">Songs</a></li>
+                      <li class="active">'.$heading.'</li>';
+
+    // Load content
+    $content = '';
+
+    // Present page
+    return view('songs.edit', array(
+      'slug'        => $slug,
+      'heading'     => $heading,
+      'description' => '<meta name="description" content="'.$heading.'">',
+      'area'        => $area,
+      'breadcrumbs' => $breadcrumbs,
+      'content'     => $content,
+      'links'       => $links,
+      'song'        => $song
+    ));
+  }
+
+  public function updateSong($id, $title)
+	{
+    if (\Gate::denies('edit-songs')) {
+      abort(403);
+    }
+
+    // Look up song in songs table of database
+    $song =\Crockenhill\Song::where('id', $id)->first();
+
+    $song->title      = \Input::get('title');
+    $song->alternative_title       = \Input::get('alternative_title');
+    $song->major_category     = \Input::get('major_category');
+    $song->minor_category  = \Input::get('minor_category');
+    $song->author   = \Input::get('author');
+    $song->copyright   = \Input::get('copyright');
+    $song->lyrics   = \Input::get('lyrics');
+    $song->recommended   = \Input::get('recommended');
+    $song->save();
+
+    // Send user back to index
+    return redirect('/members/songs')->with('message', '"'.\Input::get('title').'" successfully updated '.$song->title.'!');
+	}
 
 }

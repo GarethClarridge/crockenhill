@@ -2,6 +2,14 @@
 
 @section('dynamic_content')
 
+@can ('edit-sermons')
+  <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="btn btn-primary">
+    Edit
+  </a>
+@endcan
+
+<br>
+
   <div class="media song">
     @if ($song->praise_number)
       <div class="media-left media-middle praise-icon">
