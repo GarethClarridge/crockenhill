@@ -22,26 +22,36 @@
 
   <section id="song-list">
     <div class="song-filters">
+      <div class="form-group">
         <label for="text-filter">Filter songs</label>
         <input  class="search form-control"
                 id='text-filter'
                 placeholder="Try typing a song title, Praise! number, category or author"/>
-        <br>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <input type="radio" name="in-praise" value="yes" id="filter-praise"> Only in Praise!
+        </label>
+        <label>
+          <input type="radio" name="in-praise" value="both" id="filter-both-praise-nip" checked="checked"> Both
+        </label>
+        <label>
+          <input type="radio" name="in-praise" value="no" id="filter-nip"> Only not in Praise!
+        </label>
+      </div>
+      <div class="form-group">
         Sort by: &nbsp &nbsp
         <button class="sort btn btn-default" data-sort="song-title">
           Title
         </button>
-        <button class="sort btn btn-default" data-sort="praise-number">
+        <button id="sort-by-praise-number" class="sort btn btn-default" data-sort="praise_number">
           Praise! number
         </button>
         <button class="sort btn btn-default" data-sort="song-frequency">
           Popularity
         </button>
-        <br>
-        <!-- Filter: &nbsp &nbsp
-        <select class="filter">
-          <option value="value3">Value 3</option>
-        </select> -->
+      </div>
     </div>
 
     <ul class="list">
@@ -51,7 +61,7 @@
           <div class="media-left media-middle praise-icon">
             @if ($song->praise_number)
               <img class="media-object" src="/images/praise.png" alt="">
-              <span class="praise-number">{!! $song->praise_number !!}</span>
+              <span class="praise_number">{!! $song->praise_number !!}</span>
             @else
               <img class="media-object" src="/images/nip.png" width="128px" height="128px" alt="">
             @endif
@@ -116,12 +126,34 @@
     </section>
 
   <script src="/scripts/list.min.js"></script>
+  <script src="/scripts/jquery.min.js"></script>
   <script type="text/javascript">
     var options = {
-      valueNames: [ 'song-title', 'song-author', 'praise-number', 'song-frequency', 'song-major-category', 'song-minor-category' ]
+      valueNames: [ 'song-title', 'song-author', 'praise_number', 'song-frequency', 'song-major-category', 'song-minor-category' ]
     };
 
     var songList = new List('song-list', options);
+
+    $(':radio[name=in-praise]').change(function () {
+        var selection = this.value;
+
+        if (selection === 'yes')
+          songList.filter(function (item) {
+              return item.values().praise_number != '';
+          });
+        else if (selection === 'no')
+          songList.filter(function (item) {
+              return item.values().praise_number === '';
+          });
+        else
+          songList.filter();
+    });
+
+    $( "#sort-by-praise-number" ).click(function() {
+      $('#filter-praise').click();
+    });
+
+
   </script>
 
 @stop
