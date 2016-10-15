@@ -5232,7 +5232,7 @@ aside .read-more {
 .praise-icon {
   float: left;
   height: 128px; }
-  .praise-icon .praise-number {
+  .praise-icon .praise_number {
     z-index: 10;
     position: relative;
     top: -90px;
@@ -5241,4 +5241,30 @@ aside .read-more {
     font-size: 30px; }
 
 .song-body {
-  padding-left: 20px; }
+  padding: 3% 3% 3% 20px;
+  background: #fafafa;
+  margin-right: 2%; }
+
+.song-filters {
+  background-color: #16A085;
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  padding: 25px;
+  color: #fafafa; }
+  .song-filters button {
+    background: #34495e;
+    color: #fafafa;
+    border: none; }
+
+ul.list {
+  background-color: #eeeeee;
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  padding-top: 25px;
+  padding-bottom: 25px;
+  list-style: none; }
+
+.song-unknown {
+  background: #999999; }
+  .song-unknown h3.media-heading {
+    color: #222222; }
