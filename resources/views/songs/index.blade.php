@@ -96,7 +96,7 @@
             @endif
           </div>
 
-          @if (!$song->last_played)
+          @if (!$song->last_played || $song->recommended===0)
             <div class="media-body media-middle song-body song-unknown">
           @else
             <div class="media-body media-middle song-body">
@@ -146,7 +146,12 @@
               </p>
             @endif
 
-
+            @if ($song->recommended === 0)
+            <p>
+              <span class="glyphicon glyphicon-warning-sign"></span> &nbsp
+              Mark doesn't recommend choosing this song.
+            </p>
+            @endif
 
           </div>
         </li>
