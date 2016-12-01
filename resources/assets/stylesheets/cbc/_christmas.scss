@@ -1,0 +1,54 @@
+#christmas-page {
+  margin: 0px;
+}
+
+.christmas-head {
+  background-image: url(../images/homepage/christmas.JPG);
+  min-height: 600px;
+  margin-top: 20px;
+  color: #FFFFFF;
+  background-repeat:no-repeat;
+  background-size:contain;
+  background-position:center;
+  margin-bottom: 0;
+
+  .container {
+    padding-top: 100px;
+  }
+
+  h1 {
+    font-size: $font-size-base*4.5;
+    font-weight: 800;
+    width: 66%;
+    margin-bottom: 1em;
+  }
+}
+
+.white-background {
+  font-size: 1.5em;
+  text-align: center;
+  padding-top: 0;
+
+  h2 {
+    font-size: 2.5em;
+    line-height: 2em;
+  }
+
+  a {
+    font-style: italic;
+  }
+
+  @media (max-width: $screen-sm) {
+    font-size: 1.11em;
+    padding-left: 15%;
+    padding-right: 15%;
+    h2 {
+      font-size: 2em;
+    }
+
+  }
+}
+
+section {
+  padding: 5% 0%;
+}
