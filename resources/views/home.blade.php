@@ -21,13 +21,13 @@
 
     <section class="white-background">
       <p>
-        Join us this Sunday 
+        Join us this Sunday
       </p>
-      <h2> 
+      <h2>
 
       @if ((strtotime('this sunday') === strtotime('second sunday')) && date('m') != '12')
         10:30am & 5:00pm
-      @else 
+      @else
         10:30am & 6:30pm
       @endif
 
@@ -37,21 +37,37 @@
       </p>
     </section>
 
+    <div class="background-image" id="christmas">
+      <div class="container">
+        <div class="row">
+          <section class="col-md-6 col-md-offset-3">
+              <p>
+                Come and celebrate the birth of our Saviour with us this Christmas.
+              </p>
+              <br>
+              <p class="text-center">
+                <a href="/christmas" class="btn btn-default btn-outline btn-lg">Christmas events</a>
+              </p>
+          </section>
+        </div>
+      </div>
+    </div>
+
     <div class="background-image" id="listening">
       <div class="container">
         <div class="row">
           <section class="col-md-6 col-md-offset-3">
               <p>
-                Our church exists to worship God, 
-                strengthen believers in their faith, 
-                and to proclaim the good news of Christianity to all, 
-                so that others might experience the wonderful 
+                Our church exists to worship God,
+                strengthen believers in their faith,
+                and to proclaim the good news of Christianity to all,
+                so that others might experience the wonderful
                 salvation of God through faith in Jesus Christ.
               </p>
               <br>
               <p class="text-center">
                 <a href="/about-us" class="btn btn-primary btn-lg">Find out more about us</a>
-              </p>  
+              </p>
           </section>
         </div>
       </div>
@@ -62,14 +78,14 @@
         <section class="col-md-6 col-md-offset-3">
           <div class="white-background">
             <p>
-              There are many activities at Crockenhill Baptist Church.  
-              We have groups during term time for children and young people, 
+              There are many activities at Crockenhill Baptist Church.
+              We have groups during term time for children and young people,
               bible study and prayer groups and more.
-            </p>   
+            </p>
             <br>
             <p class="text-center">
               <a href="/whats-on">Find out what's on</a>
-            </p>               
+            </p>
           </div>
         </section>
       </div>
@@ -80,10 +96,10 @@
         <div class="row">
           <section class="col-md-6 col-md-offset-3">
               <p>
-                We are located in the village of Crockenhill in Kent, 
-                which is a mile or so south of Swanley 
-                and two miles from St Mary Cray. 
-                If you are travelling from a distance, 
+                We are located in the village of Crockenhill in Kent,
+                which is a mile or so south of Swanley
+                and two miles from St Mary Cray.
+                If you are travelling from a distance,
                 we are just off junction 3 of the M25.
               </p>
               <br>
@@ -93,7 +109,7 @@
           </section>
         </div>
       </div>
-    </div>   
+    </div>
 
   </main>
 
