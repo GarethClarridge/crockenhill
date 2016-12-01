@@ -20,6 +20,7 @@
     </div>
 
     <section class="white-background">
+      <br>
       <p>
         Join us this Sunday
       </p>
