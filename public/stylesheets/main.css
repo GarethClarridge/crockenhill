@@ -5271,3 +5271,43 @@ ul.list {
   background: #999999; }
   .song-unknown h3.media-heading {
     color: #222222; }
+
+#christmas-page {
+  margin: 0px; }
+
+.christmas-head {
+  background-image: url(../images/homepage/christmas.JPG);
+  min-height: 600px;
+  margin-top: 20px;
+  color: #FFFFFF;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  margin-bottom: 0; }
+  .christmas-head .container {
+    padding-top: 100px; }
+  .christmas-head h1 {
+    font-size: 72px;
+    font-weight: 800;
+    width: 66%;
+    margin-bottom: 1em; }
+
+.white-background {
+  font-size: 1.5em;
+  text-align: center;
+  padding-top: 0; }
+  .white-background h2 {
+    font-size: 2.5em;
+    line-height: 2em; }
+  .white-background a {
+    font-style: italic; }
+  @media (max-width: 768px) {
+    .white-background {
+      font-size: 1.11em;
+      padding-left: 15%;
+      padding-right: 15%; }
+      .white-background h2 {
+        font-size: 2em; } }
+
+section {
+  padding: 5% 0%; }
