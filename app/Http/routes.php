@@ -13,6 +13,13 @@
 
 Route::group(['middleware' => ['web']], function() {
 
+    Route::get('/christmas', array(
+      'as' => 'christmas', function()
+      {
+        return view('christmas');
+      })
+    );
+
     // Sermon Routes
 
     Route::group(array('prefix' => 'sermons'), function()
