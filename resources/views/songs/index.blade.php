@@ -96,7 +96,7 @@
             @endif
           </div>
 
-          @if (!$song->last_played || $song->recommended===0)
+          @if (!$song->last_played || $song->current===0)
             <div class="media-body media-middle song-body song-unknown">
           @else
             <div class="media-body media-middle song-body">
@@ -152,7 +152,7 @@
               </p>
             @endif
 
-            @if ($song->recommended === 0)
+            @if ($song->current === 0)
             <p>
               <span class="glyphicon glyphicon-warning-sign"></span> &nbsp
               This song isn't in our current list of songs to sing. Is there an alternative?
