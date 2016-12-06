@@ -43,7 +43,7 @@
 
     <section class="white-background">
       <h2>
-        Carols by candlelight
+        Carols by Candlelight
       </h2>
       <p>
         A candlelit service of traditional Christmas carols and readings,
@@ -56,7 +56,7 @@
 
     <section class="white-background">
       <h2>
-        Christmas day service
+        Christmas Day Celebration
       </h2>
       <p>
         We meet together on Christmas day to joyfully celebrate the birth of our Saviour - the almighty God born as a baby in Bethlehem.
