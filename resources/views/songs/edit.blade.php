@@ -41,8 +41,8 @@
       <textarea class="form-control" name="lyrics" type="text" id="lyrics" value="{{$song->lyrics}}"></textarea>
 
       <br>
-      <label for="recommended">Recommended?</label>
-      <input type="checkbox" name="recommended" id="recommended" checked=true value=1>
+      <label for="current">In current list?</label>
+      <input type="checkbox" name="current" id="current" checked=true value=1>
 
       <br>
       <br>

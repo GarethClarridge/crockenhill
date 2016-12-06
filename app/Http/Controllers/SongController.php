@@ -407,7 +407,7 @@ class SongController extends Controller {
     $song->author   = \Input::get('author');
     $song->copyright   = \Input::get('copyright');
     $song->lyrics   = \Input::get('lyrics');
-    $song->recommended   = \Input::get('recommended');
+    $song->current   = \Input::get('current');
     $song->save();
 
     // Send user back to index
