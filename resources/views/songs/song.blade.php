@@ -67,10 +67,10 @@
         </p>
       @endif
 
-      @if ($song->recommended === 0)
+      @if ($song->current === 0)
       <p>
         <span class="glyphicon glyphicon-warning-sign"></span> &nbsp
-        Mark doesn't recommend choosing this song.
+        This song isn't in our current list of songs to sing. Is there an alternative?
       </p>
       @endif
 

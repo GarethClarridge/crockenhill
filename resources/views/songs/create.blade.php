@@ -41,8 +41,8 @@
       {{ Form::textarea('lyrics', null, array('class' => 'form-control')) }}
 
       <br>
-      {{ Form::label('recommended', 'Recommended?') }}
-      {{ Form::checkbox('recommended', null, array('class' => 'form-control')) }}
+      {{ Form::label('current', 'In current list?') }}
+      {{ Form::checkbox('current', null, array('class' => 'form-control')) }}
 
       <br>
       <br>
