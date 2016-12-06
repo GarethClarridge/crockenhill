@@ -97,22 +97,6 @@ class SongController extends Controller {
     // Present lyrics in a readable format
     $lyrics = nl2br(trim($song->lyrics));
 
-    // // Information about when last sung
-    // $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
-    //                           ->orderBy('date', 'desc')
-    //                           ->first();
-    // if ($last_played_record) {
-    //   $last_played = $last_played_record->date;
-    // } else {
-    //   $last_played = NULL;
-    // }
-    //
-    // // Information about how often we've sung it recently
-    // $years = 2;
-    // $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
-    //                           ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
-    //                           ->count();
-
     $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
                               ->orderBy('date', 'desc')
                               ->first();
@@ -333,6 +317,8 @@ class SongController extends Controller {
     $author       = \Input::get('author');
     $copyright    = \Input::get('copyright');
     $lyrics       = \Input::get('lyrics');
+    $notes        = \Input::get('notes');
+    $current      = \Input::get('current');
 
     // Save new song
     $song = new \Crockenhill\Song;
@@ -341,6 +327,8 @@ class SongController extends Controller {
     $song->author             = $author;
     $song->copyright          = $copyright;
     $song->lyrics             = $lyrics;
+    $song->notes              = $notes;
+    $song->current            = $current;
     $song->save();
 
     // Send user back to index
@@ -400,14 +388,15 @@ class SongController extends Controller {
     // Look up song in songs table of database
     $song =\Crockenhill\Song::where('id', $id)->first();
 
-    $song->title      = \Input::get('title');
-    $song->alternative_title       = \Input::get('alternative_title');
+    $song->title              = \Input::get('title');
+    $song->alternative_title  = \Input::get('alternative_title');
     $song->major_category     = \Input::get('major_category');
-    $song->minor_category  = \Input::get('minor_category');
-    $song->author   = \Input::get('author');
-    $song->copyright   = \Input::get('copyright');
-    $song->lyrics   = \Input::get('lyrics');
-    $song->current   = \Input::get('current');
+    $song->minor_category     = \Input::get('minor_category');
+    $song->author             = \Input::get('author');
+    $song->copyright          = \Input::get('copyright');
+    $song->lyrics             = \Input::get('lyrics');
+    $song->notes              = \Input::get('notes');
+    $song->current            = \Input::get('current');
     $song->save();
 
     // Send user back to index
