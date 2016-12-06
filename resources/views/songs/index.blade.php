@@ -152,6 +152,13 @@
               </p>
             @endif
 
+            @if ($song->notes)
+              <p>
+                <span class="glyphicon glyphicon-pencil"></span> &nbsp
+                {{ $song->notes }}
+              </p>
+            @endif
+
             @if ($song->current === 0)
             <p>
               <span class="glyphicon glyphicon-warning-sign"></span> &nbsp

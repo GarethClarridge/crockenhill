@@ -41,6 +41,10 @@
       {{ Form::textarea('lyrics', null, array('class' => 'form-control')) }}
 
       <br>
+      {{ Form::label('notes', 'Notes') }}
+      {{ Form::textarea('notes', null, array('class' => 'form-control')) }}
+
+      <br>
       {{ Form::label('current', 'In current list?') }}
       {{ Form::checkbox('current', null, array('class' => 'form-control')) }}
 
