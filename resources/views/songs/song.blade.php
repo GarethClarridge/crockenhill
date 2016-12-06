@@ -94,6 +94,14 @@
             @endforeach
         </p>
       @endif
+
+      @if ($song->notes)
+        <p>
+          <span class="glyphicon glyphicon-pencil"></span> &nbsp
+          {{ $song->notes }}
+        </p>
+      @endif
+      
     </div>
   </div>
 

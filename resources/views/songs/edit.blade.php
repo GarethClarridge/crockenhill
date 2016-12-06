@@ -38,7 +38,11 @@
       <br>
       <label for="lyrics">Lyrics</label>
       <small><b>Do not upload lyrics unless the song is out of copyright.</b></small>
-      <textarea class="form-control" name="lyrics" type="text" id="lyrics" value="{{$song->lyrics}}"></textarea>
+      <textarea class="form-control" name="lyrics" type="text" id="lyrics">{{$song->lyrics}}</textarea>
+
+      <br>
+      <label for="notes">Notes</label>
+      <textarea class="form-control" name="notes" type="text" id="notes">{{$song->notes}}</textarea>
 
       <br>
       <label for="current">In current list?</label>
