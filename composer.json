@@ -9,7 +9,8 @@
 		"laravel/framework": "5.2.*",
 		"laravelcollective/html": "5.*",
 		"intervention/image": "2.*",
-		"guzzlehttp/guzzle": "~5.3|~6.0"
+		"guzzlehttp/guzzle": "~5.3|~6.0",
+		"doctrine/dbal": "^2.5"
 	},
   "require-dev": {
       "fzaninotto/faker": "~1.4",
