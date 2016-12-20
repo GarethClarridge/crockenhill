@@ -51,6 +51,12 @@ class SongController extends Controller {
       } else {
         $song['frequency'] = 0;
       }
+
+      if ($song->praise_number == NULL) {
+        $song['nip'] = 'nip';
+      } else {
+        $song['nip'] = 'praise';
+      }
     }
 
     // Present page
