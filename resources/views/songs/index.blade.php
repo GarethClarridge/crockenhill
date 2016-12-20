@@ -31,13 +31,13 @@
 
       <div class="form-group" id="in-praise-filter">
         <label>
-          <input type="radio" name="in-praise" value="yes" id="filter-praise"> Only in Praise!
+          <input type="radio" name="in-praise" value="praise" id="filter-praise" onchange="updateFilter()"> Only in Praise!
         </label>
         <label>
-          <input type="radio" name="in-praise" value="both" id="filter-both-praise-nip" checked="checked"> Both
+          <input type="radio" name="in-praise" value="both" id="filter-both-praise-nip" checked="checked" onchange="updateFilter()"> Both
         </label>
         <label>
-          <input type="radio" name="in-praise" value="no" id="filter-nip"> Only not in Praise!
+          <input type="radio" name="in-praise" value="nip" id="filter-nip" onchange="updateFilter()"> Only not in Praise!
         </label>
       </div>
 
@@ -45,7 +45,7 @@
 
         <div class="major-category-filter-div">
           <label for="major-category-filter">Category:</label>
-          <select name="major-category-filter" id="major-category-filter" class="form-control">
+          <select name="major-category-filter" id="major-category-filter" class="form-control" onchange="updateFilter()">
             <option value="All">All</option>
             <option value="Approaching God">Approaching God</option>
             <option value="The Father">The Father</option>
@@ -62,7 +62,7 @@
 
         <div id="minor-category-filter-div" style="display:none;">
           <label for="minor-category-filter">Sub-category:</label>
-          <select class="form-control" name="minor-category-filter" id="minor-category-filter">
+          <select class="form-control" name="minor-category-filter" id="minor-category-filter" onchange="updateFilter()">
             <option id="minor-category-filter-option" value="All">All</option>
           </select>
         </div>
@@ -70,23 +70,18 @@
       </div>
 
       <div class="form-group">
-        Sort by: &nbsp &nbsp
-        <button class="sort btn btn-default" data-sort="song-title">
-          Title
-        </button>
-        <button id="sort-by-praise-number" class="sort btn btn-default" data-sort="praise_number">
-          Praise! number
-        </button>
-        <button class="sort btn btn-default" data-sort="song-frequency">
-          Popularity
-        </button>
+        <label for="sort">Sort by:</label>
+        <select class="form-control" name="sort" id="sort" onchange="updateSort()">
+          <option value="song-frequency">Popularity</option>
+          <option value="song-title">Title</option>
+        </select>
       </div>
     </div>
 
     <ul class="list">
 
       @foreach ($songs as $song)
-        <li class="media song">
+        <li class="media song" data-nip="{{$song->nip}}">
           <div class="media-left media-middle praise-icon">
             @if ($song->praise_number)
               <img class="media-object" src="/images/praise.png" alt="">
@@ -104,6 +99,7 @@
             <h3 class="media-heading">
                 <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}" class="song-title">{{$song->title}}</a>
             </h3>
+
             @if ($song->author)
               <p>
                 <span class="glyphicon glyphicon-user"></span> &nbsp
@@ -176,38 +172,53 @@
   <script src="/scripts/jquery.min.js"></script>
   <script type="text/javascript">
     var options = {
-      valueNames: [ 'song-title', 'song-author', 'praise_number', 'song-frequency', 'song_major_category', 'song_minor_category' ]
+      valueNames: [
+        'song-title',
+        'song-author',
+        'praise_number',
+        'song-frequency',
+        'song_major_category',
+        'song_minor_category',
+        { data: ['nip'] }
+      ]
     };
 
     var songList = new List('song-list', options);
 
-    $(':radio[name=in-praise]').change(function () {
-        var selection = this.value;
+    function updateFilter(){
+      songList.filter(function(item) {
 
-        if (selection === 'yes')
-          songList.filter(function (item) {
-              return item.values().praise_number != '';
-          });
-        else if (selection === 'no')
-          songList.filter(function (item) {
-              return item.values().praise_number === '';
-          });
+        // Option filters - remove items which don't match
+        if (      ($("input[type='radio'][name='in-praise']:checked").val() !== 'both'
+                        && $("input[type='radio'][name='in-praise']:checked").val() !== item.values().nip)
+              ||  ($("#major-category-filter").val() !== 'All'
+                        && $("#major-category-filter").val().trim() !== item.values().song_major_category.trim())
+              ||  ($("#minor-category-filter").val() !== 'All'
+                        && $("#minor-category-filter").val().trim() !== item.values().song_minor_category.trim()))
+              {
+                return false;
+              }
         else
-          songList.filter();
-    });
+              {
+                return true;
+              }
+      });
 
-    $( "#sort-by-praise-number" ).click(function() {
-      $('#filter-praise').click();
-    });
+      updateSort();
+    }
 
-    $( "#category-filter" ).click(function() {
-      $('#filter-both-praise-nip').prop('checked', 'checked');
-    });
-
-    $( "#in-praise-filter" ).click(function() {
-      $('#major-category-filter').val('All');
-      $("#minor-category-filter-div").hide();
-    });
+    function updateSort(){
+      if ($('#sort')[0].value == 'song-frequency') {
+        songList.sort($('#sort')[0].value, {
+          order: "desc"
+        });
+      }
+      else {
+       songList.sort($('#sort')[0].value, {
+         order: "asc"
+       });
+     }
+    }
 
     var categories = {
       "Approaching God"                     : [ "The eternal Trinity",
@@ -286,13 +297,9 @@
         var selection = this.value;
 
         if (selection === 'All'){
-          songList.filter();
           $("#minor-category-filter-div").hide();
         }
         else {
-          songList.filter(function (item) {
-              return item.values().song_major_category === selection;
-          });
 
           var seloption = '<option id="minor-category-filter-option" value="All">All</option>';
           var optionsarray = categories[selection];
@@ -308,21 +315,6 @@
         }
     });
 
-    $("#minor-category-filter").change(function () {
-        var selection = this.value;
-
-        if (selection === 'All') {
-          var song_major_category = $("#major-category-filter").val();
-          console.log(song_major_category);
-          songList.filter(function (item) {
-            return item.values().song_major_category === song_major_category;
-          });
-        } else {
-          songList.filter(function (item) {
-              return item.values().song_minor_category === selection;
-          });
-        }
-    });
   </script>
 
 @stop
