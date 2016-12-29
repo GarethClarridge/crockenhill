@@ -180,7 +180,8 @@
         'song_major_category',
         'song_minor_category',
         { data: ['nip'] }
-      ]
+      ],
+      plugins: [ ListFuzzySearch() ] 
     };
 
     var songList = new List('song-list', options);
