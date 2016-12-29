@@ -135,6 +135,7 @@ return [
          */
         Crockenhill\Providers\AppServiceProvider::class,
         Crockenhill\Providers\AuthServiceProvider::class,
+        Crockenhill\Providers\BroadcastServiceProvider::class,
         Crockenhill\Providers\EventServiceProvider::class,
         Crockenhill\Providers\RouteServiceProvider::class,
         Crockenhill\Providers\ComposerServiceProvider::class,
