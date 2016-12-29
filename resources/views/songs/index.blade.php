@@ -24,7 +24,7 @@
     <div class="song-filters">
       <div class="form-group">
         <label for="song-text-filter">Filter songs</label>
-        <input  class="search form-control"
+        <input  class="fuzzy-search form-control"
                 id='song-text-filter'
                 placeholder="Try typing a song title, Praise! number, category or author"/>
       </div>
@@ -169,6 +169,7 @@
     </section>
 
   <script src="/scripts/list.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/list.fuzzysearch.js/0.1.0/list.fuzzysearch.js"></script>
   <script src="/scripts/jquery.min.js"></script>
   <script type="text/javascript">
     var options = {
@@ -181,7 +182,7 @@
         'song_minor_category',
         { data: ['nip'] }
       ],
-      plugins: [ ListFuzzySearch() ] 
+      plugins: [ ListFuzzySearch() ]
     };
 
     var songList = new List('song-list', options);
