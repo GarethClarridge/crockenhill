@@ -13,12 +13,14 @@
 
 Route::group(['middleware' => ['web']], function() {
 
-    Route::get('/christmas', array(
-      'as' => 'christmas', function()
-      {
-        return view('christmas');
-      })
-    );
+    // Disabled Christmas route
+
+    // Route::get('/christmas', array(
+    //   'as' => 'christmas', function()
+    //   {
+    //     return view('christmas');
+    //   })
+    // );
 
     // Sermon Routes
 
