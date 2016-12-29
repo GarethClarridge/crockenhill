@@ -51,8 +51,7 @@
 					</form>
 					<br>
 					<p>
-						If you haven't got an account you can <a href="{{ url('/register') }}">register here</a>.
-						Use your email address from the church members' contact list to get access to members' content.
+						<a class="btn btn-primary" href="{{ url('/register') }}">Register for an account</a>
 					</p>
 				</div>
 			</article>
