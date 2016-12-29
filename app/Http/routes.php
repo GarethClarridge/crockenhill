@@ -210,10 +210,7 @@ Route::group(['middleware' => ['web']], function() {
 
     Route::get('/{area}/{slug?}', array('uses' => 'PageController@showPage'));
 
-    Route::controllers([
-    	'auth' => 'Auth\AuthController',
-    	'password' => 'Auth\PasswordController',
-    ]);
+    Route::auth();
 
     Route::get('/', ['as' => 'Home', function()
     {

@@ -17,20 +17,19 @@ class AuthServiceProvider extends ServiceProvider
     /**
      * Register any application authentication / authorization services.
      *
-     * @param  \Illuminate\Contracts\Auth\Access\Gate  $gate
      * @return void
      */
-    public function boot(GateContract $gate)
+    public function boot()
     {
-        $this->registerPolicies($gate);
+        $this->registerPolicies();
 
-        $gate->before(function ($user, $ability) {
+        Gate::before(function ($user, $ability) {
             if ($user->email === "admin@crockenhill.org") {
                 return true;
             }
         });
 
-        $gate->define('see-member-content', function ($user) {
+        Gate::define('see-member-content', function ($user) {
             $member_emails = [
                 "garethclarridge@hotmail.co.uk",
                 ""
@@ -38,7 +37,7 @@ class AuthServiceProvider extends ServiceProvider
             return in_array($user->email, $member_emails);
         });
 
-        $gate->define('edit-sermons', function ($user) {
+        Gate::define('edit-sermons', function ($user) {
             $emails = [
                 "garethclarridge@hotmail.co.uk",
                 ""
@@ -46,7 +45,7 @@ class AuthServiceProvider extends ServiceProvider
             return in_array($user->email, $emails);
         });
 
-        $gate->define('edit-songs', function ($user) {
+        Gate::define('edit-songs', function ($user) {
             $emails = [
                 "garethclarridge@hotmail.co.uk",
                 ""
@@ -54,7 +53,7 @@ class AuthServiceProvider extends ServiceProvider
             return in_array($user->email, $emails);
         });
 
-        $gate->define('edit-pages', function ($user) {
+        Gate::define('edit-pages', function ($user) {
             $emails = [
                 "garethclarridge@hotmail.co.uk",
                 ""
@@ -62,7 +61,7 @@ class AuthServiceProvider extends ServiceProvider
             return in_array($user->email, $emails);
         });
 
-        $gate->define('edit-documents', function ($user) {
+        Gate::define('edit-documents', function ($user) {
             $emails = [
                 "garethclarridge@hotmail.co.uk",
                 ""
