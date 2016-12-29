@@ -177,7 +177,15 @@
   <script src="/scripts/jquery.min.js"></script>
   <script type="text/javascript">
     var options = {
-      valueNames: [ 'song-title', 'song-author', 'praise_number', 'song-frequency', 'song_major_category', 'song_minor_category' ],
+      valueNames: [
+        'song-title',
+        'song-author',
+        'praise_number',
+        'song-frequency',
+        'song_major_category',
+        'song_minor_category',
+        { data: ['nip'] }
+      ],
       plugins: [ ListFuzzySearch() ]
     };
 
