@@ -50,9 +50,7 @@
 						</div>
 					</form>
 					<br>
-					<p>
-						<a class="btn btn-primary" href="{{ url('/register') }}">Register for an account</a>
-					</p>
+					<a class="btn btn-default" href="{{ url('/register') }}">Register for an account</a>
 				</div>
 			</article>
 			<br><br>
