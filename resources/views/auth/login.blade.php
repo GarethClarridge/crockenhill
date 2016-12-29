@@ -55,11 +55,14 @@
 							<div class="col-md-6 col-md-offset-4">
 								<input type="submit" class="btn btn-primary" value="Log in"></input>
 								<a class="btn btn-link" href="{{ url('/password/reset') }}">Forgot Your Password?</a>
+								<br>
+								<br>
+								<br>
+								<a class="btn btn-default" href="{{ url('/register') }}">Register for an account</a>
 							</div>
 						</div>
+
 					</form>
-					<br>
-					<a class="btn btn-default" href="{{ url('/register') }}">Register for an account</a>
 				</div>
 			</article>
 			<br><br>
