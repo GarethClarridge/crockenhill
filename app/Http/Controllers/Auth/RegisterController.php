@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Auth;
+namespace Crockenhill\Http\Controllers\Auth;
 
 use App\User;
 use App\Http\Controllers\Controller;
@@ -53,7 +53,7 @@ class RegisterController extends Controller
             'password' => 'required|min:6|confirmed',
         ]);
     }
-    
+
     /**
      * Create a new user instance after a valid registration.
      *
