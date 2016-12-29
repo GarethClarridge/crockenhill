@@ -42,6 +42,16 @@
 						</div>
 
 						<div class="form-group">
+					    <div class="col-md-offset-4 col-md-6">
+					      <div class="checkbox">
+					        <label>
+					          <input type="checkbox" checked name="remember"> Remember me
+					        </label>
+					      </div>
+					    </div>
+					  </div>
+
+						<div class="form-group">
 							<div class="col-md-6 col-md-offset-4">
 								<input type="submit" class="btn btn-primary" value="Log in"></input>
 								<a class="btn btn-link" href="{{ url('/password/reset') }}">Forgot Your Password?</a>
