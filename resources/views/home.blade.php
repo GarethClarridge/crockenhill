@@ -38,7 +38,8 @@
       </p>
     </section>
 
-    <div class="background-image" id="christmas">
+    <!-- Disabled Christmas section -->
+    <!-- <div class="background-image" id="christmas">
       <div class="container">
         <div class="row">
           <section class="col-md-6 col-md-offset-3">
@@ -52,7 +53,7 @@
           </section>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <div class="background-image" id="listening">
       <div class="container">
