@@ -106,7 +106,7 @@ return [
          * Laravel Framework Service Providers...
          */
         Illuminate\Auth\AuthServiceProvider::class,
-        Illuminate\Broadcasting\BroadcastServiceProvider::class,
+        // Illuminate\Broadcasting\BroadcastServiceProvider::class,
         Illuminate\Bus\BusServiceProvider::class,
         Illuminate\Cache\CacheServiceProvider::class,
         Illuminate\Foundation\Providers\ConsoleSupportServiceProvider::class,
@@ -135,7 +135,7 @@ return [
          */
         Crockenhill\Providers\AppServiceProvider::class,
         Crockenhill\Providers\AuthServiceProvider::class,
-        Crockenhill\Providers\BroadcastServiceProvider::class,
+        // Crockenhill\Providers\BroadcastServiceProvider::class,
         Crockenhill\Providers\EventServiceProvider::class,
         Crockenhill\Providers\RouteServiceProvider::class,
         Crockenhill\Providers\ComposerServiceProvider::class,
