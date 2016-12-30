@@ -32,18 +32,16 @@ $app->bind('path.public', function() {
 */
 
 $app->singleton(
-	'Illuminate\Contracts\Http\Kernel',
-	'Crockenhill\Http\Kernel'
+    Illuminate\Contracts\Http\Kernel::class,
+    Crockenhill\Http\Kernel::class
 );
-
 $app->singleton(
-	'Illuminate\Contracts\Console\Kernel',
-	'Crockenhill\Console\Kernel'
+    Illuminate\Contracts\Console\Kernel::class,
+    Crockenhill\Console\Kernel::class
 );
-
 $app->singleton(
-	'Illuminate\Contracts\Debug\ExceptionHandler',
-	'Crockenhill\Exceptions\Handler'
+    Illuminate\Contracts\Debug\ExceptionHandler::class,
+    Crockenhill\Exceptions\Handler::class
 );
 
 /*

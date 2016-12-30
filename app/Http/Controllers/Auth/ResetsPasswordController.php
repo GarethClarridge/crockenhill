@@ -2,7 +2,7 @@
 
 namespace Crockenhill\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
+use Crockenhill\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\ResetsPasswords;
 
 class ResetPasswordController extends Controller
