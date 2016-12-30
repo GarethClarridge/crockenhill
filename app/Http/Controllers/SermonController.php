@@ -19,7 +19,7 @@ class SermonController extends Controller {
 
     $last_6_weeks = \Crockenhill\Sermon::orderBy('date', 'desc')
                       ->take(6)
-                      ->lists('date');
+                      ->pluck('date');
 
     $latest_sermons = [];
 
@@ -45,7 +45,7 @@ class SermonController extends Controller {
     $area = $page->area;
 
     $weeks = \Crockenhill\Sermon::orderBy('date', 'desc')
-                      ->lists('date');
+                      ->pluck('date');
 
     $latest_sermons = [];
 
@@ -75,7 +75,7 @@ class SermonController extends Controller {
       abort(403);
     }
 
-		$series = array_unique(\Crockenhill\Sermon::lists('series')->all());
+		$series = array_unique(\Crockenhill\Sermon::pluck('series')->all());
     return view('sermons.create', array(
       'series'        => $series,
       'heading'       => 'Upload a new sermon',
@@ -177,7 +177,7 @@ class SermonController extends Controller {
     $sermon = \Crockenhill\Sermon::where('slug', $slug)
                                     ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
                                     ->first();
-    $series = array_unique(\Crockenhill\Sermon::lists('series')->all());
+    $series = array_unique(\Crockenhill\Sermon::pluck('series')->all());
 
     return view('sermons.edit', array(
       'sermon'        => $sermon,
