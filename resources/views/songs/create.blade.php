@@ -4,7 +4,7 @@
 
   <form method="POST" action="/members/songs" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
     <div class="form-group">
-      {!! Form::token() !!}
+      <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
       <br />
       {{ Form::label('title', 'Title') }}
