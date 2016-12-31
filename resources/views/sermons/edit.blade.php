@@ -9,7 +9,7 @@
   @endif
 
   <form method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" accept-charset="UTF-8">
-    {!! Form::token() !!}
+    <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
     <div class="form-group">
       <label for="title">Title</label>
@@ -20,7 +20,7 @@
       <label for="date">Date</label>
       @if (date('D') === 'Sun')
         <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d')!!}">
-      @else 
+      @else
         <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d',strtotime('last sunday'))!!}">
       @endif
     </div>
@@ -42,9 +42,9 @@
 
     <div class="form-actions">
       <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
-      <a href="{!! URL::route('members.sermons.index') !!}" class="btn btn-large">Cancel</a>
+      <a href="/sermons" class="btn btn-large">Cancel</a>
     </div>
 
   </form>
- 
+
 @stop

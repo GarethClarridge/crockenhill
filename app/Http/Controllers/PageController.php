@@ -123,7 +123,7 @@ class PageController extends Controller {
     $page->heading = \Input::get('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
     $page->area = \Input::get('area');
-    $page->body = \Input::get('body');
+    $page->body = trim(\Input::get('body'));
     $page->description = \Input::get('description');
     $page->save();
 
@@ -167,7 +167,7 @@ class PageController extends Controller {
 
     Notification::success('The image was changed.');
 
-    return Redirect::route('members.pages.changeimage', array('page' => $page->slug));
+    return Redirect::route('/members/pages/changeimage', array('page' => $page->slug));
 
   }*/
 }
