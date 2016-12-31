@@ -45,7 +45,7 @@
 					    <div class="col-md-offset-4 col-md-6">
 					      <div class="checkbox">
 					        <label>
-					          <input type="checkbox" checked name="remember"> Remember me
+					          <input type="checkbox" checked="checked" name="remember"> Remember me
 					        </label>
 					      </div>
 					    </div>
