@@ -7,7 +7,8 @@
   Your account will need to be set up to access some features.</p>
 <a href="/sermons" class="btn btn-default btn-lg btn-block">Edit sermons</a>
 <a href="/members/songs" class="btn btn-default btn-lg btn-block">View song list</a>
-
+<a href="/members/pages" class="btn btn-default btn-lg btn-block">Edit pages</a>
+<a href="/members/documents" class="btn btn-default btn-lg btn-block">View documents</a>
 
 <form action="logout" method="post">
   <br>
