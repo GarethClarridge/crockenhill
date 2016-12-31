@@ -31,11 +31,11 @@
         <div class="col-md-6">
           <h4><a href="/find-us">Address</a></h4>
           <address>
-            Crockenhill Baptist Church<br />
-            Eynsford Road<br />
-            Crockenhill<br />
-            Kent<br />
-            BR8 8JS<br />
+            Crockenhill Baptist Church<br>
+            Eynsford Road<br>
+            Crockenhill<br>
+            Kent<br>
+            BR8 8JS<br>
           </address>
         </div>
       </div>

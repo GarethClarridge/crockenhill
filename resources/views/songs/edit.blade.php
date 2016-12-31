@@ -6,7 +6,7 @@
     <div class="form-group">
       <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
-      <br />
+      <br>
       <label for="title">Title</label>
       <input class="form-control" name="title" type="text" id="title" value="{{$song->title}}">
 
