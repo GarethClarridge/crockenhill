@@ -7,51 +7,51 @@
       <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
       <br />
-      {{ Form::label('title', 'Title') }}
-      {{ Form::text('title', null, array('class' => 'form-control')) }}
+      <label for="title">Title</label>
+      <input class="form-control" name="description" type="text" id="title">
 
       <br>
-      {{ Form::label('alternative-title', 'Alternative Title') }}
+      <label for="alternative-title">Alternative Title</label>
       <small><i>Optional</i></small>
-      {{ Form::text('alternative-title', null, array('class' => 'form-control')) }}
+      <input class="form-control" name="description" type="text" id="alternative-title">
 
       <br>
-      {{ Form::label('major-category', 'Praise! category') }}
+      <label for="major-category">Praise! category</label>
       <small><i>Optional</i></small>
-      {{ Form::text('major-category', null, array('class' => 'form-control')) }}
+      <input class="form-control" name="description" type="text" id="major-category">
 
       <br>
-      {{ Form::label('minor-category', 'Praise! subcategory') }}
+      <label for="minor-category">Praise! subcategory</label>
       <small><i>Optional</i></small>
-      {{ Form::text('minor-category', null, array('class' => 'form-control')) }}
+      <input class="form-control" name="description" type="text" id="minor-category">
 
       <br>
-      {{ Form::label('author', 'Author') }}
+      <label for="author">Author</label>
       <small><i>of the lyrics, may not be the composer of the music.</i></small>
-      {{ Form::text('author', null, array('class' => 'form-control')) }}
+      <input class="form-control" name="description" type="text" id="author">
 
       <br>
-      {{ Form::label('copyright', 'Copyright') }}
+      <label for="copyright">Copyright</label>
       <small><i>to the lyrics, may not be the same as the music.</i></small>
-      {{ Form::text('copyright', null, array('class' => 'form-control')) }}
+      <input class="form-control" name="description" type="text" id="copyright">
 
       <br>
-      {{ Form::label('lyrics', 'Lyrics') }}
+      <label for="lyrics">Lyrics</label>
       <small><b>Do not upload lyrics unless the song is out of copyright.</b></small>
-      {{ Form::textarea('lyrics', null, array('class' => 'form-control')) }}
+      <textarea class="form-control" name="lyrics" id="lyrics"></textarea>
 
       <br>
-      {{ Form::label('notes', 'Notes') }}
-      {{ Form::textarea('notes', null, array('class' => 'form-control')) }}
+      <label for="notes">Notes</label>
+      <textarea class="form-control" name="notes" id="notes"></textarea>
 
       <br>
-      {{ Form::label('current', 'In current list?') }}
-      {{ Form::checkbox('current', null, array('class' => 'form-control')) }}
+      <label for="current">In current list?</label>
+      <input type="checkbox" name="current" checked>
 
       <br>
       <br>
-      {{ Form::submit('Save', array('class' => 'btn btn-primary btn-lg btn-block')) }}
+      <input class="btn btn-success btn-lg" type="submit" value="Save">
     </div>
-  {{ Form::close() }}
+  </form>
 
 @stop
