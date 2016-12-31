@@ -50,8 +50,8 @@
 
       <br>
       <br>
-      {{ Form::submit('Save', array('class' => 'btn btn-primary btn-lg btn-block')) }}
+      <input class="btn btn-success btn-lg" type="submit" value="Save">
     </div>
-  {{ Form::close() }}
+  </form>
 
 @stop
