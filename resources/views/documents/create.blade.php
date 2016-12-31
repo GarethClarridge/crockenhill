@@ -24,26 +24,27 @@
             </div>
           @endif
 
-					{!! Form::open(array('action' => 'DocumentController@store', 'method' => 'POST', 'files' => true)) !!}
+          <form method="POST" action="/members/documents" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
+            <input type="hidden" name="_token" id="csrf-token" value="{{ Session::token() }}" />
 
 						<div class="form-group">
 							<label for="title">Title</label>
-							<input class="form-control" id="title" name="title" type="text" value="{{$document->title}}"> 
+							<input class="form-control" id="title" name="title" type="text">
 						</div>
 
 							<div class="form-group">
 							  <label for="document">Document</label>
-							  {!! Form::file('document') !!}
+                <input type="file" name="document">
 							</div>
 
 						<div class="form-group">
 							<label for="type">Document Type</label>
-							{!! Form::select('type', array(
-								''                  => 'Please select ...',
-								'meeting'           => 'Church Meeting Information',
-								'bible-study-notes' => 'Bible Study Notes',
-								'rota'              => 'Rota',
-								), $value = null, array('class' => 'form-control')) !!}
+              <select class="form-control" name="type">
+                <option value="">Please select</option>
+                <option value="meeting">Church meeting documents</option>
+                <option value="bible-study-notes">Bible study notes</option>
+                <option value="rota">Rota</option>
+              </select>
 						</div>
 
 						<div class="form-actions">

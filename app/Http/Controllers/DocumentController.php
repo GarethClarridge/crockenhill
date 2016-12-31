@@ -20,7 +20,7 @@ class DocumentController extends Controller {
     // Set information about page to enable lookup
     $slug = 'documents';
     $area = 'members';
-    
+
     // Look up page
     $page = \Crockenhill\Page::where('slug', $slug)->first();
 
@@ -34,7 +34,7 @@ class DocumentController extends Controller {
 
     return view('documents.index', array(
         'slug'        => $slug,
-        'heading'     => $heading,        
+        'heading'     => $heading,
         'description' => '<meta name="description" content="{{$heading}}">',
         'area'        => $area,
         'breadcrumbs' => $breadcrumbs,
@@ -55,7 +55,7 @@ class DocumentController extends Controller {
       abort(403);
     }
 
-    /*// Set information about page to enable lookup
+    // Set information about page to enable lookup
     $area = 'members';
 
     // Set details
@@ -64,12 +64,12 @@ class DocumentController extends Controller {
 
     return view('documents.create', array(
         'slug'        => 'create',
-        'heading'     => $heading,        
+        'heading'     => $heading,
         'description' => '<meta name="description" content="{{$heading}}">',
         'area'        => $area,
         'breadcrumbs' => $breadcrumbs,
         'content'     => '',
-    ));*/
+    ));
 	}
 
 
@@ -84,7 +84,7 @@ class DocumentController extends Controller {
       abort(403);
     }
 
-		/*// Get Input
+		// Get Input
 		$title = \Input::get('title');
 		$type = \Input::get('type');
 		$file = \Input::file('document');
@@ -108,7 +108,7 @@ class DocumentController extends Controller {
 		$file->move($destinationPath, $filename);
 
 		// Return user to index
-		return redirect('/members/documents');*/
+		return redirect('/members/documents');
 	}
 
 
