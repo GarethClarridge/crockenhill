@@ -18,12 +18,22 @@
           @else
             <div class="header-container">
           @endif
-
-            <h1><span>{{$heading}}</span></h1>
-
+              <h1>
+                <span>{{$heading}}</span>
+              </h1>
             </div>
 
-          @yield('social_sharing')
+          <ul class="card-header-pull-right list-inline">
+            @yield('social_sharing')
+
+            @if (isset ($user))
+              <li class="user-name">
+                <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
+                {{ $user->name }}
+              </li>
+            @endif
+
+          </ul>
 
           @if (isset ($breadcrumbs))
             <ol class="breadcrumb">
@@ -38,8 +48,6 @@
               @endif
             </ol>
           @endif
-
-          
 
           @if (isset ($content))
             {!! $content !!}
