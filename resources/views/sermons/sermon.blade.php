@@ -1,27 +1,23 @@
 @extends('page')
 
 @section('social_sharing')
+  <!-- <li>
+    <a href="http://www.facebook.com/crockenhill">
+      <i class="fa fa-facebook-square"></i>
+    </a>
+  </li>
 
-  <!-- <ul class="social_sharing list-inline">
-    <li>
-      <a href="http://www.facebook.com/crockenhill">
-        <i class="fa fa-facebook-square"></i>
-      </a>
-    </li>
+  <li>
+    <a href="http://www.twitter.com/crockenhill">
+      <i class="fa fa-twitter-square"></i>
+    </a>
+  </li>
 
-    <li>
-      <a href="http://www.twitter.com/crockenhill">
-        <i class="fa fa-twitter-square"></i>
-      </a>
-    </li>
-
-    <li>
-      <a href="http://www.facebook.com/crockenhill">
-        <i class="fa fa-google-plus-square"></i>
-      </a>
-    </li>
-  </ul> -->
-
+  <li>
+    <a href="http://www.facebook.com/crockenhill">
+      <i class="fa fa-google-plus-square"></i>
+    </a>
+  </li> -->
 @stop
 
 @section('dynamic_content')
