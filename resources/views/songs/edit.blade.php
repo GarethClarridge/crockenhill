@@ -4,7 +4,7 @@
 
   <form method="POST" action="/members/songs/{{$song->id}}/{{$song->title}}/edit" accept-charset="UTF-8" enctype="multipart/form-data">
     <div class="form-group">
-      {!! Form::token() !!}
+      <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
       <br />
       <label for="title">Title</label>

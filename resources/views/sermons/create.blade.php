@@ -3,7 +3,7 @@
 @section('dynamic_content')
 
   <form method="POST" action="/sermons" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
-    {!! Form::token() !!}
+    <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
     <div class="form-group">
       <label for="file">File</label>
@@ -19,7 +19,7 @@
       <label for="date">Date</label>
       @if (date('D') === 'Sun')
         <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d')!!}">
-      @else 
+      @else
         <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d',strtotime('last sunday'))!!}">
       @endif
     </div>
@@ -31,7 +31,7 @@
           <option value="morning" selected>Morning</option>
           <option value="evening">Evening (or afternoon)</option>
         </select>
-      @else 
+      @else
         <select type="service" class="form-control" id="service" name="service">
           <option value="morning">Morning</option>
           <option value="evening" selected>Evening (or afternoon)</option>
@@ -56,7 +56,7 @@
 
     <div class="form-actions">
       <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
-      <a href="{!! URL::route('members.sermons.index') !!}" class="btn btn-large">Cancel</a>
+      <a href="/sermons" class="btn btn-large">Cancel</a>
     </div>
 
   </form>
@@ -66,11 +66,11 @@
         id3(this.files[0], function(err, tags) {
             // tags now contains your ID3 tags
             console.log(tags);
-            document.getElementById('title').value=tags.title; 
-            document.getElementById('preacher').value=tags.artist; 
+            document.getElementById('title').value=tags.title;
+            document.getElementById('preacher').value=tags.artist;
             document.getElementById('series').value=tags.album;
         });
     }
   </script>
- 
+
 @stop

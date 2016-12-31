@@ -24,59 +24,87 @@
             </div>
           @endif
 
-          {!! Form::open(array('route' => array('members.pages.destroy', $page->slug), 
-                      'method' => 'delete', 
-                      'data-confirm' => 'Are you sure you want to delete this page?', 
-                      'class' => 'form-inline')) !!}
-          <button type="submit" href="{{ URL::route('members.pages.destroy', $page->slug) }}" class="btn btn-danger">
-            Delete this page
-          </button>
-          {!! Form::close() !!}
-              
+          <form class="form-inline" action="/members/pages/{{$page->slug}}" method="POST">
+            <input type="hidden" name="_method" value="DELETE">
+            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger">
+              Delete
+            </button>
+          </form>
+
           <br>
-
-          {{-- A form to edit the page. --}}
-
-          {!! Form::model($page, array('method' => 'put', 'route' => array('members.pages.update', $page->slug), 'role' => 'form')) !!}
+          <form class="" action="/members/pages/{{$page->slug}}" method="post">
+            <input type="hidden" name="_method" value="PUT">
+            <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
             <div class="form-group">
-              {!! Form::label('heading', 'Heading') !!}
-              {!! Form::text('heading', $value = null, array('class' => 'form-control')) !!}
+              <label for="heading">Heading</label>
+              <input class="form-control" id="heading" name="heading" type="text" value="{{$page->heading}}">
             </div>
 
             <div class="form-group">
-              {!! Form::label('description', 'Description') !!}
-              {!! Form::text('description', $value = null, array('class' => 'form-control')) !!}
+              <label for="description">Description</label>
+              <input class="form-control" id="description" name="description" type="text" value="{{$page->description}}">
             </div>
 
             <div class="form-group">
-              {!! Form::label('area', 'Website Area') !!}
-              {!! Form::select('area', array(
-                  'about-us'      => 'About Us', 
-                  'whats-on'      => 'What\'s On', 
-                  'find-us'       => 'Find Us', 
-                  'contact-us'    => 'Contact Us',
-                  'sermons'       => 'Sermons',
-                  'members'       => 'Members'
-                  ), $value = null, array('class' => 'form-control')) !!}
+              <label for="area">Website area</label>
+              <select class="form-control" name="area" value="{{$page->area}}">
+                @if ($page->area == 'about-us')
+                  <option value="about-us" selected>About us</option>
+                @else
+                  <option value="about-us">About us</option>
+                @endif
+
+                @if ($page->area == 'whats-on')
+                  <option value="whats-on" selected>What's on</option>
+                @else
+                  <option value="whats-on">What's on</option>
+                @endif
+
+                @if ($page->area == 'find-us')
+                  <option value="find-us" selected>Find us</option>
+                @else
+                  <option value="find-us">Find us</option>
+                @endif
+
+                @if ($page->area == 'contact-us')
+                  <option value="contact-us" selected>Contact us</option>
+                @else
+                  <option value="contact-us">Contact us</option>
+                @endif
+
+                @if ($page->area == 'sermons')
+                  <option value="sermons" selected>Sermons</option>
+                @else
+                  <option value="sermons">Sermons</option>
+                @endif
+
+                @if ($page->area == 'members')
+                  <option value="members" selected>Members</option>
+                @else
+                  <option value="members">Members</option>
+                @endif
+              </select>
+
             </div>
 
             <div class="form-group">
-              {!! Form::label('body', 'Content') !!}
-              {!! Form::textarea('body', $value = null, array('class' => 'form-control')) !!}
+              <label for="body">Content</label>
+              <textarea class="form-control" name="body" rows="10" cols="50">{{trim($page->body)}}</textarea>
             </div>
-            
+
             <div class="form-actions">
-              {!! Form::submit('Save', array('class' => 'btn btn-success btn-save btn-large')) !!}
-              <a href="{{ URL::route('members.pages.index') }}" class="btn btn-large">Cancel</a>
+              <input class="btn btn-success btn-lg" type="submit" value="Save">
+              <a href="/members/pages/" class="btn btn-large">Cancel</a>
             </div>
 
-          {!! Form::close() !!}
+          </form>
         </div>
       </article>
       <br><br>
     </div>
   </div>
 </div>
- 
+
 @stop
