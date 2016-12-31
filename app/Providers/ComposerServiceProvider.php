@@ -69,8 +69,11 @@ class ComposerServiceProvider extends ServiceProvider {
 				$links = NULL;
 			}
 
+			$user = \Auth::user();
+
       $view->with('headingpicture', $headingpicture);
       $view->with('links', $links);
+			$view->with('user', $user);
     });
   }
 
