@@ -39,9 +39,9 @@
 
     <div class="form-actions">
       <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
-      <a href="{!! URL::route('members.pages.index') !!}" class="btn btn-large">Cancel</a>
+      <a href="members/pages/index" class="btn btn-large">Cancel</a>
     </div>
 
   </form>
- 
+
 @stop

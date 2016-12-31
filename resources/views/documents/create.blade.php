@@ -27,35 +27,35 @@
 					{!! Form::open(array('action' => 'DocumentController@store', 'method' => 'POST', 'files' => true)) !!}
 
 						<div class="form-group">
-							{!! Form::label('title', 'Title') !!}
-							{!! Form::text('title', $value = null, array('class' => 'form-control')) !!}
+							<label for="title">Title</label>
+							<input class="form-control" id="title" name="title" type="text" value="{{$document->title}}"> 
 						</div>
 
 							<div class="form-group">
-							  {!! Form::label('document', 'Document') !!}
+							  <label for="document">Document</label>
 							  {!! Form::file('document') !!}
 							</div>
 
 						<div class="form-group">
-							{!! Form::label('type', 'Document Type') !!}
+							<label for="type">Document Type</label>
 							{!! Form::select('type', array(
 								''                  => 'Please select ...',
-								'meeting'           => 'Church Meeting Information', 
-								'bible-study-notes' => 'Bible Study Notes', 
+								'meeting'           => 'Church Meeting Information',
+								'bible-study-notes' => 'Bible Study Notes',
 								'rota'              => 'Rota',
 								), $value = null, array('class' => 'form-control')) !!}
 						</div>
 
 						<div class="form-actions">
-							{!! Form::submit('Save', array('class' => 'btn btn-primary btn-lg btn-block')) !!}
+							<input class="btn btn-success btn-lg" type="submit" value="Save">
 						</div>
 
-					{!! Form::close() !!}
+					</form>
         </div>
       </article>
       <br><br>
     </div>
   </div>
-</div> 
+</div>
 
 @stop

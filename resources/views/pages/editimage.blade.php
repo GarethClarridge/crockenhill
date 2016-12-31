@@ -27,16 +27,16 @@
           {!! Form::open(array('action' => array('AdminPagesController@updateimage', $page->slug), 'files' => true)) !!}
 
             <div class="form-group">
-              {!! Form::label('image', 'Image') !!}
+              <label for="image">Image</label>
               {!! Form::file('image') !!}
             </div>
 
             <div class="form-actions">
-              {!! Form::submit('Save', array('class' => 'btn btn-success btn-save btn-large')) !!}
-              <a href="{{ URL::route('members.pages.index') }}" class="btn btn-large">Cancel</a>
+              <input class="btn btn-success btn-lg" type="submit" value="Save">
+              <a href="members/pages/" class="btn btn-large">Cancel</a>
             </div>
 
-          {!! Form::close() !!}
+          </form>
 
         </div>
       </article>
@@ -44,5 +44,5 @@
     </div>
   </div>
 </div>
- 
+
 @stop
