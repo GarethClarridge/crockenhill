@@ -82,7 +82,7 @@ Route::resource('whats-on', 'MeetingController');
 
 Auth::routes();
 
-Route::group(['prefix' => 'members'], function()
+Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
 {
     Route::get('', [
         'uses' => 'PageController@showPage'
