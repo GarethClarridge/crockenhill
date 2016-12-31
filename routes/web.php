@@ -112,7 +112,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
     //     ));
 
     // Manage documents
-    Route::resource('document', 'DocumentController');
+    Route::resource('documents', 'DocumentController');
     Route::get('documents', array(
         'uses'          => 'DocumentController@index'
         ));

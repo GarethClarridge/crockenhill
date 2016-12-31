@@ -17,7 +17,7 @@ class AppServiceProvider extends ServiceProvider {
     } else {
       $user = null;
     }
-    
+
     view()->share('user', $user);
 	}
 
@@ -38,7 +38,7 @@ class AppServiceProvider extends ServiceProvider {
 		);
 
 		$this->app->bind('path.public', function() {
-			return base_path() . '/public_html';
+			return base_path() . '/public';
 		});
 	}
 

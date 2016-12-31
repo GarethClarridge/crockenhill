@@ -25,6 +25,6 @@
 </div>
 
 <br>
-<a href="/members/document/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new document</a>
+<a href="/members/documents/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new document</a>
 
 @stop
