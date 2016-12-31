@@ -1,12 +1,12 @@
 Hello {{ $user->name }},
-<br />
-<br />
+<br>
+<br>
 Please click here to reset your password:
 <a href="{{ $link = url('password/reset', $token).'?email='.urlencode($user->getEmailForPasswordReset()) }}"> {{ $link }} </a>.
-<br />
+<br>
 If there are any problems with this link, please talk to Gareth.
-<br />
-<br />
+<br>
+<br>
 Thanks,
-<br />
+<br>
 Crockenhill Baptist Church
