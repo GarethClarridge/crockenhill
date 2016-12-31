@@ -4,7 +4,7 @@ namespace Crockenhill\Http\Controllers\Auth;
 
 use Crockenhill\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
-use Illuminate\Support\Facades\Auth;
+// use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
