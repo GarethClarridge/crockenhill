@@ -12,7 +12,7 @@
 
 <form action="logout" method="post">
   <br>
-  {{ csrf_field() }}
+  <input type="hidden" name="_token" value="{{ csrf_token() }}">
  <button type="submit" name="logout" class="btn btn-primary btn-lg btn-block" role="button">Log out</button>
 </form>
 

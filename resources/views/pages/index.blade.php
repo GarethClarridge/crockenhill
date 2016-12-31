@@ -9,7 +9,7 @@
   @endif
 
   @if ($user != null && $user->email == "admin@crockenhill.org")
-    <a href="/pages/create" class="btn btn-primary btn-lg btn-block" role="button">Create a new page</a>
+    <a href="/page/create" class="btn btn-primary btn-lg btn-block" role="button">Create a new page</a>
   @endif
 
   <div>
@@ -29,20 +29,19 @@
             <td>{{ $page->area }}</td>
             <td>{{ $page->updated_at }}</td>
             <td>
-              <a href="{{ URL::route('members.pages.edit', $page->slug) }}" class="btn btn-success">Edit</a>
-              {!! Form::open(array('route' => array('members.pages.destroy', $page->slug), 
-                          'method' => 'delete', 
-                          'data-confirm' => 'Are you sure you want to delete this page?', 
-                          'class' => 'form-inline')) !!}
-              <button type="submit" href="{{ URL::route('members.pages.destroy', $page->slug) }}" class="btn btn-danger">
-                Delete
-              </button>
-              {!! Form::close() !!}
+              <a href="/members/pages/{{$page->slug}}/edit" class="btn btn-success">Edit</a>
+              <form class="form-inline" action="/members/pages/{{$page->slug}}" method="POST">
+                <input type="hidden" name="_method" value="DELETE">
+                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger">
+                  Delete
+                </button>
+              </form>
             </td>
           </tr>
         @endforeach
       </tbody>
     </table>
   </div>
- 
+
 @stop
