@@ -1,6 +1,6 @@
 /bower_components
 /node_modules
-/public/media/sermons/*.mp3
+/public/media
 /public/images
 /public/documents
 /public/storage
