@@ -319,7 +319,9 @@ class SongController extends Controller {
 
     // Get input
     $title        = \Input::get('title');
-    $alternative  = \Input::get('alternative');
+    $alternative  = \Input::get('alternative_title');
+    $category     = \Input::get('major-category');
+    $subcategory  = \Input::get('minor-category');
     $author       = \Input::get('author');
     $copyright    = \Input::get('copyright');
     $lyrics       = \Input::get('lyrics');
@@ -330,6 +332,8 @@ class SongController extends Controller {
     $song = new \Crockenhill\Song;
     $song->title              = $title;
     $song->alternative_title  = $alternative;
+    $song->major_category     = $category;
+    $song->minor_category     = $subcategory;
     $song->author             = $author;
     $song->copyright          = $copyright;
     $song->lyrics             = $lyrics;
