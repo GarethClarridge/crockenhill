@@ -5176,11 +5176,13 @@ aside .read-more {
   aside .read-more a {
     color: #222222; }
 
-.social_sharing {
+.card-header-pull-right {
   position: relative;
   float: right;
   top: -5px;
   font-size: 24px; }
+  .card-header-pull-right .user-name {
+    font-size: 16px; }
 
 .full-width {
   width: 119.047619%;
