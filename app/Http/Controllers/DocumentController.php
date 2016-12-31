@@ -26,7 +26,8 @@ class DocumentController extends Controller {
 
     // Set details
     $heading = 'Documents';
-    $breadcrumbs = '<li class="active">'.$page->heading.'</li>';
+    $breadcrumbs = '<li><a href="/members">Members</a></li>
+										<li class="active">'.$page->heading.'</li>';
     $content = $page->body;
 
     // Get documents
@@ -60,7 +61,8 @@ class DocumentController extends Controller {
 
     // Set details
     $heading = 'Create a New Document';
-    $breadcrumbs = '<li class="active">'.$heading.'</li>';
+		$breadcrumbs = '<li><a href="/members">Members</a></li>
+										<li class="active">Upload a document</li>';
 
     return view('documents.create', array(
         'slug'        => 'create',
