@@ -21,13 +21,13 @@ class ComposerServiceProvider extends ServiceProvider {
         'ContactUs' => array('route' => 'contact-us', 'name' => 'Contact Us'),
         'Sermons' =>array('route'=> 'sermons', 'name' => 'Sermons'),
         'Members' =>array('route'=> 'members', 'name' => 'Members'),
-      
+
       );
-      
+
       $view->with('pages', $pages);
-        
+
     });
-    
+
 		\View::composer('includes.footer', function($view)
 		    {
 	        //get the latest sermons
@@ -41,14 +41,6 @@ class ComposerServiceProvider extends ServiceProvider {
 	        $view->with('evening', $evening);
 		    });
 
-		\View::composer('layouts.members', function($view)
-    {
-      $area = 'members';
-      $links = \Crockenhill\Page::where('area', $area)->orderBy(\DB::raw('RAND()'))->take(5)->get();
-
-      $view->with('links', $links);
-    });
-
     \View::composer('page', function($view)
     {
       if (\Request::segment(2)) {
@@ -58,19 +50,22 @@ class ComposerServiceProvider extends ServiceProvider {
         $slug = \Request::segment(1);
         $area = \Request::segment(1);
       }
-      
+
       $headingpicture = '/images/headings/large/'.$slug.'.jpg';
-      if ($area != 'whats-on') {
+
+			if ($area !== 'whats-on' && $area !== 'members') {
         $links = \Crockenhill\Page::where('area', $area)
           ->where('slug', '!=', $slug)
           ->where('slug', '!=', $area)
           ->take(5)
           ->get();
-      } else {
+      } else if ($area == 'whats-on') {
         $links = \Crockenhill\Meeting::where('slug', '!=', $slug)
           ->get();
-      }
-      
+      } else {
+				$links = NULL;
+			}
+
       $view->with('headingpicture', $headingpicture);
       $view->with('links', $links);
     });

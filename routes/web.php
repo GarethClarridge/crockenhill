@@ -85,7 +85,7 @@ Auth::routes();
 Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
 {
     Route::get('', [
-        'uses' => 'PageController@showPage'
+        'uses' => 'MemberController@home'
     ]);
 
     // Manage pages

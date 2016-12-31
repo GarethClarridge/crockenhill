@@ -11,7 +11,7 @@ class PageController extends Controller {
 		}
 
     if ($page = \Crockenhill\Page::where('slug', $slug)->first()) {
-		  
+
 		  if ($area != $slug) {
 		  	$areapage = \Crockenhill\Page::where('slug', $area)->first();
 		  	$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'  </a>  </li>  <li class="active">'.$page->heading.'</li>';
@@ -28,10 +28,10 @@ class PageController extends Controller {
 																	    	->get();
 	    $description 	= '<meta name="description" content="'.$page->description.'">';
 	    $admin 				= 'members/pages/'.$slug;
-	    
+
 			return view('page', array(
 		    'slug'          => $page->slug,
-		    'heading'       => $page->heading,		    
+		    'heading'       => $page->heading,
 		    'description'   => $description,
 		    'area'					=> $page->area,
 		    'breadcrumbs'   => $breadcrumbs,
@@ -54,10 +54,10 @@ class PageController extends Controller {
     $areapage = \Crockenhill\Page::where('slug', 'members')->first();
     $breadcrumbs = '<li>'.link_to($page['area'], $areapage->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
     $description = '<meta name="description" content="'.$page->description.'">';
-    
+
     return view('pages.index', array(
 	    'slug'          => $page->slug,
-	    'heading'       => $page->heading,          
+	    'heading'       => $page->heading,
 	    'description'   => $description,
 	    'area'          => $page->area,
 	    'breadcrumbs'   => $breadcrumbs,
@@ -136,7 +136,7 @@ class PageController extends Controller {
     $page->description = \Input::get('description');
     $page->save();
 
-    return redirect('/members/pages')->with('message', 'Page successfully updated!');  
+    return redirect('/members/pages')->with('message', 'Page successfully updated!');
   }
 
   public function destroy($slug)
@@ -177,6 +177,6 @@ class PageController extends Controller {
     Notification::success('The image was changed.');
 
     return Redirect::route('members.pages.changeimage', array('page' => $page->slug));
-          
+
   }*/
 }
