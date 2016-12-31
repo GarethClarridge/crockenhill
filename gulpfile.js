@@ -28,12 +28,12 @@ gulp.task('js', function () {
 });
 
 // The `default` task gets called when no task name is provided to Gulp
-gulp.task('default', ['browser-sync'], function () {
+gulp.task('default', gulp.series('browser-sync', function () {
 
     // add browserSync.reload to the tasks array to make
     // all browsers reload after tasks are complete.
-    gulp.watch('./**/*.php', browserSync.reload);
-    gulp.watch('./resources/assets/javascript/*.js', ['js', browserSync.reload]);
-    gulp.watch(['./resources/assets/stylesheets/**/*.scss'], ['sass', browserSync.reload]);
-    gulp.watch(['./resources/assets/stylesheets/cbc/*.scss'], ['sass', browserSync.reload]);
-});
+    gulp.watch('./**/*.php', gulp.parallel(browserSync.reload));
+    gulp.watch('./resources/assets/javascript/*.js', gulp.parallel('js', browserSync.reload));
+    gulp.watch(['./resources/assets/stylesheets/**/*.scss'], gulp.parallel('sass', browserSync.reload));
+    gulp.watch(['./resources/assets/stylesheets/cbc/*.scss'], gulp.parallel('sass', browserSync.reload));
+}));
