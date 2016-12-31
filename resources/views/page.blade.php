@@ -18,31 +18,33 @@
           @else
             <div class="header-container">
           @endif
-          
+
             <h1><span>{{$heading}}</span></h1>
-                
+
             </div>
-          
-          @yield('social_sharing')   
-          
+
+          @yield('social_sharing')
+
           @if (isset ($breadcrumbs))
             <ol class="breadcrumb">
               <li>{!! link_to_route('Home', 'Home') !!}</li>
               @yield('breadcrumbs', $breadcrumbs)
-              @if (isset ($admin))
+              @if (isset ($edit_url))
                 @can ('edit-pages')
-                  <li><a href="{{ $admin }}/edit" class="btn btn-primary">
+                  <li><a href="{{ $edit_url }}/edit" class="btn btn-primary">
                     Edit this page
                   </a></li>
                 @endcan
               @endif
             </ol>
           @endif
-     
+
+          
+
           @if (isset ($content))
             {!! $content !!}
           @endif
-          
+
           @yield('dynamic_content')
         </article>
       </div>
@@ -91,6 +93,6 @@
 
     </div>
 
-  
+
   </main>
 @stop

@@ -57,6 +57,9 @@ class ComposerServiceProvider extends ServiceProvider {
         $links = \Crockenhill\Page::where('area', $area)
           ->where('slug', '!=', $slug)
           ->where('slug', '!=', $area)
+					->where('slug', '!=', 'privacy-policy')
+					->where('admin', '!=', 'yes')
+					->orderBy(\DB::raw('RAND()'))
           ->take(5)
           ->get();
       } else if ($area == 'whats-on') {
