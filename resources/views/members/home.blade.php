@@ -11,6 +11,7 @@
 
 <form action="logout" method="post">
   <br>
+  {{ csrf_field() }}
  <button type="submit" name="logout" class="btn btn-primary btn-lg btn-block" role="button">Log out</button>
 </form>
 
