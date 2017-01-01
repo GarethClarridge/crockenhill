@@ -2,10 +2,12 @@
 
 @section('dynamic_content')
 
-  {!! Form::open(array('url' => '/members/songs/service-record')) !!}
+  <form action="/members/songs/service-record" method="post">
+    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+
     <div class="form-group">
       <label for="date" class="control-label">Date</label>
-      {!! Form::input('date', 'date', $lastsunday, array('class'=>'form-control')) !!}
+      <input type="date" name="date" value="{{$lastsunday}}" class="form-control">
 
       @foreach ($services as $key => $value)
 
@@ -17,12 +19,17 @@
               <h4>Song {{$i}}</h4>
             </div>
             <div class="col-xs-3">
-              {!! Form::label($key.'m'.$i.'-number', 'Praise Number') !!}
-              {!! Form::text($key.'m'.$i.'-number', null, array('class' => 'form-control')) !!}
+              <label for="{{$key.'m'.$i.'-number'}}">Praise Number</label>
+              <input type="text" name="{{$key.'m'.$i.'-number'}}" value="" class="form-control">
             </div>
             <div class="col-xs-9">
-              {!! Form::label($key.'m'.$i.'-title', 'NIP Title') !!}
-              {!! Form::select($key.'m'.$i.'-title', $nips, 'Select a song', array('class' => 'form-control')) !!}
+              <label for="{{$key.'m'.$i.'-title'}}">NIP title</label>
+              <select class="form-control" name="{{$key.'m'.$i.'-title'}}">
+                <option value>Please select...</option>
+                @foreach ($nips as $nip)
+                  <option value="{{$nip}}">{{$nip}}</option>
+                @endforeach
+              </select>
             </div>
           @endfor
 
@@ -45,12 +52,17 @@
                         <h4>Song {{$i}}</h4>
                       </div>
                       <div class="col-xs-4">
-                        {!! Form::label($key.'m'.$i.'-number', 'Praise Number') !!}
-                        {!! Form::text($key.'m'.$i.'-number', null, array('class' => 'form-control')) !!}
+                        <label for="{{$key.'m'.$i.'-number'}}">Praise Number</label>
+                        <input type="text" name="{{$key.'m'.$i.'-number'}}" value="" class="form-control">
                       </div>
                       <div class="col-xs-8">
-                        {!! Form::label($key.'m'.$i.'-title', 'NIP Title') !!}
-                        {!! Form::select($key.'m'.$i.'-title', $nips, 'Select a song', array('class' => 'form-control')) !!}
+                        <label for="{{$key.'m'.$i.'-title'}}">NIP title</label>
+                        <select class="form-control" name="{{$key.'m'.$i.'-title'}}">
+                          <option value>Please select...</option>
+                          @foreach ($nips as $nip)
+                            <option value="{{$nip}}"></option>
+                          @endforeach
+                        </select>
                       </div>
                     @endfor
 
