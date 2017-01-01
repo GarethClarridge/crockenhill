@@ -26,6 +26,21 @@
     </div>
 
     <div class="form-group">
+      <label for="service">Service</label>
+      @if ($sermon->service == 'morning')
+        <select type="service" class="form-control" id="service" name="service">
+          <option value="morning" selected>Morning</option>
+          <option value="evening">Evening (or afternoon)</option>
+        </select>
+      @else
+        <select type="service" class="form-control" id="service" name="service">
+          <option value="morning">Morning</option>
+          <option value="evening" selected>Evening (or afternoon)</option>
+        </select>
+      @endif
+    </div>
+
+    <div class="form-group">
       <label for="series">Series</label>
       <input class="form-control" id="series" name="series" type="text" value="{{$sermon->series}}">
     </div>
