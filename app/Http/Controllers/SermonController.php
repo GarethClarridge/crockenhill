@@ -27,7 +27,7 @@ class SermonController extends Controller {
       $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)
                                   ->get();
     }
-	    
+
 		return view('sermons.index', array(
 	    'slug'                    => $slug,
 	    'heading'       			    => $page->heading,
@@ -53,7 +53,7 @@ class SermonController extends Controller {
       $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)
                                   ->get();
     }
-      
+
     return view('sermons.all', array(
       'slug'                    => $slug,
       'heading'                 => $page->heading,
@@ -127,10 +127,15 @@ class SermonController extends Controller {
                                     ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
                                     ->first();
    	$heading = $sermon->title;
-  	$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
-  	                <li><a href="/sermons/series/'.$sermon->series.'">'.$sermon->series.'</a></li>
-  	                <li class="active">'.$sermon->title.'</li>
-  	                ';
+
+		if (isset($sermon->series) && $sermon->series !== '') {
+			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
+													<li><a href="series/'.$sermon->series.'">'.$sermon->series.'</a></li>
+													<li class="active">'.$sermon->title.'</li>';
+		} else {
+			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
+													<li class="active">'.$sermon->title.'</li>';
+		}
 
     // Get the passage
     $reference = $sermon->reference;
@@ -150,10 +155,10 @@ class SermonController extends Controller {
     else {
       die("fopen failed for url to webservice");
     }
-    
+
   	return view('sermons.sermon', array(
 	    'slug'        => $slug,
-	    'heading'     => $heading,		    
+	    'heading'     => $heading,
 	    'description' => '<meta name="description" content="'.$sermon->heading.': a sermon preached at Crockenhill Baptist Church.">',
 	    'breadcrumbs' => $breadcrumbs,
 	    'content'			=> '',
@@ -179,15 +184,24 @@ class SermonController extends Controller {
                                     ->first();
     $series = array_unique(\Crockenhill\Sermon::pluck('series')->all());
 
+		if (isset($sermon->series) && $sermon->series !== '') {
+			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
+													<li><a href="series/'.$sermon->series.'">'.$sermon->series.'</a></li>
+													<li><a href="/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
+													<li class="active">Edit</li>';
+		} else {
+			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
+													<li><a href="/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
+													<li class="active">Edit</li>';
+		}
+
+
     return view('sermons.edit', array(
       'sermon'        => $sermon,
       'series'        => $series,
       'heading'       => 'Edit this sermon',
       'description'   => '<meta name="description" content="Edit this sermon.">',
-      'breadcrumbs'   => '<li><a href="/sermons">Sermons</a></li>
-                          <li><a href="series/'.$sermon->series.'">'.$sermon->series.'</a></li>
-                          <li><a href="series/'.$sermon->title.'">'.$sermon->title.'</a></li>
-                          <li class="active">Edit</li>',
+      'breadcrumbs'   => $breadcrumbs,
       'content'       => '',
     ));
 	}
@@ -256,7 +270,7 @@ class SermonController extends Controller {
 
   	return view('sermons.preachers', array(
       'slug'        => $slug,
-      'heading'     => $page->heading,		    
+      'heading'     => $page->heading,
       'description' => '<meta name="description" content="'.$page->description.'">',
       'breadcrumbs' => $breadcrumbs,
       'content'			=> $page->body,
@@ -276,7 +290,7 @@ class SermonController extends Controller {
 
   	return view('sermons.preacher', array(
       'slug'        => '',
-      'heading'     => 'Sermons by '.$preacher_name,		    
+      'heading'     => 'Sermons by '.$preacher_name,
       'description' => '<meta name="description" content="Sermons by '.$preacher_name.'">',
       'breadcrumbs' => $breadcrumbs,
       'content'			=> '',
@@ -296,7 +310,7 @@ class SermonController extends Controller {
 
       	return view('sermons.serieses', array(
 	        'slug'        => $slug,
-	        'heading'     => $page->heading,		    
+	        'heading'     => $page->heading,
 	        'description' => '<meta name="description" content="'.$page->description.'">',
 	        'breadcrumbs' => $breadcrumbs,
 	        'content'			=> $page->body,
@@ -316,7 +330,7 @@ class SermonController extends Controller {
 
       	return view('sermons.series', array(
 	        'slug'        => '',
-	        'heading'     => 'Sermons in the "'.$series_name.'" series',		    
+	        'heading'     => 'Sermons in the "'.$series_name.'" series',
 	        'description' => '<meta name="description" content="Sermons by '.$series_name.'">',
 	        'breadcrumbs' => $breadcrumbs,
 	        'content'			=> '',
