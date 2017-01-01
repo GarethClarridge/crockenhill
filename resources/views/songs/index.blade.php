@@ -49,6 +49,7 @@
           <label for="major-category-filter">Category:</label>
           <select name="major-category-filter" id="major-category-filter" class="form-control" onchange="updateFilter()">
             <option value="All">All</option>
+            <option value="Psalms">Psalms</option>
             <option value="Approaching God">Approaching God</option>
             <option value="The Father">The Father</option>
             <option value="The Son">The Son</option>
@@ -225,6 +226,7 @@
     }
 
     var categories = {
+      "Psalms"                              : [],
       "Approaching God"                     : [ "The eternal Trinity",
                                                 "Adoration and thanksgiving",
                                                 "Creator and sustainer",
