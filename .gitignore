@@ -17,3 +17,4 @@ Homestead.yaml
 *.jpeg
 *.JPEG
 *.png
+!/public/*.png
