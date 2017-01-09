@@ -30,7 +30,7 @@ gulp.task('js', function () {
 });
 
 gulp.task('watch:scss', function() {
-  return gulp.watch('./resources/assets/stylesheets/cbc/*.scss',
+  return gulp.watch(['./resources/assets/stylesheets/cbc/*.scss','./resources/assets/stylesheets/*.scss'],
     gulp.series('scss'));
 });
 
