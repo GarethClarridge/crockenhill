@@ -14,7 +14,6 @@
 
     h1, h2, h3, h4, h5, h6 {
       padding-left: 1.9em;
-      background-color:rgba(0,0,0,0.3);
       color: $gray-lightest;
       line-height: floor($line-height-doubled*1.5);
       margin: 0;
@@ -23,7 +22,7 @@
       span {
         padding: 0.33em 0.5em;
         background-color: $brand-secondary;
-
+        // For multi-line titles
         box-decoration-break: clone;
         -webkit-box-decoration-break: clone;
       }
@@ -70,7 +69,7 @@ aside {
   float: right;
   top: -5px;
   font-size: floor($font-size-large*1.2);
-  
+
   .user-name {
     font-size: $font-size-base;
   }
