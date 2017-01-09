@@ -3306,24 +3306,24 @@ input[type="button"].btn-block {
     color: white; }
     .navbar-inverse .navbar-nav > li > a:hover, .navbar-inverse .navbar-nav > li > a:focus {
       color: white;
-      background-color: #08a398; }
+      background-color: #08a386; }
   .navbar-inverse .navbar-nav > .active > a, .navbar-inverse .navbar-nav > .active > a:hover, .navbar-inverse .navbar-nav > .active > a:focus {
     color: white;
-    background-color: #08a398; }
+    background-color: #08a386; }
   .navbar-inverse .navbar-nav > .disabled > a, .navbar-inverse .navbar-nav > .disabled > a:hover, .navbar-inverse .navbar-nav > .disabled > a:focus {
     color: #444;
     background-color: transparent; }
   .navbar-inverse .navbar-toggle {
     border-color: transparent; }
     .navbar-inverse .navbar-toggle:hover, .navbar-inverse .navbar-toggle:focus {
-      background-color: #08a398; }
+      background-color: #08a386; }
     .navbar-inverse .navbar-toggle .icon-bar {
       background-color: #73a4d8; }
   .navbar-inverse .navbar-collapse,
   .navbar-inverse .navbar-form {
     border-color: #0e2033; }
   .navbar-inverse .navbar-nav > .open > a, .navbar-inverse .navbar-nav > .open > a:hover, .navbar-inverse .navbar-nav > .open > a:focus {
-    background-color: #08a398;
+    background-color: #08a386;
     color: white; }
   .navbar-inverse .navbar-nav > .dropdown > a:hover .caret {
     border-top-color: white;
@@ -3341,10 +3341,10 @@ input[type="button"].btn-block {
       color: white; }
       .navbar-inverse .navbar-nav .open .dropdown-menu > li > a:hover, .navbar-inverse .navbar-nav .open .dropdown-menu > li > a:focus {
         color: white;
-        background-color: #08a398; }
+        background-color: #08a386; }
     .navbar-inverse .navbar-nav .open .dropdown-menu > .active > a, .navbar-inverse .navbar-nav .open .dropdown-menu > .active > a:hover, .navbar-inverse .navbar-nav .open .dropdown-menu > .active > a:focus {
       color: white;
-      background-color: #08a398; }
+      background-color: #08a386; }
     .navbar-inverse .navbar-nav .open .dropdown-menu > .disabled > a, .navbar-inverse .navbar-nav .open .dropdown-menu > .disabled > a:hover, .navbar-inverse .navbar-nav .open .dropdown-menu > .disabled > a:focus {
       color: #444;
       background-color: transparent; } }
@@ -5025,7 +5025,7 @@ footer {
     margin-bottom: 1em; }
     .home-head h1 span {
       padding: 0.15em;
-      background-color: #08a398;
+      background-color: #08a386;
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone; }
   .home-head p {
@@ -5152,7 +5152,7 @@ audio {
       font-weight: 900; }
       .card .header-container h1 span, .card .header-container h2 span, .card .header-container h3 span, .card .header-container h4 span, .card .header-container h5 span, .card .header-container h6 span {
         padding: 0.33em 0.5em;
-        background-color: #08a398;
+        background-color: #08a386;
         box-decoration-break: clone;
         -webkit-box-decoration-break: clone; }
     .card .header-container h3 {
@@ -5250,7 +5250,7 @@ aside .read-more {
   margin-right: 2%; }
 
 .song-filters {
-  background-color: #08a398;
+  background-color: #08a386;
   width: 119.047619%;
   margin-left: -9.5238095%;
   padding: 25px;
