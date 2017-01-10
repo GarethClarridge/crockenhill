@@ -2,11 +2,12 @@
   <div class="navbar-inner">
     <div class="navbar-header">
       <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+        <span class="sr-only">Toggle navigation</span>
         MENU
       </button>
-      <a class="navbar-brand" href="/">
-          <img src="/images/White.png" alt="Crockenhill Baptist Church logo">
-          <span>Crockenhill Baptist Church</span>
+      <a class="navbar-left org-name" href="/">
+        <img src="/images/IconBackground.png" alt="Crockenhill Baptist Church logo">
+        <span>Crockenhill Baptist Church</span>
       </a>
     </div>
     <div class="navbar-collapse collapse">
@@ -17,11 +18,11 @@
           @if (\Request::is($page['route'].'/*'))
             <li class="active">
             {!! link_to($page['route'], $page['name']) !!}
-            </li>        
+            </li>
           @elseif  (\Request::is($page['route']))
             <li class="active">
             {!! link_to($page['route'], $page['name']) !!}
-            </li> 
+            </li>
           @else
             <li>
               {!! link_to($page['route'], $page['name']) !!}
@@ -29,25 +30,25 @@
           @endif
 
         @endforeach
-        
+
         <!-- <li>
           <a href="http://www.facebook.com/crockenhill">
             <i class="fa fa-facebook"></i>
           </a>
         </li>
-        
+
         <li>
           <a href="http://www.twitter.com/crockenhill">
             <i class="fa fa-twitter"></i>
           </a>
         </li>
-      
+
         <li>
           <a href="http://www.facebook.com/crockenhill">
             <i class="fa fa-google-plus"></i>
           </a>
         </li> -->
-        
+
       </ul>
     </div>
 	</div>
