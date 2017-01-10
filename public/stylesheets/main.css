@@ -4959,23 +4959,27 @@ aside {
       text-decoration: none; }
 
 .navbar {
-  height: 50px; }
-
-.navbar-brand {
   height: 50px;
-  padding: 5px; }
-  .navbar-brand img {
-    height: 2em;
-    padding-right: 12.5px; }
-  @media (max-width: 480px) {
-    .navbar-brand span {
-      display: none; } }
+  box-shadow: 0px 1px 4px #393c39; }
+
+.org-name img {
+  height: 50px;
+  padding: 0px; }
+
+.org-name span {
+  color: white;
+  padding-left: 7.5px;
+  text-decoration: none; }
+
+@media (max-width: 480px) {
+  .org-name span {
+    display: none; } }
 
 .navbar-collapse, .navbar-toggle {
   color: white;
-  font-family: "Oswald", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  line-height: 24px;
-  margin: 3px; }
+  margin: 0px;
+  height: 50px;
+  border-radius: 0px; }
 
 .navbar-nav {
   display: inline-block;
@@ -5241,7 +5245,7 @@ aside .read-more {
     position: relative;
     top: -90px;
     left: 45px;
-    color: #73a4d8;
+    color: white;
     font-size: 30px; }
 
 .song-body {
