@@ -1,13 +1,17 @@
 .navbar {
   height: 50px;
+  box-shadow: 0px 1px 4px $gray-dark;
 }
 
-.navbar-brand {
-  height: 50px;
-  padding: 5px;
+.org-name {
   img {
-    height: 2em;
-    padding-right: 12.5px;
+    height: 50px;
+    padding: 0px;
+  }
+  span {
+    color: $inverse-text-color;
+    padding-left: 7.5px;
+    text-decoration: none;
   }
   @media (max-width: $screen-xs) {
     span {
@@ -19,10 +23,10 @@
 // Remove border on collapsed nav
 
 .navbar-collapse, .navbar-toggle {
-  color: $gray-lightest;
-  font-family: "Oswald", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  line-height: 24px;
-  margin: 3px;
+  color: $inverse-text-color;
+  margin: 0px;
+  height: 50px;
+  border-radius: 0px;
 }
 
 // Centre collapsed navs
