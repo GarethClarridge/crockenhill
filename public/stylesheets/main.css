@@ -5116,9 +5116,7 @@ audio {
   color: white;
   font-size: 20px; }
   .sermon-details a {
-    color: white; }
-  .sermon-details audio {
-    background-color: #16324f; }
+    color: inherit; }
 
 .form-narrow {
   width: 80%; }

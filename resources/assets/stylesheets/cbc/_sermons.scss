@@ -12,9 +12,6 @@ audio {
   color: white;
   font-size: $font-size-large;
   a {
-    color: white;
-  }
-  audio {
-    background-color: $brand-primary;
+    color: inherit;
   }
 }
