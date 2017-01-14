@@ -8,10 +8,14 @@ audio {
 
 .sermon-details {
   @include full-width-section;
-  background-color: $brand-danger;
+  background-color: $brand-secondary;
   color: white;
   font-size: $font-size-large;
   a {
     color: inherit;
   }
+}
+
+.sermon-headings {
+  padding-top: $padding-small-vertical;
 }

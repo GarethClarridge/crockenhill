@@ -10,6 +10,8 @@
       <input name="file" type="file" id="file">
     </div>
 
+    <h2>Sermon details</h2>
+
     <div class="form-group">
       <label for="title">Title</label>
       <input class="form-control h1" id="title" name="title" type="text">
@@ -53,6 +55,32 @@
       <label for="preacher">Preacher</label>
       <input class="form-control" id="preacher" name="preacher" type="text">
     </div>
+
+    <h2>Sermon points</h2>
+
+    @for ($p = 1; $p < 7; $p++)
+      <div class="form-group">
+        <div class="row">
+          <div class="col-md-2">
+            <label for="point-{{$p}}">Point {{$p}}</label>
+          </div>
+          <div class="col-md-10">
+            <input class="form-control h2 input-lg" type="text" name="point-{{$p}}" id="point-{{$p}}" data-id="{{$p}}">
+          </div>
+        </div>
+
+        @for ($i = 1; $i < 6; $i++)
+          <div class="row">
+            <div class="col-md-3">
+              <label for="sub-point-{{$p}}-{{$i}}">Sub-point {{$p}}.{{$i}}</label>
+            </div>
+            <div class="col-md-9">
+              <input class="form-control" type="text" name="sub-point-{{$p}}-{{$i}}" id="sub-point-{{$p}}-{{$i}}" data-id="{{$p}}.{{$i}}">
+            </div>
+          </div>
+        @endfor
+      </div>
+    @endfor
 
     <div class="form-actions">
       <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
