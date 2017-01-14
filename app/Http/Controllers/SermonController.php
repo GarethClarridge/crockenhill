@@ -137,24 +137,24 @@ class SermonController extends Controller {
 													<li class="active">'.$sermon->title.'</li>';
 		}
 
-    // Get the passage
-    $reference = $sermon->reference;
-    $section = array();
-    $key = "IP";
-    $passage = urlencode($reference);
-    $options = "include-passage-references=false&audio-format=flash";
-    $url = "http://www.esvapi.org/v2/rest/passageQuery?key=$key&passage=$passage&$options";
-    $data = fopen($url, "r") ;
-    if ($data) {
-      while (!feof($data)){
-        $buffer = fgets($data, 4096);
-        $section[] = $buffer;
-      }
-      fclose($data);
-    }
-    else {
-      die("fopen failed for url to webservice");
-    }
+    // // Get the passage using esvapi
+    // $reference = $sermon->reference;
+    // $section = array();
+    // $key = "IP";
+    // $passage = urlencode($reference);
+    // $options = "include-passage-references=false&audio-format=flash";
+    // $url = "http://www.esvapi.org/v2/rest/passageQuery?key=$key&passage=$passage&$options";
+    // $data = fopen($url, "r") ;
+    // if ($data) {
+    //   while (!feof($data)){
+    //     $buffer = fgets($data, 4096);
+    //     $section[] = $buffer;
+    //   }
+    //   fclose($data);
+    // }
+    // else {
+    //   die("fopen failed for url to webservice");
+    // }
 
   	return view('sermons.sermon', array(
 	    'slug'        => $slug,
@@ -162,8 +162,7 @@ class SermonController extends Controller {
 	    'description' => '<meta name="description" content="'.$sermon->heading.': a sermon preached at Crockenhill Baptist Church.">',
 	    'breadcrumbs' => $breadcrumbs,
 	    'content'			=> '',
-	    'sermon' 			=> $sermon,
-	    'passage'     => $section
+	    'sermon' 			=> $sermon
 		));
 	}
 
