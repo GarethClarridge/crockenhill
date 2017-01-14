@@ -5112,11 +5112,14 @@ audio {
   margin-top: 0;
   margin-bottom: 25px;
   padding: 30px 8%;
-  background-color: #6b0f1a;
+  background-color: #08a386;
   color: white;
   font-size: 20px; }
   .sermon-details a {
     color: inherit; }
+
+.sermon-headings {
+  padding-top: 5px; }
 
 .form-narrow {
   width: 80%; }
@@ -5292,6 +5295,8 @@ ul.list {
 
 #christmas-page {
   margin: 0px; }
+  #christmas-page section {
+    padding: 5% 0%; }
 
 .christmas-head {
   background-image: url(../images/homepage/christmas.JPG);
@@ -5326,6 +5331,3 @@ ul.list {
       padding-right: 15%; }
       .white-background h2 {
         font-size: 2em; } }
-
-section {
-  padding: 5% 0%; }

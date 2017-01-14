@@ -79,6 +79,27 @@
     </audio>
   </section>
 
+  <section class="sermon-headings">
+    <h2>Point one</h2>
+    <ul>
+      <li>Sub point one</li>
+      <li>Sub point two</li>
+      <li>Sub point three</li>
+    </ul>
+    <h2>Point two</h2>
+    <ol>
+      <li>Sub point one</li>
+      <li>Sub point two</li>
+      <li>Sub point three</li>
+    </ol>
+    <h2>Point three</h2>
+    <ul>
+      <li>Sub point one</li>
+      <li>Sub point two</li>
+      <li>Sub point three</li>
+    </ul>
+  </section>
+
   <hr>
   <small>If there are any problems with this sermon, please email
     <a href="mailto:sermons@crockenhill.org">sermons@crockenhill.org</a>.
