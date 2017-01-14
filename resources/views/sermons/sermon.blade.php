@@ -80,24 +80,7 @@
   </section>
 
   <section class="sermon-headings">
-    <h2>Point one</h2>
-    <ul>
-      <li>Sub point one</li>
-      <li>Sub point two</li>
-      <li>Sub point three</li>
-    </ul>
-    <h2>Point two</h2>
-    <ol>
-      <li>Sub point one</li>
-      <li>Sub point two</li>
-      <li>Sub point three</li>
-    </ol>
-    <h2>Point three</h2>
-    <ul>
-      <li>Sub point one</li>
-      <li>Sub point two</li>
-      <li>Sub point three</li>
-    </ul>
+    {!!$sermon->points!!}
   </section>
 
   <hr>
