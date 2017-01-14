@@ -28,10 +28,10 @@ $brand-light:           lighten($brand-primary, 25%);
 $brand-lightest:        lighten($brand-light, 20%);
 $brand-secondary-light: lighten($brand-secondary, 25%);
 
-$brand-success:         $brand-lightest;
+$brand-success:         $brand-secondary;
 $brand-warning:         #f75c03;
 $brand-danger:          #6b0f1a;
-$brand-info:            $brand-secondary-light;
+$brand-info:            $brand-lightest;
 
 // Scaffolding
 // -------------------------
@@ -128,7 +128,7 @@ $btn-primary-bg:                 $brand-dark;
 $btn-primary-border:             $btn-primary-bg;
 
 //$btn-success-color:              #fff;
-//$btn-success-bg:                 $brand-success;
+$btn-success-bg:                 $brand-success;
 //$btn-success-border:             darken($btn-success-bg, 5%);
 
 //$btn-warning-color:              #fff;
