@@ -5106,6 +5106,20 @@ audio {
 .panel-heading {
   font-size: 0.75em; }
 
+.sermon-details {
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  margin-top: 0;
+  margin-bottom: 25px;
+  padding: 30px 8%;
+  background-color: #6b0f1a;
+  color: white;
+  font-size: 20px; }
+  .sermon-details a {
+    color: white; }
+  .sermon-details audio {
+    background-color: #16324f; }
+
 .form-narrow {
   width: 80%; }
 
@@ -5145,11 +5159,11 @@ audio {
     margin-left: -9.5238095%;
     margin-top: 0;
     margin-bottom: 25px;
+    padding: 30px 8%;
     background-color: #16324f;
     background-size: cover;
     background-position: 50%; }
     .card .header-container h1, .card .header-container h2, .card .header-container h3, .card .header-container h4, .card .header-container h5, .card .header-container h6 {
-      padding-left: 1.9em;
       color: white;
       line-height: 75px;
       margin: 0;
@@ -5192,17 +5206,14 @@ aside .read-more {
   margin-left: -9.5238095%;
   margin-top: 0;
   margin-bottom: 25px;
+  padding: 30px 8%;
   margin-top: 40px;
   background-color: #16324f;
   color: white;
-  padding: 30px 10px; }
-  @media (min-width: 992px) {
-    .meeting-details {
-      padding: 40px; } }
-  .meeting-details table {
-    font-size: 2em; }
-    .meeting-details table th {
-      padding: 0em 1em; }
+  font-size: 2em; }
+  .meeting-details th {
+    padding: 6px 12px;
+    vertical-align: top; }
 
 .edit-buttons {
   margin-bottom: 25px; }

@@ -6,3 +6,15 @@ audio {
   font-size: 0.75em;
 }
 
+.sermon-details {
+  @include full-width-section;
+  background-color: $brand-danger;
+  color: white;
+  font-size: $font-size-large;
+  a {
+    color: white;
+  }
+  audio {
+    background-color: $brand-primary;
+  }
+}
