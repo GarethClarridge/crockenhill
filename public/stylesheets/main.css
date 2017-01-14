@@ -5155,12 +5155,12 @@ audio {
       margin: 0;
       font-weight: 900; }
       .card .header-container h1 span, .card .header-container h2 span, .card .header-container h3 span, .card .header-container h4 span, .card .header-container h5 span, .card .header-container h6 span {
-        padding: 0.33em 0.5em;
+        padding: 10px 16px;
         background-color: #08a386;
         box-decoration-break: clone;
         -webkit-box-decoration-break: clone; }
     .card .header-container h3 {
-      padding-left: 0.9em; }
+      padding-left: 16px; }
     .card .header-container h1 {
       min-height: 200px;
       padding-top: 8%;
@@ -5175,7 +5175,7 @@ aside a:hover {
 aside .read-more {
   text-align: right;
   font-style: italic;
-  padding-top: 2%; }
+  padding-top: 6px; }
   aside .read-more a {
     color: #141514; }
 
@@ -5187,21 +5187,25 @@ aside .read-more {
   .card-header-pull-right .user-name {
     font-size: 16px; }
 
-.full-width {
+.meeting-details {
   width: 119.047619%;
   margin-left: -9.5238095%;
   margin-top: 0;
-  margin-bottom: 25px; }
-
-.meeting-details {
-  margin-top: 3em;
+  margin-bottom: 25px;
+  margin-top: 40px;
   background-color: #16324f;
   color: white;
-  padding: 3em; }
+  padding: 30px 10px; }
+  @media (min-width: 992px) {
+    .meeting-details {
+      padding: 40px; } }
   .meeting-details table {
     font-size: 2em; }
     .meeting-details table th {
       padding: 0em 1em; }
+
+.edit-buttons {
+  margin-bottom: 25px; }
 
 #cookie-law {
   position: absolute;

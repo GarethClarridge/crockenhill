@@ -3,10 +3,7 @@
   box-shadow: 0px 0px 1px $gray-light;
 
   .header-container { // Headers of all cards should have image backgrounds
-    width: 119.047619%;
-    margin-left: -9.5238095%;
-    margin-top: 0;
-    margin-bottom: $line-height-computed;
+    @include full-width-section;
     background-color: $brand-primary;
     background-size: cover;
     background-position: 50%;
@@ -20,7 +17,7 @@
       font-weight: 900;
 
       span {
-        padding: 0.33em 0.5em;
+        padding: $padding-large-vertical $padding-large-horizontal;
         background-color: $brand-secondary;
         // For multi-line titles
         box-decoration-break: clone;
@@ -30,7 +27,7 @@
 
     h3 {
       //for asides
-      padding-left: 0.9em;
+      padding-left: $padding-large-horizontal;
     }
 
     h1 { // Used for article headers
@@ -56,7 +53,7 @@ aside {
   .read-more {
     text-align: right;
     font-style: italic;
-    padding-top: 2%;
+    padding-top: $padding-base-vertical;
 
     a {
       color: $gray-darker;
@@ -75,18 +72,16 @@ aside {
   }
 }
 
-.full-width {
-  width: 119.047619%;
-  margin-left: -9.5238095%;
-  margin-top: 0;
-  margin-bottom: $line-height-computed;
-}
-
 .meeting-details {
-  margin-top: 3em;
+  @include full-width-section;
+  margin-top: floor($padding-large-vertical*4);
   background-color: $brand-primary;
   color: white;
-  padding: 3em;
+  padding: floor($padding-large-vertical*3) $padding-small-horizontal;
+
+  @media (min-width: $screen-md-min) {
+    padding: floor($padding-large-horizontal*2.5);
+  }
 
   table {
     font-size: 2em;
@@ -95,4 +90,8 @@ aside {
       padding: 0em 1em;
     }
   }
+}
+
+.edit-buttons {
+  margin-bottom: $line-height-computed;
 }
