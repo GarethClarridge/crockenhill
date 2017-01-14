@@ -79,21 +79,7 @@
     </audio>
   </section>
 
-  <h2>Bible passage</h2>
-  @foreach ($passage as $part)
-    {!! $part !!}
-  @endforeach
-
   <hr>
-  <small>
-    Scripture taken from The Holy Bible, English Standard Version.
-    Copyright &copy;2001 by
-    <a href="http://www.crosswaybibles.org">Crossway Bibles</a>,
-    a publishing ministry of Good News Publishers. Used by permission.
-    All rights reserved. Text provided by the
-    <a href="http://www.gnpcb.org/esv/share/services/">Crossway Bibles Web Service</a>.
-  </small>
-  <br>
   <small>If there are any problems with this sermon, please email
     <a href="mailto:sermons@crockenhill.org">sermons@crockenhill.org</a>.
   </small>
