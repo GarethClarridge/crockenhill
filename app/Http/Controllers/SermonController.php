@@ -246,6 +246,7 @@ class SermonController extends Controller {
     $sermon->series     = \Input::get('series');
     $sermon->reference  = \Input::get('reference');
     $sermon->preacher   = \Input::get('preacher');
+		$sermon->points			= \Input::get('points');
     $sermon->save();
 
     return redirect('sermons')->with('message', '"'.\Input::get('title').'" successfully updated!');
