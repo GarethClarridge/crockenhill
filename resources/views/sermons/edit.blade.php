@@ -55,6 +55,13 @@
       <input class="form-control" id="preacher" name="preacher" type="text" value="{{$sermon->preacher}}">
     </div>
 
+    <div class="form-group">
+      <label for="points">Sermon headings</label>
+      <textarea class="form-control" rows="5" name="points">
+        {{$sermon->points}}
+      </textarea>
+    </div>
+
     <div class="form-actions">
       <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
       <a href="/sermons" class="btn btn-large">Cancel</a>
