@@ -101,6 +101,25 @@ class SermonController extends Controller {
     $file->move('media/sermons', $file->getClientOriginalName());
     $filename = substr($file->getClientOriginalName(), 0, -4);
 
+		// Points
+		$points = '';
+		for ($p=1; $p < 7; $p++) {
+			if (\Input::get('point-'.$p) !== '') {
+				$points .= '<h2>'.\Input::get('point-'.$p).'</h2>';
+			}
+			for ($i=1; $i < 6; $i++) {
+				if (\Input::get('sub-point-'.$p.'-'.$i) !== '') {
+					if ($i == 1) {
+						$points .= '<ul>';
+						$points .= '<li>'.\Input::get('sub-point-'.$p.'-'.$i).'</li></ul>';
+					} else {
+						$points = substr($points, 0, -5);
+						$points .= '<li>'.\Input::get('sub-point-'.$p.'-'.$i).'</li></ul>';
+					}
+				}
+			}
+		}
+
     $sermon = new \Crockenhill\Sermon;
     $sermon->title      = \Input::get('title');
     $sermon->filename   = $filename;
@@ -110,6 +129,7 @@ class SermonController extends Controller {
     $sermon->series     = \Input::get('series');
     $sermon->reference  = \Input::get('reference');
     $sermon->preacher   = \Input::get('preacher');
+		$sermon->points			= $points;
     $sermon->save();
 
     return redirect('sermons')->with('message', '"'.\Input::get('title').'" successfully uploaded!');
