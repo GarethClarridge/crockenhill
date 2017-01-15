@@ -1746,15 +1746,15 @@ textarea.input-lg, .input-group-lg > textarea.form-control,
 .btn-success {
   color: #fff;
   background-color: #08a386;
-  border-color: #078b72; }
+  border-color: #08a386; }
   .btn-success:hover, .btn-success:focus, .btn-success:active, .btn-success.active {
     color: #fff;
     background-color: #067c66;
-    border-color: #045042; }
+    border-color: #056956; }
   .open .btn-success.dropdown-toggle {
     color: #fff;
     background-color: #067c66;
-    border-color: #045042; }
+    border-color: #056956; }
   .btn-success:active, .btn-success.active {
     background-image: none; }
   .open .btn-success.dropdown-toggle {
@@ -1766,7 +1766,7 @@ textarea.input-lg, .input-group-lg > textarea.form-control,
   fieldset[disabled] .btn-success:active,
   fieldset[disabled] .btn-success.active {
     background-color: #08a386;
-    border-color: #078b72; }
+    border-color: #08a386; }
 
 .btn-info {
   color: #fff;
