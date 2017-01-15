@@ -102,10 +102,10 @@ class SermonController extends Controller {
     $filename = substr($file->getClientOriginalName(), 0, -4);
 
 		// Points
-		$points = '';
+		$points = '<ol>';
 		for ($p=1; $p < 7; $p++) {
 			if (\Input::get('point-'.$p) !== '') {
-				$points .= '<h2>'.\Input::get('point-'.$p).'</h2>';
+				$points .= '<li class="h4">'.\Input::get('point-'.$p).'</li>';
 			}
 			for ($i=1; $i < 6; $i++) {
 				if (\Input::get('sub-point-'.$p.'-'.$i) !== '') {
@@ -119,17 +119,18 @@ class SermonController extends Controller {
 				}
 			}
 		}
+		$points .= '</ol>';
 
     $sermon = new \Crockenhill\Sermon;
-    $sermon->title      = \Input::get('title');
+    $sermon->title      = trim(\Input::get('title'));
     $sermon->filename   = $filename;
     $sermon->date       = \Input::get('date');
     $sermon->service    = \Input::get('service');
     $sermon->slug       = \Illuminate\Support\Str::slug(\Input::get('title'));
-    $sermon->series     = \Input::get('series');
-    $sermon->reference  = \Input::get('reference');
-    $sermon->preacher   = \Input::get('preacher');
-		$sermon->points			= $points;
+    $sermon->series     = trim(\Input::get('series'));
+    $sermon->reference  = trim(\Input::get('reference'));
+    $sermon->preacher   = trim(\Input::get('preacher'));
+		$sermon->points			= trim($points);
     $sermon->save();
 
     return redirect('sermons')->with('message', '"'.\Input::get('title').'" successfully uploaded!');

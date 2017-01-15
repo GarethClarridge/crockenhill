@@ -129,7 +129,7 @@ $btn-primary-border:             $btn-primary-bg;
 
 //$btn-success-color:              #fff;
 $btn-success-bg:                 $brand-success;
-$btn-success-border:             darken($btn-success-bg, 5%);
+$btn-success-border:             $brand-success;
 
 //$btn-warning-color:              #fff;
 //$btn-warning-bg:                 $brand-warning;
