@@ -12,7 +12,7 @@
 
     @yield('description')
 
-    <link type="text/css" rel="stylesheet" href="/stylesheets/main.css?v=5.1.0">
+    <link type="text/css" rel="stylesheet" href="/stylesheets/main.css?v=5.1.1">
     <link href='http://fonts.googleapis.com/css?family=Lato:400,300italic|Oswald' rel='stylesheet' type='text/css'>
     <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
 
