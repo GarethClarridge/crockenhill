@@ -74,6 +74,12 @@
         {{ $sermon->reference }}
       </p>
     @endif
+    <p>
+      <span class="glyphicon glyphicon-download-alt"></span>  &nbsp
+      <a href="/media/sermons/{{$sermon->filename}}.mp3">
+        Download this sermon
+      </a>
+    </p>
     <audio src="/media/sermons/{{$sermon->filename}}.mp3" controls>
       Your browser does not support the <code>audio</code> element.
     </audio>
