@@ -18,4 +18,7 @@ audio {
 
 .sermon-headings {
   padding-top: $padding-small-vertical;
+  >ol>li, >ul>li {
+    padding-top: floor($padding-large-vertical*2);
+  }
 }
