@@ -240,16 +240,16 @@ class SermonController extends Controller {
     $sermon = \Crockenhill\Sermon::where('slug', $slug)
                                     ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
                                     ->first();
-    $sermon->title      = \Input::get('title');
+    $sermon->title      = trim(\Input::get('title'));
     $sermon->date       = \Input::get('date');
     $sermon->slug       = \Illuminate\Support\Str::slug(\Input::get('title'));
-    $sermon->series     = \Input::get('series');
-    $sermon->reference  = \Input::get('reference');
-    $sermon->preacher   = \Input::get('preacher');
-		$sermon->points			= \Input::get('points');
+    $sermon->series     = trim(\Input::get('series'));
+    $sermon->reference  = trim(\Input::get('reference'));
+    $sermon->preacher   = trim(\Input::get('preacher'));
+		$sermon->points			= trim(\Input::get('points'));
     $sermon->save();
 
-    return redirect('sermons')->with('message', '"'.\Input::get('title').'" successfully updated!');
+    return redirect('sermons/'.$year.'/'.$month.'/'.$slug)->with('message', '"'.\Input::get('title').'" successfully updated!');
 	}
 
 	/**
