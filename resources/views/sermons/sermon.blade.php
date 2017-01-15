@@ -85,8 +85,9 @@
     </audio>
   </section>
 
+  <h2>Sermon outline</h2>
   <section class="sermon-headings">
-    {!!$sermon->points!!}
+    {!!trim($sermon->points)!!}
   </section>
 
   <hr>
