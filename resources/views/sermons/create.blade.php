@@ -6,8 +6,16 @@
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
     <div class="form-group">
-      <label for="file">File</label>
-      <input name="file" type="file" id="file">
+      <label class="btn btn-primary btn-lg" for="file">
+        <span class="glyphicon glyphicon-folder-open"></span>
+        &nbsp Choose file
+        <input name="file" type="file" id="file" class="hidden">
+      </label>
+       &nbsp
+      <span id="filename" class="alert alert-success hidden">
+        <span class="glyphicon glyphicon-ok"></span>
+         &nbsp
+      </span>
     </div>
 
     <h2>Sermon details</h2>
@@ -93,11 +101,13 @@
     document.querySelector('input[type="file"]').onchange = function(e) {
         id3(this.files[0], function(err, tags) {
             // tags now contains your ID3 tags
-            console.log(tags);
-            document.getElementById('title').value=tags.title;
-            document.getElementById('preacher').value=tags.artist;
-            document.getElementById('series').value=tags.album;
+            document.getElementById('title').value    = tags.title;
+            document.getElementById('preacher').value = tags.artist;
+            document.getElementById('series').value   = tags.album;
         });
+        var span = document.getElementById('filename')
+        span.innerHTML = span.innerHTML + document.querySelector('input[type="file"]').value;
+        span.classList.remove("hidden");
     }
   </script>
 
