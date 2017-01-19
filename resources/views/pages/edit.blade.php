@@ -24,14 +24,6 @@
             </div>
           @endif
 
-          <form class="form-inline" action="/members/pages/{{$page->slug}}" method="POST">
-            <input type="hidden" name="_method" value="DELETE">
-            <input type="hidden" name="_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-danger">
-              Delete
-            </button>
-          </form>
-
           <br>
           <form class="" action="/members/pages/{{$page->slug}}" method="post">
             <input type="hidden" name="_method" value="PUT">
@@ -95,11 +87,12 @@
             </div>
 
             <div class="form-actions">
-              <input class="btn btn-success btn-lg" type="submit" value="Save">
+              <input class="btn btn-success" type="submit" value="Save">
               <a href="/members/pages/" class="btn btn-large">Cancel</a>
             </div>
 
           </form>
+
         </div>
       </article>
       <br><br>
