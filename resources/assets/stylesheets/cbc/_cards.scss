@@ -61,9 +61,7 @@ aside {
 }
 
 .card-header-pull-right {
-  position: relative;
   float: right;
-  top: -5px;
   font-size: floor($font-size-large*1.2);
 
   .user-name {
@@ -84,7 +82,6 @@ aside {
 }
 
 .edit-buttons {
-  margin-bottom: $line-height-computed;
   margin-left: $padding-base-horizontal;
 }
 
