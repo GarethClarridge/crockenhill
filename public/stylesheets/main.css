@@ -5221,6 +5221,24 @@ aside .read-more {
 .edit-buttons {
   margin-bottom: 25px; }
 
+.edit-heading {
+  background-color: #35f5d1;
+  height: 100%;
+  border: none;
+  color: white; }
+
+.edit-metadata {
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  margin-top: 0;
+  margin-bottom: 25px;
+  padding: 30px 8%;
+  background-color: #6b0f1a;
+  color: white; }
+  .edit-metadata input, .edit-metadata select {
+    background-color: #d4a5ab;
+    border: none; }
+
 #cookie-law {
   position: absolute;
   width: 90%;
