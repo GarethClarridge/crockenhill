@@ -102,4 +102,7 @@ aside {
     background-color: lighten(desaturate($brand-danger, 40%), 50%);
     border: none;
   }
+  .row {
+    padding-bottom: $padding-large-vertical;
+  }
 }
