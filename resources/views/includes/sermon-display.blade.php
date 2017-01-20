@@ -1,6 +1,6 @@
 <h3>
   <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">{{$sermon->title}}</a>
-</h3> 
+</h3>
 @if (($sermon->date != null))
   <p>
     <span class="glyphicon glyphicon-calendar"></span>
@@ -36,10 +36,12 @@
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
     <div class="btn-group">
       <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
+        <span class="glyphicon glyphicon-pencil"></span> &nbsp
         Edit
       </a>
-      
+
       <button type="submit" class="btn btn-danger">
+        <span class="glyphicon glyphicon-trash"></span> &nbsp
         Delete
       </button>
     </div>
