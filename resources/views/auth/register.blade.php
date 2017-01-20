@@ -1,5 +1,5 @@
-@extends('page', 
-	['heading' => 'Register', 
+@extends('page',
+	['heading' => 'Register',
 	'description' => '<meta name="description" content="Register a new member">']
 	)
 
@@ -24,7 +24,7 @@
 						</div>
 					@endif
 
-					<form class="form-horizontal" role="form" method="POST" action="{{ url('/auth/register') }}">
+					<form class="form-horizontal" role="form" method="POST" action="register">
 						<input type="hidden" name="_token" value="{{ csrf_token() }}">
 
 						<div class="form-group">
