@@ -41,12 +41,31 @@
               @yield('breadcrumbs', $breadcrumbs)
               @if (isset ($edit_url))
                 @can ('edit-pages')
-                  <li><a href="{{ $edit_url }}/edit" class="btn btn-primary">
-                    Edit this page
-                  </a></li>
+                  <li class="edit-buttons">
+                    <form class="form-inline" action="/members/pages/{{$edit_url}}" method="POST">
+                      <input type="hidden" name="_method" value="DELETE">
+                      <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                      <div class="btn-group">
+                        <a href="{{ $edit_url }}/edit" class="btn btn-primary">
+                          <span class="glyphicon glyphicon-pencil"></span> &nbsp
+                          Edit page
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                          <span class="glyphicon glyphicon-trash"></span> &nbsp
+                          Delete page
+                        </button>
+                      </div>
+                    </form>
+                  </li>
                 @endcan
               @endif
             </ol>
+          @endif
+
+          @if (session('message'))
+          <div class="alert alert-success" role="alert">
+            {{ session('message') }}
+          </div>
           @endif
 
           @if (isset ($content))

@@ -6,11 +6,12 @@
 	"type": "project",
 	"require": {
 		"php": ">=5.6.4",
+		"doctrine/dbal": "^2.5",
+		"guzzlehttp/guzzle": "~5.3|~6.0",
+		"intervention/image": "2.*",
 		"laravel/framework": "5.3.*",
 		"laravelcollective/html": "5.*",
-		"intervention/image": "2.*",
-		"guzzlehttp/guzzle": "~5.3|~6.0",
-		"doctrine/dbal": "^2.5"
+		"league/commonmark": "^0.15.3"
 	},
   "require-dev": {
       "fzaninotto/faker": "~1.4",
