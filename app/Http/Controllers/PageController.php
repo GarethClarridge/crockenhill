@@ -112,6 +112,8 @@ class PageController extends Controller {
       abort(403);
     }
 
+		session(['backUrl' => url()->previous()]);
+
     return view('pages.edit')->with('page', \Crockenhill\Page::where('slug', $slug)->first());
   }
 
@@ -135,11 +137,11 @@ class PageController extends Controller {
     $page->body = trim($html);
     $page->save();
 
+		$backUrl = session('backUrl');
 
-
-
-
-    return redirect('/members/pages')->with('message', 'Page successfully updated!');
+    return ($backUrl !== url()->previous())
+			? redirect($backUrl)->with('message', $page->heading.' successfully updated!')
+			: redirect('/members/pages')->with('message', $page->heading.' successfully updated!');
   }
 
   public function destroy($slug)
