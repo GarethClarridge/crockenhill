@@ -5238,6 +5238,8 @@ aside .read-more {
   .edit-metadata input, .edit-metadata select {
     background-color: #d4a5ab;
     border: none; }
+  .edit-metadata .row {
+    padding-bottom: 10px; }
 
 #cookie-law {
   position: absolute;
