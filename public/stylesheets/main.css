@@ -5219,7 +5219,11 @@ aside .read-more {
     vertical-align: top; }
 
 .edit-buttons {
-  margin-bottom: 25px; }
+  margin-bottom: 25px;
+  margin-left: 12px; }
+
+.edit-buttons:before {
+  content: none !important; }
 
 .edit-heading {
   background-color: #35f5d1;
