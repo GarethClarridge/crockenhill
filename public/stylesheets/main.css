@@ -4933,19 +4933,14 @@ td.visible-print {
     display: none !important; } }
 
 main {
-  margin-top: 70px;
-  margin-bottom: 50px; }
-
-h1 {
-  margin: 50px 0%; }
+  margin-top: 60px;
+  margin-bottom: 20px; }
 
 article {
   margin-top: 10px; }
-  article .breadcrumb {
-    padding: 0% 0% 25px 0%; }
 
 aside {
-  margin-top: 15px; }
+  margin-top: 10px; }
   aside h4 {
     font-style: italic;
     text-align: center;
@@ -4956,7 +4951,7 @@ aside {
   aside a {
     color: #141514; }
     aside a:hover {
-      text-decoration: none; }
+      text-decoration: underline; }
 
 .navbar {
   height: 50px;
@@ -5197,9 +5192,7 @@ aside .read-more {
     color: #141514; }
 
 .card-header-pull-right {
-  position: relative;
   float: right;
-  top: -5px;
   font-size: 24px; }
   .card-header-pull-right .user-name {
     font-size: 16px; }
@@ -5219,7 +5212,6 @@ aside .read-more {
     vertical-align: top; }
 
 .edit-buttons {
-  margin-bottom: 25px;
   margin-left: 12px; }
 
 .edit-buttons:before {
