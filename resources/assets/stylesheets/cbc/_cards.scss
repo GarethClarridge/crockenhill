@@ -86,3 +86,20 @@ aside {
 .edit-buttons {
   margin-bottom: $line-height-computed;
 }
+
+.edit-heading {
+  background-color: $brand-secondary-light;
+  height: 100%;
+  border: none;
+  color: $inverse-text-color;
+}
+
+.edit-metadata {
+  @include full-width-section;
+  background-color: $brand-danger;
+  color: white;
+  input, select {
+    background-color: lighten(desaturate($brand-danger, 40%), 50%);
+    border: none;
+  }
+}
