@@ -85,6 +85,11 @@ aside {
 
 .edit-buttons {
   margin-bottom: $line-height-computed;
+  margin-left: $padding-base-horizontal;
+}
+
+.edit-buttons:before {
+  content: none !important;
 }
 
 .edit-heading {
