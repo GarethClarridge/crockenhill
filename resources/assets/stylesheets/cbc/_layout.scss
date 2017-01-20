@@ -1,43 +1,30 @@
 main {
-    margin-top: 70px;
-    margin-bottom: 50px;
-}
-
-h1 {
-    margin: $line-height-doubled 0%;
+    margin-top: $padding-large-vertical + 50px;
+    margin-bottom: floor($padding-large-vertical * 2);
 }
 
 article {
-
-    margin-top: 10px;
-    
-    .breadcrumb {
-        padding: 0% 0% $line-height-computed 0%;
-    }
-    
-    .header-container { // Headers of all cards have image backgrounds
-
-    }
+    margin-top: $padding-large-vertical;
 }
 
 aside {
-    margin-top: 15px;
-    
+    margin-top: $padding-large-vertical;
+
     h4 {
         font-style: italic;
         text-align: center;
         line-height: $line-height-doubled;
     }
-    
-    .list-group-item { 
+
+    .list-group-item {
         border: none;
         background: none;
     }
-    
+
     a {
         color: $text-color;
         &:hover {
-            text-decoration: none;
+            text-decoration: underline;
         }
     }
 

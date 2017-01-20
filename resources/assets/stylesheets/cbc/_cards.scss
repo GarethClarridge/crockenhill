@@ -61,9 +61,7 @@ aside {
 }
 
 .card-header-pull-right {
-  position: relative;
   float: right;
-  top: -5px;
   font-size: floor($font-size-large*1.2);
 
   .user-name {
@@ -84,5 +82,29 @@ aside {
 }
 
 .edit-buttons {
-  margin-bottom: $line-height-computed;
+  margin-left: $padding-base-horizontal;
+}
+
+.edit-buttons:before {
+  content: none !important;
+}
+
+.edit-heading {
+  background-color: $brand-secondary-light;
+  height: 100%;
+  border: none;
+  color: $inverse-text-color;
+}
+
+.edit-metadata {
+  @include full-width-section;
+  background-color: $brand-danger;
+  color: white;
+  input, select {
+    background-color: lighten(desaturate($brand-danger, 40%), 50%);
+    border: none;
+  }
+  .row {
+    padding-bottom: $padding-large-vertical;
+  }
 }
