@@ -62,6 +62,12 @@
             </ol>
           @endif
 
+          @if (session('message'))
+          <div class="alert alert-success" role="alert">
+            {{ session('message') }}
+          </div>
+          @endif
+
           @if (isset ($content))
             {!! $content !!}
           @endif
