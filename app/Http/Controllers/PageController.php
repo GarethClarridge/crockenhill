@@ -1,5 +1,7 @@
 <?php namespace Crockenhill\Http\Controllers;
 
+use League\CommonMark\CommonMarkConverter;
+
 class PageController extends Controller {
 
 	public function showPage($area, $slug = NULL)
@@ -119,13 +121,23 @@ class PageController extends Controller {
       abort(403);
     }
 
+		//Convert markdown
+		$converter = new CommonMarkConverter;
+		$markdown = \Input::get('markdown');
+		$html = $converter->convertToHtml($markdown);
+
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->heading = \Input::get('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
+		$page->description = \Input::get('description');
     $page->area = \Input::get('area');
-    $page->body = trim(\Input::get('body'));
-    $page->description = \Input::get('description');
+		$page->markdown = $markdown;
+    $page->body = trim($html);
     $page->save();
+
+
+
+
 
     return redirect('/members/pages')->with('message', 'Page successfully updated!');
   }
