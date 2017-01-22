@@ -41,6 +41,13 @@ class ComposerServiceProvider extends ServiceProvider {
 	        $view->with('evening', $evening);
 		    });
 
+		\View::composer('includes.photoselector', function($view)
+		{
+			$photos = //Get all photos
+
+			$view->with('photos', $photos);
+		});
+
     \View::composer('page', function($view)
     {
       if (\Request::segment(2)) {
