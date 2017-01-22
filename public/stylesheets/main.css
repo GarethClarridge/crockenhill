@@ -6129,6 +6129,17 @@ aside .read-more {
   display: block;
   color: white; }
 
+.main-content p img {
+  max-width: 50%;
+  height: auto;
+  float: left;
+  margin-right: 10px; }
+
+.main-content p:nth-of-type(2n) img {
+  float: right;
+  margin-left: 10px;
+  margin-right: 0; }
+
 #cookie-law {
   position: absolute;
   width: 90%;
