@@ -108,3 +108,36 @@ aside {
     padding-bottom: $padding-large-vertical;
   }
 }
+
+.photo-selector {
+  @include full-width-section;
+  background-color: $brand-secondary;
+  color: $inverse-text-color;
+  img {
+    width: 100%;
+  }
+  h2 {
+    margin-bottom: $line-height-doubled;
+  }
+}
+#rendered-content img {
+  width: 100%;
+}
+.caption {
+  background-color: $brand-primary;
+  display: none;
+}
+
+.thumbnail {
+    border: 0 none;
+    box-shadow: none;
+    margin:0;
+    padding:0;
+}
+
+.thumbnail:hover {
+  .caption {
+    display: block;
+    color: $inverse-text-color;
+  }
+}

@@ -21,8 +21,8 @@ $gray-lightest:          lighten($gray-darker, 97%);
 // Brand colors
 // -------------------------
 
-$brand-primary:         #16324f;
-$brand-secondary:       #08a386;
+$brand-primary:         #16324f; //rgb(22,50,79)
+$brand-secondary:       #08a386; //rgb(8,163,134)
 $brand-dark:            $brand-primary;
 $brand-light:           lighten($brand-primary, 25%);
 $brand-lightest:        lighten($brand-light, 20%);
@@ -71,8 +71,8 @@ $headings-line-height:    1.1;
 // Iconography
 // -------------------------
 
-//$icon-font-path:          "../fonts/";
-//$icon-font-name:          "glyphicons-halflings-regular";
+$icon-font-path:          "../fonts/";
+$icon-font-name:          "glyphicons-halflings-regular";
 
 
 // Components
