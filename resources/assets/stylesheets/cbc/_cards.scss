@@ -142,3 +142,17 @@ aside {
     color: $inverse-text-color;
   }
 }
+
+.main-content {
+  p img {
+    max-width: 50%;
+    height: auto;
+    float: left;
+    margin-right: $padding-large-vertical;
+  }
+  p:nth-of-type(2n) img {
+    float: right;
+    margin-left: $padding-large-vertical;
+    margin-right: 0;
+  }
+}
