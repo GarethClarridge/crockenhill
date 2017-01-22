@@ -48,11 +48,11 @@
                       <div class="btn-group">
                         <a href="{{ $edit_url }}/edit" class="btn btn-primary">
                           <span class="glyphicon glyphicon-pencil"></span> &nbsp
-                          Edit page
+                          Edit
                         </a>
                         <button type="submit" class="btn btn-danger">
                           <span class="glyphicon glyphicon-trash"></span> &nbsp
-                          Delete page
+                          Delete
                         </button>
                       </div>
                     </form>
@@ -68,9 +68,11 @@
           </div>
           @endif
 
-          @if (isset ($content))
-            {!! $content !!}
-          @endif
+          <div class="main-content">
+            @if (isset ($content))
+              {!! $content !!}
+            @endif
+          </div>
 
           @yield('dynamic_content')
         </article>
