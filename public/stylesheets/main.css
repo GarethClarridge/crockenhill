@@ -6116,7 +6116,8 @@ aside .read-more {
 
 .caption {
   background-color: #16324f;
-  display: none; }
+  display: none;
+  word-wrap: break-word; }
 
 .thumbnail {
   border: 0 none;
