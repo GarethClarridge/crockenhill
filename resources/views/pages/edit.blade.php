@@ -92,26 +92,8 @@
               </div>
             </div>
 
-            <div class="photo-selector">
-              <div class="row">
-                <h2>Add a photo</h2>
-
-                <div class="col-sm-3 thumbnail text-center">
-                  <img class="img-responsive" src="/images/homepage/drinking.JPG" alt="">
-                  <div class="caption">
-                    <span>
-                      ![
-                      altText
-                      ](
-                      path
-                      )
-                      </span>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
+            @include('includes.photoselector')
+            
             <div class="row">
               <div class="col-sm-6">
                 <div class="form-group">

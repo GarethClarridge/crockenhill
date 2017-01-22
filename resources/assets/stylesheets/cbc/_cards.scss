@@ -126,6 +126,7 @@ aside {
 .caption {
   background-color: $brand-primary;
   display: none;
+  word-wrap: break-word;
 }
 
 .thumbnail {
