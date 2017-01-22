@@ -43,8 +43,11 @@ class ComposerServiceProvider extends ServiceProvider {
 
 		\View::composer('includes.photoselector', function($view)
 		{
-			$photos = //Get all photos
+			$photo_directory = '/images/headings/large';
+			$public_photo_directory = public_path().$photo_directory;
+			$photos = array_diff(scandir($public_photo_directory), array('..', '.'));
 
+			$view->with('photo_directory', $photo_directory);
 			$view->with('photos', $photos);
 		});
 
