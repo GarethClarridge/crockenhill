@@ -101,7 +101,7 @@ class PageController extends Controller {
         ->save('images/headings/small/'.$page->slug.'.jpg');
     };
 
-    return redirect('/members/pages')->with('message', 'New page successfully created!');
+    return redirect('/members/pages')->with('message', $page->heading.' successfully created!');
   }
 
   public function edit($slug)
@@ -151,7 +151,7 @@ class PageController extends Controller {
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->delete();
 
-    return redirect('/members/pages')->with('message', 'Page successfully deleted!');
+    return redirect('/members/pages')->with('message', $page->heading.' successfully deleted!');
   }
 
   /*public function changeimage($slug)
