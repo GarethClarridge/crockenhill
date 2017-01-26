@@ -21,7 +21,6 @@ class PageController extends Controller {
 		  	$breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
 			}
 	    $description 	= '<meta name="description" content="'.$page->description.'">';
-	    $edit_url 				= '/members/pages/'.$slug;
 
 			return view('page', array(
 		    'slug'          => $page->slug,
@@ -29,7 +28,6 @@ class PageController extends Controller {
 		    'description'   => $description,
 		    'area'					=> $page->area,
 		    'breadcrumbs'   => $breadcrumbs,
-		    'edit_url'					=> $edit_url,
 		    'content'       => htmlspecialchars_decode($page->body),
 			));
 		} else {
