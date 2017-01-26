@@ -25,7 +25,15 @@
       <tbody>
         @foreach ($pages as $page)
           <tr>
-            <td>{{ $page->heading }}</td>
+            <td>
+              @if ($page->area == $page->slug)
+                <a href="/{{$page->slug}}">
+              @else
+                <a href="/{{$page->area}}/{{$page->slug}}">
+              @endif
+                  {{ $page->heading }}
+                </a>
+            </td>
             <td>{{ $page->area }}</td>
             <td>{{ $page->updated_at }}</td>
             <td>
