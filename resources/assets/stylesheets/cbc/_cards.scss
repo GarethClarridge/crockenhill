@@ -144,15 +144,21 @@ aside {
 }
 
 .main-content {
-  p img {
-    max-width: 50%;
-    height: auto;
-    float: left;
-    margin-right: $padding-large-vertical;
+  p {
+    img {
+      max-width: 100%;
+      @media (min-width: $screen-sm) {
+        max-width: 50.1%;
+        float: left;
+        padding: $padding-large-vertical $padding-large-horizontal $padding-large-vertical 0;
+      }
+    }
   }
   p:nth-of-type(2n) img {
-    float: right;
-    margin-left: $padding-large-vertical;
-    margin-right: 0;
+    @media (min-width: $screen-sm) {
+      float: right;
+      padding-left: $padding-large-vertical;
+      padding-right: 0;
+    }
   }
 }
