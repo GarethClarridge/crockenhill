@@ -71,6 +71,9 @@
           <div class="main-content">
             @if (isset ($content))
               {!! $content !!}
+              <div class="clearfix">
+
+              </div>
             @endif
           </div>
 
