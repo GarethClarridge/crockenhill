@@ -39,14 +39,13 @@
             <ol class="breadcrumb">
               <li>{!! link_to_route('Home', 'Home') !!}</li>
               @yield('breadcrumbs', $breadcrumbs)
-              @if (isset ($edit_url))
                 @can ('edit-pages')
                   <li class="edit-buttons">
-                    <form class="form-inline" action="/members/pages/{{$edit_url}}" method="POST">
+                    <form class="form-inline" action="/members/pages/{{$slug}}" method="POST">
                       <input type="hidden" name="_method" value="DELETE">
                       <input type="hidden" name="_token" value="{{ csrf_token() }}">
                       <div class="btn-group">
-                        <a href="{{ $edit_url }}/edit" class="btn btn-primary">
+                        <a href="/members/pages/{{$slug}}/edit" class="btn btn-primary">
                           <span class="glyphicon glyphicon-pencil"></span> &nbsp
                           Edit
                         </a>
@@ -58,12 +57,15 @@
                     </form>
                   </li>
                 @endcan
-              @endif
             </ol>
           @endif
 
           @if (session('message'))
-          <div class="alert alert-success" role="alert">
+          <div class="alert alert-success alert-dismissable" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+            <span class="glyphicon glyphicon-ok"></span> &nbsp
             {{ session('message') }}
           </div>
           @endif
