@@ -21,7 +21,6 @@ class PageController extends Controller {
 		  	$breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
 			}
 	    $description 	= '<meta name="description" content="'.$page->description.'">';
-	    $edit_url 				= 'members/pages/'.$slug;
 
 			return view('page', array(
 		    'slug'          => $page->slug,
@@ -29,7 +28,6 @@ class PageController extends Controller {
 		    'description'   => $description,
 		    'area'					=> $page->area,
 		    'breadcrumbs'   => $breadcrumbs,
-		    'edit_url'					=> $edit_url,
 		    'content'       => htmlspecialchars_decode($page->body),
 			));
 		} else {
@@ -47,6 +45,7 @@ class PageController extends Controller {
     $areapage = \Crockenhill\Page::where('slug', 'members')->first();
     $breadcrumbs = '<li>'.link_to($page['area'], $areapage->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
     $description = '<meta name="description" content="'.$page->description.'">';
+		$pages = \Crockenhill\Page::orderBy('area', 'asc')->get();
 
     return view('pages.index', array(
 	    'slug'          => $page->slug,
@@ -55,7 +54,7 @@ class PageController extends Controller {
 	    'area'          => $page->area,
 	    'breadcrumbs'   => $breadcrumbs,
 	    'content'       => htmlspecialchars_decode($page->body),
-	    'pages'         => \Crockenhill\Page::all()
+	    'pages'         => $pages
     ));
   }
 
@@ -103,7 +102,7 @@ class PageController extends Controller {
         ->save('images/headings/small/'.$page->slug.'.jpg');
     };
 
-    return redirect('/members/pages')->with('message', 'New page successfully created!');
+    return redirect('/members/pages')->with('message', $page->heading.' successfully created!');
   }
 
   public function edit($slug)
@@ -153,7 +152,7 @@ class PageController extends Controller {
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->delete();
 
-    return redirect('/members/pages')->with('message', 'Page successfully deleted!');
+    return redirect('/members/pages')->with('message', $page->heading.' successfully deleted!');
   }
 
   /*public function changeimage($slug)
