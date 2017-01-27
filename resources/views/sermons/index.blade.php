@@ -2,12 +2,6 @@
 
 @section('dynamic_content')
 
-  @if (session('message'))
-    <div class="alert alert-success" role="alert">
-      {{ session('message') }}
-    </div>
-  @endif
-
   @can ('edit-sermons')
       <a href="/sermons/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new sermon</a>
   @endcan
@@ -48,7 +42,7 @@
           @foreach ($sermons as $sermon)
             <div class="col-sm-5">
               @include('includes.sermon-display')
-            </div>            
+            </div>
           @endforeach
         @endif
         <br>
