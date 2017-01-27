@@ -45,6 +45,7 @@ class PageController extends Controller {
     $areapage = \Crockenhill\Page::where('slug', 'members')->first();
     $breadcrumbs = '<li>'.link_to($page['area'], $areapage->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
     $description = '<meta name="description" content="'.$page->description.'">';
+		$pages = \Crockenhill\Page::orderBy('area', 'asc')->get();
 
     return view('pages.index', array(
 	    'slug'          => $page->slug,
@@ -53,7 +54,7 @@ class PageController extends Controller {
 	    'area'          => $page->area,
 	    'breadcrumbs'   => $breadcrumbs,
 	    'content'       => htmlspecialchars_decode($page->body),
-	    'pages'         => \Crockenhill\Page::all()
+	    'pages'         => $pages
     ));
   }
 
