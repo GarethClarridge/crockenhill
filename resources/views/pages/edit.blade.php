@@ -92,6 +92,8 @@
               </div>
             </div>
 
+            @include('includes.photoselector')
+            
             <div class="row">
               <div class="col-sm-6">
                 <div class="form-group">
@@ -109,7 +111,7 @@
                   Rendered content
                 </h4>
                 <div id="rendered-content">
-
+                  {!!$page->body!!}
                 </div>
               </div>
             </div>
@@ -120,7 +122,6 @@
             </div>
 
           </form>
-
         </div>
       </article>
       <br><br>
@@ -130,14 +131,18 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.6.0/showdown.min.js
 " charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js" charset="utf-8"></script>
 <script type="text/javascript">
 
   function markdownInit() {
-    document.getElementById("markdown-input").onblur = function markdown() {
-      console.log ("Click");
+    var markdown      = document.getElementById("markdown-input");
+    var render        = document.getElementById("rendered-content");
+    markdown.onfocus = function blankRender() {
+      render.innerHTML = '';
+    }
+    markdown.onblur = function markdown() {
       var converter     = new showdown.Converter();
-      var markdown      =document.getElementById("markdown-input");
-      var render        = document.getElementById("rendered-content");
+      var markdown      = document.getElementById("markdown-input");
       render.innerHTML  = converter.makeHtml(markdown.value);
     }
   }

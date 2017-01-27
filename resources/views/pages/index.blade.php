@@ -2,12 +2,6 @@
 
 @section('dynamic_content')
 
-  @if (session('message'))
-  <div class="alert alert-success" role="alert">
-    {{ session('message') }}
-  </div>
-  @endif
-
   @if ($user != null && $user->email == "admin@crockenhill.org")
     <a href="/page/create" class="btn btn-primary btn-lg btn-block" role="button">Create a new page</a>
   @endif
@@ -25,17 +19,27 @@
       <tbody>
         @foreach ($pages as $page)
           <tr>
-            <td>{{ $page->heading }}</td>
+            <td>
+              @if ($page->area == $page->slug)
+                <a href="/{{$page->slug}}">
+              @else
+                <a href="/{{$page->area}}/{{$page->slug}}">
+              @endif
+                  {{ $page->heading }}
+                </a>
+            </td>
             <td>{{ $page->area }}</td>
             <td>{{ $page->updated_at }}</td>
             <td>
-              <a href="/members/pages/{{$page->slug}}/edit" class="btn btn-success">Edit</a>
               <form class="form-inline" action="/members/pages/{{$page->slug}}" method="POST">
                 <input type="hidden" name="_method" value="DELETE">
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger">
-                  Delete
-                </button>
+                <div class="btn-group">
+                  <a href="/members/pages/{{$page->slug}}/edit" class="btn btn-success">Edit</a>
+                  <button type="submit" class="btn btn-danger">
+                    Delete
+                  </button>
+                </div>
               </form>
             </td>
           </tr>

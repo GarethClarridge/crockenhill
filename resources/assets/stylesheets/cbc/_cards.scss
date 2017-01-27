@@ -108,3 +108,57 @@ aside {
     padding-bottom: $padding-large-vertical;
   }
 }
+
+.photo-selector {
+  @include full-width-section;
+  background-color: $brand-secondary;
+  color: $inverse-text-color;
+  img {
+    width: 100%;
+  }
+  h2 {
+    margin-bottom: $line-height-doubled;
+  }
+}
+#rendered-content img {
+  width: 100%;
+}
+.caption {
+  background-color: $brand-primary;
+  display: none;
+  word-wrap: break-word;
+}
+
+.thumbnail {
+    border: 0 none;
+    box-shadow: none;
+    margin:0;
+    padding:0;
+}
+
+.thumbnail:hover {
+  .caption {
+    display: block;
+    color: $inverse-text-color;
+  }
+}
+
+.main-content {
+  p {
+    img {
+      max-width: 100%;
+      @media (min-width: $screen-sm) {
+        max-width: 50.1%;
+        float: left;
+        padding: $padding-large-vertical $padding-large-horizontal $padding-large-vertical 0;
+      }
+    }
+  }
+  p:nth-of-type(2n) img {
+    @media (min-width: $screen-sm) {
+      float: right;
+      padding-left: $padding-large-vertical;
+      padding-right: 0;
+    }
+  }
+}
