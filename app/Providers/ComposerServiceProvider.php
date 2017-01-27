@@ -41,6 +41,16 @@ class ComposerServiceProvider extends ServiceProvider {
 	        $view->with('evening', $evening);
 		    });
 
+		\View::composer('includes.photoselector', function($view)
+		{
+			$photo_directory = '/images/photos';
+			$public_photo_directory = public_path().$photo_directory;
+			$photos = array_diff(scandir($public_photo_directory), array('..', '.'));
+
+			$view->with('photo_directory', $photo_directory);
+			$view->with('photos', $photos);
+		});
+
     \View::composer('page', function($view)
     {
       if (\Request::segment(2)) {
