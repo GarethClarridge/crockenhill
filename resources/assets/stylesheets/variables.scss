@@ -1,4 +1,4 @@
-@import "../../../bower_components/sass-bootstrap/lib/_variables.scss";
+@import "../../../bower_components/bootstrap-sass/assets/stylesheets/bootstrap/_variables.scss";
 
 //
 // Variables
@@ -21,8 +21,8 @@ $gray-lightest:          lighten($gray-darker, 97%);
 // Brand colors
 // -------------------------
 
-$brand-primary:         #16324f;
-$brand-secondary:       #08a386;
+$brand-primary:         #16324f; //rgb(22,50,79)
+$brand-secondary:       #08a386; //rgb(8,163,134)
 $brand-dark:            $brand-primary;
 $brand-light:           lighten($brand-primary, 25%);
 $brand-lightest:        lighten($brand-light, 20%);
@@ -71,8 +71,8 @@ $headings-line-height:    1.1;
 // Iconography
 // -------------------------
 
-//$icon-font-path:          "../fonts/";
-//$icon-font-name:          "glyphicons-halflings-regular";
+$icon-font-path:          "../fonts/";
+$icon-font-name:          "glyphicons-halflings-regular";
 
 
 // Components
@@ -123,25 +123,25 @@ $component-active-bg:            $brand-primary;
 //$btn-default-bg:                 #fff;
 //$btn-default-border:             #ccc;
 
-$btn-primary-color:              $gray-lightest;
-$btn-primary-bg:                 $brand-dark;
-$btn-primary-border:             $btn-primary-bg;
+$btn-primary-color:              $inverse-text-color;
+$btn-primary-bg:                 $brand-primary;
+$btn-primary-border:             darken($btn-primary-bg, 5%);
 
-//$btn-success-color:              #fff;
+$btn-success-color:              $inverse-text-color;
 $btn-success-bg:                 $brand-success;
-$btn-success-border:             $brand-success;
+$btn-success-border:             darken($brand-success, 5%);
 
-//$btn-warning-color:              #fff;
-//$btn-warning-bg:                 $brand-warning;
-//$btn-warning-border:             darken($btn-warning-bg, 5%);
+$btn-warning-color:              $inverse-text-color;
+$btn-warning-bg:                 $brand-warning;
+$btn-warning-border:             darken($btn-warning-bg, 5%);
 
-//$btn-danger-color:               #fff;
+$btn-danger-color:               $inverse-text-color;
 $btn-danger-bg:                  $brand-danger;
 $btn-danger-border:              darken($btn-danger-bg, 5%);
 
-//$btn-info-color:                 #fff;
-//$btn-info-bg:                    $brand-info;
-//$btn-info-border:                darken($btn-info-bg, 5%);
+$btn-info-color:                 $inverse-text-color;
+$btn-info-bg:                    $brand-info;
+$btn-info-border:                darken($btn-info-bg, 5%);
 
 //$btn-link-disabled-color:        $gray-light;
 
