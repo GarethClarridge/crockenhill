@@ -3,7 +3,7 @@
 
     <section class="col-sm-6">
       <div class="row" id="sermons-footer">
-        <h4><a href="/sermons">&nbsp&nbsp&nbsp Latest Sermons</a></h4>
+        <h4><a href="/sermons">Latest sermons</a></h4>
         <div class="col-md-6">
           @include('includes.sermon-display', ['sermon' => $morning])
           <br>
