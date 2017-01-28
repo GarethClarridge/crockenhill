@@ -9,14 +9,6 @@ class MeetingController extends Controller {
 	 */
 	public function index()
 {
-		$slug 				= 'whats-on';
-		$area 				= $slug;
-  	$page 				= \Crockenhill\Page::where('slug', $slug)->first();
-    $heading 			= $page->heading;
-    $breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
-    $description 	= '<meta name="description" content="'.$page->description.'">';
-    $content 			= $page->body;
-
 		return view('page');
 	}
 
