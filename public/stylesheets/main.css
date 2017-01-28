@@ -5794,7 +5794,7 @@ button.close {
     display: none !important; } }
 
 main {
-  margin-top: 60px;
+  margin-top: 35px;
   margin-bottom: 20px; }
 
 article {
@@ -5867,6 +5867,7 @@ footer {
   padding: 30px 15px 0px; }
 
 #home {
+  margin-top: 20px;
   margin-bottom: 0px; }
 
 .home-head {

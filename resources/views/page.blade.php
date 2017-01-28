@@ -5,7 +5,7 @@
 @stop
 
 @section('description')
-  {!! $description !!}
+  {{ $description }}
 @stop
 
 @section('content')
