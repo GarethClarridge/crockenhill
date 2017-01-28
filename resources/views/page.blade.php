@@ -37,7 +37,7 @@
 
           @if (isset ($breadcrumbs))
             <ol class="breadcrumb">
-              <li>{!! link_to_route('Home', 'Home') !!}</li>
+              <li><a href="/">Home</a></li>
               @yield('breadcrumbs', $breadcrumbs)
 
               @if (isset($slug))
