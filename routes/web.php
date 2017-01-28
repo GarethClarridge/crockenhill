@@ -134,9 +134,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
 Route::get('aboutus', function(){
     return Redirect::to('about-us', 301);
 });
-Route::get('abouts', function(){
-    return Redirect::to('about-us', 301);
-});
 Route::get('contactus', function(){
     return Redirect::to('contact-us', 301);
 });
@@ -188,20 +185,8 @@ Route::get('whatson/coffeecup', function(){
 Route::get('whatson/familyfunnight', function(){
     return Redirect::to('whats-on/family-fun-night', 301);
 });
-Route::get('whatson/link', function(){
-    return Redirect::to('whats-on/link', 301);
-});
-Route::get('whatson/menzone', function(){
-    return Redirect::to('whats-on/menzone', 301);
-});
 Route::get('whatson/sunday', function(){
     return Redirect::to('whats-on/sunday-services', 301);
-});
-Route::get('whatson/walkinggroup', function(){
-    return Redirect::to('whats-on/walking-group', 301);
-});
-Route::get('publications', function(){
-    return \App::abort(404);
 });
 
 // General Routes
