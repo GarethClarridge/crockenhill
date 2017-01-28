@@ -22,7 +22,7 @@ class SongController extends Controller {
 
     // Set values
     $heading = 'Songs';
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li><li class="active">'.$page->heading.'</li>';
+    $breadcrumbs = '<li><a href="/members">Members</a></li><li class="active">'.$page->heading.'</li>';
 
     // Load content
     $content = $page->body;
@@ -91,7 +91,7 @@ class SongController extends Controller {
       ->get();
 
     // Set values
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
+    $breadcrumbs = '<li><a href="/members">Members</a></li>
                     <li><a href="/members/songs">Songs</a></li>
                     <li class="active">'.$song->title.'</li>';
     if (is_null($song->alternative_title)) {
@@ -191,7 +191,7 @@ class SongController extends Controller {
 
     // Set values
     $heading = 'Upload New Service Record';
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
+    $breadcrumbs = '<li><a href="/members">Members</a></li>
                       <li><a href="/members/songs">Songs</a></li>
                       <li class="active">'.$heading.'</li>';
 
@@ -292,7 +292,7 @@ class SongController extends Controller {
 
     // Set values
     $heading = 'Add a new song to the list';
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
+    $breadcrumbs = '<li><a href="/members">Members</a></li>
                       <li><a href="/members/songs">Songs</a></li>
                       <li class="active">'.$heading.'</li>';
 
@@ -369,7 +369,7 @@ class SongController extends Controller {
 
     // Set values
     $heading = 'Edit '.$song->title;
-    $breadcrumbs = '<li>'.link_to('members', 'Members').'&nbsp</li>
+    $breadcrumbs = '<li><a href="/members">Members</a></li>
                       <li><a href="/members/songs">Songs</a></li>
                       <li class="active">'.$heading.'</li>';
 
