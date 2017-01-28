@@ -40,10 +40,11 @@ class PageController extends Controller {
     if (\Gate::denies('edit-pages')) {
       abort(403);
     }
-
-    $page = \Crockenhill\Page::where('slug', 'pages')->first();
-    $areapage = \Crockenhill\Page::where('slug', 'members')->first();
-    $breadcrumbs = '<li>'.link_to($page['area'], $areapage->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
+		$slug = 'pages';
+		$area = 'members';
+    $page = \Crockenhill\Page::where('slug', $slug)->first();
+    $areapage = \Crockenhill\Page::where('slug', $area)->first();
+    $breadcrumbs = '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li><li class="active">'.$page->heading.'</li>';
     $description = '<meta name="description" content="'.$page->description.'">';
 		$pages = \Crockenhill\Page::orderBy('area', 'asc')->get();
 

@@ -17,15 +17,15 @@
         @foreach ($pages as $page)
           @if (\Request::is($page['route'].'/*'))
             <li class="active">
-            {!! link_to($page['route'], $page['name']) !!}
+              <a href="{{$page['route']}}">{{$page['name']}}</a>
             </li>
           @elseif  (\Request::is($page['route']))
             <li class="active">
-            {!! link_to($page['route'], $page['name']) !!}
+              <a href="{{$page['route']}}">{{$page['name']}}</a>
             </li>
           @else
             <li>
-              {!! link_to($page['route'], $page['name']) !!}
+              <a href="{{$page['route']}}">{{$page['name']}}</a>
             </li>
           @endif
 

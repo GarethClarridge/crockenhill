@@ -1,16 +1,14 @@
 {
-	"name": "garethclarridge/crockenhill",
+	"name": "crockenhill/crockenhill",
 	"description": "The Crockenhill Baptist Church website.",
 	"keywords": ["crockenhill", "baptist", "church", "website", "laravel"],
 	"license": "MIT",
 	"type": "project",
 	"require": {
 		"php": ">=5.6.4",
-		"doctrine/dbal": "^2.5",
-		"guzzlehttp/guzzle": "~6.0",
-		"intervention/image": "2.*",
 		"laravel/framework": "5.4.*",
-		"laravelcollective/html": "5.*",
+
+		"intervention/image": "2.*",
 		"league/commonmark": "^0.15.3"
 	},
   "require-dev": {
