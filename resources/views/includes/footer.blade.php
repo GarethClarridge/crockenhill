@@ -44,7 +44,7 @@
 
   <div class="row">
       <section class="col-md-4 col-md-offset-4">
-          <a href="http://www.fiec.org.uk">
+          <a class="fiec-footer" href="http://www.fiec.org.uk">
               <img src="/images/fiec-affiliated-tagline-white.png" width="100%">
           </a>
       </section>
