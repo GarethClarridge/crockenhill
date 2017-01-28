@@ -39,6 +39,8 @@
             <ol class="breadcrumb">
               <li>{!! link_to_route('Home', 'Home') !!}</li>
               @yield('breadcrumbs', $breadcrumbs)
+
+              @if (isset($slug))
                 @can ('edit-pages')
                   <li class="edit-buttons">
                     <form class="form-inline" action="/members/pages/{{$slug}}" method="POST">
@@ -57,6 +59,7 @@
                     </form>
                   </li>
                 @endcan
+              @endif
             </ol>
           @endif
 
