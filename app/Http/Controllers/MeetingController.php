@@ -17,14 +17,7 @@ class MeetingController extends Controller {
     $description 	= '<meta name="description" content="'.$page->description.'">';
     $content 			= $page->body;
 
-		return view('page', array(
-		    'slug'          => $slug,
-		    'heading'       => $heading,
-		    'description'   => $description,
-        'area'					=> $area,
-		    'breadcrumbs'   => $breadcrumbs,
-		    'content'      	=> $content,
-		));
+		return view('page');
 	}
 
 
@@ -58,23 +51,18 @@ class MeetingController extends Controller {
 	 */
 	public function show($slug)
 	{
-		$area 				= 'whats-on';
-  	$page 				= \Crockenhill\Meeting::where('slug', $slug)->first();
-    $heading 			= $page->heading;
-    $breadcrumbs 	= '<li><a href="whats-on">What\'s On </a> <li class="active">'.$page->heading.'</li>';
-    $description 	= '<meta name="description" content="'.$page->description.'">';
-    $content 			= $page->body;
-    $type					= $page->type;
-    $starttime		= $page->StartTime;
-    $endtime			= $page->EndTime;
-    $day 					= $page->day;
-    $location			= $page->location;
-    $who 					= $page->who;
-    $phone				= $page->LeadersPhone;
-    $email				= $page->LeadersEmail;
+  	$meeting 			= \Crockenhill\Meeting::where('slug', $slug)->first();
+    $type					= $meeting->type;
+    $starttime		= $meeting->StartTime;
+    $endtime			= $meeting->EndTime;
+    $day 					= $meeting->day;
+    $location			= $meeting->location;
+    $who 					= $meeting->who;
+    $phone				= $meeting->LeadersPhone;
+    $email				= $meeting->LeadersEmail;
 
     //Photos
-    if ($page->pictures === '1') {
+    if ($meeting->pictures === '1') {
     	$filelist = scandir($_SERVER['DOCUMENT_ROOT'].'/images/meetings/'.$slug);
     	$photos 	= array_slice($filelist, 2);
     } else {
@@ -83,11 +71,6 @@ class MeetingController extends Controller {
 
 		return view('meetings.meeting', array(
 		    'slug'          => $slug,
-		    'heading'       => $heading,   
-		    'description'   => $description,
-        'area'					=> $area,
-		    'breadcrumbs'   => $breadcrumbs,
-		    'content'      	=> $content,
         'type'					=> $type,
         'starttime'			=> $starttime,
         'endtime'				=> $endtime,
