@@ -61,9 +61,34 @@ class ComposerServiceProvider extends ServiceProvider {
         $area = \Request::segment(1);
       }
 
-      $headingpicture = '/images/headings/large/'.$slug.'.jpg';
+			//User
+			$user = \Auth::user();
 
-			if ($area !== 'whats-on' && $area !== 'members') {
+			$page = \Crockenhill\Page::where('slug', $slug)->first();
+
+			//Description
+		  $description 	= '<meta name="description" content="'.$page->description.'">';
+
+			//Heading
+			$heading = $page->heading;
+
+			//Heading picture
+			$headingpicture = '/images/headings/large/'.$slug.'.jpg';
+
+			//Breadcrumbs
+		  if ($area != $slug) {
+		  	$areapage = \Crockenhill\Page::where('slug', $area)->first();
+		  	$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li>
+													<li class="active">'.$page->heading.'</li>';
+		  } else {
+		  	$breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
+			}
+
+			//Content
+			$content = htmlspecialchars_decode($page->body);
+
+			//Links
+			if ($area !== 'members') {
         $links = \Crockenhill\Page::where('area', $area)
           ->where('slug', '!=', $slug)
           ->where('slug', '!=', $area)
@@ -72,18 +97,21 @@ class ComposerServiceProvider extends ServiceProvider {
 					->orderBy(\DB::raw('RAND()'))
           ->take(5)
           ->get();
-      } else if ($area == 'whats-on') {
-        $links = \Crockenhill\Meeting::where('slug', '!=', $slug)
-          ->get();
       } else {
 				$links = NULL;
 			}
 
-			$user = \Auth::user();
-
-      $view->with('headingpicture', $headingpicture);
-      $view->with('links', $links);
-			$view->with('user', $user);
+      $view->with([
+				'slug'						=> $slug,
+				'area'						=> $area,
+				'description'   	=> $description,
+				'heading'       	=> $heading,
+				'headingpicture' 	=> $headingpicture,
+				'breadcrumbs'   	=> $breadcrumbs,
+				'content'					=> $content,
+				'links'						=> $links,
+				'user' 						=> $user,
+			]);
     });
   }
 
