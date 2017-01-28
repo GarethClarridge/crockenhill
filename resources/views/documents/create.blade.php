@@ -10,7 +10,11 @@
     <br><br><br>
       <article class="card">
         <div class="header-container">
-          <h1>Upload a new document</h1>
+          <h1>
+            <span>
+              Upload a new document
+            </span>
+          </h1>
         </div>
         <div>
           @if (count($errors) > 0)

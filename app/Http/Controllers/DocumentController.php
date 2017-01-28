@@ -17,29 +17,10 @@ class DocumentController extends Controller {
       abort(403);
     }
 
-    // Set information about page to enable lookup
-    $slug = 'documents';
-    $area = 'members';
-
-    // Look up page
-    $page = \Crockenhill\Page::where('slug', $slug)->first();
-
-    // Set details
-    $heading = 'Documents';
-    $breadcrumbs = '<li><a href="/members">Members</a></li>
-										<li class="active">'.$page->heading.'</li>';
-    $content = $page->body;
-
     // Get documents
     $documents = \Crockenhill\Document::get();
 
     return view('documents.index', array(
-        'slug'        => $slug,
-        'heading'     => $heading,
-        'description' => '<meta name="description" content="{{$heading}}">',
-        'area'        => $area,
-        'breadcrumbs' => $breadcrumbs,
-        'content'     => $content,
         'documents'   => $documents,
     ));
 	}
@@ -56,22 +37,7 @@ class DocumentController extends Controller {
       abort(403);
     }
 
-    // Set information about page to enable lookup
-    $area = 'members';
-
-    // Set details
-    $heading = 'Create a New Document';
-		$breadcrumbs = '<li><a href="/members">Members</a></li>
-										<li class="active">Upload a document</li>';
-
-    return view('documents.create', array(
-        'slug'        => 'create',
-        'heading'     => $heading,
-        'description' => '<meta name="description" content="{{$heading}}">',
-        'area'        => $area,
-        'breadcrumbs' => $breadcrumbs,
-        'content'     => '',
-    ));
+    return view('documents.create');
 	}
 
 
