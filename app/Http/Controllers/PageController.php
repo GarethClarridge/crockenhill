@@ -27,7 +27,9 @@ class PageController extends Controller {
       abort(403);
     }
 
-    return view('pages.create');
+    return view('pages.create', array(
+			'heading' => 'Create a page'
+		));
   }
 
   public function store()
@@ -71,7 +73,13 @@ class PageController extends Controller {
 
 		session(['backUrl' => url()->previous()]);
 
-    return view('pages.edit')->with('page', \Crockenhill\Page::where('slug', $slug)->first());
+		$page = \Crockenhill\Page::where('slug', $slug)->first();
+		$heading = 'Edit page';
+
+    return view('pages.edit', array(
+	    'page' 		=> $page,
+			'heading' => $heading
+		));
   }
 
   public function update($slug)
