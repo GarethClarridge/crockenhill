@@ -6,7 +6,7 @@
                         <h1>{{$header}}</h1>
                     </div>
                     <ol class="breadcrumb">
-                        <li>{{ link_to_route('Home', 'Home') }}</li>
+                        <li><a href="/">Home</a></li>
                         {{$breadcrumbs}}
                     </ol>
                     @yield('main-content')
