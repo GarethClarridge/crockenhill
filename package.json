@@ -1,10 +1,9 @@
 {
-  "name": "crockenhill.dev",
-  "version": "5.0.0",
-  "description": "A website for Crockenhill Baptist Church, with CMS functionality",
-  "main": "index.js",
+  "name": "crockenhill.org",
+  "version": "5.2.0",
+  "description": "A website for Crockenhill Baptist Church",
+  "main": "/",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "Church",
