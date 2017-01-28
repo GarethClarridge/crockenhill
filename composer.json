@@ -1,5 +1,5 @@
 {
-	"name": "crockenhill/crockenhill",
+	"name": "garethclarridge/crockenhill",
 	"description": "The Crockenhill Baptist Church website.",
 	"keywords": ["crockenhill", "baptist", "church", "website", "laravel"],
 	"license": "MIT",
@@ -16,9 +16,7 @@
   "require-dev": {
       "fzaninotto/faker": "~1.4",
       "mockery/mockery": "0.9.*",
-      "phpunit/phpunit": "~5.0",
-      "symfony/css-selector": "3.1.*",
-      "symfony/dom-crawler": "3.1.*"
+      "phpunit/phpunit": "~5.0"
 	},
 	"autoload": {
 		"classmap": [
@@ -29,9 +27,9 @@
 		}
 	},
 	"autoload-dev": {
-		"classmap": [
-			"tests/TestCase.php"
-		]
+		"psr-4": {
+			"Tests\\": "tests/"
+		}
 	},
 	"scripts": {
     "post-root-package-install": [
