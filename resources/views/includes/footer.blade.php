@@ -14,7 +14,7 @@
       </div>
     </section>
 
-    <section class="col-sm-6">
+    <section class="col-sm-6 contact-details">
       <div class="row">
         <div class="col-md-6">
           <h4><a href="/contact-us">Get in touch</a></h4>
