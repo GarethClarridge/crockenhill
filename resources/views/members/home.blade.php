@@ -2,10 +2,6 @@
 
 @section('dynamic_content')
 
-  <p>Welcome to the members area of the website.
-    If you have any problems, talk to Gareth.
-  </p>
-
   @can ('edit-sermons')
     <a href="/sermons" class="btn btn-default btn-lg btn-block">Edit sermons</a>
   @endcan
