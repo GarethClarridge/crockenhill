@@ -1,7 +1,4 @@
-@extends('page', [
-    'heading' => 'Edit page',
-    'description' => '<meta name="description" content="Edit this page">'
-])
+@extends('page')
 
 @section('content')
 <div class="container-fluid">
@@ -93,7 +90,7 @@
             </div>
 
             @include('includes.photoselector')
-            
+
             <div class="row">
               <div class="col-sm-6">
                 <div class="form-group">
