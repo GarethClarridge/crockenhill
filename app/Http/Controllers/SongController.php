@@ -13,20 +13,6 @@ class SongController extends Controller {
    */
   public function index()
   {
-    // Define slug and area to enable lookup of page in database
-    $slug = 'songs';
-    $area = 'members';
-
-    // Look up page in pages table of database
-    $page = \Crockenhill\Page::where('slug', $slug)->first();
-
-    // Set values
-    $heading = 'Songs';
-    $breadcrumbs = '<li><a href="/members">Members</a></li><li class="active">'.$page->heading.'</li>';
-
-    // Load content
-    $content = $page->body;
-
     // Load songs
     $songs =\Crockenhill\Song::all();
 
@@ -61,12 +47,6 @@ class SongController extends Controller {
 
     // Present page
     return view('songs.index', array(
-      'slug'        => $slug,
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$heading.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'content'     => $content,
       'songs'       => $songs->sortByDesc('frequency')
     ));
   }
@@ -75,30 +55,6 @@ class SongController extends Controller {
   {
     // Look up song in songs table of database
     $song =\Crockenhill\Song::where('id', $id)->first();
-
-    // Define slug to enable card logic to work
-    $slug = $song->title;
-
-    // Define area to enable lookup of related pages in database
-    $area = 'members';
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
-    // Set values
-    $breadcrumbs = '<li><a href="/members">Members</a></li>
-                    <li><a href="/members/songs">Songs</a></li>
-                    <li class="active">'.$song->title.'</li>';
-    if (is_null($song->alternative_title)) {
-      $heading = $song->title;
-    } else {
-      $heading = $song->title.' - ('.$song->alternative_title.')';
-    }
 
     // Present lyrics in a readable format
     $lyrics = nl2br(trim($song->lyrics));
@@ -150,13 +106,6 @@ class SongController extends Controller {
     // Present page
     return view('songs.song', array(
       'song'        => $song,
-      'slug'        => $slug,
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$song->title.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'links'       => $links,
-      'content'     => '',
       'lyrics'      => $lyrics,
       'last_played' => $last_played,
       'frequency'   => $frequency,
@@ -176,28 +125,6 @@ class SongController extends Controller {
       abort(403);
     }
 
-    // Define slug and area to enable lookup of page in database
-    $slug = 'service-record';
-    $area = 'members';
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $slug)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
-    // Set values
-    $heading = 'Upload New Service Record';
-    $breadcrumbs = '<li><a href="/members">Members</a></li>
-                      <li><a href="/members/songs">Songs</a></li>
-                      <li class="active">'.$heading.'</li>';
-
-    // Load content
-    $content = '';
-
     // Services
     $services = array('a' => 'Morning', 'p' => 'Evening');
 
@@ -216,13 +143,6 @@ class SongController extends Controller {
 
     // Present page
     return view('songs.service-record', array(
-      'slug'        => $slug,
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$heading.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'content'     => $content,
-      'links'       => $links,
       'services'    => $services,
       'lastsunday'  => date('Y-m-d', strtotime('last Sunday')),
       'nips'        => $nips_titles,
@@ -277,38 +197,8 @@ class SongController extends Controller {
       abort(403);
     }
 
-    // Define slug and area to enable lookup of page in database
-    $slug = 'create-song';
-    $area = 'members';
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $slug)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
-    // Set values
-    $heading = 'Add a new song to the list';
-    $breadcrumbs = '<li><a href="/members">Members</a></li>
-                      <li><a href="/members/songs">Songs</a></li>
-                      <li class="active">'.$heading.'</li>';
-
-    // Load content
-    $content = '';
-
     // Present page
-    return view('songs.create', array(
-      'slug'        => $slug,
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$heading.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'content'     => $content,
-      'links'       => $links,
-    ));
+    return view('songs.create');
   }
 
   public function store()
@@ -354,37 +244,8 @@ class SongController extends Controller {
     // Look up song in songs table of database
     $song =\Crockenhill\Song::where('id', $id)->first();
 
-    // Define slug and area to enable lookup of page in database
-    $slug = 'edit-song';
-    $area = 'members';
-
-    // Find relevant links
-    $links = \Crockenhill\Page::where('area', $area)
-      ->where('slug', '!=', $slug)
-      ->where('slug', '!=', $area)
-      ->where('slug', '!=', 'homepage')
-      ->orderBy(\DB::raw('RAND()'))
-      ->take(5)
-      ->get();
-
-    // Set values
-    $heading = 'Edit '.$song->title;
-    $breadcrumbs = '<li><a href="/members">Members</a></li>
-                      <li><a href="/members/songs">Songs</a></li>
-                      <li class="active">'.$heading.'</li>';
-
-    // Load content
-    $content = '';
-
     // Present page
     return view('songs.edit', array(
-      'slug'        => $slug,
-      'heading'     => $heading,
-      'description' => '<meta name="description" content="'.$heading.'">',
-      'area'        => $area,
-      'breadcrumbs' => $breadcrumbs,
-      'content'     => $content,
-      'links'       => $links,
       'song'        => $song
     ));
   }
