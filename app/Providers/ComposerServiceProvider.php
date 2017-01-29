@@ -53,62 +53,126 @@ class ComposerServiceProvider extends ServiceProvider {
 
     \View::composer('page', function($view)
     {
-      if (\Request::segment(2)) {
-        $slug = \Request::segment(2);
-        $area = \Request::segment(1);
-      } else {
-        $slug = \Request::segment(1);
-        $area = \Request::segment(1);
-      }
-
 			//User
 			$user = \Auth::user();
 
-			$page = \Crockenhill\Page::where('slug', $slug)->first();
+			//Set name, slug and area from url
+			if (\Request::segment(3)) {
 
-			//Description
-		  $description 	= '<meta name="description" content="'.$page->description.'">';
+      }
+			elseif (\Request::segment(2)) {
 
-			//Heading
-			$heading = $page->heading;
+      }
+			else {
+				$name = NULL;
 
-			//Heading picture
-			$headingpicture = '/images/headings/large/'.$slug.'.jpg';
-
-			//Breadcrumbs
-		  if ($area != $slug) {
-		  	$areapage = \Crockenhill\Page::where('slug', $area)->first();
-		  	$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li>
-													<li class="active">'.$page->heading.'</li>';
-		  } else {
-		  	$breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
 			}
 
-			//Content
-			$content = htmlspecialchars_decode($page->body);
+			if (\Request::segment(3)) {
+				$name = \Request::segment(3);
+				$slug = \Request::segment(2);
+				$area = \Request::segment(1);
 
-			//Links
-			if ($area !== 'members') {
-        $links = \Crockenhill\Page::where('area', $area)
-          ->where('slug', '!=', $slug)
-          ->where('slug', '!=', $area)
+				//Description
+				$description 	= '<meta name="description" content="'.$slug.': '.$name.'">';
+
+				//Heading
+				$heading = str_replace("-", " ", title_case($name));
+
+				//Breadcrumbs
+				$areapage = \Crockenhill\Page::where('slug', $area)->first();
+				$slugpage = \Crockenhill\Page::where('slug', $slug)->first();
+				$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li>
+												 <li><a href="/'.$area.'/'.$slug.'">'.$slugpage->heading.'</a></li>
+												 <li class="active">'.$heading.'</li>';
+
+				//Heading picture
+				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
+
+				//Links
+				$links = \Crockenhill\Page::where('area', $area)
+					->where('slug', '!=', $slug)
+					->where('slug', '!=', $area)
 					->where('slug', '!=', 'privacy-policy')
 					->where('admin', '!=', 'yes')
 					->orderBy(\DB::raw('RAND()'))
-          ->take(5)
-          ->get();
-      } else {
-				$links = NULL;
+					->take(5)
+					->get();
+			}
+			elseif (\Request::segment(2)) {
+				$slug = \Request::segment(2);
+				$area = \Request::segment(1);
+
+				//Load page
+				$page = \Crockenhill\Page::where('slug', $slug)->first();
+
+				//Description
+				$description 	= '<meta name="description" content="'.$page->description.'">';
+
+				//Heading
+				$heading = $page->heading;
+
+				//Breadcrumbs
+				$areapage = \Crockenhill\Page::where('slug', $area)->first();
+				$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li>
+												 <li class="active">'.$heading.'</li>';
+
+				//Content
+	 			$content = htmlspecialchars_decode($page->body);
+
+				//Heading picture
+				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
+
+				//Links
+				$links = \Crockenhill\Page::where('area', $area)
+					->where('slug', '!=', $slug)
+					->where('slug', '!=', $area)
+					->where('slug', '!=', 'privacy-policy')
+					->where('admin', '!=', 'yes')
+					->orderBy(\DB::raw('RAND()'))
+					->take(5)
+					->get();
+			}
+			else {
+				$area = \Request::segment(1);
+
+				//Load page
+				$page = \Crockenhill\Page::where('slug', $area)->first();
+
+				//Description
+				$description 	= '<meta name="description" content="'.$page->description.'">';
+
+				//Heading
+				$heading = $page->heading;
+
+				//Breadcrumbs
+				$breadcrumbs 	= '<li class="active">'.$heading.'</li>';
+
+				//Content
+	 			$content = htmlspecialchars_decode($page->body);
+
+				//Heading picture
+				$headingpicture = '/images/headings/large/'.$area.'.jpg';
+
+				//Links
+				$links = \Crockenhill\Page::where('area', $area)
+					->where('slug', '!=', $area)
+					->where('slug', '!=', 'privacy-policy')
+					->where('admin', '!=', 'yes')
+					->orderBy(\DB::raw('RAND()'))
+					->take(5)
+					->get();
 			}
 
       $view->with([
-				'slug'						=> $slug,
+				'name'						=> (isset($name) ? $name : ''),
+				'slug'						=> (isset($slug) ? $slug : ''),
 				'area'						=> $area,
 				'description'   	=> $description,
 				'heading'       	=> $heading,
 				'headingpicture' 	=> $headingpicture,
 				'breadcrumbs'   	=> $breadcrumbs,
-				'content'					=> $content,
+				'content'					=> (isset($content) ? $content : ''),
 				'links'						=> $links,
 				'user' 						=> $user,
 			]);

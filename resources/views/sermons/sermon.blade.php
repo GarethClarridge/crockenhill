@@ -41,6 +41,7 @@
         </button>
       </div>
     </form>
+    <br>
   @endcan
 
   <section class="sermon-details">
