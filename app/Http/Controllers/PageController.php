@@ -4,35 +4,9 @@ use League\CommonMark\CommonMarkConverter;
 
 class PageController extends Controller {
 
-	public function showPage($area, $slug = NULL)
+	public function showPage()
 	{
-		// Slug defaults to null - then gets set to $area
-		if ($slug === NULL) {
-			$slug = $area;
-		}
-
-    if ($page = \Crockenhill\Page::where('slug', $slug)->first()) {
-
-		  if ($area != $slug) {
-		  	$areapage = \Crockenhill\Page::where('slug', $area)->first();
-		  	$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li>
-													<li class="active">'.$page->heading.'</li>';
-		  } else {
-		  	$breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
-			}
-	    $description 	= '<meta name="description" content="'.$page->description.'">';
-
-			return view('page', array(
-		    'slug'          => $page->slug,
-		    'heading'       => $page->heading,
-		    'description'   => $description,
-		    'area'					=> $page->area,
-		    'breadcrumbs'   => $breadcrumbs,
-		    'content'       => htmlspecialchars_decode($page->body),
-			));
-		} else {
-			\App::abort(404);
-		};
+		return view('page');
 	}
 
 	public function index()
@@ -40,21 +14,9 @@ class PageController extends Controller {
     if (\Gate::denies('edit-pages')) {
       abort(403);
     }
-		$slug = 'pages';
-		$area = 'members';
-    $page = \Crockenhill\Page::where('slug', $slug)->first();
-    $areapage = \Crockenhill\Page::where('slug', $area)->first();
-    $breadcrumbs = '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li><li class="active">'.$page->heading.'</li>';
-    $description = '<meta name="description" content="'.$page->description.'">';
 		$pages = \Crockenhill\Page::orderBy('area', 'asc')->get();
 
     return view('pages.index', array(
-	    'slug'          => $page->slug,
-	    'heading'       => $page->heading,
-	    'description'   => $description,
-	    'area'          => $page->area,
-	    'breadcrumbs'   => $breadcrumbs,
-	    'content'       => htmlspecialchars_decode($page->body),
 	    'pages'         => $pages
     ));
   }
@@ -66,11 +28,8 @@ class PageController extends Controller {
     }
 
     return view('pages.create', array(
-      'heading'       => 'Create a new page',
-      'description'   => '<meta name="description" content="Create a new website page.">',
-      'breadcrumbs'   => '<li><a href="/members">Members</a></li><li><a href="/members/pages">Pages</a></li><li class="active">Create</li>',
-      'content'       => '',
-    ));
+			'heading' => 'Create a page'
+		));
   }
 
   public function store()
@@ -114,7 +73,13 @@ class PageController extends Controller {
 
 		session(['backUrl' => url()->previous()]);
 
-    return view('pages.edit')->with('page', \Crockenhill\Page::where('slug', $slug)->first());
+		$page = \Crockenhill\Page::where('slug', $slug)->first();
+		$heading = 'Edit page';
+
+    return view('pages.edit', array(
+	    'page' 		=> $page,
+			'heading' => $heading
+		));
   }
 
   public function update($slug)

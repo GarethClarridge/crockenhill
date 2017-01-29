@@ -14,53 +14,34 @@ class SermonController extends Controller {
 	 */
 	public function index()
 	{
-		$slug = 'sermons';
-  	$page = \Crockenhill\Page::where('slug', $slug)->first();
-
     $last_6_weeks = \Crockenhill\Sermon::orderBy('date', 'desc')
-                      ->take(6)
-                      ->pluck('date');
+                    ->take(6)
+                    ->pluck('date');
 
     $latest_sermons = [];
 
     foreach ($last_6_weeks as $week) {
-      $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)
-                                  ->get();
+      $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)->get();
     }
 
 		return view('sermons.index', array(
-	    'slug'                    => $slug,
-	    'heading'       			    => $page->heading,
-	    'description'   			    => '<meta name="description" content="Recent sermons preached at Crockenhill Baptist Church.">',
-	    'breadcrumbs'   					=> '<li class="active">'.$page->heading.'</li>',
-	    'content'       					=> $page->body,
-      'latest_sermons'          => $latest_sermons
+	    'latest_sermons' => $latest_sermons
 		));
 	}
 
   public function getAll()
   {
-    $slug = 'all';
-    $page = \Crockenhill\Page::where('slug', $slug)->first();
-    $area = $page->area;
-
     $weeks = \Crockenhill\Sermon::orderBy('date', 'desc')
                       ->pluck('date');
 
-    $latest_sermons = [];
+    $sermons = [];
 
     foreach ($weeks as $week) {
-      $latest_sermons[$week] = \Crockenhill\Sermon::where('date', $week)
-                                  ->get();
+      $sermons[$week] = \Crockenhill\Sermon::where('date', $week)->get();
     }
 
     return view('sermons.all', array(
-      'slug'                    => $slug,
-      'heading'                 => $page->heading,
-      'description'             => '<meta name="description" content="Recent sermons preached at Crockenhill Baptist Church.">',
-      'breadcrumbs'             => '<li><a href="/sermons">Sermons</a></li><li class="active">'.$page->heading.'</li>',
-      'content'                 => $page->body,
-      'latest_sermons'          => $latest_sermons,
+			'sermons' => $sermons,
     ));
   }
 
@@ -76,14 +57,10 @@ class SermonController extends Controller {
     }
 
 		$series = array_unique(\Crockenhill\Sermon::pluck('series')->all());
-    return view('sermons.create', array(
-      'series'        => $series,
-      'heading'       => 'Upload a new sermon',
-      'description'   => '<meta name="description" content="Recent sermons preached at Crockenhill Baptist Church.">',
-      'breadcrumbs'   => '<li><a href="/sermons">Sermons</a></li><li class="active">Create</li>',
-      'content'       => '',
 
-    ));
+		return view('sermons.create', array(
+      'series' => $series,
+  	));
 	}
 
 	/**
@@ -157,25 +134,6 @@ class SermonController extends Controller {
 			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
 													<li class="active">'.$sermon->title.'</li>';
 		}
-
-    // // Get the passage using esvapi
-    // $reference = $sermon->reference;
-    // $section = array();
-    // $key = "IP";
-    // $passage = urlencode($reference);
-    // $options = "include-passage-references=false&audio-format=flash";
-    // $url = "http://www.esvapi.org/v2/rest/passageQuery?key=$key&passage=$passage&$options";
-    // $data = fopen($url, "r") ;
-    // if ($data) {
-    //   while (!feof($data)){
-    //     $buffer = fgets($data, 4096);
-    //     $section[] = $buffer;
-    //   }
-    //   fclose($data);
-    // }
-    // else {
-    //   die("fopen failed for url to webservice");
-    // }
 
   	return view('sermons.sermon', array(
 	    'slug'        => $slug,
@@ -277,8 +235,6 @@ class SermonController extends Controller {
 	{
 		$slug = 'preachers';
 		$page = \Crockenhill\Page::where('slug', $slug)->first();
-		$area_heading = \Illuminate\Support\Str::title($page->area);
-		$breadcrumbs = '<li><a href="/'.$page->area.'">'.$area_heading.'</a></li><li class="active">'.$page->heading.'</li>';
 
   	$preachers = \Crockenhill\Sermon::select('preacher')->distinct()->orderBy('preacher', 'asc')->get();
   	// Count number of sermons by each preacher
@@ -290,11 +246,6 @@ class SermonController extends Controller {
   	arsort($preacher_array);
 
   	return view('sermons.preachers', array(
-      'slug'        => $slug,
-      'heading'     => $page->heading,
-      'description' => '<meta name="description" content="'.$page->description.'">',
-      'breadcrumbs' => $breadcrumbs,
-      'content'			=> $page->body,
       'preachers'		=> $preacher_array
   ));
 	}
@@ -302,61 +253,34 @@ class SermonController extends Controller {
 	public function getPreacher($preacher)
 	{
 		$preacher_name = str_replace('-', ' ', \Illuminate\Support\Str::title($preacher));
-		$area = 'sermons';
-		$area_heading = \Illuminate\Support\Str::title($area);
-  	$breadcrumbs = '<li><a href="/'.$area.'">'.$area_heading.'</a></li><li><a href="/sermons/preachers">Preachers</a></li><li class="active">'.$preacher_name.'</li>';
   	$sermons = \Crockenhill\Sermon::where('preacher', $preacher_name)
                   ->orderBy('date', 'desc')
                   ->paginate(8);
 
   	return view('sermons.preacher', array(
-      'slug'        => '',
-      'heading'     => 'Sermons by '.$preacher_name,
-      'description' => '<meta name="description" content="Sermons by '.$preacher_name.'">',
-      'breadcrumbs' => $breadcrumbs,
-      'content'			=> '',
       'sermons'			=> $sermons
   ));
 	}
 
 	public function getSerieses()
 	{
-		$slug = 'series';
-		$page = \Crockenhill\Page::where('slug', $slug)->first();
-		$area = $page->area;
-		$area_heading = \Illuminate\Support\Str::title($page->area);
-      	$breadcrumbs = '<li><a href="/'.$page->area.'">'.$area_heading.'</a></li><li class="active">'.$page->heading.'</li>';
+  	$series = \Crockenhill\Sermon::select('series')->distinct()->get();
 
-      	$series = \Crockenhill\Sermon::select('series')->distinct()->orderBy('date')->get();
-
-      	return view('sermons.serieses', array(
-	        'slug'        => $slug,
-	        'heading'     => $page->heading,
-	        'description' => '<meta name="description" content="'.$page->description.'">',
-	        'breadcrumbs' => $breadcrumbs,
-	        'content'			=> $page->body,
-	        'series'		=> $series
-	    ));
+  	return view('sermons.serieses', array(
+        'series'		=> $series
+  ));
 	}
 
 	public function getSeries($series)
 	{
 		$series_name = str_replace('-', ' ', \Illuminate\Support\Str::title($series));
-		$area = 'sermons';
-		$area_heading = \Illuminate\Support\Str::title($area);
-      	$breadcrumbs = '<li><a href="/'.$area.'">'.$area_heading.'</a></li><li><a href="/sermons/series">Series</a></li><li class="active">'.$series_name.'</li>';
-      	$sermons = \Crockenhill\Sermon::where('series', $series_name)
-                      ->orderBy('date', 'desc')
-                      ->paginate(8);
+  	$sermons = \Crockenhill\Sermon::where('series', $series_name)
+                  ->orderBy('date', 'desc')
+                  ->paginate(8);
 
-      	return view('sermons.series', array(
-	        'slug'        => '',
-	        'heading'     => 'Sermons in the "'.$series_name.'" series',
-	        'description' => '<meta name="description" content="Sermons by '.$series_name.'">',
-	        'breadcrumbs' => $breadcrumbs,
-	        'content'			=> '',
-	        'sermons'			=> $sermons
-	    ));
+  	return view('sermons.series', array(
+          'sermons'			=> $sermons
+  	));
 	}
 
 }
