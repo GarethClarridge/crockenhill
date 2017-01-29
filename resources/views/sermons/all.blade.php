@@ -2,7 +2,7 @@
 
 @section('dynamic_content')
 
-@foreach ($latest_sermons as $date => $sermons)
+@foreach ($sermons as $date => $sermons)
   <section class="week">
     <div class="row">
       <div class="col-sm-2">
@@ -38,7 +38,7 @@
         @foreach ($sermons as $sermon)
           <div class="col-sm-5">
             @include('includes.sermon-display')
-          </div>            
+          </div>
         @endforeach
       @endif
       <br>
