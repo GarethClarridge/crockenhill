@@ -2,10 +2,12 @@
 
 @section('dynamic_content')
 
-@foreach ($sermons as $sermon)
-  @include('includes.sermon-display')
-@endforeach
+  <h2>Sermons preached by {{str_replace("-", " ", title_case(\Request::segment(3)))}}</h2>
 
-{!! $sermons->render() !!}
+  @foreach ($sermons as $sermon)
+    @include('includes.sermon-display')
+  @endforeach
+
+  {!! $sermons->render() !!}
 
 @stop
