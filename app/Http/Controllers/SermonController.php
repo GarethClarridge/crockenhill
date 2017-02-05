@@ -79,24 +79,28 @@ class SermonController extends Controller {
     $filename = substr($file->getClientOriginalName(), 0, -4);
 
 		// Points
-		$points = '<ol>';
-		for ($p=1; $p < 7; $p++) {
-			if (\Input::get('point-'.$p) !== '') {
-				$points .= '<li class="h4">'.\Input::get('point-'.$p).'</li>';
-			}
-			for ($i=1; $i < 6; $i++) {
-				if (\Input::get('sub-point-'.$p.'-'.$i) !== '') {
-					if ($i == 1) {
-						$points .= '<ul>';
-						$points .= '<li>'.\Input::get('sub-point-'.$p.'-'.$i).'</li></ul>';
-					} else {
-						$points = substr($points, 0, -5);
-						$points .= '<li>'.\Input::get('sub-point-'.$p.'-'.$i).'</li></ul>';
+		if (\Input::get('point-1') !== NULL) {
+			$points = '<ol>';
+			for ($p=1; $p < 7; $p++) {
+				if (\Input::get('point-'.$p) !== NULL) {
+					$points .= '<li class="h4">'.\Input::get('point-'.$p).'</li>';
+				}
+				for ($i=1; $i < 6; $i++) {
+					if (\Input::get('sub-point-'.$p.'-'.$i) !== NULL) {
+						if ($i == 1) {
+							$points .= '<ul>';
+							$points .= '<li>'.\Input::get('sub-point-'.$p.'-'.$i).'</li></ul>';
+						} else {
+							$points = substr($points, 0, -5);
+							$points .= '<li>'.\Input::get('sub-point-'.$p.'-'.$i).'</li></ul>';
+						}
 					}
 				}
 			}
+			$points .= '</ol>';
+		} else {
+			$points = NULL;
 		}
-		$points .= '</ol>';
 
     $sermon = new \Crockenhill\Sermon;
     $sermon->title      = trim(\Input::get('title'));
