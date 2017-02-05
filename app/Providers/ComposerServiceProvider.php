@@ -139,21 +139,25 @@ class ComposerServiceProvider extends ServiceProvider {
 				$area = \Request::segment(1);
 
 				//Load page
-				$page = \Crockenhill\Page::where('slug', $slug)->first();
+				if($page = \Crockenhill\Page::where('slug', $slug)->first()) {
+					//Description
+					$description 	= '<meta name="description" content="'.$page->description.'">';
 
-				//Description
-				$description 	= '<meta name="description" content="'.$page->description.'">';
+					//Heading
+					$heading = $page->heading;
 
-				//Heading
-				$heading = $page->heading;
+					//Breadcrumbs
+					$areapage = \Crockenhill\Page::where('slug', $area)->first();
+					$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li>
+													 <li class="active">'.$heading.'</li>';
 
-				//Breadcrumbs
-				$areapage = \Crockenhill\Page::where('slug', $area)->first();
-				$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li>
-												 <li class="active">'.$heading.'</li>';
-
-				//Content
-	 			$content = htmlspecialchars_decode($page->body);
+					//Content
+		 			$content = htmlspecialchars_decode($page->body);
+				} else {
+					$description = NULL;
+					$heading = NULL;
+					$breadcrumbs = NULL;
+				}
 
 				//Heading picture
 				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
