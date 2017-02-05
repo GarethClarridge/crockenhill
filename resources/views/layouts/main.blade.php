@@ -10,7 +10,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="msvalidate.01" content="2EF7ECDA9644EAD5B1B36A960808B8DB" />
 
-    @yield('description')
+    @section('description') {{$description}} @endsection
 
     <link type="text/css" rel="stylesheet" href="/stylesheets/main.css?v=5.2.0">
     <link type="text/css" rel="stylesheet" href="/stylesheets/print.css" media="print">
