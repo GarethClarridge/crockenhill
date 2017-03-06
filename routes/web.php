@@ -197,3 +197,8 @@ Route::get('/', ['as' => 'Home', function()
 {
     return view('home');
 }]);
+
+Route::get('500', function()
+{
+    abort(500);
+});
