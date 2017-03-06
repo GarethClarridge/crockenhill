@@ -1,4 +1,4 @@
-@extends('page',
+@extends('page_empty',
 	['heading' => 'Forgotten password',
 	'description' => '<meta name="description" content="Forgotten password">']
 	)
