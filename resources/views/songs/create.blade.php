@@ -19,6 +19,7 @@
       <label for="major-category">Praise! category</label>
       <select name="major-category" id="major-category" class="form-control">
         <option value="All">All</option>
+        <option value="Psalms">Psalms</option>
         <option value="Approaching God">Approaching God</option>
         <option value="The Father">The Father</option>
         <option value="The Son">The Son</option>
