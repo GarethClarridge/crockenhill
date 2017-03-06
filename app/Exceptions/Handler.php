@@ -36,12 +36,16 @@ class Handler extends ExceptionHandler {
 	 */
 	public function render($request, Exception $e)
 	{
-		// custom error message
-    if ($e instanceof \ErrorException) {
-      return response()->view('errors.500', [], 500);
-    } else {
-      return parent::render($request, $e);
-    }
+		if (config('app.debug') == true) {
+			return parent::render($request, $e);
+		} else {
+			// custom error message
+	    if ($e instanceof \ErrorException) {
+	      return response()->view('errors.500', [], 500);
+	    } else {
+	      return parent::render($request, $e);
+	    }
+		}
 	}
 
 	/**
