@@ -172,7 +172,23 @@ class ComposerServiceProvider extends ServiceProvider {
 					->take(5)
 					->get();
 			}
-			else {
+			else if(\Request::segment(1) == 'login')
+			{
+				//Area
+				$area = 'members';
+				//Description
+				$description 	= '<meta name="description" content="Log in">';
+				//Heading
+				$heading = 'Log in';
+				//Breadcrumbs
+				$breadcrumbs 	= '<li class="active">'.$heading.'</li>';
+				//Content
+	 			$content = NULL;
+				//Heading picture
+				$headingpicture = NULL;
+				//Links
+				$links = NULL;
+			} else {
 				$area = \Request::segment(1);
 
 				//Load page
