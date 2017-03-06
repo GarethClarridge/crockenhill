@@ -1,4 +1,4 @@
-@extends('page',
+@extends('page_empty',
 	['heading' => 'Log in',
 	'description' => '<meta name="description" content="Log in to the member area">']
 	)
