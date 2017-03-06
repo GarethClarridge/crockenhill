@@ -45,9 +45,12 @@ class SongController extends Controller {
       }
     }
 
+    $last_service_uploaded = \Crockenhill\PlayDate::orderBy('date', 'desc')->first(['date']);
+
     // Present page
     return view('songs.index', array(
-      'songs'       => $songs->sortByDesc('frequency')
+      'songs'       => $songs->sortByDesc('frequency'),
+      'last_service_uploaded' => $last_service_uploaded
     ));
   }
 
