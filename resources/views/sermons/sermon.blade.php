@@ -1,4 +1,4 @@
-@extends('page')
+@extends('page_empty')
 
 @section('social_sharing')
   <!-- <li>

@@ -1,4 +1,4 @@
-@extends('page',
+@extends('page_empty',
 	['heading' => 'Register',
 	'description' => '<meta name="description" content="Register a new member">']
 	)
