@@ -3,23 +3,23 @@
 @section('dynamic_content')
 
   @can ('edit-songs')
-    <br>
-    <br>
-    <div class="row">
-     <div class="col-sm-6">
-       <a href="/members/songs/service-record" class="btn btn-default btn-lg btn-block">
-         <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp
-         Upload a new service record
-       </a>
-     </div>
-     <div class="col-sm-6">
-       <a href="/members/songs/create" class="btn btn-default btn-lg btn-block">
-         <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp
-         Upload a new song
-       </a>
-     </div>
+  <br>
+  <p>You last uploaded a service record on <strong>{{date("d F Y",strtotime($last_service_uploaded['date']))}}</strong>.</p>
+  <div class="row">
+    <div class="col-sm-6">
+     <a href="/members/songs/service-record" class="btn btn-default btn-lg btn-block">
+       <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp
+       Upload a new service record
+     </a>
     </div>
-    <br>
+    <div class="col-sm-6">
+     <a href="/members/songs/create" class="btn btn-default btn-lg btn-block">
+       <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp
+       Upload a new song
+     </a>
+    </div>
+  </div>
+  <br>
   @endcan
 
   <section id="song-list">
