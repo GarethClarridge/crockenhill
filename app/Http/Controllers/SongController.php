@@ -129,7 +129,12 @@ class SongController extends Controller {
     }
 
     // Services
-    $services = array('a' => 'Morning', 'p' => 'Evening');
+    $services = array('am' => 'Morning', 'pm' => 'Evening');
+
+    // Next service upload date
+    $last_service_uploaded = \Crockenhill\PlayDate::orderBy('date', 'desc')->first(['date']);
+    $last_service_uploaded_date = strtotime($last_service_uploaded['date']);
+    $next_service_upload_date = strtotime("+7 day", $last_service_uploaded_date);
 
     // Get NIP titles
     $nips =\Crockenhill\Song::where('praise_number', '')
@@ -149,6 +154,7 @@ class SongController extends Controller {
       'services'    => $services,
       'lastsunday'  => date('Y-m-d', strtotime('last Sunday')),
       'nips'        => $nips_titles,
+      'next_service_upload_date' => date("Y-m-d",$next_service_upload_date),
     ));
   }
 
@@ -160,16 +166,16 @@ class SongController extends Controller {
 
     $date = \Input::get('date');
 
-    $service = array('a' => 'Morning', 'p' => 'Evening');
+    $service = array('am' => 'Morning', 'pm' => 'Evening');
 
     foreach ($service as $key => $value) {
       $array = array();
 
       for ($i=1; $i < 10; $i++) {
-        if (\Input::get($key.'m'.$i.'-number') !== '') {
-          $array[] = \Input::get($key.'m'.$i.'-number');
-        } elseif (\Input::get($key.'m'.$i.'-title') !== '') {
-          $array[] = \Input::get($key.'m'.$i.'-title');
+        if (\Input::get($key.$i.'-number') !== '') {
+          $array[] = \Input::get($key.$i.'-number');
+        } elseif (\Input::get($key.$i.'-title') !== '') {
+          $array[] = \Input::get($key.$i.'-title');
         }
       }
 
