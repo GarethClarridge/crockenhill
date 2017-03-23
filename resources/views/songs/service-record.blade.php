@@ -7,7 +7,7 @@
 
     <div class="form-group">
       <label for="date" class="control-label">Date</label>
-      <input type="date" name="date" value="{{$lastsunday}}" class="form-control">
+      <input type="date" name="date" value="{{ $next_service_upload_date }}" class="form-control">
 
       @foreach ($services as $key => $value)
 
