@@ -137,23 +137,15 @@ class SongController extends Controller {
     $next_service_upload_date = strtotime("+7 day", $last_service_uploaded_date);
 
     // Get NIP titles
-    $nips =\Crockenhill\Song::where('praise_number', '')
-                  ->orWhere('praise_number', null)
-                  ->select('title')
-                  ->orderBy('title', 'asc')
+    $songs = \Crockenhill\Song::select('id','praise_number','title')
+                  ->orderBy('id', 'asc')
                   ->get();
-
-    $nips_titles = array();
-    $nips_titles[''] = 'Please select ...';
-    foreach ($nips as $nip) {
-      $nips_titles[$nip->title] = $nip->title;
-    }
 
     // Present page
     return view('songs.service-record', array(
       'services'    => $services,
       'lastsunday'  => date('Y-m-d', strtotime('last Sunday')),
-      'nips'        => $nips_titles,
+      'songs'        => $songs,
       'next_service_upload_date' => date("Y-m-d",$next_service_upload_date),
     ));
   }
@@ -166,31 +158,20 @@ class SongController extends Controller {
 
     $date = \Input::get('date');
 
-    $service = array('am' => 'Morning', 'pm' => 'Evening');
+    $services = ['am','pm'];
 
-    foreach ($service as $key => $value) {
-      $array = array();
-
+    foreach ($services as $service) {
       for ($i=1; $i < 10; $i++) {
-        if (\Input::get($key.$i.'-number') !== '') {
-          $array[] = \Input::get($key.$i.'-number');
-        } elseif (\Input::get($key.$i.'-title') !== '') {
-          $array[] = \Input::get($key.$i.'-title');
-        }
-      }
-
-      foreach ($array as $value) {
-        if ($value !== '') {
-          if (\Crockenhill\Song::where('praise_number', $value)->first()) {
-            $song =\Crockenhill\Song::where('praise_number', $value)->first();
-          } elseif (\Crockenhill\Song::where('title', $value)->first()) {
-            $song =\Crockenhill\Song::where('title', $value)->first();
+        if (\Input::get($service.$i, '') != '') {
+          $song_id = \Input::get($service.$i);
+          if (\Crockenhill\Song::where('id', $song_id)->first()) {
+            $song =\Crockenhill\Song::where('id', $song_id)->first();
           }
 
           $playdate = new \Crockenhill\PlayDate;
           $playdate->song_id = $song->id;
           $playdate->date = $date;
-          $playdate->time = $key;
+          $playdate->time = $service[0];
           $playdate->save();
         }
       }
