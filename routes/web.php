@@ -188,6 +188,9 @@ Route::get('whatson/familyfunnight', function(){
 Route::get('whatson/sunday', function(){
     return Redirect::to('whats-on/sunday-services', 301);
 });
+Route::get('buzz-club', function(){
+    return Redirect::to('whats-on/buzz-club', 301);
+});
 
 // General Routes
 
