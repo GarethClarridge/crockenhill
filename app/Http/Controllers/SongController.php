@@ -261,7 +261,7 @@ class SongController extends Controller {
     $song->save();
 
     // Send user back to index
-    return redirect('/members/songs')->with('message', '"'.\Input::get('title').'" successfully updated '.$song->title.'!');
+    return redirect('/members/songs')->with('message', '"'.$song->title.'" successfully updated!');
 	}
 
 }
