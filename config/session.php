@@ -134,9 +134,7 @@ return [
 	| available to in your application. A sensible default has been set.
 	|
 	*/
-
-	'domain' => null,
-
+	'domain' => env('SESSION_DOMAIN', null),
 	/*
 	|--------------------------------------------------------------------------
 	| HTTPS Only Cookies
@@ -147,7 +145,28 @@ return [
 	| the cookie from being sent to you if it can not be done securely.
 	|
 	*/
-
-	'secure' => false,
+	'secure' => env('SESSION_SECURE_COOKIE', false),
+	/*
+	|--------------------------------------------------------------------------
+	| HTTP Access Only
+	|--------------------------------------------------------------------------
+	|
+	| Setting this value to true will prevent JavaScript from accessing the
+	| value of the cookie and the cookie will only be accessible through
+	| the HTTP protocol. You are free to modify this option if needed.
+	|
+	*/
+	'http_only' => true,
+	/*
+	|--------------------------------------------------------------------------
+	| Same-site Cookies
+	|--------------------------------------------------------------------------
+	|
+	| Here you may change the default value of the same-site cookie attribute.
+	|
+	| Supported: "lax", "strict"
+	|
+	*/
+	'same_site' => null,
 
 ];
