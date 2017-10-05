@@ -7,14 +7,15 @@
 	"require": {
 		"php": ">=5.6.4",
 		"intervention/image": "2.*",
-		"laravel/dusk": "^1.0",
-		"laravel/framework": "5.4.*",
+		"laravel/dusk": "^2.0",
+		"laravel/framework": "5.5.*",
 		"league/commonmark": "^0.15.3"
 	},
   "require-dev": {
       "fzaninotto/faker": "~1.4",
       "mockery/mockery": "0.9.*",
-      "phpunit/phpunit": "~5.0"
+      "phpunit/phpunit": "~6.0",
+			"filp/whoops": "~2.0"
 	},
 	"autoload": {
 		"classmap": [
@@ -29,20 +30,22 @@
 			"Tests\\": "tests/"
 		}
 	},
+	"extra": {
+		"laravel": {
+			"dont-discover": [
+			]
+		}
+	},
 	"scripts": {
-    "post-root-package-install": [
-      "php -r \"file_exists('.env') || copy('.env.example', '.env');\""
-    ],
-    "post-create-project-cmd": [
-      "php artisan key:generate"
-    ],
-    "post-install-cmd": [
-      "Illuminate\\Foundation\\ComposerScripts::postInstall",
-      "php artisan optimize"
-    ],
-    "post-update-cmd": [
-      "Illuminate\\Foundation\\ComposerScripts::postUpdate",
-      "php artisan optimize"
+		"post-root-package-install": [
+			"@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+		],
+		"post-create-project-cmd": [
+			"@php artisan key:generate"
+		],
+		"post-autoload-dump": [
+      "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+      "@php artisan package:discover"
     ]
   },
   "config": {
