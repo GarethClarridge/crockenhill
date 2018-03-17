@@ -38,8 +38,8 @@
           @if (isset ($breadcrumbs))
             <ol class="breadcrumb">
               <li><a href="/">Home</a></li>
-              @yield('breadcrumbs', $breadcrumbs)
-
+              {!!$breadcrumbs!!}
+              
               @if (isset($slug))
                 @can ('edit-pages')
                   <li class="edit-buttons">
