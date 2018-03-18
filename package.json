@@ -21,18 +21,23 @@
   "author": "Gareth Clarridge",
   "license": "BSD-2-Clause",
   "devDependencies": {
+    "axios": "^0.16.2",
     "browser-sync": "^2.18.5",
-    "gulp": "gulpjs/gulp.git#4.0",
+    "cross-env": "^5.0.1",
+    "gulp": "github:gulpjs/gulp#4.0",
     "gulp-concat": "^2.6.1",
-    "gulp-sass": "^3.0.0",
+    "gulp-sass": "^3.2.0",
     "gulp-uglify": "^2.0.0",
     "gulp-util": "^3.0.8",
-    "axios": "^0.16.2",
-    "bootstrap-sass": "^3.3.7",
-    "cross-env": "^5.0.1",
-    "jquery": "^3.1.1",
+    "jquery": "^3.3.1",
     "laravel-mix": "^1.0",
     "lodash": "^4.17.4",
     "vue": "^2.1.10"
+  },
+  "dependencies": {
+    "ajv": "^6.3.0",
+    "bootstrap": "^4.0.0",
+    "chart.js": "^2.7.2",
+    "popper.js": "^1.14.1"
   }
 }
