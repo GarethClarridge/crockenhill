@@ -1,47 +1,6 @@
-header {
-  margin-bottom: floor($padding-large-vertical+44px);
-}
-
-.navbar {
-  height: 50px;
-  box-shadow: 0px 1px 4px $gray-dark;
-}
-
-.org-name {
+a.navbar-brand {
   img {
-    height: 50px;
-    padding: 0px;
+    //height: 50px;
+    padding-top: 0px;
   }
-  span {
-    color: $inverse-text-color;
-    padding-left: 7.5px;
-    text-decoration: none;
-  }
-  @media (max-width: $screen-xs) {
-    span {
-      display: none;
-    }
-  }
-}
-
-// Remove border on collapsed nav
-
-.navbar-collapse, .navbar-toggle {
-  color: $inverse-text-color;
-  margin: 0px;
-  height: 50px;
-  border-radius: 0px;
-}
-
-// Centre collapsed navs
-
-.navbar-nav {
-  display: inline-block;
-  float: none;
-  vertical-align: top;
-}
-
-.navbar-collapse {
-  text-align: center;
-  background-color: $brand-primary;
 }

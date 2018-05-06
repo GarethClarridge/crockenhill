@@ -1,19 +1,19 @@
 main {
-    margin-top: $padding-large-vertical + 25px;
-    margin-bottom: floor($padding-large-vertical * 2);
+    margin-top: map-get($spacers, 4);
+    margin-bottom: floor(map-get($spacers, 4) * 2);
 }
 
 article {
-    margin-top: $padding-large-vertical;
+    margin-top: map-get($spacers, 4);
 }
 
 aside {
-    margin-top: $padding-large-vertical;
+    margin-top: map-get($spacers, 4);
 
     h4 {
         font-style: italic;
         text-align: center;
-        line-height: $line-height-doubled;
+        line-height: map-get($spacers, 4);
     }
 
     .list-group-item {
@@ -22,7 +22,7 @@ aside {
     }
 
     a {
-        color: $text-color;
+        // color: $text-color;
         &:hover {
             text-decoration: underline;
         }
