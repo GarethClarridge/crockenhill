@@ -6040,20 +6040,10 @@ a.text-dark:hover, a.text-dark:focus {
 
 main {
   margin-top: 1.5rem;
-  margin-bottom: 3rem; }
-
-article {
-  margin-top: 1.5rem; }
+  margin-bottom: 1.5rem; }
 
 aside {
-  margin-top: 1.5rem; }
-  aside h4 {
-    font-style: italic;
-    text-align: center;
-    line-height: 1.5rem; }
-  aside .list-group-item {
-    border: none;
-    background: none; }
+  margin-bottom: 0.5rem; }
   aside a:hover {
     text-decoration: underline; }
 
@@ -6191,9 +6181,6 @@ audio {
   .sermon-headings > ol > li, .sermon-headings > ul > li {
     padding-top: 3rem; }
 
-.form-narrow {
-  width: 80%; }
-
 .flexible-map-container {
   position: relative;
   padding-bottom: 56.25%;
@@ -6214,33 +6201,29 @@ audio {
   width: 100%;
   height: 100%; }
 
-.card {
-  padding: 0% 8% 8% 8%;
-  box-shadow: 0px 0px 1px; }
-  .card .header-container {
-    width: 119.047619%;
-    margin-left: -9.5238095%;
-    margin-top: 0;
-    margin-bottom: 1.5;
-    padding: 4rem 8%;
-    background-color: #16324f;
-    background-size: cover;
-    background-position: 50%; }
-    .card .header-container h1, .card .header-container h2, .card .header-container h3, .card .header-container h4, .card .header-container h5, .card .header-container h6 {
-      line-height: 3rem;
-      margin: 0;
-      font-weight: 900; }
-      .card .header-container h1 span, .card .header-container h2 span, .card .header-container h3 span, .card .header-container h4 span, .card .header-container h5 span, .card .header-container h6 span {
-        background-color: #08a386;
-        box-decoration-break: clone;
-        -webkit-box-decoration-break: clone; }
-    .card .header-container h3 {
-      padding-left: 1.5rem; }
-
-aside .read-more {
-  text-align: right;
-  font-style: italic;
-  padding-top: 1rem; }
+.heading-picture {
+  border-top-left-radius: calc(.25rem - 1px);
+  border-top-right-radius: calc(.25rem - 1px);
+  background-color: #16324f;
+  background-size: cover;
+  background-position: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; }
+  .heading-picture .card-img-top {
+    z-index: 0; }
+  .heading-picture .card-text {
+    padding: 1.5rem;
+    position: absolute;
+    z-index: 1;
+    line-height: 100%; }
+    .heading-picture .card-text span {
+      background-color: #08a386;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+      padding: 1rem;
+      line-height: 200%;
+      color: var(--light); }
 
 .card-header-pull-right {
   float: right;
