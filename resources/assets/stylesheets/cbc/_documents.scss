@@ -1,25 +1,25 @@
 .document-container {
-  margin-top: floor($padding-large-vertical * 2);
-  margin-bottom: $padding-large-vertical;
+  margin-top: floor(map-get($spacers, 4) * 2);
+  margin-bottom: map-get($spacers, 4);
   margin-left: -9.5238095%;
   width: 119.047619%;
-  min-height: floor($line-height-computed * 8);
-  background-color: $gray-lighter;
+  min-height: floor($line-height-base * 8);
+  background-color: map-get($grays, 300)er;
 }
 
 .file {
   display: block;
-  background-color: lighten($gray-lightest, 80%);
+  background-color: map-get($grays, 100);
   text-align: center;
 }
 
 .document-icon {
   height: 1.25em;
   font-size: 5em;
-  color: $brand-dark;
+  color: map-get($theme-colors, dark);
 }
 
 .document-sub-container {
-  margin-left: $padding-base-horizontal;
-  margin-right: $padding-base-horizontal;
+  margin-left: map-get($spacers, 3);
+  margin-right: map-get($spacers, 3);
 }
