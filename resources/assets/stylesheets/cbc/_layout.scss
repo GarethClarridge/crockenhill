@@ -1,28 +1,12 @@
 main {
-    margin-top: map-get($spacers, 4);
-    margin-bottom: floor(map-get($spacers, 4) * 2);
-}
-
-article {
-    margin-top: map-get($spacers, 4);
+  margin-top: map-get($spacers, 4);
+  margin-bottom: map-get($spacers, 4);
 }
 
 aside {
-    margin-top: map-get($spacers, 4);
-
-    h4 {
-        font-style: italic;
-        text-align: center;
-        line-height: map-get($spacers, 4);
-    }
-
-    .list-group-item {
-        border: none;
-        background: none;
-    }
+    margin-bottom: map-get($spacers, 2);
 
     a {
-        // color: $text-color;
         &:hover {
             text-decoration: underline;
         }
