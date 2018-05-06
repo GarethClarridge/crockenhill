@@ -7,44 +7,44 @@
     position: relative;
     top: -90px;
     left: 45px;
-    color: $inverse-text-color;
-    font-size: floor(1.5 * $font-size-large);
+    color: map-get($colors, white);
+    font-size: floor(1.5 * $font-size-lg);
   }
 }
 
 .song-body {
-  padding: 3% 3% 3% floor(2 * $padding-large-vertical);
-  background: $gray-lightest;
+  padding: 3% 3% 3% floor(2 * map-get($spacers, 4));
+  background: map-get($grays, 200);
   margin-right: 2%;
 }
 
 .song-filters {
-  background-color: $brand-secondary;
+  background-color: map-get($theme-colors, secondary);
   width: 119.047619%;
   margin-left: -9.5238095%;
-  padding: $line-height-computed;
-  color: $gray-lightest;
+  padding: $line-height-base;
+  color: map-get($grays, 200);
 
   button {
-    background: $brand-primary;
-    color: $gray-lightest;
+    background: map-get($theme-colors, primary);
+    color: map-get($grays, 200);
     border: none;
   }
 }
 
 ul.list {
-  background-color: $gray-lighter;
+  background-color: map-get($grays, 300)er;
   width: 119.047619%;
   margin-left: -9.5238095%;
-  padding-top: $line-height-computed;
-  padding-bottom: $line-height-computed;
+  padding-top: $line-height-base;
+  padding-bottom: $line-height-base;
   list-style: none;
 }
 
 .song-unknown {
-  background: $gray-light;
+  background: map-get($grays, 300);
 
   h3.media-heading {
-    color: $gray-darker;
+    color: map-get($grays, 800);
   }
 }

@@ -8,17 +8,17 @@ audio {
 
 .sermon-details {
   @include full-width-section;
-  background-color: $brand-secondary;
+  background-color: map-get($theme-colors, secondary);
   color: white;
-  font-size: $font-size-large;
+  font-size: $font-size-lg;
   a {
     color: inherit;
   }
 }
 
 .sermon-headings {
-  padding-top: $padding-small-vertical;
+  padding-top: map-get($spacers, 1), ;
   >ol>li, >ul>li {
-    padding-top: floor($padding-large-vertical*2);
+    padding-top: floor(map-get($spacers, 4)*2);
   }
 }
