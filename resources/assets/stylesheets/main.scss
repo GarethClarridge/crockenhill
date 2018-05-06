@@ -1,3 +1,9 @@
+// Custom variables etc
+@import "variables.scss";
+
+// Required
+@import "node_modules/bootstrap/scss/bootstrap";
+
 // Custom CBC Stylesheets
 
 @import "cbc/_mixins.scss";
@@ -15,7 +21,3 @@
 @import "cbc/_documents.scss";
 @import "cbc/_songs.scss";
 @import "cbc/_christmas.scss";
-
-// Bootstrap
-
-@import "../../../node_modules/bootstrap/scss/bootstrap";

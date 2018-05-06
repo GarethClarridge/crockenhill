@@ -1,55 +1,31 @@
-<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-  <div class="navbar-inner">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-        <span class="sr-only">Toggle navigation</span>
-        MENU
-      </button>
-      <a class="navbar-left org-name" href="/">
-        <img src="/images/IconBackground.png" alt="Crockenhill Baptist Church logo">
-        <span>Crockenhill Baptist Church</span>
-      </a>
-    </div>
-    <div class="navbar-collapse collapse">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary" role="navigation">
+  <a class="navbar-brand" href="/">
+    <img src="/images/IconBackground.png" width="30" height="30" class="d-inline-block align-top" alt="Crockenhill Baptist Church logo">
+    Crockenhill Baptist Church
+  </a>
+  <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
 
-      <ul class="nav navbar-nav navbar-right">
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
 
-        @foreach ($pages as $page)
-          @if (\Request::is($page['route'].'/*'))
-            <li class="active">
-              <a href="/{{$page['route']}}">{{$page['name']}}</a>
-            </li>
-          @elseif  (\Request::is($page['route']))
-            <li class="active">
-              <a href="/{{$page['route']}}">{{$page['name']}}</a>
-            </li>
-          @else
-            <li>
-              <a href="/{{$page['route']}}">{{$page['name']}}</a>
-            </li>
-          @endif
+      @foreach ($pages as $page)
+        @if (\Request::is($page['route'].'/*'))
+          <li class="navbar-item active">
+            <a class="nav-link" href="/{{$page['route']}}">{{$page['name']}}<span class="sr-only">(current)</span></a>
+          </li>
+        @elseif  (\Request::is($page['route']))
+          <li class="navbar-item active">
+            <a class="nav-link" href="/{{$page['route']}}">{{$page['name']}}<span class="sr-only">(current)</span></a>
+          </li>
+        @else
+          <li class="navbar-item">
+            <a class="nav-link" href="/{{$page['route']}}">{{$page['name']}}</a>
+          </li>
+        @endif
+      @endforeach
 
-        @endforeach
-
-        <!-- <li>
-          <a href="http://www.facebook.com/crockenhill">
-            <i class="fa fa-facebook"></i>
-          </a>
-        </li>
-
-        <li>
-          <a href="http://www.twitter.com/crockenhill">
-            <i class="fa fa-twitter"></i>
-          </a>
-        </li>
-
-        <li>
-          <a href="http://www.facebook.com/crockenhill">
-            <i class="fa fa-google-plus"></i>
-          </a>
-        </li> -->
-
-      </ul>
-    </div>
-	</div>
+    </ul>
+  </div>
 </nav>
