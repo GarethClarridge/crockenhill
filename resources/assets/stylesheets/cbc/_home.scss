@@ -10,7 +10,7 @@
   background-repeat: no-repeat;
   min-height: 500px;
   margin-top: -20px;
-  color: #FFFFFF;
+  color: map-get($colors, white);
 
   .container {
     padding-top: 100px;
@@ -23,7 +23,7 @@
 
       span {
       padding: 0.15em;
-      background-color: $brand-secondary;
+      background-color: map-get($theme-colors, secondary);
 
       box-decoration-break: clone;
       -webkit-box-decoration-break: clone;
@@ -37,7 +37,7 @@
 
     span {
       padding: 0.33em 0.5em;
-      background-color: $brand-primary;
+      background-color: map-get($theme-colors, primary);
       line-height: 3em;
 
       box-decoration-break: clone;
@@ -59,7 +59,7 @@
     font-style: italic;
   }
 
-  @media (max-width: $screen-sm) {
+  @media (max-width: ($grid-breakpoints, sm)) {
     font-size: 1.11em;
     padding-left: 15%;
     padding-right: 15%;
@@ -80,7 +80,7 @@ section {
   background-size: 100%;
 
   section {
-    color: #FFFFFF;
+    color: map-get($colors, white);
     font-size: 1.5em;
     text-align: center;
 
@@ -88,7 +88,7 @@ section {
       font-style: normal;
     }
 
-    @media (max-width: $screen-sm) {
+    @media (max-width: ($grid-breakpoints, sm)) {
       font-size: 1.1em;
       padding-left: 15%;
       padding-right: 15%;
