@@ -88,9 +88,9 @@ class ComposerServiceProvider extends ServiceProvider {
 		      ->get();
 
 		    // Set values
-		    $breadcrumbs = '<li><a href="/members">Members</a></li>
-		                    <li><a href="/members/songs">Songs</a></li>
-		                    <li class="active">'.$song->title.'</li>';
+		    $breadcrumbs = '<li class="breadcrumb-item"><a href="/members">Members</a></li>
+		                    <li class="breadcrumb-item"><a href="/members/songs">Songs</a></li>
+		                    <li class="breadcrumb-item active">'.$song->title.'</li>';
 
 				// Set heading
 				if (is_null($song->alternative_title)) {
@@ -117,9 +117,9 @@ class ComposerServiceProvider extends ServiceProvider {
 				//Breadcrumbs
 				$areapage = \Crockenhill\Page::where('slug', $area)->first();
 				$slugpage = \Crockenhill\Page::where('slug', $slug)->first();
-				$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li>
-												 <li><a href="/'.$area.'/'.$slug.'">'.$slugpage->heading.'</a></li>
-												 <li class="active">'.$heading.'</li>';
+				$breadcrumbs 	= '<li class="breadcrumb-item"><a href="/'.$area.'">'.$areapage->heading.'</a></li>
+												 <li class="breadcrumb-item"><a href="/'.$area.'/'.$slug.'">'.$slugpage->heading.'</a></li>
+												 <li class="breadcrumb-item active">'.$heading.'</li>';
 
 				//Heading picture
 				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
@@ -148,8 +148,8 @@ class ComposerServiceProvider extends ServiceProvider {
 
 					//Breadcrumbs
 					$areapage = \Crockenhill\Page::where('slug', $area)->first();
-					$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'</a></li>
-													 <li class="active">'.$heading.'</li>';
+					$breadcrumbs 	= '<li class="breadcrumb-item"><a href="/'.$area.'">'.$areapage->heading.'</a></li>
+													 <li class="breadcrumb-item active">'.$heading.'</li>';
 
 					//Content
 		 			$content = htmlspecialchars_decode($page->body);
@@ -184,7 +184,7 @@ class ComposerServiceProvider extends ServiceProvider {
 				$heading = $page->heading;
 
 				//Breadcrumbs
-				$breadcrumbs 	= '<li class="active">'.$heading.'</li>';
+				$breadcrumbs 	= '<li class="breadcrumb-item active">'.$heading.'</li>';
 
 				//Content
 	 			$content = htmlspecialchars_decode($page->body);
