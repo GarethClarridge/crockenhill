@@ -95,34 +95,37 @@
 
           @if (\Request::is('whats-on') || \Request::is('whats-on/*'))
             <aside class="card">
-              <div class="heading-picture">
-              @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+              <!-- @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
                 <img class="card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
               @else
                 <img class="card-img-top" src="/images/headings/small/default.jpg">
-              @endif
-                  <h3 class="card-text">
-                    <span>
-                      <a class="aside-link" href="/whats-on/{{$link->slug}}">{{$link->heading}}</a>
-                    </span>
-                  </h3>
-              </div>
-              {{$link->description}}
-
-              <div class="read-more"><a href="/whats-on/{{$link->slug}}">Read more ...</a></div>
+              @endif -->
+              <div class="card-body">
+                  <h4 class="card-text">
+                    <a class="aside-link" href="/whats-on/{{$link->slug}}">{{$link->heading}}</a>
+                  </h4>
+                  {{$link->description}}
+                  <div class="read-more">
+                    <a href="/whats-on/{{$link->slug}}">Read more ...</a>
+                  </div>
+                </div>
             </aside>
           @else
             <aside class="card">
-              @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+              <!-- @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
                 <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
               @else
                 <div class="header-container">
-              @endif
-                  <h3><span><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></span></h3>
-                </div>
-              {{$link->description}}
-
-              <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
+              @endif -->
+              <div class="card-body">
+                  <h4>
+                    <a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a>
+                  </h4>
+                  {{$link->description}}
+                  <div class="read-more">
+                    <a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a>
+                  </div>
+              </div>
             </aside>
           @endif
 
