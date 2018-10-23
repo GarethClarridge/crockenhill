@@ -8,10 +8,6 @@
   flex-direction: column;
   justify-content: center;
 
-  .card-img-top {
-    z-index: 0;
-  }
-
   .card-text {
     padding: map-get($spacers, 4);
     position: absolute;
@@ -31,30 +27,20 @@
   }
 }
 
-// aside {
-//
-//   a {
-//     color: map-get($grays, 200);
-//   }
-//
-//   a:hover {
-//     color: map-get($grays, 200);
-//   }
-//
-//   .read-more {
-//     text-align: right;
-//     font-style: italic;
-//     padding-top: map-get($spacers, 3);
-//
-//     a {
-//       color: map-get($grays, 800);
-//     }
-//   }
-//   h3 {
-//       //for asides
-//       padding-left: map-get($spacers, 4);
-//     }
-// }
+aside {
+
+  .aside-link {
+    font-size: 1rem;
+    padding: 0;
+    line-height: 50%;
+  }
+
+  .read-more {
+    text-align: right;
+    font-style: italic;
+    padding-top: map-get($spacers, 1);
+  }
+}
 
 .card-header-pull-right {
   float: right;
