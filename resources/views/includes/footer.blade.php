@@ -1,35 +1,34 @@
 <div class="container">
   <div class="row">
+    <div class="col-md-3">
+      @include('includes.sermon-display', ['sermon' => $morning])
+    </div>
+    <div class="col-md-3">
+      @include('includes.sermon-display', ['sermon' => $evening])
+    </div>
 
-    <section class="col-sm-6">
-      <div class="row" id="sermons-footer">
-        <h4><a href="/sermons">Latest sermons</a></h4>
-        <div class="col-md-6">
-          @include('includes.sermon-display', ['sermon' => $morning])
-          <br>
-        </div>
-        <div class="col-md-6">
-          @include('includes.sermon-display', ['sermon' => $evening])
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body">
+          <p>
+            <i class="fa fa-phone"></i>
+            01322 663995
+          </p>
+          <p>
+            <i class="fa fa-envelope"></i>
+            <a href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
+          </p>
+          <p>
+            <i class="fa fa-facebook"></i>
+            <a href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
+          </p>
         </div>
       </div>
-    </section>
+    </div>
 
-    <section class="col-sm-6 contact-details">
-      <div class="row">
-        <div class="col-md-6">
-          <h4><a href="/contact-us">Get in touch</a></h4>
-          <p><span class="glyphicon glyphicon-earphone"></span> &nbsp 01322 663995</p>
-          <p><span class="glyphicon glyphicon-envelope"></span> &nbsp <a href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
-          </p>
-          <p><i class="fa fa-facebook"></i> &nbsp&nbsp&nbsp <a href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
-          </p>
-          <!--<p class="text-center"><i class="fa fa-twitter"></i> &nbsp&nbsp
-            <a href="http://www.twitter.com/crockenhill">Follow us on Twitter</a>
-          </p> -->
-        </div>
-
-        <div class="col-md-6">
-          <h4><a href="/find-us">Address</a></h4>
+    <div class="col-md-3">
+      <div class="card">
+        <div class="card-body">
           <address>
             Crockenhill Baptist Church<br>
             Eynsford Road<br>
@@ -39,11 +38,11 @@
           </address>
         </div>
       </div>
-    </section>
+    </div>
   </div>
 
-  <div class="row">
-      <section class="col-md-4 col-md-offset-4">
+  <div class="row justify-content-center">
+      <section class="col-md-4">
           <a class="fiec-footer" href="http://www.fiec.org.uk">
               <img src="/images/fiec-affiliated-tagline-white.png" width="100%">
           </a>
