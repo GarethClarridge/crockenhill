@@ -20,22 +20,21 @@
     </div>
 
     <section class="white-background">
-      <br>
-      <p>
-        Join us this Sunday
-      </p>
-      <h2>
-
-      @if ((strtotime('this sunday') === strtotime('second sunday')) && date('m') != '12')
-        10:30am & 5:00pm
-      @else
-        10:30am & 6:30pm
-      @endif
-
-      </h2>
-      <p>
-        <a href="/whats-on/sunday-services">Find out more</a>
-      </p>
+      <div class="containter">
+        <p class="text-center">
+          Join us this Sunday
+        </p>
+        <h2 class="text-center">
+          @if ((strtotime('this sunday') === strtotime('second sunday')) && date('m') != '12')
+            10:30am & 5:00pm
+          @else
+            10:30am & 6:30pm
+          @endif
+        </h2>
+        <p class="text-center">
+          <a href="/whats-on/sunday-services">Find out more</a>
+        </p>
+      </div>
     </section>
 
     <!-- Disabled Christmas section -->
@@ -57,9 +56,9 @@
 
     <div class="background-image" id="listening">
       <div class="container">
-        <div class="row">
-          <section class="col-md-6 col-md-offset-3">
-              <p>
+        <div class="row justify-content-md-center">
+          <section class="col-md-6">
+              <p class="text-center">
                 Our church exists to worship God,
                 strengthen believers in their faith,
                 and to proclaim the good news of Christianity to all,
@@ -76,10 +75,10 @@
     </div>
 
     <div class="container">
-      <div class="row">
-        <section class="col-md-6 col-md-offset-3">
+      <div class="row justify-content-md-center">
+        <section class="col-md-6">
           <div class="white-background">
-            <p>
+            <p class="text-center">
               There are many activities at Crockenhill Baptist Church.
               We have groups during term time for children and young people,
               bible study and prayer groups and more.
@@ -95,9 +94,9 @@
 
     <div class="background-image" id="building">
       <div class="container">
-        <div class="row">
-          <section class="col-md-6 col-md-offset-3">
-              <p>
+        <div class="row justify-content-md-center">
+          <section class="col-md-6">
+              <p class="text-center">
                 We are located in the village of Crockenhill in Kent,
                 which is a mile or so south of Swanley
                 and two miles from St Mary Cray.
