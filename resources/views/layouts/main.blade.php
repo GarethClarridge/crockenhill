@@ -54,7 +54,7 @@
 
     @yield('content')
 
-    <footer>
+    <footer class="bg-primary">
         @include('includes.footer')
     </footer>
 </body>

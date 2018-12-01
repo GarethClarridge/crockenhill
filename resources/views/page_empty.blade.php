@@ -13,33 +13,54 @@
     <div class="row">
       <div class="col-md-9">
         <article class="card">
-          @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
-            <div class="header-container" style="background-image: url({{$headingpicture}})">
+          <!-- @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
+            <img class="card-img-top" src="{{$headingpicture}}">
           @else
-            <div class="header-container">
-          @endif
-              <h1>
-                <span>{{$heading}}</span>
-              </h1>
+            <img class="card-img-top" src="/images/headings/large/default.jpg">
+          @endif -->
+
+          <div class="card-body">
+            <h1 class="card-text">
+                {{$heading}}
+            </h1>
+            <ul class="card-header-pull-right list-inline">
+              @yield('social_sharing')
+
+              @if (isset ($user))
+                <li class="user-name">
+                  <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
+                  {{ $user->name }}
+                </li>
+              @endif
+
+            </ul>
+
+            @if (session('message'))
+            <div class="alert alert-success alert-dismissable" role="alert">
+              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+              <span class="glyphicon glyphicon-ok"></span> &nbsp
+              {{ session('message') }}
             </div>
-
-          <ul class="card-header-pull-right list-inline">
-            @yield('social_sharing')
-
-            @if (isset ($user))
-              <li class="user-name">
-                <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
-                {{ $user->name }}
-              </li>
             @endif
 
-          </ul>
+            <div class="main-content">
+              @if (isset ($content))
+                {!! $content !!}
+                <div class="clearfix">
 
-          @if (isset ($breadcrumbs))
+                </div>
+              @endif
+            </div>
+
+          @yield('dynamic_content')
+
+          <!-- @if (isset ($breadcrumbs))
             <ol class="breadcrumb">
-              <li><a href="/">Home</a></li>
+              <li class="breadcrumb-item"><a href="/">Home</a></li>
               {!!$breadcrumbs!!}
-              
+
               @if (isset($slug))
                 @can ('edit-pages')
                   <li class="edit-buttons">
@@ -61,75 +82,59 @@
                 @endcan
               @endif
             </ol>
-          @endif
+          @endif -->
+        </div>
+      </article>
+    </div>
 
-          @if (session('message'))
-          <div class="alert alert-success alert-dismissable" role="alert">
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-            <span class="glyphicon glyphicon-ok"></span> &nbsp
-            {{ session('message') }}
-          </div>
-          @endif
+    <div class="col-md-3">
 
-          <div class="main-content">
-            @if (isset ($content))
-              {!! $content !!}
-              <div class="clearfix">
+      @if (isset ($links))
 
+        @foreach ($links as $link)
+
+          @if (\Request::is('whats-on') || \Request::is('whats-on/*'))
+            <aside class="card">
+              <!-- @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                <img class="card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
+              @else
+                <img class="card-img-top" src="/images/headings/small/default.jpg">
+              @endif -->
+              <div class="card-body">
+                  <h4 class="card-text">
+                    <a class="aside-link" href="/whats-on/{{$link->slug}}">{{$link->heading}}</a>
+                  </h4>
+                  {{$link->description}}
+                  <div class="read-more">
+                    <a href="/whats-on/{{$link->slug}}">Read more ...</a>
+                  </div>
+                </div>
+            </aside>
+          @else
+            <aside class="card">
+              <!-- @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
+              @else
+                <div class="header-container">
+              @endif -->
+              <div class="card-body">
+                  <h4>
+                    <a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a>
+                  </h4>
+                  {{$link->description}}
+                  <div class="read-more">
+                    <a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a>
+                  </div>
               </div>
-            @endif
-          </div>
+            </aside>
+          @endif
 
-          @yield('dynamic_content')
-        </article>
-      </div>
+        @endforeach
 
-      <div class="col-md-3">
-
-        @if (isset ($links))
-
-          @foreach ($links as $link)
-
-            @if (\Request::is('whats-on') || \Request::is('whats-on/*'))
-              <aside class="card">
-                @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
-                  <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
-                @else
-                  <div class="header-container">
-                @endif
-                    <h3><span><a href="/whats-on/{{$link->slug}}">{{$link->heading}}</a></span></h3>
-                  </div>
-                {{$link->description}}
-
-                <div class="read-more"><a href="/whats-on/{{$link->slug}}">Read more ...</a></div>
-              </aside>
-            @else
-              <aside class="card">
-                @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
-                  <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
-                @else
-                  <div class="header-container">
-                @endif
-                    <h3><span><a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a></span></h3>
-                  </div>
-                {{$link->description}}
-
-                <div class="read-more"><a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a></div>
-              </aside>
-            @endif
-
-          @endforeach
-
-        @endif
-
-
-      </div>
+      @endif
 
 
     </div>
-
 
   </main>
 @stop
