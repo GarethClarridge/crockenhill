@@ -8,7 +8,7 @@
     </div>
 
     <div class="col-md-3">
-      <div class="card">
+      <div class="card bg-secondary text-white">
         <div class="card-body">
           <p>
             <i class="fa fa-phone"></i>
@@ -16,18 +16,18 @@
           </p>
           <p>
             <i class="fa fa-envelope"></i>
-            <a href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
+            <a class="card-link text-white" href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
           </p>
           <p>
             <i class="fa fa-facebook"></i>
-            <a href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
+            <a class="card-link text-white" href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
           </p>
         </div>
       </div>
     </div>
 
     <div class="col-md-3">
-      <div class="card">
+      <div class="card bg-secondary text-white">
         <div class="card-body">
           <address>
             Crockenhill Baptist Church<br>
@@ -49,7 +49,7 @@
       </section>
 
       <section class="col-sm-12">
-          <p class="text-center copyright"><small>&copy; {{ date('Y') }} Crockenhill Baptist Church</small></p>
+          <p class="text-center text-white"><small>&copy; {{ date('Y') }} Crockenhill Baptist Church</small></p>
       </section>
   </div>
 </div>
