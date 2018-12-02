@@ -12,7 +12,7 @@
   <main class="container">
     <div class="row">
       <div class="col-md-9">
-        <article class="card">
+        <article class="card mt-3">
           <!-- @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
             <img class="card-img-top" src="{{$headingpicture}}">
           @else
@@ -111,7 +111,7 @@
                 </div>
             </aside>
           @else
-            <aside class="card">
+            <aside class="card mt-3">
               <!-- @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
                 <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
               @else
