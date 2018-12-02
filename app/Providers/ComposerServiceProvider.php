@@ -134,7 +134,33 @@ class ComposerServiceProvider extends ServiceProvider {
 
 				//Description
 				$description 	= '<meta name="description" content="'.$heading.'">';
+			}
 
+			//Auth
+			if ((\Request::segment(1) == 'login')
+							|| (\Request::segment(1) == 'register')
+							|| (\Request::segment(1) == 'password')){
+
+				$slug = \Request::segment(1);
+				$area = 'Members';
+
+				$heading = title_case($slug);
+
+				//Heading picture
+				$headingpicture = '/images/headings/large/'.$area.'.jpg';
+
+				// Find relevant links
+				$links = \Crockenhill\Page::where('area', $area)
+					->where('slug', '!=', $area)
+					->where('slug', '!=', 'homepage')
+					->orderBy(\DB::raw('RAND()'))
+					->take(5)
+					->get();
+
+				$breadcrumbs 	= '<li class="breadcrumb-item"><a href="/sermons">Members</a></li>';
+
+				//Description
+				$description 	= '<meta name="description" content="'.$heading.'">';
 			}
 
 			//Level 3
