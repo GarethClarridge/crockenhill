@@ -68,6 +68,7 @@ class ComposerServiceProvider extends ServiceProvider {
 
 			}
 
+			//Songs
 			if (\Request::segment(2) == 'songs' && \Request::segment(4)){
 				$name = \Request::segment(3);
 				$slug = \Request::segment(2);
@@ -103,6 +104,40 @@ class ComposerServiceProvider extends ServiceProvider {
 				$description 	= '<meta name="description" content="'.$slug.': '.$name.'">';
 
 			}
+
+			//Sermons
+			if (\Request::segment(1) == 'sermons' && \Request::segment(4)){
+				$slug = \Request::segment(4);
+				$month = \Request::segment(3);
+				$year = \Request::segment(2);
+				$area = \Request::segment(1);
+
+				$sermon = \Crockenhill\Sermon::where('slug', $slug)
+		                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
+		                                    ->first();
+
+				$heading = $sermon->title;
+
+				//Heading picture
+				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
+
+				// Find relevant links
+				$links = \Crockenhill\Page::where('area', $area)
+					->where('slug', '!=', $area)
+					->where('slug', '!=', 'homepage')
+					->orderBy(\DB::raw('RAND()'))
+					->take(5)
+					->get();
+
+				$breadcrumbs 	= '<li class="breadcrumb-item"><a href="/sermons">Sermons</a></li>
+												 <li class="breadcrumb-item active">'.$heading.'</li>';
+
+				//Description
+				$description 	= '<meta name="description" content="'.$heading.'">';
+
+			}
+
+			//Level 3
 			elseif (\Request::segment(3)) {
 				$name = \Request::segment(3);
 				$slug = \Request::segment(2);
@@ -134,6 +169,8 @@ class ComposerServiceProvider extends ServiceProvider {
 					->take(5)
 					->get();
 			}
+
+			//Level 2
 			elseif (\Request::segment(2)) {
 				$slug = \Request::segment(2);
 				$area = \Request::segment(1);
@@ -171,6 +208,8 @@ class ComposerServiceProvider extends ServiceProvider {
 					->orderBy(\DB::raw('RAND()'))
 					->take(5)
 					->get();
+
+			//Level 1
 			} else {
 				$area = \Request::segment(1);
 
