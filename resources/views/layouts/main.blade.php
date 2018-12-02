@@ -54,7 +54,7 @@
 
     @yield('content')
 
-    <footer class="bg-primary">
+    <footer class="navbar navbar-fixed-bottom bg-primary">
         @include('includes.footer')
     </footer>
 </body>
