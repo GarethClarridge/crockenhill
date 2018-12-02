@@ -94,7 +94,7 @@
         @foreach ($links as $link)
 
           @if (\Request::is('whats-on') || \Request::is('whats-on/*'))
-            <aside class="card">
+            <aside class="card mt-3">
               <!-- @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
                 <img class="card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
               @else
