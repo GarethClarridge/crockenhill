@@ -6311,3 +6311,74 @@ a.text-dark:hover, a.text-dark:focus {
   .table .thead-dark th {
     color: inherit;
     border-color: #dee2e6; } }
+
+.home-head {
+  background-image: url(../images/homepage/CollageGrey.jpg);
+  background-size: cover;
+  background-repeat: no-repeat;
+  min-height: 500px;
+  margin-top: -20px; }
+  .home-head .container {
+    padding-top: 100px; }
+  .home-head h1 {
+    font-size: 4.5rem;
+    font-weight: 800;
+    line-height: 9rem;
+    margin-bottom: 1em; }
+    .home-head h1 span {
+      padding: 0.15em;
+      background-color: #08a386;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone; }
+  .home-head p {
+    font-style: italic; }
+    .home-head p span {
+      padding: 0.33em 0.5em;
+      background-color: #16324f;
+      line-height: 3em;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone; }
+
+.white-background {
+  font-size: 1.5em;
+  text-align: center; }
+  .white-background h2 {
+    font-size: 2.5em;
+    line-height: 2em; }
+  .white-background a {
+    font-style: italic; }
+  @media (max-width: ((xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px), sm)) {
+    .white-background {
+      font-size: 1.11em;
+      padding-left: 15%;
+      padding-right: 15%; }
+      .white-background h2 {
+        font-size: 2em; } }
+
+section {
+  padding: 5% 0%; }
+
+.background-image {
+  background-attachment: fixed;
+  background-position: center;
+  background-size: 100%; }
+  .background-image section {
+    font-size: 1.5em;
+    text-align: center; }
+    @media (max-width: ((xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px), sm)) {
+      .background-image section {
+        font-size: 1.1em;
+        padding-left: 15%;
+        padding-right: 15%; } }
+
+#building {
+  background-image: url(/images/homepage/building.JPG); }
+
+#listening {
+  background-image: url(/images/homepage/listening.JPG); }
+
+#three {
+  background-image: url(/images/homepage/drinking.JPG); }
+
+#christmas {
+  background-image: url(/images/homepage/christmas.JPG); }
