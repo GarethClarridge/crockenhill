@@ -11,12 +11,12 @@ $theme-colors: ();
 $theme-colors: map-merge((
   "primary":    #16324f, //rgb(22,50,79)
   "secondary":  #08a386, //rgb(8,163,134),
-  //"success":    map-get($theme-colors, secondary),
-  //"info":       map-get($theme-colors, light),
+  "success":    #08a386,
+  "info":       #74A4D8,
   "warning":    #f75c03,
   "danger":     #6b0f1a,
-  //"light":      lighten(#16324f, 25%),
-  //"dark":       map-get($theme-colors, primary)
+  "light":      #74A4D8,
+  "dark":       #16324f,
 ), $theme-colors);
 // stylelint-enable
 
