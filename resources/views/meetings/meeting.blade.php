@@ -12,7 +12,7 @@
             @if ($day != '')
               <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-calendar"> </span>
+                  <i class="far fa-calendar"></i>
                 </th>
                 <td>
                   {{$day}}
@@ -22,7 +22,7 @@
             @if ($starttime != '')
               <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-time"> </span>
+                  <i class="far fa-clock"></i>
                 </th>
                 <td>
                   {{date('g:ia', strtotime($starttime))}}
@@ -35,7 +35,7 @@
             @if ($location != '')
               <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-map-marker"> </span>
+                  <i class="fas fa-map-marker-alt"></i>
                 </th>
                 <td>{{ $location }}</td>
               </tr>
@@ -43,7 +43,7 @@
             @if ($who != '')
               <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-user"> </span>
+                  <i class="far fa-user"></i>
                 </th>
                 <td>{{$who}}</td>
               </tr>
@@ -51,7 +51,7 @@
             @if ($phone != '')
               <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-phone-alt"> </span>
+                  <i class="fas fa-phone"></i>
                 </th>
                 <td>{{$phone}}</td>
               </tr>
@@ -59,7 +59,7 @@
             @if ($email != '')
               <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-envelope"> </span>
+                  <i class="far fa-envelope"></i>
                 </th>
                 <td>{{$email}}</td>
               </tr>

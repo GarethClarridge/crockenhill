@@ -28,7 +28,7 @@
 
               @if (isset ($user))
                 <li class="user-name">
-                  <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
+                  <i class="far fa-user"></i>
                   {{ $user->name }}
                 </li>
               @endif
@@ -40,7 +40,7 @@
               <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
               </button>
-              <span class="glyphicon glyphicon-ok"></span> &nbsp
+              <i class="far fa-check-circle"></i> &nbsp
               {{ session('message') }}
             </div>
             @endif
@@ -69,11 +69,11 @@
                       <input type="hidden" name="_token" value="{{ csrf_token() }}">
                       <div class="btn-group">
                         <a href="/members/pages/{{$slug}}/edit" class="btn btn-primary">
-                          <span class="glyphicon glyphicon-pencil"></span> &nbsp
+                          <i class="fas fa-pencil-alt"></i> &nbsp
                           Edit
                         </a>
                         <button type="submit" class="btn btn-danger">
-                          <span class="glyphicon glyphicon-trash"></span> &nbsp
+                          <i class="fas fa-trash"></i> &nbsp
                           Delete
                         </button>
                       </div>
