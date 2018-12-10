@@ -23,62 +23,60 @@
   @endcan
 
   <section id="song-list">
-    <div class="song-filters">
-      <div class="form-group">
-        <label for="song-text-filter">Filter songs</label>
-        <input  class="fuzzy-search form-control"
-                id='song-text-filter'
-                placeholder="Try typing a song title, Praise! number, category or author"/>
-      </div>
+    <div class="form-group">
+      <label for="song-text-filter">Filter songs</label>
+      <input  class="fuzzy-search form-control"
+              id='song-text-filter'
+              placeholder="Try typing a song title, Praise! number, category or author"/>
+    </div>
 
-      <div class="form-group" id="in-praise-filter">
-        <label>
-          <input type="radio" name="in-praise" value="praise" id="filter-praise" onchange="updateFilter()"> Only in Praise!
-        </label>
-        <label>
-          <input type="radio" name="in-praise" value="both" id="filter-both-praise-nip" checked="checked" onchange="updateFilter()"> Both
-        </label>
-        <label>
-          <input type="radio" name="in-praise" value="nip" id="filter-nip" onchange="updateFilter()"> Only not in Praise!
-        </label>
-      </div>
+    <div class="form-group" id="in-praise-filter">
+      <label>
+        <input type="radio" name="in-praise" value="praise" id="filter-praise" onchange="updateFilter()"> Only in Praise!
+      </label>
+      <label>
+        <input type="radio" name="in-praise" value="both" id="filter-both-praise-nip" checked="checked" onchange="updateFilter()"> Both
+      </label>
+      <label>
+        <input type="radio" name="in-praise" value="nip" id="filter-nip" onchange="updateFilter()"> Only not in Praise!
+      </label>
+    </div>
 
-      <div class="form-group" id="category-filter">
+    <div class="form-group" id="category-filter">
 
-        <div class="major-category-filter-div">
-          <label for="major-category-filter">Category:</label>
-          <select name="major-category-filter" id="major-category-filter" class="form-control" onchange="updateFilter()">
-            <option value="All">All</option>
-            <option value="Psalms">Psalms</option>
-            <option value="Approaching God">Approaching God</option>
-            <option value="The Father">The Father</option>
-            <option value="The Son">The Son</option>
-            <option value="The Holy Spirit">The Holy Spirit</option>
-            <option value="The Bible">The Bible</option>
-            <option value="The church">The church</option>
-            <option value="The gospel">The gospel</option>
-            <option value="The Christian life">The Christian life</option>
-            <option value="Christ's lordship over all of life">Christ's lordship over all of life</option>
-            <option value="The future">The future</option>
-          </select>
-        </div>
-
-        <div id="minor-category-filter-div" style="display:none;">
-          <label for="minor-category-filter">Sub-category:</label>
-          <select class="form-control" name="minor-category-filter" id="minor-category-filter" onchange="updateFilter()">
-            <option id="minor-category-filter-option" value="All">All</option>
-          </select>
-        </div>
-
-      </div>
-
-      <div class="form-group">
-        <label for="sort">Sort by:</label>
-        <select class="form-control" name="sort" id="sort" onchange="updateSort()">
-          <option value="song-frequency">Popularity</option>
-          <option value="song-title">Title</option>
+      <div class="major-category-filter-div">
+        <label for="major-category-filter">Category:</label>
+        <select name="major-category-filter" id="major-category-filter" class="form-control" onchange="updateFilter()">
+          <option value="All">All</option>
+          <option value="Psalms">Psalms</option>
+          <option value="Approaching God">Approaching God</option>
+          <option value="The Father">The Father</option>
+          <option value="The Son">The Son</option>
+          <option value="The Holy Spirit">The Holy Spirit</option>
+          <option value="The Bible">The Bible</option>
+          <option value="The church">The church</option>
+          <option value="The gospel">The gospel</option>
+          <option value="The Christian life">The Christian life</option>
+          <option value="Christ's lordship over all of life">Christ's lordship over all of life</option>
+          <option value="The future">The future</option>
         </select>
       </div>
+
+      <div id="minor-category-filter-div" style="display:none;">
+        <label for="minor-category-filter">Sub-category:</label>
+        <select class="form-control" name="minor-category-filter" id="minor-category-filter" onchange="updateFilter()">
+          <option id="minor-category-filter-option" value="All">All</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="form-group">
+      <label for="sort">Sort by:</label>
+      <select class="form-control" name="sort" id="sort" onchange="updateSort()">
+        <option value="song-frequency">Popularity</option>
+        <option value="song-title">Title</option>
+      </select>
     </div>
 
     <ul class="list">
