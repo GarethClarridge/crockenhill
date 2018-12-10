@@ -40,7 +40,7 @@ gulp.task('watch:js', function() {
 });
 
 gulp.task('watch:php', function() {
-  return gulp.watch('./**/*.php').on('change', browserSync.reload);
+  return gulp.watch(['./app/**/*.php', './bootstrap/**/*.php', './database/**/*.php', './resources/**/*.php', './routes/**/*.php', './storage/**/*.php', './tests/**/*.php']).on('change', browserSync.reload);
 });
 
 gulp.task('watch', gulp.parallel('watch:scss', 'watch:js', 'watch:php'));
@@ -50,14 +50,3 @@ gulp.task('default',
     gulp.parallel('watch', 'browser-sync')
   )
 );
-//
-// // The `default` task gets called when no task name is provided to Gulp
-// gulp.task('default', gulp.series('browser-sync', function () {
-//
-//     // add browserSync.reload to the tasks array to make
-//     // all browsers reload after tasks are complete.
-//     gulp.watch('./**/*.php', gulp.parallel(browserSync.reload));
-//     gulp.watch('./resources/assets/javascript/*.js', gulp.parallel('js', browserSync.reload));
-//     gulp.watch(['./resources/assets/stylesheets/**/*.scss'], gulp.parallel('sass', browserSync.reload));
-//     gulp.watch(['./resources/assets/stylesheets/cbc/*.scss'], gulp.parallel('sass', browserSync.reload));
-// }));
