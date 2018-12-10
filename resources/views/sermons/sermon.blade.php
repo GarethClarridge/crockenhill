@@ -47,36 +47,36 @@
   <section class="sermon-details">
     @if (($sermon->date != null))
       <p>
-        <span class="glyphicon glyphicon-calendar"></span>
+        <i class="far fa-calendar"></i>
         &nbsp; {{ date('j F Y', strtotime($sermon->date)) }}
       </p>
     @endif
     @if ($sermon->service != null)
       <p>
-        <span class="glyphicon glyphicon-time"></span>
+        <i class="far fa-clock"></i>
         &nbsp; {{ \Illuminate\Support\Str::title($sermon->service) }}
       </p>
     @endif
     @if ($sermon->preacher != null)
       <p>
-        <span class="glyphicon glyphicon-user"></span> &nbsp
+        <i class="far fa-user"></i> &nbsp
         <a href="/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
       </p>
     @endif
     @if ($sermon->series != null)
       <p>
-        <span class="glyphicon glyphicon-tag"></span> &nbsp
+        <i class="fas fa-tag"></i> &nbsp
         <a href="/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}">{{ $sermon->series }}</a>
       </p>
     @endif
     @if ($sermon->reference != null)
       <p>
-        <span class="glyphicon glyphicon-book"></span> &nbsp
+        <i class="fas fa-book"></i> &nbsp
         {{ $sermon->reference }}
       </p>
     @endif
     <p>
-      <span class="glyphicon glyphicon-download-alt"></span>  &nbsp
+      <i class="fas fa-download"></i>  &nbsp
       <a href="/media/sermons/{{$sermon->filename}}.mp3">
         Download this sermon
       </a>

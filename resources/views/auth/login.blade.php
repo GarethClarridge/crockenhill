@@ -7,7 +7,7 @@
       <button type="button" class="close" data-dismiss="alert" aria-label="Close">
         <span aria-hidden="true">&times;</span>
       </button>
-      <span class="glyphicon glyphicon-ok"></span> &nbsp
+      <i class="far fa-check-circle"></i> &nbsp
       {{ session('message') }}
     </div>
   @endif
