@@ -6382,3 +6382,254 @@ section {
 
 #christmas {
   background-image: url(/images/homepage/christmas.JPG); }
+
+.references {
+  font-size: 1rem;
+  font-style: italic;
+  text-align: right; }
+
+header {
+  font-family: "Oswald", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  text-transform: uppercase; }
+
+audio {
+  width: 100%; }
+
+.panel-heading {
+  font-size: 0.75em; }
+
+.sermon-details {
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  margin-top: 0;
+  margin-bottom: 1.5;
+  padding: 4rem 8%;
+  background-color: #08a386;
+  color: white;
+  font-size: 1.25rem; }
+  .sermon-details a {
+    color: inherit; }
+
+.sermon-headings {
+  padding-top: 0.25rem; }
+  .sermon-headings > ol > li, .sermon-headings > ul > li {
+    padding-top: 3rem; }
+
+.flexible-map-container {
+  position: relative;
+  padding-bottom: 56.25%;
+  padding-top: 50px;
+  margin-top: 30px;
+  margin-bottom: 30px;
+  height: 0;
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  overflow: hidden; }
+
+.flexible-map-container iframe,
+.flexible-map-container object,
+.flexible-map-container embed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%; }
+
+.heading-picture {
+  border-top-left-radius: calc(.25rem - 1px);
+  border-top-right-radius: calc(.25rem - 1px);
+  background-color: #16324f;
+  background-size: cover;
+  background-position: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; }
+  .heading-picture .card-text {
+    padding: 1.5rem;
+    position: absolute;
+    z-index: 1;
+    line-height: 100%; }
+    .heading-picture .card-text span {
+      background-color: #08a386;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+      padding: 1rem;
+      line-height: 200%;
+      color: var(--light); }
+
+aside .aside-link {
+  font-size: 1rem;
+  padding: 0;
+  line-height: 50%; }
+
+aside .read-more {
+  text-align: right;
+  font-style: italic;
+  padding-top: 0.25rem; }
+
+.card-header-pull-right {
+  float: right;
+  font-size: 1rem; }
+  .card-header-pull-right .user-name {
+    font-size: 1rem; }
+
+.meeting-details {
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  margin-top: 0;
+  margin-bottom: 1.5;
+  padding: 4rem 8%;
+  margin-top: 6rem;
+  background-color: #16324f;
+  color: white;
+  font-size: 2em; }
+  .meeting-details th {
+    padding: 1rem 1rem;
+    vertical-align: top; }
+
+.edit-buttons {
+  margin-left: 1rem; }
+
+.edit-buttons:before {
+  content: none !important; }
+
+.edit-heading {
+  background-color: #08a386 -light;
+  height: 100%;
+  border: none; }
+
+.edit-metadata {
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  margin-top: 0;
+  margin-bottom: 1.5;
+  padding: 4rem 8%;
+  background-color: #6b0f1a;
+  color: white; }
+  .edit-metadata input, .edit-metadata select {
+    background-color: #d4a5ab;
+    border: none; }
+  .edit-metadata .row {
+    padding-bottom: 1.5rem; }
+
+.photo-selector {
+  width: 119.047619%;
+  margin-left: -9.5238095%;
+  margin-top: 0;
+  margin-bottom: 1.5;
+  padding: 4rem 8%;
+  background-color: #08a386; }
+  .photo-selector img {
+    width: 100%; }
+  .photo-selector h2 {
+    margin-bottom: 1.5rem; }
+
+#rendered-content img {
+  width: 100%; }
+
+.caption {
+  background-color: #16324f;
+  display: none;
+  word-wrap: break-word; }
+
+.thumbnail {
+  border: 0 none;
+  box-shadow: none;
+  margin: 0;
+  padding: 0; }
+
+.thumbnail:hover .caption {
+  display: block; }
+
+.main-content p img {
+  max-width: 100%; }
+  @media (min-width: ((xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px), sm)) {
+    .main-content p img {
+      max-width: 50.1%;
+      float: left;
+      padding: 1.5rem 1rem 1.5rem 0; } }
+
+@media (min-width: ((xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px), sm)) {
+  .main-content p:nth-of-type(2n) img {
+    float: right;
+    padding-left: 1.5rem;
+    padding-right: 0; } }
+
+#cookie-law {
+  position: absolute;
+  width: 90%;
+  margin-top: 0;
+  margin-right: 5%;
+  margin-left: 5%;
+  z-index: 10; }
+
+#cookie-message {
+  margin-bottom: 0px !important;
+  padding: 0 1.5; }
+
+.document-container {
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+  margin-left: -9.5238095%;
+  width: 119.047619%;
+  min-height: 12;
+  background-color: er; }
+
+.file {
+  display: block;
+  text-align: center; }
+
+.document-icon {
+  height: 1.25em;
+  font-size: 5em;
+  color: #16324f; }
+
+.document-sub-container {
+  margin-left: 1rem;
+  margin-right: 1rem; }
+
+.praise-icon {
+  float: left;
+  height: 128px; }
+  .praise-icon .praise_number {
+    z-index: 10;
+    position: relative;
+    top: -90px;
+    left: 45px;
+    font-size: 1rem; }
+
+.song-body {
+  padding: 3% 3% 3% 3rem;
+  margin-right: 2%; }
+
+#christmas-page {
+  margin: 0px; }
+  #christmas-page section {
+    padding: 5% 0%; }
+
+.christmas-head {
+  background-image: url(../images/homepage/christmas.JPG);
+  min-height: 600px;
+  margin-top: 20px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  margin-bottom: 0; }
+  .christmas-head .container {
+    padding-top: 100px; }
+  .christmas-head h1 {
+    width: 66%;
+    margin-bottom: 1em; }
+
+.white-background {
+  text-align: center;
+  padding-top: 0; }
+  .white-background a {
+    font-style: italic; }
+  @media (max-width: ((xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px), sm)) {
+    .white-background {
+      font-size: 1.11em;
+      padding-left: 15%;
+      padding-right: 15%; }
+      .white-background h2 {
+        font-size: 2em; } }
