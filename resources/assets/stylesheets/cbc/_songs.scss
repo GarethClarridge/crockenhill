@@ -18,29 +18,6 @@
   margin-right: 2%;
 }
 
-.song-filters {
-  background-color: map-get($theme-colors, secondary);
-  width: 119.047619%;
-  margin-left: -9.5238095%;
-  padding: $line-height-base;
-  color: map-get($grays, 200);
-
-  button {
-    background: map-get($theme-colors, primary);
-    color: map-get($grays, 200);
-    border: none;
-  }
-}
-
-ul.list {
-  background-color: map-get($grays, 300)er;
-  width: 119.047619%;
-  margin-left: -9.5238095%;
-  padding-top: $line-height-base;
-  padding-bottom: $line-height-base;
-  list-style: none;
-}
-
 .song-unknown {
   background: map-get($grays, 300);
 
