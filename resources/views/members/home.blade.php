@@ -3,14 +3,14 @@
 @section('dynamic_content')
 
   @can ('edit-sermons')
-    <a href="/sermons" class="btn btn-default btn-lg btn-block">Edit sermons</a>
+    <a href="/sermons" class="btn btn-primary btn-lg btn-block">Edit sermons</a>
   @endcan
-  <a href="/members/songs" class="btn btn-default btn-lg btn-block">View song list</a>
+  <a href="/members/songs" class="btn btn-primary btn-lg btn-block">View song list</a>
   @can ('edit-pages')
-    <a href="/members/pages" class="btn btn-default btn-lg btn-block">Edit pages</a>
+    <a href="/members/pages" class="btn btn-primary btn-lg btn-block">Edit pages</a>
   @endcan
   @can ('edit-documents')
-    <a href="/members/documents" class="btn btn-default btn-lg btn-block">View documents</a>
+    <a href="/members/documents" class="btn btn-primary btn-lg btn-block">View documents</a>
   @endcan
 
   <form action="logout" method="post">
