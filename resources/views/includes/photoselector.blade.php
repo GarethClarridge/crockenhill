@@ -8,7 +8,7 @@
         <img class="img-responsive" src="{{$photo_directory}}/{{$photo}}" alt="">
         <div class="caption">
           <span>
-            <span class="glyphicon glyphicon-duplicate"></span> &nbsp
+            <i class="far fa-copy"></i> &nbsp
             Copy this into the textarea below:
             <br>
             ![

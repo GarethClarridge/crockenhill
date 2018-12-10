@@ -13,7 +13,7 @@
         <p class="text-center lead"><span>A friendly, Bible believing church just outside Swanley.</span></p>
         <!-- <p class="text-center arrow">
           <a href="#video">
-            <span class="glyphicon glyphicon-chevron-down"></span>
+            <i class="fas fa-chevron-down"></i>
           </a>
         </p> -->
       </div>

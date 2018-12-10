@@ -8,13 +8,13 @@
   <div class="row">
     <div class="col-sm-6">
      <a href="/members/songs/service-record" class="btn btn-primary btn-lg btn-block">
-       <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp
+       <i class="fas fa-upload"></i> &nbsp
        Upload a new service record
      </a>
     </div>
     <div class="col-sm-6">
      <a href="/members/songs/create" class="btn btn-primary btn-lg btn-block">
-       <span class="glyphicon glyphicon-upload" aria-hidden="true"></span> &nbsp
+       <i class="fas fa-upload"></i> &nbsp
        Upload a new song
      </a>
     </div>
@@ -103,14 +103,14 @@
 
             @if ($song->author)
               <p>
-                <span class="glyphicon glyphicon-user"></span> &nbsp
+                <i class="far fa-user"></i> &nbsp
                 <span class="song-author">{!! $song->author !!}</span>
               </p>
             @endif
 
             @if ($song->frequency)
               <p>
-                <span class="glyphicon glyphicon-info-sign"></span> &nbsp Sung
+                <i class="fas fa-info-circle"></i></span> &nbsp Sung
               @if ($song->frequency > 5)
                 <span class="label label-success song-frequency">{{$song->frequency}}</span>
               @endif
@@ -128,22 +128,22 @@
             @else
               @if ($song->last_played)
                 <p>
-                  <span class="glyphicon glyphicon-calendar"></span> &nbsp
+                  <i class="far fa-calendar"></i> &nbsp
                   Last Sung: {{date("d F Y",strtotime($song->last_played))}}
                 <p>
               @else
               <p>
-                <span class="glyphicon glyphicon-info-sign"></span> &nbsp
+                <i class="fas fa-info-circle"></i></span> &nbsp
                   We've never sung this song.
               @endif
             @endif
 
             @if ($song->major_category != '')
               <p>
-                <span class="glyphicon glyphicon-tag"></span> &nbsp
+                <i class="fas fa-tag"></i> &nbsp
                 <span class="song_major_category">{{ $song->major_category }}</span>
                 @if (!empty($song->minor_category))
-                  &nbsp &nbsp <span class="glyphicon glyphicon-tag"></span> &nbsp
+                  &nbsp &nbsp <i class="fas fa-tag"></i> &nbsp
                   <span class="song_minor_category">{{ $song->minor_category }}</span>
                 @endif
               </p>
@@ -151,14 +151,14 @@
 
             @if ($song->notes)
               <p>
-                <span class="glyphicon glyphicon-pencil"></span> &nbsp
+                <i class="fas fa-pencil-alt"></i> &nbsp
                 {{ $song->notes }}
               </p>
             @endif
 
             @if ($song->current === 0)
             <p>
-              <span class="glyphicon glyphicon-warning-sign"></span> &nbsp
+              <i class="fas fa-exclamation-triangle"></i> &nbsp
               This song isn't in our current list of songs to sing. Is there an alternative?
             </p>
             @endif
