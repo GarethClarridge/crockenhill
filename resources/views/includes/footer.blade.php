@@ -19,7 +19,7 @@
             <a class="card-link text-white" href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
           </p>
           <p>
-            <i class="fa fa-facebook"></i>
+            <i class="fab fa-facebook-square"></i>
             <a class="card-link text-white" href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
           </p>
         </div>

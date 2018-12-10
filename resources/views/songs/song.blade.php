@@ -20,13 +20,13 @@
     <div class="media-body media-middle song-body">
       @if ($song->author)
         <p>
-          <span class="glyphicon glyphicon-user"></span> &nbsp
+          <i class="far fa-user"></i> &nbsp
           {{ $song->author }}
         </p>
       @endif
 
       <p>
-        <span class="glyphicon glyphicon-info-sign"></span> &nbsp
+        <i class="fas fa-info-circle"></i></span> &nbsp
       @if ($song->last_played)
         Sung
 
@@ -50,16 +50,16 @@
 
       @if ($song->last_played)
         <p>
-          <span class="glyphicon glyphicon-calendar"></span> &nbsp
+          <i class="far fa-calendar"></i> &nbsp
           Last Sung: {{date("d F Y",strtotime($song->last_played))}}
         <p>
       @endif
 
       @if ($song->major_category != '')
         <p>
-          <span class="glyphicon glyphicon-tag"></span> &nbsp
+          <i class="fas fa-tag"></i> &nbsp
           <span class="song_major_category">{{ $song->major_category }}</span>
-          &nbsp &nbsp <span class="glyphicon glyphicon-tag"></span> &nbsp
+          &nbsp &nbsp <i class="fas fa-tag"></i> &nbsp
           @if ($song->minor_category)
               <span class="song_minor_category">{{ $song->minor_category }}</span>
           @endif
@@ -68,7 +68,7 @@
 
       @if ($song->current === 0)
       <p>
-        <span class="glyphicon glyphicon-warning-sign"></span> &nbsp
+        <i class="fas fa-exclamation-triangle"></i> &nbsp
         This song isn't in our current list of songs to sing. Is there an alternative?
       </p>
       @endif
@@ -79,14 +79,14 @@
 
       @if ($song->copyright)
         <p>
-          <span class="glyphicon glyphicon-copyright-mark"></span> &nbsp
+          <i class="far fa-copyright"></i> &nbsp
           {{ $song->copyright }}
         </p>
       @endif
 
       @if ($scripture)
         <p>
-          <span class="glyphicon glyphicon-book"></span> &nbsp
+          <i class="fas fa-book"></i> &nbsp
           Scripture References:
             @foreach ($scripture as $s)
               <i>{{ $s->reference }}</i>
@@ -96,7 +96,7 @@
 
       @if ($song->notes)
         <p>
-          <span class="glyphicon glyphicon-pencil"></span> &nbsp
+          <i class="fas fa-pencil-alt"></i> &nbsp
           {{ $song->notes }}
         </p>
       @endif

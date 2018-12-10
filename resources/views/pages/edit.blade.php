@@ -12,7 +12,7 @@
           <div class="header-container">
             <h1>
               <span>
-                <span class="glyphicon glyphicon-pencil"></span> &nbsp &nbsp
+                <i class="fas fa-pencil-alt"></i> &nbsp &nbsp
                 <input class="edit-heading" id="heading" name="heading" type="text" value="{{$page->heading}}">
               </span>
             </h1>
