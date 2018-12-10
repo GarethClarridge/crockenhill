@@ -54,7 +54,7 @@
 					<br>
 					<br>
 					<br>
-					<a class="btn btn-default" href="{{ url('/register') }}">Register for an account</a>
+					<a class="btn btn-primary" href="{{ url('/register') }}">Register for an account</a>
 				</div>
 			</div>
 
