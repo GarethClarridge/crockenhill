@@ -47,7 +47,7 @@
               </p>
               <br>
               <p class="text-center">
-                <a href="/christmas" class="btn btn-default btn-lg">Christmas events</a>
+                <a href="/christmas" class="btn btn-primary btn-lg">Christmas events</a>
               </p>
           </section>
         </div>
