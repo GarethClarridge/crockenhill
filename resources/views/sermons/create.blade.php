@@ -31,13 +31,13 @@
 
             <div class="form-group">
               <label class="btn btn-primary btn-lg" for="file">
-                <span class="glyphicon glyphicon-folder-open"></span>
+                <i class="far fa-folder"></i>
                 &nbsp Choose file
                 <input name="file" type="file" id="file" class="hidden">
               </label>
                &nbsp
               <span id="filename" class="alert alert-success hidden">
-                <span class="glyphicon glyphicon-ok"></span>
+                <i class="far fa-check-circle"></i>
                  &nbsp
               </span>
             </div>
