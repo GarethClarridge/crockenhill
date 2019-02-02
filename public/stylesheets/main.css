@@ -11248,11 +11248,6 @@ article .card-img-caption .card-img-top {
 aside .card-img-caption .card-img-top {
   height: 10vh; }
 
-aside .aside-link {
-  font-size: 1rem;
-  padding: 0;
-  line-height: 50%; }
-
 aside .read-more {
   text-align: right;
   font-style: italic;
@@ -11269,7 +11264,7 @@ aside .read-more {
   margin-right: -1.25rem;
   margin-bottom: 1.5;
   padding: 4rem 8%;
-  margin-top: 6rem;
+  margin-top: 1.5rem;
   background-color: #16324f;
   color: white;
   font-size: 2em; }
