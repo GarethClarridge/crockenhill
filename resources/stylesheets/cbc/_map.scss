@@ -1,13 +1,9 @@
 .flexible-map-container {
     position: relative;
-    padding-bottom: 56.25%;
-    padding-top: 50px;
-    margin-top: 30px;
-    margin-bottom: 30px;
-    height: 0;
-    width: 119.047619%;
-    margin-left: -9.5238095%;
+    @include full-width-section;
     overflow: hidden;
+    min-height: 50vh;
+    max-height: 80vh;
 }
 
 .flexible-map-container iframe,
