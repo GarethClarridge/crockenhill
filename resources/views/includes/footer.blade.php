@@ -43,12 +43,12 @@
 
   <div class="row justify-content-center">
     <section class="col-md-4 mt-4">
-      <img src="/svg/OutlineNameWhite.svg" width="100%">
+      <img src="/svg/OutlineNameWhite.svg" width="100%" alt="Crockenhill Baptist Church logo">
     </section>
 
     <section class="col-md-4 mt-4">
         <a class="fiec-footer" href="http://www.fiec.org.uk">
-            <img src="/images/fiec-affiliated-tagline-white.png" width="100%">
+          <img src="/images/fiec-affiliated-tagline-white.png" width="100%" alt="Affiliated to the Fellowship of Independent Evangelical Churches">
         </a>
     </section>
 
