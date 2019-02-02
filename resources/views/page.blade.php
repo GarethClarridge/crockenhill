@@ -16,7 +16,7 @@
 
           <div class="card-img-caption d-flex align-items-center">
             <h1 class="card-text text-white">
-              <div class="px-2">
+              <div class="px-2 py-1">
                 {{$heading}}
               </div>
             </h1>
