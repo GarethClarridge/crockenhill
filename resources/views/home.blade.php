@@ -7,10 +7,12 @@
 @section('content')
 
   <main id="home">
-    <div class="home-head">
+    <div class="home-head text-white">
       <div class="container">
-        <h1 class="text-center"><span>Crockenhill Baptist Church</span></h1>
-        <p class="text-center lead"><span>A friendly, Bible believing church just outside Swanley.</span></p>
+        <h1 class="text-center">
+          <div class="px-2 py-1">Crockenhill Baptist Church</div>
+        </h1>
+        <p class="text-center lead"><span class="px-3 py-2">A friendly, Bible believing church just outside Swanley.</span></p>
         <!-- <p class="text-center arrow">
           <a href="#video">
             <i class="fas fa-chevron-down"></i>
@@ -19,7 +21,7 @@
       </div>
     </div>
 
-    <section class="white-background">
+    <section class="white-background pt-5">
       <div class="containter">
         <p class="text-center">
           Join us this Sunday
@@ -41,7 +43,7 @@
     <!-- <div class="background-image" id="christmas">
       <div class="container">
         <div class="row">
-          <section class="col-md-6 col-md-offset-3">
+          <section class="col-md-10 col-lg-6 col-md-offset-3">
               <p>
                 Come and celebrate the birth of our Saviour with us this Christmas.
               </p>
@@ -57,7 +59,7 @@
     <div class="background-image" id="listening">
       <div class="container">
         <div class="row justify-content-md-center">
-          <section class="col-md-6">
+          <section class="col-md-10 col-lg-6 text-white p-5">
               <p class="text-center">
                 Our church exists to worship God,
                 strengthen believers in their faith,
@@ -67,7 +69,7 @@
               </p>
               <br>
               <p class="text-center">
-                <a href="/about-us" class="btn btn-primary btn-lg">Find out more about us</a>
+                <a href="/about-us" class="text-white px-2 py-1">Find out more about us</a>
               </p>
           </section>
         </div>
@@ -76,7 +78,7 @@
 
     <div class="container">
       <div class="row justify-content-md-center">
-        <section class="col-md-6">
+        <section class="col-md-10 col-lg-6 p-5">
           <div class="white-background">
             <p class="text-center">
               There are many activities at Crockenhill Baptist Church.
@@ -95,7 +97,7 @@
     <div class="background-image" id="building">
       <div class="container">
         <div class="row justify-content-md-center">
-          <section class="col-md-6">
+          <section class="col-md-10 col-lg-6 text-white p-5">
               <p class="text-center">
                 We are located in the village of Crockenhill in Kent,
                 which is a mile or so south of Swanley
@@ -105,7 +107,7 @@
               </p>
               <br>
               <p class="text-center">
-                <a href="/find-us" class="btn btn-primary btn-lg">Get directions</a>
+                <a href="/find-us" class="text-white px-2 py-1">Get directions</a>
               </p>
           </section>
         </div>
