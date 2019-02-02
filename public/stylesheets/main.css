@@ -11218,6 +11218,31 @@ audio {
   width: 100%;
   height: 100%; }
 
+.card-img-top {
+  height: 20vh;
+  object-fit: cover;
+  filter: brightness(50%); }
+
+.card-img-caption {
+  height: 20vh;
+  object-fit: cover;
+  border-top-left-radius: calc(.25rem - 1px);
+  border-top-right-radius: calc(.25rem - 1px); }
+
+.card-img-caption .card-img-top {
+  z-index: 0; }
+
+.card-img-caption .card-text {
+  text-align: center;
+  width: 100%;
+  position: absolute;
+  z-index: 1; }
+  .card-img-caption .card-text div {
+    border: 3px;
+    width: 80%;
+    border-style: solid;
+    display: inline-block; }
+
 .heading-picture {
   border-top-left-radius: calc(.25rem - 1px);
   border-top-right-radius: calc(.25rem - 1px);

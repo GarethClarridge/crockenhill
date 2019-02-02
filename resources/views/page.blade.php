@@ -13,16 +13,21 @@
     <div class="row">
       <div class="col-md-9">
         <article class="card mt-3">
-          <!-- @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
-            <img class="card-img-top" src="{{$headingpicture}}">
-          @else
-            <img class="card-img-top" src="/images/headings/large/default.jpg">
-          @endif -->
+
+          <div class="card-img-caption d-flex align-items-center">
+            <h1 class="card-text text-white">
+              <div class="px-2">
+                {{$heading}}
+              </div>
+            </h1>
+            @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
+              <img class="card-img-top" src="{{$headingpicture}}">
+            @else
+              <img class="card-img-top" src="/images/headings/large/default.jpg">
+            @endif
+          </div>
 
           <div class="card-body">
-            <h1 class="card-text">
-                {{$heading}}
-            </h1>
             <ul class="card-header-pull-right list-inline">
               @yield('social_sharing')
 
