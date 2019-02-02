@@ -28,17 +28,6 @@
           </div>
 
           <div class="card-body">
-            <ul class="card-header-pull-right list-inline">
-              @yield('social_sharing')
-
-              @if (isset ($user))
-                <li class="user-name">
-                  <i class="far fa-user"></i>
-                  {{ $user->name }}
-                </li>
-              @endif
-
-            </ul>
 
             @if (session('message'))
             <div class="alert alert-success alert-dismissable" role="alert">
