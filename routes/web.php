@@ -131,66 +131,29 @@ Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
 
 // Permanent Redirects
 
-Route::get('aboutus', function(){
-    return Redirect::to('about-us', 301);
-});
-Route::get('contactus', function(){
-    return Redirect::to('contact-us', 301);
-});
-Route::get('links', function(){
-    return Redirect::to('about-us/links', 301);
-});
-Route::get('whatson', function(){
-    return Redirect::to('whats-on', 301);
-});
-Route::get('where', function(){
-    return Redirect::to('find-us', 301);
-});
-Route::get('aboutus/history', function(){
-    return Redirect::to('about-us/history', 301);
-});
-Route::get('aboutus/pastor', function(){
-    return Redirect::to('about-us/pastor', 301);
-});
-Route::get('aboutus/statementoffaith', function(){
-    return Redirect::to('about-us/statement-of-faith', 301);
-});
-Route::get('aboutus/whatwebelieve', function(){
-    return Redirect::to('about-us/what-we-believe', 301);
-});
-Route::get('whatson/1150', function(){
-    return Redirect::to('whats-on/1150', 301);
-});
-Route::get('whatson/adventurers', function(){
-    return Redirect::to('whats-on/adventurers', 301);
-});
-Route::get('whatson/babytalk', function(){
-    return Redirect::to('whats-on/baby-talk', 301);
-});
-Route::get('whatson/biblestudy', function(){
-    return Redirect::to('whats-on/bible-study', 301);
-});
-Route::get('whatson/buzzclub', function(){
-    return Redirect::to('whats-on/buzz-club', 301);
-});
-Route::get('whatson/carolsatthechequers', function(){
-    return Redirect::to('whats-on/carols-in-the-chequers', 301);
-});
-Route::get('whatson/christianityexplored', function(){
-    return Redirect::to('whats-on/christianity-explored', 301);
-});
-Route::get('whatson/coffeecup', function(){
-    return Redirect::to('whats-on/coffee-cup', 301);
-});
-Route::get('whatson/familyfunnight', function(){
-    return Redirect::to('whats-on/family-fun-night', 301);
-});
-Route::get('whatson/sunday', function(){
-    return Redirect::to('whats-on/sunday-services', 301);
-});
-Route::get('buzz-club', function(){
-    return Redirect::to('whats-on/buzz-club', 301);
-});
+Route::permanentRedirect('aboutus', 'about-us');
+Route::permanentRedirect('contacttus', 'contact-us');
+Route::permanentRedirect('links', 'links');
+Route::permanentRedirect('whatson', 'whatson');
+Route::permanentRedirect('where', 'find-us');
+
+Route::permanentRedirect('aboutus/history', 'about-us/history');
+Route::permanentRedirect('aboutus/pastor', 'about-us/pastor');
+Route::permanentRedirect('aboutus/statementoffaith', 'about-us/statement-of-faith');
+Route::permanentRedirect('aboutus/whatwebelieve', 'about-us/what-we-believe');
+
+Route::permanentRedirect('whatson/1150', 'whats-on/1150');
+Route::permanentRedirect('whatson/adventurers', 'whats-on/adventurers');
+Route::permanentRedirect('whatson/babytalk', 'whats-on/baby-talk');
+Route::permanentRedirect('whatson/biblestudy', 'whats-on/bible-study');
+Route::permanentRedirect('whatson/buzzclub', 'whats-on/buzz-club');
+Route::permanentRedirect('whatson/carolsatthechequers', 'whats-on/carols-at-the-chequers');
+Route::permanentRedirect('whatson/christianityexplored', 'whats-on/christianity-explored');
+Route::permanentRedirect('whatson/coffeecup', 'whats-on/coffee-cup');
+Route::permanentRedirect('whatson/sunday', 'whats-on/sunday-services');
+
+Route::permanentRedirect('buzz-club', 'whats-on/buzz-club');
+Route::permanentRedirect('messy-church', 'whats-on/messy-church');
 
 // General Routes
 
