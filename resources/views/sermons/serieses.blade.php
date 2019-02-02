@@ -3,15 +3,14 @@
 @section('dynamic_content')
 
 <br>
-
-@foreach ($series as $series)
-  @if ($series->series != 'NULL')
-    <h4>
+<ul class="list-group list-group-flush">
+  @foreach ($series as $series)
+    <li class="list-group-item">
       <a href="series/{!! \Illuminate\Support\Str::slug($series->series) !!}">
         {{$series->series}}
       </a>
-    </h4>
-  @endif
-@endforeach
+    </li>
+  @endforeach
+</ul>
 
 @stop
