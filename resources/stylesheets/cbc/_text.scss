@@ -7,4 +7,9 @@
 header {
     font-family: $headings-font-family;
     text-transform: uppercase;
+
+    .user-name {
+      font-family: $font-family-sans-serif;
+      text-transform: none;
+    }
 }
