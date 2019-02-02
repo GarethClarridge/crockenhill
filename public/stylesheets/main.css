@@ -11224,7 +11224,6 @@ audio {
   filter: brightness(50%); }
 
 .card-img-caption {
-  height: 20vh;
   object-fit: cover;
   border-top-left-radius: calc(.25rem - 1px);
   border-top-right-radius: calc(.25rem - 1px); }
@@ -11243,27 +11242,11 @@ audio {
     border-style: solid;
     display: inline-block; }
 
-.heading-picture {
-  border-top-left-radius: calc(.25rem - 1px);
-  border-top-right-radius: calc(.25rem - 1px);
-  background-color: #16324f;
-  background-size: cover;
-  background-position: 50%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center; }
-  .heading-picture .card-text {
-    padding: 1.5rem;
-    position: absolute;
-    z-index: 1;
-    line-height: 100%; }
-    .heading-picture .card-text span {
-      background-color: #08a386;
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
-      padding: 1rem;
-      line-height: 200%;
-      color: var(--light); }
+article .card-img-caption .card-img-top {
+  height: 20vh; }
+
+aside .card-img-caption .card-img-top {
+  height: 10vh; }
 
 aside .aside-link {
   font-size: 1rem;
