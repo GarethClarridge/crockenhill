@@ -13,11 +13,6 @@
           <div class="px-2 py-1">Crockenhill Baptist Church</div>
         </h1>
         <p class="text-center lead"><span class="px-3 py-2">A friendly, Bible believing church just outside Swanley.</span></p>
-        <!-- <p class="text-center arrow">
-          <a href="#video">
-            <i class="fas fa-chevron-down"></i>
-          </a>
-        </p> -->
       </div>
     </div>
 
