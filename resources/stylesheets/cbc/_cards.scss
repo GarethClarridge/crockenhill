@@ -38,12 +38,6 @@ aside {
     height: 10vh;
   }
 
-  .aside-link {
-    font-size: 1rem;
-    padding: 0;
-    line-height: 50%;
-  }
-
   .read-more {
     text-align: right;
     font-style: italic;
@@ -62,7 +56,7 @@ aside {
 
 .meeting-details {
   @include full-width-section;
-  margin-top: floor(map-get($spacers, 4)*4);
+  margin-top: map-get($spacers, 4);
   background-color: map-get($theme-colors, primary);
   color: white;
   font-size: 2em;
