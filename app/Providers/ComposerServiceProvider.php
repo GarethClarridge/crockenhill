@@ -88,10 +88,10 @@ class ComposerServiceProvider extends ServiceProvider {
 		      ->take(5)
 		      ->get();
 
-		    // Set values
-		    $breadcrumbs = '<li class="breadcrumb-item"><a href="/members">Members</a></li>
-		                    <li class="breadcrumb-item"><a href="/members/songs">Songs</a></li>
-		                    <li class="breadcrumb-item active">'.$song->title.'</li>';
+		    // // Set values
+		    // $breadcrumbs = '<li class="breadcrumb-item"><a href="/members">Members</a></li>
+		    //                 <li class="breadcrumb-item"><a href="/members/songs">Songs</a></li>
+		    //                 <li class="breadcrumb-item active">'.$song->title.'</li>';
 
 				// Set heading
 				if (is_null($song->alternative_title)) {
@@ -129,8 +129,8 @@ class ComposerServiceProvider extends ServiceProvider {
 					->take(5)
 					->get();
 
-				$breadcrumbs 	= '<li class="breadcrumb-item"><a href="/sermons">Sermons</a></li>
-												 <li class="breadcrumb-item active">'.$heading.'</li>';
+				// $breadcrumbs 	= '<li class="breadcrumb-item"><a href="/sermons">Sermons</a></li>
+				// 								 <li class="breadcrumb-item active">'.$heading.'</li>';
 
 				//Description
 				$description 	= '<meta name="description" content="'.$heading.'">';
@@ -157,7 +157,7 @@ class ComposerServiceProvider extends ServiceProvider {
 					->take(5)
 					->get();
 
-				$breadcrumbs 	= '<li class="breadcrumb-item"><a href="/sermons">Members</a></li>';
+				// $breadcrumbs 	= '<li class="breadcrumb-item"><a href="/sermons">Members</a></li>';
 
 				//Description
 				$description 	= '<meta name="description" content="'.$heading.'">';
@@ -175,12 +175,12 @@ class ComposerServiceProvider extends ServiceProvider {
 				//Heading
 				$heading = str_replace("-", " ", title_case($name));
 
-				//Breadcrumbs
-				$areapage = \Crockenhill\Page::where('slug', $area)->first();
-				$slugpage = \Crockenhill\Page::where('slug', $slug)->first();
-				$breadcrumbs 	= '<li class="breadcrumb-item"><a href="/'.$area.'">'.$areapage->heading.'</a></li>
-												 <li class="breadcrumb-item"><a href="/'.$area.'/'.$slug.'">'.$slugpage->heading.'</a></li>
-												 <li class="breadcrumb-item active">'.$heading.'</li>';
+				// //Breadcrumbs
+				// $areapage = \Crockenhill\Page::where('slug', $area)->first();
+				// $slugpage = \Crockenhill\Page::where('slug', $slug)->first();
+				// $breadcrumbs 	= '<li class="breadcrumb-item"><a href="/'.$area.'">'.$areapage->heading.'</a></li>
+				// 								 <li class="breadcrumb-item"><a href="/'.$area.'/'.$slug.'">'.$slugpage->heading.'</a></li>
+				// 								 <li class="breadcrumb-item active">'.$heading.'</li>';
 
 				//Heading picture
 				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
@@ -209,17 +209,17 @@ class ComposerServiceProvider extends ServiceProvider {
 					//Heading
 					$heading = $page->heading;
 
-					//Breadcrumbs
-					$areapage = \Crockenhill\Page::where('slug', $area)->first();
-					$breadcrumbs 	= '<li class="breadcrumb-item"><a href="/'.$area.'">'.$areapage->heading.'</a></li>
-													 <li class="breadcrumb-item active">'.$heading.'</li>';
+					// //Breadcrumbs
+					// $areapage = \Crockenhill\Page::where('slug', $area)->first();
+					// $breadcrumbs 	= '<li class="breadcrumb-item"><a href="/'.$area.'">'.$areapage->heading.'</a></li>
+					// 								 <li class="breadcrumb-item active">'.$heading.'</li>';
 
 					//Content
 		 			$content = htmlspecialchars_decode($page->body);
 				} else {
 					$description = NULL;
 					$heading = NULL;
-					$breadcrumbs = NULL;
+					// $breadcrumbs = NULL;
 				}
 
 				//Heading picture
@@ -248,8 +248,8 @@ class ComposerServiceProvider extends ServiceProvider {
 				//Heading
 				$heading = $page->heading;
 
-				//Breadcrumbs
-				$breadcrumbs 	= '<li class="breadcrumb-item active">'.$heading.'</li>';
+				// //Breadcrumbs
+				// $breadcrumbs 	= '<li class="breadcrumb-item active">'.$heading.'</li>';
 
 				//Content
 	 			$content = htmlspecialchars_decode($page->body);
@@ -274,7 +274,7 @@ class ComposerServiceProvider extends ServiceProvider {
 				'description'   	=> $description,
 				'heading'       	=> $heading,
 				'headingpicture' 	=> $headingpicture,
-				'breadcrumbs'   	=> $breadcrumbs,
+				// 'breadcrumbs'   	=> $breadcrumbs,
 				'content'					=> (isset($content) ? $content : ''),
 				'links'						=> $links,
 				'user' 						=> $user,
