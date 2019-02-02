@@ -1,32 +1,6 @@
 @extends('page')
 
-@section('social_sharing')
-  <!-- <li>
-    <a href="http://www.facebook.com/crockenhill">
-      <i class="fa fa-facebook-square"></i>
-    </a>
-  </li>
-
-  <li>
-    <a href="http://www.twitter.com/crockenhill">
-      <i class="fa fa-twitter-square"></i>
-    </a>
-  </li>
-
-  <li>
-    <a href="http://www.facebook.com/crockenhill">
-      <i class="fa fa-google-plus-square"></i>
-    </a>
-  </li> -->
-@stop
-
 @section('dynamic_content')
-
-  @if (session('message'))
-    <div class="alert alert-success" role="alert">
-      {{ session('message') }}
-    </div>
-  @endif
 
   @can ('edit-sermons')
     <form class="edit-buttons" method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8">

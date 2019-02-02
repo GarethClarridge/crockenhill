@@ -27,5 +27,14 @@
       @endforeach
 
     </ul>
+
+    <ul class="navbar-nav ml-auto text-white">
+      @if (isset ($user))
+        <li class="user-name">
+          <i class="far fa-user">&nbsp</i>
+          {{ $user->name }}
+        </li>
+      @endif
+    </ul>
   </div>
 </nav>
