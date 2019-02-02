@@ -15,14 +15,14 @@ gulp.task('browser-sync', function() {
 
 // Task sass
 gulp.task('scss', function () {
-    return gulp.src('./resources/assets/stylesheets/**/*.scss')
+    return gulp.src('./resources/stylesheets/**/*.scss')
         .pipe(sass({errLogToConsole: true}))
         .pipe(gulp.dest('public/stylesheets'))
         .pipe(browserSync.reload({stream:true}));
 });
 
 gulp.task('js', function () {
-    return gulp.src('./resources/assets/javascript/*.js')
+    return gulp.src('./resources/javascript/*.js')
         .pipe(uglify())
         .pipe(concat('all.js'))
         .pipe(gulp.dest('./public/scripts/'))
@@ -30,12 +30,12 @@ gulp.task('js', function () {
 });
 
 gulp.task('watch:scss', function() {
-  return gulp.watch(['./resources/assets/stylesheets/cbc/*.scss','./resources/assets/stylesheets/*.scss'],
+  return gulp.watch(['./resources/stylesheets/cbc/*.scss','./resources/stylesheets/*.scss'],
     gulp.series('scss'));
 });
 
 gulp.task('watch:js', function() {
-  return gulp.watch('./resources/assets/javascript/*.js',
+  return gulp.watch('./resources/javascript/*.js',
     gulp.series('js'));
 });
 
