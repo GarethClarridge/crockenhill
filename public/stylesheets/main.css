@@ -11097,27 +11097,25 @@ readers do not read off random characters that represent icons */
   width: auto; }
 
 .home-head {
-  background-image: url(../images/homepage/CollageGrey.jpg);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(../images/homepage/CollageGrey.jpg);
   background-size: cover;
-  background-repeat: no-repeat;
-  min-height: 500px;
-  margin-top: -20px; }
+  min-height: 33vh; }
   .home-head .container {
-    padding-top: 100px; }
-  .home-head h1 {
-    font-size: 4.5rem;
-    font-weight: 800;
-    line-height: 9rem;
-    margin-bottom: 1em; }
-    .home-head h1 span {
-      padding: 0.15em;
-      background-color: #08a386;
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone; }
+    padding-top: 100px;
+    padding-bottom: 50px; }
+    .home-head .container h1 {
+      font-size: 4.5rem;
+      font-weight: 800;
+      padding-bottom: 50px;
+      width: 100%; }
+      .home-head .container h1 div {
+        border: 5px;
+        max-width: 80%;
+        border-style: solid;
+        display: inline-block; }
   .home-head p {
     font-style: italic; }
     .home-head p span {
-      padding: 0.33em 0.5em;
       background-color: #16324f;
       line-height: 3em;
       box-decoration-break: clone;
@@ -11131,13 +11129,6 @@ readers do not read off random characters that represent icons */
     line-height: 2em; }
   .white-background a {
     font-style: italic; }
-  @media (max-width: ((xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px), sm)) {
-    .white-background {
-      font-size: 1.11em;
-      padding-left: 15%;
-      padding-right: 15%; }
-      .white-background h2 {
-        font-size: 2em; } }
 
 section {
   padding: 5% 0%; }
@@ -11149,11 +11140,16 @@ section {
   .background-image section {
     font-size: 1.5em;
     text-align: center; }
-    @media (max-width: ((xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px), sm)) {
-      .background-image section {
-        font-size: 1.1em;
-        padding-left: 15%;
-        padding-right: 15%; } }
+    .background-image section p a {
+      border: 5px;
+      max-width: 80%;
+      border-style: solid;
+      display: inline-block;
+      text-decoration: none !important; }
+      .background-image section p a:hover {
+        background-color: white;
+        border-color: white;
+        color: #16324f !important; }
 
 #building {
   background-image: url(/images/homepage/building.JPG); }
