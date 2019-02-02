@@ -42,14 +42,18 @@
   </div>
 
   <div class="row justify-content-center">
-      <section class="col-md-4 mt-4">
-          <a class="fiec-footer" href="http://www.fiec.org.uk">
-              <img src="/images/fiec-affiliated-tagline-white.png" width="100%">
-          </a>
-      </section>
+    <section class="col-md-4 mt-4">
+      <img src="/svg/OutlineNameWhite.svg" width="100%">
+    </section>
 
-      <section class="col-sm-12 mt-4">
-          <p class="text-center text-white"><small>&copy; {{ date('Y') }} Crockenhill Baptist Church</small></p>
-      </section>
+    <section class="col-md-4 mt-4">
+        <a class="fiec-footer" href="http://www.fiec.org.uk">
+            <img src="/images/fiec-affiliated-tagline-white.png" width="100%">
+        </a>
+    </section>
+
+    <section class="col-sm-12 mt-4">
+        <p class="text-center text-white"><small>&copy; {{ date('Y') }} Crockenhill Baptist Church</small></p>
+    </section>
   </div>
 </div>
