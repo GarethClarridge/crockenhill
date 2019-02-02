@@ -100,15 +100,21 @@
 
           @if (\Request::is('whats-on') || \Request::is('whats-on/*'))
             <aside class="card mt-3">
-              <!-- @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+
+              <div class="card-img-caption d-flex align-items-center">
+                <h4 class="card-text text-white">
+                  <div class="p-1">
+                    {{$link->heading}}
+                  </div>
+                </h4>
+                @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
                 <img class="card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
-              @else
+                @else
                 <img class="card-img-top" src="/images/headings/small/default.jpg">
-              @endif -->
+                @endif
+              </div>
+
               <div class="card-body">
-                  <h4 class="card-text">
-                    <a class="aside-link" href="/whats-on/{{$link->slug}}">{{$link->heading}}</a>
-                  </h4>
                   {{$link->description}}
                   <div class="read-more">
                     <a href="/whats-on/{{$link->slug}}">Read more ...</a>
