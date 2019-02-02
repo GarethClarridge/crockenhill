@@ -1,36 +1,42 @@
+
+
+
+
+
+
+
+
+
+
 .home-head {
-  background-image: url(../images/homepage/CollageGrey.jpg);
+  background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url(../images/homepage/CollageGrey.jpg);
   background-size: cover;
-  background-repeat: no-repeat;
-  min-height: 500px;
-  margin-top: -20px;
-  color: map-get($colors, white);
+  min-height: 33vh;
 
   .container {
     padding-top: 100px;
-  }
+    padding-bottom: 50px;
 
-  h1 {
-    font-size: $font-size-base*4.5;
-    font-weight: 800;
-    line-height: $font-size-base*9;
+    h1 {
+      font-size: $font-size-base*4.5;
+      font-weight: 800;
+      // line-height: $font-size-base*9;
+      padding-bottom: 50px;
+      width: 100%;
 
-      span {
-      padding: 0.15em;
-      background-color: map-get($theme-colors, secondary);
-
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
+      div {
+        border: 5px;
+        max-width: 80%;
+        border-style: solid;
+        display: inline-block;
+      }
     }
-
-    margin-bottom: 1em;
   }
 
   p {
     font-style: italic;
 
     span {
-      padding: 0.33em 0.5em;
       background-color: map-get($theme-colors, primary);
       line-height: 3em;
 
@@ -52,16 +58,6 @@
   a {
     font-style: italic;
   }
-
-  @media (max-width: ($grid-breakpoints, sm)) {
-    font-size: 1.11em;
-    padding-left: 15%;
-    padding-right: 15%;
-    h2 {
-      font-size: 2em;
-    }
-
-  }
 }
 
 section {
@@ -74,14 +70,21 @@ section {
   background-size: 100%;
 
   section {
-    color: map-get($colors, white);
     font-size: 1.5em;
     text-align: center;
 
-    @media (max-width: ($grid-breakpoints, sm)) {
-      font-size: 1.1em;
-      padding-left: 15%;
-      padding-right: 15%;
+    p a {
+      border: 5px;
+      max-width: 80%;
+      border-style: solid;
+      display: inline-block;
+      text-decoration: none !important;
+
+      &:hover {
+        background-color: white;
+        border-color: white;
+        color: map-get($theme-colors, dark) !important;
+      }
     }
   }
 }
