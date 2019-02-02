@@ -19,6 +19,6 @@ audio {
 .sermon-headings {
   padding-top: map-get($spacers, 1), ;
   >ol>li, >ul>li {
-    padding-top: floor(map-get($spacers, 4)*2);
+    padding-top: map-get($spacers, 4);
   }
 }

@@ -2,21 +2,10 @@
 
 @section('dynamic_content')
 
-  @can ('edit-sermons')
-    <form class="edit-buttons" method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8">
-      <input type="hidden" name="_token" value="{{ csrf_token() }}">
-      <div class="btn-group">
-        <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
-          Edit
-        </a>
-
-        <button type="submit" class="btn btn-danger">
-          Delete
-        </button>
-      </div>
-    </form>
-    <br>
-  @endcan
+  <h2>Sermon outline</h2>
+  <section class="sermon-headings">
+    {!!trim($sermon->points)!!}
+  </section>
 
   <section class="sermon-details">
     @if (($sermon->date != null))
@@ -60,12 +49,22 @@
     </audio>
   </section>
 
-  <h2>Sermon outline</h2>
-  <section class="sermon-headings">
-    {!!trim($sermon->points)!!}
-  </section>
-
   <hr>
+  @can ('edit-sermons')
+    <form class="edit-buttons" method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8">
+      <input type="hidden" name="_token" value="{{ csrf_token() }}">
+      <div class="btn-group">
+        <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
+          Edit
+        </a>
+
+        <button type="submit" class="btn btn-danger">
+          Delete
+        </button>
+      </div>
+    </form>
+    <br>
+  @endcan
   <small>If there are any problems with this sermon, please email
     <a href="mailto:sermons@crockenhill.org">sermons@crockenhill.org</a>.
   </small>
