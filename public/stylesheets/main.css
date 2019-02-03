@@ -11376,6 +11376,9 @@ aside .read-more {
   color: #dee2e6;
   font-size: 2rem; }
 
+.praise_number_song {
+  top: 270px; }
+
 .song-filters {
   margin-left: -1.25rem;
   margin-right: -1.25rem;
@@ -11384,6 +11387,9 @@ aside .read-more {
   background-color: #08a386;
   color: white;
   font-size: 1.25rem; }
+
+#pieLegend {
+  color: white; }
 
 #christmas-page {
   margin: 0px; }
