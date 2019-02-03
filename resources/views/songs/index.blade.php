@@ -83,7 +83,7 @@
 
     @foreach ($songs as $song)
       <div class="card my-2">
-        <div class="card-body">
+        <div class="card-body pb-0">
           <div class="media" data-nip="{{$song->nip}}">
             @if ($song->praise_number)
               <img class="mr-3" src="/images/praise.png" alt="">
