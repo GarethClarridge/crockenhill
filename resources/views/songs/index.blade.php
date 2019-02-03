@@ -23,151 +23,151 @@
   @endcan
 
   <section id="song-list">
-    <div class="form-group">
-      <label for="song-text-filter">Filter songs</label>
-      <input  class="fuzzy-search form-control"
-              id='song-text-filter'
-              placeholder="Try typing a song title, Praise! number, category or author"/>
-    </div>
-
-    <div class="form-group" id="in-praise-filter">
-      <label>
-        <input type="radio" name="in-praise" value="praise" id="filter-praise" onchange="updateFilter()"> Only in Praise!
-      </label>
-      <label>
-        <input type="radio" name="in-praise" value="both" id="filter-both-praise-nip" checked="checked" onchange="updateFilter()"> Both
-      </label>
-      <label>
-        <input type="radio" name="in-praise" value="nip" id="filter-nip" onchange="updateFilter()"> Only not in Praise!
-      </label>
-    </div>
-
-    <div class="form-group" id="category-filter">
-
-      <div class="major-category-filter-div">
-        <label for="major-category-filter">Category:</label>
-        <select name="major-category-filter" id="major-category-filter" class="form-control" onchange="updateFilter()">
-          <option value="All">All</option>
-          <option value="Psalms">Psalms</option>
-          <option value="Approaching God">Approaching God</option>
-          <option value="The Father">The Father</option>
-          <option value="The Son">The Son</option>
-          <option value="The Holy Spirit">The Holy Spirit</option>
-          <option value="The Bible">The Bible</option>
-          <option value="The church">The church</option>
-          <option value="The gospel">The gospel</option>
-          <option value="The Christian life">The Christian life</option>
-          <option value="Christ's lordship over all of life">Christ's lordship over all of life</option>
-          <option value="The future">The future</option>
-        </select>
+    <div class="song-filters">
+      <div class="form-group">
+        <label for="song-text-filter">Filter songs</label>
+        <input  class="fuzzy-search form-control"
+                id='song-text-filter'
+                placeholder="Try typing a song title, Praise! number, category or author"/>
       </div>
 
-      <div id="minor-category-filter-div" style="display:none;">
-        <label for="minor-category-filter">Sub-category:</label>
-        <select class="form-control" name="minor-category-filter" id="minor-category-filter" onchange="updateFilter()">
-          <option id="minor-category-filter-option" value="All">All</option>
-        </select>
+      <div class="form-group" id="in-praise-filter">
+        <label>
+          <input type="radio" name="in-praise" value="praise" id="filter-praise" onchange="updateFilter()"> Only in Praise!
+        </label>
+        <label>
+          <input type="radio" name="in-praise" value="both" id="filter-both-praise-nip" checked="checked" onchange="updateFilter()"> Both
+        </label>
+        <label>
+          <input type="radio" name="in-praise" value="nip" id="filter-nip" onchange="updateFilter()"> Only not in Praise!
+        </label>
       </div>
 
+      <div class="form-group" id="category-filter">
+
+        <div class="major-category-filter-div">
+          <label for="major-category-filter">Category:</label>
+          <select name="major-category-filter" id="major-category-filter" class="form-control" onchange="updateFilter()">
+            <option value="All">All</option>
+            <option value="Psalms">Psalms</option>
+            <option value="Approaching God">Approaching God</option>
+            <option value="The Father">The Father</option>
+            <option value="The Son">The Son</option>
+            <option value="The Holy Spirit">The Holy Spirit</option>
+            <option value="The Bible">The Bible</option>
+            <option value="The church">The church</option>
+            <option value="The gospel">The gospel</option>
+            <option value="The Christian life">The Christian life</option>
+            <option value="Christ's lordship over all of life">Christ's lordship over all of life</option>
+            <option value="The future">The future</option>
+          </select>
+        </div>
+
+        <div id="minor-category-filter-div" style="display:none;">
+          <label for="minor-category-filter">Sub-category:</label>
+          <select class="form-control" name="minor-category-filter" id="minor-category-filter" onchange="updateFilter()">
+            <option id="minor-category-filter-option" value="All">All</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="form-group">
+        <label for="sort">Sort by:</label>
+        <select class="form-control" name="sort" id="sort" onchange="updateSort()">
+          <option value="song-frequency">Popularity</option>
+          <option value="song-title">Title</option>
+        </select>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label for="sort">Sort by:</label>
-      <select class="form-control" name="sort" id="sort" onchange="updateSort()">
-        <option value="song-frequency">Popularity</option>
-        <option value="song-title">Title</option>
-      </select>
-    </div>
-
-    <ul class="list">
-
-      @foreach ($songs as $song)
-        <li class="media song" data-nip="{{$song->nip}}">
-          <div class="media-left media-middle praise-icon">
+    @foreach ($songs as $song)
+      <div class="card my-2">
+        <div class="card-body">
+          <div class="media" data-nip="{{$song->nip}}">
             @if ($song->praise_number)
-              <img class="media-object" src="/images/praise.png" alt="">
+              <img class="mr-3" src="/images/praise.png" alt="">
               <span class="praise_number">{!! $song->praise_number !!}</span>
             @else
-              <img class="media-object" src="/images/nip.png" width="128px" height="128px" alt="">
-            @endif
-          </div>
-
-          @if (!$song->last_played || $song->current===0)
-            <div class="media-body media-middle song-body song-unknown">
-          @else
-            <div class="media-body media-middle song-body">
-          @endif
-            <h3 class="media-heading">
-                <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}" class="song-title">{{$song->title}}</a>
-            </h3>
-
-            @if ($song->author)
-              <p>
-                <i class="far fa-user"></i> &nbsp
-                <span class="song-author">{!! $song->author !!}</span>
-              </p>
+              <img class="mr-3" src="/images/nip.png" width="128px" height="128px" alt="">
             @endif
 
-            @if ($song->frequency)
-              <p>
-                <i class="fas fa-info-circle"></i></span> &nbsp Sung
-              @if ($song->frequency > 5)
-                <span class="label label-success song-frequency">{{$song->frequency}}</span>
-              @endif
-
-              @if ($song->frequency > 1 && $song->frequency <= 5)
-                <span class="label label-warning song-frequency">{{$song->frequency}}</span>
-              @endif
-
-              @if ($song->frequency <= 1)
-                <span class="label label-danger song-frequency">{{$song->frequency}}</span>
-              @endif
-
-               times in the last 2 years
-            </p>
+            @if (!$song->last_played || $song->current===0)
+              <div class="media-body song-unknown">
             @else
-              @if ($song->last_played)
+              <div class="media-body">
+            @endif
+              <h3 class="mt-0 mb-3">
+                  <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}" class="song-title">{{$song->title}}</a>
+              </h3>
+
+              @if ($song->author)
                 <p>
-                  <i class="far fa-calendar"></i> &nbsp
-                  Last Sung: {{date("d F Y",strtotime($song->last_played))}}
-                <p>
-              @else
-              <p>
-                <i class="fas fa-info-circle"></i></span> &nbsp
-                  We've never sung this song.
+                  <i class="far fa-user"></i> &nbsp
+                  <span class="song-author">{!! $song->author !!}</span>
+                </p>
               @endif
-            @endif
 
-            @if ($song->major_category != '')
-              <p>
-                <i class="fas fa-tag"></i> &nbsp
-                <span class="song_major_category">{{ $song->major_category }}</span>
-                @if (!empty($song->minor_category))
-                  &nbsp &nbsp <i class="fas fa-tag"></i> &nbsp
-                  <span class="song_minor_category">{{ $song->minor_category }}</span>
+              @if ($song->frequency)
+                <p>
+                  <i class="fas fa-info-circle"></i></span> &nbsp Sung
+                @if ($song->frequency > 5)
+                  <span class="label label-success song-frequency">{{$song->frequency}}</span>
                 @endif
-              </p>
-            @endif
 
-            @if ($song->notes)
+                @if ($song->frequency > 1 && $song->frequency <= 5)
+                  <span class="label label-warning song-frequency">{{$song->frequency}}</span>
+                @endif
+
+                @if ($song->frequency <= 1)
+                  <span class="label label-danger song-frequency">{{$song->frequency}}</span>
+                @endif
+
+                 times in the last 2 years
+              </p>
+              @else
+                @if ($song->last_played)
+                  <p>
+                    <i class="far fa-calendar"></i> &nbsp
+                    Last Sung: {{date("d F Y",strtotime($song->last_played))}}
+                  <p>
+                @else
+                <p>
+                  <i class="fas fa-info-circle"></i></span> &nbsp
+                    We've never sung this song.
+                @endif
+              @endif
+
+              @if ($song->major_category != '')
+                <p>
+                  <i class="fas fa-tag"></i> &nbsp
+                  <span class="song_major_category">{{ $song->major_category }}</span>
+                  @if (!empty($song->minor_category))
+                    &nbsp &nbsp <i class="fas fa-tag"></i> &nbsp
+                    <span class="song_minor_category">{{ $song->minor_category }}</span>
+                  @endif
+                </p>
+              @endif
+
+              @if ($song->notes)
+                <p>
+                  <i class="fas fa-pencil-alt"></i> &nbsp
+                  {{ $song->notes }}
+                </p>
+              @endif
+
+              @if ($song->current === 0)
               <p>
-                <i class="fas fa-pencil-alt"></i> &nbsp
-                {{ $song->notes }}
+                <i class="fas fa-exclamation-triangle"></i> &nbsp
+                This song isn't in our current list of songs to sing. Is there an alternative?
               </p>
-            @endif
-
-            @if ($song->current === 0)
-            <p>
-              <i class="fas fa-exclamation-triangle"></i> &nbsp
-              This song isn't in our current list of songs to sing. Is there an alternative?
-            </p>
-            @endif
-
+              @endif
+            </div>
           </div>
-        </li>
-
-      @endforeach
-    </section>
+        </div>
+      </div>
+    @endforeach
+  </section>
 
   <script src="/scripts/list.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/list.fuzzysearch.js/0.1.0/list.fuzzysearch.js"></script>

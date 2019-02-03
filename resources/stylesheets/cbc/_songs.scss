@@ -1,21 +1,9 @@
-.praise-icon {
-  float: left;
-  height: 128px;
-
-  .praise_number {
-    z-index: 10;
-    position: relative;
-    top: -90px;
-    left: 45px;
-    color: map-get($colors, white);
-    font-size: floor(1.5 * $font-size-lg);
-  }
-}
-
-.song-body {
-  padding: 3% 3% 3% floor(2 * map-get($spacers, 4));
-  background: map-get($grays, 200);
-  margin-right: 2%;
+.praise_number {
+  position: absolute;
+  top: 55px;
+  left: 65px;
+  color: $gray-300;
+  font-size: floor($font-size-lg*2);
 }
 
 .song-unknown {
@@ -24,4 +12,11 @@
   h3.media-heading {
     color: map-get($grays, 800);
   }
+}
+
+.song-filters {
+  @include full-width-section;
+  background-color: map-get($theme-colors, secondary);
+  color: white;
+  font-size: $font-size-lg;
 }
