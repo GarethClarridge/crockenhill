@@ -63,7 +63,7 @@
 
       <br>
       <br>
-      <input class="btn btn-success btn-lg" type="submit" value="Save">
+      <input class="btn btn-success btn-lg btn-block" type="submit" value="Save">
     </div>
   </form>
 
