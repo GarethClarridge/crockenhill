@@ -1,6 +1,6 @@
 @mixin full-width-section {
   margin-left: -1.25rem;
   margin-right: -1.25rem;
-  margin-bottom: $line-height-base;
-  padding: floor(map-get($spacers, 4)*3) 8%;
+  margin-bottom: $grid-gutter-width;
+  padding: $grid-gutter-width;
 }

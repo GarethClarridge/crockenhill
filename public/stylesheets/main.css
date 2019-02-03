@@ -11184,8 +11184,8 @@ audio {
 .sermon-details {
   margin-left: -1.25rem;
   margin-right: -1.25rem;
-  margin-bottom: 1.5;
-  padding: 4rem 8%;
+  margin-bottom: 30px;
+  padding: 30px;
   background-color: #08a386;
   color: white;
   font-size: 1.25rem; }
@@ -11201,8 +11201,8 @@ audio {
   position: relative;
   margin-left: -1.25rem;
   margin-right: -1.25rem;
-  margin-bottom: 1.5;
-  padding: 4rem 8%;
+  margin-bottom: 30px;
+  padding: 30px;
   overflow: hidden;
   min-height: 50vh;
   max-height: 80vh; }
@@ -11260,8 +11260,8 @@ aside .read-more {
 .meeting-details {
   margin-left: -1.25rem;
   margin-right: -1.25rem;
-  margin-bottom: 1.5;
-  padding: 4rem 8%;
+  margin-bottom: 30px;
+  padding: 30px;
   margin-top: 1.5rem;
   background-color: #16324f;
   color: white;
@@ -11284,8 +11284,8 @@ aside .read-more {
 .edit-metadata {
   margin-left: -1.25rem;
   margin-right: -1.25rem;
-  margin-bottom: 1.5;
-  padding: 4rem 8%;
+  margin-bottom: 30px;
+  padding: 30px;
   background-color: #6b0f1a;
   color: white; }
   .edit-metadata input, .edit-metadata select {
@@ -11297,8 +11297,8 @@ aside .read-more {
 .photo-selector {
   margin-left: -1.25rem;
   margin-right: -1.25rem;
-  margin-bottom: 1.5;
-  padding: 4rem 8%;
+  margin-bottom: 30px;
+  padding: 30px;
   background-color: #08a386; }
   .photo-selector img {
     width: 100%; }
@@ -11369,19 +11369,21 @@ aside .read-more {
   margin-left: 1rem;
   margin-right: 1rem; }
 
-.praise-icon {
-  float: left;
-  height: 128px; }
-  .praise-icon .praise_number {
-    z-index: 10;
-    position: relative;
-    top: -90px;
-    left: 45px;
-    font-size: 1rem; }
+.praise_number {
+  position: absolute;
+  top: 55px;
+  left: 65px;
+  color: #dee2e6;
+  font-size: 2rem; }
 
-.song-body {
-  padding: 3% 3% 3% 3rem;
-  margin-right: 2%; }
+.song-filters {
+  margin-left: -1.25rem;
+  margin-right: -1.25rem;
+  margin-bottom: 30px;
+  padding: 30px;
+  background-color: #08a386;
+  color: white;
+  font-size: 1.25rem; }
 
 #christmas-page {
   margin: 0px; }
