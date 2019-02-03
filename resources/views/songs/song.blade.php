@@ -3,21 +3,19 @@
 @section('dynamic_content')
 
 @can ('edit-songs')
-  <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="btn btn-primary">
-    Edit
+  <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="btn btn-primary btn-lg btn-block">
+    Edit this song
   </a>
   <br>
 @endcan
 
-  <div class="media song">
+  <div class="media">
     @if ($song->praise_number)
-      <div class="media-left media-middle praise-icon">
-        <img class="media-object" src="/images/praise.png" alt="">
-        <span class="praise_number">{{ $song->praise_number }}</span>
-      </div>
+      <img class="mr-3" src="/images/praise.png" alt="">
+      <span class="praise_number praise_number_song">{{ $song->praise_number }}</span>
     @endif
 
-    <div class="media-body media-middle song-body">
+    <div class="media-body">
       @if ($song->author)
         <p>
           <i class="far fa-user"></i> &nbsp
@@ -84,7 +82,7 @@
         </p>
       @endif
 
-      @if ($scripture)
+      @if ($song->scripture != '')
         <p>
           <i class="fas fa-book"></i> &nbsp
           Scripture References:
@@ -105,7 +103,7 @@
   </div>
 
   @if ($song->last_played)
-    <h4>Popularity over time:</h4>
+    <h4 class="my-3">Popularity over time:</h4>
 
     <div class="row">
       <div class="col-sm-12">
@@ -113,7 +111,7 @@
       </div>
     </div>
 
-    <h4>Services sung at:</h4>
+    <h4 class="my-3">Services sung at:</h4>
 
     <div class="row">
       <div class="col-sm-8">

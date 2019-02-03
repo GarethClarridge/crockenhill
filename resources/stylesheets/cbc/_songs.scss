@@ -6,6 +6,10 @@
   font-size: floor($font-size-lg*2);
 }
 
+.praise_number_song {
+  top: 270px;
+}
+
 .song-unknown {
   background: map-get($grays, 300);
 
@@ -19,4 +23,8 @@
   background-color: map-get($theme-colors, secondary);
   color: white;
   font-size: $font-size-lg;
+}
+
+#pieLegend {
+  color: white;
 }
