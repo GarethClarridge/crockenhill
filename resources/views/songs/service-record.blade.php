@@ -5,7 +5,7 @@
   <script type="text/javascript">
     $(document).ready(function() {
       $(".song-select").select2({
-        placeholder: "Select a state"
+        placeholder: "Choose a song"
       });
     });
   </script>
@@ -27,29 +27,35 @@
     </div>
 
     @foreach ($services as $key => $value)
-      <h3>{{$value}}</h3>
+      <h3 class="mt-5">{{$value}}</h3>
 
       @for ($i = 1; $i < 10; $i++)
         <div class="form-group">
-          <label for="{{$key.$i}}" class="col-xs-1 control-label">{{$i}}:</label>
-          <div class="col-xs-11">
-            <select name="{{$key.$i}}" class="song-select form-control">
-              <option value=""></option>
-              @foreach ($songs as $song)
-                @if ($song->praise_number != '')
-                  <option value="{{$song->id}}">#{{$song->praise_number}}: {{$song->title}}</option>
-                @else
-                  <option value="{{$song->id}}">{{$song->title}}</option>
-                @endif
-              @endforeach
-            </select>
+          <div class="container">
+            <div class="row">
+              <div class="col-1">
+                <label for="{{$key.$i}}" class="control-label">{{$i}}</label>
+              </div>
+              <div class="col-11">
+                <select name="{{$key.$i}}" class="song-select form-control">
+                  <option value=""></option>
+                  @foreach ($songs as $song)
+                    @if ($song->praise_number != '')
+                      <option value="{{$song->id}}">#{{$song->praise_number}}: {{$song->title}}</option>
+                    @else
+                      <option value="{{$song->id}}">{{$song->title}}</option>
+                    @endif
+                  @endforeach
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       @endfor
     @endforeach
 
       <br>
-      <input class="btn btn-success btn-lg" type="submit" value="Save">
+      <input class="btn btn-success btn-lg btn-block" type="submit" value="Save">
     </div>
   </form>
 </section>
