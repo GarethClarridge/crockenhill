@@ -76,8 +76,6 @@ Route::group(array('prefix' => 'sermons'), function()
 
 Route::resource('whats-on', 'MeetingController');
 
-// Custom Routes
-
 //Members
 
 Auth::routes();
@@ -91,25 +89,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
     // Manage pages
     Route::resource('pages', 'PageController');
 
-    Route::get('pages/{slug}/changeimage', array(
-        'uses'  => 'PageController@changeimage',
-        'as'    => 'members.pages.changeimage'
-        ));
-    Route::post('pages/{slug}/changeimage', array(
-        'uses'  => 'PageController@updateimage',
-        'as'    => 'members.pages.updateimage'
-        ));
-
     // Manage sermons
     Route::resource('sermons', 'SermonController');
-    // Route::get('sermons/{slug}/changeimage', array(
-    //     'uses'  => 'SermonController@changeimage',
-    //     'as'    => 'members.sermons.changeimage'
-    //     ));
-    // Route::post('sermons/{slug}/changeimage', array(
-    //     'uses'  => 'SermonController@updateimage',
-    //     'as'    => 'members.sermons.updateimage'
-    //     ));
 
     // Manage documents
     Route::resource('documents', 'DocumentController');
@@ -118,7 +99,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
         ));
 
     // Songs
-
     Route::get('songs/service-record', 'SongController@getServiceRecord');
     Route::post('songs/service-record', 'SongController@postServiceRecord');
 
