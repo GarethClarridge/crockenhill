@@ -38,12 +38,18 @@ class PageController extends Controller {
       abort(403);
     }
 
+		//Convert markdown
+		$converter = new CommonMarkConverter;
+		$markdown = \Input::get('markdown');
+		$html = $converter->convertToHtml($markdown);
+
     $page = new \Crockenhill\Page;
     $page->heading = \Input::get('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
     $page->area = \Input::get('area');
-    $page->body = \Input::get('body');
-    $page->description = \Input::get('description');
+		$page->markdown = $markdown;
+    $page->body = trim($html);
+		$page->description = \Input::get('description');
     $page->save();
 
     if (\Input::file('image')) {
