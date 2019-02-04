@@ -126,33 +126,4 @@ class PageController extends Controller {
 
     return redirect('/members/pages')->with('message', $page->heading.' successfully deleted!');
   }
-
-  /*public function changeimage($slug)
-  {
-      return view('pages.editimage')->with('page', \Crockenhill\Page::where('slug', $slug)->first());
-  }
-
-  public function updateimage($slug)
-  {
-    $page = \Crockenhill\Page::where('slug', $slug)->first();
-
-    // Make large image for article
-    Image::make(Input::file('image')
-      ->getRealPath())
-      // resize the image to a width of 300 and constrain aspect ratio (auto height)
-      ->resize(2000, null, true)
-      ->save('images/headings/large/'.$page->slug.'.jpg');
-
-    // Make smaller image for aside
-    Image::make(Input::file('image')
-      ->getRealPath())
-      // resize the image to a width of 300 and constrain aspect ratio (auto height)
-      ->resize(300, null, true)
-      ->save('images/headings/small/'.$page->slug.'.jpg');
-
-    Notification::success('The image was changed.');
-
-    return Redirect::route('/members/pages/changeimage', array('page' => $page->slug));
-
-  }*/
 }
