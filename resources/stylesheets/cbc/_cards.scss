@@ -58,7 +58,7 @@ aside {
   @include full-width-section;
   margin-top: map-get($spacers, 4);
   background-color: map-get($theme-colors, primary);
-  color: white;
+  color: $white;
   font-size: 2em;
   th {
     padding: map-get($spacers, 3) map-get($spacers, 3);
@@ -72,60 +72,6 @@ aside {
 
 .edit-buttons:before {
   content: none !important;
-}
-
-.edit-heading {
-  background-color: map-get($theme-colors, secondary)-light;
-  height: 100%;
-  border: none;
-  color: map-get($colors, white);
-}
-
-.edit-metadata {
-  @include full-width-section;
-  background-color: map-get($theme-colors, danger);
-  color: white;
-  input, select {
-    background-color: lighten(desaturate(map-get($theme-colors, danger), 40%), 50%);
-    border: none;
-  }
-  .row {
-    padding-bottom: map-get($spacers, 4);
-  }
-}
-
-.photo-selector {
-  @include full-width-section;
-  background-color: map-get($theme-colors, secondary);
-  color: map-get($colors, white);
-  img {
-    width: 100%;
-  }
-  h2 {
-    margin-bottom: map-get($spacers, 4);
-  }
-}
-#rendered-content img {
-  width: 100%;
-}
-.caption {
-  background-color: map-get($theme-colors, primary);
-  display: none;
-  word-wrap: break-word;
-}
-
-.thumbnail {
-    border: 0 none;
-    box-shadow: none;
-    margin:0;
-    padding:0;
-}
-
-.thumbnail:hover {
-  .caption {
-    display: block;
-    color: map-get($colors, white);
-  }
 }
 
 .main-content {
