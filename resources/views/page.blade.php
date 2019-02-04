@@ -82,7 +82,6 @@
 
           @if (\Request::is('whats-on') || \Request::is('whats-on/*'))
             <aside class="card mt-3">
-
               <div class="card-img-caption d-flex align-items-center">
                 <h4 class="card-text text-white">
                   <div class="p-1">
@@ -90,9 +89,9 @@
                   </div>
                 </h4>
                 @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
-                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
+                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
                 @else
-                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
                 @endif
               </div>
 
@@ -105,19 +104,24 @@
             </aside>
           @else
             <aside class="card mt-3">
-              <!-- @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
-                <div class="header-container" style="background-image: url(../images/headings/small/{{$link->slug}}.jpg)">
-              @else
-                <div class="header-container">
-              @endif -->
-              <div class="card-body">
-                  <h4>
-                    <a href="/{{$link->area}}/{{$link->slug}}">{{$link->heading}}</a>
-                  </h4>
-                  {{$link->description}}
-                  <div class="read-more">
-                    <a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a>
+              <div class="card-img-caption d-flex align-items-center">
+                <h4 class="card-text text-white">
+                  <div class="p-1">
+                    {{$link->heading}}
                   </div>
+                </h4>
+                @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
+                @else
+                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+                @endif
+              </div>
+
+              <div class="card-body">
+                {{$link->description}}
+                <div class="read-more">
+                  <a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a>
+                </div>
               </div>
             </aside>
           @endif
