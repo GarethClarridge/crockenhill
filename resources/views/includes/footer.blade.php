@@ -8,33 +8,41 @@
     </div>
 
     <div class="col-md-3 mt-2">
-      <div class="card bg-secondary text-white">
+      <div class="card text-center">
         <div class="card-body">
-          <p>
-            <i class="fa fa-phone"></i>
-            01322 663995
-          </p>
-          <p>
-            <i class="fa fa-envelope"></i>
-            <a class="card-link text-white" href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
-          </p>
-          <p>
-            <i class="fab fa-facebook-square"></i>
-            <a class="card-link text-white" href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
-          </p>
+          <h3 class="card-title">
+            Contact us
+          </h3>
+          <ul class="list-group">
+            <li class="list-group-item">
+              <i class="fa fa-phone"></i> &nbsp 
+              01322 663995
+            </li>
+            <li class="list-group-item">
+              <i class="fa fa-envelope"></i> &nbsp
+              <a class="card-link" href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
+            </li>
+            <li class="list-group-item">
+              <i class="fab fa-facebook-square"></i> &nbsp
+              <a class="card-link" href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
 
     <div class="col-md-3 mt-2">
-      <div class="card bg-secondary text-white">
+      <div class="card text-center">
         <div class="card-body">
+          <h3 class="card-title">
+            Address
+          </h3>
           <address>
             Crockenhill Baptist Church<br>
             Eynsford Road<br>
             Crockenhill<br>
             Kent<br>
-            BR8 8JS<br>
+            BR8 8JS
           </address>
         </div>
       </div>
