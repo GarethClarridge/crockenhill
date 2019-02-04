@@ -1,4 +1,4 @@
-.card-img-top {
+.cbc-card-img-top {
   height: 20vh;
   object-fit: cover;
   filter: brightness(50%);
@@ -10,7 +10,7 @@
   border-top-right-radius: calc(.25rem - 1px);
 }
 
-.card-img-caption .card-img-top {
+.card-img-caption .cbc-card-img-top {
   z-index: 0;
 }
 
@@ -29,12 +29,12 @@
   }
 }
 
-article .card-img-caption .card-img-top {
+article .card-img-caption .cbc-card-img-top {
   height: 20vh;
 }
 
 aside {
-  .card-img-caption .card-img-top{
+  .card-img-caption .cbc-card-img-top{
     height: 10vh;
   }
 
