@@ -10,7 +10,7 @@
   background-image: url(../images/homepage/christmas.JPG);
   min-height: 600px;
   margin-top: 20px;
-  color: map-get($colors, white);
+  color: $white;
   background-repeat:no-repeat;
   background-size:contain;
   background-position:center;
