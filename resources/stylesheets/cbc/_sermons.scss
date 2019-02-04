@@ -9,7 +9,7 @@ audio {
 .sermon-details {
   @include full-width-section;
   background-color: map-get($theme-colors, secondary);
-  color: white;
+  color: $white;
   font-size: $font-size-lg;
   a {
     color: inherit;
