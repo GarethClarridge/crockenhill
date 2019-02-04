@@ -54,22 +54,20 @@
             @can ('edit-pages')
               <hr>
 
-              <div class="edit-buttons">
-                <form class="form-inline" action="/members/pages/{{$slug}}" method="POST">
-                  <input type="hidden" name="_method" value="DELETE">
-                  <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                  <div class="btn-group">
-                    <a href="/members/pages/{{$slug}}/edit" class="btn btn-primary">
-                      <i class="fas fa-pencil-alt"></i> &nbsp
-                      Edit page
-                    </a>
-                    <button type="submit" class="btn btn-danger">
-                      <i class="fas fa-trash"></i> &nbsp
-                      Delete page
-                    </button>
-                  </div>
-                </form>
-              </div>
+              <form class="form-inline" action="/members/pages/{{$slug}}" method="POST">
+                <input type="hidden" name="_method" value="DELETE">
+                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                <div class="btn-group">
+                  <a href="/members/pages/{{$slug}}/edit" class="btn btn-primary">
+                    <i class="fas fa-pencil-alt"></i> &nbsp
+                    Edit page
+                  </a>
+                  <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> &nbsp
+                    Delete page
+                  </button>
+                </div>
+              </form>
             @endcan
           @endif
         </div>
