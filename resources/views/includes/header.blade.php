@@ -7,8 +7,8 @@
     <span class="navbar-toggler-icon"></span>
   </button>
 
-  <div class="collapse navbar-collapse" id="navbarSupportedContent">
-    <ul class="navbar-nav mr-auto">
+  <div class="collapse navbar-collapse w-100" id="navbarSupportedContent">
+    <ul class="navbar-nav ml-auto">
 
       @foreach ($pages as $page)
         @if (\Request::is($page['route'].'/*'))
@@ -26,14 +26,12 @@
         @endif
       @endforeach
 
-    </ul>
-
-    <ul class="navbar-nav ml-auto text-white">
       @if (isset ($user))
-        <li class="user-name">
+        <span class="navbar-text user-name">
+          <span class="navbar-seperator">&nbsp | &nbsp &nbsp</span>
           <i class="far fa-user">&nbsp</i>
           {{ $user->name }}
-        </li>
+        </span>
       @endif
     </ul>
   </div>
