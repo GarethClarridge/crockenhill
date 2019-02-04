@@ -1,7 +1,6 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary" role="navigation">
   <a class="navbar-brand" href="/">
-    <img src="/images/IconBackground.png" width="30" height="30" class="d-inline-block align-top" alt="Crockenhill Baptist Church logo">
-    Crockenhill Baptist Church
+    <img src="/svg/OutlineNameWhite.svg" height="30" class="d-inline-block align-top" alt="Crockenhill Baptist Church logo">
   </a>
   <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
