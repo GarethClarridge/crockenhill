@@ -1,0 +1,50 @@
+.edit-heading {
+  background-color: map-get($theme-colors, secondary)-light;
+  height: 100%;
+  // border: none;
+  color: $white;
+}
+
+.edit-metadata {
+  @include full-width-section;
+  background-color: map-get($theme-colors, danger);
+  color: $white;
+  input, select {
+    background-color: lighten(desaturate(map-get($theme-colors, danger), 40%), 50%);
+    border: none;
+  }
+}
+
+.photo-selector {
+  @include full-width-section;
+  background-color: map-get($theme-colors, secondary);
+  img {
+    width: 100%;
+  }
+}
+
+#rendered-content {
+  img {
+    width: 100%;
+  }
+}
+
+.caption {
+  background-color: map-get($theme-colors, primary);
+  display: none;
+  word-wrap: break-word;
+}
+
+.thumbnail {
+    border: 0 none;
+    box-shadow: none;
+    margin:0;
+    padding:0;
+}
+
+.thumbnail:hover {
+  .caption {
+    display: block;
+    color: $white;
+  }
+}
