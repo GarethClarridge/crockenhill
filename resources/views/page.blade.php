@@ -21,9 +21,9 @@
               </div>
             </h1>
             @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
-              <img class="card-img-top" src="{{$headingpicture}}">
+              <img class="card-img-top cbc-card-img-top" src="{{$headingpicture}}">
             @else
-              <img class="card-img-top" src="/images/headings/large/default.jpg">
+              <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
             @endif
           </div>
 
@@ -90,9 +90,9 @@
                   </div>
                 </h4>
                 @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
-                <img class="card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
                 @else
-                <img class="card-img-top" src="/images/headings/small/default.jpg">
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
                 @endif
               </div>
 
