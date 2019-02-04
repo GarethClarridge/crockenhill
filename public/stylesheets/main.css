@@ -11390,6 +11390,12 @@ aside .read-more {
   display: block;
   color: #fff; }
 
+.navbar-seperator {
+  display: none; }
+  @media (min-width: 992px) {
+    .navbar-seperator {
+      display: inline; } }
+
 footer .list-group-item {
   background: none;
   border: none; }
