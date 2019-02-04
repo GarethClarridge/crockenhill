@@ -1,0 +1,6 @@
+.navbar-seperator {
+  display: none;
+  @include media-breakpoint-up(lg) {
+    display: inline;
+  }
+}
