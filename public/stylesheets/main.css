@@ -11409,3 +11409,7 @@ aside .read-more {
 .thumbnail:hover .caption {
   display: block;
   color: #fff; }
+
+footer .list-group-item {
+  background: none;
+  border: none; }
