@@ -6,14 +6,14 @@
     <a href="/page/create" class="btn btn-primary btn-lg btn-block" role="button">Create a new page</a>
   @endif
 
-  <div>
+  <div class="table-responsive-sm">
     <table class="table table-hover">
       <thead>
         <tr>
           <th>Title</th>
-          <th>Website Area</th>
-          <th>Last Edited</th>
-          <th></th>
+          <th>Section</th>
+          <th>Last edited</th>
+          <th><span class="sr-only">Actions</span></th>
         </tr>
       </thead>
       <tbody>
