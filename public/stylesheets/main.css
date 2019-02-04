@@ -11270,12 +11270,6 @@ aside .read-more {
     padding: 1rem 1rem;
     vertical-align: top; }
 
-.edit-buttons {
-  margin-left: 1rem; }
-
-.edit-buttons:before {
-  content: none !important; }
-
 .main-content p img {
   max-width: 100%; }
   @media (min-width: ((xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px), sm)) {
