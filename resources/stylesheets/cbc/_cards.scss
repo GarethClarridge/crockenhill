@@ -66,14 +66,6 @@ aside {
   }
 }
 
-.edit-buttons {
-  margin-left: map-get($spacers, 3);
-}
-
-.edit-buttons:before {
-  content: none !important;
-}
-
 .main-content {
   p {
     img {
