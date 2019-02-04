@@ -11187,7 +11187,7 @@ audio {
   margin-bottom: 30px;
   padding: 30px;
   background-color: #08a386;
-  color: white;
+  color: #fff;
   font-size: 1.25rem; }
   .sermon-details a {
     color: inherit; }
@@ -11264,7 +11264,7 @@ aside .read-more {
   padding: 30px;
   margin-top: 1.5rem;
   background-color: #16324f;
-  color: white;
+  color: #fff;
   font-size: 2em; }
   .meeting-details th {
     padding: 1rem 1rem;
@@ -11275,52 +11275,6 @@ aside .read-more {
 
 .edit-buttons:before {
   content: none !important; }
-
-.edit-heading {
-  background-color: #08a386 -light;
-  height: 100%;
-  border: none; }
-
-.edit-metadata {
-  margin-left: -1.25rem;
-  margin-right: -1.25rem;
-  margin-bottom: 30px;
-  padding: 30px;
-  background-color: #6b0f1a;
-  color: white; }
-  .edit-metadata input, .edit-metadata select {
-    background-color: #d4a5ab;
-    border: none; }
-  .edit-metadata .row {
-    padding-bottom: 1.5rem; }
-
-.photo-selector {
-  margin-left: -1.25rem;
-  margin-right: -1.25rem;
-  margin-bottom: 30px;
-  padding: 30px;
-  background-color: #08a386; }
-  .photo-selector img {
-    width: 100%; }
-  .photo-selector h2 {
-    margin-bottom: 1.5rem; }
-
-#rendered-content img {
-  width: 100%; }
-
-.caption {
-  background-color: #16324f;
-  display: none;
-  word-wrap: break-word; }
-
-.thumbnail {
-  border: 0 none;
-  box-shadow: none;
-  margin: 0;
-  padding: 0; }
-
-.thumbnail:hover .caption {
-  display: block; }
 
 .main-content p img {
   max-width: 100%; }
@@ -11385,11 +11339,11 @@ aside .read-more {
   margin-bottom: 30px;
   padding: 30px;
   background-color: #08a386;
-  color: white;
+  color: #fff;
   font-size: 1.25rem; }
 
 #pieLegend {
-  color: white; }
+  color: #fff; }
 
 #christmas-page {
   margin: 0px; }
@@ -11400,6 +11354,7 @@ aside .read-more {
   background-image: url(../images/homepage/christmas.JPG);
   min-height: 600px;
   margin-top: 20px;
+  color: #fff;
   background-repeat: no-repeat;
   background-size: contain;
   background-position: center;
@@ -11422,3 +11377,46 @@ aside .read-more {
       padding-right: 15%; }
       .white-background h2 {
         font-size: 2em; } }
+
+.edit-heading {
+  background-color: #08a386 -light;
+  height: 100%;
+  color: #fff; }
+
+.edit-metadata {
+  margin-left: -1.25rem;
+  margin-right: -1.25rem;
+  margin-bottom: 30px;
+  padding: 30px;
+  background-color: #6b0f1a;
+  color: #fff; }
+  .edit-metadata input, .edit-metadata select {
+    background-color: #d4a5ab;
+    border: none; }
+
+.photo-selector {
+  margin-left: -1.25rem;
+  margin-right: -1.25rem;
+  margin-bottom: 30px;
+  padding: 30px;
+  background-color: #08a386; }
+  .photo-selector img {
+    width: 100%; }
+
+#rendered-content img {
+  width: 100%; }
+
+.caption {
+  background-color: #16324f;
+  display: none;
+  word-wrap: break-word; }
+
+.thumbnail {
+  border: 0 none;
+  box-shadow: none;
+  margin: 0;
+  padding: 0; }
+
+.thumbnail:hover .caption {
+  display: block;
+  color: #fff; }
