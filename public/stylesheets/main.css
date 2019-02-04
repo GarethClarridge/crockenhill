@@ -11217,7 +11217,6 @@ audio {
   height: 100%; }
 
 .cbc-card-img-top {
-  height: 20vh;
   object-fit: cover;
   filter: brightness(50%); }
 
@@ -11241,34 +11240,15 @@ audio {
     display: inline-block; }
 
 article .card-img-caption .cbc-card-img-top {
-  height: 20vh; }
+  height: 33vh; }
 
 aside .card-img-caption .cbc-card-img-top {
-  height: 10vh; }
+  height: 15vh; }
 
 aside .read-more {
   text-align: right;
   font-style: italic;
   padding-top: 0.25rem; }
-
-.card-header-pull-right {
-  float: right;
-  font-size: 1rem; }
-  .card-header-pull-right .user-name {
-    font-size: 1rem; }
-
-.meeting-details {
-  margin-left: -1.25rem;
-  margin-right: -1.25rem;
-  margin-bottom: 30px;
-  padding: 30px;
-  margin-top: 1.5rem;
-  background-color: #16324f;
-  color: #fff;
-  font-size: 2em; }
-  .meeting-details th {
-    padding: 1rem 1rem;
-    vertical-align: top; }
 
 .main-content p img {
   max-width: 100%; }
@@ -11413,3 +11393,16 @@ aside .read-more {
 footer .list-group-item {
   background: none;
   border: none; }
+
+.meeting-details {
+  margin-left: -1.25rem;
+  margin-right: -1.25rem;
+  margin-bottom: 30px;
+  padding: 30px;
+  margin-top: 1.5rem;
+  background-color: #16324f;
+  color: #fff;
+  font-size: 2em; }
+  .meeting-details th {
+    padding: 1rem 1rem;
+    vertical-align: top; }
