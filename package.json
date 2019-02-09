@@ -38,6 +38,7 @@
     "jquery": "^3.3.1",
     "laravel-mix": "^3.0.0",
     "lodash": "^4.17.11",
+    "rev-del": "^2.0.0",
     "vue": "^2.5.19"
   },
   "dependencies": {
