@@ -1,13 +1,16 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary" role="navigation">
-  <a class="navbar-brand" href="/">
-    <img src="/svg/OutlineNameWhite.svg" height="30" class="d-inline-block align-top" alt="Crockenhill Baptist Church logo">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary p-0" role="navigation">
+  <a class="navbar-brand p-0" href="/">
+    <img src="/images/IconBackground.png" height="40" class="d-inline-block align-top p-0" alt="Crockenhill Baptist Church logo">
   </a>
+
+  <a class="navbar-brand abs" href="/">Crockenhill Baptist Church</a>
+
   <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-label="Toggle navigation">
-    <span class="navbar-toggler-icon"></span>
+    MENU
   </button>
 
   <div class="collapse navbar-collapse w-100" id="navbarSupportedContent">
-    <ul class="navbar-nav ml-auto">
+    <ul class="navbar-nav ml-auto site-sections text-center text-lg-left">
 
       @foreach ($pages as $page)
         @if (\Request::is($page['route'].'/*'))
