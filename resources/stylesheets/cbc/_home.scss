@@ -27,7 +27,7 @@
     font-style: italic;
 
     span {
-      background-color: map-get($theme-colors, primary);
+      background-color: map-get($theme-colors, secondary);
       line-height: 3em;
 
       box-decoration-break: clone;
