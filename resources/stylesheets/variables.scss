@@ -1,24 +1,11 @@
-// Variables
-//
-// Variables should follow the `$component-state-property-size` formula for
-// consistent naming. Ex: $nav-link-disabled-color and $modal-content-box-shadow-xs.
-
-//
-// Color system
-//
-
-$theme-colors: ();
-$theme-colors: map-merge((
-  "primary":    #16324f, //rgb(22,50,79)
-  "secondary":  #08a386, //rgb(8,163,134),
-  "success":    #08a386,
-  "info":       #74A4D8,
-  "warning":    #f75c03,
-  "danger":     #6b0f1a,
-  "light":      #74A4D8,
-  "dark":       #16324f,
-), $theme-colors);
-// stylelint-enable
+$theme-colors: (
+  "primary": #16324f, //rgb(22,50,79),;
+  "secondary": #08a386, //rgb(8,163,134);
+  "success": #08a386,
+  "info": #74A4D8,
+  "warning": #f75c03,
+  "danger": #6b0f1a,
+);
 
 // Fonts
 //
@@ -26,105 +13,5 @@ $theme-colors: map-merge((
 
 // stylelint-disable value-keyword-case
 $font-family-sans-serif:      "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-// stylelint-enable value-keyword-case
 
 $headings-font-family:        "Oswald", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-
-// Dropdowns
-//
-// Dropdown menu container and contents.
-
-// $dropdown-min-width:                10rem !default;
-// $dropdown-padding-y:                .5rem !default;
-// $dropdown-spacer:                   .125rem !default;
-// $dropdown-bg:                       $white !default;
-// $dropdown-border-color:             rgba($black, .15) !default;
-// $dropdown-border-radius:            $border-radius !default;
-// $dropdown-border-width:             $border-width !default;
-// $dropdown-divider-bg:               $gray-200 !default;
-// $dropdown-box-shadow:               0 .5rem 1rem rgba($black, .175) !default;
-//
-// $dropdown-link-color:               $gray-900 !default;
-// $dropdown-link-hover-color:         darken($gray-900, 5%) !default;
-// $dropdown-link-hover-bg:            $gray-100 !default;
-//
-// $dropdown-link-active-color:        $component-active-color !default;
-// $dropdown-link-active-bg:           $component-active-bg !default;
-//
-// $dropdown-link-disabled-color:      $gray-600 !default;
-//
-// $dropdown-item-padding-y:           .25rem !default;
-// $dropdown-item-padding-x:           1.5rem !default;
-//
-// $dropdown-header-color:             $gray-600 !default;
-//
-//
-// // Navs
-//
-// $nav-link-padding-y:                .5rem !default;
-// $nav-link-padding-x:                1rem !default;
-// $nav-link-disabled-color:           $gray-600 !default;
-//
-// $nav-tabs-border-color:             $gray-300 !default;
-// $nav-tabs-border-width:             $border-width !default;
-// $nav-tabs-border-radius:            $border-radius !default;
-// $nav-tabs-link-hover-border-color:  $gray-200 $gray-200 $nav-tabs-border-color !default;
-// $nav-tabs-link-active-color:        $gray-700 !default;
-// $nav-tabs-link-active-bg:           $body-bg !default;
-// $nav-tabs-link-active-border-color: $gray-300 $gray-300 $nav-tabs-link-active-bg !default;
-//
-// $nav-pills-border-radius:           $border-radius !default;
-// $nav-pills-link-active-color:       $component-active-color !default;
-// $nav-pills-link-active-bg:          $component-active-bg !default;
-//
-// // Navbar
-//
-// $navbar-padding-y:                  ($spacer / 2) !default;
-// $navbar-padding-x:                  $spacer !default;
-//
-// $navbar-nav-link-padding-x:         .5rem !default;
-//
-// $navbar-brand-font-size:            $font-size-lg !default;
-// // Compute the navbar-brand padding-y so the navbar-brand will have the same height as navbar-text and nav-link
-// $nav-link-height:                   ($font-size-base * $line-height-base + $nav-link-padding-y * 2) !default;
-// $navbar-brand-height:               $navbar-brand-font-size * $line-height-base !default;
-// $navbar-brand-padding-y:            ($nav-link-height - $navbar-brand-height) / 2 !default;
-//
-// $navbar-toggler-padding-y:          .25rem !default;
-// $navbar-toggler-padding-x:          .75rem !default;
-// $navbar-toggler-font-size:          $font-size-lg !default;
-// $navbar-toggler-border-radius:      $btn-border-radius !default;
-
-// $navbar-dark-color:                 rgba($white, .5) !default;
-// $navbar-dark-hover-color:           rgba($white, .75) !default;
-// $navbar-dark-active-color:          $white !default;
-// $navbar-dark-disabled-color:        rgba($white, .25) !default;
-// $navbar-dark-toggler-icon-bg:       str-replace(url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='#{$navbar-dark-color}' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E"), "#", "%23") !default;
-// $navbar-dark-toggler-border-color:  rgba($white, .1) !default;
-//
-// $navbar-light-color:                rgba($black, .5) !default;
-// $navbar-light-hover-color:          rgba($black, .7) !default;
-// $navbar-light-active-color:         rgba($black, .9) !default;
-// $navbar-light-disabled-color:       rgba($black, .3) !default;
-// $navbar-light-toggler-icon-bg:      str-replace(url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='#{$navbar-light-color}' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E"), "#", "%23") !default;
-// $navbar-light-toggler-border-color: rgba($black, .1) !default;
-//
-// // Cards
-//
-// $card-spacer-y:                     .75rem !default;
-// $card-spacer-x:                     1.25rem !default;
-// $card-border-width:                 $border-width !default;
-// $card-border-radius:                $border-radius !default;
-// $card-border-color:                 rgba($black, .125) !default;
-// $card-inner-border-radius:          calc(#{$card-border-radius} - #{$card-border-width}) !default;
-// $card-cap-bg:                       rgba($black, .03) !default;
-// $card-bg:                           $white !default;
-//
-// $card-img-overlay-padding:          1.25rem !default;
-//
-// $card-group-margin:                 ($grid-gutter-width / 2) !default;
-// $card-deck-margin:                  $card-group-margin !default;
-//
-// $card-columns-count:                3 !default;
-// $card-columns-gap:                  1.25rem !default;
-// $card-columns-margin:               $card-spacer-y !default;
