@@ -1,7 +1,7 @@
 <div class="card">
-  <div class="card-body">
+  <div class="card-body text-center">
     <div class="card-title">
-      <h3 class="text-center">
+      <h3>
         <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">{{$sermon->title}}</a>
       </h3>
     </div>
