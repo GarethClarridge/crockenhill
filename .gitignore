@@ -18,4 +18,5 @@ Homestead.yaml
 *.JPEG
 *.png
 !/public/*.png
-!/public/images/headings/*/*
+!/public/images/headings/large/default.jpg
+!/public/images/headings/small/default.jpg
