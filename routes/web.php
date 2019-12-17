@@ -11,14 +11,14 @@
 |
 */
 
-// Disabled Christmas route
+// Christmas route
 
-// Route::get('/christmas', array(
-//   'as' => 'christmas', function()
-//   {
-//     return view('christmas');
-//   })
-// );
+Route::get('/christmas', array(
+  'as' => 'christmas', function()
+  {
+    return view('christmas');
+  })
+);
 
 // Sermon Routes
 
