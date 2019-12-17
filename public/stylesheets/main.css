@@ -11325,32 +11325,58 @@ aside .read-more {
     padding: 5% 0%; }
 
 .christmas-head {
-  background-image: url(../images/homepage/christmas.JPG);
-  min-height: 600px;
-  margin-top: 20px;
-  color: #fff;
-  background-repeat: no-repeat;
-  background-size: contain;
-  background-position: center;
-  margin-bottom: 0; }
+  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(../images/homepage/christmas.JPG);
+  background-size: cover;
+  min-height: 33vh; }
   .christmas-head .container {
-    padding-top: 100px; }
+    padding-top: 100px;
+    padding-bottom: 50px; }
   .christmas-head h1 {
-    width: 66%;
-    margin-bottom: 1em; }
+    font-size: 3rem;
+    font-weight: 800;
+    padding-bottom: 50px;
+    width: 100%; }
+    .christmas-head h1 div {
+      border: 5px;
+      max-width: 80%;
+      border-style: solid;
+      display: inline-block; }
+  .christmas-head p {
+    font-style: italic; }
+    .christmas-head p span {
+      background-color: #08a386;
+      line-height: 3em;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone; }
 
 .white-background {
-  text-align: center;
-  padding-top: 0; }
+  font-size: 1.5em;
+  text-align: center; }
+  .white-background h2 {
+    font-size: 2.5em;
+    line-height: 2em; }
   .white-background a {
     font-style: italic; }
-  @media (max-width: ((xs: 0, sm: 576px, md: 768px, lg: 992px, xl: 1200px), sm)) {
-    .white-background {
-      font-size: 1.11em;
-      padding-left: 15%;
-      padding-right: 15%; }
-      .white-background h2 {
-        font-size: 2em; } }
+  .white-background section {
+    padding: 5% 0%; }
+
+.background-image {
+  background-attachment: fixed;
+  background-position: center;
+  background-size: 100%; }
+  .background-image section {
+    font-size: 1.5em;
+    text-align: center; }
+    .background-image section p a {
+      border: 5px;
+      max-width: 80%;
+      border-style: solid;
+      display: inline-block;
+      text-decoration: none !important; }
+      .background-image section p a:hover {
+        background-color: white;
+        border-color: white;
+        color: #343a40 !important; }
 
 .edit-metadata {
   margin-left: -1.25rem;
