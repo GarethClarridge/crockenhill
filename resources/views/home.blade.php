@@ -16,8 +16,24 @@
       </div>
     </div>
 
+    <div class="background-image" id="christmas">
+      <div class="container">
+        <div class="row justify-content-md-center">
+          <section class="col-md-10 col-lg-6 text-white p-5">
+              <p>
+                Come and celebrate the birth of our Saviour with us this Christmas.
+              </p>
+              <br>
+              <p class="text-center">
+                <a href="/christmas" class="text-white px-2 py-1">Christmas events</a>
+              </p>
+          </section>
+        </div>
+      </div>
+    </div>
+
     <section class="white-background pt-5">
-      <div class="containter">
+      <div class="container">
         <p class="text-center">
           Join us this Sunday
         </p>
@@ -33,23 +49,6 @@
         </p>
       </div>
     </section>
-
-    <!-- Disabled Christmas section -->
-    <!-- <div class="background-image" id="christmas">
-      <div class="container">
-        <div class="row">
-          <section class="col-md-10 col-lg-6 col-md-offset-3">
-              <p>
-                Come and celebrate the birth of our Saviour with us this Christmas.
-              </p>
-              <br>
-              <p class="text-center">
-                <a href="/christmas" class="btn btn-primary btn-lg">Christmas events</a>
-              </p>
-          </section>
-        </div>
-      </div>
-    </div> -->
 
     <div class="background-image" id="listening">
       <div class="container">
