@@ -75,7 +75,7 @@
           Join us as we give glory to the new-born King.
         </p>
         <h3 class="text-center">
-          Wednesday 25 December, 10:30-11:15am
+          Wednesday 25 December, 10:00-10:45am
         </h3>
       </div>
     </section>
