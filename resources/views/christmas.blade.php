@@ -30,7 +30,7 @@
           Everyone is welcome, but families of children in Adventurers are especially invited.
         </p>
         <h3 class="text-center">
-          Sunday 15 December, 10:30-11:30
+          Sunday 13 December, 10:30-11:30
         </h3>
       </div>
     </section>
@@ -45,7 +45,7 @@
           at the kind invitation of the landlord.
         </p>
         <h3 class="text-center">
-          Wednesday 18 December, from 7:30pm
+          Wednesday 16 December, from 7:30pm
         </h3>
       </div>
     </section>
@@ -60,7 +60,7 @@
           followed by refreshments.
         </p>
         <h3 class="text-center">
-          Sunday 22 December, 6:00-7:00pm
+          Sunday 20 December, 6:00-7:00pm
         </h3>
       </div>
     </section>
@@ -75,7 +75,7 @@
           Join us as we give glory to the new-born King.
         </p>
         <h3 class="text-center">
-          Wednesday 25 December, 10:00-10:45am
+          Friday 25 December, 10:00-10:45am
         </h3>
       </div>
     </section>
