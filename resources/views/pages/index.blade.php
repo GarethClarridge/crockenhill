@@ -2,9 +2,9 @@
 
 @section('dynamic_content')
 
-  @if ($user != null && $user->email == "admin@crockenhill.org")
-    <a href="/page/create" class="btn btn-primary btn-lg btn-block" role="button">Create a new page</a>
-  @endif
+  <a href="/page/create" class="btn btn-primary btn-block" role="button">Create a new page</a>
+  <br>
+  <h2>Existing pages:</h2>
 
   <div class="table-responsive-sm">
     <table class="table table-hover">
