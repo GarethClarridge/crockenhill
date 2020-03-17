@@ -35,14 +35,14 @@
     <section class="white-background pt-5">
       <div class="container">
         <p class="text-center">
-          Join us this Sunday
+          We usually meet on Sundays at
         </p>
         <h2 class="text-center">
-          @if ((strtotime('this sunday') === strtotime('second sunday')) && date('m') != '12')
+          <!-- @if ((strtotime('this sunday') === strtotime('second sunday')) && date('m') != '12')
             10:30am & 5:00pm
-          @else
+          @else -->
             10:30am & 6:30pm
-          @endif
+          <!-- @endif -->
         </h2>
         <p class="text-center">
           <a href="/whats-on/sunday-services">Find out more</a>
