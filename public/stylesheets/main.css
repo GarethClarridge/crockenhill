@@ -11163,6 +11163,10 @@ section {
 #christmas {
   background-image: url(/images/homepage/christmas.JPG); }
 
+#online-service-btn {
+  font-style: normal;
+  font-size: 2rem; }
+
 .references {
   font-size: 1rem;
   font-style: italic;
