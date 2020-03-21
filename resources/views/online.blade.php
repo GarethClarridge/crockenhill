@@ -85,6 +85,7 @@
                 </p>
               </div>
               <div class="card-footer text-muted">
+                <small>
                   New International Version (NIV)
                   <br>
                   Holy Bible, New International Version®,
@@ -92,6 +93,7 @@
                   <a href="www.biblica.com">Biblica, Inc.®</a>
                   Used by permission.
                   All rights reserved worldwide.
+                </small>
               </div>
             </article>
           </div>
