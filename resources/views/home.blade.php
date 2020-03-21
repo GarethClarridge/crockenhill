@@ -35,18 +35,17 @@
     <section class="white-background pt-5">
       <div class="container">
         <p class="text-center">
-          We usually meet on Sundays at
+          Sadly we can't meet together as a church in person at the moment, but please join us on Sundays online instead.
         </p>
         <h2 class="text-center">
           <!-- @if ((strtotime('this sunday') === strtotime('second sunday')) && date('m') != '12')
             10:30am & 5:00pm
           @else -->
-            10:30am & 6:30pm
-          <!-- @endif -->
+          <a class="btn btn-lg btn-outline-primary" href="/online" role="button">Online services</a>
         </h2>
-        <p class="text-center">
+        <!-- <p class="text-center">
           <a href="/whats-on/sunday-services">Find out more</a>
-        </p>
+        </p> -->
       </div>
     </section>
 
@@ -107,7 +106,6 @@
         </div>
       </div>
     </div>
-
   </main>
 
 @stop

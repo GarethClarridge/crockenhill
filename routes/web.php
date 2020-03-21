@@ -20,6 +20,13 @@ Route::get('/christmas', array(
   })
 );
 
+Route::get('/online', array(
+  'as' => 'online', function()
+  {
+    return view('online');
+  })
+);
+
 // Sermon Routes
 
 Route::group(array('prefix' => 'sermons'), function()
