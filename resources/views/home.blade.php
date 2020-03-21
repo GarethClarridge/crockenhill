@@ -42,6 +42,10 @@
         <h2 class="text-center">
           <a href="/online" class="btn btn-primary btn-lg" id="online-service-btn">Online services</a>
         </h2>
+        <p class="text-center">
+          We plan to have an online service every week, with prayers, Bible readings,
+          <br>songs and Mark preaching the good news about Jesus to us from the Bible.
+        </p>
       </div>
     </section>
 
