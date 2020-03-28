@@ -15,7 +15,7 @@
           </h3>
           <ul class="list-group">
             <li class="list-group-item">
-              <i class="fa fa-phone"></i> &nbsp
+              <i class="fa fa-phone"></i> &nbsp 
               01322 663995
             </li>
             <li class="list-group-item">
