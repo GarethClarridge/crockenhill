@@ -92,7 +92,7 @@
     <small>
       All activities at the church are carried out in accordance with our
       <a href="/about-us/safeguarding-policy">Safeguarding policy</a>
-      and our
+      and our 
       <a href="/media/documents/BehaviourPolicy.pdf">Positive behaviour policy</a>.
     </small>
   @endif
