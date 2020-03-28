@@ -7,69 +7,81 @@
 @section('content')
 
   <main id="home">
-    <div class="home-head">
+    <div class="home-head text-white">
       <div class="container">
-        <h1 class="text-center"><span>Crockenhill Baptist Church</span></h1>
-        <p class="text-center lead"><span>A friendly, Bible believing church just outside Swanley.</span></p>
-        <!-- <p class="text-center arrow">
-          <a href="#video">
-            <span class="glyphicon glyphicon-chevron-down"></span>
-          </a>
-        </p> -->
+        <h1 class="text-center">
+          <div class="px-2 py-1">Crockenhill Baptist Church</div>
+        </h1>
+        <p class="text-center lead"><span class="px-3 py-2">A friendly, Bible believing church just outside Swanley.</span></p>
       </div>
     </div>
 
-    <section class="white-background">
-      <p>
-        Join us this Sunday 
-      </p>
-      <h2> 
+    <!-- <div class="background-image" id="christmas">
+      <div class="container">
+        <div class="row justify-content-md-center">
+          <section class="col-md-10 col-lg-6 text-white p-5">
+              <p>
+                Come and celebrate the birth of our Saviour with us this Christmas.
+              </p>
+              <br>
+              <p class="text-center">
+                <a href="/christmas" class="text-white px-2 py-1">Christmas events</a>
+              </p>
+          </section>
+        </div>
+      </div>
+    </div> -->
 
-      @if ((strtotime('this sunday') === strtotime('second sunday')) && date('m') != '12')
-        10:30am & 5:00pm
-      @else 
-        10:30am & 6:30pm
-      @endif
-
-      </h2>
-      <p>
-        <a href="/whats-on/sunday-services">Find out more</a>
-      </p>
+    <section class="white-background pt-5">
+      <div class="container">
+        <p class="text-center">
+          Sadly we can't meet together as a church in person at the moment,
+          <br>
+          but please join us on Sundays online instead.
+        </p>
+        <h2 class="text-center">
+          <a href="/online" class="btn btn-primary btn-lg" id="online-service-btn">Online services</a>
+        </h2>
+        <p class="text-center">
+          We plan to have an online service every week, with prayers, Bible readings,
+          <br>songs and Mark preaching the good news about Jesus to us from the Bible.
+        </p>
+      </div>
     </section>
 
     <div class="background-image" id="listening">
       <div class="container">
-        <div class="row">
-          <section class="col-md-6 col-md-offset-3">
-              <p>
-                Our church exists to worship God, 
-                strengthen believers in their faith, 
-                and to proclaim the good news of Christianity to all, 
-                so that others might experience the wonderful 
+        <div class="row justify-content-md-center">
+          <section class="col-md-10 col-lg-6 text-white p-5">
+              <p class="text-center">
+                Our church exists to worship God,
+                strengthen believers in their faith,
+                and to proclaim the good news of Christianity to all,
+                so that others might experience the wonderful
                 salvation of God through faith in Jesus Christ.
               </p>
               <br>
               <p class="text-center">
-                <a href="/about-us" class="btn btn-primary btn-lg">Find out more about us</a>
-              </p>  
+                <a href="/about-us" class="text-white px-2 py-1">Find out more about us</a>
+              </p>
           </section>
         </div>
       </div>
     </div>
 
     <div class="container">
-      <div class="row">
-        <section class="col-md-6 col-md-offset-3">
+      <div class="row justify-content-md-center">
+        <section class="col-md-10 col-lg-6 p-5">
           <div class="white-background">
-            <p>
-              There are many activities at Crockenhill Baptist Church.  
-              We have groups during term time for children and young people, 
+            <p class="text-center">
+              There are many activities at Crockenhill Baptist Church.
+              We have groups during term time for children and young people,
               bible study and prayer groups and more.
-            </p>   
+            </p>
             <br>
             <p class="text-center">
               <a href="/whats-on">Find out what's on</a>
-            </p>               
+            </p>
           </div>
         </section>
       </div>
@@ -77,24 +89,23 @@
 
     <div class="background-image" id="building">
       <div class="container">
-        <div class="row">
-          <section class="col-md-6 col-md-offset-3">
-              <p>
-                We are located in the village of Crockenhill in Kent, 
-                which is a mile or so south of Swanley 
-                and two miles from St Mary Cray. 
-                If you are travelling from a distance, 
+        <div class="row justify-content-md-center">
+          <section class="col-md-10 col-lg-6 text-white p-5">
+              <p class="text-center">
+                We are located in the village of Crockenhill in Kent,
+                which is a mile or so south of Swanley
+                and two miles from St Mary Cray.
+                If you are travelling from a distance,
                 we are just off junction 3 of the M25.
               </p>
               <br>
               <p class="text-center">
-                <a href="/find-us" class="btn btn-primary btn-lg">Get directions</a>
+                <a href="/find-us" class="text-white px-2 py-1">Get directions</a>
               </p>
           </section>
         </div>
       </div>
-    </div>   
-
+    </div>
   </main>
 
 @stop

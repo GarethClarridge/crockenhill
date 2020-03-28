@@ -10,7 +10,7 @@
         <div class="col-xs-6 col-sm-3 col-md-2">
           <a href="/media/documents/{{$document->filename}}" class="file">
             <div class="document-icon">
-              <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
+              <i class="far fa-file"></i>
             </div>
             <h4>
               <small>{{$document->title}}</small>
@@ -25,6 +25,6 @@
 </div>
 
 <br>
-<a href="/members/document/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new document</a>
+<a href="/members/documents/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new document</a>
 
 @stop

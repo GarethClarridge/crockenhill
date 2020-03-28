@@ -1,47 +1,57 @@
-<h3>
-  <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">{{$sermon->title}}</a>
-</h3> 
-@if (($sermon->date != null))
-  <p>
-    <span class="glyphicon glyphicon-calendar"></span>
-    &nbsp; {{ date('j F Y', strtotime($sermon->date)) }}
-  </p>
-@endif
-@if ($sermon->service != null)
-  <p>
-    <span class="glyphicon glyphicon-time"></span>
-    &nbsp; {{ \Illuminate\Support\Str::title($sermon->service) }}
-  </p>
-@endif
-@if ($sermon->preacher != null)
-  <p>
-    <span class="glyphicon glyphicon-user"></span> &nbsp
-    <a href="/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
-  </p>
-@endif
-@if ($sermon->series != null)
-  <p>
-    <span class="glyphicon glyphicon-tag"></span> &nbsp
-    <a href="/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}">{{ $sermon->series }}</a>
-  </p>
-@endif
-@if ($sermon->reference != null)
-  <p>
-    <span class="glyphicon glyphicon-book"></span> &nbsp
-    {{ $sermon->reference }}
-  </p>
-@endif
-@can ('edit-sermons')
-  <form method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8">
-    {!! Form::token() !!}
-    <div class="btn-group">
-      <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
-        Edit
-      </a>
-      
-      <button type="submit" class="btn btn-danger">
-        Delete
-      </button>
+<div class="card">
+  <div class="card-body text-center">
+    <div class="card-title">
+      <h3>
+        <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">{{$sermon->title}}</a>
+      </h3>
     </div>
-  </form>
-@endcan
+    <ul class="list-group list-group-flush">
+      @if (($sermon->date != null))
+        <li class="list-group-item">
+          <i class="far fa-calendar"></i>
+          &nbsp; {{ date('j F Y', strtotime($sermon->date)) }}
+        </li>
+      @endif
+      @if ($sermon->service != null)
+        <li class="list-group-item">
+          <i class="far fa-clock"></i>
+          &nbsp; {{ \Illuminate\Support\Str::title($sermon->service) }}
+        </li>
+      @endif
+      @if ($sermon->preacher != null)
+        <li class="list-group-item">
+          <i class="far fa-user"></i> &nbsp
+          <a href="/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
+        </li>
+      @endif
+      @if ($sermon->series != null)
+        <li class="list-group-item">
+          <i class="fas fa-tag"></i> &nbsp
+          <a href="/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}">{{ $sermon->series }}</a>
+        </li>
+      @endif
+      @if ($sermon->reference != null)
+        <li class="list-group-item">
+          <i class="fas fa-book"></i> &nbsp
+          {{ $sermon->reference }}
+        </li>
+      @endif
+    </ul>
+    @can ('edit-sermons')
+      <form method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8" class="pt-3">
+        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+        <div class="btn-group">
+          <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
+            <i class="fas fa-pencil-alt"></i> &nbsp
+            Edit
+          </a>
+
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash"></i> &nbsp
+            Delete
+          </button>
+        </div>
+      </form>
+    @endcan
+  </div>
+</div>

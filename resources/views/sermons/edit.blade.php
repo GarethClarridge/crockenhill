@@ -9,7 +9,7 @@
   @endif
 
   <form method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" accept-charset="UTF-8">
-    {!! Form::token() !!}
+    <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
     <div class="form-group">
       <label for="title">Title</label>
@@ -20,8 +20,23 @@
       <label for="date">Date</label>
       @if (date('D') === 'Sun')
         <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d')!!}">
-      @else 
+      @else
         <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d',strtotime('last sunday'))!!}">
+      @endif
+    </div>
+
+    <div class="form-group">
+      <label for="service">Service</label>
+      @if ($sermon->service == 'morning')
+        <select type="service" class="form-control" id="service" name="service">
+          <option value="morning" selected>Morning</option>
+          <option value="evening">Evening (or afternoon)</option>
+        </select>
+      @else
+        <select type="service" class="form-control" id="service" name="service">
+          <option value="morning">Morning</option>
+          <option value="evening" selected>Evening (or afternoon)</option>
+        </select>
       @endif
     </div>
 
@@ -40,11 +55,18 @@
       <input class="form-control" id="preacher" name="preacher" type="text" value="{{$sermon->preacher}}">
     </div>
 
+    <div class="form-group">
+      <label for="points">Sermon headings</label>
+      <textarea class="form-control" rows="5" name="points">
+        {{$sermon->points}}
+      </textarea>
+    </div>
+
     <div class="form-actions">
       <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
-      <a href="{!! URL::route('members.sermons.index') !!}" class="btn btn-large">Cancel</a>
+      <a href="/sermons" class="btn btn-large">Cancel</a>
     </div>
 
   </form>
- 
+
 @stop

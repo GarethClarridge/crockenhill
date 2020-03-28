@@ -1,0 +1,65 @@
+.cbc-card-img-top {
+  object-fit: cover;
+  filter: brightness(50%);
+}
+
+.card-img-caption {
+  object-fit: cover;
+  border-top-left-radius: calc(.25rem - 1px);
+  border-top-right-radius: calc(.25rem - 1px);
+}
+
+.card-img-caption .cbc-card-img-top {
+  z-index: 0;
+}
+
+.card-img-caption .card-text {
+  text-align: center;
+  width: 100%;
+  // margin: 33% 0;
+  position: absolute;
+  z-index: 1;
+
+  div {
+    border: 3px;
+    max-width: 80%;
+    border-style: solid;
+    display: inline-block;
+  }
+}
+
+article .card-img-caption .cbc-card-img-top {
+  height: 33vh;
+}
+
+aside {
+  .card-img-caption .cbc-card-img-top{
+    height: 15vh;
+  }
+
+  .read-more {
+    text-align: right;
+    font-style: italic;
+    padding-top: map-get($spacers, 1);
+  }
+}
+
+.main-content {
+  p {
+    img {
+      max-width: 100%;
+      @media (min-width: ($grid-breakpoints, sm)) {
+        max-width: 50.1%;
+        float: left;
+        padding: map-get($spacers, 4) map-get($spacers, 3) map-get($spacers, 4) 0;
+      }
+    }
+  }
+  p:nth-of-type(2n) img {
+    @media (min-width: ($grid-breakpoints, sm)) {
+      float: right;
+      padding-left: map-get($spacers, 4);
+      padding-right: 0;
+    }
+  }
+}
