@@ -4,15 +4,15 @@
 
 {{-- Details --}}
 
-  <div class="full-width meeting-details">
+  <div class="meeting-details">
     <div class="row">
       <div class="col-md-12">
-        <table>      
+        <table>
           <tbody>
-            @if ($day != '') 
+            @if ($day != '')
               <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-calendar"> </span>
+                  <i class="far fa-calendar"></i>
                 </th>
                 <td>
                   {{$day}}
@@ -20,51 +20,51 @@
               </tr>
             @endif
             @if ($starttime != '')
-              <tr>          
+              <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-time"> </span>
-                </th>        
+                  <i class="far fa-clock"></i>
+                </th>
                 <td>
                   {{date('g:ia', strtotime($starttime))}}
                   @if ($endtime != '')
                     - {{date('g:ia', strtotime($endtime))}}
                   @endif
-                </td>        
+                </td>
               </tr>
             @endif
             @if ($location != '')
-              <tr>          
+              <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-map-marker"> </span>
-                </th>          
-                <td>{{ $location }}</td>       
-              </tr> 
+                  <i class="fas fa-map-marker-alt"></i>
+                </th>
+                <td>{{ $location }}</td>
+              </tr>
             @endif
             @if ($who != '')
-              <tr>          
+              <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-user"> </span>
-                </th>          
-                <td>{{$who}}</td>        
+                  <i class="far fa-user"></i>
+                </th>
+                <td>{{$who}}</td>
               </tr>
-            @endif  
+            @endif
             @if ($phone != '')
-              <tr>          
+              <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-phone-alt"> </span>
-                </th>          
-                <td>{{$phone}}</td>        
+                  <i class="fas fa-phone"></i>
+                </th>
+                <td>{{$phone}}</td>
               </tr>
-            @endif 
+            @endif
             @if ($email != '')
-              <tr>          
+              <tr>
                 <th scope="row">
-                  <span class="glyphicon glyphicon-envelope"> </span>
-                </th>          
-                <td>{{$email}}</td>        
+                  <i class="far fa-envelope"></i>
+                </th>
+                <td>{{$email}}</td>
               </tr>
-            @endif     
-          </tbody>    
+            @endif
+          </tbody>
         </table>
       </div>
     </div>
@@ -84,18 +84,17 @@
     </div>
   @endif
 
-{{-- Child Protection --}}
+{{-- Safeguarding --}}
 
-  @if ($type === 'ChildrenAndYoungPeople' 
+  @if ($type === 'ChildrenAndYoungPeople'
         || $slug === 'sunday-services')
     <hr>
     <small>
-      All activities at the church are carried out in accordance with our 
-      <a href="/media/documents/ChildProtectionPolicy.pdf">Child Protection Policy</a>
-      and our our 
-      <a href="/media/documents/BehaviourPolicy.pdf">Positive Behaviour Policy</a>.
+      All activities at the church are carried out in accordance with our
+      <a href="/about-us/safeguarding-policy">Safeguarding policy</a>
+      and our
+      <a href="/media/documents/BehaviourPolicy.pdf">Positive behaviour policy</a>.
     </small>
   @endif
 
 @stop
-

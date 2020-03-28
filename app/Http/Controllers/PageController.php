@@ -1,47 +1,12 @@
 <?php namespace Crockenhill\Http\Controllers;
 
+use League\CommonMark\CommonMarkConverter;
+
 class PageController extends Controller {
 
-	public function showPage($area = 'members', $slug = NULL)
+	public function showPage()
 	{
-		//Area defaults to members, slug defaults to null
-
-		if ($slug === NULL) {
-			$slug = $area;
-		}
-
-    if ($page = \Crockenhill\Page::where('slug', $slug)->first()) {
-		  
-		  if ($area != $slug) {
-		  	$areapage = \Crockenhill\Page::where('slug', $area)->first();
-		  	$breadcrumbs 	= '<li><a href="/'.$area.'">'.$areapage->heading.'  </a>  </li>  <li class="active">'.$page->heading.'</li>';
-		  } else {
-		  	$breadcrumbs 	= '<li class="active">'.$page->heading.'</li>';
-			}
-	    $links 				= \Crockenhill\Page::where('area', $area)
-																	    	->where('slug', '!=', $slug)
-																	    	->where('slug', '!=', $area)
-																	    	->where('slug', '!=', 'privacy-policy')
-																	    	->where('admin', '!=', 'yes')
-																	    	->orderBy(\DB::raw('RAND()'))
-																	    	->take(5)
-																	    	->get();
-	    $description 	= '<meta name="description" content="'.$page->description.'">';
-	    $admin 				= 'members/pages/'.$slug;
-	    
-			return view('page', array(
-		    'slug'          => $page->slug,
-		    'heading'       => $page->heading,		    
-		    'description'   => $description,
-		    'area'					=> $page->area,
-		    'breadcrumbs'   => $breadcrumbs,
-		    'admin'					=> $admin,
-		    'content'       => htmlspecialchars_decode($page->body),
-		    'links'					=> $links,
-			));
-		} else {
-			\App::abort(404);
-		};
+		return view('page');
 	}
 
 	public function index()
@@ -49,20 +14,10 @@ class PageController extends Controller {
     if (\Gate::denies('edit-pages')) {
       abort(403);
     }
+		$pages = \Crockenhill\Page::orderBy('area', 'asc')->get();
 
-    $page = \Crockenhill\Page::where('slug', 'pages')->first();
-    $areapage = \Crockenhill\Page::where('slug', 'members')->first();
-    $breadcrumbs = '<li>'.link_to($page['area'], $areapage->heading).'&nbsp</li><li class="active">'.$page->heading.'</li>';
-    $description = '<meta name="description" content="'.$page->description.'">';
-    
     return view('pages.index', array(
-	    'slug'          => $page->slug,
-	    'heading'       => $page->heading,          
-	    'description'   => $description,
-	    'area'          => $page->area,
-	    'breadcrumbs'   => $breadcrumbs,
-	    'content'       => htmlspecialchars_decode($page->body),
-	    'pages'         => \Crockenhill\Page::all()
+	    'pages'         => $pages
     ));
   }
 
@@ -73,11 +28,8 @@ class PageController extends Controller {
     }
 
     return view('pages.create', array(
-      'heading'       => 'Create a new page',
-      'description'   => '<meta name="description" content="Create a new website page.">',
-      'breadcrumbs'   => '<li><a href="/members">Members</a></li><li><a href="/members/pages">Pages</a></li><li class="active">Create</li>',
-      'content'       => '',
-    ));
+			'heading' => 'Create a page'
+		));
   }
 
   public function store()
@@ -86,12 +38,18 @@ class PageController extends Controller {
       abort(403);
     }
 
+		//Convert markdown
+		$converter = new CommonMarkConverter;
+		$markdown = \Input::get('markdown');
+		$html = $converter->convertToHtml($markdown);
+
     $page = new \Crockenhill\Page;
     $page->heading = \Input::get('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
     $page->area = \Input::get('area');
-    $page->body = \Input::get('body');
-    $page->description = \Input::get('description');
+		$page->markdown = $markdown;
+    $page->body = trim($html);
+		$page->description = \Input::get('description');
     $page->save();
 
     if (\Input::file('image')) {
@@ -110,7 +68,7 @@ class PageController extends Controller {
         ->save('images/headings/small/'.$page->slug.'.jpg');
     };
 
-    return redirect('/members/pages')->with('message', 'New page successfully created!');
+    return redirect('/members/pages')->with('message', $page->heading.' successfully created!');
   }
 
   public function edit($slug)
@@ -119,7 +77,15 @@ class PageController extends Controller {
       abort(403);
     }
 
-    return view('pages.edit')->with('page', \Crockenhill\Page::where('slug', $slug)->first());
+		session(['backUrl' => url()->previous()]);
+
+		$page = \Crockenhill\Page::where('slug', $slug)->first();
+		$heading = 'Edit page';
+
+    return view('pages.edit', array(
+	    'page' 		=> $page,
+			'heading' => $heading
+		));
   }
 
   public function update($slug)
@@ -128,15 +94,25 @@ class PageController extends Controller {
       abort(403);
     }
 
+		//Convert markdown
+		$converter = new CommonMarkConverter;
+		$markdown = \Input::get('markdown');
+		$html = $converter->convertToHtml($markdown);
+
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->heading = \Input::get('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
+		$page->description = \Input::get('description');
     $page->area = \Input::get('area');
-    $page->body = \Input::get('body');
-    $page->description = \Input::get('description');
+		$page->markdown = $markdown;
+    $page->body = trim($html);
     $page->save();
 
-    return redirect('/members/pages')->with('message', 'Page successfully updated!');  
+		$backUrl = session('backUrl');
+
+    return ($backUrl !== url()->previous())
+			? redirect($backUrl)->with('message', $page->heading.' successfully updated!')
+			: redirect('/members/pages')->with('message', $page->heading.' successfully updated!');
   }
 
   public function destroy($slug)
@@ -148,35 +124,6 @@ class PageController extends Controller {
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->delete();
 
-    return redirect('/members/pages')->with('message', 'Page successfully deleted!');
+    return redirect('/members/pages')->with('message', $page->heading.' successfully deleted!');
   }
-
-  /*public function changeimage($slug)
-  {
-      return view('pages.editimage')->with('page', \Crockenhill\Page::where('slug', $slug)->first());
-  }
-
-  public function updateimage($slug)
-  {
-    $page = \Crockenhill\Page::where('slug', $slug)->first();
-
-    // Make large image for article
-    Image::make(Input::file('image')
-      ->getRealPath())
-      // resize the image to a width of 300 and constrain aspect ratio (auto height)
-      ->resize(2000, null, true)
-      ->save('images/headings/large/'.$page->slug.'.jpg');
-
-    // Make smaller image for aside
-    Image::make(Input::file('image')
-      ->getRealPath())
-      // resize the image to a width of 300 and constrain aspect ratio (auto height)
-      ->resize(300, null, true)
-      ->save('images/headings/small/'.$page->slug.'.jpg');
-
-    Notification::success('The image was changed.');
-
-    return Redirect::route('members.pages.changeimage', array('page' => $page->slug));
-          
-  }*/
 }

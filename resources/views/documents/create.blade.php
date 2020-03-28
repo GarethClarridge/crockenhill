@@ -10,7 +10,11 @@
     <br><br><br>
       <article class="card">
         <div class="header-container">
-          <h1>Upload a new document</h1>
+          <h1>
+            <span>
+              Upload a new document
+            </span>
+          </h1>
         </div>
         <div>
           @if (count($errors) > 0)
@@ -24,38 +28,39 @@
             </div>
           @endif
 
-					{!! Form::open(array('action' => 'DocumentController@store', 'method' => 'POST', 'files' => true)) !!}
+          <form method="POST" action="/members/documents" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
+            <input type="hidden" name="_token" id="csrf-token" value="{{ Session::token() }}" />
 
 						<div class="form-group">
-							{!! Form::label('title', 'Title') !!}
-							{!! Form::text('title', $value = null, array('class' => 'form-control')) !!}
+							<label for="title">Title</label>
+							<input class="form-control" id="title" name="title" type="text">
 						</div>
 
 							<div class="form-group">
-							  {!! Form::label('document', 'Document') !!}
-							  {!! Form::file('document') !!}
+							  <label for="document">Document</label>
+                <input type="file" name="document">
 							</div>
 
 						<div class="form-group">
-							{!! Form::label('type', 'Document Type') !!}
-							{!! Form::select('type', array(
-								''                  => 'Please select ...',
-								'meeting'           => 'Church Meeting Information', 
-								'bible-study-notes' => 'Bible Study Notes', 
-								'rota'              => 'Rota',
-								), $value = null, array('class' => 'form-control')) !!}
+							<label for="type">Document Type</label>
+              <select class="form-control" name="type">
+                <option value="">Please select</option>
+                <option value="meeting">Church meeting documents</option>
+                <option value="bible-study-notes">Bible study notes</option>
+                <option value="rota">Rota</option>
+              </select>
 						</div>
 
 						<div class="form-actions">
-							{!! Form::submit('Save', array('class' => 'btn btn-primary btn-lg btn-block')) !!}
+							<input class="btn btn-success btn-lg" type="submit" value="Save">
 						</div>
 
-					{!! Form::close() !!}
+					</form>
         </div>
       </article>
       <br><br>
     </div>
   </div>
-</div> 
+</div>
 
 @stop

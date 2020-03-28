@@ -2,13 +2,16 @@
 
 @section('dynamic_content')
   <br>
-  @foreach ($preachers as $preacher)
-    <h4>
-      <a href="preachers/{!! \Illuminate\Support\Str::slug($preacher[1]) !!}">
-        {{$preacher[1]}} 
-        <small>({!! $preacher[0] !!})</small>
-      </a>
-    </h4>
-  @endforeach
+  <ul class="list-group list-group-flush">
+    @foreach ($preachers as $preacher)
+      <li class="list-group-item">
+        <a href="preachers/{!! \Illuminate\Support\Str::slug($preacher[1]) !!}">
+          {{$preacher[1]}}
+          <small>({!! $preacher[0] !!})</small>
+        </a>
+      </li>
+    @endforeach
+  </ul>
+
 
 @stop

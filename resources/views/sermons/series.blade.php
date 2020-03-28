@@ -2,10 +2,13 @@
 
 @section('dynamic_content')
 
-@foreach ($sermons as $sermon)
-  @include('includes.sermon-display')
-@endforeach
-
-{!! $sermons->render() !!}
+<div class="row justify-content-center">
+  @foreach ($sermons as $sermon)
+    <div class="col-lg-7">
+      @include('includes.sermon-display')
+      <br>
+    </div>
+  @endforeach
+</div>
 
 @stop

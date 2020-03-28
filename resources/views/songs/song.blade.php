@@ -2,50 +2,73 @@
 
 @section('dynamic_content')
 
-  <div class="media song">
+@can ('edit-songs')
+  <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="btn btn-primary btn-lg btn-block">
+    Edit this song
+  </a>
+  <br>
+@endcan
+
+  <div class="media">
     @if ($song->praise_number)
-      <div class="media-left media-middle praise-icon">
-        <img class="media-object" src="/images/praise.png" alt="">
-        <span class="praise-number">{{ $song->praise_number }}</span>
-      </div>
+      <img class="mr-3" src="/images/praise.png" alt="">
+      <span class="praise_number praise_number_song">{{ $song->praise_number }}</span>
     @endif
 
-    <div class="media-body media-middle song-body">
+    <div class="media-body">
       @if ($song->author)
         <p>
-          <span class="glyphicon glyphicon-user"></span> &nbsp
+          <i class="far fa-user"></i> &nbsp
           {{ $song->author }}
         </p>
       @endif
 
-      @if ($last_played)
+      <p>
+        <i class="fas fa-info-circle"></i></span> &nbsp
+      @if ($song->last_played)
+        Sung
+
+        @if ($song->frequency > 5)
+          <span class="label label-success song-frequency">{{$song->frequency}}</span>
+        @endif
+
+        @if ($song->frequency > 1 && $song->frequency <= 5)
+          <span class="label label-warning song-frequency">{{$song->frequency}}</span>
+        @endif
+
+        @if ($song->frequency <= 1)
+          <span class="label label-danger song-frequency">{{$song->frequency}}</span>
+        @endif
+
+         times in the last 2 years
+      </p>
+      @else
+        We've never sung this song.
+      @endif
+
+      @if ($song->last_played)
         <p>
-          <span class="glyphicon glyphicon-calendar"></span> &nbsp
-          Last Sung: {{date("d F Y",strtotime($last_played))}}
+          <i class="far fa-calendar"></i> &nbsp
+          Last Sung: {{date("d F Y",strtotime($song->last_played))}}
         <p>
       @endif
 
-      @if ($frequency)
+      @if ($song->major_category != '')
         <p>
-          <span class="glyphicon glyphicon-info-sign"></span> &nbsp
-          
-            Sung 
-            
-            @if ($frequency > 5)
-              <span class="label label-success">{{$frequency}}</span>
-            @endif
+          <i class="fas fa-tag"></i> &nbsp
+          <span class="song_major_category">{{ $song->major_category }}</span>
+          &nbsp &nbsp <i class="fas fa-tag"></i> &nbsp
+          @if ($song->minor_category)
+              <span class="song_minor_category">{{ $song->minor_category }}</span>
+          @endif
+        </p>
+      @endif
 
-            @if ($frequency > 1)
-              <span class="label label-warning">{{$frequency}}</span>
-            @endif
-
-            @if ($frequency <= 1)
-              <span class="label label-danger">{{$frequency}}</span>
-            @endif
-
-             times in the last {{$years}} years
-
-        <p>
+      @if ($song->current === 0)
+      <p>
+        <i class="fas fa-exclamation-triangle"></i> &nbsp
+        This song isn't in our current list of songs to sing. Is there an alternative?
+      </p>
       @endif
 
       @if ($lyrics)
@@ -54,41 +77,51 @@
 
       @if ($song->copyright)
         <p>
-          <span class="glyphicon glyphicon-copyright-mark"></span> &nbsp
+          <i class="far fa-copyright"></i> &nbsp
           {{ $song->copyright }}
         </p>
       @endif
 
-      @if ($scripture)
+      @if ($song->scripture != '')
         <p>
-          <span class="glyphicon glyphicon-book"></span> &nbsp
-          Scripture References: 
+          <i class="fas fa-book"></i> &nbsp
+          Scripture References:
             @foreach ($scripture as $s)
               <i>{{ $s->reference }}</i>
             @endforeach
         </p>
       @endif
+
+      @if ($song->notes)
+        <p>
+          <i class="fas fa-pencil-alt"></i> &nbsp
+          {{ $song->notes }}
+        </p>
+      @endif
+
     </div>
   </div>
 
-  <h4>Popularity over time:</h4>
+  @if ($song->last_played)
+    <h4 class="my-3">Popularity over time:</h4>
 
-  <div class="row">
-    <div class="col-sm-12">
-      <canvas id="per-year"></canvas>
+    <div class="row">
+      <div class="col-sm-12">
+        <canvas id="per-year"></canvas>
+      </div>
     </div>
-  </div>
 
-  <h4>Services sung at:</h4>
+    <h4 class="my-3">Services sung at:</h4>
 
-  <div class="row">
-    <div class="col-sm-8">
-      <canvas id="service-ratio"></canvas>
+    <div class="row">
+      <div class="col-sm-8">
+        <canvas id="service-ratio"></canvas>
+      </div>
+      <div class="col-sm-4">
+        <div id="pieLegend"></div>
+      </div>
     </div>
-    <div class="col-sm-4">
-      <div id="pieLegend"></div>
-    </div>
-  </div>
+  @endif
 
 
   <script src="/scripts/Chart.js"></script>
@@ -106,7 +139,7 @@
             color:"#6a3121",
             highlight: "#784537",
             label: "Evening"
-        }        
+        }
     ];
 
     var pieOptions = {

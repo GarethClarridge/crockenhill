@@ -1,6 +1,8 @@
 <?php namespace Crockenhill\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Laravel\Dusk\DuskServiceProvider;
+
 
 class AppServiceProvider extends ServiceProvider {
 
@@ -17,7 +19,7 @@ class AppServiceProvider extends ServiceProvider {
     } else {
       $user = null;
     }
-    
+
     view()->share('user', $user);
 	}
 
@@ -38,8 +40,11 @@ class AppServiceProvider extends ServiceProvider {
 		);
 
 		$this->app->bind('path.public', function() {
-			return base_path() . '/public_html';
+			return base_path() . '/public';
 		});
-	}
 
+		if ($this->app->environment('local', 'testing')) {
+      $this->app->register(DuskServiceProvider::class);
+    }
+	}
 }

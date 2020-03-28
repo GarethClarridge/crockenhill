@@ -1,47 +1,104 @@
 @extends('page')
 
-@section('dynamic_content')
+@section('content')
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-8 col-md-offset-2">
+    <br><br><br>
+      <article class="card">
+        <div class="card-body">
+          <h1 class="card-title">Create a new page</h1>
+          <form class="mb-3" action="/members/pages" method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
-  <form method="POST" action="/members/pages" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
-    <input type="hidden" name="_token" id="csrf-token" value="{{ Session::token() }}" />
+            @if (count($errors) > 0)
+              <div class="alert alert-danger">
+                <strong>Whoops!</strong> There were some problems:<br><br>
+                <ul>
+                  @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                  @endforeach
+                </ul>
+              </div>
+            @endif
 
-    <div class="form-group">
-      <label for="heading">Heading</label>
-      <input class="form-control h1" id="heading" name="heading" type="text">
+            <div class="edit-metadata mt-3">
+              <div class="form-group">
+                <label for="heading">Heading</label>
+                <input class="form-control" id="heading" name="heading" type="text">
+              </div>
+
+              <div class="form-group">
+                <label for="description">Description <small>(returned on Google searches)</small></label>
+                <input class="form-control" id="description" name="description" type="text">
+              </div>
+
+              <div class="form-group">
+                <label for="area">Website section</label>
+                <select class="form-control" name="area">
+                  <option value="about-us">About us</option>
+                  <option value="whats-on">What's on</option>
+                  <option value="find-us">Find us</option>
+                  <option value="contact-us">Contact us</option>
+                  <option value="sermons">Sermons</option>
+                  <option value="members">Members</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-6">
+                <div class="form-group">
+                  <label for="markdown">Markdown content</label>
+                  <textarea class="form-control" name="markdown" id="markdown-input" rows="20"></textarea>
+                </div>
+              </div>
+
+              <div class="col-6">
+                <h4>
+                  Rendered content
+                </h4>
+                <div id="rendered-content">
+
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <input class="btn btn-success btn-large btn-block" type="submit" value="Save">
+              <div class="text-center">
+                <a href="/members/pages/" class="btn btn-large text-center">Cancel</a>
+              </div>
+            </div>
+          </form>
+
+          @include('includes.photo-selector')
+
+        </div>
+      </article>
     </div>
+  </div>
+</div>
 
-    <div class="form-group">
-      <label for="image">Header image</label>
-      <input name="image" type="file" id="image">
-    </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.6.0/showdown.min.js
+" charset="utf-8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js" charset="utf-8"></script>
+<script type="text/javascript">
 
-    <div class="form-group">
-      <label for="area">Website area</label>
-      <select class="form-control" id="area" name="area">
-        <option value="about-us">About us</option>
-        <option value="whats-on">What's on</option>
-        <option value="find-us">Find us</option>
-        <option value="contact-us">Contact us</option>
-        <option value="sermons">Sermons</option>
-        <option value="members">Members</option>
-      </select>
-    </div>
+  function markdownInit() {
+    var markdown      = document.getElementById("markdown-input");
+    var render        = document.getElementById("rendered-content");
+    markdown.onfocus = function blankRender() {
+      render.innerHTML = '';
+    }
+    markdown.onblur = function markdown() {
+      var converter     = new showdown.Converter();
+      var markdown      = document.getElementById("markdown-input");
+      render.innerHTML  = converter.makeHtml(markdown.value);
+    }
+  }
 
-    <div class="form-group">
-      <label for="description">Page description</label>
-      <input class="form-control" name="description" type="text" id="description">
-    </div>
+  window.onload = markdownInit();
+</script>
 
-    <div class="form-group">
-      <label for="body">Page content</label>
-      <textarea class="form-control" name="body" id="body"></textarea>
-    </div>
-
-    <div class="form-actions">
-      <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
-      <a href="{!! URL::route('members.pages.index') !!}" class="btn btn-large">Cancel</a>
-    </div>
-
-  </form>
- 
 @stop

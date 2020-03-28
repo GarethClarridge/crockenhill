@@ -44,7 +44,7 @@ return [
 
 		'file' => [
 			'driver' => 'file',
-			'path'   => storage_path().'/framework/cache',
+			'path'   => storage_path().'/framework/cache/data',
 		],
 
 		'memcached' => [
@@ -74,6 +74,9 @@ return [
 	|
 	*/
 
-	'prefix' => 'laravel',
+	'prefix' => env(
+    'CACHE_PREFIX',
+    str_slug(env('APP_NAME', 'laravel'), '_').'_cache'
+  ),
 
 ];
