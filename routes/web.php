@@ -27,6 +27,13 @@ Route::get('/online', array(
   })
 );
 
+Route::get('/resources', array(
+  'as' => 'resources', function()
+  {
+    return view('resources');
+  })
+);
+
 // Sermon Routes
 
 Route::group(array('prefix' => 'sermons'), function()
