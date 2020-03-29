@@ -98,10 +98,16 @@ return [
 	| of the emails. Or, you may simply stick with the Laravel defaults!
 	|
 	*/
-
+	
 	'markdown' => [
 			'theme' => 'default',
 
+<<<<<<< HEAD:config/mail.php
+	'markdown' => [
+			'theme' => 'default',
+
+=======
+>>>>>>> 10dcd783a3d9a3fce334a12f3365f03982f912c6:config/mail.php
 			'paths' => [
 					resource_path('views/vendor/mail'),
 			],
