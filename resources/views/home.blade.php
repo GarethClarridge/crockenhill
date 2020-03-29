@@ -51,7 +51,6 @@
         </div>
       </div>
     </div>
-=======
     <section class="white-background pt-5">
       <div class="container">
         <p class="text-center">
@@ -68,7 +67,6 @@
         </p>
       </div>
     </section>
->>>>>>> 10dcd783a3d9a3fce334a12f3365f03982f912c6
 
     <div class="background-image" id="listening">
       <div class="container">
