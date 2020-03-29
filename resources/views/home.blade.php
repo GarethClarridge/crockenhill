@@ -51,22 +51,6 @@
         </div>
       </div>
     </div>
-    <section class="white-background pt-5">
-      <div class="container">
-        <p class="text-center">
-          Sadly we can't meet together as a church in person at the moment,
-          <br>
-          but please join us on Sundays online instead.
-        </p>
-        <h2 class="text-center">
-          <a href="/online" class="btn btn-primary btn-lg" id="online-service-btn">Online services</a>
-        </h2>
-        <p class="text-center">
-          We plan to have an online service every week, with prayers, Bible readings,
-          <br>songs and Mark preaching the good news about Jesus to us from the Bible.
-        </p>
-      </div>
-    </section>
 
     <div class="background-image" id="listening">
       <div class="container">
