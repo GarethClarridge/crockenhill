@@ -12,17 +12,12 @@
   <main id="online-page">
     <div class="online-head text-white">
       <div class="container mt-3">
-<<<<<<< HEAD
-
-=======
->>>>>>> 10dcd783a3d9a3fce334a12f3365f03982f912c6
         <div class="row justify-content-lg-center">
           <div class="col-lg-12">
             <article class="card">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
-<<<<<<< HEAD
                     Sunday 29 March
                   </div>
                 </h1>
@@ -157,8 +152,6 @@
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
-=======
->>>>>>> 10dcd783a3d9a3fce334a12f3365f03982f912c6
                     Sunday 22 March
                   </div>
                 </h1>

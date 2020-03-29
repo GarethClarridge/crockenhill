@@ -16,27 +16,6 @@
       </div>
     </div>
 
-    <!-- <div class="background-image" id="christmas">
-      <div class="container">
-        <div class="row justify-content-md-center">
-<<<<<<< HEAD
-          <section class="col-md-10 col-lg-8 text-white p-5">
-=======
-          <section class="col-md-10 col-lg-6 text-white p-5">
->>>>>>> 10dcd783a3d9a3fce334a12f3365f03982f912c6
-              <p>
-                Come and celebrate the birth of our Saviour with us this Christmas.
-              </p>
-              <br>
-              <p class="text-center">
-                <a href="/christmas" class="text-white px-2 py-1">Christmas events</a>
-              </p>
-          </section>
-        </div>
-      </div>
-    </div> -->
-
-<<<<<<< HEAD
     <div class="pt-5" id="online">
       <div class="container">
         <div class="row justify-content-md-center">
@@ -94,11 +73,7 @@
     <div class="background-image" id="listening">
       <div class="container">
         <div class="row justify-content-md-center">
-<<<<<<< HEAD
           <section class="col-md-10 col-lg-8 text-white p-5">
-=======
-          <section class="col-md-10 col-lg-6 text-white p-5">
->>>>>>> 10dcd783a3d9a3fce334a12f3365f03982f912c6
               <p class="text-center">
                 Our church exists to worship God,
                 strengthen believers in their faith,
@@ -117,7 +92,6 @@
 
     <div class="container">
       <div class="row justify-content-md-center">
-<<<<<<< HEAD
         <section class="col-md-10 col-lg-8 p-5">
           <div class="white-background">
             <p class="text-center">
@@ -126,14 +100,6 @@
               We have Bible study and prayer groups meeting in people's homes,
               and during term time groups for everyone from babies, children
               and young people through to the more mature among us!
-=======
-        <section class="col-md-10 col-lg-6 p-5">
-          <div class="white-background">
-            <p class="text-center">
-              There are many activities at Crockenhill Baptist Church.
-              We have groups during term time for children and young people,
-              bible study and prayer groups and more.
->>>>>>> 10dcd783a3d9a3fce334a12f3365f03982f912c6
             </p>
             <br>
             <p class="text-center">
@@ -147,11 +113,7 @@
     <div class="background-image" id="building">
       <div class="container">
         <div class="row justify-content-md-center">
-<<<<<<< HEAD
           <section class="col-md-10 col-lg-8 text-white p-5">
-=======
-          <section class="col-md-10 col-lg-6 text-white p-5">
->>>>>>> 10dcd783a3d9a3fce334a12f3365f03982f912c6
               <p class="text-center">
                 We are located in the village of Crockenhill in Kent,
                 which is a mile or so south of Swanley
