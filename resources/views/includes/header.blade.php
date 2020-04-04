@@ -1,6 +1,6 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary p-0" role="navigation">
+<nav class="navbar navbar-expand-lg navbar-dark bg-pattern p-0" role="navigation">
   <a class="navbar-brand p-0" href="/">
-    <img src="/images/IconBackground.png" height="40" class="d-inline-block align-top p-0" alt="Crockenhill Baptist Church logo">
+    <img src="/images/White.png" height="36" class="d-inline-block align-top p-1" alt="Crockenhill Baptist Church logo">
   </a>
 
   <a class="navbar-brand abs" href="/">Crockenhill Baptist Church</a>
