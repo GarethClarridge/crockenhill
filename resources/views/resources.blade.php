@@ -30,7 +30,7 @@
                   Mark hash provided us with some suggestions for things to pray about:
                 </p>
                 <ul>
-                  <li>Our Prime minister and his government as they seek to guide the nation through this difficult time.</li>
+                  <li>Our Prime Minister and his government as they seek to guide the nation through this difficult time.</li>
                   <li>Our NHS and care workers around the country that are on the front-line.</li>
                   <li>For those in countries where there is little  or no medical treatment.</li>
                   <li>For those who are anxious and fearful that they might know God’s peace.</li>
@@ -92,7 +92,7 @@
                         <img src="/images/resources/TGC.jpg" class="card-img-top" alt="TGC">
                         <div class="card-body">
                           <h5 class="card-title">
-                            <a href="https://www.christianityexplored.org/">Christianity Explored</a>
+                            <a href="https://www.thegospelcoalition.org">The Gospel Coalition</a>
                           </h5>
                           <p class="card-text">
                             The Gospel Coalition is a predominantly American group
@@ -111,7 +111,7 @@
                         <img src="/images/resources/DesiringGod.jpg" class="card-img-top" alt="Desiring God">
                         <div class="card-body">
                           <h5 class="card-title">
-                            <a href="https://www.christianityexplored.org/">Christianity Explored</a>
+                            <a href="https://www.desiringgod.org">Desiring God</a>
                           </h5>
                           <p class="card-text">
                             Desiring God is the ministry set up by John Piper to
