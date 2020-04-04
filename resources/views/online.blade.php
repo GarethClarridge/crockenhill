@@ -39,18 +39,14 @@
                             If you're not a Christian and you've been enjoying watching our online services,
                             but want to find out a bit more about what Christianity is all about,
                             then check out
-                            <a href="https://www.christianityexplored.org/">
-                              Christianity Explored
-                            </a>.
+                            <a href="https://www.christianityexplored.org/">Christianity Explored</a>.
                             They've got a lot of useful articles,
                             ebooks and videos to help you find out all about what Jesus means to us.
                           </p>
                           <p>If you are a Christian,
                             Mark recommends checking out Vaughan Robert's messages from last year's Keswick Convention,
                             which you can find at
-                            <a href="https://www.clayton.tv/find/explore/22-1814-1816/0i0/5671/">
-                              Clayton TV
-                            </a>.
+                            <a href="https://www.clayton.tv/find/explore/22-1814-1816/0i0/5671/">Clayton TV</a>.
                           </p>
                         </div>
                       </article>

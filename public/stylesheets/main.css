@@ -11179,6 +11179,18 @@ header {
     font-family: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     text-transform: none; }
 
+p a {
+  text-decoration: underline; }
+
+p .btn {
+  text-decoration: none; }
+
+div a.btn {
+  text-decoration: none; }
+
+nav a.btn {
+  text-decoration: none; }
+
 audio {
   width: 100%; }
 
