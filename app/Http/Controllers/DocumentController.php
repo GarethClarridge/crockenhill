@@ -53,9 +53,9 @@ class DocumentController extends Controller {
     }
 
 		// Get Input
-		$title = \Input::get('title');
-		$type = \Input::get('type');
-		$file = \Input::file('document');
+		$title = \Request::input('title');
+		$type = \Request::input('type');
+		$file = \Request::file('document');
 		$filename = $file->getClientOriginalName();
 		$filetype = $file->getClientOriginalExtension();
     $user = "Test";

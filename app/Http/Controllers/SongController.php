@@ -156,14 +156,14 @@ class SongController extends Controller {
       abort(403);
     }
 
-    $date = \Input::get('date');
+    $date = \Request::input('date');
 
     $services = ['am','pm'];
 
     foreach ($services as $service) {
       for ($i=1; $i < 10; $i++) {
-        if (\Input::get($service.$i, '') != '') {
-          $song_id = \Input::get($service.$i);
+        if (\Request::input($service.$i, '') != '') {
+          $song_id = \Request::input($service.$i);
           if (\Crockenhill\Song::where('id', $song_id)->first()) {
             $song =\Crockenhill\Song::where('id', $song_id)->first();
           }
@@ -198,15 +198,15 @@ class SongController extends Controller {
     }
 
     // Get input
-    $title        = \Input::get('title');
-    $alternative  = \Input::get('alternative_title');
-    $category     = \Input::get('major-category');
-    $subcategory  = \Input::get('minor-category');
-    $author       = \Input::get('author');
-    $copyright    = \Input::get('copyright');
-    $lyrics       = \Input::get('lyrics');
-    $notes        = \Input::get('notes');
-    $current      = \Input::get('current');
+    $title        = \Request::input('title');
+    $alternative  = \Request::input('alternative_title');
+    $category     = \Request::input('major-category');
+    $subcategory  = \Request::input('minor-category');
+    $author       = \Request::input('author');
+    $copyright    = \Request::input('copyright');
+    $lyrics       = \Request::input('lyrics');
+    $notes        = \Request::input('notes');
+    $current      = \Request::input('current');
 
     // Save new song
     $song = new \Crockenhill\Song;
@@ -222,7 +222,7 @@ class SongController extends Controller {
     $song->save();
 
     // Send user back to index
-    return redirect('/members/songs')->with('message', '"'.\Input::get('title').'" successfully uploaded!');
+    return redirect('/members/songs')->with('message', '"'.\Request::input('title').'" successfully uploaded!');
   }
 
   public function editSong($id, $title)
@@ -249,15 +249,15 @@ class SongController extends Controller {
     // Look up song in songs table of database
     $song =\Crockenhill\Song::where('id', $id)->first();
 
-    $song->title              = \Input::get('title');
-    $song->alternative_title  = \Input::get('alternative_title');
-    $song->major_category     = \Input::get('major_category');
-    $song->minor_category     = \Input::get('minor_category');
-    $song->author             = \Input::get('author');
-    $song->copyright          = \Input::get('copyright');
-    $song->lyrics             = \Input::get('lyrics');
-    $song->notes              = \Input::get('notes');
-    $song->current            = \Input::get('current');
+    $song->title              = \Request::input('title');
+    $song->alternative_title  = \Request::input('alternative_title');
+    $song->major_category     = \Request::input('major_category');
+    $song->minor_category     = \Request::input('minor_category');
+    $song->author             = \Request::input('author');
+    $song->copyright          = \Request::input('copyright');
+    $song->lyrics             = \Request::input('lyrics');
+    $song->notes              = \Request::input('notes');
+    $song->current            = \Request::input('current');
     $song->save();
 
     // Send user back to index
