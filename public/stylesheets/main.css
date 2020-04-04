@@ -11440,6 +11440,9 @@ footer .list-group-item {
   background: none;
   border: none; }
 
+.bg-pattern {
+  background-image: url("/images/pattern-wide.png"); }
+
 .meeting-details {
   margin-left: -1.25rem;
   margin-right: -1.25rem;
