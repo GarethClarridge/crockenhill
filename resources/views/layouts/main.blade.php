@@ -53,7 +53,7 @@
 
     @yield('content')
 
-    <footer class="navbar navbar-fixed-bottom bg-primary mt-3">
+    <footer class="navbar navbar-fixed-bottom bg-primary">
         @include('includes.footer')
     </footer>
 </body>

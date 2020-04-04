@@ -9,7 +9,7 @@
 @stop
 
 @section('content')
-  <main class="container">
+  <main class="container mb-3">
     <div class="row">
       <div class="col-md-9">
         <article class="card mt-3">

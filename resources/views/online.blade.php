@@ -9,7 +9,7 @@
 @stop
 
 @section('content')
-  <main id="online-page">
+  <main id="online-page" class="mb-3">
     <div class="online-head text-white">
       <div class="container mt-3">
         <div class="row justify-content-lg-center">
