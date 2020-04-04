@@ -145,7 +145,7 @@ return [
 	| the cookie from being sent to you if it can not be done securely.
 	|
 	*/
-	'secure' => env('SESSION_SECURE_COOKIE', false),
+	'secure' => env('SESSION_SECURE_COOKIE', null),
 	/*
 	|--------------------------------------------------------------------------
 	| HTTP Access Only
