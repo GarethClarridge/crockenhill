@@ -30,85 +30,112 @@
                 <div class="embed-responsive embed-responsive-16by9">
                   <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/videoseries?list=PLvRlbyvqJwk69u2jhwwefxmG7f5O49BzP" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 </div>
-              </div>
-            </article>
-          </div>
-        </div>
+                <div class="container">
+                  <div class="row justify-content-lg-center mt-3">
+                    <div class="col-lg-8">
+                      <article class="card">
+                        <div class="card-body text-dark">
+                          <p>Mark mentions a couple of resources at the beginning of the video.
+                            If you're not a Christian and you've been enjoying watching our online services,
+                            but want to find out a bit more about what Christianity is all about,
+                            then check out
+                            <a href="https://www.christianityexplored.org/">
+                              Christianity Explored
+                            </a>.
+                            They've got a lot of useful articles,
+                            ebooks and videos to help you find out all about what Jesus means to us.
+                          </p>
+                          <p>If you are a Christian,
+                            Mark recommends checking out Vaughan Robert's messages from last year's Keswick Convention,
+                            which you can find at
+                            <a href="https://www.clayton.tv/find/explore/22-1814-1816/0i0/5671/">
+                              Clayton TV
+                            </a>.
+                          </p>
+                        </div>
+                      </article>
+                    </div>
+                  </div>
 
-        <div class="row justify-content-lg-center mt-3">
-          <div class="col-lg-8">
-            <article class="card">
-              <div class="card-body text-dark">
-                <h3 class="card-title text-center mb-3">
-                  Today's Bible reading: Acts 16:16-34
-                </h3>
-                <h5>
-                  Paul and Silas in Prison
-                </h5>
-                <p>
-                  <sup>16</sup>Once when we were going to the place of prayer,
-                  we were met by a female slave who had a spirit by which she predicted the future.
-                  She earned a great deal of money for her owners by fortune-telling.
-                  <sup>17</sup>She followed Paul and the rest of us, shouting,
-                  “These men are servants of the Most High God,
-                  who are telling you the way to be saved.”
-                  <sup>18</sup>She kept this up for many days.
-                  Finally Paul became so annoyed that he turned around and said to the spirit,
-                  “In the name of Jesus Christ I command you to come out of her!”
-                  At that moment the spirit left her.
-                </p>
+                  <div class="row justify-content-lg-center mt-3">
+                    <div class="col-lg-8">
+                      <article class="card">
+                        <div class="card-body text-dark">
+                          <h3 class="card-title text-center mb-3">
+                            Today's Bible reading: Acts 16:16-34
+                          </h3>
+                          <h5>
+                            Paul and Silas in Prison
+                          </h5>
+                          <p>
+                            <sup>16</sup>Once when we were going to the place of prayer,
+                            we were met by a female slave who had a spirit by which she predicted the future.
+                            She earned a great deal of money for her owners by fortune-telling.
+                            <sup>17</sup>She followed Paul and the rest of us, shouting,
+                            “These men are servants of the Most High God,
+                            who are telling you the way to be saved.”
+                            <sup>18</sup>She kept this up for many days.
+                            Finally Paul became so annoyed that he turned around and said to the spirit,
+                            “In the name of Jesus Christ I command you to come out of her!”
+                            At that moment the spirit left her.
+                          </p>
 
-                <p>
-                  <sup>19</sup>When her owners realized that their hope of making money was gone,
-                  they seized Paul and Silas and dragged them into the marketplace to face the authorities.
-                  <sup>20</sup>They brought them before the magistrates and said,
-                  “These men are Jews, and are throwing our city into an uproar
-                  <sup>21</sup>by advocating customs unlawful for us Romans to accept or practice.”
-                </p>
+                          <p>
+                            <sup>19</sup>When her owners realized that their hope of making money was gone,
+                            they seized Paul and Silas and dragged them into the marketplace to face the authorities.
+                            <sup>20</sup>They brought them before the magistrates and said,
+                            “These men are Jews, and are throwing our city into an uproar
+                            <sup>21</sup>by advocating customs unlawful for us Romans to accept or practice.”
+                          </p>
 
-                <p>
-                  <sup>22</sup>The crowd joined in the attack against Paul and Silas,
-                  and the magistrates ordered them to be stripped and beaten with rods.
-                  <sup>23</sup>After they had been severely flogged,
-                  they were thrown into prison, and the jailer was commanded to guard them carefully.
-                  <sup>24</sup>When he received these orders,
-                  he put them in the inner cell and fastened their feet in the stocks.
-                </p>
+                          <p>
+                            <sup>22</sup>The crowd joined in the attack against Paul and Silas,
+                            and the magistrates ordered them to be stripped and beaten with rods.
+                            <sup>23</sup>After they had been severely flogged,
+                            they were thrown into prison, and the jailer was commanded to guard them carefully.
+                            <sup>24</sup>When he received these orders,
+                            he put them in the inner cell and fastened their feet in the stocks.
+                          </p>
 
-                <p>
-                  <sup>25</sup>About midnight Paul and Silas were praying and singing hymns to God,
-                  and the other prisoners were listening to them.
-                  <sup>26</sup>Suddenly there was such a violent earthquake that the foundations of the prison were shaken.
-                  At once all the prison doors flew open, and everyone’s chains came loose.
-                  <sup>27</sup>The jailer woke up, and when he saw the prison doors open,
-                  he drew his sword and was about to kill himself because he thought the prisoners had escaped.
-                  <sup>28</sup>But Paul shouted, “Don’t harm yourself! We are all here!”
-                </p>
+                          <p>
+                            <sup>25</sup>About midnight Paul and Silas were praying and singing hymns to God,
+                            and the other prisoners were listening to them.
+                            <sup>26</sup>Suddenly there was such a violent earthquake that the foundations of the prison were shaken.
+                            At once all the prison doors flew open, and everyone’s chains came loose.
+                            <sup>27</sup>The jailer woke up, and when he saw the prison doors open,
+                            he drew his sword and was about to kill himself because he thought the prisoners had escaped.
+                            <sup>28</sup>But Paul shouted, “Don’t harm yourself! We are all here!”
+                          </p>
 
-                <p>
-                  <sup>29</sup>The jailer called for lights, rushed in and fell trembling before Paul and Silas.
-                  <sup>30</sup>He then brought them out and asked, “Sirs, what must I do to be saved?”
-                </p>
+                          <p>
+                            <sup>29</sup>The jailer called for lights, rushed in and fell trembling before Paul and Silas.
+                            <sup>30</sup>He then brought them out and asked, “Sirs, what must I do to be saved?”
+                          </p>
 
-                <p>
-                  <sup>31</sup>They replied, “Believe in the Lord Jesus, and you will be saved—you and your household.”
-                  <sup>32</sup>Then they spoke the word of the Lord to him and to all the others in his house.
-                  <sup>33</sup>At that hour of the night the jailer took them and washed their wounds;
-                  then immediately he and all his household were baptized.
-                  <sup>34</sup>The jailer brought them into his house and set a meal before them;
-                  he was filled with joy because he had come to believe in God—he and his whole household.
-                </p>
-              </div>
-              <div class="card-footer text-muted">
-                <small>
-                  New International Version (NIV)
-                  <br>
-                  Holy Bible, New International Version®,
-                  NIV® Copyright ©1973, 1978, 1984, 2011 by
-                  <a href="www.biblica.com">Biblica, Inc.®</a>
-                  Used by permission.
-                  All rights reserved worldwide.
-                </small>
+                          <p>
+                            <sup>31</sup>They replied, “Believe in the Lord Jesus, and you will be saved—you and your household.”
+                            <sup>32</sup>Then they spoke the word of the Lord to him and to all the others in his house.
+                            <sup>33</sup>At that hour of the night the jailer took them and washed their wounds;
+                            then immediately he and all his household were baptized.
+                            <sup>34</sup>The jailer brought them into his house and set a meal before them;
+                            he was filled with joy because he had come to believe in God—he and his whole household.
+                          </p>
+                        </div>
+                        <div class="card-footer text-muted">
+                          <small>
+                            New International Version (NIV)
+                            <br>
+                            Holy Bible, New International Version®,
+                            NIV® Copyright ©1973, 1978, 1984, 2011 by
+                            <a href="www.biblica.com">Biblica, Inc.®</a>
+                            Used by permission.
+                            All rights reserved worldwide.
+                          </small>
+                        </div>
+                      </article>
+                    </div>
+                  </div>
+                </div>
               </div>
             </article>
           </div>
