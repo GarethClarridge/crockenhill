@@ -1,20 +1,20 @@
 @extends('page')
 
 @section('content')
-<div class="container-fluid">
+<div class="container mt-3">
   <div class="row">
-    <div class="col-md-8 col-md-offset-2">
-    <br><br><br>
+    <div class="col-md-10 col-lg-9">
       <article class="card">
-        <div class="header-container">
-          <h1>
-            <span>
+        <div class="card-img-caption d-flex align-items-center mb-3">
+          <h1 class="card-text text-white">
+            <div class="px-2 py-1">
               Upload a sermon
-            </span>
+            </div>
           </h1>
+          <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
         </div>
 
-        <div>
+        <div class="card-body">
           @if (count($errors) > 0)
             <div class="alert alert-danger">
               <strong>Whoops!</strong> There were some problems:<br><br>
@@ -29,17 +29,11 @@
           <form method="POST" action="/sermons" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
             <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
-            <div class="form-group">
-              <label class="btn btn-primary btn-lg" for="file">
-                <i class="far fa-folder"></i>
-                &nbsp Choose file
-                <input name="file" type="file" id="file" class="hidden">
-              </label>
-               &nbsp
-              <span id="filename" class="alert alert-success hidden">
-                <i class="far fa-check-circle"></i>
-                 &nbsp
-              </span>
+            <div class="input-group mb-3">
+              <div class="custom-file">
+                <input name="file" type="file" class="custom-file-input" id="file" aria-describedby="file">
+                <label class="custom-file-label" for="file">Choose file</label>
+              </div>
             </div>
 
             <h2>Sermon details</h2>
