@@ -11441,7 +11441,8 @@ footer .list-group-item {
   border: none; }
 
 .bg-pattern {
-  background-image: url("/images/pattern-wide.png"); }
+  background-image: url("/images/pattern-wide.png");
+  background-size: cover; }
 
 .meeting-details {
   margin-left: -1.25rem;
