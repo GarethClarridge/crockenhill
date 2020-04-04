@@ -40,28 +40,28 @@ class PageController extends Controller {
 
 		//Convert markdown
 		$converter = new CommonMarkConverter;
-		$markdown = \Input::get('markdown');
+		$markdown = \Request::input('markdown');
 		$html = $converter->convertToHtml($markdown);
 
     $page = new \Crockenhill\Page;
-    $page->heading = \Input::get('heading');
-    $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
-    $page->area = \Input::get('area');
+    $page->heading = \Request::input('heading');
+    $page->slug = \Illuminate\Support\Str::slug(\Request::input('heading'));
+    $page->area = \Request::input('area');
 		$page->markdown = $markdown;
     $page->body = trim($html);
-		$page->description = \Input::get('description');
+		$page->description = \Request::input('description');
     $page->save();
 
-    if (\Input::file('image')) {
+    if (\Request::file('image')) {
       // Make large image for article
-      \Image::make(\Input::file('image')
+      \Image::make(\Request::file('image')
         ->getRealPath())
         // resize the image to a width of 300 and constrain aspect ratio (auto height)
         ->resize(2000)
         ->save('images/headings/large/'.$page->slug.'.jpg');
 
       // Make smaller image for aside
-      \Image::make(\Input::file('image')
+      \Image::make(\Request::file('image')
         ->getRealPath())
         // resize the image to a width of 300 and constrain aspect ratio (auto height)
         ->resize(300)
@@ -96,14 +96,14 @@ class PageController extends Controller {
 
 		//Convert markdown
 		$converter = new CommonMarkConverter;
-		$markdown = \Input::get('markdown');
+		$markdown = \Request::input('markdown');
 		$html = $converter->convertToHtml($markdown);
 
     $page = \Crockenhill\Page::where('slug', $slug)->first();
-    $page->heading = \Input::get('heading');
-    $page->slug = \Illuminate\Support\Str::slug(\Input::get('heading'));
-		$page->description = \Input::get('description');
-    $page->area = \Input::get('area');
+    $page->heading = \Request::input('heading');
+    $page->slug = \Illuminate\Support\Str::slug(\Request::input('heading'));
+		$page->description = \Request::input('description');
+    $page->area = \Request::input('area');
 		$page->markdown = $markdown;
     $page->body = trim($html);
     $page->save();
