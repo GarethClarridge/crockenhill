@@ -15,7 +15,7 @@
           </h3>
           <ul class="list-group">
             <li class="list-group-item">
-              <i class="fa fa-phone"></i> &nbsp 
+              <i class="fa fa-phone"></i> &nbsp
               01322 663995
             </li>
             <li class="list-group-item">
@@ -25,6 +25,10 @@
             <li class="list-group-item">
               <i class="fab fa-facebook-square"></i> &nbsp
               <a class="card-link" href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
+            </li>
+            <li class="list-group-item">
+              <i class="fab fa-youtube"></i> &nbsp
+              <a class="card-link" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">Subscribe to our YouTube channel</a>
             </li>
           </ul>
         </div>
