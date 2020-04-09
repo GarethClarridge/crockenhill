@@ -28,13 +28,12 @@
                 <p class="text-center">
                   <a href="/easter" class="btn btn-primary btn-lg" id="online-service-btn">Easter services</a>
                 </p>
-                <p class="text-center mb-3">
+                <!-- <p class="text-center mb-3">
                   Not sure what Easter is all about?
                 </p>
                 <p class="text-center">
                   <a href="/easter" class="btn btn-primary btn-lg" id="online-service-btn">Find out more</a>
-                </p>
-              </p>
+                </p> -->
             </div>
           </section>
         </div>
