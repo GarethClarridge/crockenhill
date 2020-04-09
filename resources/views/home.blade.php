@@ -16,6 +16,31 @@
       </div>
     </div>
 
+    <div class="pt-5 background-image" id="easter">
+      <div class="container">
+        <div class="row justify-content-md-center">
+          <section class="col-md-10 col-lg-8 p-5">
+            <div class="card">
+              <div class="card-body">
+                <p class="text-center">
+                  Join us as we celebrate Jesus' death and resurrection.
+                </p>
+                <p class="text-center">
+                  <a href="/easter" class="btn btn-primary btn-lg" id="online-service-btn">Easter services</a>
+                </p>
+                <p class="text-center mb-3">
+                  Not sure what Easter is all about?
+                </p>
+                <p class="text-center">
+                  <a href="/easter" class="btn btn-primary btn-lg" id="online-service-btn">Find out more</a>
+                </p>
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
     <div class="pt-5" id="online">
       <div class="container">
         <div class="row justify-content-md-center">
