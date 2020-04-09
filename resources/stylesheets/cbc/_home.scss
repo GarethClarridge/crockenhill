@@ -1,0 +1,112 @@
+.home-head {
+  background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url(../images/homepage/CollageGrey.jpg);
+  background-size: cover;
+  min-height: 33vh;
+
+  .container {
+    padding-top: 100px;
+    padding-bottom: 50px;
+
+    h1 {
+      font-size: $font-size-base*3;
+      font-weight: 800;
+      // line-height: $font-size-base*9;
+      padding-bottom: 50px;
+      width: 100%;
+
+      div {
+        border: 5px;
+        max-width: 80%;
+        border-style: solid;
+        display: inline-block;
+      }
+    }
+  }
+
+  p {
+    font-style: italic;
+
+    span {
+      background-color: map-get($theme-colors, secondary);
+      line-height: 3em;
+
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+  }
+}
+
+.white-background {
+  font-size: 1.5em;
+  text-align: center;
+
+  h2 {
+    font-size: 2.5em;
+    line-height: 2em;
+  }
+
+  a {
+    font-style: italic;
+  }
+}
+
+section {
+  padding: 5% 0%;
+}
+
+.background-image {
+  background-attachment: fixed;
+  background-position: center;
+  background-size: 100%;
+
+  section {
+    font-size: 1.5em;
+    text-align: center;
+
+    p a {
+      border: 5px;
+      max-width: 80%;
+      border-style: solid;
+      display: inline-block;
+      text-decoration: none !important;
+
+      &:hover {
+        background-color: white;
+        border-color: white;
+        color: map-get($theme-colors, dark) !important;
+      }
+    }
+  }
+}
+
+#building {
+  background-image: url(/images/homepage/building.JPG);
+}
+
+#listening {
+  background-image: url(/images/homepage/listening.JPG);
+}
+
+#three {
+  background-image: url(/images/homepage/drinking.JPG);
+}
+
+#christmas {
+  background-image: url(/images/homepage/christmas.JPG);
+}
+
+#online-service-btn {
+  font-style: normal;
+  font-size: 2rem;
+}
+
+#easter {
+  background-image: url(/images/homepage/easter.jpg);
+
+  .white-background {
+    background-color: white;
+
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+}
