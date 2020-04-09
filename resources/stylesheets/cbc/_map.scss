@@ -1,0 +1,17 @@
+.flexible-map-container {
+    position: relative;
+    @include full-width-section;
+    overflow: hidden;
+    min-height: 50vh;
+    max-height: 80vh;
+}
+
+.flexible-map-container iframe,
+.flexible-map-container object,
+.flexible-map-container embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
