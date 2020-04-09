@@ -20,6 +20,13 @@ Route::get('/christmas', array(
   })
 );
 
+Route::get('/easter', array(
+  'as' => 'easter', function()
+  {
+    return view('easter');
+  })
+);
+
 Route::get('/online', array(
   'as' => 'online', function()
   {
