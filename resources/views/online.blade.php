@@ -12,6 +12,33 @@
   <main id="online-page" class="mb-3">
     <div class="online-head text-white">
       <div class="container mt-3">
+        <div class="row justify-content-md-center">
+          <div class="col-12">
+            <article class="card mb-3">
+              <div class="card-img-caption d-flex align-items-center">
+                <h1 class="card-text text-white">
+                  <div class="px-2 py-1">
+                    Good Friday
+                  </div>
+                </h1>
+                <img class="card-img-top cbc-card-img-top" src="/images/homepage/easter.jpg">
+              </div>
+
+              <div class="card-body">
+                <div class="main-content">
+                  <p>We're joining with our friends at 4 other churches for a joint Good Friday service.</p>
+                  <div class="text-dark mb-3 text-center">
+                    <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=HbUDCTtC08o" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                  </div>
+                  <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/HbUDCTtC08o" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
         <div class="row justify-content-lg-center">
           <div class="col-lg-12">
             <article class="card">
