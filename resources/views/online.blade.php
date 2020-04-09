@@ -25,8 +25,8 @@
               </div>
 
               <div class="card-body">
-                <div class="main-content">
-                  <p>We're joining with our friends at 4 other churches for a joint Good Friday service.</p>
+                <div class="main-content text-dark">
+                  <p>We're joining with our friends at 4 other local churches for a joint Good Friday service.</p>
                   <div class="text-dark mb-3 text-center">
                     <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=HbUDCTtC08o" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
