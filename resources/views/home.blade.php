@@ -28,12 +28,14 @@
                 <p class="text-center">
                   <a href="/easter" class="btn btn-primary btn-lg" id="online-service-btn">Easter services</a>
                 </p>
-                <!-- <p class="text-center mb-3">
-                  Not sure what Easter is all about?
+                <p class="text-center mb-3">
+                  Not sure why Christians call the day Jesus died 'Good'?
+                  Wondering if Jesus' really rose from the dead?
+                  And if he did, what does that mean for us stuck in our homes because of coronavirus?
                 </p>
                 <p class="text-center">
-                  <a href="/easter" class="btn btn-primary btn-lg" id="online-service-btn">Find out more</a>
-                </p> -->
+                  <a href="/easter#why" class="btn btn-primary btn-lg" id="online-service-btn">Find out more</a>
+                </p>
             </div>
           </section>
         </div>
