@@ -30,8 +30,8 @@
                 </p>
                 <p class="text-center mb-3">
                   Not sure why Christians call the day Jesus died 'Good'?
-                  Wondering if Jesus' really rose from the dead?
-                  And if he did, what does that mean for us stuck in our homes because of coronavirus?
+                  Wondering what an empty tomb in Jerusalem 2000 years ago
+                  means for us stuck in our homes 2000 years later?
                 </p>
                 <p class="text-center">
                   <a href="/easter#why" class="btn btn-primary btn-lg" id="online-service-btn">Find out more</a>

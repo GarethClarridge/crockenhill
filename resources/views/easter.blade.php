@@ -99,12 +99,18 @@
                 Why?
               </p>
               <p>
+                How could such an agonising death be "good"?
+              </p>
+              <p>
                 Maybe we're looking at it wrong.
                 <em>
                   Jesus wasn't so much a victim of the cross,
                   as the cross was a victim of Jesus.
                 </em>
-                On the cross Jesus defeated death itself,
+                <sup>
+                  <a href="https://twitter.com/TimothyVirgo/status/1248970663840362497">*</a>
+                </sup>
+                &nbsp On the cross Jesus defeated death itself,
                 releasing his people from its power and their fear.
               </p>
               <p>
