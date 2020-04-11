@@ -18,6 +18,144 @@
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
+                    Easter Sunday
+                  </div>
+                </h1>
+                <img class="card-img-top cbc-card-img-top" src="/images/homepage/easter.jpg">
+              </div>
+
+              <div class="card-body">
+                <div class="main-content text-dark">
+                  <p>Join us as we celebrate the resurrection of Jesus together in our homes.</p>
+                  <div class="text-dark mb-3 text-center">
+                      <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=2HVvwvaitGA&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                  </div>
+                  <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="row justify-content-lg-center mt-3">
+          <div class="col-lg-8">
+            <article class="card">
+              <div class="card-body text-dark">
+                <h3 class="card-title text-center mb-3">
+                  Today's Bible reading: Matthew 27:57-28:15
+                </h3>
+                <h5>
+                  The Burial of Jesus
+                </h5>
+                <p>
+                  <sup>57</sup>As evening approached, there came a rich man from Arimathea,
+                  named Joseph, who had himself become a disciple of Jesus.
+                  <sup>58</sup>Going to Pilate, he asked for Jesus’ body,
+                  and Pilate ordered that it be given to him.
+                  <sup>59</sup>Joseph took the body, wrapped it in a clean linen cloth,
+                  <sup>60</sup>and placed it in his own new tomb that he had cut out of the rock.
+                  He rolled a big stone in front of the entrance to the tomb and went away.
+                  <sup>61</sup>Mary Magdalene and the other Mary were sitting there opposite the tomb.
+                </p>
+
+                <h5>
+                  The Guard at the Tomb
+                </h5>
+                <p>
+                  <sup>62</sup>The next day, the one after Preparation Day,
+                  the chief priests and the Pharisees went to Pilate.
+                  <sup>63</sup>“Sir,” they said,
+                  “we remember that while he was still alive that deceiver said,
+                  ‘After three days I will rise again.’
+                  <sup>64</sup>So give the order for the tomb to be made secure until the third day.
+                  Otherwise, his disciples may come and steal the body and tell the people that he has been raised from the dead.
+                  This last deception will be worse than the first.”
+                </p>
+
+                <p>
+                  <sup>65</sup>“Take a guard,” Pilate answered.
+                  “Go, make the tomb as secure as you know how.”
+                  <sup>66</sup>So they went and made the tomb secure
+                  by putting a seal on the stone and posting the guard.
+                </p>
+
+                <h5>
+                  Jesus Has Risen
+                </h5>
+                <p>
+                  <sup>28:1</sup>After the Sabbath, at dawn on the first day of the week,
+                  Mary Magdalene and the other Mary went to look at the tomb.
+                </p>
+
+                <p>
+                  <sup>2</sup>There was a violent earthquake,
+                  for an angel of the Lord came down from heaven and,
+                  going to the tomb, rolled back the stone and sat on it.
+                  <sup>3</sup>His appearance was like lightning,
+                  and his clothes were white as snow.
+                  <sup>4</sup>The guards were so afraid of him that they shook and became like dead men.
+                </p>
+
+                <p>
+                  <sup>5</sup>The angel said to the women,
+                  “Do not be afraid, for I know that you are looking for Jesus,
+                  who was crucified.
+                  <sup>6</sup>He is not here; he has risen, just as he said.
+                  Come and see the place where he lay.
+                  <sup>7</sup>Then go quickly and tell his disciples:
+                  ‘He has risen from the dead and is going ahead of you into Galilee.
+                  There you will see him.’ Now I have told you.”
+                </p>
+
+                <p>
+                  <sup>8</sup>So the women hurried away from the tomb,
+                  afraid yet filled with joy, and ran to tell his disciples.
+                  <sup>9</sup>Suddenly Jesus met them. “Greetings,” he said.
+                  They came to him, clasped his feet and worshiped him.
+                  <sup>10</sup>Then Jesus said to them, “Do not be afraid.
+                  Go and tell my brothers to go to Galilee; there they will see me.”
+                </p>
+
+                <h5>
+                  The Guards’ Report
+                </h5>
+
+                <p>
+                  <sup>11</sup>While the women were on their way,
+                  some of the guards went into the city and reported to the chief priests everything that had happened.
+                  <sup>12</sup>When the chief priests had met with the elders and devised a plan,
+                  they gave the soldiers a large sum of money,
+                  <sup>13</sup>telling them, “You are to say,
+                  ‘His disciples came during the night and stole him away while we were asleep.’
+                  <sup>14</sup>If this report gets to the governor,
+                  we will satisfy him and keep you out of trouble.”
+                  <sup>15</sup>So the soldiers took the money and did as they were instructed.
+                  And this story has been widely circulated among the Jews to this very day.
+                </p>
+              </div>
+              <div class="card-footer text-muted">
+                <small>
+                  New International Version (NIV)
+                  <br>
+                  Holy Bible, New International Version®,
+                  NIV® Copyright ©1973, 1978, 1984, 2011 by
+                  <a href="www.biblica.com">Biblica, Inc.®</a>
+                  Used by permission.
+                  All rights reserved worldwide.
+                </small>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="row justify-content-md-center">
+          <div class="col-12">
+            <article class="card mb-3">
+              <div class="card-img-caption d-flex align-items-center">
+                <h1 class="card-text text-white">
+                  <div class="px-2 py-1">
                     Good Friday
                   </div>
                 </h1>
@@ -26,7 +164,7 @@
 
               <div class="card-body">
                 <div class="main-content text-dark">
-                  <p>We're joining with our friends at 4 other local churches for a joint Good Friday service.</p>
+                  <p>We joined with our friends at 4 other local churches for a joint Good Friday service.</p>
                   <div class="text-dark mb-3 text-center">
                     <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=HbUDCTtC08o" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
