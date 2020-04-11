@@ -1,11 +1,11 @@
 @extends('layouts.main')
 
 @section('title')
-  Resources
+  Easter
 @stop
 
 @section('description')
-  Resources for isolation
+  Easter at Crockenhill Baptist Church
 @stop
 
 @section('content')
@@ -78,7 +78,8 @@
 
           <div class="card-body">
             <div class="main-content">
-              <p>Easter is the centrepoint of Christianity, the highlight of the story,
+              <p>Easter is the centrepoint of Christianity,
+                the highlight of the story,
                 the highest peak of the tallest mountain.
               </p>
               <p>
@@ -169,7 +170,10 @@
               </p>
               <p>
                 And if you do that, whatever is going on in the world outside your house,
-                you'll be able to sing: <em>"Because he lives I can face tomorrow."</em>
+                you'll be able to sing
+                <a href="https://www.youtube.com/watch?v=cQ-lgm29-o8">
+                  with the Brazilians in quarantine:</a>
+                <em>"Because he lives I can face tomorrow."</em>
               </p>
               <div class="embed-responsive embed-responsive-16by9 mb-3">
                 <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/HrpJr2m99es" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
