@@ -29,7 +29,7 @@
                   <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=2HVvwvaitGA&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
               </div>
               <div class="embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
           </div>
