@@ -16,32 +16,6 @@
       </div>
     </div>
 
-    <div class="pt-5 background-image" id="easter">
-      <div class="container">
-        <div class="row justify-content-md-center">
-          <section class="col-md-10 col-lg-8 p-5">
-            <div class="card">
-              <div class="card-body">
-                <p class="text-center">
-                  Join us as we celebrate Jesus' death and resurrection.
-                </p>
-                <p class="text-center">
-                  <a href="/easter" class="btn btn-primary btn-lg" id="online-service-btn">Easter services</a>
-                </p>
-                <p class="text-center mb-3">
-                  Not sure why Christians call the day Jesus died 'Good'?
-                  Wondering what an empty tomb in Jerusalem 2000 years ago
-                  means for us stuck in our homes 2000 years later?
-                </p>
-                <p class="text-center">
-                  <a href="/easter#why" class="btn btn-primary btn-lg" id="online-service-btn">Find out more</a>
-                </p>
-            </div>
-          </section>
-        </div>
-      </div>
-    </div>
-
     <div class="pt-5" id="online">
       <div class="container">
         <div class="row justify-content-md-center">
@@ -72,6 +46,32 @@
                   <a href="/resources" class="btn btn-secondary" id="online-service-btn">Resources for isolation</a>
                 </small>
               </p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-5 background-image" id="easter">
+      <div class="container">
+        <div class="row justify-content-md-center">
+          <section class="col-md-10 col-lg-8 p-5">
+            <div class="card">
+              <div class="card-body">
+                <p class="text-center">
+                  Look back on our celebration of Jesus' death and resurrection.
+                </p>
+                <p class="text-center">
+                  <a href="/easter" class="btn btn-primary btn-lg" id="online-service-btn">Easter services</a>
+                </p>
+                <p class="text-center mb-3">
+                  Not sure why Christians call the day Jesus died 'Good'?
+                  Wondering what an empty tomb in Jerusalem 2000 years ago
+                  means for us stuck in our homes 2000 years later?
+                </p>
+                <p class="text-center">
+                  <a href="/easter#why" class="btn btn-primary btn-lg" id="online-service-btn">Find out more</a>
+                </p>
             </div>
           </section>
         </div>

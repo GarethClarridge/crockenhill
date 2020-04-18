@@ -18,6 +18,96 @@
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
+                    Sunday 19 April
+                  </div>
+                </h1>
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
+              </div>
+
+              <div class="card-body">
+                <div class="main-content text-dark">
+                  <div class="text-dark mb-3 text-center">
+                      <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=5cuWcTmWg-4&list=PLvRlbyvqJwk7ZbiA0qpzELhcv2lWft8Ug" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                  </div>
+                  <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk7ZbiA0qpzELhcv2lWft8Ug" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="row justify-content-lg-center mb-5">
+          <div class="col-lg-8">
+            <article class="card">
+              <div class="card-body text-dark">
+                <h3 class="card-title text-center mb-3">
+                  Today's Bible reading: 2 Corinthians 5:11-6:2
+                </h3>
+                <p>
+                  <sup>11</sup>Since, then, we know what it is to fear the Lord,
+                  we try to persuade others. What we are is plain to God,
+                  and I hope it is also plain to your conscience.
+                  <sup>12</sup>We are not trying to commend ourselves to you again,
+                  but are giving you an opportunity to take pride in us,
+                  so that you can answer those who take pride in what is seen rather than in what is in the heart.
+                  <sup>13</sup>If we are “out of our mind,” as some say, it is for God;
+                  if we are in our right mind, it is for you.
+                  <sup>14</sup>For Christ’s love compels us,
+                  because we are convinced that one died for all,
+                  and therefore all died.
+                  <sup>15</sup>And he died for all,
+                  that those who live should no longer live for themselves
+                  but for him who died for them and was raised again.
+                </p>
+
+                <p>
+                  <sup>16</sup>So from now on we regard no one from a worldly point of view.
+                  Though we once regarded Christ in this way, we do so no longer.
+                  <sup>17</sup>Therefore, if anyone is in Christ, the new creation has come:
+                  The old has gone, the new is here!
+                  <sup>18</sup>All this is from God,
+                  who reconciled us to himself through Christ
+                  and gave us the ministry of reconciliation:
+                  <sup>19</sup>that God was reconciling the world to himself in Christ,
+                  not counting people’s sins against them.
+                  And he has committed to us the message of reconciliation.
+                  <sup>20</sup>We are therefore Christ’s ambassadors,
+                  as though God were making his appeal through us.
+                  We implore you on Christ’s behalf: Be reconciled to God.
+                  <sup>21</sup>God made him who had no sin to be sin for us,
+                  so that in him we might become the righteousness of God.
+                </p>
+
+                <p>
+                  <sup>6:1</sup>As God’s co-workers we urge you not to receive God’s grace in vain.
+                  <sup>2</sup>For he says, “In the time of my favor I heard you,
+                      and in the day of salvation I helped you.”
+                  I tell you, now is the time of God’s favor, now is the day of salvation.
+                </p>
+              </div>
+              <div class="card-footer text-muted">
+                <small>
+                  New International Version (NIV)
+                  <br>
+                  Holy Bible, New International Version®,
+                  NIV® Copyright ©1973, 1978, 1984, 2011 by
+                  <a href="www.biblica.com">Biblica, Inc.®</a>
+                  Used by permission.
+                  All rights reserved worldwide.
+                </small>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="row justify-content-md-center">
+          <div class="col-12">
+            <article class="card mb-3">
+              <div class="card-img-caption d-flex align-items-center">
+                <h1 class="card-text text-white">
+                  <div class="px-2 py-1">
                     Easter Sunday
                   </div>
                 </h1>
