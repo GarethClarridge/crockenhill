@@ -11287,6 +11287,9 @@ aside .read-more {
     padding-left: 1.5rem;
     padding-right: 0; } }
 
+#flower-cards {
+  column-count: 2; }
+
 #cookie-law {
   position: absolute;
   width: 90%;
@@ -11475,3 +11478,5 @@ footer .list-group-item {
   .meeting-details th {
     padding: 1rem 1rem;
     vertical-align: top; }
+
+/*# sourceMappingURL=main.css.map */
