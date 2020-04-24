@@ -18,6 +18,114 @@
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
+                    Sunday 26 April
+                  </div>
+                </h1>
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
+              </div>
+
+              <div class="card-body">
+                <div class="main-content text-dark">
+                  <div class="text-dark mb-3 text-center">
+                      <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=6M9OQxwb_G4&list=PLvRlbyvqJwk5jIdc14tNvJlL51WELlirQ" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                  </div>
+                  <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk5jIdc14tNvJlL51WELlirQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="row justify-content-lg-center mb-5">
+          <div class="col-lg-8">
+            <article class="card">
+              <div class="card-body text-dark">
+                <h3 class="card-title text-center mb-3">
+                  Today's Bible reading: Romans 1:1-17
+                </h3>
+                <p>
+                  <sup>1:1</sup>Paul, a servant of Christ Jesus,
+                  called to be an apostle and set apart for the gospel of God—
+                  <sup>2</sup>the gospel he promised beforehand through his prophets in the Holy Scriptures
+                  <sup>3</sup>regarding his Son, who as to his earthly life was a descendant of David,
+                  <sup>4</sup> and who through the Spirit of holiness was
+                  appointed the Son of God in power by his resurrection from the dead:
+                  Jesus Christ our Lord.
+                  <sup>5</sup>Through him we received grace and apostleship
+                  to call all the Gentiles to the obedience that comes from faith for his name’s sake.
+                  <sup>6</sup>And you also are among those Gentiles who are called to belong to Jesus Christ.
+                </p>
+
+                <p>
+                  <sup>7</sup>To all in Rome who are loved by God and called to be his holy people:
+                </p>
+
+                <p>
+                  Grace and peace to you from God our Father and from the Lord Jesus Christ.
+                </p>
+
+                <h5>
+                  Paul’s Longing to Visit Rome
+                </h5>
+
+                <p>
+                  <sup>8</sup>First, I thank my God through Jesus Christ for all of you,
+                  because your faith is being reported all over the world.
+                  <sup>9</sup>God, whom I serve in my spirit in preaching the gospel of his Son,
+                  is my witness how constantly I remember you
+                  <sup>10</sup>in my prayers at all times;
+                  and I pray that now at last by God’s will the way may be opened for me to come to you.
+                </p>
+
+                <p>
+                  <sup>11</sup>I long to see you so that I may impart to you
+                  some spiritual gift to make you strong—
+                  <sup>12</sup>that is, that you and I may be mutually encouraged by each other’s faith.
+                  <sup>13</sup>I do not want you to be unaware, brothers and sisters,
+                  that I planned many times to come to you
+                  (but have been prevented from doing so until now)
+                  in order that I might have a harvest among you,
+                  just as I have had among the other Gentiles.
+                </p>
+
+                <p>
+                  <sup>14</sup>I am obligated both to Greeks and non-Greeks,
+                  both to the wise and the foolish.
+                  <sup>15</sup>That is why I am so eager to preach the gospel also to you who are in Rome.
+                </p>
+
+                <p>
+                  <sup>16</sup>For I am not ashamed of the gospel,
+                  because it is the power of God that brings salvation to everyone who believes:
+                  first to the Jew, then to the Gentile.
+                  <sup>17</sup>For in the gospel the righteousness of God is revealed—
+                  a righteousness that is by faith from first to last,
+                   just as it is written: “The righteous will live by faith.”
+                </p>
+              </div>
+              <div class="card-footer text-muted">
+                <small>
+                  New International Version (NIV)
+                  <br>
+                  Holy Bible, New International Version®,
+                  NIV® Copyright ©1973, 1978, 1984, 2011 by
+                  <a href="www.biblica.com">Biblica, Inc.®</a>
+                  Used by permission.
+                  All rights reserved worldwide.
+                </small>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="row justify-content-md-center">
+          <div class="col-12">
+            <article class="card mb-3">
+              <div class="card-img-caption d-flex align-items-center">
+                <h1 class="card-text text-white">
+                  <div class="px-2 py-1">
                     Sunday 19 April
                   </div>
                 </h1>
