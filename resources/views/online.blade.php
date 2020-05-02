@@ -24,19 +24,22 @@
                 <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
               </div>
 
-              <div class="card-body">
+              <div class="card-body text-center">
                 <div class="main-content text-dark">
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=IiegC9fMNx4&list=PLvRlbyvqJwk4cZ_Qfb9LzXUL1NWx_ua90" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="embed-responsive embed-responsive-16by9">
+                  <div class="mb-3 embed-responsive embed-responsive-16by9">
                     <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk4cZ_Qfb9LzXUL1NWx_ua90" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
-                  <p>
+                  <p class="card-text">
                     Following the sermon, Mark recommends two books. They are:
-                    <a href="https://www.10ofthose.com/uk/products/1793/the-reason-for-god">The Reason for God, by Tim Keller, which you can buy here</a>.
-                    and
-                    <a href="https://www.10ofthose.com/uk/products/2150/how-long-o-lord">How long, O Lord?, by DA Carson, which you can buy here</a>.
+                  </p>
+                  <p>
+                    <a href="https://www.10ofthose.com/uk/products/1793/the-reason-for-god">The Reason for God, by Tim Keller, which you can buy from 10ofThose here</a>
+                  </p>
+                  <p>
+                    <a href="https://www.10ofthose.com/uk/products/2150/how-long-o-lord">How long, O Lord?, by DA Carson, which you can buy from 10ofThose here</a>.
                   </p>
                 </div>
               </div>
