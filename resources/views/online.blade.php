@@ -18,6 +18,103 @@
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
+                    Sunday 3 May
+                  </div>
+                </h1>
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
+              </div>
+
+              <div class="card-body">
+                <div class="main-content text-dark">
+                  <div class="text-dark mb-3 text-center">
+                      <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=IiegC9fMNx4&list=PLvRlbyvqJwk4cZ_Qfb9LzXUL1NWx_ua90" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                  </div>
+                  <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk4cZ_Qfb9LzXUL1NWx_ua90" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
+                  <p>
+                    Following the sermon, Mark recommends two books. They are:
+                    <a href="https://www.10ofthose.com/uk/products/1793/the-reason-for-god">The Reason for God, by Tim Keller, which you can buy here</a>.
+                    and
+                    <a href="https://www.10ofthose.com/uk/products/2150/how-long-o-lord">How long, O Lord?, by DA Carson, which you can buy here</a>.
+                  </p>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="row justify-content-lg-center mb-5">
+          <div class="col-lg-8">
+            <article class="card">
+              <div class="card-body text-dark">
+                <h3 class="card-title text-center mb-3">
+                  Today's Bible reading: Romans 8:18-30
+                </h3>
+
+                <p>
+                  <sup>18</sup>I consider that our present sufferings
+                  are not worth comparing with the glory that will be revealed in us.
+                  <sup>19</sup>For the creation waits in eager expectation
+                  for the children of God to be revealed.
+                  <sup>20</sup>For the creation was subjected to frustration,
+                  not by its own choice, but by the will of the one who subjected it, in hope
+                  <sup>21</sup>that the creation itself will be liberated
+                  from its bondage to decay and brought into the freedom and glory of the children of God.
+                </p>
+
+                <p>
+                  <sup>22</sup>We know that the whole creation has been groaning
+                  as in the pains of childbirth right up to the present time.
+                  <sup>23</sup>Not only so, but we ourselves, who have the firstfruits of the Spirit,
+                  groan inwardly as we wait eagerly for our adoption to sonship,
+                  the redemption of our bodies.
+                  <sup>24</sup>For in this hope we were saved.
+                  But hope that is seen is no hope at all.
+                  Who hopes for what they already have?
+                  <sup>25</sup>But if we hope for what we do not yet have, we wait for it patiently.
+                </p>
+
+                <p>
+                  <sup>26</sup>In the same way, the Spirit helps us in our weakness.
+                  We do not know what we ought to pray for,
+                  but the Spirit himself intercedes for us through wordless groans.
+                  <sup>27</sup>And he who searches our hearts knows the mind of the Spirit,
+                  because the Spirit intercedes for God’s people in accordance with the will of God.
+                </p>
+
+                <p>
+                  <sup>28</sup>And we know that in all things God works
+                  for the good of those who love him,
+                  who have been called according to his purpose.
+                  <sup>29</sup>For those God foreknew he also predestined
+                  to be conformed to the image of his Son,
+                  that he might be the firstborn among many brothers and sisters.
+                  <sup>30</sup>And those he predestined, he also called;
+                  those he called, he also justified; those he justified, he also glorified.
+                </p>
+              </div>
+              <div class="card-footer text-muted">
+                <small>
+                  New International Version (NIV)
+                  <br>
+                  Holy Bible, New International Version®,
+                  NIV® Copyright ©1973, 1978, 1984, 2011 by
+                  <a href="www.biblica.com">Biblica, Inc.®</a>
+                  Used by permission.
+                  All rights reserved worldwide.
+                </small>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="row justify-content-md-center">
+          <div class="col-12">
+            <article class="card mb-3">
+              <div class="card-img-caption d-flex align-items-center">
+                <h1 class="card-text text-white">
+                  <div class="px-2 py-1">
                     Sunday 26 April
                   </div>
                 </h1>
