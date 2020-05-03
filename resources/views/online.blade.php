@@ -33,7 +33,7 @@
                     <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk4cZ_Qfb9LzXUL1NWx_ua90" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                   <p class="card-text">
-                    Following the sermon, Mark recommends two books. They are:
+                    Following the sermon, Mark recommends four books. They are:
                   </p>
                   <p>
                     <a href="https://www.10ofthose.com/uk/products/1793/the-reason-for-god">The Reason for God, by Tim Keller, which you can buy from 10ofThose here</a>
