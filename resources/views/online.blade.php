@@ -39,6 +39,12 @@
                     <a href="https://www.10ofthose.com/uk/products/1793/the-reason-for-god">The Reason for God, by Tim Keller, which you can buy from 10ofThose here</a>
                   </p>
                   <p>
+                    <a href="https://www.10ofthose.com/uk/products/21536/where-is-god-when-things">Where is God when things go wrong?, by John Blanchard, which you can buy from 10ofThose here</a>
+                  </p>
+                  <p>
+                    <a href="https://www.desiringgod.org/books/coronavirus-and-christ">Coronavirus and Christ, by John Piper, which you can download free in ebook or audiobook from Desiring God here</a>
+                  </p>
+                  <p>
                     <a href="https://www.10ofthose.com/uk/products/2150/how-long-o-lord">How long, O Lord?, by DA Carson, which you can buy from 10ofThose here</a>.
                   </p>
                 </div>
