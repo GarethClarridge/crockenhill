@@ -37,16 +37,17 @@
                     we have peace with God through our Lord Jesus Christ
                   </p>
                 </div>
-                <div class="card-footer text-muted">
-                  <small>
-                    New International Version (NIV)
-                    <br>
-                    Holy Bible, New International Version®,
-                    NIV® Copyright ©1973, 1978, 1984, 2011 by
-                    <a href="www.biblica.com">Biblica, Inc.®</a>
-                    Used by permission.
-                    All rights reserved worldwide.
-                  </small>
+              </div>
+              <div class="card-footer text-muted">
+                <small>
+                  New International Version (NIV)
+                  <br>
+                  Holy Bible, New International Version®,
+                  NIV® Copyright ©1973, 1978, 1984, 2011 by
+                  <a href="www.biblica.com">Biblica, Inc.®</a>
+                  Used by permission.
+                  All rights reserved worldwide.
+                </small>
               </div>
             </article>
           </div>
