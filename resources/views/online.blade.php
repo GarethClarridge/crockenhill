@@ -18,6 +18,53 @@
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
+                    Sunday 17 May
+                  </div>
+                </h1>
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
+              </div>
+
+              <div class="card-body text-center">
+                <div class="main-content text-dark">
+                  <div class="text-dark mb-3 text-center">
+                      <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=j2emJtsTqno&list=PLvRlbyvqJwk7FMfKoGJ-fg0tICSomnEs2" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                  </div>
+                  <div class="mb-3 embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk7FMfKoGJ-fg0tICSomnEs2" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
+                  <h4 class="card-text">Philippians 1:1-2</h4>
+                  <p class="card-text">
+                    Paul and Timothy, servants of Christ Jesus,
+                  </p>
+                  <p class="card-text">
+                    To all God’s holy people in Christ Jesus at Philippi, together with the overseers and deacons:
+                  </p>
+                  <p class="card-text">
+                    Grace and peace to you from God our Father and the Lord Jesus Christ.
+                  </p>
+                </div>
+              </div>
+              <div class="card-footer text-muted">
+                <small>
+                  New International Version (NIV)
+                  <br>
+                  Holy Bible, New International Version®,
+                  NIV® Copyright ©1973, 1978, 1984, 2011 by
+                  <a href="www.biblica.com">Biblica, Inc.®</a>
+                  Used by permission.
+                  All rights reserved worldwide.
+                </small>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="row justify-content-md-center">
+          <div class="col-12">
+            <article class="card mb-3">
+              <div class="card-img-caption d-flex align-items-center">
+                <h1 class="card-text text-white">
+                  <div class="px-2 py-1">
                     Sunday 10 May
                   </div>
                 </h1>
