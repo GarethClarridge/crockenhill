@@ -42,6 +42,14 @@
                   <p class="card-text">
                     Grace and peace to you from God our Father and the Lord Jesus Christ.
                   </p>
+                  <h4 class="card-text">Hello!</h4>
+                  <p class="text-card">
+                    We may not be able to say hi over coffee after the service,
+                    but here are some people you may not have seen for a while.
+                  </p>
+                  <div class="mb-3 embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/jLY82RSCbKk" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
                 </div>
               </div>
               <div class="card-footer text-muted">
