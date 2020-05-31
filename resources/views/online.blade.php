@@ -12,7 +12,7 @@
   <main id="online-page" class="mb-3">
     <div class="online-head text-white">
       <div class="container mt-3">
-        <!-- <div class="row justify-content-md-center">
+        <div class="row justify-content-md-center">
           <div class="col-12">
             <article class="card mb-3">
               <div class="card-img-caption d-flex align-items-center">
@@ -25,16 +25,20 @@
               </div>
 
               <div class="card-body text-center">
-                <div class="main-content text-dark">
+                <!-- <div class="main-content text-dark">
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=9hckWQkVZI8&list=PLvRlbyvqJwk6kWbtLDPBw4AsMlbdiEH2j" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
                   <div class="mb-3 embed-responsive embed-responsive-16by9">
                     <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6kWbtLDPBw4AsMlbdiEH2j" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
-                </div>
+                </div> -->
+                <p class="card-text">
+                  There was an error with this morning's service.
+                  It should be fixed and available again by 10:30am.
+                </p>
               </div>
-              <div class="card-footer text-muted">
+              <!-- <div class="card-footer text-muted">
                 <small>
                   New International Version (NIV)
                   <br>
@@ -44,10 +48,10 @@
                   Used by permission.
                   All rights reserved worldwide.
                 </small>
-              </div>
+              </div> -->
             </article>
           </div>
-        </div> -->
+        </div>
 
         <div class="row justify-content-md-center">
           <div class="col-12">
