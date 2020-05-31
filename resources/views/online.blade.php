@@ -25,20 +25,25 @@
               </div>
 
               <div class="card-body text-center">
-                <!-- <div class="main-content text-dark">
+                <div class="main-content text-dark">
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=9hckWQkVZI8&list=PLvRlbyvqJwk6kWbtLDPBw4AsMlbdiEH2j" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
                   <div class="mb-3 embed-responsive embed-responsive-16by9">
                     <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6kWbtLDPBw4AsMlbdiEH2j" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
-                </div> -->
+                </div>
                 <p class="card-text text-dark">
-                  There was an error with this morning's service.
-                  It should be fixed and available again by 10:30am.
+                  There was an error with this morning's service, and 10 minutes were missing from the end of the sermon.
+                  Hopefully it'll be fixed by the time you get there.
+                  If you watched it earlier you might want to catch up on the second part of the sermon below (when it's uploaded):
                 </p>
+                <div class="mb-3 embed-responsive embed-responsive-16by9">
+                  <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/xPLGIXu2EtI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+                xPLGIXu2EtI
               </div>
-              <!-- <div class="card-footer text-muted">
+              <div class="card-footer text-muted">
                 <small>
                   New International Version (NIV)
                   <br>
@@ -48,7 +53,7 @@
                   Used by permission.
                   All rights reserved worldwide.
                 </small>
-              </div> -->
+              </div>
             </article>
           </div>
         </div>
