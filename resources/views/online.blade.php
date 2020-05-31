@@ -33,7 +33,7 @@
                     <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6kWbtLDPBw4AsMlbdiEH2j" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div> -->
-                <p class="card-text">
+                <p class="card-text text-dark">
                   There was an error with this morning's service.
                   It should be fixed and available again by 10:30am.
                 </p>
