@@ -12,7 +12,7 @@
   <main id="online-page" class="mb-3">
     <div class="online-head text-white">
       <div class="container mt-3">
-        <div class="row justify-content-md-center">
+        <!-- <div class="row justify-content-md-center">
           <div class="col-12">
             <article class="card mb-3">
               <div class="card-img-caption d-flex align-items-center">
@@ -47,7 +47,7 @@
               </div>
             </article>
           </div>
-        </div>
+        </div> -->
 
         <div class="row justify-content-md-center">
           <div class="col-12">
