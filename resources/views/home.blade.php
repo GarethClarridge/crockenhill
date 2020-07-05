@@ -22,15 +22,24 @@
           <section class="col-md-10 col-lg-8 p-5">
             <div class="white-background">
               <p class="text-center">
-                Sadly we can't meet together as a church in person at the moment,
-                but please join us on Sundays online instead.
+                We hope to meet together as a church family soon.
+                Sadly, having examined the government guidance and advice from the FIEC,
+                we have concluded that we are not yet in a position to meet.
+              </p>
+              <p class="text-center">
+                For now, please continue to join us online on Sundays.
               </p>
               <p class="text-center">
                 <a href="/online" class="btn btn-primary btn-lg" id="online-service-btn">Online services</a>
               </p>
               <p class="text-center mb-3">
-                We plan to have an online service every week, with prayers, Bible readings,
+                We have an online service every week, with prayers, Bible readings,
                 songs and Mark preaching the good news about Jesus to us from the Bible.
+              </p>
+              <p class="text-center mb-3">
+                We realise it will be disappointing to many that we can't meet in person,
+                but we are sure that you will understand our duty of care to all members and visitors. 
+                We will of course continue to work towards meeting as soon as it is safe and wise to do so.
               </p>
               <br>
               <hr>
