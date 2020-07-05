@@ -23,7 +23,10 @@
             <div class="white-background">
               <p class="text-center">
                 We hope to meet together as a church family soon.
-                Sadly, having examined the government guidance and advice from the FIEC,
+                Sadly, having examined the
+                <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july">government guidance</a>
+                and
+                <a href="https://fiec.org.uk/resources/series/coronavirus">advice from the FIEC</a>,
                 we have concluded that we are not yet in a position to meet.
               </p>
               <p class="text-center">
@@ -37,8 +40,8 @@
                 songs and Mark preaching the good news about Jesus to us from the Bible.
               </p>
               <p class="text-center mb-3">
-                We realise it will be disappointing to many that we can't meet in person,
-                but we are sure that you will understand our duty of care to all members and visitors. 
+                It is disappointing that we can't yet meet in person,
+                but we are sure that you will understand our duty of care to all members and visitors.
                 We will of course continue to work towards meeting as soon as it is safe and wise to do so.
               </p>
               <br>
