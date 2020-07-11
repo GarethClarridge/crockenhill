@@ -22,41 +22,36 @@
           <section class="col-md-10 col-lg-8 p-5">
             <div class="white-background">
               <p class="text-center">
-                We hope to meet together as a church family soon.
-                Sadly, having examined the
-                <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july">government guidance</a>
-                and
-                <a href="https://fiec.org.uk/resources/series/coronavirus">advice from the FIEC</a>,
-                we have concluded that we are not yet in a position to meet.
+                Following updated government advice, we will be meeting at the
+                church building to worship God together at 10:30am on Sunday 12 July.
               </p>
               <p class="text-center">
-                For now, please continue to join us online on Sundays.
+                Not everyone will be able to join us, so we will also be live-streaming
+                the service here and <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">on our YouTube channel</a>.
               </p>
               <p class="text-center">
-                <a href="/online" class="btn btn-primary btn-lg" id="online-service-btn">Online services</a>
+                The service will feel quite different, so please click the link and
+                familiarise yourself with the information below.
               </p>
-              <p class="text-center mb-3">
-                We have an online service every week, with prayers, Bible readings,
-                songs and Mark preaching the good news about Jesus to us from the Bible.
-              </p>
-              <p class="text-center mb-3">
-                It is disappointing that we can't yet meet in person,
-                but we are sure that you will understand our duty of care to all members and visitors.
-                We will of course continue to work towards meeting as soon as it is safe and wise to do so.
+              <p class="mt-5">
+                <small>
+                  <a href="/reopening" class="btn btn-secondary" id="online-service-btn">What you need to know about reopening</a>
+                </small>
               </p>
               <br>
               <hr>
               <br>
-              <p>
-                We want to keep growing our faith in Christ during this unexpected
-                separation. We've prepared a list of things we can be talking
-                to God about in prayer, and a list of online resources to help us
-                learn more about him.
+              <p class="text-center">
+                You'll find the live streamed service here from 10:30am on Sunday 12 July.
+                If you miss it you'll be able to catch up later.
               </p>
-              <p class="mt-3">
-                <small>
-                  <a href="/resources" class="btn btn-secondary" id="online-service-btn">Resources for isolation</a>
-                </small>
+              <br>
+              <hr>
+              <br>
+              <p class="text-center">
+                <a href="/online">Catch up on previous online services</a>
+                and view our
+                <a href="/resources">resources for isolation</a>.
               </p>
             </div>
           </section>

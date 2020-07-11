@@ -27,6 +27,13 @@ Route::get('/easter', array(
   })
 );
 
+Route::get('/reopening', array(
+  'as' => 'reopening', function()
+  {
+    return view('reopening');
+  })
+);
+
 Route::get('/online', array(
   'as' => 'online', function()
   {
