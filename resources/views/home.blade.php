@@ -45,6 +45,12 @@
                 You'll find the live streamed service here from 10:30am on Sunday 12 July.
                 If you miss it you'll be able to catch up later.
               </p>
+              <div class="mb-3 embed-responsive embed-responsive-16by9">
+                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/6tQEXD8f78k" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              </div>
+              <div class="text-dark mb-3 text-center">
+                  <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=6tQEXD8f78k" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+              </div>
               <br>
               <hr>
               <br>
