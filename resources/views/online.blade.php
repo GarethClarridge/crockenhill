@@ -13,8 +13,6 @@
     <div class="online-head text-white">
       <div class="container mt-3">
 
-        gpdUail4EZo
-
         <div class="row justify-content-md-center">
           <div class="col-12">
             <article class="card mb-3">
