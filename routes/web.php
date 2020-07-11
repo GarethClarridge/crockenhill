@@ -32,7 +32,7 @@ Route::get('/reopening', array(
   {
     return view('reopening');
   })
-);
+); 
 
 Route::get('/online', array(
   'as' => 'online', function()
