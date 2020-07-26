@@ -70,6 +70,12 @@
                   <p>Please let Laurie Everest (<a href="mailto:laurie.everest@btinternet.com">laurie.everest@btinternet.com</a>, 01322 664165) or Peter Clarridge (<a href="mailto:pclarridge@gmail.com">pclarridge@gmail.com</a>, 01322 404835) know if you are intending to come on Sundays by 1:00 p.m. on Saturdays.
                     Ideally this should be done by email.  This will help us to make sure that we can safely accommodate everyone in the building.
                   </p>
+                  <p>
+                    When entering the church you are encouraged to voluntarily
+                    wear a face-covering to avoid the possible spread of Covid-19.
+                    However, this is not a legal requirement (as in the case of
+                    entering a shop) and thus we cannot insist that you do this.
+                  </p>
                 </div>
               </div>
             </article>
