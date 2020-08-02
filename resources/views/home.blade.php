@@ -23,7 +23,7 @@
             <div class="white-background">
               <p class="text-center">
                 Following updated government advice, we will be meeting at the
-                church building to worship God together at 10:30am on Sunday 12 July.
+                church building to worship God together at 10:30am on Sundays.
               </p>
               <p class="text-center">
                 Not everyone will be able to join us, so we will also be live-streaming
@@ -47,10 +47,10 @@
                 Previous services are available <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">on our YouTube channel</a>.
               </p>
               <div class="mb-3 embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/5rhOKC8e6ww" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/HiLlfYRvPL4" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
               <div class="text-dark mb-3 text-center">
-                  <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=5rhOKC8e6ww" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                  <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=HiLlfYRvPL4" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
               </div>
               <br>
               <hr>
