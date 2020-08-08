@@ -38,7 +38,7 @@
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
   <script src="/scripts/bootstrap.min.js"></script>
-  <script src="/scripts/all.js"></script>
+  <script src="/scripts/all.js?v=6.0.2"></script>
   @stack('scripts')
 </head>
 
