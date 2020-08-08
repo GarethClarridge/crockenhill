@@ -19,7 +19,7 @@
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
-                    Reopening the church building
+                    Attending in person
                   </div>
                 </h1>
                 <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
@@ -28,17 +28,44 @@
               <div class="card-body">
                 <div class="main-content text-dark">
                   <p>
-                    The good news is that the Government is now allowing churches to open up their buildings for corporate worship.
-                    Therefore, the intention is to re-open the church for worship on Sundays at the usual time of 10:30 a.m.
+                    Following current government advice, we are meeting in person again at 10:30am on Sunday mornings.
                     We realise that not everybody will be able to come out and we would discourage all those over 70,
                     or at an increased risk of contracting Covid-19, from making the effort to do so.
                   </p>
                   <p>
+                    Please let Laurie Everest (<a href="mailto:laurie.everest@btinternet.com">laurie.everest@btinternet.com</a>,
+                    01322 664165) or Peter Clarridge (<a href="mailto:pclarridge@gmail.com">pclarridge@gmail.com</a>,
+                    01322 404835) know if you are intending to come on Sundays by 1:00 p.m. on Saturdays.
+                    Ideally this should be done by email.
+                    This will help us to make sure that we can safely accommodate everyone in the building.
+                  </p>
+                  <p>
                     If you are not able to make it to the morning services on Sundays for the time being,
                     please don’t worry. We will be live-streaming the services here and <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">on our YouTube channel</a>.
-                    We also intend to deliver recordings of the service for those not online.
-                    However, it should be noted that those who listen to DVDs will have to wait until later in the day on Sunday to receive their recording.
+                    We will continue delivering DVD recordings of the service for those not online.
                   </p>
+
+                  <p>
+                    You must wear a face covering when attending Crockenhill Baptist Church (or any other place of worship).
+                    There are a number of exemptions.  For instance, the following do not need to wear a face covering:
+                  </p>
+                  <ul>
+                    <li>children under the age of 11</li>
+                    <li>people who cannot put on, wear or remove a face covering because of a physical or mental illness or impairment, or disability</li>
+                    <li>where putting on, wearing or removing a face covering will cause you severe distress</li>
+                    <li>if you are speaking to or providing assistance to someone who relies on lip reading, clear sound or facial expressions to communicate</li>
+                    <li>to avoid harm or injury, or the risk of harm or injury, to yourself or others</li>
+                  </ul>
+                  <p>
+                    Those leading the service, delivering the sermon or praying from the front are also permitted to remove their face covering.
+                  </p>
+                  <p>Read
+                    <a href="https://www.gov.uk/government/publications/face-coverings-when-to-wear-one-and-how-to-make-your-own/face-coverings-when-to-wear-one-and-how-to-make-your-own">
+                      the full government advice
+                    </a>
+                    for more information.
+                  </p>
+
                   <p>
                     In order to meet together we are seeking to follow <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july">Government guidelines for places of worship</a>.
                     This will mean that things will not be as normal.
@@ -52,10 +79,10 @@
                     <li>You will be asked to use anti-bacterial hand-wash as you enter and leave the building.</li>
                     <li>You will be directed to a designated chair in the church upon entering the worship area by one of the stewards, and we would ask you to be amenable about this.  This is necessary to accommodate everyone within the limited amount of space available to us.  We realise people will be excited to see one another, but we must ask you to remain in your seat and not wander around the room before or after the service.</li>
                     <li>Relevant notices will be put on the screen and emphasised at the start of the service. There will not be any notice sheets.</li>
-                    <li>We are not allowed to sing with our voices (only with our hearts!). However, there will be a couple of songs played over the P.A. system with the words projected onto the screen.</li>
+                    <li>We are not allowed to sing with our voices (only with our hearts!). However, recordings of a couple of songs will be played on the screen.</li>
                     <li>If you wish to use a Bible you will need to bring your own, as there won’t be any Bibles or hymn books for you to use in the church.</li>
-                    <li>We would encourage online giving.  However, where this is not an option cash will be collected in the boxes.  You can put your money in a box as you enter or leave the building, but the one way system should be observed.</li>
-                    <li>If possible, we would ask you to avoid using the toilets.  However, they will be open for people to use. Please use the spray disinfectant made available to sanitise the cistern handle and toilet area after use. Throwaway paper towels will be provided along with bins to dispense with them. Children should be accompanied by an adult to ensure procedures are followed.</li>
+                    <li>We would encourage online giving. However, where this is not an option cash will be collected in the boxes. You can put your money in a box as you enter or leave the building, but the one way system should be observed.</li>
+                    <li>If possible, we would ask you to avoid using the toilets. However, they will be open for people to use. Please use the spray disinfectant made available to sanitise the cistern handle and toilet area after use. Throwaway paper towels will be provided along with bins to dispense with them. Children should be accompanied by an adult to ensure procedures are followed.</li>
                     <li>Unfortunately we are not able to provide a crèche or Outback for the children at this point in time.</li>
                     <li>There will be no refreshments served after the meeting. Neither will we be observing the Lord’s Supper for the time being.</li>
                     <li>It is not necessary to wear a mask, but you can wear one if you wish to do so.</li>
@@ -66,15 +93,6 @@
                   </ul>
                   <p>
                     This may all sound a little overwhelming, even draconian, but we hope that such measures will put everyone at ease so that we can focus upon the Lord and His goodness to us.
-                  </p>
-                  <p>Please let Laurie Everest (<a href="mailto:laurie.everest@btinternet.com">laurie.everest@btinternet.com</a>, 01322 664165) or Peter Clarridge (<a href="mailto:pclarridge@gmail.com">pclarridge@gmail.com</a>, 01322 404835) know if you are intending to come on Sundays by 1:00 p.m. on Saturdays.
-                    Ideally this should be done by email.  This will help us to make sure that we can safely accommodate everyone in the building.
-                  </p>
-                  <p>
-                    When entering the church you are encouraged to voluntarily
-                    wear a face-covering to avoid the possible spread of Covid-19.
-                    However, this is not a legal requirement (as in the case of
-                    entering a shop) and thus we cannot insist that you do this.
                   </p>
                 </div>
               </div>
