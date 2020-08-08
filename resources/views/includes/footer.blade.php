@@ -1,10 +1,29 @@
 <div class="container">
   <div class="row">
+    <!-- Removing sermons as out of date during Covid19
     <div class="col-md-3 mt-2">
       @include('includes.sermon-display', ['sermon' => $morning])
     </div>
     <div class="col-md-3 mt-2">
       @include('includes.sermon-display', ['sermon' => $evening])
+    </div> -->
+    <div class="col-md-6 mt-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <h3 class="card-title">
+            Last week's service
+          </h3>
+          <div class="mb-3 embed-responsive embed-responsive-16by9">
+            <iframe id="last_week_youtube_video" class="embed-responsive-item" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+          </div>
+        </div>
+        <div class="card-footer text-muted">
+          <a class="card-link" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
+            See more services on our YouTube channel.
+          </a>
+        </div>
+      </div>
     </div>
 
     <div class="col-md-3 mt-2">
