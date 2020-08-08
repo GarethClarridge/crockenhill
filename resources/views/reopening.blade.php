@@ -94,6 +94,12 @@
                   <p>
                     This may all sound a little overwhelming, even draconian, but we hope that such measures will put everyone at ease so that we can focus upon the Lord and His goodness to us.
                   </p>
+                  <hr>
+                  <small>
+                    Before restarting services at the church we carried out a risk assessment,
+                    which we've kept up to date:
+                    <a href="/about-us/Covid19RiskAssessment06082020.pdf">Covid-19 Risk Assessment - 6th August 2020</a>.
+                  </small>
                 </div>
               </div>
             </article>
