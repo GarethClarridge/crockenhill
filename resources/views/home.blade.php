@@ -22,20 +22,28 @@
           <section class="col-md-10 col-lg-8 p-5">
             <div class="white-background">
               <p class="text-center">
-                Following updated government advice, we will be meeting at the
+                Following current government advice, we are meeting at the
                 church building to worship God together at 10:30am on Sundays.
               </p>
               <p class="text-center">
-                Not everyone will be able to join us, so we will also be live-streaming
+                Please let us know if you're intending to come via the details
+                in the link below. This helps us set the building up to maintain social distancing.
+              </p>
+              <p class="text-center">
+                Not everyone will be able to join us, so we'll continue live-streaming
                 the service here and <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">on our YouTube channel</a>.
               </p>
               <p class="text-center">
-                The service will feel quite different, so please click the link and
-                familiarise yourself with the information below.
+                You must now wear a face covering inside the church,
+                unless you meet a specific exception.
+              </p>
+              <p class="text-center">
+                The service will feel quite different. Please
+                familiarise yourself with the information in the link below.
               </p>
               <p class="mt-5">
                 <small>
-                  <a href="/reopening" class="btn btn-secondary" id="online-service-btn">What you need to know about reopening</a>
+                  <a href="/reopening" class="btn btn-secondary" id="online-service-btn">Attending in person</a>
                 </small>
               </p>
               <br>
@@ -47,10 +55,10 @@
                 Previous services are available <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">on our YouTube channel</a>.
               </p>
               <div class="mb-3 embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/8NcwwufhTFY" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/rRY7fr3Gm9c" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
               <div class="text-dark mb-3 text-center">
-                  <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=8NcwwufhTFY" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                  <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=rRY7fr3Gm9c" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
               </div>
               <br>
               <hr>
