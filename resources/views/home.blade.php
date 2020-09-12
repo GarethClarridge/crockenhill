@@ -57,9 +57,9 @@
             </p>
             <p class="text-center">
               Following
-              <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july">current government guidelines</a>,
-              we're meeting in person at the church.
-              For those that and able to attend in person we're continuing to stream our services on
+              <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july">current government guidelines</a>
+              we're able to meet in person at the church building.
+              For those that aren't able to attend in person we're streaming our services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">our YouTube channel</a>.
             </p>
           </div>
@@ -132,8 +132,13 @@
               <p class="text-center">
                 We want to continue to grow in our faith: becoming closer to God
                 as the Holy Spirit makes us more like Jesus.
-                What we can do to help each other grow in faith at the moment is limited,
-                but we can still read the Bible together and pray together.
+              </p>
+              <p class="text-center">
+                How we help each other at the moment is limited.
+                Hugs and handshakes are out; WhatsApp groups and Zoom calls are in.
+              </p>
+              <p class="text-center">
+                Thankfully technology means we can still read the Bible together and pray together.
               </p>
             </div>
           </div>
@@ -190,9 +195,9 @@
         <div class="col-md-10">
           <div class="white-background">
             <p class="text-center">
-              We're eager to tell people the amazing news of what Jesus has done for them,
+              We're eager to tell people about Jesus,
               even if we can't run our <a href="/whats-on">usual activities</a>.
-              Here's a video about why we believe Christianity is good news for you:
+              After all, Christianity is good news:
             </p>
           </div>
         </div>
@@ -215,7 +220,7 @@
           <div class="white-background mb-5">
             <p class="text-center">
               If you've got questions, do <a href="/contact">get in touch</a>.
-              We'd love to talk to you.
+              We'd love to listen.
             </p>
           </div>
         </div>
