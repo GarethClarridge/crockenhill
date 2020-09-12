@@ -24,7 +24,7 @@
               <div class="text-center">
                 <p class="h1 mb-3">Crockenhill Baptist Church exists to:</p>
                 <p class="h2">Worship God</p>
-                <p class="h2">Stengthen believers</p>
+                <p class="h2">Strengthen believers</p>
                 <p class="h2">Proclaim the good news about Jesus Christ to all.</p>
               </div>
             </div>
@@ -50,7 +50,7 @@
 
     <div class="container">
       <div class="row justify-content-md-center">
-        <div class="col-md-10">
+        <div class="col-md-8 col-lg-6">
           <div class="white-background mb-5">
             <p class="text-center">
               We meet to worship God together as a church every Sunday at 10:30am.
@@ -87,7 +87,7 @@
       </div>
 
       <div class="row justify-content-md-center">
-        <div class="col-md-10">
+        <div class="col-md-8 col-lg-6">
           <div class="white-background my-5">
             <p class="text-center">
               If you've attended a service before coronavirus it will feel quite different.
@@ -117,7 +117,7 @@
           <div class="row justify-content-md-center">
             <div class="col-md-12 p-5">
               <div class="text-white text-center">
-                <h1>Stengthening believers</h1>
+                <h1>Strengthening believers</h1>
               </div>
             </div>
           </div>
@@ -127,7 +127,7 @@
       <div class="container">
 
         <div class="row justify-content-md-center">
-          <div class="col-md-10">
+          <div class="col-md-8 col-lg-6">
             <div class="white-background">
               <p class="text-center">
                 We want to continue to grow in our faith: becoming closer to God
@@ -192,7 +192,7 @@
     <div class="container">
 
       <div class="row justify-content-md-center">
-        <div class="col-md-10">
+        <div class="col-md-8 col-lg-6">
           <div class="white-background">
             <p class="text-center">
               We're eager to tell people about Jesus,
@@ -216,7 +216,7 @@
       </div>
 
       <div class="row justify-content-md-center">
-        <div class="col-md-10">
+        <div class="col-md-8 col-lg-6">
           <div class="white-background mb-5">
             <p class="text-center">
               If you've got questions, do <a href="/contact">get in touch</a>.
