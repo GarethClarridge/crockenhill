@@ -16,68 +16,228 @@
       </div>
     </div>
 
-    <div class="pt-5" id="online">
-      <div class="container">
-        <div class="row justify-content-md-center">
-          <section class="col-md-10 col-lg-8 p-5">
-            <div class="white-background">
-              <p class="text-center">
-                Following current government advice, we are meeting at the
-                church building to worship God together at 10:30am on Sundays.
-              </p>
-              <p class="text-center">
-                Please let us know if you're intending to come via the details
-                in the link below. This helps us set the building up to maintain social distancing.
-              </p>
-              <p class="text-center">
-                Not everyone will be able to join us, so we'll continue live-streaming
-                the service here and <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">on our YouTube channel</a>.
-              </p>
-              <p class="text-center">
-                You must now wear a face covering inside the church,
-                unless you meet a specific exception.
-              </p>
-              <p class="text-center">
-                The service will feel quite different. Please
-                familiarise yourself with the information in the link below.
-              </p>
-              <p class="mt-5">
-                <small>
-                  <a href="/reopening" class="btn btn-secondary" id="online-service-btn">Attending in person</a>
-                </small>
-              </p>
-              <br>
-              <hr>
-              <br>
-              <p class="text-center">
-                You'll find the live streamed service here from 10:30am on Sunday morning.
-                If you miss it you'll be able to catch up later.
-                Previous services are available <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">on our YouTube channel</a>.
-              </p>
-              <div class="mb-3 embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/4rE8oYBxQL0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <div id="mission-statement">
+      <div class="white-background mt-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="col-md-12 p-3">
+              <div class="text-center">
+                <p class="h1 mb-3">Crockenhill Baptist Church exists to:</p>
+                <p class="h2">Worship God</p>
+                <p class="h2">Stengthen believers</p>
+                <p class="h2">Proclaim the good news about Jesus Christ to all.</p>
               </div>
-              <div class="text-dark mb-3 text-center">
-                  <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=4rE8oYBxQL0" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
-              </div>
-              <br>
-              <hr>
-              <br>
-              <p class="text-center">
-                <a href="/online">Catch up on previous online services</a>
-                and view our
-                <a href="/resources">resources for isolation</a>.
-              </p>
             </div>
-          </section>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="background-image" id="listening">
+    <div id="worship-god">
+      <div class="bg-pattern my-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="col-md-12 p-5">
+              <div class="text-white text-center">
+                <h1>Worshipping God</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="container">
+      <div class="row justify-content-md-center">
+        <div class="col-md-10">
+          <div class="white-background mb-5">
+            <p class="text-center">
+              We meet to worship God together as a church every Sunday at 10:30am.
+            </p>
+            <p class="text-center">
+              Following
+              <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july">current government guidelines</a>,
+              we're meeting in person at the church.
+              For those that and able to attend in person we're continuing to stream our services on
+              <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">our YouTube channel</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="row justify-content-center">
+        <div class="col-md-5">
+          <div class="card home-options m-2">
+            <div class="card-body">
+              <p class="card-text">Let us know if you're coming so we can reserve you a socially-distanced seat.</p>
+              <a href="mailto:pastor@crockenhill.org,laurie.everest@btinternet.com,pclarridge@gmail.com?subject=Attending church in person" class="btn btn-secondary"><i class="fas fa-user-check"></i>&nbsp Register to attend in person</a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-5">
+          <div class="card home-options m-2">
+            <div class="card-body">
+              <p class="card-text">If you can't join us in person you can follow along live online.</p>
+              <a class="btn btn-primary" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/"><i class="fab fa-youtube"></i>&nbsp Watch on our YouTube channel</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row justify-content-md-center">
+        <div class="col-md-10">
+          <div class="white-background my-5">
+            <p class="text-center">
+              If you've attended a service before coronavirus it will feel quite different.
+              <a href="/reopening">Find out what it'll be like before you come</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="row justify-content-md-center">
+        <row class="col-md-10">
+          <div class="card">
+            <div class="card-body">
+              <div class="embed-responsive embed-responsive-16by9">
+                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/qtyT7aCOzbc" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div id="strengthen-believers">
+      <div class="bg-pattern my-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="col-md-12 p-5">
+              <div class="text-white text-center">
+                <h1>Stengthening believers</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container">
+
+        <div class="row justify-content-md-center">
+          <div class="col-md-10">
+            <div class="white-background">
+              <p class="text-center">
+                We want to continue to grow in our faith: becoming closer to God
+                as the Holy Spirit makes us more like Jesus.
+                What we can do to help each other grow in faith at the moment is limited,
+                but we can still read the Bible together and pray together.
+              </p>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="row justify-content-center">
+          <div class="col-md-5">
+            <div class="card home-options m-2">
+              <div class="card-body">
+                <p class="card-text">
+                  We have a whole-church prayer meeting on Sundays at 6:30pm over Zoom.
+                  This is a good chance for us to all keep in touch when we can't see each other in person,
+                  and to pray about things affecting us, our church, our village and our world.
+                </p>
+                <a href="mailto:pastor@crockenhill.org?subject=Zoom prayer meetings" class="btn btn-secondary"><i class="fas fa-envelope-open-text"></i>&nbsp Ask Mark for an invite</a>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-5">
+            <div class="card home-options m-2">
+              <div class="card-body">
+                <p class="card-text">
+                  We're continuing our normal small group Bible studies,
+                  though they're happening via Zoom at the moment.
+                  There are groups on Tuesday, Wednesday and Thursday.
+                  We'd love you to join one: do get in touch.
+                </p>
+                <a class="btn btn-primary" href="/whats-on/bible-study">Find out more</a>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+
+
+    <div id="proclaim-christ">
+      <div class="bg-pattern my-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="col-md-12 p-5">
+              <div class="text-white text-center">
+                <h1>Proclaiming the good news of Jesus Christ to all</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+
+      <div class="row justify-content-md-center">
+        <div class="col-md-10">
+          <div class="white-background">
+            <p class="text-center">
+              We're eager to tell people the amazing news of what Jesus has done for them,
+              even if we can't run our <a href="/whats-on">usual activities</a>.
+              Here's a video about why we believe Christianity is good news for you:
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="row justify-content-md-center">
+        <div class="col-md-10">
+          <div class="card my-5">
+            <div class="card-body">
+              <div class="embed-responsive embed-responsive-16by9">
+                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/Ue3rHGDMzjU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row justify-content-md-center">
+        <div class="col-md-10">
+          <div class="white-background mb-5">
+            <p class="text-center">
+              If you've got questions, do <a href="/contact">get in touch</a>.
+              We'd love to talk to you.
+            </p>
+          </div>
+        </div>
+      </div>
+
+
+    </div>
+
+
+
+
+
+
+
+
+
+
+<!-- Archived -->
+    <!-- <div class="background-image" id="listening">
       <div class="container">
         <div class="row justify-content-md-center">
-          <section class="col-md-10 col-lg-8 text-white p-5">
+          <div class="col-md-10 col-lg-8 text-white p-5">
               <p class="text-center">
                 Our church exists to worship God,
                 strengthen believers in their faith,
@@ -89,14 +249,14 @@
               <p class="text-center">
                 <a href="/about-us" class="text-white px-2 py-1">Find out more about us</a>
               </p>
-          </section>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="container">
       <div class="row justify-content-md-center">
-        <section class="col-md-10 col-lg-8 p-5">
+        <div class="col-md-10 col-lg-8 p-5">
           <div class="white-background">
             <p class="text-center">
               During more normal times we run lots of activities to let as many
@@ -110,14 +270,14 @@
               <a href="/whats-on">Find out what's on</a>
             </p>
           </div>
-        </section>
+        </div>
       </div>
     </div>
 
     <div class="background-image" id="building">
       <div class="container">
         <div class="row justify-content-md-center">
-          <section class="col-md-10 col-lg-8 text-white p-5">
+          <div class="col-md-10 col-lg-8 text-white p-5">
               <p class="text-center">
                 We are located in the village of Crockenhill in Kent,
                 which is a mile or so south of Swanley
@@ -129,10 +289,10 @@
               <p class="text-center">
                 <a href="/find-us" class="text-white px-2 py-1">Get directions</a>
               </p>
-          </section>
+          </div>
         </div>
       </div>
-    </div>
+    </div> -->
   </main>
 
 @stop

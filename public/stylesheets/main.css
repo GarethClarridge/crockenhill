@@ -11130,8 +11130,8 @@ readers do not read off random characters that represent icons */
   .white-background a {
     font-style: italic; }
 
-section {
-  padding: 5% 0%; }
+.home-options {
+  font-size: 1.25em; }
 
 .background-image {
   background-attachment: fixed;
