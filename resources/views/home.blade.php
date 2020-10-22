@@ -167,7 +167,7 @@
                   There are groups on Tuesday, Wednesday and Thursday.
                   We'd love you to join one: do get in touch.
                 </p>
-                <a class="btn btn-primary" href="/whats-on/bible-study">Find out more</a>
+                <a class="btn btn-primary" href="/community/bible-study">Find out more</a>
               </div>
             </div>
           </div>
@@ -196,7 +196,7 @@
           <div class="white-background">
             <p class="text-center">
               We're eager to tell people about Jesus,
-              even if we can't run our <a href="/whats-on">usual activities</a>.
+              even if we can't run our <a href="/community">usual activities</a>.
               After all, Christianity is good news:
             </p>
           </div>
@@ -273,7 +273,7 @@
             </p>
             <br>
             <p class="text-center">
-              <a href="/whats-on">Find out what's on</a>
+              <a href="/community">Find out what's on</a>
             </p>
           </div>
         </div>

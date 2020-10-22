@@ -80,7 +80,7 @@
 
         @foreach ($links as $link)
 
-          @if (\Request::is('whats-on') || \Request::is('whats-on/*'))
+          @if (\Request::is('community') || \Request::is('community/*'))
             <aside class="card mt-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h4 class="card-text text-white">
@@ -98,7 +98,7 @@
               <div class="card-body">
                   {{$link->description}}
                   <div class="read-more">
-                    <a href="/whats-on/{{$link->slug}}">Read more ...</a>
+                    <a href="/community/{{$link->slug}}">Read more ...</a>
                   </div>
                 </div>
             </aside>
