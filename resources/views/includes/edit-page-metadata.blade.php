@@ -18,10 +18,10 @@
         <option value="about-us">About us</option>
       @endif
 
-      @if ($page->area == 'whats-on')
-        <option value="whats-on" selected>What's on</option>
+      @if ($page->area == 'community')
+        <option value="community" selected>Community</option>
       @else
-        <option value="whats-on">What's on</option>
+        <option value="community">Community</option>
       @endif
 
       @if ($page->area == 'find-us')

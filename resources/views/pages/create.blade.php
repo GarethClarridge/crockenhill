@@ -37,7 +37,7 @@
                 <label for="area">Website section</label>
                 <select class="form-control" name="area">
                   <option value="about-us">About us</option>
-                  <option value="whats-on">What's on</option>
+                  <option value="community">Community</option>
                   <option value="find-us">Find us</option>
                   <option value="contact-us">Contact us</option>
                   <option value="sermons">Sermons</option>
