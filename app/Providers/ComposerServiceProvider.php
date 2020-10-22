@@ -15,7 +15,7 @@ class ComposerServiceProvider extends ServiceProvider {
     {
       $pages = array(
 
-        'AboutUs' => array('route'=> 'about-us', 'name' => 'About Us'),
+        'AboutUs' => array('route'=> 'church', 'name' => 'Church'),
         'community' => array('route'=> 'community', 'name' => 'Community'),
         'FindUs' => array('route'=> 'find-us', 'name' => 'Find Us'),
         'ContactUs' => array('route' => 'contact-us', 'name' => 'Contact Us'),

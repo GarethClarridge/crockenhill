@@ -129,16 +129,16 @@ Route::group(['middleware' => ['web']], function() {
     // Permanent Redirects
 
     Route::get('aboutus', function(){
-        return Redirect::to('about-us', 301);
+        return Redirect::to('church', 301);
     });
     Route::get('abouts', function(){
-        return Redirect::to('about-us', 301);
+        return Redirect::to('church', 301);
     });
     Route::get('contactus', function(){
         return Redirect::to('contact-us', 301);
     });
     Route::get('links', function(){
-        return Redirect::to('about-us/links', 301);
+        return Redirect::to('church/links', 301);
     });
     Route::get('community', function(){
         return Redirect::to('community', 301);
@@ -147,16 +147,16 @@ Route::group(['middleware' => ['web']], function() {
         return Redirect::to('find-us', 301);
     });
     Route::get('aboutus/history', function(){
-        return Redirect::to('about-us/history', 301);
+        return Redirect::to('church/history', 301);
     });
     Route::get('aboutus/pastor', function(){
-        return Redirect::to('about-us/pastor', 301);
+        return Redirect::to('church/pastor', 301);
     });
     Route::get('aboutus/statementoffaith', function(){
-        return Redirect::to('about-us/statement-of-faith', 301);
+        return Redirect::to('church/statement-of-faith', 301);
     });
     Route::get('aboutus/whatwebelieve', function(){
-        return Redirect::to('about-us/what-we-believe', 301);
+        return Redirect::to('church/what-we-believe', 301);
     });
     Route::get('community/1150', function(){
         return Redirect::to('community/1150', 301);

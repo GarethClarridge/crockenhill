@@ -140,17 +140,26 @@ Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
 
 // Permanent Redirects
 
-Route::permanentRedirect('aboutus', 'about-us');
+Route::permanentRedirect('aboutus', 'church');
+Route::permanentRedirect('about-us', 'church');
 Route::permanentRedirect('contacttus', 'contact-us');
-Route::permanentRedirect('links', 'links');
+Route::permanentRedirect('links', 'church/links');
 Route::permanentRedirect('whatson', 'community');
 Route::permanentRedirect('whats-on', 'community');
 Route::permanentRedirect('where', 'find-us');
 
-Route::permanentRedirect('aboutus/history', 'about-us/history');
-Route::permanentRedirect('aboutus/pastor', 'about-us/pastor');
-Route::permanentRedirect('aboutus/statementoffaith', 'about-us/statement-of-faith');
-Route::permanentRedirect('aboutus/whatwebelieve', 'about-us/what-we-believe');
+Route::permanentRedirect('aboutus/history', 'church/history');
+Route::permanentRedirect('aboutus/pastor', 'church/pastor');
+Route::permanentRedirect('aboutus/statementoffaith', 'church/statement-of-faith');
+Route::permanentRedirect('aboutus/whatwebelieve', 'church/what-we-believe');
+
+Route::permanentRedirect('about-us/history', 'church/history');
+Route::permanentRedirect('about-us/pastor', 'church/pastor');
+Route::permanentRedirect('about-us/links', 'church/links');
+Route::permanentRedirect('about-us/statementoffaith', 'church/statement-of-faith');
+Route::permanentRedirect('about-us/whatwebelieve', 'church/what-we-believe');
+Route::permanentRedirect('about-us/privacy-policy', 'church/privacy-policy');
+Route::permanentRedirect('about-us/safeguarding-policy', 'church/safeguarding-policy');
 
 Route::permanentRedirect('whatson/1150', 'community/1150');
 Route::permanentRedirect('whatson/adventurers', 'community/adventurers');
