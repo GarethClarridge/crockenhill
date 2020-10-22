@@ -12,10 +12,10 @@
   <div class="form-group">
     <label for="area">Website section</label>
     <select class="form-control" name="area" value="{{$page->area}}">
-      @if ($page->area == 'about-us')
-        <option value="about-us" selected>About us</option>
+      @if ($page->area == 'church')
+        <option value="church" selected>About us</option>
       @else
-        <option value="about-us">About us</option>
+        <option value="church">About us</option>
       @endif
 
       @if ($page->area == 'community')

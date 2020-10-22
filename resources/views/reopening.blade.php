@@ -98,7 +98,7 @@
                   <small>
                     Before restarting services at the church we carried out a risk assessment,
                     which we've kept up to date:
-                    <a href="/about-us/Covid19RiskAssessment06082020.pdf">Covid-19 Risk Assessment - 6th August 2020</a>.
+                    <a href="/church/Covid19RiskAssessment06082020.pdf">Covid-19 Risk Assessment - 6th August 2020</a>.
                   </small>
                 </div>
               </div>

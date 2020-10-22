@@ -253,7 +253,7 @@
               </p>
               <br>
               <p class="text-center">
-                <a href="/about-us" class="text-white px-2 py-1">Find out more about us</a>
+                <a href="/church" class="text-white px-2 py-1">Find out more about us</a>
               </p>
           </div>
         </div>
