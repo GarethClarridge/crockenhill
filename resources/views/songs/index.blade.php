@@ -7,13 +7,13 @@
   <p>You last uploaded a service record on <strong>{{date("d F Y",strtotime($last_service_uploaded['date']))}}</strong>.</p>
   <div class="row">
     <div class="col-sm-6">
-     <a href="/members/songs/service-record" class="btn btn-primary btn-lg btn-block">
+     <a href="/church/members/songs/service-record" class="btn btn-primary btn-lg btn-block">
        <i class="fas fa-upload"></i> &nbsp
        Upload a new service record
      </a>
     </div>
     <div class="col-sm-6">
-     <a href="/members/songs/create" class="btn btn-primary btn-lg btn-block">
+     <a href="/church/members/songs/create" class="btn btn-primary btn-lg btn-block">
        <i class="fas fa-upload"></i> &nbsp
        Upload a new song
      </a>
@@ -98,7 +98,7 @@
               <div class="media-body">
             @endif
               <h3 class="mt-0 mb-3">
-                  <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}" class="song-title">{{$song->title}}</a>
+                  <a href="/church/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}" class="song-title">{{$song->title}}</a>
               </h3>
 
               @if ($song->author)

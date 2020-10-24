@@ -3,7 +3,7 @@
 @section('dynamic_content')
 
   @can ('edit-sermons')
-      <a href="/sermons/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new sermon</a>
+      <a href="/church/sermons/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new sermon</a>
   @endcan
 
   @foreach ($latest_sermons as $date => $sermons)
@@ -35,6 +35,6 @@
     </section>
   @endforeach
   <br>
-  <a href="/sermons/all" class="btn btn-primary btn-lg btn-block" role="button">Find older sermons</a>
+  <a href="/church/sermons/all" class="btn btn-primary btn-lg btn-block" role="button">Find older sermons</a>
 
 @stop

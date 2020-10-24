@@ -3,7 +3,7 @@
 @section('dynamic_content')
 
 @can ('edit-songs')
-  <a href="/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="btn btn-primary btn-lg btn-block">
+  <a href="/church/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="btn btn-primary btn-lg btn-block">
     Edit this song
   </a>
   <br>

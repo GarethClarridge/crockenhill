@@ -18,7 +18,7 @@
 @section('dynamic_content')
 
 <section>
-  <form action="/members/songs/service-record" method="post" class="form-horizontal">
+  <form action="/church/members/songs/service-record" method="post" class="form-horizontal">
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
     <div class="form-group">

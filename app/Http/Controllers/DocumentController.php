@@ -76,7 +76,7 @@ class DocumentController extends Controller {
 		$file->move($destinationPath, $filename);
 
 		// Return user to index
-		return redirect('/members/documents');
+		return redirect('/church/members/documents');
 	}
 
 

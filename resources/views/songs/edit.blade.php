@@ -2,7 +2,7 @@
 
 @section('dynamic_content')
 
-  <form method="POST" action="/members/songs/{{$song->id}}/{{$song->title}}/edit" accept-charset="UTF-8" enctype="multipart/form-data">
+  <form method="POST" action="/church/members/songs/{{$song->id}}/{{$song->title}}/edit" accept-charset="UTF-8" enctype="multipart/form-data">
     <div class="form-group">
       <input type="hidden" name="_token" value="{{ csrf_token() }}">
 

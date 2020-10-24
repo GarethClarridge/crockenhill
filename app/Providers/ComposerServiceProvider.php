@@ -69,17 +69,18 @@ class ComposerServiceProvider extends ServiceProvider {
 			}
 
 			//Songs
-			if (\Request::segment(2) == 'songs' && \Request::segment(4)){
+			if (\Request::segment(3) == 'songs' && \Request::segment(5)){
 
 				// Look up song in songs table of database
-		    $song =\Crockenhill\Song::where('id', $name)->first();
+				$songnumber = \Request::segment(4);
+		    $song =\Crockenhill\Song::where('id', $songnumber)->first();
 
 				//Heading picture
-				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
+				$headingpicture = '/images/headings/large/'.$name.'.jpg';
 
 		    // Find relevant links
-		    $links = \Crockenhill\Page::where('area', $area)
-		      ->where('slug', '!=', $area)
+		    $links = \Crockenhill\Page::where('area', $slug)
+		      ->where('slug', '!=', $slug)
 		      ->where('slug', '!=', 'homepage')
 		      ->orderBy(\DB::raw('RAND()'))
 		      ->take(5)
