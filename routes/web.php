@@ -51,7 +51,7 @@ Route::get('/resources', array(
 
 // Sermon Routes
 
-Route::group(array('prefix' => 'sermons'), function()
+Route::group(array('prefix' => 'church/sermons'), function()
 {
     Route::get('/', array(
         'as' => 'sermonIndex',
@@ -106,7 +106,6 @@ Route::group(array('prefix' => 'sermons'), function()
 Route::resource('community', 'MeetingController');
 
 //Members
-
 Auth::routes();
 
 Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
@@ -142,11 +141,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
 
 Route::permanentRedirect('aboutus', 'church');
 Route::permanentRedirect('about-us', 'church');
-Route::permanentRedirect('contacttus', 'contact-us');
+Route::permanentRedirect('contacttus', '/');
 Route::permanentRedirect('links', 'church/links');
 Route::permanentRedirect('whatson', 'community');
 Route::permanentRedirect('whats-on', 'community');
-Route::permanentRedirect('where', 'find-us');
+Route::permanentRedirect('where', 'church/find-us');
 
 Route::permanentRedirect('aboutus/history', 'church/history');
 Route::permanentRedirect('aboutus/pastor', 'church/pastor');
