@@ -287,7 +287,7 @@ class ComposerServiceProvider extends ServiceProvider {
 
       $view->with([
 				'name'						=> (isset($name) ? $name : ''),
-				'slug'						=> (isset($slug) ? $slug : ''),
+				'slug'						=> (isset($slug) ? $slug : $area),
 				'area'						=> $area,
 				'description'   	=> $description,
 				'heading'       	=> $heading,
@@ -330,7 +330,7 @@ class ComposerServiceProvider extends ServiceProvider {
 
 			$view->with([
 				'name'						=> (isset($name) ? $name : ''),
-				'slug'						=> (isset($slug) ? $slug : ''),
+				'slug'						=> (isset($slug) ? $slug : $area),
 				'area'						=> $area,
 				'description'   	=> $description,
 				'heading'       	=> $heading,
