@@ -15,13 +15,11 @@ class ComposerServiceProvider extends ServiceProvider {
     {
       $pages = array(
 
-        'AboutUs' => array('route'=> 'church', 'name' => 'Church'),
+        'church' => array('route'=> 'church', 'name' => 'Church'),
         'community' => array('route'=> 'community', 'name' => 'Community'),
         'FindUs' => array('route'=> 'find-us', 'name' => 'Find Us'),
-        'ContactUs' => array('route' => 'contact-us', 'name' => 'Contact Us'),
         'Sermons' =>array('route'=> 'sermons', 'name' => 'Sermons'),
         'Members' =>array('route'=> 'members', 'name' => 'Members'),
-
       );
 
       $view->with('pages', $pages);
