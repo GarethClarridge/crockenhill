@@ -17,7 +17,6 @@ class ComposerServiceProvider extends ServiceProvider {
 
         'church' => array('route'=> 'church', 'name' => 'Church'),
         'community' => array('route'=> 'community', 'name' => 'Community'),
-        'FindUs' => array('route'=> 'find-us', 'name' => 'Find Us'),
         'Sermons' =>array('route'=> 'sermons', 'name' => 'Sermons'),
         'Members' =>array('route'=> 'members', 'name' => 'Members'),
       );
