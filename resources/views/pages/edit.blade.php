@@ -7,7 +7,7 @@
       <article class="card mt-3">
         <div class="card-body">
           <h2 class="card-title">Edit '{{$page->heading}}' page</h2>
-          <form class="" action="/members/pages/{{$page->slug}}" method="post">
+          <form class="" action="/church/members/pages/{{$page->slug}}" method="post">
             <input type="hidden" name="_method" value="PUT">
             <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
@@ -50,7 +50,7 @@
               <div class="form-actions my-3">
                 <input class="btn btn-success btn-lg btn-block" type="submit" value="Save">
                 <div class="text-center">
-                  <a href="/members/pages/" class="btn btn-outline btn-large">Cancel</a>
+                  <a href="/church/members/pages/" class="btn btn-outline btn-large">Cancel</a>
                 </div>
               </div>
 

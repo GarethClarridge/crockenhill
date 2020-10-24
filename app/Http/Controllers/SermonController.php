@@ -169,11 +169,11 @@ class SermonController extends Controller {
 		if (isset($sermon->series) && $sermon->series !== '') {
 			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
 													<li><a href="series/'.$sermon->series.'">'.$sermon->series.'</a></li>
-													<li><a href="/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
+													<li><a href="/church/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
 													<li class="active">Edit</li>';
 		} else {
 			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
-													<li><a href="/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
+													<li><a href="/church/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
 													<li class="active">Edit</li>';
 		}
 

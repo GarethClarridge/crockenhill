@@ -178,7 +178,7 @@ class SongController extends Controller {
     }
 
     // Send user back to index
-    return redirect('/members/songs/');
+    return redirect('/church/members/songs/');
   }
 
   public function create()
@@ -222,7 +222,7 @@ class SongController extends Controller {
     $song->save();
 
     // Send user back to index
-    return redirect('/members/songs')->with('message', '"'.\Request::input('title').'" successfully uploaded!');
+    return redirect('/church/members/songs')->with('message', '"'.\Request::input('title').'" successfully uploaded!');
   }
 
   public function editSong($id, $title)
@@ -261,7 +261,7 @@ class SongController extends Controller {
     $song->save();
 
     // Send user back to index
-    return redirect('/members/songs')->with('message', '"'.$song->title.'" successfully updated!');
+    return redirect('/church/members/songs')->with('message', '"'.$song->title.'" successfully updated!');
 	}
 
 }

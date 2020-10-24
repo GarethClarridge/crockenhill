@@ -73,7 +73,7 @@ class PageController extends Controller {
         ->save('images/headings/small/'.$page->slug.'.jpg');
     };
 
-    return redirect('/members/pages')->with('message', $page->heading.' successfully created!');
+    return redirect('/church/members/pages')->with('message', $page->heading.' successfully created!');
   }
 
   public function edit($slug)
@@ -117,7 +117,7 @@ class PageController extends Controller {
 
     return ($backUrl !== url()->previous())
 			? redirect($backUrl)->with('message', $page->heading.' successfully updated!')
-			: redirect('/members/pages')->with('message', $page->heading.' successfully updated!');
+			: redirect('/church/members/pages')->with('message', $page->heading.' successfully updated!');
   }
 
   public function destroy($slug)
@@ -129,6 +129,6 @@ class PageController extends Controller {
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->delete();
 
-    return redirect('/members/pages')->with('message', $page->heading.' successfully deleted!');
+    return redirect('/church/members/pages')->with('message', $page->heading.' successfully deleted!');
   }
 }

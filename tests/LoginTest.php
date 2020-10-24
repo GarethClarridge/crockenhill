@@ -20,7 +20,7 @@ class LoginTest extends TestCase
 
   public function testUserLoginForm()
   {
-  $this->visit('/members/login')
+  $this->visit('/church/members/login')
        ->type('email@crockenhill.org', 'email')
        ->type('password', 'password');
   }   

@@ -8,7 +8,7 @@
       <article class="card">
         <div class="card-body">
           <h1 class="card-title">Create a new page</h1>
-          <form class="mb-3" action="/members/pages" method="post">
+          <form class="mb-3" action="/church/members/pages" method="post">
             <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
             @if (count($errors) > 0)
@@ -67,7 +67,7 @@
             <div class="form-actions">
               <input class="btn btn-success btn-large btn-block" type="submit" value="Save">
               <div class="text-center">
-                <a href="/members/pages/" class="btn btn-large text-center">Cancel</a>
+                <a href="/church/members/pages/" class="btn btn-large text-center">Cancel</a>
               </div>
             </div>
           </form>

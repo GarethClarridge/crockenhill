@@ -8,7 +8,7 @@
     </div>
   @endif
 
-  <form method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" accept-charset="UTF-8">
+  <form method="POST" action="/church/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" accept-charset="UTF-8">
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
     <div class="form-group">
