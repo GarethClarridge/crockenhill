@@ -99,10 +99,10 @@ class ComposerServiceProvider extends ServiceProvider {
 			}
 
 			//Sermons
-			elseif (\Request::segment(1) == 'sermons' && \Request::segment(4)){
-				$sermon_slug = \Request::segment(4);
-				$month = \Request::segment(3);
-				$year = \Request::segment(2);
+			elseif (\Request::segment(2) == 'sermons' && \Request::segment(5)){
+				$sermon_slug = \Request::segment(5);
+				$month = \Request::segment(4);
+				$year = \Request::segment(3);
 
 				$sermon = \Crockenhill\Sermon::where('slug', $sermon_slug)
 		                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
@@ -114,8 +114,8 @@ class ComposerServiceProvider extends ServiceProvider {
 				$headingpicture = '/images/headings/large/'.$sermon_slug.'.jpg';
 
 				// Find relevant links
-				$links = \Crockenhill\Page::where('area', $area)
-					->where('slug', '!=', $area)
+				$links = \Crockenhill\Page::where('area', $slug)
+					->where('slug', '!=', $slug)
 					->where('slug', '!=', 'homepage')
 					->orderBy(\DB::raw('RAND()'))
 					->take(5)
@@ -162,14 +162,33 @@ class ComposerServiceProvider extends ServiceProvider {
 				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
 
 				//Links
+				if (\Request::segment(2) == 'sermons') {
+					$links = \Crockenhill\Page::where('area', 'sermons')
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('slug', '!=', 'privacy-policy')
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else if (\Request::segment(2) == 'members') {
+					$links = \Crockenhill\Page::where('area', 'sermons')
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('slug', '!=', 'privacy-policy')
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else {
 				$links = \Crockenhill\Page::where('area', $area)
 					->where('slug', '!=', $slug)
 					->where('slug', '!=', $area)
 					->where('slug', '!=', 'privacy-policy')
 					->where('admin', '!=', 'yes')
-					->orderBy(\DB::raw('RAND()'))
-					->take(5)
+					->orderBy('slug', 'asc')
 					->get();
+				}
 			}
 
 			//Level 2
@@ -194,14 +213,49 @@ class ComposerServiceProvider extends ServiceProvider {
 				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
 
 				//Links
-				$links = \Crockenhill\Page::where('area', $area)
-					->where('slug', '!=', $slug)
-					->where('slug', '!=', $area)
-					->where('slug', '!=', 'privacy-policy')
-					->where('admin', '!=', 'yes')
-					->orderBy(\DB::raw('RAND()'))
-					->take(5)
-					->get();
+				if (\Request::segment(2) == 'sermons') {
+					$links = \Crockenhill\Page::where('area', 'sermons')
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('slug', '!=', 'privacy-policy')
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else if (\Request::segment(2) == 'members') {
+					$links = \Crockenhill\Page::where('area', 'sermons')
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('slug', '!=', 'privacy-policy')
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else if (\Request::segment(1) == 'community'){
+					$meeting = \Crockenhill\Meeting::where('slug', $slug)->first();
+
+					$related_meetings = \Crockenhill\Meeting::where('type', $meeting->type)
+					->pluck('slug');
+
+					$links = \Crockenhill\Page::where('area', $area)
+						->whereIn('slug', $related_meetings)
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('slug', '!=', 'privacy-policy')
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else {
+					$links = \Crockenhill\Page::where('area', $area)
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('slug', '!=', 'privacy-policy')
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+
 
 			//Level 1
 			} else {

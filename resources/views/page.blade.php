@@ -102,6 +102,28 @@
                   </div>
                 </div>
             </aside>
+          @elseif (\Request::is('church') || \Request::is('church/*'))
+            <aside class="card mt-3">
+              <div class="card-img-caption d-flex align-items-center">
+                <h4 class="card-text text-white">
+                  <div class="p-1">
+                    {{$link->heading}}
+                  </div>
+                </h4>
+                @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
+                @else
+                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+                @endif
+              </div>
+
+              <div class="card-body">
+                {{$link->description}}
+                <div class="read-more">
+                  <a href="/church/{{$link->area}}/{{$link->slug}}">Read more ...</a>
+                </div>
+              </div>
+            </aside>
           @else
             <aside class="card mt-3">
               <div class="card-img-caption d-flex align-items-center">
