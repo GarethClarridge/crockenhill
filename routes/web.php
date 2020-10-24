@@ -108,7 +108,7 @@ Route::resource('community', 'MeetingController');
 //Members
 Auth::routes();
 
-Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
+Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function()
 {
     Route::get('', [
         'uses' => 'MemberController@home'

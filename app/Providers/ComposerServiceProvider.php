@@ -17,7 +17,6 @@ class ComposerServiceProvider extends ServiceProvider {
 
         'church' => array('route'=> 'church', 'name' => 'Church'),
         'community' => array('route'=> 'community', 'name' => 'Community'),
-        'Members' =>array('route'=> 'members', 'name' => 'Members'),
       );
 
       $view->with('pages', $pages);
