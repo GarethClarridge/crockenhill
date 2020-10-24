@@ -9,6 +9,11 @@ class PageController extends Controller {
 		return view('page');
 	}
 
+	public function showTopLevelPage()
+	{
+		return view('top-level-page');
+	}
+
 	public function index()
   {
     if (\Gate::denies('edit-pages')) {
