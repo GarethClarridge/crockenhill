@@ -101,9 +101,9 @@
         <row class="col-md-10">
           <div class="card">
             <div class="card-body">
-              <div class="embed-responsive embed-responsive-16by9">
+              <!-- <div class="embed-responsive embed-responsive-16by9">
                 <iframe class="embed-responsive-item" id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-              </div>
+              </div> -->
             </div>
           </div>
         </div>
@@ -207,10 +207,9 @@
         <div class="col-md-10">
           <div class="card my-5">
             <div class="card-body">
-              <div class="embed-responsive embed-responsive-16by9">
+              <!-- <div class="embed-responsive embed-responsive-16by9">
                 <iframe src="https://www.youtube.com/embed/Ue3rHGDMzjU" class="embed-responsive-item" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-              </div>
+              </div> -->
             </div>
           </div>
         </div>
