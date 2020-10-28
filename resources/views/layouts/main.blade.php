@@ -53,7 +53,7 @@
 
     @yield('content')
 
-    <footer class="navbar navbar-fixed-bottom bg-pattern">
+    <footer class="bg-pattern p-4">
         @include('includes.footer')
     </footer>
 </body>

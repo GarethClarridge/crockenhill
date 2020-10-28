@@ -11220,7 +11220,7 @@ audio {
   .sermon-headings > ol > li, .sermon-headings > ul > li {
     padding-top: 1.5rem; }
 
-.flexible-map-container {
+article .flexible-map-container {
   position: relative;
   margin-left: -1.25rem;
   margin-right: -1.25rem;
@@ -11230,14 +11230,34 @@ audio {
   min-height: 50vh;
   max-height: 80vh; }
 
-.flexible-map-container iframe,
-.flexible-map-container object,
-.flexible-map-container embed {
+article .flexible-map-container iframe,
+article .flexible-map-container object,
+article .flexible-map-container embed {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%; }
+
+footer .flexible-map-container {
+  position: relative;
+  margin-left: -1.25rem;
+  margin-right: -1.25rem;
+  margin-bottom: 30px;
+  padding: 30px;
+  overflow: hidden;
+  min-height: 25vh;
+  max-height: 80vh;
+  margin-bottom: 0; }
+
+footer .flexible-map-container iframe,
+footer .flexible-map-container object,
+footer .flexible-map-container embed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 25vh; }
 
 .cbc-card-img-top {
   object-fit: cover;
@@ -11465,6 +11485,9 @@ footer .list-group-item {
 .bg-pattern {
   background-image: url("/images/pattern-wide.png");
   background-size: cover; }
+
+.full-width-card-deck {
+  width: 100%; }
 
 .meeting-details {
   margin-left: -1.25rem;
