@@ -36,12 +36,9 @@
               <div class="form-group">
                 <label for="area">Website section</label>
                 <select class="form-control" name="area">
-                  <option value="church">About us</option>
+                  <option value="christ">Christ</option>
+                  <option value="church">Church</option>
                   <option value="community">Community</option>
-                  <option value="find-us">Find us</option>
-                  <option value="contact-us">Contact us</option>
-                  <option value="sermons">Sermons</option>
-                  <option value="members">Members</option>
                 </select>
               </div>
             </div>

@@ -11096,26 +11096,26 @@ readers do not read off random characters that represent icons */
   position: static;
   width: auto; }
 
-.home-head {
+.full-width-head {
   background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(../images/homepage/CollageGrey.jpg);
   background-size: cover;
   min-height: 33vh; }
-  .home-head .container {
+  .full-width-head .container {
     padding-top: 100px;
     padding-bottom: 50px; }
-    .home-head .container h1 {
+    .full-width-head .container h1 {
       font-size: 3rem;
       font-weight: 800;
       padding-bottom: 50px;
       width: 100%; }
-      .home-head .container h1 div {
+      .full-width-head .container h1 div {
         border: 5px;
         max-width: 80%;
         border-style: solid;
         display: inline-block; }
-  .home-head p {
+  .full-width-head p {
     font-style: italic; }
-    .home-head p span {
+    .full-width-head p span {
       background-color: #08a386;
       line-height: 3em;
       box-decoration-break: clone;

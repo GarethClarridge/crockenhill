@@ -46,7 +46,7 @@ class ComposerServiceProvider extends ServiceProvider {
 			$view->with('photos', $photos);
 		});
 
-    \View::composer('page', function($view)
+    \View::composer('layouts/page', function($view)
     {
 			//User
 			$user = \Auth::user();
@@ -305,7 +305,7 @@ class ComposerServiceProvider extends ServiceProvider {
 
 
 
-		\View::composer('top-level-page', function($view)
+		\View::composer('layouts/article-without-asides', function($view)
 		{
 			//User
 			$user = \Auth::user();

@@ -10,7 +10,7 @@
 
 @section('content')
   <main id="online-page" class="mb-3">
-    <div class="online-head text-white">
+    <div class="article-without-asides-head text-white">
       <div class="container mt-3">
 
         <div class="row justify-content-md-center">

@@ -15,37 +15,23 @@
 Route::get('/christmas', array(
   'as' => 'christmas', function()
   {
-    return view('christmas');
+    return view('full-width-pages/christmas');
   })
 );
 Route::get('/easter', array(
   'as' => 'easter', function()
   {
-    return view('easter');
+    return view('full-width-pages/easter');
   })
 );
-
 
 //Covid special pages
-Route::get('/reopening', array(
-  'as' => 'reopening', function()
-  {
-    return view('reopening');
-  })
-);
 Route::get('/online', array(
   'as' => 'online', function()
   {
     return view('online');
   })
 );
-Route::get('/resources', array(
-  'as' => 'resources', function()
-  {
-    return view('resources');
-  })
-);
-
 
 // Sermon routes
 Route::group(array('prefix' => 'church/sermons'), function()
@@ -174,14 +160,18 @@ Route::permanentRedirect('whats-on/sunday', 'community/sunday-services');
 // - Shortened URLs for advertising
 Route::permanentRedirect('buzz-club', 'community/buzz-club');
 Route::permanentRedirect('messy-church', 'community/messy-church');
+Route::permanentRedirect('reopening', 'attending-in-person');
+
+// Full width pages
+// Route::get('/church/', array('uses' => 'PageController@showFullWidthPage'));
 
 // General Routes
-Route::get('/{area}/', array('uses' => 'PageController@showTopLevelPage'));
+Route::get('/{area}/', array('uses' => 'PageController@showArticleWithoutAsides'));
 Route::get('/{area}/{slug}', array('uses' => 'PageController@showPage'));
 
 Route::get('/', ['as' => 'Home', function()
 {
-    return view('home');
+    return view('full-width-pages/home');
 }]);
 
 Route::get('500', function()

@@ -6,12 +6,12 @@ class PageController extends Controller {
 
 	public function showPage()
 	{
-		return view('page');
+		return view('layouts/page');
 	}
 
-	public function showTopLevelPage()
+	public function showArticleWithoutAsides()
 	{
-		return view('top-level-page');
+		return view('layouts/article-without-asides');
 	}
 
 	public function index()
