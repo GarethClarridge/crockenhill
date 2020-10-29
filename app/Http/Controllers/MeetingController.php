@@ -9,7 +9,7 @@ class MeetingController extends Controller {
 	 */
 	public function index()
 {
-		return view('top-level-page');
+		return view('full-width-pages/community');
 	}
 
 

@@ -12,40 +12,22 @@
   <div class="form-group">
     <label for="area">Website section</label>
     <select class="form-control" name="area" value="{{$page->area}}">
-      @if ($page->area == 'church')
-        <option value="church" selected>About us</option>
+      @if ($page->area == 'christ')
+        <option value="christ" selected>Christ</option>
       @else
-        <option value="church">About us</option>
+        <option value="christ">Christ</option>
+      @endif
+
+      @if ($page->area == 'church')
+        <option value="church" selected>Church</option>
+      @else
+        <option value="church">Church</option>
       @endif
 
       @if ($page->area == 'community')
         <option value="community" selected>Community</option>
       @else
         <option value="community">Community</option>
-      @endif
-
-      @if ($page->area == 'find-us')
-        <option value="find-us" selected>Find us</option>
-      @else
-        <option value="find-us">Find us</option>
-      @endif
-
-      @if ($page->area == 'contact-us')
-        <option value="contact-us" selected>Contact us</option>
-      @else
-        <option value="contact-us">Contact us</option>
-      @endif
-
-      @if ($page->area == 'sermons')
-        <option value="sermons" selected>Sermons</option>
-      @else
-        <option value="sermons">Sermons</option>
-      @endif
-
-      @if ($page->area == 'members')
-        <option value="members" selected>Members</option>
-      @else
-        <option value="members">Members</option>
       @endif
     </select>
   </div>
