@@ -19,7 +19,7 @@
                 <h1 class="p-5">
                   <span class="bg-pattern p-4">
                     Community
-                  </span>
+                  </div>
                 </h1>
               </div>
             </div>
@@ -28,26 +28,31 @@
       </div>
     </div>
 
-    <div id="mission-statement">
+    <div>
       <div class="white-background">
         <div class="container">
           <div class="row justify-content-md-center">
-            <div class="col-md-9 col-lg-6">
+            <div class="col-md-10 col-lg-8">
               <div class="text-center">
                 <p>
                   We're a local church - in Crockenhill, for the people of Crockenhill.
                 </p>
                 <p>
                   We want to serve our community, and we believe the best way
-                  we can do that is to make the good news about Jesus Christ
-                  known to everyone in Crockenhill and the surrounding area.
+                  we can do that is by making
+                  <a href="/christ">the good news about Jesus Christ</a> known
+                  to everyone in Crockenhill and the surrounding area.
                 </p>
                 <p>
-                  We want our activities to be open and welcoming to everyone.
-                  Whether you're a committed Christian or just have a vague
-                  interest there's something for you. Even if you just want to
-                  meet local people to chat to we'd love to have you.
+                  Our activities are open and welcoming to everyone: from the
+                  committed Christian to the person who just wants a cup of
+                  coffee and a chat with local people.
                 </p>
+                <div class="my-5">
+                  <a class="btn btn-lg btn-primary" href="#meet-people" role="button">I want to meet local people</a>
+                  <a class="btn btn-lg btn-primary" href="#children" role="button">I've got children</a>
+                  <a class="btn btn-lg btn-primary" href="#jesus" role="button">I want to find out more about Jesus</a>
+                </div>
               </div>
             </div>
           </div>
@@ -55,13 +60,15 @@
       </div>
     </div>
 
-    <div id="worship-god">
+    <div id="meet-people">
       <div class="bg-pattern my-5">
         <div class="container">
           <div class="row justify-content-md-center">
-            <div class="col-md-12 p-5">
+            <div class="p-5">
               <div class="text-white text-center">
-                <h1>Worshipping God</h1>
+                <h2 class="h1">
+                  I want to meet local people
+                </h2>
               </div>
             </div>
           </div>
@@ -72,254 +79,397 @@
 
     <div class="container">
       <div class="row justify-content-md-center">
-        <div class="col-md-8 col-lg-6">
+        <div class="col-md-12">
           <div class="white-background mb-5">
-            <p class="text-center">
-              We meet to worship God together as a church every Sunday at 10:30am.
-            </p>
-            <p class="text-center">
-              Following
-              <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july">current government guidelines</a>
-              we're able to meet in person at the church building.
-              For those that aren't able to attend in person we're streaming our services on
-              <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">our YouTube channel</a>.
-            </p>
-          </div>
-        </div>
-      </div>
 
+            <div class="row justify-content-center my-5">
+              <div class="card-deck">
 
-      <div class="row justify-content-center">
-        <div class="col-md-5">
-          <div class="card home-options m-2">
-            <div class="card-body">
-              <p class="card-text">Let us know if you're coming so we can reserve you a socially-distanced seat.</p>
-              <a href="mailto:pastor@crockenhill.org,laurie.everest@btinternet.com,pclarridge@gmail.com?subject=Attending church in person" class="btn btn-secondary"><i class="fas fa-user-check"></i>&nbsp Register to attend in person</a>
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Coffee Cup
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/coffee-cup.jpg">
+                  </div>
+                  <div class="card-body">
+                    If you're free on Thursday mornings, come along to the church
+                    for a cup of coffee and a slice of cake.
+                    <div class="alert alert-danger mt-3">
+                      Coffee Cup isn't meeting at the moment due to coronavirus.
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <a href="coffee-cup">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Baby Talk
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/baby-talk.jpg">
+                  </div>
+                  <div class="card-body">
+                    If you've got a pre-school age child (or can borrow one!)
+                    join us on Wednesdays for Baby Talk.
+                    <div class="alert alert-danger mt-3">
+                      Baby Talk isn't meeting at the moment due to coronavirus.
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <a href="baby-talk">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Sunday mornings
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/sunday-services.jpg">
+                  </div>
+                  <div class="card-body">
+                    Of course, you could always come along to our Sunday service.
+                    We'd love to get to know you.
+                  </div>
+                  <div class="card-footer">
+                    <a href="sunday-services">Find out more ...</a>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        <div class="col-md-5">
-          <div class="card home-options m-2">
-            <div class="card-body">
-              <p class="card-text">If you can't join us in person you can follow along live online.</p>
-              <a class="btn btn-primary" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/"><i class="fab fa-youtube"></i>&nbsp Watch on our YouTube channel</a>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <div class="row justify-content-md-center">
-        <div class="col-md-8 col-lg-6">
-          <div class="white-background my-5">
-            <p class="text-center">
-              If you've attended a service before coronavirus it will feel quite different.
-              <a href="/reopening">Find out what it'll be like before you come</a>.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="row justify-content-md-center">
-        <row class="col-md-10">
-          <div class="card">
-            <div class="card-body">
-              <!-- <div class="embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-              </div> -->
-            </div>
           </div>
         </div>
       </div>
     </div>
 
 
-    <div id="strengthen-believers">
+
+
+    <div id="children">
       <div class="bg-pattern my-5">
         <div class="container">
           <div class="row justify-content-md-center">
-            <div class="col-md-12 p-5">
+            <div class="p-5">
               <div class="text-white text-center">
-                <h1>Strengthening believers</h1>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="container">
-
-        <div class="row justify-content-md-center">
-          <div class="col-md-8 col-lg-6">
-            <div class="white-background">
-              <p class="text-center">
-                We want to continue to grow in our faith: becoming closer to God
-                as the Holy Spirit makes us more like Jesus.
-              </p>
-              <p class="text-center">
-                How we help each other at the moment is limited.
-                Hugs and handshakes are out; WhatsApp groups and Zoom calls are in.
-              </p>
-              <p class="text-center">
-                Thankfully technology means we can still read the Bible together and pray together.
-              </p>
-            </div>
-          </div>
-        </div>
-
-
-        <div class="row justify-content-center">
-          <div class="col-md-5">
-            <div class="card home-options m-2">
-              <div class="card-body">
-                <p class="card-text">
-                  We have a whole-church prayer meeting on Sundays at 6:30pm over Zoom.
-                  This is a good chance for us to all keep in touch when we can't see each other in person,
-                  and to pray about things affecting us, our church, our village and our world.
-                </p>
-                <a href="mailto:pastor@crockenhill.org?subject=Zoom prayer meetings" class="btn btn-secondary"><i class="fas fa-envelope-open-text"></i>&nbsp Ask Mark for an invite</a>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-5">
-            <div class="card home-options m-2">
-              <div class="card-body">
-                <p class="card-text">
-                  We're continuing our normal small group Bible studies,
-                  though they're happening via Zoom at the moment.
-                  There are groups on Tuesday, Wednesday and Thursday.
-                  We'd love you to join one: do get in touch.
-                </p>
-                <a class="btn btn-primary" href="/community/bible-study">Find out more</a>
-              </div>
-            </div>
-          </div>
-        </div>
-    </div>
-
-
-    <div id="proclaim-christ">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="col-md-12 p-5">
-              <div class="text-white text-center">
-                <h1>Proclaiming the good news of Jesus Christ to all</h1>
+                <h2 class="h1">
+                  I've got children
+                </h2>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+
 
     <div class="container">
-
       <div class="row justify-content-md-center">
-        <div class="col-md-8 col-lg-6">
-          <div class="white-background">
-            <p class="text-center">
-              We're eager to tell people about Jesus,
-              even if we can't run our <a href="/community">usual activities</a>.
-              After all, Christianity is good news:
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="row justify-content-md-center">
-        <div class="col-md-10">
-          <div class="card my-5">
-            <div class="card-body">
-              <!-- <div class="embed-responsive embed-responsive-16by9">
-                <iframe src="https://www.youtube.com/embed/Ue3rHGDMzjU" class="embed-responsive-item" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-              </div> -->
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row justify-content-md-center">
-        <div class="col-md-8 col-lg-6">
+        <div class="col-md-12">
           <div class="white-background mb-5">
-            <p class="text-center">
-              If you've got questions, do <a href="/contact">get in touch</a>.
-              We'd love to listen.
-            </p>
+
+            <div class="row justify-content-center my-5">
+              <div class="card-deck">
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Baby Talk
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/baby-talk.jpg">
+                  </div>
+                  <div class="card-body">
+                    If you've got a pre-school age child (or can borrow one!)
+                    join us on Wednesdays for Baby Talk.
+                    <div class="alert alert-danger mt-3">
+                      Baby Talk isn't meeting at the moment due to coronavirus.
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <a href="baby-talk">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Adventurers
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/buzz-club.jpg">
+                  </div>
+                  <div class="card-body">
+                    A club on Wednesday evenings for children aged 6 to 9.
+                    <div class="alert alert-danger mt-3">
+                      Adventurers isn't meeting at the moment due to coronavirus.
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <a href="adventurers">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        11:50
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/1150.jpg">
+                  </div>
+                  <div class="card-body">
+                    A club on Friday evenings for children aged 10 to 12.
+                    <div class="alert alert-danger mt-3">
+                      11:50 isn't meeting at the moment due to coronavirus.
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <a href="1150">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Messy Church
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/messy-church.jpg">
+                  </div>
+                  <div class="card-body">
+                    Church for all the family - every other month on Sunday afternoons.
+                    <div class="alert alert-danger mt-3">
+                      Messy Church isn't meeting at the moment due to coronavirus.
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <a href="messy-church">Find out more ...</a>
+                  </div>
+                </div>
+
+                <!-- <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Buzz Club
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/buzz-club.jpg">
+                  </div>
+                  <div class="card-body">
+                    A holiday club for primary school age children.
+                  </div>
+                  <div class="card-footer">
+                    <a href="buzz-club">Find out more ...</a>
+                  </div>
+                </div> -->
+
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
-
-
     </div>
 
-
-
-
-
-
-
-
-
-
-<!-- Archived -->
-    <!-- <div class="background-image" id="listening">
-      <div class="container">
-        <div class="row justify-content-md-center">
-          <div class="col-md-10 col-lg-8 text-white p-5">
-              <p class="text-center">
-                Our church exists to worship God,
-                strengthen believers in their faith,
-                and to proclaim the good news of Christianity to all,
-                so that others might experience the wonderful
-                salvation of God through faith in Jesus Christ.
-              </p>
-              <br>
-              <p class="text-center">
-                <a href="/church" class="text-white px-2 py-1">Find out more about us</a>
-              </p>
+    <div id="jesus">
+      <div class="bg-pattern my-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="p-5">
+              <div class="text-white text-center">
+                <h2 class="h1">
+                  I want to meet local people
+                </h2>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
 
     <div class="container">
       <div class="row justify-content-md-center">
-        <div class="col-md-10 col-lg-8 p-5">
-          <div class="white-background">
-            <p class="text-center">
-              During more normal times we run lots of activities to let as many
-              people as possible know the good news about Jesus.
-              We have Bible study and prayer groups meeting in people's homes,
-              and during term time groups for everyone from babies, children
-              and young people through to the more mature among us!
-            </p>
-            <br>
-            <p class="text-center">
-              <a href="/community">Find out what's on</a>
-            </p>
+        <div class="col-md-12">
+          <div class="white-background mb-5">
+
+            <div class="row justify-content-center my-5">
+              <div class="card-deck">
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Sunday services
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/sunday-services.jpg">
+                  </div>
+                  <div class="card-body">
+                    The best way to find out more about Jesus and what it means
+                    to follow him is to come along to one of our Sunday services.
+                    If this sounds scary you can
+                    <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
+                      check them out on Youtube
+                    </a> first!
+                  </div>
+                  <div class="card-footer">
+                    <a href="sunday-services">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Christianity explored
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/christianity-explored.jpg">
+                  </div>
+                  <div class="card-body">
+                    Every now and then we run a short, informal course for people
+                    interested in learning more about Christianity.
+                  </div>
+                  <div class="card-footer">
+                    <a href="christianity-explored">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Bible studies
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/bible-study.jpg">
+                  </div>
+                  <div class="card-body">
+                    We run several groups that meet in each other's houses each
+                    week to study the Bible and pray together. These are aimed
+                    primarily at Christians, but anyone is welcome!
+                  </div>
+                  <div class="card-footer">
+                    <a href="bible-study">Find out more ...</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
     </div>
 
-    <div class="background-image" id="building">
-      <div class="container">
-        <div class="row justify-content-md-center">
-          <div class="col-md-10 col-lg-8 text-white p-5">
-              <p class="text-center">
-                We are located in the village of Crockenhill in Kent,
-                which is a mile or so south of Swanley
-                and two miles from St Mary Cray.
-                If you are travelling from a distance,
-                we are just off junction 3 of the M25.
-              </p>
-              <br>
-              <p class="text-center">
-                <a href="/find-us" class="text-white px-2 py-1">Get directions</a>
-              </p>
+    <div id="occasional">
+      <div class="bg-pattern my-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="p-5">
+              <div class="text-white text-center">
+                <h2 class="h1">
+                  Occasional events
+                </h2>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div> -->
+    </div>
+
+
+    <div class="container">
+      <div class="row justify-content-md-center">
+        <div class="col-md-12">
+          <div class="white-background mb-5">
+
+            <div class="row justify-content-center my-5">
+              <div class="card-deck">
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Quiz nights
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+                  </div>
+                  <div class="card-body">
+                    A couple of times a year we run quiz nights for the local community.
+                    <div class="alert alert-danger mt-3">
+                      We won't be hosting quiz nights this year due to coronavirus.
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <a href="quiz-night">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Carols at the Chequers
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/carols-in-the-chequers.jpg">
+                  </div>
+                  <div class="card-body">
+                    Every Christmas we have an evening of carol singing in the village pub.
+                    <div class="alert alert-danger mt-3">
+                      We won't be hosting Carols at the Chequers this year due to coronavirus.
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <a href="carols-in-the-chequers">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Buzz Club
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/buzz-club.jpg">
+                  </div>
+                  <div class="card-body">
+                    A holiday club for primary school age children.
+                    <div class="alert alert-danger mt-3">
+                      We couldn't run Buzz Club this year due to coronavirus.
+                    </div>
+                  </div>
+                  <div class="card-footer">
+                    <a href="buzz-club">Find out more ...</a>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
   </main>
 
 @stop
