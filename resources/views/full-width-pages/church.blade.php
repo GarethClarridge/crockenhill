@@ -403,6 +403,72 @@
                 <p>
                   Practical matters are handled by the deacons, adminstrator and treasurer.
                 </p>
+                <h3 class="h2 my-5">
+                  Our policies
+                </h3>
+                <p>
+                  In order to care for the members of the church and visitors to
+                  its activities, the church has adopted a number of policies:
+                </p>
+              </div>
+            </div>
+
+            <div class="row justify-content-center my-5">
+              <div class="card-deck">
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Safeguarding policy
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+                  </div>
+                  <div class="card-body">
+                    Our safeguarding policy outlines how we work to keep
+                    children and vulnerable adults safe.
+                  </div>
+                  <div class="card-footer">
+                    <a href="safeguarding-policy">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Positive behaviour policy
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+                  </div>
+                  <div class="card-body">
+                    Our positive behaviour policy guides how we make sure our
+                    childrens' groups are safe and fun for all involved.
+                  </div>
+                  <div class="card-footer">
+                    <a href="/media/documents/BehaviourPolicy.pdf">Find out more ...</a>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-img-caption d-flex align-items-center">
+                    <h3 class="card-text text-white h2">
+                      <div class="p-2">
+                        Privacy policy
+                      </div>
+                    </h3>
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+                  </div>
+                  <div class="card-body">
+                    Our privacy policy outlines how we use data and keep it safe.
+                  </div>
+                  <div class="card-footer">
+                    <a href="privacy-policy">Find out more ...</a>
+                  </div>
+                </div>
+
               </div>
             </div>
 

@@ -163,6 +163,12 @@ Route::permanentRedirect('messy-church', 'community/messy-church');
 Route::permanentRedirect('reopening', 'attending-in-person');
 
 // Full width pages
+Route::get('/christ', array(
+  'as' => 'christ', function()
+  {
+    return view('full-width-pages/christ');
+  })
+);
 Route::get('/church', array(
   'as' => 'church', function()
   {
