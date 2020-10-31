@@ -48,7 +48,7 @@
                   committed Christian to the person who just wants a cup of
                   coffee and a chat with local people.
                 </p>
-                <div class="my-5">
+                <div class="my-5 in-page-nav-buttons">
                   <a class="btn btn-lg btn-primary" href="#meet-people" role="button">I want to meet local people</a>
                   <a class="btn btn-lg btn-primary" href="#children" role="button">I've got children</a>
                   <a class="btn btn-lg btn-primary" href="#jesus" role="button">I want to find out more about Jesus</a>

@@ -43,7 +43,7 @@
                   backgrounds and ages from 5 to 85!
                   The one thing that unites us is our love for Jesus Christ and our gratefulness for his amazing rescue.
                 </p>
-                <div class="my-5">
+                <div class="my-5 in-page-nav-buttons">
                   <a class="btn btn-lg btn-primary" href="#when" role="button">When do we meet?</a>
                   <a class="btn btn-lg btn-primary" href="#what" role="button">What kind of church are we?</a>
                   <a class="btn btn-lg btn-primary" href="#who" role="button">Who leads the church?</a>
