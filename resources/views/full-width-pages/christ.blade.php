@@ -16,10 +16,8 @@
           <div class="row justify-content-md-center">
             <div class="col-md-12 p-5">
               <div class="text-white text-center">
-                <h1 class="p-5">
-                  <span class="bg-pattern p-4">
-                    Christ
-                  </div>
+                <h1 class="py-5 text-body full-width-heading">
+                  Christ
                 </h1>
               </div>
             </div>
