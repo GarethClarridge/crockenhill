@@ -11424,6 +11424,9 @@ aside .read-more {
         border-color: white;
         color: #343a40 !important; }
 
+.in-page-nav-buttons a {
+  margin: 0.3rem; }
+
 .edit-metadata {
   margin-left: -1.25rem;
   margin-right: -1.25rem;
