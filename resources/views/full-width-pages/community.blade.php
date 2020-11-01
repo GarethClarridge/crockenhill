@@ -100,7 +100,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="coffee-cup">Find out more ...</a>
+                    <a href="community/coffee-cup">Find out more ...</a>
                   </div>
                 </div>
 
@@ -121,7 +121,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="baby-talk">Find out more ...</a>
+                    <a href="community/baby-talk">Find out more ...</a>
                   </div>
                 </div>
 
@@ -145,7 +145,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="sunday-services">Find out more ...</a>
+                    <a href="community/sunday-services">Find out more ...</a>
                   </div>
                 </div>
               </div>
@@ -201,7 +201,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="baby-talk">Find out more ...</a>
+                    <a href="community/baby-talk">Find out more ...</a>
                   </div>
                 </div>
 
@@ -221,7 +221,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="adventurers">Find out more ...</a>
+                    <a href="community/adventurers">Find out more ...</a>
                   </div>
                 </div>
 
@@ -241,7 +241,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="1150">Find out more ...</a>
+                    <a href="community/1150">Find out more ...</a>
                   </div>
                 </div>
 
@@ -261,7 +261,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="messy-church">Find out more ...</a>
+                    <a href="community/messy-church">Find out more ...</a>
                   </div>
                 </div>
 
@@ -339,7 +339,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="sunday-services">Find out more ...</a>
+                    <a href="community/sunday-services">Find out more ...</a>
                   </div>
                 </div>
 
@@ -357,7 +357,7 @@
                     interested in learning more about Christianity.
                   </div>
                   <div class="card-footer">
-                    <a href="christianity-explored">Find out more ...</a>
+                    <a href="community/christianity-explored">Find out more ...</a>
                   </div>
                 </div>
 
@@ -380,7 +380,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="bible-study">Find out more ...</a>
+                    <a href="community/bible-study">Find out more ...</a>
                   </div>
                 </div>
               </div>

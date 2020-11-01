@@ -111,7 +111,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="sunday-services">Find out more ...</a>
+                    <a href="community/sunday-services">Find out more ...</a>
                   </div>
                 </div>
 
@@ -155,7 +155,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="bible-study">Find out more ...</a>
+                    <a href="community/bible-study">Find out more ...</a>
                   </div>
                 </div>
 
