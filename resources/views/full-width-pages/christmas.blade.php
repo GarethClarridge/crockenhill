@@ -25,7 +25,7 @@
         </h2>
         <p class="text-center">
           A Christmas presentation by
-          <a href="/whats-on/adventurers">Adventurers</a>,
+          <a href="/community/adventurers">Adventurers</a>,
           our group for 6-9 year olds.
           Everyone is welcome, but families of children in Adventurers are especially invited.
         </p>

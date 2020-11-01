@@ -1,21 +1,14 @@
-<div class="container">
-  <div class="row">
-    <!-- Removing sermons as out of date during Covid19
-    <div class="col-md-3 mt-2">
-      @include('includes.sermon-display', ['sermon' => $morning])
-    </div>
-    <div class="col-md-3 mt-2">
-      @include('includes.sermon-display', ['sermon' => $evening])
-    </div> -->
-    <div class="col-md-6 mt-2">
+<div class="container-fluid">
+  <div class="row justify-content-center">
+    <div class="card-deck full-width-card-deck">
+
       <div class="card text-center">
-        <div class="card-body">
+        <div class="card-body pb-0">
           <h3 class="card-title">
             Last week's service
           </h3>
-          <div class="mb-3 embed-responsive embed-responsive-16by9">
+          <div class="embed-responsive embed-responsive-16by9">
             <iframe id="last_week_youtube_video" class="embed-responsive-item" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
           </div>
         </div>
         <div class="card-footer text-muted">
@@ -24,9 +17,7 @@
           </a>
         </div>
       </div>
-    </div>
 
-    <div class="col-md-6 col-lg-3 mt-2">
       <div class="card text-center">
         <div class="card-body">
           <h3 class="card-title">
@@ -52,38 +43,47 @@
           </ul>
         </div>
       </div>
-    </div>
 
-    <div class="col-md-6 col-lg-3 mt-2">
       <div class="card text-center">
-        <div class="card-body">
+        <div class="card-body pb-0">
           <h3 class="card-title">
-            Address
+            Visit us
           </h3>
-          <address>
-            Crockenhill Baptist Church<br>
-            Eynsford Road<br>
-            Crockenhill<br>
-            Kent<br>
-            BR8 8JS
+          <address class="card-text">
+            Crockenhill Baptist Church, Eynsford Road, Crockenhill, Kent, BR8 8JS
           </address>
+          <div class="alert alert-danger mt-3">
+            Sadly the church building is closed at the moment due to
+            the government's coronavirus restrictions.
+          </div>
+          <div class="flexible-map-container pb-0 mb-0">
+            <iframe frameborder="0" src="https://maps.google.co.uk/maps?f=q&source=embed&hl=en&geocode=&q=crockenhill+baptist+church&sll=51.386500,0.162500&sspn=0.035000,0.055000&t=m&gl=uk&ie=UTF8&hq=crockenhill+baptist+church&hnear=&filter=0&update=1&ll=51.389352,0.145226&spn=0.051418,0.109863&z=13&output=embed">
+            </iframe>
+          </div>
+        </div>
+        <div class="card-footer">
+          <a href="/church/find-us">Directions and parking</a>
         </div>
       </div>
     </div>
   </div>
 
+
+
+
   <div class="row justify-content-center">
-    <section class="col-md-4 mt-4">
+
+    <section class="col-md-4 m-5">
       <img src="/svg/OutlineNameWhite.svg" width="100%" alt="Crockenhill Baptist Church logo">
     </section>
 
-    <section class="col-md-4 mt-4">
+    <section class="col-md-4 m-5">
         <a class="fiec-footer" href="http://www.fiec.org.uk">
           <img src="/images/fiec-affiliated-tagline-white.png" width="100%" alt="Affiliated to the Fellowship of Independent Evangelical Churches">
         </a>
     </section>
 
-    <section class="col-sm-12 mt-4">
+    <section class="col-sm-12">
         <p class="text-center text-white"><small>&copy; {{ date('Y') }} Crockenhill Baptist Church</small></p>
     </section>
   </div>

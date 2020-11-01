@@ -12,7 +12,7 @@
 
   @section('description') {{isset($description) ? $description : '<meta name="description" content="Crockenhill Baptist Church">'}} @endsection
 
-  <link type="text/css" rel="stylesheet" href="/stylesheets/main.css?v=6.0.2">
+  <link type="text/css" rel="stylesheet" href="/stylesheets/main.css?v=6.0.3">
   <link type="text/css" rel="stylesheet" href="/stylesheets/print.css" media="print">
   @stack('styles')
 
@@ -53,7 +53,7 @@
 
     @yield('content')
 
-    <footer class="navbar navbar-fixed-bottom bg-pattern">
+    <footer class="bg-pattern p-4">
         @include('includes.footer')
     </footer>
 </body>

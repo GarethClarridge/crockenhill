@@ -14,14 +14,9 @@ class ComposerServiceProvider extends ServiceProvider {
 		\View::composer('includes.header', function($view)
     {
       $pages = array(
-
-        'AboutUs' => array('route'=> 'about-us', 'name' => 'About Us'),
-        'WhatsOn' => array('route'=> 'whats-on', 'name' => 'What\'s On'),
-        'FindUs' => array('route'=> 'find-us', 'name' => 'Find Us'),
-        'ContactUs' => array('route' => 'contact-us', 'name' => 'Contact Us'),
-        'Sermons' =>array('route'=> 'sermons', 'name' => 'Sermons'),
-        'Members' =>array('route'=> 'members', 'name' => 'Members'),
-
+				'christ' => array('route'=> 'christ', 'name' => 'Christ'),
+        'church' => array('route'=> 'church', 'name' => 'Church'),
+        'community' => array('route'=> 'community', 'name' => 'Community'),
       );
 
       $view->with('pages', $pages);
@@ -51,7 +46,7 @@ class ComposerServiceProvider extends ServiceProvider {
 			$view->with('photos', $photos);
 		});
 
-    \View::composer('page', function($view)
+    \View::composer('layouts/page', function($view)
     {
 			//User
 			$user = \Auth::user();
@@ -74,17 +69,18 @@ class ComposerServiceProvider extends ServiceProvider {
 			}
 
 			//Songs
-			if (\Request::segment(2) == 'songs' && \Request::segment(4)){
+			if (\Request::segment(3) == 'songs' && \Request::segment(5)){
 
 				// Look up song in songs table of database
-		    $song =\Crockenhill\Song::where('id', $name)->first();
+				$songnumber = \Request::segment(4);
+		    $song =\Crockenhill\Song::where('id', $songnumber)->first();
 
 				//Heading picture
-				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
+				$headingpicture = '/images/headings/large/'.$name.'.jpg';
 
 		    // Find relevant links
-		    $links = \Crockenhill\Page::where('area', $area)
-		      ->where('slug', '!=', $area)
+		    $links = \Crockenhill\Page::where('area', $slug)
+		      ->where('slug', '!=', $slug)
 		      ->where('slug', '!=', 'homepage')
 		      ->orderBy(\DB::raw('RAND()'))
 		      ->take(5)
@@ -103,10 +99,10 @@ class ComposerServiceProvider extends ServiceProvider {
 			}
 
 			//Sermons
-			elseif (\Request::segment(1) == 'sermons' && \Request::segment(4)){
-				$sermon_slug = \Request::segment(4);
-				$month = \Request::segment(3);
-				$year = \Request::segment(2);
+			elseif (\Request::segment(2) == 'sermons' && \Request::segment(5)){
+				$sermon_slug = \Request::segment(5);
+				$month = \Request::segment(4);
+				$year = \Request::segment(3);
 
 				$sermon = \Crockenhill\Sermon::where('slug', $sermon_slug)
 		                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
@@ -118,8 +114,8 @@ class ComposerServiceProvider extends ServiceProvider {
 				$headingpicture = '/images/headings/large/'.$sermon_slug.'.jpg';
 
 				// Find relevant links
-				$links = \Crockenhill\Page::where('area', $area)
-					->where('slug', '!=', $area)
+				$links = \Crockenhill\Page::where('area', $slug)
+					->where('slug', '!=', $slug)
 					->where('slug', '!=', 'homepage')
 					->orderBy(\DB::raw('RAND()'))
 					->take(5)
@@ -166,14 +162,33 @@ class ComposerServiceProvider extends ServiceProvider {
 				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
 
 				//Links
+				if (\Request::segment(2) == 'sermons') {
+					$links = \Crockenhill\Page::where('area', 'sermons')
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('slug', '!=', 'privacy-policy')
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else if (\Request::segment(2) == 'members') {
+					$links = \Crockenhill\Page::where('area', 'sermons')
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('slug', '!=', 'privacy-policy')
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else {
 				$links = \Crockenhill\Page::where('area', $area)
 					->where('slug', '!=', $slug)
 					->where('slug', '!=', $area)
 					->where('slug', '!=', 'privacy-policy')
 					->where('admin', '!=', 'yes')
-					->orderBy(\DB::raw('RAND()'))
-					->take(5)
+					->orderBy('slug', 'asc')
 					->get();
+				}
 			}
 
 			//Level 2
@@ -198,14 +213,48 @@ class ComposerServiceProvider extends ServiceProvider {
 				$headingpicture = '/images/headings/large/'.$slug.'.jpg';
 
 				//Links
-				$links = \Crockenhill\Page::where('area', $area)
-					->where('slug', '!=', $slug)
-					->where('slug', '!=', $area)
-					->where('slug', '!=', 'privacy-policy')
-					->where('admin', '!=', 'yes')
-					->orderBy(\DB::raw('RAND()'))
-					->take(5)
-					->get();
+				if (\Request::segment(2) == 'sermons') {
+					$links = \Crockenhill\Page::where('area', 'sermons')
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else if (\Request::segment(2) == 'members') {
+					$links = \Crockenhill\Page::where('area', 'sermons')
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else if (\Request::segment(1) == 'community'){
+					$meeting = \Crockenhill\Meeting::where('slug', $slug)->first();
+
+					$related_meetings = \Crockenhill\Meeting::where('type', $meeting->type)
+					->pluck('slug');
+
+					$links = \Crockenhill\Page::where('area', $area)
+						->whereIn('slug', $related_meetings)
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+				else {
+					$links = \Crockenhill\Page::where('area', $area)
+						->where('slug', '!=', $slug)
+						->where('slug', '!=', $area)
+						->where('slug', '!=', 'privacy-policy')
+						->where('slug', '!=', 'attending-in-person')
+						->where('slug', '!=', 'resources')
+						->where('admin', '!=', 'yes')
+						->orderBy('slug', 'asc')
+						->get();
+				}
+
 
 			//Level 1
 			} else {
@@ -237,7 +286,7 @@ class ComposerServiceProvider extends ServiceProvider {
 
       $view->with([
 				'name'						=> (isset($name) ? $name : ''),
-				'slug'						=> (isset($slug) ? $slug : ''),
+				'slug'						=> (isset($slug) ? $slug : $area),
 				'area'						=> $area,
 				'description'   	=> $description,
 				'heading'       	=> $heading,
@@ -247,6 +296,48 @@ class ComposerServiceProvider extends ServiceProvider {
 				'user' 						=> $user,
 			]);
     });
+
+
+
+
+
+
+
+
+		\View::composer('layouts/article-without-asides', function($view)
+		{
+			//User
+			$user = \Auth::user();
+
+			//Set area from url
+			$area = \Request::segment(1);
+
+			//Load page
+			$page = \Crockenhill\Page::where('slug', $area)->first();
+
+			//Description
+			$description 	= '<meta name="description" content="'.$page->description.'">';
+
+			//Heading
+			$heading = $page->heading;
+
+			//Content
+			$content = htmlspecialchars_decode($page->body);
+
+			//Heading picture
+			$headingpicture = '/images/headings/large/'.$area.'.jpg';
+
+			$view->with([
+				'name'						=> (isset($name) ? $name : ''),
+				'slug'						=> (isset($slug) ? $slug : $area),
+				'area'						=> $area,
+				'description'   	=> $description,
+				'heading'       	=> $heading,
+				'headingpicture' 	=> $headingpicture,
+				'content'					=> (isset($content) ? $content : ''),
+				'user' 						=> $user,
+			]);
+		});
   }
 
 	/**

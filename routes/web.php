@@ -11,29 +11,21 @@
 |
 */
 
-// Christmas route
-
+// Special pages route
 Route::get('/christmas', array(
   'as' => 'christmas', function()
   {
-    return view('christmas');
+    return view('full-width-pages/christmas');
   })
 );
-
 Route::get('/easter', array(
   'as' => 'easter', function()
   {
-    return view('easter');
+    return view('full-width-pages/easter');
   })
 );
 
-Route::get('/reopening', array(
-  'as' => 'reopening', function()
-  {
-    return view('reopening');
-  })
-); 
-
+//Covid special pages
 Route::get('/online', array(
   'as' => 'online', function()
   {
@@ -41,17 +33,8 @@ Route::get('/online', array(
   })
 );
 
-
-Route::get('/resources', array(
-  'as' => 'resources', function()
-  {
-    return view('resources');
-  })
-);
-
-// Sermon Routes
-
-Route::group(array('prefix' => 'sermons'), function()
+// Sermon routes
+Route::group(array('prefix' => 'church/sermons'), function()
 {
     Route::get('/', array(
         'as' => 'sermonIndex',
@@ -103,30 +86,22 @@ Route::group(array('prefix' => 'sermons'), function()
     ));
 });
 
-Route::resource('whats-on', 'MeetingController');
-
-//Members
-
+//Members routes
 Auth::routes();
-
-Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
+Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function()
 {
     Route::get('', [
         'uses' => 'MemberController@home'
     ]);
-
     // Manage pages
     Route::resource('pages', 'PageController');
-
     // Manage sermons
     Route::resource('sermons', 'SermonController');
-
     // Manage documents
     Route::resource('documents', 'DocumentController');
     Route::get('documents', array(
         'uses'          => 'DocumentController@index'
         ));
-
     // Songs
     Route::get('songs/service-record', 'SongController@getServiceRecord');
     Route::post('songs/service-record', 'SongController@postServiceRecord');
@@ -138,39 +113,76 @@ Route::group(['middleware' => 'auth', 'prefix' => 'members'], function()
     Route::resource('songs', 'SongController');
 });
 
+//Community routes
+Route::resource('community', 'MeetingController');
+
 // Permanent Redirects
+// - Very old website
+Route::permanentRedirect('aboutus', 'church');
+Route::permanentRedirect('contacttus', '/');
+Route::permanentRedirect('links', 'church/links');
+Route::permanentRedirect('whatson', 'community');
+Route::permanentRedirect('whats-on', 'community');
+Route::permanentRedirect('where', 'church/find-us');
+Route::permanentRedirect('aboutus/history', 'church/history');
+Route::permanentRedirect('aboutus/pastor', 'church/pastor');
+Route::permanentRedirect('aboutus/statementoffaith', 'church/statement-of-faith');
+Route::permanentRedirect('aboutus/whatwebelieve', 'church/what-we-believe');
+Route::permanentRedirect('whatson/1150', 'community/1150');
+Route::permanentRedirect('whatson/adventurers', 'community/adventurers');
+Route::permanentRedirect('whatson/babytalk', 'community/baby-talk');
+Route::permanentRedirect('whatson/biblestudy', 'community/bible-study');
+Route::permanentRedirect('whatson/buzzclub', 'community/buzz-club');
+Route::permanentRedirect('whatson/carolsatthechequers', 'community/carols-at-the-chequers');
+Route::permanentRedirect('whatson/christianityexplored', 'community/christianity-explored');
+Route::permanentRedirect('whatson/coffeecup', 'community/coffee-cup');
+Route::permanentRedirect('whatson/sunday', 'community/sunday-services');
 
-Route::permanentRedirect('aboutus', 'about-us');
-Route::permanentRedirect('contacttus', 'contact-us');
-Route::permanentRedirect('links', 'links');
-Route::permanentRedirect('whatson', 'whatson');
-Route::permanentRedirect('where', 'find-us');
+// - Before restructure
+Route::permanentRedirect('about-us', 'church');
+Route::permanentRedirect('about-us/history', 'church/history');
+Route::permanentRedirect('about-us/pastor', 'church/pastor');
+Route::permanentRedirect('about-us/links', 'church/links');
+Route::permanentRedirect('about-us/statementoffaith', 'church/statement-of-faith');
+Route::permanentRedirect('about-us/whatwebelieve', 'church/what-we-believe');
+Route::permanentRedirect('about-us/privacy-policy', 'church/privacy-policy');
+Route::permanentRedirect('about-us/safeguarding-policy', 'church/safeguarding-policy');
+Route::permanentRedirect('whats-on/1150', 'community/1150');
+Route::permanentRedirect('whats-on/adventurers', 'community/adventurers');
+Route::permanentRedirect('whats-on/babytalk', 'community/baby-talk');
+Route::permanentRedirect('whats-on/biblestudy', 'community/bible-study');
+Route::permanentRedirect('whats-on/buzzclub', 'community/buzz-club');
+Route::permanentRedirect('whats-on/carolsatthechequers', 'community/carols-at-the-chequers');
+Route::permanentRedirect('whats-on/christianityexplored', 'community/christianity-explored');
+Route::permanentRedirect('whats-on/coffeecup', 'community/coffee-cup');
+Route::permanentRedirect('whats-on/sunday', 'community/sunday-services');
 
-Route::permanentRedirect('aboutus/history', 'about-us/history');
-Route::permanentRedirect('aboutus/pastor', 'about-us/pastor');
-Route::permanentRedirect('aboutus/statementoffaith', 'about-us/statement-of-faith');
-Route::permanentRedirect('aboutus/whatwebelieve', 'about-us/what-we-believe');
+// - Shortened URLs for advertising
+Route::permanentRedirect('buzz-club', 'community/buzz-club');
+Route::permanentRedirect('messy-church', 'community/messy-church');
+Route::permanentRedirect('reopening', 'attending-in-person');
 
-Route::permanentRedirect('whatson/1150', 'whats-on/1150');
-Route::permanentRedirect('whatson/adventurers', 'whats-on/adventurers');
-Route::permanentRedirect('whatson/babytalk', 'whats-on/baby-talk');
-Route::permanentRedirect('whatson/biblestudy', 'whats-on/bible-study');
-Route::permanentRedirect('whatson/buzzclub', 'whats-on/buzz-club');
-Route::permanentRedirect('whatson/carolsatthechequers', 'whats-on/carols-at-the-chequers');
-Route::permanentRedirect('whatson/christianityexplored', 'whats-on/christianity-explored');
-Route::permanentRedirect('whatson/coffeecup', 'whats-on/coffee-cup');
-Route::permanentRedirect('whatson/sunday', 'whats-on/sunday-services');
-
-Route::permanentRedirect('buzz-club', 'whats-on/buzz-club');
-Route::permanentRedirect('messy-church', 'whats-on/messy-church');
+// Full width pages
+Route::get('/christ', array(
+  'as' => 'christ', function()
+  {
+    return view('full-width-pages/christ');
+  })
+);
+Route::get('/church', array(
+  'as' => 'church', function()
+  {
+    return view('full-width-pages/church');
+  })
+);
 
 // General Routes
-
-Route::get('/{area}/{slug?}', array('uses' => 'PageController@showPage'));
+Route::get('/{area}/', array('uses' => 'PageController@showArticleWithoutAsides'));
+Route::get('/{area}/{slug}', array('uses' => 'PageController@showPage'));
 
 Route::get('/', ['as' => 'Home', function()
 {
-    return view('home');
+    return view('full-width-pages/home');
 }]);
 
 Route::get('500', function()

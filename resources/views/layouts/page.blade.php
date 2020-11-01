@@ -54,11 +54,11 @@
             @can ('edit-pages')
               <hr>
 
-              <form class="form-inline" action="/members/pages/{{$slug}}" method="POST">
+              <form class="form-inline" action="/church/members/pages/{{$slug}}" method="POST">
                 <input type="hidden" name="_method" value="DELETE">
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
                 <div class="btn-group">
-                  <a href="/members/pages/{{$slug}}/edit" class="btn btn-primary">
+                  <a href="/church/members/pages/{{$slug}}/edit" class="btn btn-primary">
                     <i class="fas fa-pencil-alt"></i> &nbsp
                     Edit page
                   </a>
@@ -80,7 +80,7 @@
 
         @foreach ($links as $link)
 
-          @if (\Request::is('whats-on') || \Request::is('whats-on/*'))
+          @if (\Request::is('community') || \Request::is('community/*'))
             <aside class="card mt-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h4 class="card-text text-white">
@@ -98,9 +98,31 @@
               <div class="card-body">
                   {{$link->description}}
                   <div class="read-more">
-                    <a href="/whats-on/{{$link->slug}}">Read more ...</a>
+                    <a href="/community/{{$link->slug}}">Read more ...</a>
                   </div>
                 </div>
+            </aside>
+          @elseif (\Request::is('church') || \Request::is('church/*'))
+            <aside class="card mt-3">
+              <div class="card-img-caption d-flex align-items-center">
+                <h4 class="card-text text-white">
+                  <div class="p-1">
+                    {{$link->heading}}
+                  </div>
+                </h4>
+                @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
+                @else
+                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+                @endif
+              </div>
+
+              <div class="card-body">
+                {{$link->description}}
+                <div class="read-more">
+                  <a href="/church/{{$link->slug}}">Read more ...</a>
+                </div>
+              </div>
             </aside>
           @else
             <aside class="card mt-3">
