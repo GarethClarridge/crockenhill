@@ -223,9 +223,12 @@
                     live life our own way, putting ourselves first. But God
                     promises that our way leads to destruction. Thankfully,
                     in his infinite love for us, God sent his Son - Jesus - to
-                    rescue us from certain death. Jesus paid the penalty for our
-                    rebellion against God in his death on the cross, brought us back
-                    to a restored relationship with God our Father, and now lives
+                    rescue us from certain death.
+                  </p>
+                  <p>
+                    Jesus paid the penalty for our rebellion against God in his
+                    death on the cross, brought us back to a restored
+                    relationship with God our Father, and now lives
                     in us by his Holy Spirit, guiding our lives day by day.
                   </p>
                   <h3 class="my-5">...who take the Bible seriously,...</h3>
@@ -256,12 +259,12 @@
                   </a>
                   <hr class="my-5">
                   <h3 class="h2 mb-5">
-                    An evangelical church
+                    An <i>evangelical</i> church
                   </h3>
                   <p>
                     We believe that the gospel
-                    (<i>evangel</i> in Latin) is the good news of salvation
-                    for all people through Jesus Christ.
+                    (<i>evangel</i> in Latin) is the
+                    good news of salvation for all people through Jesus Christ.
                   </p>
                   <p>
                     We believe that the gospel centers on the death of Jesus
@@ -283,7 +286,7 @@
                   </a>
                   <hr class="my-5">
                   <h3 class="h2 mb-5">
-                    A baptist church
+                    A <i>baptist</i> church
                   </h3>
                   <p>
                     Our church started life as "Union Chapel", a mixture
@@ -305,7 +308,7 @@
                   </p>
                   <hr class="my-5">
                   <h3 class="h2 mb-5">
-                    An independent church
+                    An <i>independent</i> church
                   </h3>
                   <p>
                     Despite being a Baptist church, we're not a member of
@@ -318,7 +321,7 @@
                     </a>.
                   </p>
                   <p>
-                    In fact, we're not part of any denomination. We are led and
+                    In fact, we're not part of any denomination. We are run and
                     entirely finacially supported by our members: ordinary local
                     people.
                   </p>
