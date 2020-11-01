@@ -231,8 +231,8 @@
       <div class="row justify-content-md-center">
         <div class="col-md-8 col-lg-6">
           <div class="white-background text-center mb-5">
-            <a class="btn btn-lg btn-primary my-3" href="/christ">
-              Find out more about the good news of Jesus Christ
+            <a class="btn btn-lg btn-primary my-5" href="/christ">
+              Find out more about the good news of Jesus Christ &nbsp
               <i class="fas fa-arrow-circle-right"></i>
             </a>
             <p class="text-center">
@@ -245,76 +245,6 @@
 
 
     </div>
-
-
-
-
-
-
-
-
-
-
-<!-- Archived -->
-    <!-- <div class="background-image" id="listening">
-      <div class="container">
-        <div class="row justify-content-md-center">
-          <div class="col-md-10 col-lg-8 text-white p-5">
-              <p class="text-center">
-                Our church exists to worship God,
-                strengthen believers in their faith,
-                and to proclaim the good news of Christianity to all,
-                so that others might experience the wonderful
-                salvation of God through faith in Jesus Christ.
-              </p>
-              <br>
-              <p class="text-center">
-                <a href="/church" class="text-white px-2 py-1">Find out more about us</a>
-              </p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="container">
-      <div class="row justify-content-md-center">
-        <div class="col-md-10 col-lg-8 p-5">
-          <div class="white-background">
-            <p class="text-center">
-              During more normal times we run lots of activities to let as many
-              people as possible know the good news about Jesus.
-              We have Bible study and prayer groups meeting in people's homes,
-              and during term time groups for everyone from babies, children
-              and young people through to the more mature among us!
-            </p>
-            <br>
-            <p class="text-center">
-              <a href="/community">Find out what's on</a>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="background-image" id="building">
-      <div class="container">
-        <div class="row justify-content-md-center">
-          <div class="col-md-10 col-lg-8 text-white p-5">
-              <p class="text-center">
-                We are located in the village of Crockenhill in Kent,
-                which is a mile or so south of Swanley
-                and two miles from St Mary Cray.
-                If you are travelling from a distance,
-                we are just off junction 3 of the M25.
-              </p>
-              <br>
-              <p class="text-center">
-                <a href="/find-us" class="text-white px-2 py-1">Get directions</a>
-              </p>
-          </div>
-        </div>
-      </div>
-    </div> -->
   </main>
 
 @stop

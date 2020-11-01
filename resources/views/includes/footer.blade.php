@@ -52,6 +52,9 @@
           <address class="card-text">
             Crockenhill Baptist Church, Eynsford Road, Crockenhill, Kent, BR8 8JS
           </address>
+          <div class="alert alert-danger mt-3">
+            Sadly the church building is closed at the moment due to coronavirus.
+          </div>
           <div class="flexible-map-container pb-0 mb-0">
             <iframe frameborder="0" src="https://maps.google.co.uk/maps?f=q&source=embed&hl=en&geocode=&q=crockenhill+baptist+church&sll=51.386500,0.162500&sspn=0.035000,0.055000&t=m&gl=uk&ie=UTF8&hq=crockenhill+baptist+church&hnear=&filter=0&update=1&ll=51.389352,0.145226&spn=0.051418,0.109863&z=13&output=embed">
             </iframe>

@@ -120,7 +120,7 @@
               <div class="card-body">
                 {{$link->description}}
                 <div class="read-more">
-                  <a href="/church/{{$link->area}}/{{$link->slug}}">Read more ...</a>
+                  <a href="/church/{{$link->slug}}">Read more ...</a>
                 </div>
               </div>
             </aside>

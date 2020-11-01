@@ -217,7 +217,6 @@ class ComposerServiceProvider extends ServiceProvider {
 					$links = \Crockenhill\Page::where('area', 'sermons')
 						->where('slug', '!=', $slug)
 						->where('slug', '!=', $area)
-						->where('slug', '!=', 'privacy-policy')
 						->where('admin', '!=', 'yes')
 						->orderBy('slug', 'asc')
 						->get();
@@ -226,7 +225,6 @@ class ComposerServiceProvider extends ServiceProvider {
 					$links = \Crockenhill\Page::where('area', 'sermons')
 						->where('slug', '!=', $slug)
 						->where('slug', '!=', $area)
-						->where('slug', '!=', 'privacy-policy')
 						->where('admin', '!=', 'yes')
 						->orderBy('slug', 'asc')
 						->get();
@@ -241,7 +239,6 @@ class ComposerServiceProvider extends ServiceProvider {
 						->whereIn('slug', $related_meetings)
 						->where('slug', '!=', $slug)
 						->where('slug', '!=', $area)
-						->where('slug', '!=', 'privacy-policy')
 						->where('admin', '!=', 'yes')
 						->orderBy('slug', 'asc')
 						->get();
@@ -251,6 +248,8 @@ class ComposerServiceProvider extends ServiceProvider {
 						->where('slug', '!=', $slug)
 						->where('slug', '!=', $area)
 						->where('slug', '!=', 'privacy-policy')
+						->where('slug', '!=', 'attending-in-person')
+						->where('slug', '!=', 'resources')
 						->where('admin', '!=', 'yes')
 						->orderBy('slug', 'asc')
 						->get();
