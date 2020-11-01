@@ -4,7 +4,7 @@
 
   <p>Please search one verse at a time.</p>
 
-  {{ Form::open(array('url' => '/members/songs/scripture-reference')) }}
+  {{ Form::open(array('url' => '/church/members/songs/scripture-reference')) }}
     <div class="form-group">
       {{ Form::label('book', 'Book') }}
       {{ Form::select('book', 

@@ -37,7 +37,7 @@ $("#latest_youtube_video").attr("src","https://youtube.com/embed/"+id2 + "?contr
 //   var div = document.createElement('div');
 //   div.setAttribute('id','cookie-law');
 //   div.setAttribute('class', 'panel panel-default')
-//   div.innerHTML = '<p id="cookie-message" class="panel-body">Our website uses cookies to improve your experience. <a href="/about-us/privacy-policy/" rel="nofollow" title="Privacy Policy">Find out more</a>. <a class="close-cookie-banner pull-right badge" href="javascript:void(0);" onclick="removeMe();"><span>X</span></a></p>';
+//   div.innerHTML = '<p id="cookie-message" class="panel-body">Our website uses cookies to improve your experience. <a href="/church/privacy-policy/" rel="nofollow" title="Privacy Policy">Find out more</a>. <a class="close-cookie-banner pull-right badge" href="javascript:void(0);" onclick="removeMe();"><span>X</span></a></p>';
 //  // Be advised the Close Banner 'X' link requires jQuery
 //
 //   // bodytag.appendChild(div); // Adds the Cookie Law Banner just before the closing </body> tag

@@ -23,13 +23,13 @@
     @if ($sermon->preacher != null)
       <p>
         <i class="far fa-user"></i> &nbsp
-        <a href="/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
+        <a href="/church/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
       </p>
     @endif
     @if ($sermon->series != null)
       <p>
         <i class="fas fa-tag"></i> &nbsp
-        <a href="/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}">{{ $sermon->series }}</a>
+        <a href="/church/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}">{{ $sermon->series }}</a>
       </p>
     @endif
     @if ($sermon->reference != null)
@@ -51,10 +51,10 @@
 
   <hr>
   @can ('edit-sermons')
-    <form class="edit-buttons" method="POST" action="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8">
+    <form class="edit-buttons" method="POST" action="/church/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8">
       <input type="hidden" name="_token" value="{{ csrf_token() }}">
       <div class="btn-group">
-        <a href="/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
+        <a href="/church/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="btn btn-primary">
           Edit
         </a>
 

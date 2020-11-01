@@ -28,7 +28,7 @@
             </div>
           @endif
 
-          <form method="POST" action="/members/documents" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
+          <form method="POST" action="/church/members/documents" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
             <input type="hidden" name="_token" id="csrf-token" value="{{ Session::token() }}" />
 
 						<div class="form-group">

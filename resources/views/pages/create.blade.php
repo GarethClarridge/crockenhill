@@ -8,7 +8,7 @@
       <article class="card">
         <div class="card-body">
           <h1 class="card-title">Create a new page</h1>
-          <form class="mb-3" action="/members/pages" method="post">
+          <form class="mb-3" action="/church/members/pages" method="post">
             <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
             @if (count($errors) > 0)
@@ -36,12 +36,9 @@
               <div class="form-group">
                 <label for="area">Website section</label>
                 <select class="form-control" name="area">
-                  <option value="about-us">About us</option>
-                  <option value="whats-on">What's on</option>
-                  <option value="find-us">Find us</option>
-                  <option value="contact-us">Contact us</option>
-                  <option value="sermons">Sermons</option>
-                  <option value="members">Members</option>
+                  <option value="christ">Christ</option>
+                  <option value="church">Church</option>
+                  <option value="community">Community</option>
                 </select>
               </div>
             </div>
@@ -67,7 +64,7 @@
             <div class="form-actions">
               <input class="btn btn-success btn-large btn-block" type="submit" value="Save">
               <div class="text-center">
-                <a href="/members/pages/" class="btn btn-large text-center">Cancel</a>
+                <a href="/church/members/pages/" class="btn btn-large text-center">Cancel</a>
               </div>
             </div>
           </form>

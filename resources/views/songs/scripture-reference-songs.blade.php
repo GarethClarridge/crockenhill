@@ -14,7 +14,7 @@
 
         <div class="media-body media-middle song-body">
           <h3 class="media-heading">
-            <a href="/members/songs/{{$song->id}}/{{\Illuminate\Support\Str::slug($song->title)}}">{{$song->title}}</a>
+            <a href="/church/members/songs/{{$song->id}}/{{\Illuminate\Support\Str::slug($song->title)}}">{{$song->title}}</a>
           </h3>
           @if ($song->author)
             <p>
@@ -36,7 +36,7 @@
   @else
     <p>Sorry, we couldn't find any songs for {{$reference}}.</p>
 
-    <a href="/members/songs/scripture-reference" class="btn btn-primary btn-lg btn-block">Search again</a>
+    <a href="/church/members/songs/scripture-reference" class="btn btn-primary btn-lg btn-block">Search again</a>
   @endif
 
 @stop

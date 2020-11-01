@@ -31,11 +31,11 @@
             <td>{{ $page->area }}</td>
             <td>{{ $page->updated_at }}</td>
             <td>
-              <form class="form-inline" action="/members/pages/{{$page->slug}}" method="POST">
+              <form class="form-inline" action="/church/members/pages/{{$page->slug}}" method="POST">
                 <input type="hidden" name="_method" value="DELETE">
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
                 <div class="btn-group">
-                  <a href="/members/pages/{{$page->slug}}/edit" class="btn btn-success">
+                  <a href="/church/members/pages/{{$page->slug}}/edit" class="btn btn-success">
                     Edit
                   </a>
                   <button type="submit" class="btn btn-danger">
