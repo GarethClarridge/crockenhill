@@ -11474,13 +11474,15 @@ aside .read-more {
     .navbar-seperator {
       display: inline; } }
 
+@media (max-width: 767.98px) {
+  .navbar-site-name {
+    display: none; } }
+
 .site-sections {
-  font-size: 0.75rem;
   line-height: 0.75rem; }
 
 .navbar-toggler {
   border: none;
-  font-size: 0.75rem;
   line-height: 0.75rem;
   color: #fff !important; }
 

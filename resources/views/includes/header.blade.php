@@ -3,7 +3,7 @@
     <img src="/images/White.png" height="36" class="d-inline-block align-top p-1" alt="Crockenhill Baptist Church logo">
   </a>
 
-  <a class="navbar-brand abs" href="/">Crockenhill Baptist Church</a>
+  <a class="navbar-brand navbar-site-name abs" href="/">Crockenhill Baptist Church</a>
 
   <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-label="Toggle navigation">
     MENU
@@ -15,15 +15,21 @@
       @foreach ($pages as $page)
         @if (\Request::is($page['route'].'/*'))
           <li class="navbar-item active">
-            <a class="nav-link" href="/{{$page['route']}}">{{$page['name']}}<span class="sr-only">(current)</span></a>
+            <a class="nav-link" href="/{{$page['route']}}">
+              {{$page['name']}}<span class="sr-only">(current)</span>
+            </a>
           </li>
         @elseif  (\Request::is($page['route']))
           <li class="navbar-item active">
-            <a class="nav-link" href="/{{$page['route']}}">{{$page['name']}}<span class="sr-only">(current)</span></a>
+            <a class="nav-link" href="/{{$page['route']}}">
+              {{$page['name']}}<span class="sr-only">(current)</span>
+            </a>
           </li>
         @else
           <li class="navbar-item">
-            <a class="nav-link" href="/{{$page['route']}}">{{$page['name']}}</a>
+            <a class="nav-link" href="/{{$page['route']}}">
+              {{$page['name']}}
+            </a>
           </li>
         @endif
       @endforeach
