@@ -1,4 +1,4 @@
-@extends('page')
+@extends('layouts/page')
 
 @section('dynamic_content')
 	<div>

@@ -1,4 +1,4 @@
-@extends('page')
+@extends('layouts/page')
 
 @section('content')
 <div class="container mt-3">

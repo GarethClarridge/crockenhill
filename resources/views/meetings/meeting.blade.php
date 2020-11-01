@@ -1,4 +1,4 @@
-@extends('page')
+@extends('layouts/page')
 
 @section('dynamic_content')
 
@@ -92,7 +92,7 @@
     <small>
       All activities at the church are carried out in accordance with our
       <a href="/church/safeguarding-policy">Safeguarding policy</a>
-      and our 
+      and our
       <a href="/media/documents/BehaviourPolicy.pdf">Positive behaviour policy</a>.
     </small>
   @endif
