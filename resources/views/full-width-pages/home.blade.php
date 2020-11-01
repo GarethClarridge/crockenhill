@@ -59,7 +59,7 @@
               Unfortunately due to
               <a href="https://www.gov.uk/government/new-national-restrictions-from-5-november#weddings-civil-partnerships-religious-services-and-funerals">
                 the government's new national restrictions
-              </a>
+              </a> 
               we can't meet in person for the rest of November.
             </p>
             <p class="text-center">
