@@ -103,6 +103,12 @@
                   <div class="card-body">
                     Our main activity as a church is gathering together to worship
                     God and hear from his word on Sundays at 10:30.
+                    <div class="alert alert-info mt-3">
+                      Sunday services are only available live streamed via
+                      <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+                        our YouTube channel
+                      </a> at the moment due to coronavirus.
+                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="sunday-services">Find out more ...</a>
@@ -121,6 +127,10 @@
                   <div class="card-body">
                     We also meet on Sunday evenings to pray for our church,
                     our village, our country and our world.
+                    <div class="alert alert-info mt-3">
+                      The church prayer meeting is held via Zoom at the moment
+                      due to coronavirus.
+                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="prayer-meetings">Find out more ...</a>
@@ -139,6 +149,10 @@
                   <div class="card-body">
                     We meet in each others' homes each week to study the bible
                     and pray together.
+                    <div class="alert alert-info mt-3">
+                      Our small groups are meeting via Zoom at the moment due to
+                      coronavirus.
+                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="bible-study">Find out more ...</a>
