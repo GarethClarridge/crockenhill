@@ -133,7 +133,7 @@
                     </div>
                   </div>
                   <div class="card-footer">
-                    <a href="prayer-meetings">Find out more ...</a>
+                    <a href="community/prayer-meeting">Find out more ...</a>
                   </div>
                 </div>
 
