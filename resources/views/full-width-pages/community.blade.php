@@ -137,6 +137,12 @@
                   <div class="card-body">
                     Of course, you could always come along to our Sunday service.
                     We'd love to get to know you.
+                    <div class="alert alert-warning mt-3">
+                      Sunday services are only available live streamed via
+                      <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+                        our YouTube channel
+                      </a> at the moment due to coronavirus.
+                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="sunday-services">Find out more ...</a>
@@ -325,6 +331,12 @@
                     <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
                       check them out on Youtube
                     </a> first!
+                    <div class="alert alert-warning mt-3">
+                      Sunday services are only available live streamed via
+                      <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+                        our YouTube channel
+                      </a> at the moment due to coronavirus.
+                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="sunday-services">Find out more ...</a>
@@ -362,6 +374,10 @@
                     We run several groups that meet in each other's houses each
                     week to study the Bible and pray together. These are aimed
                     primarily at Christians, but anyone is welcome!
+                    <div class="alert alert-warning mt-3">
+                      Our small groups are meeting via Zoom at the moment due to
+                      coronavirus.
+                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="bible-study">Find out more ...</a>
