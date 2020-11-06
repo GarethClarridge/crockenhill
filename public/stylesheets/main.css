@@ -11097,8 +11097,9 @@ readers do not read off random characters that represent icons */
   width: auto; }
 
 .full-width-head {
-  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(../images/homepage/CollageGrey.jpg);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(../images/homepage/SociallyDistanced.jpg);
   background-size: cover;
+  background-position: center;
   min-height: 33vh; }
   .full-width-head .container {
     padding-top: 100px;
