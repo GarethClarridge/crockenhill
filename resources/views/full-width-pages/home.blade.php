@@ -16,16 +16,63 @@
       </div>
     </div>
 
+    <div id="remembrance">
+      <div class="bg-primary mb-5">
+        <div class="container">
+          <div class="row justify-content-xs-center p-5">
+            <div class="col-md-2">
+              <img src="/images/homepage/PoppyAppeal.png" class="" alt="Poppy">
+            </div>
+            <div class="col-md-9 offset-md-1 text-white">
+              <h1 class="mt-0">Remembrance Sunday</h1>
+              <p>
+                We can't meet in person for Remembrance Sunday this year, but
+                we'll be live streaming our service on
+                <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+                  our YouTube channel</a> as usual.
+              </p>
+              <p>
+                Mark is also featured in the service produced by
+                <a href="https://www.crockenhillpc.org.uk/">
+                  the Parish Council</a>, which is available on
+                <a href="https://www.facebook.com/crockenhillpc">
+                  the council Facebook page</a>. This is instead of the usual
+                  service at the war memorial.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="mission-statement">
       <div class="white-background mt-5">
         <div class="container">
           <div class="row justify-content-md-center">
             <div class="col-md-12 p-3">
               <div class="text-center">
-                <p class="h1 mb-3">Crockenhill Baptist Church exists to:</p>
-                <p class="h2">Worship God</p>
-                <p class="h2">Strengthen believers</p>
-                <p class="h2">Proclaim the good news about Jesus Christ to all.</p>
+                <p class="display-1 mb-5">We exist to:  </p>
+                <p class="h2 my-4 mission-statement-link">
+                  <a href="#worship-god" class="py-2">
+                    <!-- <i class="fas fa-cross"></i> -->
+                    Worship God
+                    <!-- <i class="fas fa-cross"></i> -->
+                  </a>
+                </p>
+                <p class="h2 my-4 mission-statement-link">
+                  <a href="#strengthen-believers" class="py-2">
+                    <!-- <i class="fas fa-users"></i> -->
+                    Strengthen believers
+                    <!-- <i class="fas fa-users"></i> -->
+                  </a>
+                </p>
+                <p class="h2 mission-statement-link">
+                  <a href="#proclaim-christ" class="py-2">
+                    <!-- <i class="fas fa-bullhorn fa-bullhorn-left"></i> -->
+                    Proclaim the good news of Jesus Christ to all
+                    <!-- <i class="fas fa-bullhorn"></i> -->
+                  </a>
+                </p>
               </div>
             </div>
           </div>
@@ -59,7 +106,7 @@
               Unfortunately due to
               <a href="https://www.gov.uk/government/new-national-restrictions-from-5-november#weddings-civil-partnerships-religious-services-and-funerals">
                 the government's new national restrictions
-              </a> 
+              </a>
               we can't meet in person for the rest of November.
             </p>
             <p class="text-center">
@@ -153,34 +200,44 @@
 
 
         <div class="row justify-content-center">
-          <div class="col-md-5">
-            <div class="card home-options text-center m-2">
-              <div class="card-body">
-                <p class="card-text">
-                  We have a whole-church prayer meeting on Sundays at 6:30pm.
-                  The meeting is held over Zoom, but if you don't have access
-                  to Zoom you can dial in using a landline phone.
-                </p>
-                <p class="card-text">
-                  This is a good chance for us to all keep in touch when we can't see each other in person,
-                  and to pray about things affecting us, our church, our village and our world.
-                </p>
-                <a href="mailto:pastor@crockenhill.org?subject=Zoom prayer meetings" class="btn btn-secondary"><i class="fas fa-envelope-open-text"></i>&nbsp Ask Mark for an invite</a>
+          <div class="col-md-10">
+            <div class="card-deck">
+              <div class="card home-options text-center m-2">
+                <div class="card-body">
+                  <p class="card-text">
+                    We have a whole-church prayer meeting on Sundays at 6:30pm.
+                    The meeting is held over Zoom, but if you don't have access
+                    to Zoom you can dial in using a landline phone.
+                  </p>
+                  <p class="card-text">
+                    This is a good chance for us to all keep in touch when we can't see each other in person,
+                    and to pray about things affecting us, our church, our village and our world.
+                  </p>
+                </div>
+                <div class="card-footer">
+                  <a href="mailto:pastor@crockenhill.org?subject=Zoom prayer meetings" class="btn btn-secondary">
+                    <i class="fas fa-envelope-open-text"></i> &nbsp
+                    Ask Mark for an invite
+                  </a>
+                </div>
               </div>
-            </div>
-          </div>
-          <div class="col-md-5">
-            <div class="card home-options text-center m-2">
-              <div class="card-body">
-                <p class="card-text">
-                  We're continuing our normal small group Bible studies,
-                  though they're happening via Zoom at the moment.
-                </p>
-                <p class="card-text">
-                  There are groups on Tuesday, Wednesday and Thursday.
-                  We'd love you to join one: do get in touch.
-                </p>
-                <a class="btn btn-primary" href="/community/bible-study">Find out more</a>
+              <div class="card home-options text-center m-2">
+                <div class="card-body">
+                  <p class="card-text">
+                    We're continuing our normal small group Bible studies,
+                    though they're happening via Zoom at the moment.
+                  </p>
+                  <p class="card-text">
+                    There are groups on Tuesday, Wednesday and Thursday.
+                    We'd love you to join one: do get in touch.
+                  </p>
+                </div>
+                <div class="card-footer">
+                  <a class="btn btn-primary" href="/community/bible-study">
+                    Find out more &nbsp
+                    <i class="fas fa-arrow-circle-right"></i>
+                  </a>
+                </div>
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 .full-width-head {
-  background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url(../images/homepage/SociallyDistanced.jpg);
+  background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url(../images/homepage/Collage.jpg);
   background-size: cover;
   background-position: center;
   min-height: 33vh;
@@ -113,5 +113,38 @@
 
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
+  }
+}
+
+#mission-statement .h2 a {
+  text-decoration: none;
+  font-style: normal;
+  color: black;
+}
+
+#remembrance {
+  a {
+    color: white;
+  }
+  img {
+    height: 11rem;
+  }
+}
+
+
+
+.mission-statement-link {
+  i {
+    opacity: 0;
+    margin-left: 1em;
+    margin-right: 1em;
+  }
+  a:hover {
+    i {
+      opacity: 1;
+    }
+  }
+  .fa-bullhorn-left {
+    transform: scaleX(-1);
   }
 }

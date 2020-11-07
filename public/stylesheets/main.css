@@ -11097,7 +11097,7 @@ readers do not read off random characters that represent icons */
   width: auto; }
 
 .full-width-head {
-  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(../images/homepage/SociallyDistanced.jpg);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(../images/homepage/Collage.jpg);
   background-size: cover;
   background-position: center;
   min-height: 33vh; }
@@ -11175,6 +11175,28 @@ readers do not read off random characters that represent icons */
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone; }
 
+#mission-statement .h2 a {
+  text-decoration: none;
+  font-style: normal;
+  color: black; }
+
+#remembrance a {
+  color: white; }
+
+#remembrance img {
+  height: 11rem; }
+
+.mission-statement-link i {
+  opacity: 0;
+  margin-left: 1em;
+  margin-right: 1em; }
+
+.mission-statement-link a:hover i {
+  opacity: 1; }
+
+.mission-statement-link .fa-bullhorn-left {
+  transform: scaleX(-1); }
+
 .references {
   font-size: 1rem;
   font-style: italic;
@@ -11198,6 +11220,9 @@ div a.btn {
 
 nav a.btn {
   text-decoration: none; }
+
+.display-1, .display-2, .display-3 {
+  font-family: "Oswald", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
 
 audio {
   width: 100%; }
