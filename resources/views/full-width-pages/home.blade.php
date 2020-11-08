@@ -27,9 +27,10 @@
               <h1 class="mt-0">Remembrance Sunday</h1>
               <p>
                 We can't meet in person for Remembrance Sunday this year, but
-                we'll be live streaming our service on
+                we'll post our service on
                 <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
-                  our YouTube channel</a> as usual.
+                  our YouTube channel</a> later today (we've had problems with
+                  our internet connection today).
               </p>
               <p>
                 Mark is also featured in the service produced by
@@ -38,6 +39,11 @@
                 <a href="https://www.facebook.com/crockenhillpc">
                   the council Facebook page</a>. This is instead of the usual
                   service at the war memorial.
+              </p>
+              <p>
+                We're also invited to a joint service this evening with other
+                evangelical churches in the area. Let us know if you want the
+                Zoom link.
               </p>
             </div>
           </div>
