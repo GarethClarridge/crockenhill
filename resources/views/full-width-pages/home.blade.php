@@ -16,7 +16,7 @@
       </div>
     </div>
 
-    <div id="remembrance">
+    <!-- <div id="remembrance">
       <div class="bg-primary mb-5">
         <div class="container">
           <div class="row justify-content-xs-center p-5">
@@ -49,7 +49,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <div id="mission-statement">
       <div class="white-background mt-5">
