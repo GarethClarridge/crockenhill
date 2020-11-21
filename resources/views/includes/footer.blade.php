@@ -53,7 +53,10 @@
             Crockenhill Baptist Church, Eynsford Road, Crockenhill, Kent, BR8 8JS
           </address>
           <div class="alert alert-danger mt-3">
-            Sadly the church building is closed at the moment due to
+            Sadly the church building is closed for everything except the
+            <a href="http://crockenhillvillagehall.co.uk/posts/2020/crockenhills-community-pantry/">
+              Crockenhill Community Pantry
+            </a> at the moment due to
             the government's coronavirus restrictions.
           </div>
           <div class="flexible-map-container pb-0 mb-0">

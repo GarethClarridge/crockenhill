@@ -57,7 +57,7 @@
           <div class="row justify-content-md-center">
             <div class="col-md-12 p-3">
               <div class="text-center">
-                <p class="display-1 mb-5">We exist to:  </p>
+                <p class="display-3 mb-5">We exist to:</p>
                 <p class="h2 my-4 mission-statement-link">
                   <a href="#worship-god" class="py-2">
                     <!-- <i class="fas fa-cross"></i> -->
