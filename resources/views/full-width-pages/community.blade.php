@@ -33,11 +33,12 @@
             <div class="col-md-10 col-lg-8">
               <div class="text-center">
                 <p>
-                  We're a local church - in Crockenhill, for the people of Crockenhill.
+                  We're a local church - in Crockenhill, for the people of
+                  Crockenhill. We want to use the gifts God has given us to
+                  serve our community.
                 </p>
                 <p>
-                  We want to serve our community, and we believe the best way
-                  we can do that is by making
+                  We believe the best way we can do that is by making
                   <a href="/christ">the good news about Jesus Christ</a> known
                   to everyone in Crockenhill and the surrounding area.
                 </p>
