@@ -54,7 +54,7 @@
           </address>
           <div class="alert alert-danger mt-3">
             Sadly the church building is closed for everything except the
-            <a href="http://crockenhillvillagehall.co.uk/posts/2020/crockenhills-community-pantry/">
+            <a href="/community#pantry">
               Crockenhill Community Pantry
             </a> at the moment due to
             the government's coronavirus restrictions.
