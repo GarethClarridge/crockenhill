@@ -16,40 +16,6 @@
       </div>
     </div>
 
-    <!-- <div id="remembrance">
-      <div class="bg-primary mb-5">
-        <div class="container">
-          <div class="row justify-content-xs-center p-5">
-            <div class="col-md-2">
-              <img src="/images/homepage/PoppyAppeal.png" class="" alt="Poppy">
-            </div>
-            <div class="col-md-9 offset-md-1 text-white">
-              <h1 class="mt-0">Remembrance Sunday</h1>
-              <p>
-                We can't meet in person for Remembrance Sunday this year, but
-                we'll post our service on
-                <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
-                  our YouTube channel</a> later today (we've had problems with
-                  our internet connection today).
-              </p>
-              <p>
-                Mark is also featured in the service produced by
-                <a href="https://www.crockenhillpc.org.uk/">
-                  the Parish Council</a>, which is available on
-                <a href="https://www.facebook.com/crockenhillpc">
-                  the council Facebook page</a>. This is instead of the usual
-                  service at the war memorial.
-              </p>
-              <p>
-                We're also invited to a joint service this evening with other
-                evangelical churches in the area. Let us know if you want the
-                Zoom link.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div> -->
 
     <div id="mission-statement">
       <div class="white-background mt-5">
@@ -106,46 +72,50 @@
         <div class="col-md-8 col-lg-6">
           <div class="white-background mb-5">
             <p class="text-center">
-              We usually meet to worship God together as a church every Sunday at 10:30am.
+              We meet to worship God together as a church every Sunday at 10:30am.
             </p>
             <p class="text-center">
-              Unfortunately due to
-              <a href="https://www.gov.uk/government/new-national-restrictions-from-5-november#weddings-civil-partnerships-religious-services-and-funerals">
-                the government's new national restrictions
-              </a>
-              we can't meet in person for the rest of November.
+              Under
+              <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july/covid-19-guidance-for-the-safe-use-of-places-of-worship-from-2-december">
+                the new tier system
+              </a> some of us will be meeting for socially-distanced worship on Sunday mornings.
             </p>
             <p class="text-center">
               We will still be streaming our services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
-              </a> from at 10:30am on Sundays.
+              </a> from at 10:30am on Sundays for people living outside Tier 3
+              or who don't feel comfortable attending in person.
             </p>
           </div>
         </div>
       </div>
 
 
-      <!-- <div class="row justify-content-center">
-        <div class="col-md-5">
-          <div class="card home-options text-center m-2">
-            <div class="card-body">
-              <p class="card-text">Let us know if you're coming so we can reserve you a socially-distanced seat.</p>
-              <a href="mailto:pastor@crockenhill.org,laurie.everest@btinternet.com,pclarridge@gmail.com?subject=Attending church in person" class="btn btn-secondary"><i class="fas fa-user-check"></i>&nbsp Register to attend in person</a>
+      <div class="row justify-content-center">
+        <div class="col-md-10">
+          <div class="card-deck">
+            <div class="card home-options text-center m-2">
+              <div class="card-body">
+                <p class="card-text">Let us know if you're coming so we can reserve you a socially-distanced seat.</p>
+              </div>
+              <div class="card-footer">
+                <a href="mailto:pastor@crockenhill.org,laurie.everest@btinternet.com,pclarridge@gmail.com?subject=Attending church in person" class="btn btn-secondary"><i class="fas fa-user-check"></i>&nbsp Register to attend in person</a>
+              </div>
+            </div>
+            <div class="card home-options text-center m-2">
+              <div class="card-body">
+                <p class="card-text">If you can't join us in person you can follow along live online.</p>
+              </div>
+              <div class="card-footer">
+                <a class="btn btn-primary" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/"><i class="fab fa-youtube"></i>&nbsp Watch on our YouTube channel</a>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-md-5">
-          <div class="card home-options text-center m-2">
-            <div class="card-body">
-              <p class="card-text">If you can't join us in person you can follow along live online.</p>
-              <a class="btn btn-primary" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/"><i class="fab fa-youtube"></i>&nbsp Watch on our YouTube channel</a>
-            </div>
-          </div>
-        </div>
-      </div> -->
+      </div>
 
-      <!-- <div class="row justify-content-md-center">
+      <div class="row justify-content-md-center">
         <div class="col-md-8 col-lg-6">
           <div class="white-background my-5">
             <p class="text-center">
@@ -154,7 +124,7 @@
             </p>
           </div>
         </div>
-      </div> -->
+      </div>
 
       <div class="row justify-content-md-center">
         <row class="col-md-10">
