@@ -9,7 +9,74 @@
 @stop
 
 @section('content')
-  <main id="christmas-page">
+<main>
+  <div id="christmas">
+    <div class="christmas-background">
+      <div class="container">
+        <div class="row justify-content-md-center">
+          <div class="col-md-10 col-lg-6">
+            <div class="text-center">
+              <img src="/images/GoodNewsGreatJoy.svg" alt="Good news of great joy!">
+            </div>
+          </div>
+          <div class="col-md-12">
+            <div class="text-center text-white m-4">
+              <h1>Christmas with Crockenhill Baptist Church:</h1>
+            </div>
+          </div>
+        </div>
+
+        <div class="row justify-content-center my-3">
+          <div class="col-md-10">
+            <div class="card-deck pb-4">
+              <div class="card home-options text-center p-2">
+                <div class="card-body">
+                  <h2>Carols by Candlelight</h2>
+                  <p>
+                    Sunday 20th at 6pm, only online via <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+                    our YouTube channel</a>.
+                  </p>
+                </div>
+              </div>
+              <div class="card home-options text-center p-2">
+                <div class="card-body">
+                  <h2>Christmas day service</h2>
+                  <p>
+                    At 10am on Christmas morning, only online via <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+                    our YouTube channel</a>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row justify-content-md-center">
+          <div class="col-md-6">
+            <div class="text-center text-white mb-5">
+              <p class="h4">We'll continue
+                <a class="text-white" href="/#worship-god">
+                  meeting together on Sunday mornings in person
+                  and online</a> as usual.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+
+
+
+
+
+
+
+
+
+
+  <!-- 2019: <main id="christmas-page">
     <div class="christmas-head text-white">
       <div class="container">
         <h1 class="text-center">
@@ -80,6 +147,6 @@
       </div>
     </section>
 
-  </main>
+  </main> -->
 
 @stop
