@@ -21,7 +21,7 @@
         <div class="container">
           <div class="row justify-content-md-center">
             <div class="col-md-10 col-lg-6">
-              <div class="text-center">
+              <div class="text-center mt-5">
                 <img src="/images/GoodNewsGreatJoy.svg" alt="Good news of great joy!">
               </div>
             </div>
