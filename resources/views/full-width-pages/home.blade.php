@@ -151,8 +151,8 @@
               We will still be streaming our services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
-              </a> from at 10:30am on Sundays for people living outside Tier 3
-              or who don't feel comfortable attending in person.
+              </a> from at 10:30am on Sundays for those who don't feel
+              comfortable attending in person.
             </p>
           </div>
         </div>
