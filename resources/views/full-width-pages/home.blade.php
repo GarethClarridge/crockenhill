@@ -7,14 +7,7 @@
 @section('content')
 
   <main id="home">
-    <div class="full-width-head text-white">
-      <div class="container">
-        <h1 class="text-center">
-          <div class="px-2 py-1">Crockenhill Baptist Church</div>
-        </h1>
-        <p class="text-center lead"><span class="px-3 py-2">A friendly, Bible believing church just outside Swanley.</span></p>
-      </div>
-    </div>
+
 
     <div id="christmas">
       <div class="christmas-background">
@@ -80,6 +73,15 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="full-width-head text-white">
+      <div class="container">
+        <h1 class="text-center">
+          <div class="px-2 py-1">Crockenhill Baptist Church</div>
+        </h1>
+        <p class="text-center lead"><span class="px-3 py-2">A friendly, Bible believing church just outside Swanley.</span></p>
       </div>
     </div>
 
