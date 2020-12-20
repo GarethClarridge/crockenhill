@@ -39,7 +39,7 @@
                   <div class="card-body">
                     <h2>Carols by Candlelight</h2>
                     <p>
-                      Sunday 20th at 6pm, only online via <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+                      Sunday 20th at 6pm, only online via <a href="https://www.youtube.com/watch?v=UVxy545ELC0">
                       our YouTube channel</a>.
                     </p>
                   </div>
@@ -48,7 +48,7 @@
                   <div class="card-body">
                     <h2>Christmas day service</h2>
                     <p>
-                      At 10am on Christmas morning, only online via <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+                      At 10:30am on Christmas morning, only online via <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                       our YouTube channel</a>.
                     </p>
                   </div>
@@ -58,8 +58,20 @@
           </div>
 
           <div class="row justify-content-md-center">
+            <div class="col-md-12">
+              <div class="card">
+                <div class="card-body p-5">
+                  <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/UVxy545ELC0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row justify-content-md-center">
             <div class="col-md-6">
-              <div class="text-center text-white mb-5">
+              <div class="text-center text-white my-5">
                 <p class="h4">We'll continue
                   <a class="text-white" href="#worship-god">
                     meeting together on Sunday mornings in person
@@ -182,7 +194,7 @@
       </div>
 
       <div class="row justify-content-md-center">
-        <row class="col-md-10">
+        <div class="col-md-10">
           <div class="card">
             <div class="card-body">
               <div class="embed-responsive embed-responsive-16by9">
