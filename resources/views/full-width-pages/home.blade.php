@@ -25,25 +25,12 @@
             </div>
           </div>
 
-          <div class="row justify-content-center my-3">
-            <div class="col-md-10">
-              <div class="card-deck pb-4">
-                <div class="card home-options text-center p-2">
-                  <div class="card-body">
-                    <h2>Carols by Candlelight</h2>
-                    <p>
-                      Sunday 20th at 6pm, only online via <a href="https://www.youtube.com/watch?v=UVxy545ELC0">
-                      our YouTube channel</a>.
-                    </p>
-                  </div>
-                </div>
-                <div class="card home-options text-center p-2">
-                  <div class="card-body">
-                    <h2>Christmas day service</h2>
-                    <p>
-                      At 10:30am on Christmas morning, only online via <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
-                      our YouTube channel</a>.
-                    </p>
+          <div class="row justify-content-md-center">
+            <div class="col-md-12">
+              <div class="card mt-3 mb-5">
+                <div class="card-body p-5">
+                  <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/HAuA7mJ-bUI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
