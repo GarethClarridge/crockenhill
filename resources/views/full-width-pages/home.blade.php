@@ -9,7 +9,7 @@
   <main id="home">
 
 
-    <div id="christmas">
+    <!-- <div id="christmas">
       <div class="christmas-background">
         <div class="container">
           <div class="row justify-content-md-center">
@@ -61,7 +61,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <div class="full-width-head text-white">
       <div class="container">
@@ -187,8 +187,8 @@
           <div class="card">
             <div class="card-body">
               <div class="embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/BXO5cceEJw0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                <!-- <iframe class="embed-responsive-item" id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> -->
+                <!-- <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/BXO5cceEJw0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> -->
+                <iframe class="embed-responsive-item" id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
           </div>
