@@ -133,15 +133,16 @@
             <p class="text-center">
               Under
               <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july/covid-19-guidance-for-the-safe-use-of-places-of-worship-from-2-december">
-                the government's tier system
-              </a> some of us will be meeting for socially-distanced worship on Sunday mornings.
+                the current lockdown places of worship are allowed to remain open
+              </a>, so a few of us will be meeting for socially-distanced worship on Sunday mornings.
             </p>
             <p class="text-center">
-              We will still be streaming our services on
+              We recognise that most people won't be able to attend in person,
+              so we will still be streaming our services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
-              </a> from at 10:30am on Sundays for those who don't feel
-              comfortable attending in person.
+              </a> from at 10:30am on Sundays for those who are sheilding or
+              don't feel comfortable attending in person.
             </p>
           </div>
         </div>
