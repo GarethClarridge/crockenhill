@@ -141,7 +141,7 @@
               so we will still be streaming our services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
-              </a> from at 10:30am on Sundays for those who are sheilding or
+              </a> from 10:30am on Sundays for those who are shielding or
               don't feel comfortable attending in person.
             </p>
           </div>
