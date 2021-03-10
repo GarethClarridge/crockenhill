@@ -175,6 +175,12 @@ Route::get('/church', array(
     return view('full-width-pages/church');
   })
 );
+Route::get('/christianity-explored', array(
+  'as' => 'christianity-explored', function()
+  {
+    return view('full-width-pages/christianity-explored');
+  })
+);
 
 // General Routes
 Route::get('/{area}/', array('uses' => 'PageController@showArticleWithoutAsides'));
