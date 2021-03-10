@@ -72,6 +72,52 @@
       </div>
     </div>
 
+    <div id="christianity-explored">
+      <div class="christianity-explored-background">
+        <div class="container">
+          <div class="row justify-content-md-center d-flex align-items-center">
+            <div class="col-md-5">
+              <div class="text-center mt-5">
+                <img src="/images/homepage/ceThumbprint.png" alt="Christianity Explored logo" class="img-fluid">
+              </div>
+            </div>
+            <div class="col-md-7">
+              <div class="text-center text-md-left text-white m-4">
+                <h1>What's the greatest news you've ever heard?</h1>
+              </div>
+            </div>
+          </div>
+
+          <div class="row justify-content-md-center">
+            <div class="col-md-12">
+              <div class="card mt-3 mb-5">
+                <div class="card-body p-0">
+                  <div class="embed-responsive embed-responsive-16by9">
+                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/6DL_GO1HFA4" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row justify-content-md-center">
+            <div class="col-md-8">
+              <div class="text-center text-white my-5">
+                <p class="h2">
+                  Join us online on Thursdays at 7:30pm from 8th April to discover
+                  why Jesus is the best news you'll ever hear.
+                </p>
+                <a class="btn btn-lg btn-light my-5" href="/christianity-explored">
+                  Find out more and book your place &nbsp
+                  <i class="fas fa-arrow-circle-right"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <div id="mission-statement">
       <div class="white-background mt-5">

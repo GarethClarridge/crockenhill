@@ -11197,6 +11197,9 @@ readers do not read off random characters that represent icons */
 .mission-statement-link .fa-bullhorn-left {
   transform: scaleX(-1); }
 
+#christianity-explored {
+  background-color: #c8102e; }
+
 .references {
   font-size: 1rem;
   font-style: italic;
