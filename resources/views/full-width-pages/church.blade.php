@@ -314,11 +314,9 @@
                     These days we're a Baptist church. That means we think the
                     Bible teaches adults should be baptised (the word just means
                     dunked in water) when they come to trust in Jesus Christ
-                    for salvation. Unlike other churches (such as
-                    <a href="https://www.allsouls.org.uk/">
-                      our friends over the road at All Souls
-                    </a>), we don't baptise babies as they can't tell us whether
-                    or not they're trusting Jesus!
+                    for salvation. Unlike other churches, we don't baptise
+                    babies as they can't tell us whether or not they're trusting
+                    Jesus!
                   </p>
                   <hr class="my-5">
                   <h3 class="h2 mb-5">

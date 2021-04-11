@@ -91,7 +91,7 @@
           <div class="row justify-content-md-center">
             <div class="col-md-12">
               <div class="embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/6DL_GO1HFA4" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/WUCvQs_yfUg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
           </div>
@@ -100,8 +100,10 @@
             <div class="col-md-8">
               <div class="text-center text-white my-5">
                 <p class="h2">
-                  Join us online on Thursdays at 7:30pm from 8th April to discover
-                  why Jesus is the best news you'll ever hear.
+                  Join us online on Thursdays at 7:30pm to discover
+                  why Jesus is the best news you'll ever hear. We started with
+                  an introductory session last week, but you'd be welcome to
+                  join the group from this Thursday 15th April.
                 </p>
                 <a class="btn btn-lg btn-light my-5" href="/christianity-explored">
                   Find out more and book your place &nbsp
@@ -167,7 +169,7 @@
 
     <div class="container">
       <div class="row justify-content-md-center">
-        <div class="col-md-8 col-lg-6">
+        <div class="col-md-10 col-lg-8">
           <div class="white-background mb-5">
             <p class="text-center">
               We meet to worship God together as a church every Sunday at 10:30am.
@@ -175,16 +177,24 @@
             <p class="text-center">
               Under
               <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july/covid-19-guidance-for-the-safe-use-of-places-of-worship-from-2-december">
-                the current lockdown places of worship are allowed to remain open
-              </a>, so a few of us will be meeting for socially-distanced worship on Sunday mornings.
+                the current Covid restrictions</a>
+              places of worship are allowed to remain open as the government
+              recognises that they "play an important role in providing
+              spiritual leadership for many individuals, and in bringing
+              communities and generations together".
             </p>
             <p class="text-center">
-              We recognise that most people won't be able to attend in person,
+              We will therefore continue to meet for socially-distanced worship
+              on Sunday mornings. As rates of infection decrease and more of us
+              receive vaccinations, we hope you'll feel able to join us.
+            </p>
+            <p class="text-center">
+              We recognise that not everyone will be able to attend in person,
               so we will still be streaming our services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
-              </a> from 10:30am on Sundays for those who are shielding or
-              don't feel comfortable attending in person.
+              </a> from 10:30am on Sundays for those who don't yet feel
+              comfortable attending in person.
             </p>
           </div>
         </div>
@@ -196,7 +206,12 @@
           <div class="card-deck">
             <div class="card home-options text-center m-2">
               <div class="card-body">
-                <p class="card-text">Let us know if you're coming so we can reserve you a socially-distanced seat.</p>
+                <p class="card-text">
+                  Let us know if you're coming so we can reserve you a
+                  socially-distanced seat. As more people are now attending this
+                  is increasingly important so we can make sure we stay within
+                  capacity limits for our building.
+                </p>
               </div>
               <div class="card-footer">
                 <a href="mailto:pastor@crockenhill.org,laurie.everest@btinternet.com,pclarridge@gmail.com?subject=Attending church in person" class="btn btn-secondary"><i class="fas fa-user-check"></i>&nbsp Register to attend in person</a>
@@ -204,7 +219,9 @@
             </div>
             <div class="card home-options text-center m-2">
               <div class="card-body">
-                <p class="card-text">If you can't join us in person you can follow along live online.</p>
+                <p class="card-text">
+                  If you can't join us in person you can follow along live online.
+                </p>
               </div>
               <div class="card-footer">
                 <a class="btn btn-primary" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/"><i class="fab fa-youtube"></i>&nbsp Watch on our YouTube channel</a>
