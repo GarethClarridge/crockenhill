@@ -96,9 +96,9 @@
                     Pantry on Wednesday evenings and Friday afternoons.
                   </p>
                   <p>
-                    The Crockenhill Community Pantry is run by local Councillor
-                    Rachel Waterton (not by the church), with support from her
-                    team of volunteers and local groups.
+                    The Crockenhill Community Pantry is run by local district
+                    Councillor Rachel Waterton (not by the church), with support
+                    from her team of volunteers and local groups.
                   </p>
                   <a class="btn btn-lg btn-primary mt-3" href="http://crockenhillvillagehall.co.uk/posts/2020/crockenhills-community-pantry/" role="button">
                     Find out more at the Parish Council website &nbsp
@@ -195,12 +195,10 @@
                   <div class="card-body">
                     Of course, you could always come along to our Sunday service.
                     We'd love to get to know you.
-                    <div class="alert alert-info mt-3">
-                      Sunday services are only available live streamed via
-                      <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
-                        our YouTube channel
-                      </a> at the moment due to coronavirus.
-                    </div>
+                    If this sounds scary you can
+                    <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
+                      check them out on Youtube
+                    </a> first!
                   </div>
                   <div class="card-footer">
                     <a href="community/sunday-services">Find out more ...</a>
@@ -389,12 +387,6 @@
                     <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
                       check them out on Youtube
                     </a> first!
-                    <div class="alert alert-info mt-3">
-                      Sunday services are only available live streamed via
-                      <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
-                        our YouTube channel
-                      </a> at the moment due to coronavirus.
-                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="community/sunday-services">Find out more ...</a>
@@ -405,7 +397,7 @@
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
                       <div class="p-2">
-                        Christianity explored
+                        Christianity Explored
                       </div>
                     </h3>
                     <img class="card-img-top cbc-card-img-top" src="/images/headings/small/christianity-explored.jpg">
@@ -415,7 +407,7 @@
                     interested in learning more about Christianity.
                   </div>
                   <div class="card-footer">
-                    <a href="community/christianity-explored">Find out more ...</a>
+                    <a href="/christianity-explored">Find out more ...</a>
                   </div>
                 </div>
 
@@ -486,7 +478,7 @@
                   <div class="card-body">
                     A couple of times a year we run quiz nights for the local community.
                     <div class="alert alert-danger mt-3">
-                      We won't be hosting quiz nights this year due to coronavirus.
+                      We won't be hosting quiz nights at the moment due to coronavirus.
                     </div>
                   </div>
                   <div class="card-footer">
@@ -505,9 +497,6 @@
                   </div>
                   <div class="card-body">
                     Every Christmas we have an evening of carol singing in the village pub.
-                    <div class="alert alert-danger mt-3">
-                      We won't be hosting Carols at the Chequers this year due to coronavirus.
-                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="carols-in-the-chequers">Find out more ...</a>
@@ -526,7 +515,7 @@
                   <div class="card-body">
                     A holiday club for primary school age children.
                     <div class="alert alert-danger mt-3">
-                      We couldn't run Buzz Club this year due to coronavirus.
+                      We won't run Buzz Club in 2021 due to coronavirus.
                     </div>
                   </div>
                   <div class="card-footer">
