@@ -37,9 +37,11 @@
                   who exist to worship God, strengthen believers and proclaim the good news of Jesus Christ to all.
                 </p>
                 <p>
-                  There are about 50 of us on a Sunday morning, from different nationalities,
+                  There are about 50 of us on a Sunday morning in the building
+                  and following on online. We're from different nationalities,
                   backgrounds and ages from 5 to 85!
-                  The one thing that unites us is our love for Jesus Christ and our gratefulness for his amazing rescue.
+                  The one thing that unites us is our love for Jesus Christ and
+                  our gratefulness for his amazing rescue.
                 </p>
                 <div class="my-5 in-page-nav-buttons">
                   <a class="btn btn-lg btn-primary" href="#when" role="button">When do we meet?</a>
@@ -104,7 +106,7 @@
                     Our main activity as a church is gathering together to worship
                     God and hear from his word on Sundays at 10:30.
                     <div class="alert alert-info mt-3">
-                      Sunday services are only available live streamed via
+                      Sunday services are also available live streamed via
                       <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                         our YouTube channel
                       </a> at the moment due to coronavirus.
