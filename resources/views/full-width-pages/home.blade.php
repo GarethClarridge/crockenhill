@@ -72,7 +72,7 @@
       </div>
     </div>
 
-    <div id="christianity-explored">
+    <!-- <div id="christianity-explored">
       <div class="christianity-explored-background">
         <div class="container">
           <div class="row justify-content-md-center d-flex align-items-center">
@@ -114,7 +114,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
 
 
     <div id="mission-statement">
