@@ -175,68 +175,23 @@
               We meet to worship God together as a church every Sunday at 10:30am.
             </p>
             <p class="text-center">
-              Under
-              <a href="https://www.gov.uk/government/publications/covid-19-guidance-for-the-safe-use-of-places-of-worship-during-the-pandemic-from-4-july/covid-19-guidance-for-the-safe-use-of-places-of-worship-from-2-december">
-                the current Covid restrictions</a>
-              places of worship are allowed to remain open as the government
-              recognises that they "play an important role in providing
-              spiritual leadership for many individuals, and in bringing
-              communities and generations together".
+              We're glad to be able to meet without legal restrictions once again.
+              Our services feel almost normal, with singing rather than watching
+              videos of other people singing!
             </p>
             <p class="text-center">
-              We will therefore continue to meet for socially-distanced worship
-              on Sunday mornings. As rates of infection decrease and more of us
-              receive vaccinations, we hope you'll feel able to join us.
+              We are still conscious of the risk
+              of coronavirus so we will continue to keep as much ventilation as
+              possible and keep a level of social distancing inside the church.
+              Masks are no longer required, but feel free to wear one
+              if you like. We hope you'll feel able to join us.
             </p>
             <p class="text-center">
-              We recognise that not everyone will be able to attend in person,
-              so we will still be streaming our services on
+              If you're stuck at home with coronavirus, or for any other reason,
+              don't worry! We will still be streaming our services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
-              </a> from 10:30am on Sundays for those who don't yet feel
-              comfortable attending in person.
-            </p>
-          </div>
-        </div>
-      </div>
-
-
-      <div class="row justify-content-center">
-        <div class="col-md-10">
-          <div class="card-deck">
-            <div class="card home-options text-center m-2">
-              <div class="card-body">
-                <p class="card-text">
-                  Let us know if you're coming so we can reserve you a
-                  socially-distanced seat. As more people are now attending this
-                  is increasingly important so we can make sure we stay within
-                  capacity limits for our building.
-                </p>
-              </div>
-              <div class="card-footer">
-                <a href="mailto:pastor@crockenhill.org,laurie.everest@btinternet.com,pclarridge@gmail.com?subject=Attending church in person" class="btn btn-secondary"><i class="fas fa-user-check"></i>&nbsp Register to attend in person</a>
-              </div>
-            </div>
-            <div class="card home-options text-center m-2">
-              <div class="card-body">
-                <p class="card-text">
-                  If you can't join us in person you can follow along live online.
-                </p>
-              </div>
-              <div class="card-footer">
-                <a class="btn btn-primary" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/"><i class="fab fa-youtube"></i>&nbsp Watch on our YouTube channel</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row justify-content-md-center">
-        <div class="col-md-8 col-lg-6">
-          <div class="white-background my-5">
-            <p class="text-center">
-              If you've attended a service before coronavirus it will feel quite different.
-              <a href="/reopening">Find out what it'll be like before you come</a>.
+              </a> from 10:30am on Sundays.
             </p>
           </div>
         </div>
@@ -247,7 +202,6 @@
           <div class="card">
             <div class="card-body">
               <div class="embed-responsive embed-responsive-16by9">
-                <!-- <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/BXO5cceEJw0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> -->
                 <iframe class="embed-responsive-item" id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
@@ -280,12 +234,10 @@
                 as the Holy Spirit makes us more like Jesus.
               </p>
               <p class="text-center">
-                How we help each other at the moment is limited.
-                Hugs and handshakes are out; WhatsApp groups and Zoom calls are in.
-              </p>
-              <p class="text-center">
-                Thankfully technology means that even in lockdown we can still
-                read the Bible together and pray together.
+                To help each other we first need to get to know each other!
+                We're delighted to be able to chat after church over coffee and
+                biscuits again, and over summer we're having church lunches
+                generously hosted by various church members.
               </p>
             </div>
           </div>
@@ -298,27 +250,26 @@
               <div class="card home-options text-center m-2">
                 <div class="card-body">
                   <p class="card-text">
-                    We have a whole-church prayer meeting on Sundays at 6:30pm.
-                    The meeting is held over Zoom, but if you don't have access
-                    to Zoom you can dial in using a landline phone.
+                    We have a Sunday evening meeting on Sundays at 6:30pm.
+                    The meeting is now held in person, but a Zoom link can be
+                    made available for anyone who needs it.
                   </p>
                   <p class="card-text">
-                    This is a good chance for us to all keep in touch when we can't see each other in person,
-                    and to pray about things affecting us, our church, our village and our world.
+                    The main focus of this meeting is prayer, although Mark
+                    brings a shorter message and we sing a hymn or two.
                   </p>
                 </div>
                 <div class="card-footer">
                   <a href="mailto:pastor@crockenhill.org?subject=Zoom prayer meetings" class="btn btn-secondary">
                     <i class="fas fa-envelope-open-text"></i> &nbsp
-                    Ask Mark for an invite
+                    Ask Mark for an Zoom invite
                   </a>
                 </div>
               </div>
               <div class="card home-options text-center m-2">
                 <div class="card-body">
                   <p class="card-text">
-                    We're continuing our normal small group Bible studies,
-                    though they're happening via Zoom at the moment.
+                    In September we'll restart our normal small group Bible studies.
                   </p>
                   <p class="card-text">
                     There are groups on Tuesday, Wednesday and Thursday.
@@ -368,7 +319,7 @@
 
       <div class="row justify-content-md-center">
         <div class="col-md-10">
-          <div class="card my-5">
+          <div class="card my-3">
             <div class="card-body">
               <div class="embed-responsive embed-responsive-16by9">
                 <iframe src="https://www.youtube.com/embed/Ue3rHGDMzjU" class="embed-responsive-item" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
@@ -380,7 +331,7 @@
 
       <div class="row justify-content-md-center">
         <div class="col-md-8 col-lg-6">
-          <div class="white-background text-center mb-5">
+          <div class="white-background text-center">
             <a class="btn btn-lg btn-primary my-5" href="/christ">
               Find out more about the good news of Jesus Christ &nbsp
               <i class="fas fa-arrow-circle-right"></i>
@@ -388,6 +339,23 @@
             <p class="text-center">
               If you've got questions, do get in touch using the details below.
               We'd love to listen.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="row justify-content-md-center">
+        <div class="col-md-8 col-lg-6">
+          <div class="white-background my-5">
+            <p class="text-center">
+              We are considering how best to re-start our regular activities.
+              This is unlikely to happen in September due to a combination of
+              coronavirus uncertainty, the planning we need to do, and the fact
+              that we're about to carry out major works to make our building
+              more accessible.
+            </p>
+            <p class="text-center">
+              Watch this space for future updates.
             </p>
           </div>
         </div>
