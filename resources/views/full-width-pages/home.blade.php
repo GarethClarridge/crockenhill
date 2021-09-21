@@ -172,23 +172,21 @@
         <div class="col-md-10 col-lg-8">
           <div class="white-background mb-5">
             <p class="text-center">
-              We meet to worship God together as a church every Sunday at 10:30am.
-            </p>
-            <p class="text-center">
-              We're glad to be able to meet without legal restrictions once again.
-              Our services feel almost normal, with singing rather than watching
-              videos of other people singing!
+              We meet to worship God together as a church every Sunday at
+              10:30am. Services involve reading the Bible, praying, singing
+              and hearing God's word preached. We're currently looking at Jesus'
+              "Sermon on the Mount" from Matthew chapters 5-7.
             </p>
             <p class="text-center">
               We are still conscious of the risk
               of coronavirus so we will continue to keep as much ventilation as
               possible and keep a level of social distancing inside the church.
               Masks are no longer required, but feel free to wear one
-              if you like. We hope you'll feel able to join us.
+              if you like. We hope you'll be able to join us.
             </p>
             <p class="text-center">
-              If you're stuck at home with coronavirus, or for any other reason,
-              don't worry! We will still be streaming our services on
+              If you're stuck at home with coronavirus
+              don't worry – we will still be streaming our services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
               </a> from 10:30am on Sundays.
@@ -202,7 +200,7 @@
           <div class="card">
             <div class="card-body">
               <div class="embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <!-- <iframe class="embed-responsive-item" id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> -->
               </div>
             </div>
           </div>
@@ -233,12 +231,6 @@
                 We want to continue to grow in our faith: becoming closer to God
                 as the Holy Spirit makes us more like Jesus.
               </p>
-              <p class="text-center">
-                To help each other we first need to get to know each other!
-                We're delighted to be able to chat after church over coffee and
-                biscuits again, and over summer we're having church lunches
-                generously hosted by various church members.
-              </p>
             </div>
           </div>
         </div>
@@ -250,29 +242,25 @@
               <div class="card home-options text-center m-2">
                 <div class="card-body">
                   <p class="card-text">
-                    We have a Sunday evening meeting on Sundays at 6:30pm.
-                    The meeting is now held in person, but a Zoom link can be
-                    made available for anyone who needs it.
+                    We have a Sunday evening meeting at 6:30pm.
                   </p>
                   <p class="card-text">
                     The main focus of this meeting is prayer, although Mark
-                    brings a shorter message and we sing a hymn or two.
+                    brings a shorter message and we sing a hymn or two. Mark is
+                    currently preaching through the life of Elijah.
                   </p>
                 </div>
                 <div class="card-footer">
-                  <a href="mailto:pastor@crockenhill.org?subject=Zoom prayer meetings" class="btn btn-secondary">
-                    <i class="fas fa-envelope-open-text"></i> &nbsp
-                    Ask Mark for an Zoom invite
-                  </a>
                 </div>
               </div>
               <div class="card home-options text-center m-2">
                 <div class="card-body">
                   <p class="card-text">
-                    In September we'll restart our normal small group Bible studies.
+                    We meet weekly in small groups for Bible study and prayer.
                   </p>
                   <p class="card-text">
-                    There are groups on Tuesday, Wednesday and Thursday.
+                    There are groups on Tuesday afternoons, and Wednesday or
+                    Thursday evenings.
                     We'd love you to join one: do get in touch.
                   </p>
                 </div>
@@ -286,8 +274,8 @@
             </div>
           </div>
         </div>
+      </div>
     </div>
-
 
     <div id="proclaim-christ">
       <div class="bg-pattern my-5">

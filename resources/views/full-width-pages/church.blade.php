@@ -83,6 +83,7 @@
                   <p>
                     We meet together each Sunday to worship God,
                     learn from the Bible, and enjoy fellowship with one another.
+                    We meet again on Sunday evenings for a service with a focus on prayer.
                     We meet during the week in each other's homes for deeper Bible study,
                     applying what God says to our lives.
                   </p>
@@ -109,7 +110,7 @@
                       Sunday services are also available live streamed via
                       <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                         our YouTube channel
-                      </a> at the moment due to coronavirus.
+                      </a>.
                     </div>
                   </div>
                   <div class="card-footer">
@@ -121,18 +122,15 @@
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
                       <div class="p-2">
-                        Prayer meetings
+                        Evening services
                       </div>
                     </h3>
                     <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
                   </div>
                   <div class="card-body">
-                    We also meet on Sunday evenings to pray for our church,
-                    our village, our country and our world.
-                    <div class="alert alert-info mt-3">
-                      The church prayer meeting is held via Zoom at the moment
-                      due to coronavirus.
-                    </div>
+                    The main focus of our evening meetings is prayer, although Mark
+                    brings a shorter message and we sing a hymn or two. Mark is
+                    currently preaching through the life of Elijah.
                   </div>
                   <div class="card-footer">
                     <a href="community/prayer-meeting">Find out more ...</a>
@@ -151,10 +149,6 @@
                   <div class="card-body">
                     We meet in each others' homes each week to study the bible
                     and pray together.
-                    <div class="alert alert-info mt-3">
-                      Our small groups are meeting via Zoom at the moment due to
-                      coronavirus.
-                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="community/bible-study">Find out more ...</a>

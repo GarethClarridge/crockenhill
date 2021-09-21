@@ -50,7 +50,6 @@
                   of coffee and a chat with local people.
                 </p>
                 <div class="my-5 in-page-nav-buttons">
-                  <a class="btn btn-lg btn-primary" href="#pantry" role="button">I need help with food or basic necessities</a>
                   <a class="btn btn-lg btn-primary" href="#meet-people" role="button">I want to meet local people</a>
                   <a class="btn btn-lg btn-primary" href="#children" role="button">I've got children</a>
                   <a class="btn btn-lg btn-primary" href="#jesus" role="button">I want to find out more about Jesus</a>
@@ -61,59 +60,6 @@
         </div>
       </div>
     </div>
-
-
-
-
-    <div id="pantry">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="p-5">
-              <div class="text-white text-center">
-                <h2 class="h1">
-                  I need help with food or basic necessities
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-
-    <div class="container">
-      <div class="row justify-content-md-center">
-        <div class="col-md-12">
-          <div class="white-background mb-5">
-
-            <div class="row justify-content-center my-5">
-              <div class="col-md-10 col-lg-8">
-                <div class="text-center">
-                  <p>
-                    We know life is difficult at the moment, so we're pleased
-                    to offer our building to host the Crockenhill Community
-                    Pantry on Wednesday evenings and Friday afternoons.
-                  </p>
-                  <p>
-                    The Crockenhill Community Pantry is run by local district
-                    Councillor Rachel Waterton (not by the church), with support
-                    from her team of volunteers and local groups.
-                  </p>
-                  <a class="btn btn-lg btn-primary mt-3" href="http://crockenhillvillagehall.co.uk/posts/2020/crockenhills-community-pantry/" role="button">
-                    Find out more at the Parish Council website &nbsp
-                    <i class="fas fa-arrow-circle-right"></i>
-                  </a>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-
 
 
     <div id="meet-people">
