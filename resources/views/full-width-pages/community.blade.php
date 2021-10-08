@@ -99,9 +99,6 @@
                   <div class="card-body">
                     If you're free on Thursday mornings, come along to the church
                     for a cup of coffee and a slice of cake.
-                    <div class="alert alert-danger mt-3">
-                      Coffee Cup isn't meeting at the moment due to coronavirus.
-                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="community/coffee-cup">Find out more ...</a>

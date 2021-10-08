@@ -297,8 +297,7 @@
         <div class="col-md-8 col-lg-6">
           <div class="white-background">
             <p class="text-center">
-              We're eager to tell people about Jesus,
-              even if we can't run our <a href="/community">usual activities</a>.
+              We're eager to tell people about Jesus.
               After all, Christianity is good news:
             </p>
           </div>
@@ -336,13 +335,14 @@
         <div class="col-md-8 col-lg-6">
           <div class="white-background my-5">
             <p class="text-center">
-              We are considering how best to re-start our regular activities.
-              This is unlikely to happen in September due to a combination of
-              coronavirus uncertainty, the planning we need to do, and the fact
-              that we're about to carry out major works to make our building
-              more accessible.
+              We are considering how best to re-start our <a href="/community">regular activities</a>.
             </p>
             <p class="text-center">
+              We have restarted our <a href="community/coffee-cup">Coffee Cup</a>
+              meetings on a Thursday morning.
+            </p>
+            <p class="text-center">
+              We hope to start some more outreach activities soon.
               Watch this space for future updates.
             </p>
           </div>
