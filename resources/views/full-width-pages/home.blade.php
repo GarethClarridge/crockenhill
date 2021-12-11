@@ -178,11 +178,14 @@
               "Sermon on the Mount" from Matthew chapters 5-7.
             </p>
             <p class="text-center">
-              We are still conscious of the risk
+              We are  conscious of the risk
               of coronavirus so we will continue to keep as much ventilation as
               possible and keep a level of social distancing inside the church.
-              Masks must be worn inside the church (except when sitting down to
-              eat and drink after the service). We hope you'll be able to join us.
+            </p>
+            <p class="text-center">
+              Masks must once again be worn inside the church (except when
+              sitting down to eat and drink after the service). We hope you'll
+              be able to join us.
             </p>
             <p class="text-center">
               If you're stuck at home with coronavirus
