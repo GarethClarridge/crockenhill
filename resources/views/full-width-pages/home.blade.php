@@ -181,8 +181,8 @@
               We are still conscious of the risk
               of coronavirus so we will continue to keep as much ventilation as
               possible and keep a level of social distancing inside the church.
-              Masks are no longer required, but feel free to wear one
-              if you like. We hope you'll be able to join us.
+              Masks must be worn inside the church (except when sitting down to
+              eat and drink after the service). We hope you'll be able to join us.
             </p>
             <p class="text-center">
               If you're stuck at home with coronavirus
