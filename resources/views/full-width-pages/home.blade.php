@@ -178,18 +178,15 @@
               "Sermon on the Mount" from Matthew chapters 5-7.
             </p>
             <p class="text-center">
-              We are  conscious of the risk
-              of coronavirus so we will continue to keep as much ventilation as
-              possible and keep a level of social distancing inside the church.
+              Masks are no longer required, but we are conscious of the risk
+              of coronavirus. We will continue to keep as much ventilation as
+              possible given the weather. Some chairs are spaced out so you can
+              social distance from others if you prefer.
             </p>
+
             <p class="text-center">
-              Masks must once again be worn inside the church (except when
-              sitting down to eat and drink after the service). We hope you'll
-              be able to join us.
-            </p>
-            <p class="text-center">
-              If you're stuck at home with coronavirus
-              don't worry – we will still be streaming our services on
+              If you're stuck at home don't worry – we will still be streaming
+              our morning services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
               </a> from 10:30am on Sundays.
@@ -248,9 +245,11 @@
                     We have a Sunday evening meeting at 6:30pm.
                   </p>
                   <p class="card-text">
-                    The main focus of this meeting is prayer, although Mark
-                    brings a shorter message and we sing a hymn or two. Mark is
-                    currently preaching through the life of Elijah.
+                    About half of this meeting is given over to prayer for God's
+                    will to be done in our church, our community and our world.
+                    Mark is preaching through the book of Revelation in
+                    these services. The messages are slightly shorter than in the
+                    morning, and more teaching and devotionally focussed.
                   </p>
                 </div>
                 <div class="card-footer">
@@ -286,7 +285,7 @@
           <div class="row justify-content-md-center">
             <div class="col-md-12 p-5">
               <div class="text-white text-center">
-                <h1>Proclaiming the good news of Jesus Christ to all</h1>
+                <h1>Proclaiming Christ</h1>
               </div>
             </div>
           </div>
