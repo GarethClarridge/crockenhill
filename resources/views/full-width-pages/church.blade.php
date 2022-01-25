@@ -128,12 +128,13 @@
                     <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
                   </div>
                   <div class="card-body">
-                    The main focus of our evening meetings is prayer, although Mark
-                    brings a shorter message and we sing a hymn or two. Mark is
-                    currently preaching through the life of Elijah.
+                    About half of this meeting is given over to prayer for God's
+                    will to be done in our church, our community and our world.
+                    The other half includes a more teaching and devotionally
+                    focussed sermon, and some songs.
                   </div>
                   <div class="card-footer">
-                    <a href="community/prayer-meeting">Find out more ...</a>
+                    <a href="community/sunday-services">Find out more ...</a>
                   </div>
                 </div>
 
@@ -147,8 +148,9 @@
                     <img class="card-img-top cbc-card-img-top" src="/images/headings/small/bible-study.jpg">
                   </div>
                   <div class="card-body">
-                    We meet in each others' homes each week to study the bible
-                    and pray together.
+                    We meet in small groups in each others' homes each week on
+                    Tuesday, Wednesday or Thursday to study the bible and pray
+                    together.
                   </div>
                   <div class="card-footer">
                     <a href="community/bible-study">Find out more ...</a>
@@ -162,7 +164,7 @@
               <div class="col-md-10 col-lg-8">
                 <div class="text-center">
                   <p>
-                    We run groups for everyone from toddlers to pensioners
+                    We usually run groups for everyone from toddlers to pensioners
                     so that we can tell as many people as possible the
                     amazing news about Jesus and what he's done for us.
                   </p>

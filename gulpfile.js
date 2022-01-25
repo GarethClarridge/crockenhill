@@ -12,7 +12,7 @@ var gulp = require('gulp'),
 
 gulp.task('browser-sync', function() {
     browserSync.init({
-      proxy: "crockenhill.localhost"
+      proxy: "http://127.0.0.1:8000/"
     });
 });
 
