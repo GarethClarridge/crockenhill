@@ -3,14 +3,14 @@
     <img src="/images/White.png" height="36" class="d-inline-block align-top p-1" alt="Crockenhill Baptist Church logo">
   </a>
 
-  <a class="navbar-brand navbar-site-name abs" href="/">Crockenhill Baptist Church</a>
+  <a class="navbar-brand navbar-site-name" href="/">Crockenhill Baptist Church</a>
 
-  <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-label="Toggle navigation">
+  <button type="button" class="navbar-toggler" data-toggle="collapse" data-target=".navbarSupportedContent" aria-controls="navbarSupportedContent" aria-label="Toggle navigation">
     MENU
   </button>
 
-  <div class="collapse navbar-collapse w-100" id="navbarSupportedContent">
-    <ul class="navbar-nav ml-auto site-sections text-center text-lg-left">
+  <div class="collapse navbar-collapse w-100 navbarSupportedContent text-end">
+    <ul class="navbar-nav ml-auto site-sections text-center text-lg-end">
 
       @foreach ($pages as $page)
         @if (\Request::is($page['route'].'/*'))

@@ -27,10 +27,10 @@
 
           <div class="row justify-content-md-center">
             <div class="col-md-12">
-              <div class="card mt-3 mb-5">
+              <div class="card p-0 mt-3 mb-5">
                 <div class="card-body p-5">
-                  <div class="embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/HAuA7mJ-bUI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/HAuA7mJ-bUI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -39,10 +39,10 @@
 
           <div class="row justify-content-md-center">
             <div class="col-md-12">
-              <div class="card">
+              <div class="card p-0">
                 <div class="card-body p-5">
-                  <div class="embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/UVxy545ELC0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/UVxy545ELC0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -90,8 +90,8 @@
 
           <div class="row justify-content-md-center">
             <div class="col-md-12">
-              <div class="embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/WUCvQs_yfUg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              <div class="ratio ratio-16x9">
+                <iframe src="https://www.youtube.com/embed/WUCvQs_yfUg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
           </div>
@@ -197,10 +197,10 @@
 
       <div class="row justify-content-md-center">
         <div class="col-md-10">
-          <div class="card">
+          <div class="card p-0">
             <div class="card-body">
-              <div class="embed-responsive embed-responsive-16by9">
-                <!-- <iframe class="embed-responsive-item" id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> -->
+              <div class="ratio ratio-16x9">
+                <iframe id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
           </div>
@@ -236,42 +236,47 @@
         </div>
 
 
-        <div class="row justify-content-center">
-          <div class="col-md-10">
-            <div class="card-deck">
-              <div class="card home-options text-center m-2">
-                <div class="card-body">
-                  <p class="card-text">
-                    We have a Sunday evening meeting at 6:30pm.
-                  </p>
-                  <p class="card-text">
-                    About half of this meeting is given over to prayer for God's
-                    will to be done in our church, our community and our world.
-                    Mark is preaching through the book of Revelation in
-                    these services. The messages are slightly shorter than in the
-                    morning, and more teaching and devotionally focussed.
-                  </p>
-                </div>
-                <div class="card-footer">
-                </div>
+        <div class="row my-5 row-cols-1 row-cols-md-2 g-2 g-lg-3">
+          <div class="col mb-4">
+            <div class="card p-0 home-options text-center m-2">
+              <div class="card-body">
+                <p class="card-text">
+                  We have a Sunday evening meeting at 6:30pm.
+                </p>
+                <p class="card-text">
+                  About half of this meeting is given over to prayer for God's
+                  will to be done in our church, our community and our world.
+                  Mark is preaching through the book of Revelation in
+                  these services. The messages are slightly shorter than in the
+                  morning, and more teaching and devotionally focussed.
+                </p>
               </div>
-              <div class="card home-options text-center m-2">
-                <div class="card-body">
-                  <p class="card-text">
-                    We meet weekly in small groups for Bible study and prayer.
-                  </p>
-                  <p class="card-text">
-                    There are groups on Tuesday afternoons, and Wednesday or
-                    Thursday evenings.
-                    We'd love you to join one: do get in touch.
-                  </p>
-                </div>
-                <div class="card-footer">
-                  <a class="btn btn-primary" href="/community/bible-study">
-                    Find out more &nbsp
-                    <i class="fas fa-arrow-circle-right"></i>
-                  </a>
-                </div>
+              <div class="card-footer">
+                <a class="btn btn-primary" href="/church/sunday-services">
+                  Find out more &nbsp
+                  <i class="fas fa-arrow-circle-right"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="col mb-4">
+            <div class="card p-0 home-options text-center m-2">
+              <div class="card-body">
+                <p class="card-text">
+                  We meet weekly in small groups for Bible study and prayer.
+                </p>
+                <p class="card-text">
+                  There are groups on Tuesday afternoons, and Wednesday or
+                  Thursday evenings.
+                  We'd love you to join one: do get in touch.
+                </p>
+              </div>
+              <div class="card-footer">
+                <a class="btn btn-primary" href="/community/bible-study">
+                  Find out more &nbsp
+                  <i class="fas fa-arrow-circle-right"></i>
+                </a>
               </div>
             </div>
           </div>
@@ -308,10 +313,10 @@
 
       <div class="row justify-content-md-center">
         <div class="col-md-10">
-          <div class="card my-3">
+          <div class="card p-0 my-3">
             <div class="card-body">
-              <div class="embed-responsive embed-responsive-16by9">
-                <iframe src="https://www.youtube.com/embed/Ue3rHGDMzjU" class="embed-responsive-item" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              <div class="ratio ratio-16x9">
+                <iframe src="https://www.youtube.com/embed/Ue3rHGDMzjU" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
           </div>

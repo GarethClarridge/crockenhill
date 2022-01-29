@@ -8,7 +8,7 @@
   <div class="row">
     <div class="col-md-8 col-md-offset-2">
     <br><br><br>
-      <article class="card">
+      <article class="card p-0">
         <div class="header-container">
           <h1>Change heading image for "{{ $page->heading }}"</h1>
         </div>
@@ -26,7 +26,7 @@
 
           {!! Form::open(array('action' => array('AdminPagesController@updateimage', $page->slug), 'files' => true)) !!}
 
-            <div class="form-group">
+            <div class="mb-3">
               {!! Form::label('image', 'Image') !!}
               {!! Form::file('image') !!}
             </div>

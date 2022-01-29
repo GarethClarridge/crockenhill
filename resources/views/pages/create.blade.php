@@ -5,7 +5,7 @@
   <div class="row">
     <div class="col-md-8 col-md-offset-2">
     <br><br><br>
-      <article class="card">
+      <article class="card p-0">
         <div class="card-body">
           <h1 class="card-title">Create a new page</h1>
           <form class="mb-3" action="/church/members/pages" method="post">
@@ -23,17 +23,17 @@
             @endif
 
             <div class="edit-metadata mt-3">
-              <div class="form-group">
+              <div class="mb-3">
                 <label for="heading">Heading</label>
                 <input class="form-control" id="heading" name="heading" type="text">
               </div>
 
-              <div class="form-group">
+              <div class="mb-3">
                 <label for="description">Description <small>(returned on Google searches)</small></label>
                 <input class="form-control" id="description" name="description" type="text">
               </div>
 
-              <div class="form-group">
+              <div class="mb-3">
                 <label for="area">Website section</label>
                 <select class="form-control" name="area">
                   <option value="christ">Christ</option>
@@ -45,7 +45,7 @@
 
             <div class="row">
               <div class="col-6">
-                <div class="form-group">
+                <div class="mb-3">
                   <label for="markdown">Markdown content</label>
                   <textarea class="form-control" name="markdown" id="markdown-input" rows="20"></textarea>
                 </div>

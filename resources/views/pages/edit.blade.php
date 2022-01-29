@@ -4,7 +4,7 @@
 <div class="container-fluid">
   <div class="row">
     <div class="col-md-8 col-md-offset-2">
-      <article class="card mt-3">
+      <article class="card p-0 mt-3">
         <div class="card-body">
           <h2 class="card-title">Edit '{{$page->heading}}' page</h2>
           <form class="" action="/church/members/pages/{{$page->slug}}" method="post">
@@ -27,7 +27,7 @@
 
               <div class="row">
                 <div class="col-6">
-                  <div class="form-group">
+                  <div class="mb-3">
                     <label for="markdown" class="h4">Markdown content</label>
                     @if ($page->markdown)
                       <textarea class="form-control" name="markdown" id="markdown-input" rows="20">{{trim($page->markdown)}}</textarea>

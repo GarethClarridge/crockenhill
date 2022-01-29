@@ -10,20 +10,11 @@
 
 @section('content')
   <main>
-    <div>
-      <div class="white-background">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="col-md-12 p-5">
-              <div class="text-white text-center">
-                <h1 class="py-5 text-body full-width-heading">
-                  Christ
-                </h1>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+
+    <div class="white-background p-5 text-white text-center">
+      <h1 class="py-5 text-body full-width-heading">
+        Christ
+      </h1>
     </div>
 
     <div id="top">
@@ -48,8 +39,8 @@
               </div>
             </div>
             <div class="col-md-12 col-lg-10">
-              <div class="embed-responsive embed-responsive-16by9 my-5">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/Y_lDeIzh2t0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              <div class="ratio ratio-16x9 my-5">
+                <iframe src="https://www.youtube.com/embed/Y_lDeIzh2t0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
             <div class="col-md-10 col-lg-8">
@@ -67,20 +58,10 @@
       </div>
     </div>
 
-    <div id="who">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="p-5">
-              <div class="text-white text-center">
-                <h2 class="h1">
-                  Who is Jesus?
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div id="who" class="bg-pattern my-5 p-5 text-white text-center">
+      <h2 class="h1">
+        Who is Jesus?
+      </h2>
     </div>
 
 
@@ -133,20 +114,10 @@
 
 
 
-    <div id="why">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="p-5">
-              <div class="text-white text-center">
-                <h2 class="h1">
-                  Why do I need Jesus?
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div id="why" class="bg-pattern my-5 p-5 text-white text-center">
+      <h2 class="h1">
+        Why do I need Jesus?
+      </h2>
     </div>
 
 
@@ -199,24 +170,10 @@
     </div>
 
 
-
-
-
-
-    <div id="what">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="p-5">
-              <div class="text-white text-center">
-                <h2 class="h1">
-                  What has Jesus done for me?
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div id="what" class="bg-pattern my-5 p-5 text-white text-center">
+      <h2 class="h1">
+        What has Jesus done for me?
+      </h2>
     </div>
 
 
@@ -278,20 +235,10 @@
 
 
 
-    <div id="where">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="p-5">
-              <div class="text-white text-center">
-                <h2 class="h1">
-                  Where can I find out more?
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div id="where" class="bg-pattern my-5 p-5 text-white text-center">
+      <h2 class="h1">
+        Where can I find out more?
+      </h2>
     </div>
 
 

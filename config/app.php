@@ -158,6 +158,7 @@ return [
     Crockenhill\Providers\EventServiceProvider::class,
     Crockenhill\Providers\RouteServiceProvider::class,
     Crockenhill\Providers\ComposerServiceProvider::class,
+    Crockenhill\Providers\ViewServiceProvider::class,
   ],
 
   /*

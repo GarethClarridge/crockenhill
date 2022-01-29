@@ -69,8 +69,8 @@
 
         <div class="row justify-content-md-center">
           <div class="col-md-12 mb-5">
-            <div class="embed-responsive embed-responsive-16by9">
-              <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/6DL_GO1HFA4" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            <div class="ratio ratio-16x9">
+              <iframe src="https://www.youtube.com/embed/6DL_GO1HFA4" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             </div>
           </div>
         </div>
@@ -81,9 +81,9 @@
               <h2>
                 Sign up now:
               </h2>
-              <div class="card">
+              <div class="card p-0">
                 <div class="card-body">
-                  <div class="embed-responsive embed-responsive-16by9">
+                  <div class="ratio ratio-16x9">
                     <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdowGddV8FJlPztioR7HYu2hrGP8sDtN9n-CTYyB7LNotjPWQ/viewform?embedded=true" width="640" height="996" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>                  </div>
                 </div>
               </div>

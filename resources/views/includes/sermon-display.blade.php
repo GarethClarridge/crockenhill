@@ -1,4 +1,4 @@
-<div class="card">
+<div class="card p-0">
   <div class="card-body text-center">
     <div class="card-title">
       <h3>

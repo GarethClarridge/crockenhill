@@ -12,7 +12,7 @@
   <main class="container mb-3">
     <div class="row">
       <div class="col-md-9">
-        <article class="card mt-3">
+        <article class="card p-0 mt-3">
 
           <div class="card-img-caption d-flex align-items-center">
             <h1 class="card-text text-white">
@@ -81,7 +81,7 @@
         @foreach ($links as $link)
 
           @if (\Request::is('community') || \Request::is('community/*'))
-            <aside class="card mt-3">
+            <aside class="card p-0 mt-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h4 class="card-text text-white">
                   <div class="p-1">
@@ -103,7 +103,7 @@
                 </div>
             </aside>
           @elseif (\Request::is('church') || \Request::is('church/*'))
-            <aside class="card mt-3">
+            <aside class="card p-0 mt-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h4 class="card-text text-white">
                   <div class="p-1">
@@ -125,7 +125,7 @@
               </div>
             </aside>
           @else
-            <aside class="card mt-3">
+            <aside class="card p-0 mt-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h4 class="card-text text-white">
                   <div class="p-1">

@@ -11,7 +11,7 @@
     <form class="form-horizontal" role="form" method="POST" action="{{ url('/password/email') }}">
       <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
-      <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
+      <div class="mb-3{{ $errors->has('email') ? ' has-error' : '' }}">
         <label class="col-md-4 control-label">Email Address</label>
 
         <div class="col-md-6">
@@ -25,7 +25,7 @@
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="mb-3">
         <div class="col-md-6 col-md-offset-4">
           <button type="submit" class="btn btn-primary">
             Send password reset link

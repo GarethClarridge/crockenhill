@@ -1,29 +1,40 @@
 <div class="container-fluid">
-  <div class="row justify-content-center">
-    <div class="card-deck full-width-card-deck">
+  <div class="row my-5 row-cols-1 row-cols-md-3 g-2 g-lg-3">
 
-      <div class="card text-center">
+    <div class="col mb-4">
+      <div class="card p-0 text-center">
         <div class="card-body pb-0">
           <h3 class="card-title">
             Last week's service
           </h3>
-          <div class="embed-responsive embed-responsive-16by9">
-            <iframe id="last_week_youtube_video" class="embed-responsive-item" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          <div class="ratio ratio-16x9">
+            <iframe id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
           </div>
         </div>
         <div class="card-footer text-muted">
-          <a class="card-link" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
-            See more services on our YouTube channel.
-          </a>
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item">
+              <a class="card-link" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
+                See more morning services on our YouTube channel.
+              </a>
+            </li>
+            <li class="list-group-item">
+              <a class="card-link" href="/church/sermons">
+                Listen to evening sermons on our website.
+              </a>
+            </li>
+          </ul>
         </div>
       </div>
+    </div>
 
-      <div class="card text-center">
+    <div class="col mb-4">
+      <div class="card p-0 text-center">
         <div class="card-body">
           <h3 class="card-title">
             Contact us
           </h3>
-          <ul class="list-group">
+          <ul class="list-group list-group-flush">
             <li class="list-group-item">
               <i class="fa fa-phone"></i> &nbsp
               01322 663995
@@ -43,8 +54,10 @@
           </ul>
         </div>
       </div>
+    </div>
 
-      <div class="card text-center">
+    <div class="col mb-4">
+      <div class="card p-0 text-center">
         <div class="card-body pb-0">
           <h3 class="card-title">
             Visit us
@@ -63,6 +76,7 @@
       </div>
     </div>
   </div>
+</div>
 
 
 

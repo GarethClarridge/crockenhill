@@ -16,7 +16,7 @@
 .card-img-caption .card-text {
   text-align: center;
   width: 100%;
-  // margin: 33% 0;
+  margin: 33% 0;
   position: absolute;
   z-index: 1;
 
@@ -27,6 +27,9 @@
     display: inline-block;
   }
 }
+
+
+
 
 article .card-img-caption .cbc-card-img-top {
   height: 33vh;
@@ -48,7 +51,7 @@ aside {
   p {
     img {
       max-width: 100%;
-      @media (min-width: ($grid-breakpoints, sm)) {
+      @include media-breakpoint-up(sm) {
         max-width: 50.1%;
         float: left;
         padding: map-get($spacers, 4) map-get($spacers, 3) map-get($spacers, 4) 0;
@@ -56,7 +59,7 @@ aside {
     }
   }
   p:nth-of-type(2n) img {
-    @media (min-width: ($grid-breakpoints, sm)) {
+    @include media-breakpoint-up(sm) {
       float: right;
       padding-left: map-get($spacers, 4);
       padding-right: 0;

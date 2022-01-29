@@ -23,21 +23,21 @@
 				</div>
 			@endif
 
-			<div class="form-group">
+			<div class="mb-3">
 				<label class="col-md-4 control-label">Email Address</label>
 				<div class="col-md-6">
 					<input type="email" class="form-control" name="email" value="{{ old('email') }}">
 				</div>
 			</div>
 
-			<div class="form-group">
+			<div class="mb-3">
 				<label class="col-md-4 control-label">Password</label>
 				<div class="col-md-6">
 					<input type="password" class="form-control" name="password">
 				</div>
 			</div>
 
-			<div class="form-group">
+			<div class="mb-3">
 		    <div class="col-md-offset-4 col-md-6">
 		      <div class="checkbox">
 		        <label>
@@ -47,7 +47,7 @@
 		    </div>
 		  </div>
 
-			<div class="form-group">
+			<div class="mb-3">
 				<div class="col-md-6 col-md-offset-4">
 					<input type="submit" class="btn btn-primary" value="Log in"></input>
 					<a class="btn btn-link" href="{{ url('/password/reset') }}">Forgot Your Password?</a>
