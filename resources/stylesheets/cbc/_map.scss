@@ -21,7 +21,10 @@ article {
 footer {
   .flexible-map-container {
       position: relative;
-      @include full-width-section;
+      margin-left: -1rem;
+      margin-right: -1rem;
+      margin-bottom: $grid-gutter-width;
+      padding: $grid-gutter-width;
       overflow: hidden;
       min-height: 25vh;
       max-height: 80vh;

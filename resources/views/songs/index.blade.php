@@ -24,14 +24,14 @@
 
   <section id="song-list">
     <div class="song-filters">
-      <div class="form-group">
+      <div class="mb-3">
         <label for="song-text-filter">Filter songs</label>
         <input  class="fuzzy-search form-control"
                 id='song-text-filter'
                 placeholder="Try typing a song title, Praise! number, category or author"/>
       </div>
 
-      <div class="form-group" id="in-praise-filter">
+      <div class="mb-3" id="in-praise-filter">
         <label>
           <input type="radio" name="in-praise" value="praise" id="filter-praise" onchange="updateFilter()"> Only in Praise!
         </label>
@@ -43,7 +43,7 @@
         </label>
       </div>
 
-      <div class="form-group" id="category-filter">
+      <div class="mb-3" id="category-filter">
 
         <div class="major-category-filter-div">
           <label for="major-category-filter">Category:</label>
@@ -72,7 +72,7 @@
 
       </div>
 
-      <div class="form-group">
+      <div class="mb-3">
         <label for="sort">Sort by:</label>
         <select class="form-control" name="sort" id="sort" onchange="updateSort()">
           <option value="song-frequency">Popularity</option>
@@ -82,7 +82,7 @@
     </div>
 
     @foreach ($songs as $song)
-      <div class="card my-2">
+      <div class="card p-0 my-2">
         <div class="card-body pb-0">
           <div class="media" data-nip="{{$song->nip}}">
             @if ($song->praise_number)

@@ -8,7 +8,7 @@
   <div class="row">
     <div class="col-md-8 col-md-offset-2">
     <br><br><br>
-      <article class="card">
+      <article class="card p-0">
         <div class="header-container">
           <h1>
             <span>
@@ -31,17 +31,17 @@
           <form method="POST" action="/church/members/documents" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
             <input type="hidden" name="_token" id="csrf-token" value="{{ Session::token() }}" />
 
-						<div class="form-group">
+						<div class="mb-3">
 							<label for="title">Title</label>
 							<input class="form-control" id="title" name="title" type="text">
 						</div>
 
-							<div class="form-group">
+							<div class="mb-3">
 							  <label for="document">Document</label>
                 <input type="file" name="document">
 							</div>
 
-						<div class="form-group">
+						<div class="mb-3">
 							<label for="type">Document Type</label>
               <select class="form-control" name="type">
                 <option value="">Please select</option>

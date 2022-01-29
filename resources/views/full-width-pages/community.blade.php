@@ -10,20 +10,11 @@
 
 @section('content')
   <main class="full-width-page">
-    <div>
-      <div class="white-background">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="col-md-12 p-5">
-              <div class="text-white text-center">
-                <h1 class="py-5 text-body full-width-heading">
-                  Community
-                </h1>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+
+    <div class="white-background p-5 text-white text-center">
+      <h1 class="py-5 text-body full-width-heading">
+        Community
+      </h1>
     </div>
 
     <div>
@@ -62,35 +53,24 @@
     </div>
 
 
-    <div id="meet-people">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="p-5">
-              <div class="text-white text-center">
-                <h2 class="h1">
-                  I want to meet local people
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div id="meet-people" class="bg-pattern my-5 p-5 text-white text-center">
+      <h2 class="h1">
+        I want to meet local people
+      </h2>
     </div>
-
 
     <div class="container">
       <div class="row justify-content-md-center">
         <div class="col-md-12">
           <div class="white-background mb-5">
 
-            <div class="row justify-content-center my-5">
-              <div class="card-deck">
+            <div class="row my-5 row-cols-1 row-cols-md-2 row-cols-lg-3 g-2 g-lg-3">
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Coffee Cup
                       </div>
                     </h3>
@@ -104,11 +84,13 @@
                     <a href="community/coffee-cup">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Baby Talk
                       </div>
                     </h3>
@@ -125,11 +107,13 @@
                     <a href="community/baby-talk">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Sunday mornings
                       </div>
                     </h3>
@@ -156,37 +140,24 @@
     </div>
 
 
-
-
-    <div id="children">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="p-5">
-              <div class="text-white text-center">
-                <h2 class="h1">
-                  I've got children
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div id="children" class="bg-pattern my-5 p-5 text-white text-center">
+      <h2 class="h1">
+        I've got children
+      </h2>
     </div>
-
 
     <div class="container">
       <div class="row justify-content-md-center">
         <div class="col-md-12">
           <div class="white-background mb-5">
 
-            <div class="row justify-content-center my-5">
-              <div class="card-deck">
+            <div class="row my-5 row-cols-1 row-cols-md-2 row-cols-lg-4 g-2 g-lg-3">
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Baby Talk
                       </div>
                     </h3>
@@ -203,11 +174,13 @@
                     <a href="community/baby-talk">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Adventurers
                       </div>
                     </h3>
@@ -223,11 +196,13 @@
                     <a href="community/adventurers">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         11:50
                       </div>
                     </h3>
@@ -243,11 +218,13 @@
                     <a href="community/1150">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Messy Church
                       </div>
                     </h3>
@@ -263,11 +240,13 @@
                     <a href="community/messy-church">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <!-- <div class="card">
+              <!-- <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Buzz Club
                       </div>
                     </h3>
@@ -279,7 +258,9 @@
                   <div class="card-footer">
                     <a href="buzz-club">Find out more ...</a>
                   </div>
-                </div> -->
+                </div>
+              </div> -->
+
 
               </div>
             </div>
@@ -289,35 +270,25 @@
       </div>
     </div>
 
-    <div id="jesus">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="p-5">
-              <div class="text-white text-center">
-                <h2 class="h1">
-                  I want to meet local people
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
+    <div id="jesus" class="bg-pattern my-5 p-5 text-white text-center">
+      <h2 class="h1">
+        I want to find out more about Jesus
+      </h2>
+    </div>
 
     <div class="container">
       <div class="row justify-content-md-center">
         <div class="col-md-12">
           <div class="white-background mb-5">
 
-            <div class="row justify-content-center my-5">
-              <div class="card-deck">
+            <div class="row my-5 row-cols-1 row-cols-md-2 row-cols-lg-3 g-2 g-lg-3">
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Sunday services
                       </div>
                     </h3>
@@ -335,11 +306,13 @@
                     <a href="community/sunday-services">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Christianity Explored
                       </div>
                     </h3>
@@ -353,11 +326,13 @@
                     <a href="/christianity-explored">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Bible studies
                       </div>
                     </h3>
@@ -367,10 +342,10 @@
                     We run several groups that meet in each other's houses each
                     week to study the Bible and pray together. These are aimed
                     primarily at Christians, but anyone is welcome!
-                    <div class="alert alert-info mt-3">
+                    <!-- <div class="alert alert-info mt-3">
                       Our small groups are meeting via Zoom at the moment due to
                       coronavirus.
-                    </div>
+                    </div> -->
                   </div>
                   <div class="card-footer">
                     <a href="community/bible-study">Find out more ...</a>
@@ -384,35 +359,25 @@
       </div>
     </div>
 
-    <div id="occasional">
-      <div class="bg-pattern my-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="p-5">
-              <div class="text-white text-center">
-                <h2 class="h1">
-                  Occasional events
-                </h2>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
+    <div id="occasional" class="bg-pattern my-5 p-5 text-white text-center">
+      <h2 class="h1">
+        Occasional events
+      </h2>
+    </div>
 
     <div class="container">
       <div class="row justify-content-md-center">
         <div class="col-md-12">
           <div class="white-background mb-5">
 
-            <div class="row justify-content-center my-5">
-              <div class="card-deck">
+            <div class="row my-5 row-cols-1 row-cols-md-2 row-cols-lg-3 g-2 g-lg-3">
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Quiz nights
                       </div>
                     </h3>
@@ -420,19 +385,21 @@
                   </div>
                   <div class="card-body">
                     A couple of times a year we run quiz nights for the local community.
-                    <div class="alert alert-danger mt-3">
+                    <!-- <div class="alert alert-danger mt-3">
                       We won't be hosting quiz nights at the moment due to coronavirus.
-                    </div>
+                    </div> -->
                   </div>
                   <div class="card-footer">
                     <a href="quiz-night">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Carols at the Chequers
                       </div>
                     </h3>
@@ -445,11 +412,13 @@
                     <a href="carols-in-the-chequers">Find out more ...</a>
                   </div>
                 </div>
+              </div>
 
-                <div class="card">
+              <div class="col mb-4">
+                <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
-                      <div class="p-2">
+                      <div class="p-2 lh-sm">
                         Buzz Club
                       </div>
                     </h3>
@@ -458,22 +427,23 @@
                   <div class="card-body">
                     A holiday club for primary school age children.
                     <div class="alert alert-danger mt-3">
-                      We won't run Buzz Club in 2021 due to coronavirus.
+                      We didn't run Buzz Club in 2021 due to coronavirus.
+                      We haven't yet decided about 2022.
                     </div>
                   </div>
                   <div class="card-footer">
                     <a href="buzz-club">Find out more ...</a>
                   </div>
                 </div>
-
               </div>
+
             </div>
 
           </div>
         </div>
       </div>
-
     </div>
+    
   </main>
 
 @stop

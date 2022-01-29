@@ -15,7 +15,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-9">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">

@@ -11,7 +11,7 @@
   <main class="container">
       <div class="row">
             <div class="col-md-9">
-                <article class="card">
+                <article class="card p-0">
                     <div class="header-container">
 
                     <h1><span>Sorry!<span></h1>

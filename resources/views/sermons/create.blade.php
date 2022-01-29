@@ -4,7 +4,7 @@
 <div class="container mt-3">
   <div class="row">
     <div class="col-md-10 col-lg-9">
-      <article class="card">
+      <article class="card p-0">
         <div class="card-img-caption d-flex align-items-center mb-3">
           <h1 class="card-text text-white">
             <div class="px-2 py-1">
@@ -38,12 +38,12 @@
 
             <h2>Sermon details</h2>
 
-            <div class="form-group">
+            <div class="mb-3">
               <label for="title">Title</label>
               <input class="form-control h1" id="title" name="title" type="text">
             </div>
 
-            <div class="form-group">
+            <div class="mb-3">
               <label for="date">Date</label>
               @if (date('D') === 'Sun')
                 <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d')!!}">
@@ -52,7 +52,7 @@
               @endif
             </div>
 
-            <div class="form-group">
+            <div class="mb-3">
               <label for="service">Service</label>
               @if (time() <= strtotime('15:00:00'))
                 <select type="service" class="form-control" id="service" name="service">
@@ -67,17 +67,17 @@
               @endif
             </div>
 
-            <div class="form-group">
+            <div class="mb-3">
               <label for="series">Series</label>
               <input class="form-control" id="series" name="series" type="text">
             </div>
 
-            <div class="form-group">
+            <div class="mb-3">
               <label for="reference">Reference</label>
               <input class="form-control" name="reference" type="text" id="reference">
             </div>
 
-            <div class="form-group">
+            <div class="mb-3">
               <label for="preacher">Preacher</label>
               <input class="form-control" id="preacher" name="preacher" type="text">
             </div>
@@ -85,7 +85,7 @@
             <h2>Sermon points</h2>
 
             @for ($p = 1; $p < 7; $p++)
-              <div class="form-group">
+              <div class="mb-3">
                 <div class="row">
                   <div class="col-md-2">
                     <label for="point-{{$p}}">Point {{$p}}</label>

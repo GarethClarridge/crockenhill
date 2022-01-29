@@ -21,7 +21,7 @@
   <form action="/church/members/songs/service-record" method="post" class="form-horizontal">
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
-    <div class="form-group">
+    <div class="mb-3">
       <label for="date" class="control-label">Date</label>
       <input type="date" name="date" value="{{ $next_service_upload_date }}" class="form-control">
     </div>
@@ -30,7 +30,7 @@
       <h3 class="mt-5">{{$value}}</h3>
 
       @for ($i = 1; $i < 10; $i++)
-        <div class="form-group">
+        <div class="mb-3">
           <div class="container">
             <div class="row">
               <div class="col-1">

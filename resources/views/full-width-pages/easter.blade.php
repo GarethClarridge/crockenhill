@@ -12,7 +12,7 @@
   <main class="container mb-3">
     <div class="row justify-content-md-center">
       <div class="col-12">
-        <article class="card mt-3">
+        <article class="card p-0 mt-3">
           <div class="card-img-caption d-flex align-items-center">
             <h1 class="card-text text-white">
               <div class="px-2 py-1">
@@ -28,8 +28,8 @@
               <div class="text-dark mb-3 text-center">
                   <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=2HVvwvaitGA&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
               </div>
-              <div class="embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              <div class="ratio ratio-16x9">
+                <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
           </div>
@@ -39,7 +39,7 @@
 
     <div class="row justify-content-md-center">
       <div class="col-md-10 col-lg-9">
-        <article class="card mt-3">
+        <article class="card p-0 mt-3">
           <div class="card-img-caption d-flex align-items-center">
             <h1 class="card-text text-white">
               <div class="px-2 py-1">
@@ -55,8 +55,8 @@
               <div class="text-dark mb-3 text-center">
                 <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=HbUDCTtC08o" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
               </div>
-              <div class="embed-responsive embed-responsive-16by9">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/HbUDCTtC08o" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              <div class="ratio ratio-16x9">
+                <iframe src="https://www.youtube.com/embed/HbUDCTtC08o" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
           </div>
@@ -66,7 +66,7 @@
 
     <div class="row justify-content-md-center">
       <div class="col-md-10 col-lg-9">
-        <article class="card mt-3" id="why">
+        <article class="card p-0 mt-3" id="why">
           <div class="card-img-caption d-flex align-items-center">
             <h1 class="card-text text-white">
               <div class="px-2 py-1">
@@ -175,8 +175,8 @@
                   with the Brazilians in quarantine:</a>
                 <em>"Because he lives I can face tomorrow."</em>
               </p>
-              <div class="embed-responsive embed-responsive-16by9 mb-3">
-                <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/HrpJr2m99es" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              <div class="ratio ratio-16x9 mb-3">
+                <iframe src="https://www.youtube.com/embed/HrpJr2m99es" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
               <div class="text-dark mb-3 text-center">
                 <a class="btn btn-secondary btn-lg" href="https://eastermeanshope.com/" role="button">Find out more at EasterMeansHope.com</a>

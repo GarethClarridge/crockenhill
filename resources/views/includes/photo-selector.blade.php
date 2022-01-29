@@ -7,7 +7,7 @@
     @foreach ($photos as $photo)
 
       <div class="card-group">
-        <div class="card">
+        <div class="card p-0">
           <img class="card-img-top" src="{{$photo_directory}}/{{$photo}}" alt="">
           <div class="card-body">
             <p class="card-text">

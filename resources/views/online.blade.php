@@ -15,7 +15,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -30,8 +30,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=gpdUail4EZo" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/gpdUail4EZo" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/gpdUail4EZo" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -52,7 +52,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -67,8 +67,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=Wj2DK6vChuE&list=PLvRlbyvqJwk7pX9N_DeAfH0VlPD4h9fP3" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk7pX9N_DeAfH0VlPD4h9fP3" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk7pX9N_DeAfH0VlPD4h9fP3" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -89,7 +89,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -104,8 +104,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=DwRCIhF6q9s&list=PLvRlbyvqJwk5cwKjY1FnqOmWMlk9gRyrj" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk5cwKjY1FnqOmWMlk9gRyrj" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk5cwKjY1FnqOmWMlk9gRyrj" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -126,7 +126,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -141,8 +141,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=xEyP_Nt_vLM&list=PLvRlbyvqJwk6aAG1OKLOzPpezhvWtXbFZ" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6aAG1OKLOzPpezhvWtXbFZ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6aAG1OKLOzPpezhvWtXbFZ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -163,7 +163,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -178,8 +178,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=hYPLEsFwHuo&list=PLvRlbyvqJwk6lz1WvP2arra5AzvR8Adv1" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6lz1WvP2arra5AzvR8Adv1" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6lz1WvP2arra5AzvR8Adv1" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -200,7 +200,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -215,8 +215,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=9hckWQkVZI8&list=PLvRlbyvqJwk6kWbtLDPBw4AsMlbdiEH2j" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6kWbtLDPBw4AsMlbdiEH2j" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6kWbtLDPBw4AsMlbdiEH2j" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
                 <p class="card-text text-dark">
@@ -224,8 +224,8 @@
                   Hopefully it'll be fixed by the time you get there.
                   If you watched it earlier you might want to catch up on the second part of the sermon below (when it's uploaded):
                 </p>
-                <div class="mb-3 embed-responsive embed-responsive-16by9">
-                  <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/xPLGIXu2EtI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <div class="mb-3 ratio ratio-16x9">
+                  <iframe src="https://www.youtube.com/embed/xPLGIXu2EtI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 </div>
                 xPLGIXu2EtI
               </div>
@@ -246,7 +246,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -261,8 +261,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=pYa6rr9b3BQ" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/pYa6rr9b3BQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/pYa6rr9b3BQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -283,7 +283,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -298,8 +298,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=j2emJtsTqno&list=PLvRlbyvqJwk7FMfKoGJ-fg0tICSomnEs2" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk7FMfKoGJ-fg0tICSomnEs2" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk7FMfKoGJ-fg0tICSomnEs2" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                   <h4 class="card-text">Philippians 1:1-2</h4>
                   <p class="card-text">
@@ -312,15 +312,15 @@
                     Grace and peace to you from God our Father and the Lord Jesus Christ.
                   </p>
                   <h4 class="card-text">Hello!</h4>
-                  <p class="text-card">
+                  <p class="text-card p-0">
                     We may not be able to say hi over coffee after the service,
                     but here are some people you may not have seen for a while.
                   </p>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/jLY82RSCbKk" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/jLY82RSCbKk" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/VeVkC4maKVw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/VeVkC4maKVw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -341,7 +341,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -356,8 +356,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=L-ULwec0DHs&list=PLvRlbyvqJwk5i1KDIIaNWyKUrn1700mtd" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk5i1KDIIaNWyKUrn1700mtd" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk5i1KDIIaNWyKUrn1700mtd" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                   <p class="card-text">
                     Therefore, since we have been justified through faith,
@@ -382,7 +382,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -397,8 +397,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=IiegC9fMNx4&list=PLvRlbyvqJwk4cZ_Qfb9LzXUL1NWx_ua90" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="mb-3 embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk4cZ_Qfb9LzXUL1NWx_ua90" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="mb-3 ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk4cZ_Qfb9LzXUL1NWx_ua90" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                   <p class="card-text">
                     Following the sermon, Mark recommends four books. They are:
@@ -423,7 +423,7 @@
 
         <div class="row justify-content-lg-center mb-5">
           <div class="col-lg-8">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-body text-dark">
                 <h3 class="card-title text-center mb-3">
                   Today's Bible reading: Romans 8:18-30
@@ -488,7 +488,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -503,8 +503,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=6M9OQxwb_G4&list=PLvRlbyvqJwk5jIdc14tNvJlL51WELlirQ" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk5jIdc14tNvJlL51WELlirQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk5jIdc14tNvJlL51WELlirQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -514,7 +514,7 @@
 
         <div class="row justify-content-lg-center mb-5">
           <div class="col-lg-8">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-body text-dark">
                 <h3 class="card-title text-center mb-3">
                   Today's Bible reading: Romans 1:1-17
@@ -596,7 +596,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -611,8 +611,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=5cuWcTmWg-4&list=PLvRlbyvqJwk7ZbiA0qpzELhcv2lWft8Ug" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk7ZbiA0qpzELhcv2lWft8Ug" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk7ZbiA0qpzELhcv2lWft8Ug" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -622,7 +622,7 @@
 
         <div class="row justify-content-lg-center mb-5">
           <div class="col-lg-8">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-body text-dark">
                 <h3 class="card-title text-center mb-3">
                   Today's Bible reading: 2 Corinthians 5:11-6:2
@@ -686,7 +686,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -702,8 +702,8 @@
                   <div class="text-dark mb-3 text-center">
                       <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=2HVvwvaitGA&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -713,7 +713,7 @@
 
         <div class="row justify-content-lg-center mt-3">
           <div class="col-lg-8">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-body text-dark">
                 <h3 class="card-title text-center mb-3">
                   Today's Bible reading: Matthew 27:57-28:15
@@ -824,7 +824,7 @@
 
         <div class="row justify-content-md-center">
           <div class="col-12">
-            <article class="card mb-3">
+            <article class="card p-0 mb-3">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -840,8 +840,8 @@
                   <div class="text-dark mb-3 text-center">
                     <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=HbUDCTtC08o" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
                   </div>
-                  <div class="embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/HbUDCTtC08o" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/HbUDCTtC08o" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                   </div>
                 </div>
               </div>
@@ -851,7 +851,7 @@
 
         <div class="row justify-content-lg-center">
           <div class="col-lg-12">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -864,13 +864,13 @@
                 <div class="text-dark mb-3 text-center">
                   <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=L1hf0iDDf7c&list=PLvRlbyvqJwk69u2jhwwefxmG7f5O49BzP&index=1" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on our YouTube channel</a>
                 </div>
-                <div class="embed-responsive embed-responsive-16by9">
-                  <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/videoseries?list=PLvRlbyvqJwk69u2jhwwefxmG7f5O49BzP" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <div class="ratio ratio-16x9">
+                  <iframe src="https://www.youtube.com/embed/videoseries?list=PLvRlbyvqJwk69u2jhwwefxmG7f5O49BzP" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 </div>
                 <div class="container">
                   <div class="row justify-content-lg-center mt-3">
                     <div class="col-lg-8">
-                      <article class="card">
+                      <article class="card p-0">
                         <div class="card-body text-dark">
                           <p>Mark mentions a couple of resources at the beginning of the video.
                             If you're not a Christian and you've been enjoying watching our online services,
@@ -892,7 +892,7 @@
 
                   <div class="row justify-content-lg-center mt-3">
                     <div class="col-lg-8">
-                      <article class="card">
+                      <article class="card p-0">
                         <div class="card-body text-dark">
                           <h3 class="card-title text-center mb-3">
                             Today's Bible reading: Acts 16:16-34
@@ -976,7 +976,7 @@
 
         <div class="row justify-content-lg-center mt-5">
           <div class="col-lg-12">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -1002,8 +1002,8 @@
                     <a href="/resources">crockenhill.org/resources</a>.
                   </p>
                 </div>
-                <div class="embed-responsive embed-responsive-16by9">
-                  <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/videoseries?list=PLvRlbyvqJwk55dTcMFXxgftVIrgTWvlot" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <div class="ratio ratio-16x9">
+                  <iframe src="https://www.youtube.com/embed/videoseries?list=PLvRlbyvqJwk55dTcMFXxgftVIrgTWvlot" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 </div>
               </div>
             </article>
@@ -1012,7 +1012,7 @@
 
         <div class="row justify-content-lg-center mt-3">
           <div class="col-lg-8">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-body text-dark">
                 <h3 class="card-title text-center mb-3">
                   Today's Bible reading: Acts 4:1-22
@@ -1110,7 +1110,7 @@
 
         <div class="row justify-content-lg-center mt-5">
           <div class="col-lg-12">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-img-caption d-flex align-items-center">
                 <h1 class="card-text text-white">
                   <div class="px-2 py-1">
@@ -1124,8 +1124,8 @@
                 @endif
               </div>
               <div class="card-body">
-                <div class="embed-responsive embed-responsive-16by9">
-                  <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/CJ93dRruSyw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <div class="ratio ratio-16x9">
+                  <iframe src="https://www.youtube.com/embed/CJ93dRruSyw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 </div>
               </div>
             </article>
@@ -1134,19 +1134,19 @@
 
         <div class="row justify-content-md-center mt-3">
           <div class="col-md-6">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-body">
-                <div class="embed-responsive embed-responsive-16by9">
-                  <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/-eIQQayhpak" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <div class="ratio ratio-16x9">
+                  <iframe src="https://www.youtube.com/embed/-eIQQayhpak" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 </div>
               </div>
             </article>
           </div>
           <div class="col-md-6">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-body">
-                <div class="embed-responsive embed-responsive-16by9">
-                  <iframe class="embed-responsive-item" src="https://www.youtube.com/embed/4eMO5aut7eI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <div class="ratio ratio-16x9">
+                  <iframe src="https://www.youtube.com/embed/4eMO5aut7eI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 </div>
               </div>
             </article>
@@ -1155,7 +1155,7 @@
 
         <div class="row justify-content-lg-center mt-3">
           <div class="col-lg-8">
-            <article class="card">
+            <article class="card p-0">
               <div class="card-body text-dark">
                 <h3 class="card-title text-center mb-3">
                   Today's Bible reading: John 14:1-7
@@ -1197,7 +1197,7 @@
 
         <!-- <div class="row justify-content-md-center">
           <div class="col-md-8">
-            <article class="card mt-3">
+            <article class="card p-0 mt-3">
               <img class="card-img-top" src="../images/homepage/SundayServiceComingSoon.png" alt="Sunday service coming soon">
               <div class="card-body">
                 <h5 class="card-title text-center text-dark">Sunday 22 March</h5>
