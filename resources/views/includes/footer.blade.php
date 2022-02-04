@@ -2,7 +2,7 @@
   <div class="row my-5 row-cols-1 row-cols-md-3 g-2 g-lg-3">
 
     <div class="col mb-4">
-      <div class="card p-0 text-center">
+      <div class="card p-0 text-center h-100">
         <div class="card-body pb-0">
           <h3 class="card-title">
             Last week's service
@@ -29,7 +29,7 @@
     </div>
 
     <div class="col mb-4">
-      <div class="card p-0 text-center">
+      <div class="card p-0 text-center h-100">
         <div class="card-body">
           <h3 class="card-title">
             Contact us
@@ -57,7 +57,7 @@
     </div>
 
     <div class="col mb-4">
-      <div class="card p-0 text-center">
+      <div class="card p-0 text-center h-100">
         <div class="card-body pb-0">
           <h3 class="card-title">
             Visit us

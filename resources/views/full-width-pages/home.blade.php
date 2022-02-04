@@ -124,27 +124,62 @@
             <div class="col-md-12 p-3">
               <div class="text-center">
                 <p class="display-3 mb-5">We exist to:</p>
-                <p class="h2 my-4 mission-statement-link">
-                  <a href="#worship-god" class="py-2">
-                    <!-- <i class="fas fa-cross"></i> -->
-                    Worship God
-                    <!-- <i class="fas fa-cross"></i> -->
-                  </a>
-                </p>
-                <p class="h2 my-4 mission-statement-link">
-                  <a href="#strengthen-believers" class="py-2">
-                    <!-- <i class="fas fa-users"></i> -->
-                    Strengthen believers
-                    <!-- <i class="fas fa-users"></i> -->
-                  </a>
-                </p>
-                <p class="h2 mission-statement-link">
-                  <a href="#proclaim-christ" class="py-2">
-                    <!-- <i class="fas fa-bullhorn fa-bullhorn-left"></i> -->
-                    Proclaim the good news of Jesus Christ to all
-                    <!-- <i class="fas fa-bullhorn"></i> -->
-                  </a>
-                </p>
+
+                <div id="mission-statement" class="row row-cols-1 row-cols-lg-3 g-3">
+
+                  <div class="col">
+                    <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
+                      <div class="card-body">
+                        <p class="card-text h2">
+                          <a href="#worship-god">
+                            Worship
+                            <br>
+                            <img src="/images/homepage/WorshipGod-icon.svg" alt="Worship God">
+                            <br>
+                            God
+                            <br>
+                            <i class="text-white fas fa-arrow-circle-down"></i>
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="card text-white bg-pattern mb-3 p-3 h-100">
+                      <div class="card-body">
+                        <p class="card-text h2">
+                          <a href="#strengthen-believers">
+                            Strengthen
+                            <br>
+                            <img src="/images/homepage/StrengthenBelievers-icon.svg" alt="Strengthen Believers">
+                            <br>
+                            believers
+                            <br>
+                            <i class="text-white fas fa-arrow-circle-down"></i>
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
+                      <div class="card-body">
+                        <p class="card-text h2">
+                          <a href="#proclaim-christ">
+                            Proclaim
+                            <br>
+                            <img src="/images/homepage/ProclaimChrist-icon.svg" alt="Proclaim Christ">
+                            <br>
+                            Christ
+                            <br>
+                            <i class="text-white fas fa-arrow-circle-down"></i>
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
@@ -178,15 +213,12 @@
               "Sermon on the Mount" from Matthew chapters 5-7.
             </p>
             <p class="text-center">
-              Masks are no longer required, but we are conscious of the risk
-              of coronavirus. We will continue to keep as much ventilation as
-              possible given the weather. Some chairs are spaced out so you can
-              social distance from others if you prefer.
+              Masks are no longer required, but we will continue to keep as much
+              ventilation as possible given the weather. Some chairs are spaced
+              out so you can social distance from others if you prefer.
             </p>
-
             <p class="text-center">
-              If you're stuck at home don't worry – we will still be streaming
-              our morning services on
+              We will continue to stream our morning services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
               </a> from 10:30am on Sundays.
@@ -225,7 +257,7 @@
       <div class="container">
 
         <div class="row justify-content-md-center">
-          <div class="col-md-8 col-lg-6">
+          <div class="col-md-10 col-lg-8">
             <div class="white-background">
               <p class="text-center">
                 We want to continue to grow in our faith: becoming closer to God
@@ -268,8 +300,7 @@
                 </p>
                 <p class="card-text">
                   There are groups on Tuesday afternoons, and Wednesday or
-                  Thursday evenings.
-                  We'd love you to join one: do get in touch.
+                  Thursday evenings. We'd love you to join one: do get in touch.
                 </p>
               </div>
               <div class="card-footer">
@@ -301,7 +332,7 @@
     <div class="container">
 
       <div class="row justify-content-md-center">
-        <div class="col-md-8 col-lg-6">
+        <div class="col-md-10 col-lg-8">
           <div class="white-background">
             <p class="text-center">
               We're eager to tell people about Jesus.
@@ -324,7 +355,7 @@
       </div>
 
       <div class="row justify-content-md-center">
-        <div class="col-md-8 col-lg-6">
+        <div class="col-md-10 col-lg-8">
           <div class="white-background text-center">
             <a class="btn btn-lg btn-primary my-5" href="/christ">
               Find out more about the good news of Jesus Christ &nbsp
@@ -343,12 +374,8 @@
           <div class="white-background my-5">
             <p class="text-center">
               We are considering how best to re-start our <a href="/community">regular activities</a>.
-            </p>
-            <p class="text-center">
-              We have restarted our <a href="community/coffee-cup">Coffee Cup</a>
-              meetings on a Thursday morning.
-            </p>
-            <p class="text-center">
+              We have already restarted <a href="community/coffee-cup">Coffee Cup</a>
+              on a Thursday morning.
               We hope to start some more outreach activities soon.
               Watch this space for future updates.
             </p>

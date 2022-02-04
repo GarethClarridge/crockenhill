@@ -1,11 +1,13 @@
 <?php
- 
+
+namespace Database\Seeders;
+
 class DocumentSeeder extends Seeder {
- 
+
     public function run()
     {
         DB::table('documents')->delete();
- 
+
         Document::create(array(
             'title'     => 'AGM 2015 Agenda',
             'type'      => 'meeting',
@@ -21,7 +23,7 @@ class DocumentSeeder extends Seeder {
             'filetype'  => 'pdf',
             'owner'     => 'Laurie Everest',
         ));
- 
+
     }
- 
+
 }

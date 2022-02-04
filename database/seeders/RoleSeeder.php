@@ -1,5 +1,7 @@
 <?php
 
+namespace Database\Seeders;
+
 class RoleSeeder extends Seeder {
 
   public function run()

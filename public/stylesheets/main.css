@@ -17076,7 +17076,16 @@ readers do not read off random characters that represent icons */
 #mission-statement .h2 a {
   text-decoration: none;
   font-style: normal;
-  color: black;
+  color: white;
+  font-size: 12vw;
+}
+#mission-statement .h2 a img {
+  width: 40%;
+}
+@media (min-width: 992px) {
+  #mission-statement .h2 a {
+    font-size: 4vw;
+  }
 }
 
 #remembrance a {

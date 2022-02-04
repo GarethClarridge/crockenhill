@@ -119,7 +119,14 @@
 #mission-statement .h2 a {
   text-decoration: none;
   font-style: normal;
-  color: black;
+  color: white;
+  img {
+    width: 40%;
+  }
+  font-size: 12vw;
+  @include media-breakpoint-up(lg) {
+    font-size: 4vw;
+  }
 }
 
 #remembrance {
