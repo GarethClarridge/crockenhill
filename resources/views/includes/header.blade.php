@@ -9,8 +9,8 @@
     MENU
   </button>
 
-  <div class="collapse navbar-collapse w-100 navbarSupportedContent text-end">
-    <ul class="navbar-nav ml-auto site-sections text-center text-lg-end">
+  <div class="collapse navbar-collapse w-100 navbarSupportedContent">
+    <ul class="navbar-nav ml-auto site-sections text-center ms-auto">
 
       @foreach ($pages as $page)
         @if (\Request::is($page['route'].'/*'))

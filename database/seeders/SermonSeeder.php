@@ -1,11 +1,13 @@
 <?php
- 
+
+namespace Database\Seeders;
+
 class SermonSeeder extends Seeder {
- 
+
     public function run()
     {
         DB::table('sermons')->delete();
- 
+
         \Sermon::create(array(
             'date'      => 2015-01-11,
             'service'   => 'morning',
@@ -28,7 +30,7 @@ class SermonSeeder extends Seeder {
             'reference' => 'Ephesians 2:1-10',
             'preacher'  => 'Mark Drury'
         ));
- 
+
     }
- 
+
 }

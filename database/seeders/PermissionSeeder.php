@@ -1,5 +1,7 @@
 <?php
 
+namespace Database\Seeders;
+
 class PermissionSeeder extends Seeder {
 
   public function run()

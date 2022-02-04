@@ -1,7 +1,7 @@
 <?php namespace Crockenhill\Commands;
 
-abstract class Command {
-
-	//
-
-}
+// abstract class Command {
+//
+// 	//
+//
+// }
