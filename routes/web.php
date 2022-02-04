@@ -33,6 +33,8 @@ Route::get('/online', array(
   })
 );
 
+
+
 // Sermon routes
 Route::group(array('prefix' => 'church/sermons'), function()
 {
@@ -84,6 +86,13 @@ Route::group(array('prefix' => 'church/sermons'), function()
         'as' => 'getSeries',
         'uses' => 'SermonController@getSeries'
     ));
+    Route::get('{service}', array(
+        'as' => 'getService',
+        'uses' => 'SermonController@getService'
+    ));
+
+    Route::get('evening/feed', 'RssFeedController@eveningFeed');
+    Route::get('morning/feed', 'RssFeedController@morningFeed');
 });
 
 //Members routes

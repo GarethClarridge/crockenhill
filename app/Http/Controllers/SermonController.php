@@ -287,4 +287,15 @@ class SermonController extends Controller {
   	));
 	}
 
+	public function getService($service)
+	{
+  	$sermons = \Crockenhill\Sermon::where('service', $service)
+                  ->orderBy('date', 'desc')
+                  ->paginate(8);
+
+  	return view('sermons.service', array(
+          'sermons'			=> $sermons
+  	));
+	}
+
 }
