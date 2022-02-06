@@ -10,11 +10,16 @@ class RssFeedController extends Controller
 {
   public function eveningFeed()
   {
-      $sermons = \Crockenhill\Sermon::where('service', 'evening')->orderBy('created_at', 'desc')->
-      limit(3)->get();
+      $sermons = \Crockenhill\Sermon::whereYear('date', '>=', '2022')
+        ->where('service', 'evening')
+        ->orderBy('created_at', 'desc')
+        ->get();
 
       foreach ($sermons as $sermon) {
-        $audio = new Mp3Info($_SERVER['DOCUMENT_ROOT']."/media/sermons/$sermon->filename.mp3");
+        if (file_exists($_SERVER['DOCUMENT_ROOT']."/media/sermons/$sermon->filename.mp3")) {
+          $audio = new Mp3Info($_SERVER['DOCUMENT_ROOT']."/media/sermons/$sermon->filename.mp3");
+        }
+
 
         $sermon['duration'] = $audio->duration;
       }
