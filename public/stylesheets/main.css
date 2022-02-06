@@ -17174,6 +17174,16 @@ audio {
   padding-top: 1.5rem;
 }
 
+.sermon-icon {
+  width: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+@media (min-width: 768px) {
+  .sermon-icon {
+    width: 50%;
+  }
+}
 article .flexible-map-container {
   position: relative;
   margin-left: -1.25rem;
