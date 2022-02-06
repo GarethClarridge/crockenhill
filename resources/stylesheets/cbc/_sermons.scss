@@ -22,3 +22,18 @@ audio {
     padding-top: map-get($spacers, 4);
   }
 }
+
+.sermon-icon {
+  width: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  span {
+    
+  }
+}
+
+@include media-breakpoint-up(md) {
+  .sermon-icon {
+    width: 50%;
+  }
+}

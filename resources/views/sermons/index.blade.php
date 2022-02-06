@@ -11,13 +11,13 @@
       <div class="row justify-content-center">
         @if (count($sermons) != 2)
           @foreach ($sermons as $sermon)
-            <div class="col-lg-7">
+            <div class="col-lg-12">
               @if ($sermon->service === "morning")
                 @include('includes.sermon-display')
               @endif
             </div>
 
-            <div class="col-lg-7">
+            <div class="col-lg-12">
               @if ($sermon->service === "evening")
                 @include('includes.sermon-display')
               @endif
@@ -25,7 +25,7 @@
           @endforeach
         @else
           @foreach ($sermons as $sermon)
-            <div class="col-lg-7">
+            <div class="col-lg-12">
               @include('includes.sermon-display')
             </div>
           @endforeach
