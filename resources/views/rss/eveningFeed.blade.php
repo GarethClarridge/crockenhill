@@ -10,7 +10,10 @@
         <itunes:author>Crockenhill Baptist Church</itunes:author>
         <link>http://crockenhill.org/church/sermons/evening</link>
         <itunes:summary>Sermons from Sunday evenings at Crockenhill Baptist Church</itunes:summary>
-        <itunes:category text="Religion &amp; Spirituality"/>
+        <itunes:category text="Religion &amp; Spirituality">
+          <itunes:category text="Christianity" />
+          <itunes:category text="Religion" />
+        </itunes:category>
         <itunes:explicit>no</itunes:explicit>
         <itunes:image href="http://crockenhill.org/public/images/podcast/EveningArtwork.jpg"/>
         <language>en-gb</language>
@@ -18,11 +21,12 @@
 
         @foreach($sermons as $sermon)
             <item>
-                <title><![CDATA[{{ $sermon->title }}]]></title>
+                <itunes:title><![CDATA[{{ $sermon->title }}]]></itunes:title>
+                <itunes:author>Crockenhill Baptist Church</itunes:author>
                 <link>http://crockenhill.org/church/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}</link>
-                <description>
+                <itunes:summary>
                   A sermon on <![CDATA[{!! $sermon->reference !!}]]> from <![CDATA[{!! $sermon->preacher !!}]]> as part of our <![CDATA[{!! $sermon->series !!}]]> series.
-                </description>
+                </itunes:summary>
                 <enclosure url="http://crockenhill.org/media/sermons/{{ $sermon->filename }}.mp3"
                            type="audio/mpeg" length="{{ $sermon->duration }}"/>
                 <itunes:duration>{{ $sermon->duration }}</itunes:duration>
