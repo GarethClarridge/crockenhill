@@ -10,7 +10,7 @@ class RssFeedController extends Controller
 {
   public function eveningFeed()
   {
-      $sermons = \Crockenhill\Sermon::whereYear('date', '>=', '2022')
+      $sermons = \Crockenhill\Sermon::whereYear('date', '>=', '2020')
         ->where('service', 'evening')
         ->orderBy('created_at', 'desc')
         ->get();

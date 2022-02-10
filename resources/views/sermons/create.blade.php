@@ -26,7 +26,7 @@
             </div>
           @endif
 
-          <form method="POST" action="/sermons" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
+          <form method="POST" action="/church/sermons" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
             <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
             <div class="input-group mb-3">

@@ -114,7 +114,8 @@ class SermonController extends Controller {
 		$sermon->points			= trim($points);
     $sermon->save();
 
-    return redirect('sermons')->with('message', '"'.\Request::input('title').'" successfully uploaded!');
+    return redirect()->route('sermonIndex')->with('message', '"'.\Request::input('title').'" successfully uploaded!');
+
 	}
 
 	/**
