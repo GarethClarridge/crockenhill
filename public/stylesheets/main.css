@@ -17073,17 +17073,21 @@ readers do not read off random characters that represent icons */
   -webkit-box-decoration-break: clone;
 }
 
-#mission-statement .h2 a {
+#mission-statement a {
+  font-family: "Oswald", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   text-decoration: none;
   font-style: normal;
   color: white;
   font-size: 12vw;
 }
-#mission-statement .h2 a img {
+#mission-statement a img::before {
+  margin: -10em;
+}
+#mission-statement a img {
   width: 40%;
 }
-@media (min-width: 992px) {
-  #mission-statement .h2 a {
+@media (min-width: 576px) {
+  #mission-statement a {
     font-size: 4vw;
   }
 }

@@ -120,68 +120,64 @@
     <div id="mission-statement">
       <div class="white-background mt-5">
         <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="col-md-12 p-3">
-              <div class="text-center">
-                <p class="display-3 mb-5">We exist to:</p>
+          <div class="text-center">
+            <p class="display-3 mb-5">We exist to:</p>
 
-                <div id="mission-statement" class="row row-cols-1 row-cols-lg-3 g-3">
+            <div id="mission-statement" class="row row-cols-1 row-cols-sm-3 g-3">
 
-                  <div class="col">
-                    <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
-                      <div class="card-body">
-                        <p class="card-text h2">
-                          <a href="#worship-god">
-                            Worship
-                            <br>
-                            <img src="/images/homepage/WorshipGod-icon.svg" alt="Worship God">
-                            <br>
-                            God
-                            <br>
-                            <i class="text-white fas fa-arrow-circle-down"></i>
-                          </a>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col">
-                    <div class="card text-white bg-pattern mb-3 p-3 h-100">
-                      <div class="card-body">
-                        <p class="card-text h2">
-                          <a href="#strengthen-believers">
-                            Strengthen
-                            <br>
-                            <img src="/images/homepage/StrengthenBelievers-icon.svg" alt="Strengthen Believers">
-                            <br>
-                            believers
-                            <br>
-                            <i class="text-white fas fa-arrow-circle-down"></i>
-                          </a>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col">
-                    <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
-                      <div class="card-body">
-                        <p class="card-text h2">
-                          <a href="#proclaim-christ">
-                            Proclaim
-                            <br>
-                            <img src="/images/homepage/ProclaimChrist-icon.svg" alt="Proclaim Christ">
-                            <br>
-                            Christ
-                            <br>
-                            <i class="text-white fas fa-arrow-circle-down"></i>
-                          </a>
-                        </p>
-                      </div>
-                    </div>
+              <div class="col">
+                <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
+                  <div class="card-body">
+                    <p class="card-text">
+                      <a href="#worship-god">
+                        Worship
+                        <br>
+                        <img src="/images/homepage/WorshipGod-icon.svg" alt="Worship God">
+                        <br>
+                        God
+                        <br>
+                        <i class="text-white fas fa-arrow-circle-down"></i>
+                      </a>
+                    </p>
                   </div>
                 </div>
-
+              </div>
+              <div class="col">
+                <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
+                  <div class="card-body">
+                    <p class="card-text">
+                      <a href="#strengthen-believers">
+                        Strengthen
+                        <br>
+                        <img src="/images/homepage/StrengthenBelievers-icon.svg" alt="Strengthen Believers">
+                        <br>
+                        believers
+                        <br>
+                        <i class="text-white fas fa-arrow-circle-down"></i>
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="col">
+                <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
+                  <div class="card-body">
+                    <p class="card-text">
+                      <a href="#proclaim-christ">
+                        Proclaim
+                        <br>
+                        <img src="/images/homepage/ProclaimChrist-icon.svg" alt="Proclaim Christ">
+                        <br>
+                        Christ
+                        <br>
+                        <i class="text-white fas fa-arrow-circle-down"></i>
+                      </a>
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
+
           </div>
         </div>
       </div>
