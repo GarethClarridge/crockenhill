@@ -12,7 +12,7 @@
         <itunes:summary>Sermons from Sunday evenings at Crockenhill Baptist Church</itunes:summary>
         <itunes:category text="Religion &amp; Spirituality"/>
         <itunes:explicit>no</itunes:explicit>
-        <itunes:image href="http://crockenhill.org/public/images/podcast/EveningArtwork.png"/>
+        <itunes:image href="http://crockenhill.org/public/images/podcast/EveningArtwork.jpg"/>
         <language>en-gb</language>
         <pubDate>{{ now() }}</pubDate>
 
