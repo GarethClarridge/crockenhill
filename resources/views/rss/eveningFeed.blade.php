@@ -20,9 +20,9 @@
         <image>
           <link>http://crockenhill.org/church/sermons/evening</link>
           <title>Crockenhill Baptist Church: sermons from the evening service</title>
-          <url>http://crockenhill.org/public/images/podcast/EveningArtwork.jpg</url>
+          <url>http://crockenhill.org/images/podcast/EveningArtwork.jpg</url>
         </image>
-        <itunes:image href="http://crockenhill.org/public/images/podcast/EveningArtwork.jpg"/>
+        <itunes:image href="http://crockenhill.org/images/podcast/EveningArtwork.jpg"/>
         <itunes:new-feed-url>http://crockenhill.org/church/sermons/evening/feed</itunes:new-feed-url>
         <language>en-gb</language>
         <pubDate>{{ now() }}</pubDate>
