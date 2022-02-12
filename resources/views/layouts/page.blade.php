@@ -9,75 +9,70 @@
 @stop
 
 @section('content')
-  <main class="container mb-3">
-    <div class="row">
-      <div class="col-md-12">
-        <article class="card p-0 mt-3">
+  <main class="mb-3">
 
-          <div class="card-img-caption d-flex align-items-center">
-            <h1 class="card-text text-white">
-              <div class="px-2 py-1">
-                {{$heading}}
-              </div>
-            </h1>
-            @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
-              <img class="card-img-top cbc-card-img-top" src="{{$headingpicture}}">
-            @else
-              <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
-            @endif
-          </div>
+    <article>
 
-          <div class="card-body">
+      @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
+        <div class="p-5 mb-4 text-center" style="background:linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ),url('{{$headingpicture}}') center no-repeat; background-size:100% auto;">
+          <h1 class="py-5 mb-4 text-white full-width-heading">
+      @else
+        <div class="white-background p-5 text-center">
+          <h1 class="py-5 mb-4 text-body full-width-heading">
+      @endif
+          {{$heading}}
+        </h1>
+      </div>
 
-            @if (session('message'))
-            <div class="alert alert-success alert-dismissable" role="alert">
-              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-              </button>
-              <i class="far fa-check-circle"></i> &nbsp
-              {{ session('message') }}
+      <div class="container px-3">
+
+        @if (session('message'))
+        <div class="alert alert-success alert-dismissable" role="alert">
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+          <i class="far fa-check-circle"></i> &nbsp
+          {{ session('message') }}
+        </div>
+        @endif
+
+        <div class="main-content">
+          @if (isset ($content))
+            {!! $content !!}
+            <div class="clearfix">
+
             </div>
-            @endif
-
-            <div class="main-content">
-              @if (isset ($content))
-                {!! $content !!}
-                <div class="clearfix">
-
-                </div>
-              @endif
-            </div>
-
-          @yield('dynamic_content')
-
-          @if (isset($slug))
-            @can ('edit-pages')
-              <hr>
-
-              <form class="form-inline" action="/church/members/pages/{{$slug}}" method="POST">
-                <input type="hidden" name="_method" value="DELETE">
-                <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                <div class="btn-group">
-                  <a href="/church/members/pages/{{$slug}}/edit" class="btn btn-primary">
-                    <i class="fas fa-pencil-alt"></i> &nbsp
-                    Edit page
-                  </a>
-                  <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-trash"></i> &nbsp
-                    Delete page
-                  </button>
-                </div>
-              </form>
-            @endcan
           @endif
         </div>
-      </article>
+
+      @yield('dynamic_content')
+
+      @if (isset($slug))
+        @can ('edit-pages')
+          <hr>
+
+          <form class="form-inline" action="/church/members/pages/{{$slug}}" method="POST">
+            <input type="hidden" name="_method" value="DELETE">
+            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+            <div class="btn-group">
+              <a href="/church/members/pages/{{$slug}}/edit" class="btn btn-primary">
+                <i class="fas fa-pencil-alt"></i> &nbsp
+                Edit page
+              </a>
+              <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash"></i> &nbsp
+                Delete page
+              </button>
+            </div>
+          </form>
+        @endcan
+      @endif
     </div>
-  </div>
+  </article>
 
-    @if (isset ($links))
-
-      <h3 class="my-3">Related pages</h3>
+  @if (isset ($links))
+    <div class="container">
+      <h3 class="my-3">Related pages:</h3>
 
       <div class="row g-2 d-flex flex-nowrap overflow-scroll">
 
@@ -154,8 +149,9 @@
         @endforeach
 
       </div>
+    </div>
 
-      @endif
+    @endif
 
   </main>
 @stop
