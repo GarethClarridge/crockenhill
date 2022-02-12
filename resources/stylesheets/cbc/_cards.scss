@@ -36,6 +36,11 @@ article .card-img-caption .cbc-card-img-top {
 }
 
 aside {
+  max-width: 50vw !important;
+  @include media-breakpoint-up(md) {
+    max-width: 25vw !important;
+  }
+
   .card-img-caption .cbc-card-img-top{
     height: 15vh;
   }

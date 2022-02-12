@@ -11,7 +11,7 @@
 @section('content')
   <main class="container mb-3">
     <div class="row">
-      <div class="col-md-9">
+      <div class="col-md-12">
         <article class="card p-0 mt-3">
 
           <div class="card-img-caption d-flex align-items-center">
@@ -73,87 +73,89 @@
         </div>
       </article>
     </div>
+  </div>
 
-    <div class="col-md-3">
+    @if (isset ($links))
 
-      @if (isset ($links))
+      <h3 class="my-3">Related pages</h3>
 
-        @foreach ($links as $link)
+      <div class="row g-2 d-flex flex-nowrap overflow-scroll">
 
-          @if (\Request::is('community') || \Request::is('community/*'))
-            <aside class="card p-0 mt-3">
-              <div class="card-img-caption d-flex align-items-center">
-                <h4 class="card-text text-white">
-                  <div class="p-1">
-                    {{$link->heading}}
-                  </div>
-                </h4>
-                @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
-                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
-                @else
-                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
-                @endif
-              </div>
+      @foreach ($links as $link)
 
-              <div class="card-body">
-                  {{$link->description}}
-                  <div class="read-more">
-                    <a href="/community/{{$link->slug}}">Read more ...</a>
-                  </div>
+        @if (\Request::is('community') || \Request::is('community/*'))
+          <aside class="card p-0 m-2">
+            <div class="card-img-caption d-flex align-items-center">
+              <h4 class="card-text text-white">
+                <div class="p-1">
+                  {{$link->heading}}
                 </div>
-            </aside>
-          @elseif (\Request::is('church') || \Request::is('church/*'))
-            <aside class="card p-0 mt-3">
-              <div class="card-img-caption d-flex align-items-center">
-                <h4 class="card-text text-white">
-                  <div class="p-1">
-                    {{$link->heading}}
-                  </div>
-                </h4>
-                @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
-                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
-                @else
-                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
-                @endif
-              </div>
+              </h4>
+              @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
+              @else
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+              @endif
+            </div>
 
-              <div class="card-body">
+            <div class="card-body">
                 {{$link->description}}
                 <div class="read-more">
-                  <a href="/church/{{$link->slug}}">Read more ...</a>
+                  <a href="/community/{{$link->slug}}">Read more ...</a>
                 </div>
               </div>
-            </aside>
-          @else
-            <aside class="card p-0 mt-3">
-              <div class="card-img-caption d-flex align-items-center">
-                <h4 class="card-text text-white">
-                  <div class="p-1">
-                    {{$link->heading}}
-                  </div>
-                </h4>
-                @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
-                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
-                @else
-                  <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
-                @endif
-              </div>
+          </aside>
+        @elseif (\Request::is('church') || \Request::is('church/*'))
+          <aside class="card p-0 m-2">
+            <div class="card-img-caption d-flex align-items-center">
+              <h4 class="card-text text-white">
+                <div class="p-1">
+                  {{$link->heading}}
+                </div>
+              </h4>
+              @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
+              @else
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+              @endif
+            </div>
 
-              <div class="card-body">
-                {{$link->description}}
-                <div class="read-more">
-                  <a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a>
-                </div>
+            <div class="card-body">
+              {{$link->description}}
+              <div class="read-more">
+                <a href="/church/{{$link->slug}}">Read more ...</a>
               </div>
-            </aside>
-          @endif
+            </div>
+          </aside>
+        @else
+          <aside class="card p-0 m-2">
+            <div class="card-img-caption d-flex align-items-center">
+              <h4 class="card-text text-white">
+                <div class="p-1">
+                  {{$link->heading}}
+                </div>
+              </h4>
+              @if (file_exists($_SERVER['DOCUMENT_ROOT'].'/images/headings/small/'.$link->slug.'.jpg'))
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/{{$link->slug}}.jpg">
+              @else
+                <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
+              @endif
+            </div>
+
+            <div class="card-body">
+              {{$link->description}}
+              <div class="read-more">
+                <a href="/{{$link->area}}/{{$link->slug}}">Read more ...</a>
+              </div>
+            </div>
+          </aside>
+        @endif
 
         @endforeach
 
+      </div>
+
       @endif
-
-
-    </div>
 
   </main>
 @stop

@@ -17262,6 +17262,14 @@ article .card-img-caption .cbc-card-img-top {
   height: 33vh;
 }
 
+aside {
+  max-width: 50vw !important;
+}
+@media (min-width: 768px) {
+  aside {
+    max-width: 25vw !important;
+  }
+}
 aside .card-img-caption .cbc-card-img-top {
   height: 15vh;
 }
