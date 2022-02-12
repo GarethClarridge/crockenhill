@@ -36,7 +36,9 @@
   @else
     <p>Sorry, we couldn't find any songs for {{$search}}.</p>
 
-    <a href="/church/members/songs/" class="btn btn-primary btn-lg btn-block">Go back and search again</a>
+    <div class="d-grid gap-2 mb-3">
+      <a href="/church/members/songs/" class="btn btn-primary btn-lg">Go back and search again</a>
+    </div>
   @endif
 
 @stop

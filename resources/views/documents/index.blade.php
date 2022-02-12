@@ -24,7 +24,8 @@
   </div>
 </div>
 
-<br>
-<a href="/church/members/documents/create" class="btn btn-primary btn-lg btn-block" role="button">Upload a new document</a>
+<div class="d-grid gap-2 m-3">
+  <a href="/church/members/documents/create" class="btn btn-primary btn-lg" role="button">Upload a new document</a>
+</div>
 
 @stop

@@ -36,7 +36,9 @@
   @else
     <p>Sorry, we couldn't find any songs for {{$reference}}.</p>
 
-    <a href="/church/members/songs/scripture-reference" class="btn btn-primary btn-lg btn-block">Search again</a>
+    <div class="d-grid gap-2 mb-3">
+      <a href="/church/members/songs/scripture-reference" class="btn btn-primary btn-lg">Search again</a>
+    </div>
   @endif
 
 @stop

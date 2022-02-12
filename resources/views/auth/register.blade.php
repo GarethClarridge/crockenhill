@@ -47,9 +47,11 @@
 
 			<div class="mb-3">
 				<div class="col-md-6 col-md-offset-4">
-					<button type="submit" class="btn btn-primary btn-block">
-						Register
-					</button>
+					<div class="d-grid gap-2 mb-3">
+						<button type="submit" class="btn btn-primary">
+							Register
+						</button>
+					</div>
 				</div>
 			</div>
 		</form>

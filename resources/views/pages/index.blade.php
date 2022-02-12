@@ -1,9 +1,10 @@
 @extends('layouts/page')
 
 @section('dynamic_content')
+  <div class="d-grid gap-2 mb-3">
+    <a href="/page/create" class="btn btn-primary" role="button">Create a new page</a>
+  </div>
 
-  <a href="/page/create" class="btn btn-primary btn-block" role="button">Create a new page</a>
-  <br>
   <h2>Existing pages:</h2>
 
   <div class="table-responsive-sm">

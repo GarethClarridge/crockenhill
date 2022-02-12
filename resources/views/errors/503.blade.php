@@ -13,16 +13,16 @@
             <div class="col-md-9">
                 <article class="card p-0">
                     <div class="header-container">
-                
-                    <h1><span>Sorry!<span></h1>
-                            
-                    </div>  
-         
-                    <p>Sorry, you don't have permission to access that page.</p>
-                    <br>
 
-                    <a class="btn btn-primary btn-lg btn-block" href="/">Go to the homepage</a>
-                    
+                    <h1><span>Sorry!<span></h1>
+
+                    </div>
+
+                    <p>Sorry, you don't have permission to access that page.</p>
+
+                    <div class="d-grid gap-2 m-3">
+                      <a class="btn btn-primary btn-lg" href="/">Go to the homepage</a>
+                    </div>
                 </article>
             </div>
         </div>

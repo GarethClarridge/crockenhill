@@ -19,10 +19,10 @@
                     </div>
 
                     <p>Sorry, something has gone wrong.</p>
-                    <br>
 
-                    <a class="btn btn-primary btn-lg btn-block" href="/">Go to the homepage</a>
-
+                    <div class="d-grid gap-2 m-3">
+                      <a class="btn btn-primary btn-lg" href="/">Go to the homepage</a>
+                    </div>
                 </article>
             </div>
         </div>

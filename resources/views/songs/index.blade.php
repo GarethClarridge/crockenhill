@@ -7,13 +7,17 @@
   <p>You last uploaded a service record on <strong>{{date("d F Y",strtotime($last_service_uploaded['date']))}}</strong>.</p>
   <div class="row">
     <div class="col-sm-6">
-     <a href="/church/members/songs/service-record" class="btn btn-primary btn-lg btn-block">
+      <div class="d-grid gap-2 mb-3">
+        <a href="/church/members/songs/service-record" class="btn btn-primary btn-lg">
+      </div>
        <i class="fas fa-upload"></i> &nbsp
        Upload a new service record
      </a>
     </div>
     <div class="col-sm-6">
-     <a href="/church/members/songs/create" class="btn btn-primary btn-lg btn-block">
+      <div class="d-grid gap-2 mb-3">
+        <a href="/church/members/songs/create" class="btn btn-primary btn-lg">
+      </div>
        <i class="fas fa-upload"></i> &nbsp
        Upload a new song
      </a>
