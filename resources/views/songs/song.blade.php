@@ -3,10 +3,11 @@
 @section('dynamic_content')
 
 @can ('edit-songs')
-  <a href="/church/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="btn btn-primary btn-lg btn-block">
-    Edit this song
-  </a>
-  <br>
+  <div class="d-grid gap-2 mb-3">
+    <a href="/church/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="btn btn-primary btn-lg">
+      Edit this song
+    </a>
+  </div>
 @endcan
 
   <div class="media">

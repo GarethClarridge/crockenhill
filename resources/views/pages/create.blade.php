@@ -62,7 +62,9 @@
             </div>
 
             <div class="form-actions">
-              <input class="btn btn-success btn-large btn-block" type="submit" value="Save">
+              <div class="d-grid gap-2 mb-3">
+                <input class="btn btn-success btn-large" type="submit" value="Save">
+              </div>
               <div class="text-center">
                 <a href="/church/members/pages/" class="btn btn-large text-center">Cancel</a>
               </div>

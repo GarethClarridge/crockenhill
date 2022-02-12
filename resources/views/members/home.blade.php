@@ -3,20 +3,30 @@
 @section('dynamic_content')
 
   @can ('edit-sermons')
-    <a href="/sermons" class="btn btn-primary btn-lg btn-block">Edit sermons</a>
+    <div class="d-grid gap-2 mb-3">
+      <a href="/sermons" class="btn btn-primary btn-lg">Edit sermons</a>
+    </div>
   @endcan
-  <a href="/church/members/songs" class="btn btn-primary btn-lg btn-block">View song list</a>
+    <div class="d-grid gap-2 mb-3">
+      <a href="/church/members/songs" class="btn btn-primary btn-lg">View song list</a>
+    </div>
   @can ('edit-pages')
-    <a href="/church/members/pages" class="btn btn-primary btn-lg btn-block">Edit pages</a>
+  <div class="d-grid gap-2 mb-3">
+    <a href="/church/members/songs" class="btn btn-primary btn-lg">View song list</a>
+  </div>
   @endcan
   @can ('edit-documents')
-    <a href="/church/members/documents" class="btn btn-primary btn-lg btn-block">View documents</a>
+  <div class="d-grid gap-2 mb-3">
+    <a href="/church/members/documents" class="btn btn-primary btn-lg">View documents</a>
+  </div>
   @endcan
 
   <form action="logout" method="post">
     <br>
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
-   <button type="submit" name="logout" class="btn btn-primary btn-lg btn-block" role="button">Log out</button>
+    <div class="d-grid gap-2 mb-3">
+      <button type="submit" name="logout" class="btn btn-primary btn-lg" role="button">Log out</button>
+    </div>
   </form>
 
 @stop

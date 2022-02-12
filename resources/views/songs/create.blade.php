@@ -62,8 +62,9 @@
       <input type="checkbox" name="current" checked value=1>
 
       <br>
-      <br>
-      <input class="btn btn-success btn-lg btn-block" type="submit" value="Save">
+      <div class="d-grid gap-2 m-3">
+        <input class="btn btn-success btn-lg" type="submit" value="Save">
+      </div>
     </div>
   </form>
 

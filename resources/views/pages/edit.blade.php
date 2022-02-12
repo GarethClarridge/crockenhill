@@ -48,7 +48,9 @@
               </div>
 
               <div class="form-actions my-3">
-                <input class="btn btn-success btn-lg btn-block" type="submit" value="Save">
+                <div class="d-grid gap-2 mb-3">
+                  <input class="btn btn-success btn-lg" type="submit" value="Save">
+                </div>
                 <div class="text-center">
                   <a href="/church/members/pages/" class="btn btn-outline btn-large">Cancel</a>
                 </div>
