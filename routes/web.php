@@ -11,6 +11,11 @@
 |
 */
 
+Route::get('/', ['as' => 'Home', function()
+{
+    return view('full-width-pages/home');
+}]);
+
 // Special pages route
 Route::get('/christmas', array(
   'as' => 'christmas', function()
@@ -24,14 +29,34 @@ Route::get('/easter', array(
     return view('full-width-pages/easter');
   })
 );
-
-//Covid special pages
+Route::get('/christianity-explored', array(
+  'as' => 'christianity-explored', function()
+  {
+    return view('full-width-pages/christianity-explored');
+  })
+);
 Route::get('/online', array(
   'as' => 'online', function()
   {
     return view('online');
   })
 );
+
+// Full width pages
+Route::get('/christ', array(
+  'as' => 'christ', function()
+  {
+    return view('full-width-pages/christ');
+  })
+);
+Route::get('/church', array(
+  'as' => 'church', function()
+  {
+    return view('full-width-pages/church');
+  })
+);
+//Community routes
+Route::resource('community', 'MeetingController');
 
 
 
@@ -122,9 +147,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function()
     Route::resource('songs', 'SongController');
 });
 
-//Community routes
-Route::resource('community', 'MeetingController');
-
 // Permanent Redirects
 // - Very old website
 Route::permanentRedirect('aboutus', 'church');
@@ -171,34 +193,12 @@ Route::permanentRedirect('buzz-club', 'community/buzz-club');
 Route::permanentRedirect('messy-church', 'community/messy-church');
 Route::permanentRedirect('reopening', 'attending-in-person');
 
-// Full width pages
-Route::get('/christ', array(
-  'as' => 'christ', function()
-  {
-    return view('full-width-pages/christ');
-  })
-);
-Route::get('/church', array(
-  'as' => 'church', function()
-  {
-    return view('full-width-pages/church');
-  })
-);
-Route::get('/christianity-explored', array(
-  'as' => 'christianity-explored', function()
-  {
-    return view('full-width-pages/christianity-explored');
-  })
-);
 
 // General Routes
 Route::get('/{area}/', array('uses' => 'PageController@showArticleWithoutAsides'));
 Route::get('/{area}/{slug}', array('uses' => 'PageController@showPage'));
 
-Route::get('/', ['as' => 'Home', function()
-{
-    return view('full-width-pages/home');
-}]);
+
 
 Route::get('500', function()
 {

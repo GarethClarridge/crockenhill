@@ -14,7 +14,7 @@
     <article>
 
       @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
-        <div class="p-5 mb-4 text-center" style="background:linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ),url('{{$headingpicture}}') center no-repeat; background-size:100% auto;">
+        <div class="p-5 mb-4 text-center" style="background:linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ),url('{{$headingpicture}}') center no-repeat;">
           <h1 class="py-5 mb-4 text-white full-width-heading">
       @else
         <div class="white-background p-5 text-center">
@@ -35,6 +35,19 @@
           {{ session('message') }}
         </div>
         @endif
+
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Home</a></li>
+            @if (count(\Request::segments()) === 2)
+            <li class="breadcrumb-item"><a href="/{{$area}}">{{\Illuminate\Support\Str::title($area)}}</a></li>
+            @elseif (count(\Request::segments()) === 5 && \Request::segment(2) === 'sermons')
+            <li class="breadcrumb-item"><a href="/{{$area}}">{{\Illuminate\Support\Str::title($area)}}</a></li>
+            <li class="breadcrumb-item"><a href="/{{$area}}/sermons">Sermons</a></li>
+            @endif
+            <li class="breadcrumb-item active" aria-current="page">{{$heading}}</li>
+          </ol>
+        </nav>
 
         <div class="main-content">
           @if (isset ($content))
