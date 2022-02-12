@@ -28,24 +28,12 @@ class ViewServiceProvider extends ServiceProvider
     {
       \View::composer('includes.header', function($view)
       {
-        if (\Request::segment(10) == 'church') {
-          $pages = array(
-            'christ' => array('route'=> 'christ', 'name' => 'Christ'),
-            'church' => array('route'=> 'church', 'name' => 'Church'),
-            'community' => array('route'=> 'community', 'name' => 'Community'),
-            'sermons' => array('route'=> 'sermonIndex', 'name' => 'Sermons'),
-          );
-        } else {
-          $pages = array(
-            'christ' => array('route'=> 'christ', 'name' => 'Christ'),
-            'church' => array('route'=> 'church', 'name' => 'Church'),
-            'community' => array('route'=> 'community', 'name' => 'Community'),
-          );
-        }
-
-
+      $pages = array(
+        'christ' => array('route'=> 'christ', 'name' => 'Christ'),
+        'church' => array('route'=> 'church', 'name' => 'Church'),
+        'community' => array('route'=> 'community', 'name' => 'Community'),
+      );
         $view->with('pages', $pages);
-
       });
 
       \View::composer('includes.footer', function($view)
