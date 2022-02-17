@@ -12,7 +12,7 @@
 
   @section('description') {{isset($description) ? $description : '<meta name="description" content="Crockenhill Baptist Church">'}} @endsection
 
-  <link type="text/css" rel="stylesheet" href="/stylesheets/main.css?v=6.0.4">
+  <link type="text/css" rel="stylesheet" href="/stylesheets/main.css?v=7.0.0">
   <link type="text/css" rel="stylesheet" href="/stylesheets/print.css" media="print">
   @stack('styles')
 
@@ -37,7 +37,7 @@
 
   </script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-  <script src="/scripts/all.js?v=6.0.9"></script>
+  <script src="/scripts/all.js?v=7.0.0"></script>
   @stack('scripts')
 </head>
 
