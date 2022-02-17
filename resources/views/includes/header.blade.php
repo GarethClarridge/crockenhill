@@ -69,16 +69,22 @@
               Our pastor
             </a>
           </li>
-          <li class="">
-            <a class="" href="/church/links">
-              Links
-            </a>
-          </li>
-          <li class="">
-            <a class="" href="/church/history">
-              History
-            </a>
-          </li>
+
+          <a class="collapse-control" data-bs-toggle="collapse" href="#collapseChurch" role="button" aria-expanded="false" aria-controls="collapseChurch">
+            <i class="fa fa-caret-down"></i> More
+          </a>
+          <div class="collapse ms-5" id="collapseChurch">
+            <li class="">
+              <a class="" href="/church/links">
+                Links
+              </a>
+            </li>
+            <li class="">
+              <a class="" href="/church/history">
+                History
+              </a>
+            </li>
+          </div>
         </ul>
       </li>
 
@@ -102,13 +108,39 @@
               Coffee Cup
             </a>
           </li>
+
+          <a class="collapse-control" data-bs-toggle="collapse" href="#collapseCommunity" role="button" aria-expanded="false" aria-controls="collapseCommunity">
+            <i class="fa fa-caret-down"></i> More
+          </a>
+          <div class="collapse ms-5" id="collapseCommunity">
+            <li class="">
+              <a class="" href="/community/baby-talk">
+                Baby Talk
+              </a>
+            </li>
+            <li class="">
+              <a class="" href="/community/adventurers">
+                Adventurers
+              </a>
+            </li>
+            <li class="">
+              <a class="" href="/community/1150">
+                11:50
+              </a>
+            </li>
+            <li class="">
+              <a class="" href="/community/messy-church">
+                Messy Church
+              </a>
+            </li>
+          </div>
         </ul>
       </li>
 
       @if ($user)
       <li class="navbar-item">
         <a class="nav-link" href="/members">
-          | &nbsp {{ $user->name }}
+          Members
         </a>
       </li>
       @endif
