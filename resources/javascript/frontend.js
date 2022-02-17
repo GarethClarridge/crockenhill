@@ -1,14 +1,3 @@
-$(function() {
-
-	// Confirm deleting resources
-	$("form[data-confirm]").submit(function() {
-		if ( ! confirm($(this).attr("data-confirm"))) {
-			return false;
-		}
-	});
-
-});
-
 // Embed latest YouTube video
 var channelID = "UCtSUTtkZlALToswWQpWS2kA";
 var reqURL = "https://www.youtube.com/feeds/videos.xml?channel_id=";
