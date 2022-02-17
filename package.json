@@ -21,7 +21,7 @@
   "author": "Gareth Clarridge",
   "license": "BSD-2-Clause",
   "devDependencies": {
-    "@fortawesome/fontawesome-free": "^5.15.4",
+    "@fortawesome/fontawesome-free": "^6.0.0",
     "axios": "^0.21.1",
     "browser-sync": "^2.27.5",
     "cross-env": "^7.0.3",
@@ -37,11 +37,9 @@
     "gulp-util": "^3.0.8",
     "gulp-watch": "^5.0.1",
     "imagemin": "^8.0.1",
-    "jquery": "^3.6.0",
     "laravel-mix": "^6.0.28",
     "lodash": "^4.17.21",
-    "rev-del": "^2.0.0",
-    "vue": "^2.6.14"
+    "rev-del": "^2.0.0"
   },
   "dependencies": {
     "ajv": "^8.6.2",

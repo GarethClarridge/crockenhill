@@ -316,7 +316,7 @@
                         Christianity Explored
                       </div>
                     </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/christianity-explored.jpg">
+                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
                   </div>
                   <div class="card-body">
                     Every now and then we run a short, informal course for people
@@ -443,7 +443,7 @@
         </div>
       </div>
     </div>
-    
+
   </main>
 
 @stop

@@ -1,19 +1,29 @@
-.navbar-seperator {
-  display: none;
-  @include media-breakpoint-up(lg) {
-    display: inline;
-  }
-}
+// .navbar-seperator {
+//   display: none;
+//   @include media-breakpoint-up(lg) {
+//     display: inline;
+//   }
+// }
 
 .navbar-site-name {
-  @include media-breakpoint-down(sm) {
+  @include media-breakpoint-down(md) {
     display: none;
   }
 }
 
-.site-sections {
-  // font-size: 0.75rem;
-  line-height: 0.75rem;
+.main-nav {
+  a {
+    color: white;
+    font-size: 2rem;
+    line-height: 4rem;
+    text-decoration: none;
+  }
+}
+
+.main-nav-level-two {
+  a {
+    line-height: 2.5rem;
+    }
 }
 
 .navbar-toggler {
@@ -21,8 +31,4 @@
   // font-size: 0.75rem;
   line-height: 0.75rem;
   color: $white !important;
-}
-
-.secondary-nav a {
-  font-size: 0.5rem;
 }

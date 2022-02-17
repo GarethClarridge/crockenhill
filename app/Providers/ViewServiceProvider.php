@@ -26,15 +26,15 @@ class ViewServiceProvider extends ServiceProvider
      */
     public function boot(Request $request)
     {
-      \View::composer('includes.header', function($view)
-      {
-      $pages = array(
-        'christ' => array('route'=> 'christ', 'name' => 'Christ'),
-        'church' => array('route'=> 'church', 'name' => 'Church'),
-        'community' => array('route'=> 'community', 'name' => 'Community'),
-      );
-        $view->with('pages', $pages);
-      });
+      // \View::composer('includes.header', function($view)
+      // {
+      // $pages = array(
+      //   'christ' => array('route'=> 'christ', 'name' => 'Christ'),
+      //   'church' => array('route'=> 'church', 'name' => 'Church'),
+      //   'community' => array('route'=> 'community', 'name' => 'Community'),
+      // );
+      //   $view->with('pages', $pages);
+      // });
 
       \View::composer('includes.footer', function($view)
           {

@@ -1,46 +1,117 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-pattern p-0" role="navigation">
-  <a class="navbar-brand p-0" href="/">
-    <img src="/images/White.png" height="36" class="d-inline-block align-top p-1" alt="Crockenhill Baptist Church logo">
-  </a>
+<nav class="navbar navbar-dark bg-pattern p-0" role="navigation">
+  <div class="container-fluid">
 
-  <a class="navbar-brand navbar-site-name" href="/">Crockenhill Baptist Church</a>
+      <a class="navbar-brand p-0" href="/">
+        <img src="/images/White.png" height="36" class="d-inline-block align-top p-1" alt="Crockenhill Baptist Church logo">
+      </a>
 
-  <button type="button" class="navbar-toggler" data-toggle="collapse" data-target=".navbarSupportedContent" aria-controls="navbarSupportedContent" aria-label="Toggle navigation">
-    MENU
-  </button>
+      <a class="navbar-brand navbar-site-name" href="/">
+        Crockenhill Baptist Church
+      </a>
 
-  <div class="collapse navbar-collapse w-100 navbarSupportedContent">
-    <ul class="navbar-nav ml-auto site-sections text-center ms-auto">
+      <div class="main-links ms-md-auto">
+        <a class="btn btn-primary btn-sm ms-sm-auto" href="/christ" role="button">
+          <i class="fa fa-cross d-none d-sm-inline">&nbsp</i>
+          <span class="">Christ</span>
+        </a>
+        <a class="btn btn-primary btn-sm mx-1" href="/church" role="button">
+          <i class="fa fa-church d-none d-sm-inline">&nbsp</i>
+          <span class="">Church</span>
+        </a>
+        <a class="btn btn-primary btn-sm me-sm-auto" href="/community" role="button">
+          <i class="fa fa-users d-none d-sm-inline">&nbsp</i>
+          <span class="">Community</span>
+        </a>
+      </div>
 
-      @foreach ($pages as $page)
-        @if (\Request::is($page['route'].'/*'))
-          <li class="navbar-item active">
-            <a class="nav-link" href="/{{$page['route']}}">
-              {{$page['name']}}<span class="sr-only">(current)</span>
+      <button class="btn ms-4" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+        <i class="fa fa-bars text-white"></i>
+      </button>
+
+
+  </div>
+</nav>
+
+<div class="offcanvas offcanvas-end bg-pattern" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel" data-bs-backdrop="false">
+  <div class="offcanvas-header pt-0 pe-3">
+    <button type="button" class="btn ms-auto text-white" data-bs-dismiss="offcanvas" aria-label="Close">
+      <i class="fa fa-bars text-white"></i>
+    </button>
+  </div>
+  <div class="offcanvas-body">
+    <ul class="list-unstyled main-nav text-white h4 ms-3">
+
+      <li class="">
+        <a class="" href="/christ">
+          Christ
+          <span class="sr-only">(current)</span>
+        </a>
+      </li>
+
+      <li class="">
+        <a class="" href="/church">
+          Church
+          <span class="sr-only">(current)</span>
+        </a>
+        <ul class="list-unstyled ms-5 main-nav-level-two">
+          <li class="">
+            <a class="" href="/church/sermons">
+              Sermons
             </a>
           </li>
-        @elseif  (\Request::is($page['route']))
-          <li class="navbar-item active">
-            <a class="nav-link" href="/{{$page['route']}}">
-              {{$page['name']}}<span class="sr-only">(current)</span>
+          <li class="">
+            <a class="" href="/church/statement-of-faith">
+              Statement of faith
             </a>
           </li>
-        @else
-          <li class="navbar-item">
-            <a class="nav-link" href="/{{$page['route']}}">
-              {{$page['name']}}
+          <li class="">
+            <a class="" href="/church/pastor">
+              Our pastor
             </a>
           </li>
-        @endif
-      @endforeach
+          <li class="">
+            <a class="" href="/church/links">
+              Links
+            </a>
+          </li>
+          <li class="">
+            <a class="" href="/church/history">
+              History
+            </a>
+          </li>
+        </ul>
+      </li>
 
-      @if (isset ($user))
-        <span class="navbar-text user-name">
-          <span class="navbar-seperator">&nbsp | &nbsp &nbsp</span>
-          <i class="far fa-user">&nbsp</i>
-          {{ $user->name }}
-        </span>
+      <li class="">
+        <a class="" href="/community">
+          Community
+        </a>
+        <ul class="list-unstyled ms-5 main-nav-level-two">
+          <li class="">
+            <a class="" href="/community/sunday-services">
+              Sunday services
+            </a>
+          </li>
+          <li class="">
+            <a class="" href="/community/bible-study">
+              Bible studies
+            </a>
+          </li>
+          <li class="">
+            <a class="" href="/church/coffee-cup">
+              Coffee Cup
+            </a>
+          </li>
+        </ul>
+      </li>
+
+      @if ($user)
+      <li class="navbar-item">
+        <a class="nav-link" href="/members">
+          | &nbsp {{ $user->name }}
+        </a>
+      </li>
       @endif
     </ul>
   </div>
-</nav>
+</div>
