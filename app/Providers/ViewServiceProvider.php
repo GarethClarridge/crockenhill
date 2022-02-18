@@ -145,7 +145,12 @@ class ViewServiceProvider extends ServiceProvider
 
           $area = 'Members';
 
-          $heading = title_case($slug);
+          if (isset($page->heading)) {
+            $heading = $page->heading;
+          }
+          else {
+            $heading = title_case($slug);
+          }
 
           //Heading picture
           $headingpicture = '/images/headings/large/'.$area.'.jpg';
@@ -169,7 +174,12 @@ class ViewServiceProvider extends ServiceProvider
           $description 	= '<meta name="description" content="'.$slug.': '.$name.'">';
 
           //Heading
-          $heading = str_replace("-", " ", title_case($name));
+          if ($view->heading) {
+            $heading = $view->heading;
+          }
+          else {
+            $heading = str_replace("-", " ", title_case(request()->segment(count(request()->segments()))));
+          }
 
           //Heading picture
           $headingpicture = '/images/headings/large/'.$slug.'.jpg';

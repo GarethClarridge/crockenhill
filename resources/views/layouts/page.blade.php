@@ -41,8 +41,12 @@
             <li class="breadcrumb-item"><a href="/">Home</a></li>
             @if (count(\Request::segments()) >= 2)
               <li class="breadcrumb-item"><a href="/{{$area}}">{{\Illuminate\Support\Str::title($area)}}</a></li>
-              @if (count(\Request::segments()) >= 3 && \Request::segment(2) === 'sermons')
-                <li class="breadcrumb-item"><a href="/{{$area}}/sermons">Sermons</a></li>
+              @if (count(\Request::segments()) >= 3)
+                @if (\Request::segment(2) === 'sermons')
+                  <li class="breadcrumb-item"><a href="/church/sermons">Sermons</a></li>
+                @elseif (\Request::segment(2) === 'members')
+                  <li class="breadcrumb-item"><a href="/church/members">Members</a></li>
+                @endif
               @endif
             @endif
             <li class="breadcrumb-item active" aria-current="page">{{$heading}}</li>

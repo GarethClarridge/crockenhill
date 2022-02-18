@@ -65,15 +65,21 @@
             </a>
           </li>
           <li class="">
-            <a class="" href="/church/pastor">
-              Our pastor
+            <a class="" href="/church/find-us">
+              Directions
             </a>
           </li>
+
 
           <a class="collapse-control" data-bs-toggle="collapse" href="#collapseChurch" role="button" aria-expanded="false" aria-controls="collapseChurch">
             <i class="fa fa-caret-down"></i> More
           </a>
           <div class="collapse ms-5" id="collapseChurch">
+            <li class="">
+              <a class="" href="/church/pastor">
+                Our pastor
+              </a>
+            </li>
             <li class="">
               <a class="" href="/church/links">
                 Links
