@@ -2,7 +2,7 @@
 
 @section('dynamic_content')
   <div class="d-grid gap-2 mb-3">
-    <a href="/page/create" class="btn btn-primary" role="button">Create a new page</a>
+    <a href="pages/create" class="btn btn-primary" role="button">Create a new page</a>
   </div>
 
   <h2>Existing pages:</h2>

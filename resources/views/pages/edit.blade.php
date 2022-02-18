@@ -56,7 +56,7 @@
                 </div>
               </div>
 
-              @include('includes.photo-selector')
+              <!-- @include('includes.photo-selector') -->
 
             </form>
           </div>
