@@ -32,12 +32,11 @@
               <div class="card-body">
 
                 @if (session('message'))
-                <div class="alert alert-success alert-dismissable" role="alert">
-                  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                  </button>
+                <div class="alert alert-success alert-dismissable fade show" role="alert">
                   <i class="far fa-check-circle"></i> &nbsp
                   {{ session('message') }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close">
+                  </button>
                 </div>
                 @endif
 
