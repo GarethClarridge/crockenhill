@@ -64,11 +64,41 @@
     </div> -->
 
     <div class="full-width-head text-white">
-      <div class="container">
-        <h1 class="text-center">
-          <div class="px-2 py-1">Crockenhill Baptist Church</div>
-        </h1>
-        <p class="text-center lead"><span class="px-3 py-2">A friendly, Bible believing church just outside Swanley.</span></p>
+      <div class="container py-5">
+        <div class="row justify-content-center">
+          <div class="col-md-4 col-lg-3 p-5 p-md-2 p-lg-5">
+            <h1 class="">
+              Crockenhill<br>
+              Baptist<br>
+              Church.<br>
+            </h1>
+          </div>
+          <div class="col-md-5 offset-md-2 col-lg-4 mission-statement my-auto text-sm-start text-md-end p-5 p-md-2 p-lg-5">
+            <p class="">
+              <a href="#worship-god">
+                <span class="px-2">
+                  Worshipping God
+                </span>
+              </a>
+            </p>
+            <p class="">
+              <a href="#strenthen-believers">
+                <span class="px-2">
+                  Strengthening believers
+                </span>
+              </a>
+            </p>
+            <p class="">
+              <a href="#proclaim-christ">
+                <span class="px-2">
+                  Proclaiming Christ
+                </span>
+              </a>
+            </p>
+          </div>
+        </div>
+
+
       </div>
     </div>
 
@@ -117,67 +147,25 @@
     </div> -->
 
 
-    <div id="mission-statement">
+    <div id="">
       <div class="white-background mt-5">
         <div class="container">
-          <div class="text-center">
-            <p class="display-3 mb-5">We exist to:</p>
+          <div class="row justify-content-md-center">
+            <div class="col-md-10 col-lg-8">
+              <div class="text-center">
 
-            <div id="mission-statement" class="row row-cols-1 row-cols-sm-3 g-3">
+                <p>
+                  Crockenhill Baptist Church is friendly, Bible teaching church in
+                  the village of Crockenhill, just outside Swanley.
+                </p>
 
-              <div class="col">
-                <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
-                  <div class="card-body">
-                    <p class="card-text">
-                      <a href="#worship-god">
-                        Worship
-                        <br>
-                        <img src="/images/homepage/WorshipGod-icon.svg" alt="Worship God">
-                        <br>
-                        God
-                        <br>
-                        <i class="text-white fas fa-arrow-circle-down"></i>
-                      </a>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div class="col">
-                <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
-                  <div class="card-body">
-                    <p class="card-text">
-                      <a href="#strengthen-believers">
-                        Strengthen
-                        <br>
-                        <img src="/images/homepage/StrengthenBelievers-icon.svg" alt="Strengthen Believers">
-                        <br>
-                        believers
-                        <br>
-                        <i class="text-white fas fa-arrow-circle-down"></i>
-                      </a>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div class="col">
-                <div class="card text-white bg-pattern mb-3 p-5 p-sm-2 h-100">
-                  <div class="card-body">
-                    <p class="card-text">
-                      <a href="#proclaim-christ">
-                        Proclaim
-                        <br>
-                        <img src="/images/homepage/ProclaimChrist-icon.svg" alt="Proclaim Christ">
-                        <br>
-                        Christ
-                        <br>
-                        <i class="text-white fas fa-arrow-circle-down"></i>
-                      </a>
-                    </p>
-                  </div>
-                </div>
+                <p>
+                  We meet to worship God and hear from his Word on Sundays at 10:30am.
+                  You're more than welcome to join us - we'd love to see you!
+                </p>
+
               </div>
             </div>
-
           </div>
         </div>
       </div>
