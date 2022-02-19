@@ -18013,28 +18013,20 @@ readers do not read off random characters that represent icons */
   background-position: center;
   min-height: 33vh;
 }
-.full-width-head .container {
-  padding-top: 100px;
-  padding-bottom: 50px;
-}
-.full-width-head .container h1, .full-width-head .container .h1 {
-  font-size: 3rem;
+.full-width-head h1, .full-width-head .h1 {
+  font-size: 4rem;
   font-weight: 800;
-  padding-bottom: 50px;
-  width: 100%;
-}
-.full-width-head .container h1 div, .full-width-head .container .h1 div {
-  border: 5px;
-  max-width: 80%;
-  border-style: solid;
-  display: inline-block;
 }
 .full-width-head p {
-  font-style: italic;
+  font-family: "Oswald", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-size: 1.5rem;
+}
+.full-width-head p a {
+  text-decoration: none;
 }
 .full-width-head p span {
-  background-color: #08a386;
-  line-height: 3em;
+  background-color: white;
+  color: black;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
