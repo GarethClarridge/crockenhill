@@ -44,9 +44,9 @@ class PageController extends Controller {
     }
 
 		//Convert markdown
-		$converter = new CommonMarkConverter;
+		$converter = new CommonMarkConverter();
 		$markdown = \Request::input('markdown');
-		$html = $converter->convertToHtml($markdown);
+		$html = $converter->convert($markdown);
 
     $page = new \Crockenhill\Page;
     $page->heading = \Request::input('heading');
@@ -100,9 +100,9 @@ class PageController extends Controller {
     }
 
 		//Convert markdown
-		$converter = new CommonMarkConverter;
+		$converter = new CommonMarkConverter();
 		$markdown = \Request::input('markdown');
-		$html = $converter->convertToHtml($markdown);
+		$html = $converter->convert($markdown);
 
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->heading = \Request::input('heading');
