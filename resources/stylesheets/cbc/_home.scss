@@ -28,7 +28,7 @@
   }
 }
 
-.white-background {
+.white-background, #building-work {
   font-size: 1.5em;
   text-align: center;
 
@@ -39,6 +39,15 @@
 
   a {
     font-style: italic;
+  }
+}
+
+#building-work {
+  color: white;
+
+  .btn {
+    color: white;
+    border-color: white;
   }
 }
 

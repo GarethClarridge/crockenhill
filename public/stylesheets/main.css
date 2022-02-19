@@ -18031,16 +18031,24 @@ readers do not read off random characters that represent icons */
   -webkit-box-decoration-break: clone;
 }
 
-.white-background {
+.white-background, #building-work {
   font-size: 1.5em;
   text-align: center;
 }
-.white-background h2, .white-background .h2 {
+.white-background h2, .white-background .h2, #building-work h2, #building-work .h2 {
   font-size: 2.5em;
   line-height: 2em;
 }
-.white-background a {
+.white-background a, #building-work a {
   font-style: italic;
+}
+
+#building-work {
+  color: white;
+}
+#building-work .btn {
+  color: white;
+  border-color: white;
 }
 
 .home-options {

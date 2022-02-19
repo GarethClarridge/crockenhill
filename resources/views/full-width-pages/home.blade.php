@@ -171,8 +171,38 @@
       </div>
     </div>
 
+    <div id="building-work">
+      <div class="bg-primary mt-5 py-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="col-md-10 col-lg-8">
+              <div class="text-center">
+
+                <p>
+                  We're having some work carried out to improve disabled
+                  access to our building.
+                </p>
+
+                <p>
+                  From Sunday 27th February we'll be meeting on Sundays at Crockenhill
+                  Village Hall at 2pm instead of our normal service at 10:30am
+                  at the church.
+                </p>
+
+                <a href="/church/building-work" class="btn btn-light p-3 my-3">
+                  Find out more about the building work &nbsp
+                  <i class="fas fa-arrow-circle-right"></i>
+                </a>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="worship-god">
-      <div class="bg-pattern my-5">
+      <div class="bg-pattern mb-5">
         <div class="container">
           <div class="row justify-content-md-center">
             <div class="col-md-12 p-5">
@@ -341,7 +371,7 @@
       <div class="row justify-content-md-center">
         <div class="col-md-10 col-lg-8">
           <div class="white-background text-center">
-            <a class="btn btn-lg btn-primary my-5" href="/christ">
+            <a class="btn btn-lg btn-outline-primary my-5" href="/christ">
               Find out more about the good news of Jesus Christ &nbsp
               <i class="fas fa-arrow-circle-right"></i>
             </a>
