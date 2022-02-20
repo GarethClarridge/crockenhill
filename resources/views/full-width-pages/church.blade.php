@@ -27,8 +27,8 @@
                   who exist to worship God, strengthen believers and proclaim the good news of Jesus Christ to all.
                 </p>
                 <p>
-                  There are about 50 of us on a Sunday morning in the building
-                  and following on online. We're from different nationalities,
+                  There are about 50 of us on a Sunday in person, with more
+                  following on online. We're from different nationalities,
                   backgrounds and ages from 5 to 85!
                   The one thing that unites us is our love for Jesus Christ and
                   our gratefulness for his amazing rescue.
@@ -58,9 +58,10 @@
           <div class="col-md-10 col-lg-8">
             <div class="text-center">
               <p>
-                We meet together each Sunday to worship God,
+                We meet together each Sunday (usually in the morning at 10:30am, but temporarily in the afternoon at 2pm during the <a href="/church/building-work">building work</a>) to worship God,
                 learn from the Bible, and enjoy fellowship with one another.
-                We meet again on Sunday evenings for a service with a focus on prayer.
+                We meet again on Sunday evenings (though again, temporarily in the mornings at 10am)
+                for a service with a focus on prayer.
                 We meet during the week in each other's homes for deeper Bible study,
                 applying what God says to our lives.
               </p>
@@ -76,7 +77,7 @@
               <div class="card-img-caption d-flex align-items-center">
                 <h3 class="card-text text-white h2">
                   <div class="p-2 lh-sm">
-                    Sunday mornings
+                    Main Sunday service
                   </div>
                 </h3>
                 <img class="card-img-top cbc-card-img-top" src="/images/headings/small/sunday-services.jpg">
@@ -84,7 +85,9 @@
 
               <div class="card-body">
                 Our main activity as a church is gathering together to worship
-                God and hear from his word on Sundays at 10:30.
+                God and hear from his word on Sundays. This is usually at 10:30am,
+                but while we have <a href="/church/building-work">building work</a>
+                carried out at the church we're meeting at 2pm in the Village Hall.
                 <div class="alert alert-info mt-3">
                   Sunday services are also available live streamed via
                   <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
@@ -104,12 +107,15 @@
               <div class="card-img-caption d-flex align-items-center">
                 <h3 class="card-text text-white h2">
                   <div class="p-2 lh-sm">
-                    Evening services
+                    Sunday prayer service
                   </div>
                 </h3>
                 <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
               </div>
               <div class="card-body">
+                This meeting is usually in the evening, but during the
+                <a href="/church/building-work">building work</a> we're holding
+                it in the mornings at 10am in the church hall.
                 About half of this meeting is given over to prayer for God's
                 will to be done in our church, our community and our world.
                 The other half includes a more teaching and devotionally

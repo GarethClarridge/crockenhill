@@ -65,6 +65,11 @@
           <address class="card-text">
             Crockenhill Baptist Church, Eynsford Road, Crockenhill, Kent, BR8 8JS
           </address>
+          <div class="alert alert-danger mt-3">
+            We're currently getting <a href="/church/building-work">building work</a>
+            carried out at the church building, so we're meeting at the Village Hall
+            at 2pm on Sundays instead for our main meetings.
+          </div>
           <div class="flexible-map-container pb-0 mb-0">
             <iframe frameborder="0" src="https://maps.google.co.uk/maps?f=q&source=embed&hl=en&geocode=&q=crockenhill+baptist+church&sll=51.386500,0.162500&sspn=0.035000,0.055000&t=m&gl=uk&ie=UTF8&hq=crockenhill+baptist+church&hnear=&filter=0&update=1&ll=51.389352,0.145226&spn=0.051418,0.109863&z=13&output=embed">
             </iframe>
