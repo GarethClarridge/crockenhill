@@ -15,11 +15,6 @@
       <a href="/church/members/pages" class="btn btn-primary btn-lg">Edit pages</a>
     </div>
   @endcan
-  @can ('edit-documents')
-    <div class="d-grid gap-2 mb-3">
-      <a href="/church/members/documents" class="btn btn-primary btn-lg">View documents</a>
-    </div>
-  @endcan
 
   <form action="logout" method="post">
     <br>

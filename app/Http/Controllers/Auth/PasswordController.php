@@ -22,7 +22,7 @@ class PasswordController extends Controller {
    *
    * @return void
    */
-  protected $redirectTo = '/members';
+  protected $redirectTo = '/church/members';
 
   public function __construct()
   {

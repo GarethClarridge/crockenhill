@@ -60,6 +60,7 @@ class SermonController extends Controller {
 
 		return view('sermons.create', array(
       'series' => $series,
+			'heading' => "Upload sermon"
   	));
 	}
 

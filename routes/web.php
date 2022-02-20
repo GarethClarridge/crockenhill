@@ -35,12 +35,6 @@ Route::get('/christianity-explored', array(
     return view('full-width-pages/christianity-explored');
   })
 );
-Route::get('/online', array(
-  'as' => 'online', function()
-  {
-    return view('online');
-  })
-);
 
 // Full width pages
 Route::get('/christ', array(
@@ -131,11 +125,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function()
     Route::resource('pages', 'PageController');
     // Manage sermons
     Route::resource('sermons', 'SermonController');
-    // Manage documents
-    Route::resource('documents', 'DocumentController');
-    Route::get('documents', array(
-        'uses'          => 'DocumentController@index'
-        ));
     // Songs
     Route::get('songs/service-record', 'SongController@getServiceRecord');
     Route::post('songs/service-record', 'SongController@postServiceRecord');
@@ -193,9 +182,14 @@ Route::permanentRedirect('buzz-club', 'community/buzz-club');
 Route::permanentRedirect('messy-church', 'community/messy-church');
 Route::permanentRedirect('reopening', 'attending-in-person');
 
+// - No more covid page
+Route::permanentRedirect('online', '/');
+Route::permanentRedirect('resources', '/');
+
+
 
 // General Routes
-Route::get('/{area}/', array('uses' => 'PageController@showArticleWithoutAsides'));
+Route::get('/{area}/', array('uses' => 'PageController@showPage'));
 Route::get('/{area}/{slug}', array('uses' => 'PageController@showPage'));
 
 

@@ -1,3 +1,8 @@
+.bg-pattern {
+  background-image: url("/images/pattern-wide.png");
+  background-size: cover;
+}
+
 .cbc-card-img-top {
   object-fit: cover;
   filter: brightness(50%);
@@ -70,8 +75,4 @@ aside {
       padding-right: 0;
     }
   }
-}
-
-#flower-cards {
-  column-count: 2;
 }

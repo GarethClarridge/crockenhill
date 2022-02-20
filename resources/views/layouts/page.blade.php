@@ -34,7 +34,7 @@
           </div>
         @endif
 
-        <nav aria-label="breadcrumb">
+        <nav aria-label="breadcrumb" class="mb-5">
           <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="/">Home</a></li>
             @if (count(\Request::segments()) >= 2)

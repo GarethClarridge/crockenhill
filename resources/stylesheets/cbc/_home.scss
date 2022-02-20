@@ -51,14 +51,6 @@
   }
 }
 
-.home-options {
-  font-size: 1.25em;
-}
-
-// section {
-//   padding: 5% 0%;
-// }
-
 .background-image {
   background-attachment: fixed;
   background-position: center;
@@ -84,38 +76,6 @@
   }
 }
 
-#building {
-  background-image: url(/images/homepage/building.JPG);
-}
-
-#listening {
-  background-image: url(/images/homepage/listening.JPG);
-}
-
-#three {
-  background-image: url(/images/homepage/drinking.JPG);
-}
-
-#christmas {
-  background-image: url(/images/homepage/christmas2020.JPG);
-}
-
-#online-service-btn {
-  font-style: normal;
-  font-size: 2rem;
-}
-
-#easter {
-  background-image: url(/images/homepage/easter.jpg);
-
-  .white-background {
-    background-color: white;
-
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
-}
-
 #mission-statement a {
   font-family: $headings-font-family;
   text-decoration: none;
@@ -133,33 +93,6 @@
   }
 }
 
-#remembrance {
-  a {
-    color: white;
-  }
-  img {
-    height: 11rem;
-  }
-}
-
-
-
-.mission-statement-link {
-  i {
-    opacity: 0;
-    margin-left: 1em;
-    margin-right: 1em;
-  }
-  a:hover {
-    i {
-      opacity: 1;
-    }
-  }
-  .fa-bullhorn-left {
-    transform: scaleX(-1);
-  }
-}
-
-#christianity-explored {
-  background-color: #c8102e;
-}
+// #christianity-explored {
+//   background-color: #c8102e;
+// }

@@ -9,11 +9,6 @@ class PageController extends Controller {
 		return view('layouts/page');
 	}
 
-	public function showArticleWithoutAsides()
-	{
-		return view('layouts/article-without-asides');
-	}
-
 	public function index()
   {
     if (\Gate::denies('edit-pages')) {

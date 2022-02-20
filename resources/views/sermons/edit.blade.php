@@ -63,8 +63,8 @@
     </div>
 
     <div class="form-actions">
-      <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
-      <a href="/sermons" class="btn btn-large">Cancel</a>
+      <input class="btn btn-success btn-save btn-lg" type="submit" value="Save">
+      <a href="/sermons" class="btn btn-lg">Cancel</a>
     </div>
 
   </form>
