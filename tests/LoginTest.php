@@ -14,7 +14,7 @@ class LoginTest extends TestCase
   public function testLoginRedirect()
   {
     $response = $this->call('GET', '/members');
-           
+
     $this->assertEquals(302, $response->getStatusCode());
   }
 
@@ -23,13 +23,13 @@ class LoginTest extends TestCase
   $this->visit('/church/members/login')
        ->type('email@crockenhill.org', 'email')
        ->type('password', 'password');
-  }   
+  }
 
   public function testUserLogin()
   {
     Auth::loginUsingId(2);
 
-    $this->visit('/members')
+    $this->visit('/church/members')
           ->see('Welcome to the members');
 
     Auth::logout();

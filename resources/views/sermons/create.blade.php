@@ -1,20 +1,7 @@
 @extends('layouts/page')
 
-@section('content')
-<div class="container mt-3">
-  <div class="row">
-    <div class="col-md-10 col-lg-9">
-      <article class="card p-0">
-        <div class="card-img-caption d-flex align-items-center mb-3">
-          <h1 class="card-text text-white">
-            <div class="px-2 py-1">
-              Upload a sermon
-            </div>
-          </h1>
-          <img class="card-img-top cbc-card-img-top" src="/images/headings/large/default.jpg">
-        </div>
+@section('dynamic_content')
 
-        <div class="card-body">
           @if (count($errors) > 0)
             <div class="alert alert-danger">
               <strong>Whoops!</strong> There were some problems:<br><br>
@@ -29,10 +16,12 @@
           <form method="POST" action="/church/sermons" accept-charset="UTF-8" enctype="multipart/form-data" class="create">
             <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
-            <div class="input-group mb-3">
-              <div class="custom-file">
-                <input name="file" type="file" class="custom-file-input" id="file" aria-describedby="file">
-                <label class="custom-file-label" for="file">Choose file</label>
+            <h2>Sermon recording</h2>
+
+            <div class="input-group my-3">
+              <div class="w-100">
+                <label class="form-label" for="file">Upload a sermon</label>
+                <input name="file" type="file" class="form-control form-control-lg" id="file" aria-describedby="file">
               </div>
             </div>
 
@@ -56,13 +45,13 @@
               <label for="service">Service</label>
               @if (time() <= strtotime('15:00:00'))
                 <select type="service" class="form-control" id="service" name="service">
-                  <option value="morning" selected>Morning</option>
-                  <option value="evening">Evening (or afternoon)</option>
+                  <option value="morning" selected>Morning (main service)</option>
+                  <option value="evening">Evening (prayer service)</option>
                 </select>
               @else
                 <select type="service" class="form-control" id="service" name="service">
-                  <option value="morning">Morning</option>
-                  <option value="evening" selected>Evening (or afternoon)</option>
+                  <option value="morning">Morning (main service)</option>
+                  <option value="evening" selected>Evening (prayer service)</option>
                 </select>
               @endif
             </div>
@@ -108,18 +97,14 @@
               </div>
             @endfor
 
-            <div class="form-actions">
-              <input class="btn btn-success btn-save btn-large" type="submit" value="Save">
-              <a href="/sermons" class="btn btn-large">Cancel</a>
+            <div class="form-actions d-grid gap-2">
+              <input class="btn btn-success btn-save btn-lg" type="submit" value="Save">
+              <a href="/sermons" class="btn btn-lg">Cancel</a>
             </div>
 
           </form>
-        </div>
-      </article>
-      <br><br>
-    </div>
-  </div>
-</div>
+
+
 
   <script type="text/javascript">
     document.querySelector('input[type="file"]').onchange = function(e) {

@@ -321,45 +321,5 @@ class ViewServiceProvider extends ServiceProvider
       });
 
 
-
-
-
-
-
-
-      \View::composer('layouts/article-without-asides', function($view)
-      {
-        //User
-        $user = \Auth::user();
-
-        //Set area from url
-        $area = \Request::segment(1);
-
-        //Load page
-        $page = \Crockenhill\Page::where('slug', $area)->first();
-
-        //Description
-        $description 	= '<meta name="description" content="'.$page->description.'">';
-
-        //Heading
-        $heading = $page->heading;
-
-        //Content
-        $content = htmlspecialchars_decode($page->body);
-
-        //Heading picture
-        $headingpicture = '/images/headings/large/'.$area.'.jpg';
-
-        $view->with([
-          'name'						=> (isset($name) ? $name : ''),
-          'slug'						=> (isset($slug) ? $slug : $area),
-          'area'						=> $area,
-          'description'   	=> $description,
-          'heading'       	=> $heading,
-          'headingpicture' 	=> $headingpicture,
-          'content'					=> (isset($content) ? $content : ''),
-          'user' 						=> $user,
-        ]);
-      });
     }
 }

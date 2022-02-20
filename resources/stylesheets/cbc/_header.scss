@@ -1,10 +1,3 @@
-// .navbar-seperator {
-//   display: none;
-//   @include media-breakpoint-up(lg) {
-//     display: inline;
-//   }
-// }
-
 .navbar-site-name {
   @include media-breakpoint-down(md) {
     display: none;
@@ -29,7 +22,6 @@
 
 .navbar-toggler {
   border: none;
-  // font-size: 0.75rem;
   line-height: 0.75rem;
   color: $white !important;
 }

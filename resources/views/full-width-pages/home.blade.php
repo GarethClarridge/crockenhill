@@ -231,7 +231,7 @@
 
         <div class="row my-5 row-cols-1 row-cols-md-2 g-2 g-lg-3">
           <div class="col mb-4">
-            <div class="card p-0 home-options text-center m-2">
+            <div class="card p-0 text-center m-2">
               <div class="card-body">
                 <p class="card-text">
                   We also have a more information service focussed on prayer each

@@ -47,7 +47,7 @@
           <input class="btn btn-success btn-lg" type="submit" value="Save">
         </div>
         <div class="text-center">
-          <a href="/church/members/pages/" class="btn btn-outline btn-large">Cancel</a>
+          <a href="/church/members/pages/" class="btn btn-outline btn-lg">Cancel</a>
         </div>
       </div>
 

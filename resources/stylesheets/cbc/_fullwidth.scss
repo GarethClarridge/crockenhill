@@ -1,36 +1,36 @@
-#christmas-page {
-  margin: 0px;
-
-  section {
-    padding: 5% 0%;
-  }
-}
-
-.christmas-head {
-  background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url(../images/homepage/christmas.JPG);
-  background-size: cover;
-  min-height: 33vh;
-
-  .container {
-    padding-top: 100px;
-    padding-bottom: 50px;
-
-  }
-
-  h1 {
-    font-size: $font-size-base*3;
-    font-weight: 800;
-    // line-height: $font-size-base*9;
-    padding-bottom: 50px;
-    width: 100%;
-
-    div {
-      border: 5px;
-      max-width: 80%;
-      border-style: solid;
-      display: inline-block;
-  }
-}
+// #christmas-page {
+//   margin: 0px;
+//
+//   section {
+//     padding: 5% 0%;
+//   }
+// }
+//
+// .christmas-head {
+//   background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url(../images/homepage/christmas.JPG);
+//   background-size: cover;
+//   min-height: 33vh;
+//
+//   .container {
+//     padding-top: 100px;
+//     padding-bottom: 50px;
+//
+//   }
+//
+//   h1 {
+//     font-size: $font-size-base*3;
+//     font-weight: 800;
+//     // line-height: $font-size-base*9;
+//     padding-bottom: 50px;
+//     width: 100%;
+//
+//     div {
+//       border: 5px;
+//       max-width: 80%;
+//       border-style: solid;
+//       display: inline-block;
+//   }
+// }
 
 p {
   font-style: italic;

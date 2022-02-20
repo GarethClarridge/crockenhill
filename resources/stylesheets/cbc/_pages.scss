@@ -8,13 +8,13 @@
   }
 }
 
-.photo-selector {
-  @include full-width-section;
-  background-color: map-get($theme-colors, secondary);
-  img {
-    width: 100%;
-  }
-}
+// .photo-selector {
+//   @include full-width-section;
+//   background-color: map-get($theme-colors, secondary);
+//   img {
+//     width: 100%;
+//   }
+// }
 
 #rendered-content {
   img {
@@ -22,22 +22,22 @@
   }
 }
 
-.caption {
-  background-color: map-get($theme-colors, primary);
-  display: none;
-  word-wrap: break-word;
-}
-
-.thumbnail {
-    border: 0 none;
-    box-shadow: none;
-    margin:0;
-    padding:0;
-}
-
-.thumbnail:hover {
-  .caption {
-    display: block;
-    color: $white;
-  }
-}
+// .caption {
+//   background-color: map-get($theme-colors, primary);
+//   display: none;
+//   word-wrap: break-word;
+// }
+//
+// .thumbnail {
+//     border: 0 none;
+//     box-shadow: none;
+//     margin:0;
+//     padding:0;
+// }
+//
+// .thumbnail:hover {
+//   .caption {
+//     display: block;
+//     color: $white;
+//   }
+// }

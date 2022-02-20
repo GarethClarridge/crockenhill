@@ -18263,6 +18263,11 @@ footer .flexible-map-container embed {
   height: 25vh;
 }
 
+.bg-pattern {
+  background-image: url("/images/pattern-wide.png");
+  background-size: cover;
+}
+
 .cbc-card-img-top {
   object-fit: cover;
   filter: brightness(50%);
@@ -18331,10 +18336,6 @@ aside .read-more {
   }
 }
 
-#flower-cards {
-  column-count: 2;
-}
-
 #cookie-law {
   position: absolute;
   width: 90%;
@@ -18347,30 +18348,6 @@ aside .read-more {
 #cookie-message {
   margin-bottom: 0px !important;
   padding: 0 1.5;
-}
-
-.document-container {
-  margin-top: 3rem;
-  margin-bottom: 1.5rem;
-  margin-left: -9.5238095%;
-  width: 119.047619%;
-  min-height: 12;
-  background-color: er;
-}
-
-.file {
-  display: block;
-  text-align: center;
-}
-
-.document-icon {
-  height: 1.25em;
-  font-size: 5em;
-}
-
-.document-sub-container {
-  margin-left: 1rem;
-  margin-right: 1rem;
 }
 
 .praise_number {
@@ -18555,14 +18532,6 @@ aside .read-more {
 footer .list-group-item {
   background: none;
   border: none;
-}
-.bg-pattern {
-  background-image: url("/images/pattern-wide.png");
-  background-size: cover;
-}
-
-.full-width-card-deck {
-  width: 100%;
 }
 
 .meeting-details {

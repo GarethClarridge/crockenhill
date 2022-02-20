@@ -46,9 +46,4 @@ class DatabaseSeeder extends Seeder {
     //$this->call('PageSeeder');
       //$this->command->info('Pages table seeded!');
 
-    // Document seeding
-    $this->call('DocumentSeeder');
-      $this->command->info('Documents table seeded!');
-	}
-
 }
