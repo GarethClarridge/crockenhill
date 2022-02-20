@@ -16,6 +16,7 @@
 
     a {
       text-decoration: none;
+      font-size: 1.75rem;
     }
 
     span {
@@ -74,23 +75,6 @@
         color: map-get($theme-colors, dark) !important;
       }
     }
-  }
-}
-
-#mission-statement a {
-  font-family: $headings-font-family;
-  text-decoration: none;
-  font-style: normal;
-  color: white;
-  img::before {
-      margin: -10em;
-    }
-  img {
-    width: 40%;
-  }
-  font-size: 12vw;
-  @include media-breakpoint-up(sm) {
-    font-size: 4vw;
   }
 }
 

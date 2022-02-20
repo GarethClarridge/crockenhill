@@ -18,25 +18,25 @@
               Church.<br>
             </h1>
           </div>
-          <div class="col-md-5 offset-md-2 col-lg-4 mission-statement my-auto text-sm-start text-md-end p-5 p-md-2 p-lg-5">
+          <div class="col-md-5 offset-md-2 col-xl-4 mission-statement my-auto text-sm-start text-md-end p-5 p-md-2 p-lg-5">
             <p class="">
               <a href="#worship-god">
                 <span class="px-2">
-                  Worshipping God
+                  Worshipping God,
                 </span>
               </a>
             </p>
             <p class="">
               <a href="#strenthen-believers">
                 <span class="px-2">
-                  Strengthening believers
+                  Strengthening believers,
                 </span>
               </a>
             </p>
             <p class="">
               <a href="#proclaim-christ">
                 <span class="px-2">
-                  Proclaiming Christ
+                  Proclaiming Christ.
                 </span>
               </a>
             </p>
