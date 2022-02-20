@@ -8,61 +8,6 @@
 
   <main id="home">
 
-
-    <!-- <div id="christmas">
-      <div class="christmas-background">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="col-md-10 col-lg-6">
-              <div class="text-center mt-5">
-                <img src="/images/GoodNewsGreatJoy.svg" alt="Good news of great joy!">
-              </div>
-            </div>
-            <div class="col-md-12">
-              <div class="text-center text-white m-4">
-                <h1>Christmas with Crockenhill Baptist Church:</h1>
-              </div>
-            </div>
-          </div>
-
-          <div class="row justify-content-md-center">
-            <div class="col-md-12">
-              <div class="card p-0 mt-3 mb-5">
-                <div class="card-body p-5">
-                  <div class="ratio ratio-16x9">
-                    <iframe src="https://www.youtube.com/embed/HAuA7mJ-bUI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="row justify-content-md-center">
-            <div class="col-md-12">
-              <div class="card p-0">
-                <div class="card-body p-5">
-                  <div class="ratio ratio-16x9">
-                    <iframe src="https://www.youtube.com/embed/UVxy545ELC0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="row justify-content-md-center">
-            <div class="col-md-6">
-              <div class="text-center text-white my-5">
-                <p class="h4">We'll continue
-                  <a class="text-white" href="#worship-god">
-                    meeting together on Sunday mornings in person
-                    and online</a> as usual.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div> -->
-
     <div class="full-width-head text-white">
       <div class="container py-5">
         <div class="row justify-content-center">
@@ -160,7 +105,8 @@
                 </p>
 
                 <p>
-                  We meet to worship God and hear from his Word on Sundays at 10:30am.
+                  We meet to worship God and hear from his Word on Sundays, currently
+                  at 2pm in the Village Hall due to <a href="/church/building-work">building work</a> at the church.
                   You're more than welcome to join us - we'd love to see you!
                 </p>
 
@@ -221,8 +167,9 @@
         <div class="col-md-10 col-lg-8">
           <div class="white-background mb-5">
             <p class="text-center">
-              We meet to worship God together as a church every Sunday at
-              10:30am. Services involve reading the Bible, praying, singing
+              We meet to worship God together as a church every Sunday, currently
+              at 2pm in the Village Hall due to <a href="/church/building-work">building work</a> at the church.
+              Services involve reading the Bible, praying, singing
               and hearing God's word preached. We're currently looking at Jesus'
               "Sermon on the Mount" from Matthew chapters 5-7.
             </p>
@@ -232,10 +179,10 @@
               out so you can social distance from others if you prefer.
             </p>
             <p class="text-center">
-              We will continue to stream our morning services on
+              We will continue to stream services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
-              </a> from 10:30am on Sundays.
+              </a> from 2pm on Sundays.
             </p>
           </div>
         </div>
@@ -287,14 +234,17 @@
             <div class="card p-0 home-options text-center m-2">
               <div class="card-body">
                 <p class="card-text">
-                  We have a Sunday evening meeting at 6:30pm.
+                  We also have a more information service focussed on prayer each
+                  Sunday. This is usually in the evening at 6:30pm, but during
+                  the <a href="/church/building-work">building work</a> we're holding this meeting at
+                  10am in the rear hall of the church.
                 </p>
                 <p class="card-text">
                   About half of this meeting is given over to prayer for God's
                   will to be done in our church, our community and our world.
                   Mark is preaching through the book of Revelation in
-                  these services. The messages are slightly shorter than in the
-                  morning, and more teaching and devotionally focussed.
+                  these services. The messages are slightly shorter than at the
+                  main service, and are more devotionally focussed
                 </p>
               </div>
               <div class="card-footer">
@@ -390,7 +340,8 @@
               We are considering how best to re-start our <a href="/community">regular activities</a>.
               We have already restarted <a href="community/coffee-cup">Coffee Cup</a>
               on a Thursday morning.
-              We hope to start some more outreach activities soon.
+              We hope to start some more outreach activities in the future, although
+              this won't be until after the <a href="/church/building-work">building work</a> at the church has finished.
               Watch this space for future updates.
             </p>
           </div>
