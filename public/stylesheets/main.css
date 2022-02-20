@@ -18014,8 +18014,9 @@ readers do not read off random characters that represent icons */
   min-height: 33vh;
 }
 .full-width-head h1, .full-width-head .h1 {
-  font-size: 4rem;
+  font-size: 5rem;
   font-weight: 800;
+  line-height: 4.5rem;
 }
 .full-width-head p {
   font-family: "Oswald", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
@@ -18051,10 +18052,6 @@ readers do not read off random characters that represent icons */
   border-color: white;
 }
 
-.home-options {
-  font-size: 1.25em;
-}
-
 .background-image {
   background-attachment: fixed;
   background-position: center;
@@ -18077,36 +18074,6 @@ readers do not read off random characters that represent icons */
   color: !important;
 }
 
-#building {
-  background-image: url(/images/homepage/building.JPG);
-}
-
-#listening {
-  background-image: url(/images/homepage/listening.JPG);
-}
-
-#three {
-  background-image: url(/images/homepage/drinking.JPG);
-}
-
-#christmas {
-  background-image: url(/images/homepage/christmas2020.JPG);
-}
-
-#online-service-btn {
-  font-style: normal;
-  font-size: 2rem;
-}
-
-#easter {
-  background-image: url(/images/homepage/easter.jpg);
-}
-#easter .white-background {
-  background-color: white;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-
 #mission-statement a {
   font-family: "Oswald", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   text-decoration: none;
@@ -18124,29 +18091,6 @@ readers do not read off random characters that represent icons */
   #mission-statement a {
     font-size: 4vw;
   }
-}
-
-#remembrance a {
-  color: white;
-}
-#remembrance img {
-  height: 11rem;
-}
-
-.mission-statement-link i {
-  opacity: 0;
-  margin-left: 1em;
-  margin-right: 1em;
-}
-.mission-statement-link a:hover i {
-  opacity: 1;
-}
-.mission-statement-link .fa-bullhorn-left {
-  transform: scaleX(-1);
-}
-
-#christianity-explored {
-  background-color: #c8102e;
 }
 
 .references {
@@ -18376,44 +18320,6 @@ aside .read-more {
   color: #fff;
 }
 
-#christmas-page {
-  margin: 0px;
-}
-#christmas-page section {
-  padding: 5% 0%;
-}
-
-.christmas-head {
-  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(../images/homepage/christmas.JPG);
-  background-size: cover;
-  min-height: 33vh;
-}
-.christmas-head .container {
-  padding-top: 100px;
-  padding-bottom: 50px;
-}
-.christmas-head h1, .christmas-head .h1 {
-  font-size: 3rem;
-  font-weight: 800;
-  padding-bottom: 50px;
-  width: 100%;
-}
-.christmas-head h1 div, .christmas-head .h1 div {
-  border: 5px;
-  max-width: 80%;
-  border-style: solid;
-  display: inline-block;
-}
-.christmas-head p {
-  font-style: italic;
-}
-.christmas-head p span {
-  background-color: #08a386;
-  line-height: 3em;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-
 .white-background {
   font-size: 1.5em;
   text-align: center;
@@ -18472,37 +18378,8 @@ aside .read-more {
   border: none;
 }
 
-.photo-selector {
-  margin-left: -1.25rem;
-  margin-right: -1.25rem;
-  margin-bottom: 1.5rem;
-  padding: 1.5rem;
-  background-color: #08a386;
-}
-.photo-selector img {
-  width: 100%;
-}
-
 #rendered-content img {
   width: 100%;
-}
-
-.caption {
-  background-color: #16324f;
-  display: none;
-  word-wrap: break-word;
-}
-
-.thumbnail {
-  border: 0 none;
-  box-shadow: none;
-  margin: 0;
-  padding: 0;
-}
-
-.thumbnail:hover .caption {
-  display: block;
-  color: #fff;
 }
 
 @media (max-width: 767.98px) {
