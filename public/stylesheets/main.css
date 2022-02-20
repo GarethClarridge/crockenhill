@@ -18011,7 +18011,6 @@ readers do not read off random characters that represent icons */
   background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(../images/homepage/Collage.jpg);
   background-size: cover;
   background-position: center;
-  min-height: 33vh;
 }
 .full-width-head h1, .full-width-head .h1 {
   font-size: 5rem;
@@ -18043,6 +18042,9 @@ readers do not read off random characters that represent icons */
 }
 .white-background a, #building-work a {
   font-style: italic;
+}
+.white-background a.btn, #building-work a.btn {
+  font-style: normal;
 }
 
 #building-work {

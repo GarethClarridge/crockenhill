@@ -2,7 +2,7 @@
   background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url(../images/homepage/Collage.jpg);
   background-size: cover;
   background-position: center;
-  min-height: 33vh;
+  // min-height: 33vh;
 
   h1 {
     font-size: $font-size-base*5;
@@ -41,6 +41,9 @@
 
   a {
     font-style: italic;
+  }
+  a.btn {
+    font-style: normal;
   }
 }
 
