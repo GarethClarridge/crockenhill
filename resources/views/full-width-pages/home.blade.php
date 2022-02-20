@@ -12,7 +12,7 @@
       <div class="container py-5">
         <div class="row justify-content-center">
           <div class="col-md-4 col-lg-3 p-5 p-md-2 p-lg-5">
-            <h1 class="">
+            <h1>
               Crockenhill<br>
               Baptist<br>
               Church.<br>

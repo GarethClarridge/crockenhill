@@ -31,19 +31,19 @@
 //       display: inline-block;
 //   }
 // }
+// 
+// p {
+//   font-style: italic;
+//
+//   span {
+//     background-color: map-get($theme-colors, secondary);
+//     line-height: 3em;
+//
+//     box-decoration-break: clone;
+//     -webkit-box-decoration-break: clone;
+//   }
+// }
 
-p {
-  font-style: italic;
-
-  span {
-    background-color: map-get($theme-colors, secondary);
-    line-height: 3em;
-
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
-}
-}
 
 .white-background {
   font-size: 1.5em;
