@@ -5,10 +5,10 @@
       <div class="card p-0 text-center h-100">
         <div class="card-body pb-0">
           <h3 class="card-title">
-            Last week's service
+            Catch up
           </h3>
           <div class="ratio ratio-16x9">
-            <iframe id="latest_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            <iframe id="last_week_youtube_video" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
           </div>
         </div>
         <div class="card-footer text-muted">
@@ -93,7 +93,7 @@
     </section>
 
     <section class="col-md-4 m-5">
-        <a class="fiec-footer" href="http://www.fiec.org.uk">
+        <a class="fiec-footer" href="https://www.fiec.org.uk">
           <img src="/images/fiec-affiliated-tagline-white.png" width="100%" alt="Affiliated to the Fellowship of Independent Evangelical Churches">
         </a>
     </section>
