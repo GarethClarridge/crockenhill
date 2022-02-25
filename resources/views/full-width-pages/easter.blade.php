@@ -26,7 +26,7 @@
             <div class="main-content text-dark">
               <p>Join us as we celebrate the resurrection of Jesus together in our homes.</p>
               <div class="text-dark mb-3 text-center">
-                  <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=2HVvwvaitGA&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                  <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=2HVvwvaitGA&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" role="button"><i class="fa-brands fa-youtube"></i>&nbsp Watch on YouTube</a>
               </div>
               <div class="ratio ratio-16x9">
                 <iframe src="https://www.youtube.com/embed?listType=playlist&list=PLvRlbyvqJwk6FhDWs8p1EkFawe-Fcetlf" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
@@ -53,7 +53,7 @@
             <div class="main-content">
               <p>We're joining with our friends at 4 other churches for a joint Good Friday service.</p>
               <div class="text-dark mb-3 text-center">
-                <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=HbUDCTtC08o" role="button"><i class="fab fa-youtube"></i>&nbsp Watch on YouTube</a>
+                <a class="btn btn-primary btn-lg" href="https://www.youtube.com/watch?v=HbUDCTtC08o" role="button"><i class="fa-brands fa-youtube"></i>&nbsp Watch on YouTube</a>
               </div>
               <div class="ratio ratio-16x9">
                 <iframe src="https://www.youtube.com/embed/HbUDCTtC08o" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>

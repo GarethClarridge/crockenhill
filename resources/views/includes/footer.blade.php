@@ -44,11 +44,11 @@
               <a class="card-link" href="mailto:pastor@crockenhill.org">pastor@crockenhill.org</a>
             </li>
             <li class="list-group-item">
-              <i class="fab fa-facebook-square"></i> &nbsp
+              <i class="fa-brands fa-facebook-square"></i> &nbsp
               <a class="card-link" href="https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905">Like us on Facebook</a>
             </li>
             <li class="list-group-item">
-              <i class="fab fa-youtube"></i> &nbsp
+              <i class="fa-brands fa-youtube"></i> &nbsp
               <a class="card-link" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">Subscribe to our YouTube channel</a>
             </li>
           </ul>
