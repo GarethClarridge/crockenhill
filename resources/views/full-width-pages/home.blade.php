@@ -133,7 +133,7 @@
                   Join us online on Wednsedays at 7:30pm from 27th April
                   to discover why Jesus is the best news you'll ever hear.
                 </p>
-                <a class="btn btn-lg btn-light my-5" href="/christianity-explored">
+                <a class="btn btn-light text-white my-5" href="/christianity-explored">
                   Find out more and book your place &nbsp
                   <i class="fas fa-arrow-circle-right"></i>
                 </a>
