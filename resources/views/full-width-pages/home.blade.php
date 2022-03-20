@@ -47,51 +47,6 @@
       </div>
     </div>
 
-    <!-- <div id="christianity-explored">
-      <div class="christianity-explored-background">
-        <div class="container">
-          <div class="row justify-content-md-center d-flex align-items-center">
-            <div class="col-md-5 my-3">
-              <div class="text-center">
-                <img src="/images/homepage/ceThumbprint.png" alt="Christianity Explored logo" class="img-fluid">
-              </div>
-            </div>
-            <div class="col-md-7">
-              <div class="text-center text-md-left text-white m-4">
-                <h1>What's the best news you've ever heard?</h1>
-              </div>
-            </div>
-          </div>
-
-          <div class="row justify-content-md-center">
-            <div class="col-md-12">
-              <div class="ratio ratio-16x9">
-                <iframe src="https://www.youtube.com/embed/WUCvQs_yfUg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-              </div>
-            </div>
-          </div>
-
-          <div class="row justify-content-md-center">
-            <div class="col-md-8">
-              <div class="text-center text-white my-5">
-                <p class="h2">
-                  Join us online on Thursdays at 7:30pm to discover
-                  why Jesus is the best news you'll ever hear. We started with
-                  an introductory session last week, but you'd be welcome to
-                  join the group from this Thursday 15th April.
-                </p>
-                <a class="btn btn-lg btn-light my-5" href="/christianity-explored">
-                  Find out more and book your place &nbsp
-                  <i class="fas fa-arrow-circle-right"></i>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div> -->
-
-
     <div id="">
       <div class="white-background mt-5">
         <div class="container">
@@ -140,6 +95,48 @@
                   <i class="fas fa-arrow-circle-right"></i>
                 </a>
 
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="christianity-explored">
+      <div class="christianity-explored-background">
+        <div class="container">
+          <div class="row justify-content-md-center d-flex align-items-center">
+            <div class="col-md-5 my-3">
+              <div class="text-center">
+                <img src="/images/homepage/ceThumbprint.png" alt="Christianity Explored logo" class="img-fluid">
+              </div>
+            </div>
+            <div class="col-md-7">
+              <div class="text-center text-md-left text-white m-4">
+                <h1>What's the best news you've ever heard?</h1>
+              </div>
+            </div>
+          </div>
+
+          <div class="row justify-content-md-center">
+            <div class="col-md-12">
+              <div class="ratio ratio-16x9">
+                <iframe src="https://www.youtube.com/embed/WUCvQs_yfUg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+              </div>
+            </div>
+          </div>
+
+          <div class="row justify-content-md-center">
+            <div class="col-md-8">
+              <div class="text-center text-white my-5">
+                <p class="h2">
+                  Join us online on Wednsedays at 7:30pm from 27th April
+                  to discover why Jesus is the best news you'll ever hear.
+                </p>
+                <a class="btn btn-lg btn-light my-5" href="/christianity-explored">
+                  Find out more and book your place &nbsp
+                  <i class="fas fa-arrow-circle-right"></i>
+                </a>
               </div>
             </div>
           </div>

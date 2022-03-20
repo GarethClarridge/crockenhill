@@ -1,11 +1,11 @@
 @extends('layouts.main')
 
 @section('title')
-  Christmas
+  Christianity Explored
 @stop
 
 @section('description')
-  Christmas at Crockenhill Baptist Church
+  Christianty Explored
 @stop
 
 @section('content')
@@ -47,15 +47,14 @@
               </p>
               <h2>When does the course start?</h2>
               <p>
-                The course launches after Easter on Thursday 8 April and will
+                The course launches after Easter on Wednesday 27th April and will
                 run for 7 weeks. Each week we'll start at 7:30pm and sessions
                 will last up to 90 minutes.
               </p>
               <h2>Where will the course be held?</h2>
               <p>
-                For obvious reasons we can't meet in homes like normal. We'll
-                be holding this course online via Zoom. If you register below
-                we'll email you the Zoom link to join us on 8 April.
+                We'll be holding this course online via Zoom. If you register below
+                we'll email you the Zoom link to join us on 27th April.
               </p>
               <h2>Will I be embarrassed or pressured?</h2>
               <p>
@@ -84,7 +83,7 @@
               <div class="card p-0">
                 <div class="card-body">
                   <div class="ratio ratio-16x9">
-                    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdowGddV8FJlPztioR7HYu2hrGP8sDtN9n-CTYyB7LNotjPWQ/viewform?embedded=true" width="640" height="996" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>                  </div>
+                    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdRv81oeni6Iv33O3-ECvl7GD0cSA5nXGrg5SWAcG95ZY-xhQ/viewform?embedded=true" width="640" height="988" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
                 </div>
               </div>
             </div>
