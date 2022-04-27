@@ -60,8 +60,7 @@
                 </p>
 
                 <p>
-                  We meet to worship God and hear from his Word on Sundays, currently
-                  at 2pm in the Village Hall due to <a href="/church/building-work">building work</a> at the church.
+                  We meet to worship God and hear from his Word on Sundays at 10:30am.
                   You're more than welcome to join us - we'd love to see you!
                 </p>
 
@@ -72,37 +71,7 @@
       </div>
     </div>
 
-    <div id="building-work">
-      <div class="bg-primary mt-5 py-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="col-md-10 col-lg-8">
-              <div class="text-center">
-
-                <p>
-                  We're having some work carried out to improve disabled
-                  access to our building.
-                </p>
-
-                <p>
-                  From Sunday 27th February we'll be meeting on Sundays at Crockenhill
-                  Village Hall at 2pm instead of our normal service at 10:30am
-                  at the church.
-                </p>
-
-                <a href="/church/building-work" class="btn btn-light p-3 my-3">
-                  Find out more about the building work &nbsp
-                  <i class="fas fa-arrow-circle-right"></i>
-                </a>
-
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="christianity-explored">
+    <!-- <div id="christianity-explored">
       <div class="christianity-explored-background">
         <div class="container">
           <div class="row justify-content-md-center d-flex align-items-center">
@@ -142,7 +111,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <div id="worship-god">
       <div class="bg-pattern mb-5">
@@ -164,22 +133,21 @@
         <div class="col-md-10 col-lg-8">
           <div class="white-background mb-5">
             <p class="text-center">
-              We meet to worship God together as a church every Sunday, currently
-              at 2pm in the Village Hall due to <a href="/church/building-work">building work</a> at the church.
+              We meet to worship God together as a church every Sunday at 10:30am.
               Services involve reading the Bible, praying, singing
               and hearing God's word preached. We're currently looking at Jesus'
               "Sermon on the Mount" from Matthew chapters 5-7.
             </p>
             <p class="text-center">
-              Masks are no longer required, but we will continue to keep as much
-              ventilation as possible given the weather. Some chairs are spaced
+              Masks are not required, but we will continue to some windows
+              open for ventilation. Some chairs are spaced
               out so you can social distance from others if you prefer.
             </p>
             <p class="text-center">
               We will continue to stream services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
-              </a> from 2pm on Sundays.
+              </a> at 10:30am on Sundays.
             </p>
           </div>
         </div>
@@ -198,9 +166,39 @@
       </div>
     </div>
 
+    <div id="building-work">
+      <div class="bg-primary mt-5 py-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="col-md-10 col-lg-8">
+              <div class="text-center">
+
+                <p>
+                  We're having some work carried out to improve disabled
+                  access to our building.
+                </p>
+
+                <p>
+                  From May we'll return to our normal service time at 10:30am
+                  at the church. While the work in the main chapel is finished
+                  we'll be meeting in the rear hall.
+                </p>
+
+                <a href="/church/building-work" class="btn btn-light p-3 my-3">
+                  Find out more about the building work &nbsp
+                  <i class="fas fa-arrow-circle-right"></i>
+                </a>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <div id="strengthen-believers">
-      <div class="bg-pattern my-5">
+      <div class="bg-pattern mb-5">
         <div class="container">
           <div class="row justify-content-md-center">
             <div class="col-md-12 p-5">
