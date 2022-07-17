@@ -71,6 +71,30 @@
       </div>
     </div>
 
+    <div id="building-work">
+      <div class="bg-primary mt-5 py-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="col-md-10 col-lg-8">
+              <div class="text-center">
+
+                <p>
+                  The work we were having carried out to improve disabled
+                  access to our building is now finished!
+                </p>
+
+                <p>
+                  Why not pop in this Saturday 23rd July between 2:30
+                  and 4pm to see what we've been up to.
+                </p>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- <div id="christianity-explored">
       <div class="christianity-explored-background">
         <div class="container">
@@ -165,37 +189,6 @@
         </div>
       </div>
     </div>
-
-    <div id="building-work">
-      <div class="bg-primary mt-5 py-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="col-md-10 col-lg-8">
-              <div class="text-center">
-
-                <p>
-                  We're having some work carried out to improve disabled
-                  access to our building.
-                </p>
-
-                <p>
-                  From May we'll return to our normal service time at 10:30am
-                  at the church. While the work in the main chapel is finished
-                  we'll be meeting in the rear hall.
-                </p>
-
-                <a href="/church/building-work" class="btn btn-light p-3 my-3">
-                  Find out more about the building work &nbsp
-                  <i class="fas fa-arrow-circle-right"></i>
-                </a>
-
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
 
     <div id="strengthen-believers">
       <div class="bg-pattern mb-5">
