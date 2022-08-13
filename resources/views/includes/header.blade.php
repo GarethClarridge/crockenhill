@@ -69,11 +69,6 @@
               Directions
             </a>
           </li>
-          <li class="">
-            <a class="" href="/church/building-work">
-              Building work
-            </a>
-          </li>
 
 
           <a class="collapse-control" data-bs-toggle="collapse" href="#collapseChurch" role="button" aria-expanded="false" aria-controls="collapseChurch">

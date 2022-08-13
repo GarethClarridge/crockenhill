@@ -71,30 +71,6 @@
       </div>
     </div>
 
-    <div id="building-work">
-      <div class="bg-primary mt-5 py-5">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="col-md-10 col-lg-8">
-              <div class="text-center">
-
-                <p>
-                  The work we were having carried out to improve disabled
-                  access to our building is now finished!
-                </p>
-
-                <p>
-                  Why not pop in this Saturday 23rd July between 2:30
-                  and 4pm to see what we've been up to.
-                </p>
-
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- <div id="christianity-explored">
       <div class="christianity-explored-background">
         <div class="container">
@@ -159,13 +135,7 @@
             <p class="text-center">
               We meet to worship God together as a church every Sunday at 10:30am.
               Services involve reading the Bible, praying, singing
-              and hearing God's word preached. We're currently looking at Jesus'
-              "Sermon on the Mount" from Matthew chapters 5-7.
-            </p>
-            <p class="text-center">
-              Masks are not required, but we will continue to some windows
-              open for ventilation. Some chairs are spaced
-              out so you can social distance from others if you prefer.
+              and hearing God's word preached.
             </p>
             <p class="text-center">
               We will continue to stream services on
@@ -223,9 +193,7 @@
               <div class="card-body">
                 <p class="card-text">
                   We also have a more information service focussed on prayer each
-                  Sunday. This is usually in the evening at 6:30pm, but during
-                  the <a href="/church/building-work">building work</a> we're holding this meeting at
-                  10am in the rear hall of the church.
+                  Sunda evening at 6:30pm.
                 </p>
                 <p class="card-text">
                   About half of this meeting is given over to prayer for God's
@@ -328,9 +296,6 @@
               We are considering how best to re-start our <a href="/community">regular activities</a>.
               We have already restarted <a href="community/coffee-cup">Coffee Cup</a>
               on a Thursday morning.
-              We hope to start some more outreach activities in the future, although
-              this won't be until after the <a href="/church/building-work">building work</a> at the church has finished.
-              Watch this space for future updates.
             </p>
           </div>
         </div>
