@@ -111,7 +111,7 @@
                 <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
               </div>
               <div class="card-body">
-                We meet again on Sunday evenings at 6:30pm.
+                We meet again on Sunday evenings, at 5pm during the winter months.
                 About half of this meeting is given over to prayer for God's
                 will to be done in our church, our community and our world.
                 The other half includes a more teaching and devotionally
@@ -135,7 +135,7 @@
                 <img class="card-img-top cbc-card-img-top" src="/images/headings/small/bible-study.jpg">
               </div>
               <div class="card-body">
-                We meet in small groups in each others' homes each week on
+                We meet in small groups in homes each week on
                 Tuesday, Wednesday or Thursday to study the bible and pray
                 together.
               </div>

@@ -193,14 +193,14 @@
               <div class="card-body">
                 <p class="card-text">
                   We also have a more information service focussed on prayer each
-                  Sunda evening at 6:30pm.
+                  Sunday evening, at the new time of 5pm over the winter months.
                 </p>
                 <p class="card-text">
                   About half of this meeting is given over to prayer for God's
                   will to be done in our church, our community and our world.
                   Mark is preaching through the book of Revelation in
                   these services. The messages are slightly shorter than at the
-                  main service, and are more devotionally focussed
+                  main service, and are more devotionally focussed.
                 </p>
               </div>
               <div class="card-footer">
