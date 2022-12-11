@@ -20,7 +20,7 @@
 
   <!-- <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous"> -->
 
-  <link type="text/css" rel="stylesheet" href="/stylesheets/main.css?v=7.1.1">
+  <link type="text/css" rel="stylesheet" href="/stylesheets/main.css?v=7.2.1">
   <link type="text/css" rel="stylesheet" href="/stylesheets/print.css" media="print">
   @stack('styles')
 
