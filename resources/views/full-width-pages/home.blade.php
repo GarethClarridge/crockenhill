@@ -71,6 +71,33 @@
       </div>
     </div>
 
+    <div id="christmas">
+      <div class="white-background mt-5">
+        <div class="container">
+          <div class="row justify-content-md-center">
+            <div class="col-md-10 col-lg-8">
+              <div class="text-center">
+
+                <h3>Carols by Candlelight</h3>
+                <p>Sunday 11th, 6:00pm</p>
+                <p>Followed by refreshments</p>
+                <p>Also live-streamed on YouTube</p>
+                <h3>Coffee Cup Carols</h3>
+                <p>Thursday 15th, 10:30am</p>
+                <h3>Carols in the Chequers</h3>
+                <p>Wednesday 21st, 7:30pm</p>
+                <h3>Christmas Day Family Service</h3>
+                <p>Sunday 25th, 10:30am</p>
+                <p>Also live-streamed on YouTube</p>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
     <!-- <div id="christianity-explored">
       <div class="christianity-explored-background">
         <div class="container">
