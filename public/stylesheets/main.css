@@ -18032,27 +18032,19 @@ readers do not read off random characters that represent icons */
   -webkit-box-decoration-break: clone;
 }
 
-.white-background, #building-work {
+.white-background {
   font-size: 1.5em;
   text-align: center;
 }
-.white-background h2, .white-background .h2, #building-work h2, #building-work .h2 {
+.white-background h2, .white-background .h2 {
   font-size: 2.5em;
   line-height: 2em;
 }
-.white-background a, #building-work a {
+.white-background a {
   font-style: italic;
 }
-.white-background a.btn, #building-work a.btn {
+.white-background a.btn {
   font-style: normal;
-}
-
-#building-work {
-  color: white;
-}
-#building-work .btn {
-  color: white;
-  border-color: white;
 }
 
 .background-image {
@@ -18079,6 +18071,11 @@ readers do not read off random characters that represent icons */
 
 #christianity-explored {
   background-color: #c8102e;
+}
+
+#christmas {
+  background-color: #B76C67;
+  color: white;
 }
 
 .references {

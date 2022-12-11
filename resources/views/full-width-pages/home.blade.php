@@ -76,19 +76,29 @@
         <div class="container">
           <div class="row justify-content-md-center">
             <div class="col-md-10 col-lg-8">
-              <div class="text-center">
+              <div class="text-center py-5">
 
-                <h3>Carols by Candlelight</h3>
-                <p>Sunday 11th, 6:00pm</p>
-                <p>Followed by refreshments</p>
-                <p>Also live-streamed on YouTube</p>
-                <h3>Coffee Cup Carols</h3>
-                <p>Thursday 15th, 10:30am</p>
-                <h3>Carols in the Chequers</h3>
-                <p>Wednesday 21st, 7:30pm</p>
-                <h3>Christmas Day Family Service</h3>
-                <p>Sunday 25th, 10:30am</p>
-                <p>Also live-streamed on YouTube</p>
+                <div class="p-3">
+                  <h3>Carols by Candlelight</h3>
+                  <p>Sunday 11th, 6:00pm</p>
+                  <p>Followed by refreshments</p>
+                  <div class="ratio ratio-16x9">
+                    <iframe src="https://www.youtube.com/embed/htc0NHO-wzY" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                  </div>
+                </div>
+                <div class="p-3">
+                  <h3>Coffee Cup Carols</h3>
+                  <p>Thursday 15th, 10:30am</p>
+                </div>
+                <div class="p-3">
+                  <h3>Carols in the Chequers</h3>
+                  <p>Wednesday 21st, 7:30pm</p>
+                </div>
+                <div class="p-3">
+                  <h3>Christmas Day Family Service</h3>
+                  <p>Sunday 25th, 10:30am</p>
+                  <p>Also live-streamed on YouTube</p>
+                </div>
 
               </div>
             </div>
