@@ -71,7 +71,7 @@
       </div>
     </div>
 
-    <div id="christmas">
+    <!-- <div id="christmas">
       <div class="white-background mt-5">
         <div class="container">
           <div class="row justify-content-md-center">
@@ -105,7 +105,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
 
 
     <!-- <div id="christianity-explored">
