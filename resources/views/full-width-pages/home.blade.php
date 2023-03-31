@@ -107,8 +107,65 @@
       </div>
     </div> -->
 
+    <div id="easter">
+      <div class="white-background my-5">
+        <div class="container">
 
-    <!-- <div id="christianity-explored">
+          <div class="row">
+            <p>Join us this Easter as we celebrate the death and resurrection of Jesus Christ.</p>
+          </div>
+              
+          <div class="row">
+            <div class="col">
+              <div class="card">
+                <div class="card-body">
+                  <h3 class="card-title">Good Friday service</h3>
+                  <p class="card-text">7th April, 10:30am</p>
+                  <p class="card-text">
+                    This is a joint service with other evangelical churches. 
+                    The guest speaker is Tobias Brown, senior minister of <a href="https://gracechurchbrockley.org/">Grace Church Brockley</a>.
+                  </p>
+                  <p class="card-text">Followed by refreshments.</p>
+                  <div class="row justify-content-md-center">
+                    <div class="col-md-12">
+                      <div class="ratio ratio-16x9">
+                        <iframe src="https://www.youtube.com/embed/58rl-9drPV0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="card">
+                <div class="card-body">
+                  <h3 class="card-title">Easter Sunday service</h3>
+                  <p class="card-text">9th April, 10:30am</p>
+                  <p class="card-text">Followed by refreshments.</p>
+                  <div class="row justify-content-md-center">
+                    <div class="col-md-12">
+                      <div class="ratio ratio-16x9">
+                        <iframe src="https://www.youtube.com/embed/EgX9B2SgaWE" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+                    
+
+
+                    
+
+
+        </div>
+      </div>
+    </div>
+
+
+    <div id="christianity-explored">
       <div class="christianity-explored-background">
         <div class="container">
           <div class="row justify-content-md-center d-flex align-items-center">
@@ -124,19 +181,19 @@
             </div>
           </div>
 
-          <div class="row justify-content-md-center">
+          <!-- <div class="row justify-content-md-center">
             <div class="col-md-12">
               <div class="ratio ratio-16x9">
                 <iframe src="https://www.youtube.com/embed/WUCvQs_yfUg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
-          </div>
+          </div> -->
 
           <div class="row justify-content-md-center">
             <div class="col-md-8">
-              <div class="text-center text-white my-5">
+              <div class="text-center text-white mb-5">
                 <p class="h2">
-                  Join us online on Wednsedays at 7:30pm from 27th April
+                  Join us online on Wednsedays at 7:30pm from 19th April
                   to discover why Jesus is the best news you'll ever hear.
                 </p>
                 <a class="btn btn-light text-white my-5" href="/christianity-explored">
@@ -148,7 +205,7 @@
           </div>
         </div>
       </div>
-    </div> -->
+    </div>
 
     <div id="worship-god">
       <div class="bg-pattern mb-5">

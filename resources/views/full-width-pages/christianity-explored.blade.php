@@ -47,14 +47,14 @@
               </p>
               <h2>When does the course start?</h2>
               <p>
-                The course launches after Easter on Wednesday 27th April and will
+                The course launches after Easter on Wednesday 19th April and will
                 run for 7 weeks. Each week we'll start at 7:30pm and sessions
                 will last up to 90 minutes.
               </p>
               <h2>Where will the course be held?</h2>
               <p>
                 We'll be holding this course online via Zoom. If you register below
-                we'll email you the Zoom link to join us on 27th April.
+                we'll email you the Zoom link to join us on 19th April.
               </p>
               <h2>Will I be embarrassed or pressured?</h2>
               <p>
@@ -83,7 +83,7 @@
               <div class="card p-0">
                 <div class="card-body">
                   <div class="ratio ratio-16x9">
-                    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdRv81oeni6Iv33O3-ECvl7GD0cSA5nXGrg5SWAcG95ZY-xhQ/viewform?embedded=true" width="640" height="988" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+                    <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSfmQsxVANdVEM2k72VxXB-k2jYdxxoKRqCDrEqPYdZV2BAB7w/viewform?embedded=true" width="640" height="1004" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
                 </div>
               </div>
             </div>
