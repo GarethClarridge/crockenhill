@@ -107,7 +107,7 @@
       </div>
     </div> -->
 
-    <div id="easter">
+    <!-- <div id="easter">
       <div class="white-background my-5">
         <div class="container">
 
@@ -162,7 +162,7 @@
 
         </div>
       </div>
-    </div>
+    </div> -->
 
 
     <div id="christianity-explored">
