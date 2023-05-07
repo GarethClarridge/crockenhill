@@ -165,7 +165,7 @@
     </div> -->
 
 
-    <div id="christianity-explored">
+    <!-- <div id="christianity-explored">
       <div class="christianity-explored-background">
         <div class="container">
           <div class="row justify-content-md-center d-flex align-items-center">
@@ -181,13 +181,13 @@
             </div>
           </div>
 
-          <!-- <div class="row justify-content-md-center">
+          <div class="row justify-content-md-center">
             <div class="col-md-12">
               <div class="ratio ratio-16x9">
                 <iframe src="https://www.youtube.com/embed/WUCvQs_yfUg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
             </div>
-          </div> -->
+          </div>
 
           <div class="row justify-content-md-center">
             <div class="col-md-8">
@@ -205,7 +205,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <div id="worship-god">
       <div class="bg-pattern mb-5">
@@ -232,7 +232,7 @@
               and hearing God's word preached.
             </p>
             <p class="text-center">
-              We will continue to stream services on
+              If you can't make it in person you can watch our services on
               <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
                 our YouTube channel
               </a> at 10:30am on Sundays.
@@ -286,13 +286,13 @@
             <div class="card p-0 text-center m-2">
               <div class="card-body">
                 <p class="card-text">
-                  We also have a more information service focussed on prayer each
-                  Sunday evening, at the new time of 5pm over the winter months.
+                  We also have a service focussed on prayer each
+                  Sunday evening at 6pm.
                 </p>
                 <p class="card-text">
                   About half of this meeting is given over to prayer for God's
                   will to be done in our church, our community and our world.
-                  Mark is preaching through the book of Revelation in
+                  Mark is preaching through the book of Malachi in
                   these services. The messages are slightly shorter than at the
                   main service, and are more devotionally focussed.
                 </p>
