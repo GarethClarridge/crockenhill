@@ -111,7 +111,7 @@
                 <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
               </div>
               <div class="card-body">
-                We meet again on Sunday evenings, at 5pm during the winter months.
+                We meet again on Sunday evenings at 6pm.
                 About half of this meeting is given over to prayer for God's
                 will to be done in our church, our community and our world.
                 The other half includes a more teaching and devotionally
