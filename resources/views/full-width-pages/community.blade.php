@@ -99,9 +99,6 @@
                   <div class="card-body">
                     If you've got a pre-school age child (or can borrow one!)
                     join us on Wednesdays for Baby Talk.
-                    <div class="alert alert-danger mt-3">
-                      Baby Talk isn't meeting at the moment due to coronavirus.
-                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="community/baby-talk">Find out more ...</a>
@@ -166,101 +163,12 @@
                   <div class="card-body">
                     If you've got a pre-school age child (or can borrow one!)
                     join us on Wednesdays for Baby Talk.
-                    <div class="alert alert-danger mt-3">
-                      Baby Talk isn't meeting at the moment due to coronavirus.
-                    </div>
                   </div>
                   <div class="card-footer">
                     <a href="community/baby-talk">Find out more ...</a>
                   </div>
                 </div>
               </div>
-
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Adventurers
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/buzz-club.jpg">
-                  </div>
-                  <div class="card-body">
-                    A club on Wednesday evenings for children aged 6 to 9.
-                    <div class="alert alert-danger mt-3">
-                      Adventurers isn't meeting at the moment due to coronavirus.
-                    </div>
-                  </div>
-                  <div class="card-footer">
-                    <a href="community/adventurers">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        11:50
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/1150.jpg">
-                  </div>
-                  <div class="card-body">
-                    A club on Friday evenings for children aged 10 to 12.
-                    <div class="alert alert-danger mt-3">
-                      11:50 isn't meeting at the moment due to coronavirus.
-                    </div>
-                  </div>
-                  <div class="card-footer">
-                    <a href="community/1150">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Messy Church
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/messy-church.jpg">
-                  </div>
-                  <div class="card-body">
-                    Church for all the family - every other month on Sunday afternoons.
-                    <div class="alert alert-danger mt-3">
-                      Messy Church isn't meeting at the moment due to coronavirus.
-                    </div>
-                  </div>
-                  <div class="card-footer">
-                    <a href="community/messy-church">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-
-              <!-- <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Buzz Club
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/buzz-club.jpg">
-                  </div>
-                  <div class="card-body">
-                    A holiday club for primary school age children.
-                  </div>
-                  <div class="card-footer">
-                    <a href="buzz-club">Find out more ...</a>
-                  </div>
-                </div>
-              </div> -->
-
 
               </div>
             </div>
@@ -342,10 +250,6 @@
                     We run several groups that meet in each other's houses each
                     week to study the Bible and pray together. These are aimed
                     primarily at Christians, but anyone is welcome!
-                    <!-- <div class="alert alert-info mt-3">
-                      Our small groups are meeting via Zoom at the moment due to
-                      coronavirus.
-                    </div> -->
                   </div>
                   <div class="card-footer">
                     <a href="community/bible-study">Find out more ...</a>
@@ -385,9 +289,6 @@
                   </div>
                   <div class="card-body">
                     A couple of times a year we run quiz nights for the local community.
-                    <!-- <div class="alert alert-danger mt-3">
-                      We won't be hosting quiz nights at the moment due to coronavirus.
-                    </div> -->
                   </div>
                   <div class="card-footer">
                     <a href="quiz-night">Find out more ...</a>
@@ -414,7 +315,7 @@
                 </div>
               </div>
 
-              <div class="col mb-4">
+              <!-- <div class="col mb-4">
                 <div class="card p-0">
                   <div class="card-img-caption d-flex align-items-center">
                     <h3 class="card-text text-white h2">
@@ -435,7 +336,7 @@
                     <a href="buzz-club">Find out more ...</a>
                   </div>
                 </div>
-              </div>
+              </div> -->
 
             </div>
 

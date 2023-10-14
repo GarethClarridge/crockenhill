@@ -97,9 +97,8 @@
                     all live in, and to rule it with justice for all.
                   </p>
                   <p>
-                    Now more than ever, isn't that what we all want? Imagine a
-                    world without coronavirus and lockdowns! Jesus showed us a
-                    glimpse of a world without sickness and death at all. A
+                    Isn't that what we all want? Jesus showed us a
+                    glimpse of a world without sickness and death. A
                     world without injustice and pain. Wouldn't that be great?
                   </p>
                 </div>
