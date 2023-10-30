@@ -1,6 +1,7 @@
 <?php namespace Crockenhill\Http\Controllers;
 
 use League\CommonMark\CommonMarkConverter;
+use Intervention\Image\Image;
 
 class PageController extends Controller {
 
@@ -52,20 +53,23 @@ class PageController extends Controller {
 		$page->description = \Request::input('description');
     $page->save();
 
-    if (\Request::file('image')) {
-      // Make large image for article
-      \Image::make(\Request::file('image')
-        ->getRealPath())
-        // resize the image to a width of 300 and constrain aspect ratio (auto height)
-        ->resize(2000)
-        ->save('images/headings/large/'.$page->slug.'.jpg');
+    if (\Request::file('heading-image')) {
+      // create new image instance
+    $image = \Image::make(\Request::file('heading-image')->getRealPath());
 
-      // Make smaller image for aside
-      \Image::make(\Request::file('image')
-        ->getRealPath())
-        // resize the image to a width of 300 and constrain aspect ratio (auto height)
-        ->resize(300)
-        ->save('images/headings/small/'.$page->slug.'.jpg');
+    // Make large image for article
+    $image->resize(2000, null, function ($constraint) {
+      $constraint->aspectRatio();
+      $constraint->upsize();
+    })
+      ->save('images/headings/large/'.$slug.'.jpg');
+
+    // Make smaller image for aside
+    $image->resize(300, null, function ($constraint) {
+      $constraint->aspectRatio();
+      $constraint->upsize();
+      })
+      ->save('images/headings/small/'.$slug.'.jpg');
     };
 
     return redirect('/church/members/pages')->with('message', $page->heading.' successfully created!');
@@ -81,10 +85,12 @@ class PageController extends Controller {
 
 		$page = \Crockenhill\Page::where('slug', $slug)->first();
 		$heading = 'Edit page';
+    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
 
     return view('pages.edit', array(
-	    'page' 		=> $page,
-			'heading' => $heading
+	    'page' 		        => $page,
+			'heading'         => $heading,
+      'headingpicture'  => $headingpicture
 		));
   }
 
@@ -98,6 +104,23 @@ class PageController extends Controller {
 		$converter = new CommonMarkConverter();
 		$markdown = \Request::input('markdown');
 		$html = $converter->convert($markdown);
+
+    // create new image instance
+    $image = \Image::make(\Request::file('heading-image')->getRealPath());
+
+    // Make large image for article
+    $image->resize(2000, null, function ($constraint) {
+      $constraint->aspectRatio();
+      $constraint->upsize();
+    })
+      ->save('images/headings/large/'.$slug.'.jpg');
+
+    // Make smaller image for aside
+    $image->resize(300, null, function ($constraint) {
+      $constraint->aspectRatio();
+      $constraint->upsize();
+      })
+      ->save('images/headings/small/'.$slug.'.jpg');
 
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->heading = \Request::input('heading');

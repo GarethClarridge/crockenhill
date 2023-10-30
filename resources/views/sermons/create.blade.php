@@ -110,9 +110,14 @@
     document.querySelector('input[type="file"]').onchange = function(e) {
         id3(this.files[0], function(err, tags) {
             // tags now contains your ID3 tags
-            document.getElementById('title').value    = tags.title;
-            document.getElementById('preacher').value = tags.artist;
-            document.getElementById('series').value   = tags.album;
+            document.getElementById('title').value     = tags.title;
+            document.getElementById('preacher').value  = tags.artist;
+            document.getElementById('series').value    = tags.album;
+            if (tags.comment) {
+              document.getElementById('reference').value = tags.comment;
+            }
+            
+
         });
         var span = document.getElementById('filename')
         span.innerHTML = span.innerHTML + document.querySelector('input[type="file"]').value;

@@ -2,7 +2,7 @@
 
 @section('dynamic_content')
 
-  <form class="" action="/church/members/pages/{{$page->slug}}" method="post">
+  <form class="" action="/church/members/pages/{{$page->slug}}" method="post" enctype="multipart/form-data">
     <input type="hidden" name="_method" value="PUT">
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
@@ -18,9 +18,59 @@
         </div>
       @endif
 
-      @include('includes.edit-page-metadata')
+      <div class="edit-metadata mt-3 row">
+        <div class="col-8">
+          <div class="mb-3">
+            <label for="heading">Heading</label>
+            <input class="form-control" id="heading" name="heading" type="text" value="{{$page->heading}}">
+          </div>
+
+          <div class="mb-3">
+            <label for="description">Description <small>(returned on Google searches)</small></label>
+            <input class="form-control" id="description" name="description" type="text" value="{{$page->description}}">
+          </div>
+
+          <div class="mb-3">
+            <label for="area">Website section</label>
+            <select class="form-control" name="area" value="{{$page->area}}">
+              @if ($page->area == 'christ')
+                <option value="christ" selected>Christ</option>
+              @else
+                <option value="christ">Christ</option>
+              @endif
+
+              @if ($page->area == 'church')
+                <option value="church" selected>Church</option>
+              @else
+                <option value="church">Church</option>
+              @endif
+
+              @if ($page->area == 'community')
+                <option value="community" selected>Community</option>
+              @else
+                <option value="community">Community</option>
+              @endif
+            </select>
+          </div>
+        </div>
+        <div class="mb-3 col-4">
+          @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
+            <div>
+              Heading image
+              <img src="{{$headingpicture}}" alt="{{$headingpicture}}" class="img-fluid" id="headingpicture">
+            </div>
+          @endif
+
+          <div>
+            <label class="form-label" for="heading-image">Upload a new heading image</label>
+            <input name="heading-image" type="file" class="form-control form-control-lg" id="heading-image" onchange=file_changed() aria-describedby="heading-image">
+          </div>
+        </div>
+      </div>
 
       <div class="row">
+
+
         <div class="col-6">
           <div class="mb-3">
             <label for="markdown" class="h4">Markdown content</label>
@@ -40,6 +90,7 @@
             {!!$page->body!!}
           </div>
         </div>
+
       </div>
 
       <div class="form-actions my-3">
@@ -75,6 +126,17 @@
   }
 
   window.onload = markdownInit();
+
+  function file_changed(){
+    var selectedFile = document.getElementById('heading-image').files[0];
+    var img = document.getElementById('headingpicture')
+
+    var reader = new FileReader();
+    reader.onload = function(){
+      img.src = this.result
+    }
+    reader.readAsDataURL(selectedFile);
+  }
 </script>
 
 @stop

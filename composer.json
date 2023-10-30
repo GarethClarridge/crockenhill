@@ -7,7 +7,7 @@
 	"type": "project",
 	"require": {
 		"php": "^8.1.0",
-		"intervention/image": "2.*",
+		"intervention/image": "^2.7",
 		"laravel/framework": "^10.0",
 		"laravel/helpers": "^1.2",
 		"laravel/sanctum": "^3.3",
@@ -18,10 +18,12 @@
 		"symfony/postmark-mailer": "^6.0",
 		"wapmorgan/mp3info": "^0.0.7"
 	},
-  "require-dev": {
+  	"require-dev": {
       "mockery/mockery": "0.9.*",
       "phpunit/phpunit": "^10.0"
 	},
+	"minimum-stability": "alpha",
+	"prefer-stable": true,
 	"autoload": {
 		"classmap": [
 			"database/seeders",
