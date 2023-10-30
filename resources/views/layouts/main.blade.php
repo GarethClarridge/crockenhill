@@ -43,7 +43,7 @@
 
   </script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-  <script src="/scripts/all.js?v=7.0.0"></script>
+  <script src="/scripts/all.js?v=7.0.1"></script>
   @stack('scripts')
 </head>
 

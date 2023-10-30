@@ -145,11 +145,6 @@ return [
     Illuminate\View\ViewServiceProvider::class,
 
     /*
-     * Package Service Providers...
-     */
- 		Intervention\Image\ImageServiceProvider::class,
-
-    /*
      * Application Service Providers...
      */
     Crockenhill\Providers\AppServiceProvider::class,
@@ -159,6 +154,7 @@ return [
     Crockenhill\Providers\RouteServiceProvider::class,
     Crockenhill\Providers\ComposerServiceProvider::class,
     Crockenhill\Providers\ViewServiceProvider::class,
+    Intervention\Image\ImageServiceProvider::class
   ],
 
   /*

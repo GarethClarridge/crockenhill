@@ -16,26 +16,34 @@
     </div>
   @endif
 
-  <div class="edit-metadata mt-3">
-    <div class="mb-3">
-      <label for="heading">Heading</label>
-      <input class="form-control" id="heading" name="heading" type="text">
-    </div>
+  <div class="edit-metadata mt-3 row">
+        <div class="col-8">
+          <div class="mb-3">
+            <label for="heading">Heading</label>
+            <input class="form-control" id="heading" name="heading" type="text">
+          </div>
 
-    <div class="mb-3">
-      <label for="description">Description <small>(returned on Google searches)</small></label>
-      <input class="form-control" id="description" name="description" type="text">
-    </div>
+          <div class="mb-3">
+            <label for="description">Description <small>(returned on Google searches)</small></label>
+            <input class="form-control" id="description" name="description" type="text">
+          </div>
 
-    <div class="mb-3">
-      <label for="area">Website section</label>
-      <select class="form-control" name="area">
-        <option value="christ">Christ</option>
-        <option value="church">Church</option>
-        <option value="community">Community</option>
-      </select>
-    </div>
-  </div>
+          <div class="mb-3">
+            <label for="area">Website section</label>
+            <select class="form-control" name="area">
+              <option value="christ">Christ</option>
+              <option value="church">Church</option>
+              <option value="community">Community</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3 col-4">
+          <div>
+            <label class="form-label" for="heading-image">Upload a new heading image</label>
+            <input name="heading-image" type="file" class="form-control form-control-lg" id="heading-image" onchange=file_changed() aria-describedby="heading-image">
+          </div>
+        </div>
+      </div>
 
   <div class="row">
     <div class="col-6">
