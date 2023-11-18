@@ -9,340 +9,93 @@
 @stop
 
 @section('content')
-  <main class="full-width-page">
+  <main>
 
-    <div class="white-background p-5 text-white text-center">
-      <h1 class="py-5 text-body full-width-heading">
-        Community
-      </h1>
-    </div>
+    <x-h1>
+      Community
+    </x-h1>
 
-    <div>
-      <div class="white-background">
-        <div class="container">
-          <div class="row justify-content-md-center">
-            <div class="col-md-10 col-lg-8">
-              <div class="text-center">
-                <p>
-                  We're a local church - in Crockenhill, for the people of
-                  Crockenhill. We want to use the gifts God has given us to
-                  serve our community.
-                </p>
-                <p>
-                  We believe the best way we can help people is by making
-                  <a href="/christ">the good news about Jesus Christ</a> known
-                  to everyone in Crockenhill and the surrounding area, although
-                  we're also keen to help meet people's physical needs where we
-                  can.
-                </p>
-                <p>
-                  Our activities are open and welcoming to everyone: whether
-                  you're a committed Christian or just someone who wants a cup
-                  of coffee and a chat with local people.
-                </p>
-                <div class="my-5 in-page-nav-buttons">
-                  <a class="btn btn-lg btn-primary" href="#meet-people" role="button">I want to meet local people</a>
-                  <a class="btn btn-lg btn-primary" href="#children" role="button">I've got children</a>
-                  <a class="btn btn-lg btn-primary" href="#jesus" role="button">I want to find out more about Jesus</a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <x-text>
+      <p>
+        We're a local church - in Crockenhill, for the people of
+        Crockenhill. We want to use the gifts God has given us to
+        serve our community.
+      </p>
+      <p>
+        We believe the best way we can help people is by making
+        <a href="/christ">the good news about Jesus Christ</a> known
+        to everyone in Crockenhill and the surrounding area, although
+        we're also keen to help meet people's physical needs where we
+        can.
+      </p>
+      <p>
+        Our activities are open and welcoming to everyone: whether
+        you're a committed Christian or just someone who wants a cup
+        of coffee and a chat with local people.
+      </p>
+    </x-text>
 
-
-    <div id="meet-people" class="bg-pattern my-5 p-5 text-white text-center">
-      <h2 class="h1">
+    <div class="grid grid-cols-1 gap-3 mx-12 my-6">
+      <x-button link="#i-want-to-meet-local-people">
         I want to meet local people
-      </h2>
-    </div>
-
-    <div class="container">
-      <div class="row justify-content-md-center">
-        <div class="col-md-12">
-          <div class="white-background mb-5">
-
-            <div class="row my-5 row-cols-1 row-cols-md-2 row-cols-lg-3 g-2 g-lg-3">
-
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Coffee Cup
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/coffee-cup.jpg">
-                  </div>
-                  <div class="card-body">
-                    If you're free on Thursday mornings, come along to the church
-                    for a cup of coffee and a slice of cake.
-                  </div>
-                  <div class="card-footer">
-                    <a href="community/coffee-cup">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Baby Talk
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/baby-talk.jpg">
-                  </div>
-                  <div class="card-body">
-                    If you've got a pre-school age child (or can borrow one!)
-                    join us on Wednesdays for Baby Talk.
-                  </div>
-                  <div class="card-footer">
-                    <a href="community/baby-talk">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Sunday mornings
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/sunday-services.jpg">
-                  </div>
-                  <div class="card-body">
-                    Of course, you could always come along to our Sunday service.
-                    We'd love to get to know you.
-                    If this sounds scary you can
-                    <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
-                      check them out on Youtube
-                    </a> first!
-                  </div>
-                  <div class="card-footer">
-                    <a href="community/sunday-services">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-
-
-    <div id="children" class="bg-pattern my-5 p-5 text-white text-center">
-      <h2 class="h1">
+      </x-button>
+      <x-button link="#ive-got-children">
         I've got children
-      </h2>
-    </div>
-
-    <div class="container">
-      <div class="row justify-content-md-center">
-        <div class="col-md-12">
-          <div class="white-background mb-5">
-
-            <div class="row my-5 row-cols-1 row-cols-md-2 row-cols-lg-4 g-2 g-lg-3">
-
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Baby Talk
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/baby-talk.jpg">
-                  </div>
-                  <div class="card-body">
-                    If you've got a pre-school age child (or can borrow one!)
-                    join us on Wednesdays for Baby Talk.
-                  </div>
-                  <div class="card-footer">
-                    <a href="community/baby-talk">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-
-
-    <div id="jesus" class="bg-pattern my-5 p-5 text-white text-center">
-      <h2 class="h1">
+      </x-button>
+      <x-button link="#i-want-to-find-out-more-about-jesus">
         I want to find out more about Jesus
-      </h2>
+      </x-button>
     </div>
 
-    <div class="container">
-      <div class="row justify-content-md-center">
-        <div class="col-md-12">
-          <div class="white-background mb-5">
+    <x-h2>
+      I want to meet local people
+    </x-h2>
 
-            <div class="row my-5 row-cols-1 row-cols-md-2 row-cols-lg-3 g-2 g-lg-3">
+    <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
+          
+      <x-page-card :page="$pages->firstWhere('slug', 'coffee-cup')" />
 
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Sunday services
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/sunday-services.jpg">
-                  </div>
-                  <div class="card-body">
-                    The best way to find out more about Jesus and what it means
-                    to follow him is to come along to one of our Sunday services.
-                    If this sounds scary you can
-                    <a href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
-                      check them out on Youtube
-                    </a> first!
-                  </div>
-                  <div class="card-footer">
-                    <a href="community/sunday-services">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Christianity Explored
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
-                  </div>
-                  <div class="card-body">
-                    Every now and then we run a short, informal course for people
-                    interested in learning more about Christianity.
-                  </div>
-                  <div class="card-footer">
-                    <a href="/christianity-explored">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Bible studies
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/bible-study.jpg">
-                  </div>
-                  <div class="card-body">
-                    We run several groups that meet in each other's houses each
-                    week to study the Bible and pray together. These are aimed
-                    primarily at Christians, but anyone is welcome!
-                  </div>
-                  <div class="card-footer">
-                    <a href="community/bible-study">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
+      <x-page-card :page="$pages->firstWhere('slug', 'baby-talk')" />
+        
+      <x-page-card :page="$pages->firstWhere('slug', 'sunday-services')" />
+        
     </div>
 
 
-    <div id="occasional" class="bg-pattern my-5 p-5 text-white text-center">
-      <h2 class="h1">
-        Occasional events
-      </h2>
+    <x-h2>
+      I've got children
+    </x-h2>
+
+    <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
+          
+      <x-page-card :page="$pages->firstWhere('slug', 'baby-talk')" />
+                
     </div>
 
-    <div class="container">
-      <div class="row justify-content-md-center">
-        <div class="col-md-12">
-          <div class="white-background mb-5">
 
-            <div class="row my-5 row-cols-1 row-cols-md-2 row-cols-lg-3 g-2 g-lg-3">
+    <x-h2> 
+      I want to find out more about Jesus
+    </x-h2>
 
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Quiz nights
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/default.jpg">
-                  </div>
-                  <div class="card-body">
-                    A couple of times a year we run quiz nights for the local community.
-                  </div>
-                  <div class="card-footer">
-                    <a href="quiz-night">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
+    <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
+          
+      <x-page-card :page="$pages->firstWhere('slug', 'sunday-services')" />
 
-              <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Carols at the Chequers
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/carols-in-the-chequers.jpg">
-                  </div>
-                  <div class="card-body">
-                    Every Christmas we have an evening of carol singing in the village pub.
-                  </div>
-                  <div class="card-footer">
-                    <a href="carols-in-the-chequers">Find out more ...</a>
-                  </div>
-                </div>
-              </div>
+      <x-page-card :page="$pages->firstWhere('slug', 'christianity-explored')" />
+        
+      <x-page-card :page="$pages->firstWhere('slug', 'bible-study')" />
+        
+    </div>
 
-              <!-- <div class="col mb-4">
-                <div class="card p-0">
-                  <div class="card-img-caption d-flex align-items-center">
-                    <h3 class="card-text text-white h2">
-                      <div class="p-2 lh-sm">
-                        Buzz Club
-                      </div>
-                    </h3>
-                    <img class="card-img-top cbc-card-img-top" src="/images/headings/small/buzz-club.jpg">
-                  </div>
-                  <div class="card-body">
-                    A holiday club for primary school age children.
-                    <div class="alert alert-danger mt-3">
-                      We didn't run Buzz Club in 2021 due to coronavirus.
-                      We haven't yet decided about 2022.
-                    </div>
-                  </div>
-                  <div class="card-footer">
-                    <a href="buzz-club">Find out more ...</a>
-                  </div>
-                </div>
-              </div> -->
 
-            </div>
+    <x-h2>
+      Occasional events
+    </x-h2>
 
-          </div>
-        </div>
-      </div>
+    <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
+
+      <x-page-card :page="$pages->firstWhere('slug', 'carols-in-the-chequers')" />
+        
     </div>
 
   </main>

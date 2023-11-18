@@ -9,7 +9,7 @@
           <itunes:email>admin@crockenhill.org</itunes:email>
         </itunes:owner>
         <itunes:author>Crockenhill Baptist Church</itunes:author>
-        <link>https://crockenhill.org/church/sermons/evening</link>
+        <link>https://crockenhill.org/christ/sermons/evening</link>
         <itunes:summary>Sermons from Sunday evenings at Crockenhill Baptist Church</itunes:summary>
         <description>Sermons from Sunday evenings at Crockenhill Baptist Church</description>
         <itunes:category text="Religion &amp; Spirituality">
@@ -18,12 +18,12 @@
         </itunes:category>
         <itunes:explicit>no</itunes:explicit>
         <image>
-          <link>https://crockenhill.org/church/sermons/evening</link>
+          <link>https://crockenhill.org/christ/sermons/evening</link>
           <title>Crockenhill Baptist Church: sermons from the evening service</title>
           <url>https://crockenhill.org/images/podcast/EveningArtwork.jpg</url>
         </image>
         <itunes:image href="https://crockenhill.org/images/podcast/EveningArtwork.jpg"/>
-        <itunes:new-feed-url>https://crockenhill.org/church/sermons/evening/feed</itunes:new-feed-url>
+        <itunes:new-feed-url>https://crockenhill.org/christ/sermons/evening/feed</itunes:new-feed-url>
         <language>en-gb</language>
         <pubDate>{{ now() }}</pubDate>
 
@@ -32,7 +32,7 @@
                 <title><![CDATA[{{ $sermon->title }}]]></title>
                 <itunes:title><![CDATA[{{ $sermon->title }}]]></itunes:title>
                 <itunes:author>Crockenhill Baptist Church</itunes:author>
-                <link>https://crockenhill.org/church/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}</link>
+                <link>https://crockenhill.org/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}</link>
                 <itunes:summary>
                   A sermon on <![CDATA[{!! $sermon->reference !!}]]> from <![CDATA[{!! $sermon->preacher !!}]]> as part of our <![CDATA[{!! $sermon->series !!}]]> series.
                 </itunes:summary>

@@ -23,7 +23,7 @@
 
     <div class="mb-3">
       <label for="date" class="control-label">Date</label>
-      <input type="date" name="date" value="{{ $next_service_upload_date }}" class="form-control">
+      <input type="date" name="date" value="{{ $next_service_upload_date }}" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded">
     </div>
 
     @foreach ($services as $key => $value)
@@ -31,13 +31,13 @@
 
       @for ($i = 1; $i < 10; $i++)
         <div class="mb-3">
-          <div class="container">
-            <div class="row">
-              <div class="col-1">
+          <div class="container mx-auto sm:px-4">
+            <div class="flex flex-wrap ">
+              <div class="w-1/6">
                 <label for="{{$key.$i}}" class="control-label">{{$i}}</label>
               </div>
-              <div class="col-11">
-                <select name="{{$key.$i}}" class="song-select form-control">
+              <div class="w-5/6">
+                <select name="{{$key.$i}}" class="song-select block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded">
                   <option value=""></option>
                   @foreach ($songs as $song)
                     @if ($song->praise_number != '')
@@ -54,8 +54,8 @@
       @endfor
     @endforeach
 
-      <div class="d-grid gap-2 m-3">
-        <input class="btn btn-success btn-lg" type="submit" value="Save">
+      <div class="d-grid gap-2 m-6">
+        <input class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl" type="submit" value="Save">
       </div>
     </div>
   </form>

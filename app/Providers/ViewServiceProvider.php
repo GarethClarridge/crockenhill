@@ -26,15 +26,11 @@ class ViewServiceProvider extends ServiceProvider
      */
     public function boot(Request $request)
     {
-      // \View::composer('includes.header', function($view)
-      // {
-      // $pages = array(
-      //   'christ' => array('route'=> 'christ', 'name' => 'Christ'),
-      //   'church' => array('route'=> 'church', 'name' => 'Church'),
-      //   'community' => array('route'=> 'community', 'name' => 'Community'),
-      // );
-      //   $view->with('pages', $pages);
-      // });
+      \View::composer('includes.header', function($view)
+      {
+        $pages = \Crockenhill\Page::all();
+        $view->with('pages', $pages);
+      });
 
       \View::composer('includes.footer', function($view)
           {
@@ -118,7 +114,8 @@ class ViewServiceProvider extends ServiceProvider
           $year = \Request::segment(3);
 
           $sermon = \Crockenhill\Sermon::where('slug', $sermon_slug)
-                                          ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
+                                          ->whereMonth('date', '=', $month)
+                                          ->whereYear('date', '=', $year)
                                           ->first();
 
           $heading = $sermon->title;
@@ -189,8 +186,6 @@ class ViewServiceProvider extends ServiceProvider
             $links = \Crockenhill\Page::where('area', 'sermons')
               ->where('slug', '!=', $slug)
               ->where('slug', '!=', $area)
-              ->where('slug', '!=', 'privacy-policy')
-              ->where('admin', '!=', 'yes')
               ->orderBy('slug', 'asc')
               ->get();
           }
@@ -198,7 +193,6 @@ class ViewServiceProvider extends ServiceProvider
             $links = \Crockenhill\Page::where('area', 'sermons')
               ->where('slug', '!=', $slug)
               ->where('slug', '!=', $area)
-              ->where('slug', '!=', 'privacy-policy')
               ->where('admin', '!=', 'yes')
               ->orderBy('slug', 'asc')
               ->get();
@@ -317,7 +311,35 @@ class ViewServiceProvider extends ServiceProvider
           'content'					=> (isset($content) ? $content : ''),
           'links'						=> $links,
           'user' 						=> $user,
+          'pages'           => (isset($pages) ? $pages : '')
         ]);
+      });
+
+      \View::composer(['full-width-pages.home', 'full-width-pages.community'], function($view)
+      {
+        $pages = \Crockenhill\Page::all();
+
+        $view->with([
+          'pages'           => (isset($pages) ? $pages : '')
+        ]);
+
+      });
+
+      \View::composer('full-width-pages.church', function($view)
+      {
+        $links = \Crockenhill\Page::where('area', 'church')
+            ->where('slug', '!=', 'privacy-policy')
+            ->where('slug', '!=', 'safeguarding-policy')
+            ->where('admin', '!=', 'yes')
+            ->get();
+
+        $pages = \Crockenhill\Page::all();
+
+        $view->with([
+          'pages' => (isset($pages) ? $pages : ''),
+          'links' => (isset($links) ? $links : '')
+        ]);
+
       });
 
 

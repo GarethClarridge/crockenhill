@@ -55,7 +55,7 @@ Route::resource('community', 'MeetingController');
 
 
 // Sermon routes
-Route::group(array('prefix' => 'church/sermons'), function()
+Route::group(array('prefix' => 'christ/sermons'), function()
 {
     Route::get('/', array(
         'as' => 'sermonIndex',

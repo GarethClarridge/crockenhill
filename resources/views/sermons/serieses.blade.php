@@ -2,14 +2,16 @@
 
 @section('dynamic_content')
 
-<br>
-<ul class="list-group list-group-flush">
+<ul class="mx-auto max-w-2xl xl:max-w-3xl px-12 md:px-6">
   @foreach ($series as $series)
-    <li class="list-group-item">
-      <a href="series/{!! \Illuminate\Support\Str::slug($series->series) !!}">
-        {{$series->series}}
-      </a>
-    </li>
+    @isset ($series->series)
+      <li class="text-center p-3">
+        <x-clickable-card 
+          heading="{{$series->series}}" 
+          link="series/{!! \Illuminate\Support\Str::slug($series->series) !!}"
+          content="" />
+      </li>
+    @endisset
   @endforeach
 </ul>
 

@@ -128,9 +128,10 @@ class SermonController extends Controller {
 	public function show($year, $month, $slug)
 	{
 		$sermon = \Crockenhill\Sermon::where('slug', $slug)
-                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
-                                    ->first();
-   	$heading = $sermon->title;
+										->whereMonth('date', '=', $month)
+										->whereYear('date', '=', $year)
+		                                ->first();
+   		$heading = $sermon->title;
 
 		if (isset($sermon->series) && $sermon->series !== '') {
 			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
@@ -164,18 +165,19 @@ class SermonController extends Controller {
     }
 
     $sermon = \Crockenhill\Sermon::where('slug', $slug)
-                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
+									->whereMonth('date', '=', $month)
+									->whereYear('date', '=', $year)
                                     ->first();
     $series = array_unique(\Crockenhill\Sermon::pluck('series')->all());
 
 		if (isset($sermon->series) && $sermon->series !== '') {
 			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
 													<li><a href="series/'.$sermon->series.'">'.$sermon->series.'</a></li>
-													<li><a href="/church/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
+													<li><a href="/christ/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
 													<li class="active">Edit</li>';
 		} else {
 			$breadcrumbs = '<li><a href="/sermons">Sermons</a></li>
-													<li><a href="/church/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
+													<li><a href="/christ/sermons/'.$year.'/'.$month.'/'.$slug.'">'.$sermon->title.'</a></li>
 													<li class="active">Edit</li>';
 		}
 
@@ -203,18 +205,20 @@ class SermonController extends Controller {
     }
 
     $sermon = \Crockenhill\Sermon::where('slug', $slug)
-                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
-                                    ->first();
+									->whereMonth('date', '=', $month)
+									->whereYear('date', '=', $year)                                    
+									->first();
     $sermon->title      = trim(\Request::input('title'));
     $sermon->date       = \Request::input('date');
+	$sermon->service    = \Request::input('service');
     $sermon->slug       = \Illuminate\Support\Str::slug(\Request::input('title'));
     $sermon->series     = trim(\Request::input('series'));
     $sermon->reference  = trim(\Request::input('reference'));
     $sermon->preacher   = trim(\Request::input('preacher'));
-		$sermon->points			= trim(\Request::input('points'));
+	$sermon->points		= trim(\Request::input('points'));
     $sermon->save();
 
-    return redirect('sermons/'.$year.'/'.$month.'/'.$slug)->with('message', '"'.\Request::input('title').'" successfully updated!');
+    return redirect('christ/sermons/')->with('message', '"'.\Request::input('title').'" successfully updated!');
 	}
 
 	/**
@@ -230,30 +234,35 @@ class SermonController extends Controller {
     }
 
     $sermon = \Crockenhill\Sermon::where('slug', $slug)
-                                    ->whereBetween('date', array($year.'-'.$month.'-01', $year.'-'.$month.'-31'))
-                                    ->first();
+									->whereMonth('date', '=', $month)
+									->whereYear('date', '=', $year)
+									->first();
     $sermon->delete();
 
-    return redirect('sermons')->with('message', 'Sermon successfully deleted!');;
+    return redirect('christ/sermons')->with('message', 'Sermon successfully deleted!');;
 	}
 
 	public function getPreachers()
 	{
-		$slug = 'preachers';
-		$page = \Crockenhill\Page::where('slug', $slug)->first();
+		$page = \Crockenhill\Page::where('slug', 'preachers')->first();
 
-  	$preachers = \Crockenhill\Sermon::select('preacher')->distinct()->orderBy('preacher', 'asc')->get();
-  	// Count number of sermons by each preacher
-  	$preacher_array = array();
-  	foreach ($preachers as $preacher) {
-  		$count = \Crockenhill\Sermon::where('preacher', $preacher->preacher)->count();
-  		$preacher_array[$preacher->preacher] = array($count, $preacher->preacher);
-  	}
-  	arsort($preacher_array);
+		$preachers = \Crockenhill\Sermon::select('preacher')->distinct()
+															->orderBy('preacher', 'asc')
+															->get();
+		// Count number of sermons by each preacher
+		$preacher_array = array();
+		foreach ($preachers as $preacher) {
+			$count = \Crockenhill\Sermon::where('preacher', $preacher->preacher)->count();
+			$preacher_array[$preacher->preacher] = array($count, $preacher->preacher);
+		}
+		arsort($preacher_array);
 
-  	return view('sermons.preachers', array(
-      'preachers'		=> $preacher_array
-  ));
+		return view('sermons.preachers', array(
+			'preachers' 	=> $preacher_array,
+			'heading'       => 'Preachers',
+			'description'   => '<meta name="description" content="Preachers at Crockenhill Baptist Church.">',
+			'content'       => $page->body,
+		));
 	}
 
 	public function getPreacher($preacher)
@@ -261,7 +270,7 @@ class SermonController extends Controller {
 		$preacher_name = str_replace('-', ' ', \Illuminate\Support\Str::title($preacher));
   	$sermons = \Crockenhill\Sermon::where('preacher', $preacher_name)
                   ->orderBy('date', 'desc')
-                  ->paginate(8);
+                  ->get();
 
   	return view('sermons.preacher', array(
       'sermons'			=> $sermons
@@ -282,7 +291,7 @@ class SermonController extends Controller {
 		$series_name = str_replace('-', ' ', \Illuminate\Support\Str::title($series));
   	$sermons = \Crockenhill\Sermon::where('series', $series_name)
                   ->orderBy('date', 'desc')
-                  ->paginate(8);
+                  ->get();
 
   	return view('sermons.series', array(
           'sermons'			=> $sermons
@@ -293,7 +302,7 @@ class SermonController extends Controller {
 	{
   	$sermons = \Crockenhill\Sermon::where('service', $service)
                   ->orderBy('date', 'desc')
-                  ->paginate(8);
+                  ->get();
 
   	return view('sermons.service', array(
           'sermons'			=> $sermons
