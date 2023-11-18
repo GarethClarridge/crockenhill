@@ -3,37 +3,37 @@
 @section('dynamic_content')
 
   @if (session('message'))
-    <div class="alert alert-success" role="alert">
+    <div class="relative px-3 py-3 mb-4 border rounded bg-green-200 border-green-300 text-green-800" role="alert">
       {{ session('message') }}
     </div>
   @endif
 
-  <form method="POST" action="/church/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" accept-charset="UTF-8">
+  <form method="POST" action="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" accept-charset="UTF-8">
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
     <div class="mb-3">
       <label for="title">Title</label>
-      <input class="form-control h1" id="title" name="title" type="text" value="{{$sermon->title}}">
+      <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded h1" id="title" name="title" type="text" value="{{$sermon->title}}">
     </div>
 
     <div class="mb-3">
       <label for="date">Date</label>
       @if (date('D') === 'Sun')
-        <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d')!!}">
+        <input type="date" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="date" name="date" value="{!!date('Y-m-d')!!}">
       @else
-        <input type="date" class="form-control" id="date" name="date" value="{!!date('Y-m-d',strtotime('last sunday'))!!}">
+        <input type="date" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="date" name="date" value="{!!date('Y-m-d',strtotime('last sunday'))!!}">
       @endif
     </div>
 
     <div class="mb-3">
       <label for="service">Service</label>
       @if ($sermon->service == 'morning')
-        <select type="service" class="form-control" id="service" name="service">
+        <select type="service" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="service" name="service">
           <option value="morning" selected>Morning</option>
           <option value="evening">Evening (or afternoon)</option>
         </select>
       @else
-        <select type="service" class="form-control" id="service" name="service">
+        <select type="service" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="service" name="service">
           <option value="morning">Morning</option>
           <option value="evening" selected>Evening (or afternoon)</option>
         </select>
@@ -42,29 +42,29 @@
 
     <div class="mb-3">
       <label for="series">Series</label>
-      <input class="form-control" id="series" name="series" type="text" value="{{$sermon->series}}">
+      <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="series" name="series" type="text" value="{{$sermon->series}}">
     </div>
 
     <div class="mb-3">
       <label for="reference">Reference</label>
-      <input class="form-control" name="reference" type="text" id="reference" value="{{$sermon->reference}}">
+      <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="reference" type="text" id="reference" value="{{$sermon->reference}}">
     </div>
 
     <div class="mb-3">
       <label for="preacher">Preacher</label>
-      <input class="form-control" id="preacher" name="preacher" type="text" value="{{$sermon->preacher}}">
+      <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="preacher" name="preacher" type="text" value="{{$sermon->preacher}}">
     </div>
 
     <div class="mb-3">
       <label for="points">Sermon headings</label>
-      <textarea class="form-control" rows="5" name="points">
+      <textarea class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" rows="5" name="points">
         {{$sermon->points}}
       </textarea>
     </div>
 
     <div class="form-actions">
-      <input class="btn btn-success btn-save btn-lg" type="submit" value="Save">
-      <a href="/sermons" class="btn btn-lg">Cancel</a>
+      <input class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline bg-green-500 hover:bg-green-600 btn-save py-3 px-4 leading-tight text-xl" type="submit" value="Save">
+      <a href="/sermons" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline py-3 px-4 leading-tight text-xl">Cancel</a>
     </div>
 
   </form>

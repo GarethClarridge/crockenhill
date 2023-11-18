@@ -55,21 +55,21 @@ class PageController extends Controller {
 
     if (\Request::file('heading-image')) {
       // create new image instance
-    $image = \Image::make(\Request::file('heading-image')->getRealPath());
+      $image = \Image::make(\Request::file('heading-image')->getRealPath());
 
-    // Make large image for article
-    $image->resize(2000, null, function ($constraint) {
-      $constraint->aspectRatio();
-      $constraint->upsize();
-    })
-      ->save('images/headings/large/'.$slug.'.jpg');
-
-    // Make smaller image for aside
-    $image->resize(300, null, function ($constraint) {
-      $constraint->aspectRatio();
-      $constraint->upsize();
+      // Make large image for article
+      $image->resize(2000, null, function ($constraint) {
+        $constraint->aspectRatio();
+        $constraint->upsize();
       })
-      ->save('images/headings/small/'.$slug.'.jpg');
+        ->save('images/headings/large/'.$slug.'.jpg');
+
+      // Make smaller image for aside
+      $image->resize(300, null, function ($constraint) {
+        $constraint->aspectRatio();
+        $constraint->upsize();
+        })
+        ->save('images/headings/small/'.$slug.'.jpg');
     };
 
     return redirect('/church/members/pages')->with('message', $page->heading.' successfully created!');
@@ -105,22 +105,24 @@ class PageController extends Controller {
 		$markdown = \Request::input('markdown');
 		$html = $converter->convert($markdown);
 
-    // create new image instance
-    $image = \Image::make(\Request::file('heading-image')->getRealPath());
+    if (\Request::file('heading-image')) {
+      // create new image instance
+      $image = \Image::make(\Request::file('heading-image')->getRealPath());
 
-    // Make large image for article
-    $image->resize(2000, null, function ($constraint) {
-      $constraint->aspectRatio();
-      $constraint->upsize();
-    })
-      ->save('images/headings/large/'.$slug.'.jpg');
-
-    // Make smaller image for aside
-    $image->resize(300, null, function ($constraint) {
-      $constraint->aspectRatio();
-      $constraint->upsize();
+      // Make large image for article
+      $image->resize(2000, null, function ($constraint) {
+        $constraint->aspectRatio();
+        $constraint->upsize();
       })
-      ->save('images/headings/small/'.$slug.'.jpg');
+        ->save('images/headings/large/'.$slug.'.jpg');
+
+      // Make smaller image for aside
+      $image->resize(300, null, function ($constraint) {
+        $constraint->aspectRatio();
+        $constraint->upsize();
+        })
+        ->save('images/headings/small/'.$slug.'.jpg');
+    }
 
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->heading = \Request::input('heading');

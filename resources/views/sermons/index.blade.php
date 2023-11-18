@@ -3,43 +3,30 @@
 @section('dynamic_content')
 
   @can ('edit-sermons')
-  <div class="d-grid gap-2 mb-3">
-    <a href="/church/sermons/create" class="btn btn-primary btn-lg" role="button">Upload a new sermon</a>
-  </div>
+    <div class="my-12">
+      <x-button link=/christ/sermons/create>
+        Upload a new sermon
+      </x-button>
+    </div>
+  
   @endcan
 
   @foreach ($latest_sermons as $date => $sermons)
-    <section class="week">
-      <div class="row justify-content-center">
-        @if (count($sermons) != 2)
-          @foreach ($sermons as $sermon)
-            <div class="col-lg-12">
-              @if ($sermon->service === "morning")
-                @include('includes.sermon-display')
-              @endif
-            </div>
-
-            <div class="col-lg-12">
-              @if ($sermon->service === "evening")
-                @include('includes.sermon-display')
-              @endif
-            </div>
-          @endforeach
-        @else
-          @foreach ($sermons as $sermon)
-            <div class="col-lg-12">
-              @include('includes.sermon-display')
-            </div>
-          @endforeach
-        @endif
-        <br>
-      </div>
+    <section id="week-{{$date}}" class="flex flex-wrap justify-center mb-6">
+      <h3 class="w-full font-display text-center text-xl mt-12 mb-6">
+        {{ date_format(date_create($sermons[0]->date),'l jS F Y') }}
+      </h3>
+      @foreach ($sermons as $sermon)
+        <x-sermon-card :$sermon/>
+      @endforeach
     </section>
   @endforeach
-  <br>
 
-  <div class="d-grid gap-2 mb-3">
-    <a href="/church/sermons/all" class="btn btn-primary btn-lg" role="button">Find older sermons</a>
+  <div class="my-12">
+    <x-button link="/christ/sermons/all">
+      Find older sermons
+    </x-button>
   </div>
+  
 
 @stop

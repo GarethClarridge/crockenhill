@@ -4,19 +4,19 @@
 
 @can ('edit-songs')
   <div class="d-grid gap-2 mb-3">
-    <a href="/church/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="btn btn-primary btn-lg">
+    <a href="/church/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}/edit" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline bg-blue-600 hover:bg-blue-600 py-3 px-4 leading-tight text-xl">
       Edit this song
     </a>
   </div>
 @endcan
 
-  <div class="media">
+  <div class="flex items-start">
     @if ($song->praise_number)
       <img class="mr-3" src="/images/praise.png" alt="">
       <span class="praise_number praise_number_song">{{ $song->praise_number }}</span>
     @endif
 
-    <div class="media-body">
+    <div class="flex-1">
       @if ($song->author)
         <p>
           <i class="far fa-user"></i> &nbsp
@@ -106,19 +106,19 @@
   @if ($song->last_played)
     <h4 class="my-3">Popularity over time:</h4>
 
-    <div class="row">
-      <div class="col-sm-12">
+    <div class="flex flex-wrap ">
+      <div class="sm:w-full pr-4 pl-4">
         <canvas id="per-year"></canvas>
       </div>
     </div>
 
     <h4 class="my-3">Services sung at:</h4>
 
-    <div class="row">
-      <div class="col-sm-8">
+    <div class="flex flex-wrap ">
+      <div class="sm:w-2/3 pr-4 pl-4">
         <canvas id="service-ratio"></canvas>
       </div>
-      <div class="col-sm-4">
+      <div class="sm:w-1/3 pr-4 pl-4">
         <div id="pieLegend"></div>
       </div>
     </div>
@@ -148,7 +148,7 @@
       responsive: true,
       legendTemplate : '<div>'
                   +'<% for (var i=0; i<pieData.length; i++) { %>'
-                    +'<p><span class="badge" style=\"background-color:<%=pieData[i].color%>\">'
+                    +'<p><span class="inline-block p-1 text-center font-semibold text-sm align-baseline leading-none rounded" style=\"background-color:<%=pieData[i].color%>\">'
                     +'<% if (pieData[i].label) { %><%= pieData[i].label %><% } %>'
                     +'</span></p>'
                 +'<% } %>'
@@ -188,7 +188,7 @@
       responsive: true,
       legendTemplate : '<div>'
                   +'<% for (var i=0; i<barData.length; i++) { %>'
-                    +'<p><span class="badge" style=\"background-color:<%=barData[i].color%>\">'
+                    +'<p><span class="inline-block p-1 text-center font-semibold text-sm align-baseline leading-none rounded" style=\"background-color:<%=barData[i].color%>\">'
                     +'<% if (barData[i].label) { %><%= barData[i].label %><% } %>'
                     +'</span></p>'
                 +'<% } %>'

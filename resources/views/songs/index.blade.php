@@ -5,18 +5,18 @@
   @can ('edit-songs')
   <br>
   <p>You last uploaded a service record on <strong>{{date("d F Y",strtotime($last_service_uploaded['date']))}}</strong>.</p>
-  <div class="row">
-    <div class="col-sm-6">
+  <div class="flex flex-wrap ">
+    <div class="sm:w-1/2 pr-4 pl-4">
       <div class="d-grid gap-2 mb-3">
-        <a href="/church/members/songs/service-record" class="btn btn-primary btn-lg">
+        <a href="/church/members/songs/service-record" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline bg-blue-600 hover:bg-blue-600 py-3 px-4 leading-tight text-xl">
       </div>
        <i class="fas fa-upload"></i> &nbsp
        Upload a new service record
      </a>
     </div>
-    <div class="col-sm-6">
+    <div class="sm:w-1/2 pr-4 pl-4">
       <div class="d-grid gap-2 mb-3">
-        <a href="/church/members/songs/create" class="btn btn-primary btn-lg">
+        <a href="/church/members/songs/create" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline bg-blue-600 hover:bg-blue-600 py-3 px-4 leading-tight text-xl">
       </div>
        <i class="fas fa-upload"></i> &nbsp
        Upload a new song
@@ -30,7 +30,7 @@
     <div class="song-filters">
       <div class="mb-3">
         <label for="song-text-filter">Filter songs</label>
-        <input  class="fuzzy-search form-control"
+        <input  class="fuzzy-search block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded"
                 id='song-text-filter'
                 placeholder="Try typing a song title, Praise! number, category or author"/>
       </div>
@@ -51,7 +51,7 @@
 
         <div class="major-category-filter-div">
           <label for="major-category-filter">Category:</label>
-          <select name="major-category-filter" id="major-category-filter" class="form-control" onchange="updateFilter()">
+          <select name="major-category-filter" id="major-category-filter" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" onchange="updateFilter()">
             <option value="All">All</option>
             <option value="Psalms">Psalms</option>
             <option value="Approaching God">Approaching God</option>
@@ -69,7 +69,7 @@
 
         <div id="minor-category-filter-div" style="display:none;">
           <label for="minor-category-filter">Sub-category:</label>
-          <select class="form-control" name="minor-category-filter" id="minor-category-filter" onchange="updateFilter()">
+          <select class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="minor-category-filter" id="minor-category-filter" onchange="updateFilter()">
             <option id="minor-category-filter-option" value="All">All</option>
           </select>
         </div>
@@ -78,7 +78,7 @@
 
       <div class="mb-3">
         <label for="sort">Sort by:</label>
-        <select class="form-control" name="sort" id="sort" onchange="updateSort()">
+        <select class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="sort" id="sort" onchange="updateSort()">
           <option value="song-frequency">Popularity</option>
           <option value="song-title">Title</option>
         </select>
@@ -86,9 +86,9 @@
     </div>
 
     @foreach ($songs as $song)
-      <div class="card p-0 my-2">
-        <div class="card-body pb-0">
-          <div class="media" data-nip="{{$song->nip}}">
+      <div class="relative flex flex-col min-w-0 rounded break-words border bg-white border-1 border-gray-300 p-0 my-2">
+        <div class="flex-auto p-6 pb-0">
+          <div class="flex items-start" data-nip="{{$song->nip}}">
             @if ($song->praise_number)
               <img class="mr-3" src="/images/praise.png" alt="">
               <span class="praise_number">{!! $song->praise_number !!}</span>
@@ -97,9 +97,9 @@
             @endif
 
             @if (!$song->last_played || $song->current===0)
-              <div class="media-body song-unknown">
+              <div class="flex-1 song-unknown">
             @else
-              <div class="media-body">
+              <div class="flex-1">
             @endif
               <h3 class="mt-0 mb-3">
                   <a href="/church/members/songs/{!!$song->id!!}/{!! \Illuminate\Support\Str::slug($song->title)!!}" class="song-title">{{$song->title}}</a>

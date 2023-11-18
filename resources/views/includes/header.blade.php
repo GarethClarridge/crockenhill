@@ -1,155 +1,150 @@
-<nav class="navbar navbar-dark bg-pattern p-0" role="navigation">
-  <div class="container-fluid">
 
-      <a class="navbar-brand p-0" href="/">
-        <img src="/images/White.png" height="36" class="d-inline-block align-top p-1" alt="Crockenhill Baptist Church logo">
+<!-- Alpine Plugins -->
+<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+ 
+<!-- Alpine Core -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+
+<div class="w-100 text-white grid grid-cols-7 lg:grid-cols-12 justify-between bg-gradient-to-r from-cyan-500 to-blue-500">
+
+      <a class="p-2" href="/">
+        <img src="/images/White.png" class="inline-block align-top max-h-8" alt="Crockenhill Baptist Church logo">
       </a>
 
-      <a class="navbar-brand navbar-site-name" href="/">
-        Crockenhill Baptist Church
+      <a class="font-display col-span-5 text-xl min-[400px]:text-2xl text-center flex" href="/">
+        <span class="inline-block align-middle pb-1 my-auto mx-auto">
+          Crockenhill Baptist Church
+        </span>
       </a>
 
-      <div class="main-links ms-md-auto">
-        <a class="btn btn-primary btn-sm ms-sm-auto" href="/christ" role="button">
-          <i class="fa fa-cross d-none d-sm-inline">&nbsp</i>
-          <span class="">Christ</span>
-        </a>
-        <a class="btn btn-primary btn-sm mx-1" href="/church" role="button">
-          <i class="fa fa-church d-none d-sm-inline">&nbsp</i>
-          <span class="">Church</span>
-        </a>
-        <a class="btn btn-primary btn-sm me-sm-auto" href="/community" role="button">
-          <i class="fa fa-users d-none d-sm-inline">&nbsp</i>
-          <span class="">Community</span>
-        </a>
+      <div class="hidden w-100 lg:block col-span-5 flex my-auto pb-1">
+        <ul class="mx-auto flex font-display text-l">
+          <li>
+            <a class="px-8 py-2" href="/christ">
+              <i class="fa fa-cross"></i>
+              <span class="">Christ</span>
+            </a>
+          </li>
+          
+          <li>
+            <a class="px-8 py-2" href="/church">
+              <i class="fa fa-church"></i>
+              <span class="">Church</span>
+            </a>
+          </li>
+          
+          <li>
+            <a class="px-8 py-2" href="/community">
+              <i class="fa fa-users"></i>
+              <span class="">Community</span>
+            </a>
+          </li>
+        </ul>
       </div>
 
-      <button class="btn ms-4" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
-        <i class="fa fa-bars text-white"></i>
+      <button class="inline-block align-middle select-none font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline ms-4 text-right" 
+              type="button"
+              @click="expanded = ! expanded">
+        <i class="fa fa-bars"></i>
       </button>
 
-
-  </div>
-</nav>
-
-<div class="offcanvas offcanvas-end bg-pattern" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel" data-bs-backdrop="false">
-  <div class="offcanvas-header pt-0 pe-3">
-    <button type="button" class="btn ms-auto text-white" data-bs-dismiss="offcanvas" aria-label="Close">
-      <i class="fa fa-bars text-white"></i>
-    </button>
-  </div>
-  <div class="offcanvas-body">
-    <ul class="list-unstyled main-nav text-white h4 ms-3">
-
-      <li class="">
-        <a class="" href="/christ">
-          Christ
-          <span class="sr-only">(current)</span>
-        </a>
-      </li>
-
-      <li class="">
-        <a class="" href="/church">
-          Church
-          <span class="sr-only">(current)</span>
-        </a>
-        <ul class="list-unstyled ms-5 main-nav-level-two">
-          <li class="">
-            <a class="" href="/church/sermons">
-              Sermons
+      <div class="w-100 lg:hidden col-span-8 flex bg-gradient-to-r from-cyan-200 to-blue-200 text-blue-950 py-2">
+        <ul class="mx-auto flex font-display">
+          <li>
+            <a class="px-8 py-2 text-center" href="/christ">
+              <i class="hidden min-[400px]:inline fa fa-cross"></i>
+              <span class="">Christ</span>
             </a>
           </li>
-          <li class="">
-            <a class="" href="/church/statement-of-faith">
-              Statement of faith
+          
+          <li>
+            <a class="px-8 py-2" href="/church">
+              <i class="hidden min-[400px]:inline fa fa-church"></i>
+              <span class="">Church</span>
             </a>
           </li>
-          <li class="">
-            <a class="" href="/church/find-us">
-              Directions
+          
+          <li>
+            <a class="px-8 py-2" href="/community">
+              <i class="hidden min-[400px]:inline fa fa-users"></i>
+              <span class="">Community</span>
             </a>
           </li>
-
-
-          <a class="collapse-control" data-bs-toggle="collapse" href="#collapseChurch" role="button" aria-expanded="false" aria-controls="collapseChurch">
-            <i class="fa fa-caret-down"></i> More
-          </a>
-          <div class="collapse ms-5" id="collapseChurch">
-            <li class="">
-              <a class="" href="/church/pastor">
-                Our pastor
-              </a>
-            </li>
-            <li class="">
-              <a class="" href="/church/links">
-                Links
-              </a>
-            </li>
-            <li class="">
-              <a class="" href="/church/history">
-                History
-              </a>
-            </li>
-          </div>
         </ul>
-      </li>
+      </div>
+      
 
-      <li class="">
-        <a class="" href="/community">
-          Community
-        </a>
-        <ul class="list-unstyled ms-5 main-nav-level-two">
-          <li class="">
-            <a class="" href="/community/sunday-services">
-              Sunday services
-            </a>
-          </li>
-          <li class="">
-            <a class="" href="/community/bible-study">
-              Bible studies
-            </a>
-          </li>
-          <li class="">
-            <a class="" href="/church/coffee-cup">
-              Coffee Cup
-            </a>
-          </li>
 
-          <a class="collapse-control" data-bs-toggle="collapse" href="#collapseCommunity" role="button" aria-expanded="false" aria-controls="collapseCommunity">
-            <i class="fa fa-caret-down"></i> More
-          </a>
-          <div class="collapse ms-5" id="collapseCommunity">
-            <li class="">
-              <a class="" href="/community/baby-talk">
-                Baby Talk
-              </a>
-            </li>
-            <li class="">
-              <a class="" href="/community/adventurers">
-                Adventurers
-              </a>
-            </li>
-            <li class="">
-              <a class="" href="/community/1150">
-                11:50
-              </a>
-            </li>
-            <li class="">
-              <a class="" href="/community/messy-church">
-                Messy Church
-              </a>
-            </li>
-          </div>
-        </ul>
-      </li>
+</div>
 
-      @if ($user)
-      <li class="navbar-item">
-        <a class="nav-link" href="/members">
-          Members
-        </a>
-      </li>
-      @endif
-    </ul>
-  </div>
+<div x-show="expanded" 
+      x-collapse 
+      class="absolute z-10 backdrop-blur-sm bg-white/80 w-screen font-display p-6 leading-loose text-lg" 
+      tabindex="-1"
+      x-cloak>
+  <ul class="grid grid-cols-3 text-center mt-3">
+
+    <li class="">
+      <a class="bg-black text-white px-6 py-3 rounded-md text-xl" href="/christ">
+        <i class="hidden min-[400px]:inline fa fa-cross"></i>
+        <span class="">Christ</span>
+      </a>
+      <ul class="mt-6">          
+        @foreach ($pages as $page)
+          @if ($page->area == 'christ')
+            <li class="">
+              <a class="" href="/christ/{{$page->slug}}">
+                {{$page->heading}}
+              </a>
+            </li>
+          @endif
+        @endforeach
+      </ul>
+    </li>
+
+    <li class="">
+      <a class="bg-black text-white px-6 py-3 rounded-md text-xl" href="/church">
+        <i class="hidden min-[400px]:inline fa fa-church"></i>
+        <span class="">Church</span>
+      </a>
+      <ul class="mt-6">          
+        @foreach ($pages as $page)
+          @if ($page->area == 'church')
+            <li class="">
+              <a class="" href="/church/{{$page->slug}}">
+                {{$page->heading}}
+              </a>
+            </li>
+          @endif
+        @endforeach
+      </ul>
+    </li>
+
+    <li class="">
+      <a class="bg-black text-white px-6 py-3 rounded-md text-xl" href="/community">
+        <i class="hidden min-[400px]:inline fa fa-users"></i>
+        <span class="">Community</span>
+      </a>
+      <ul class="mt-6">          
+        @foreach ($pages as $page)
+          @if ($page->area == 'community')
+            <li class="">
+              <a class="" href="/community/{{$page->slug}}">
+                {{$page->heading}}
+              </a>
+            </li>
+          @endif
+        @endforeach
+      </ul>
+    </li>
+
+    @if ($user)
+    <li class="">
+      <a class="" href="/church/members">
+        Members
+      </a>
+    </li>
+    @endif
+  </ul>
 </div>

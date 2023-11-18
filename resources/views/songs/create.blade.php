@@ -8,16 +8,16 @@
 
       <br>
       <label for="title">Title</label>
-      <input class="form-control" name="title" type="text" id="title">
+      <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="title" type="text" id="title">
 
       <br>
       <label for="alternative-title">Alternative Title</label>
       <small><i>Optional</i></small>
-      <input class="form-control" name="alternative_title" type="text" id="alternative-title">
+      <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="alternative_title" type="text" id="alternative-title">
 
       <br>
       <label for="major-category">Praise! category</label>
-      <select name="major-category" id="major-category" class="form-control">
+      <select name="major-category" id="major-category" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded">
         <option value="All">All</option>
         <option value="Psalms">Psalms</option>
         <option value="Approaching God">Approaching God</option>
@@ -34,36 +34,36 @@
 
       <br>
       <label for="minor-category">Praise! sub-category</label>
-      <select class="form-control" name="minor-category" id="minor-category">
+      <select class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="minor-category" id="minor-category">
         <option id="minor-category" value="All">All</option>
       </select>
 
       <br>
       <label for="author">Author</label>
       <small><i>of the lyrics, may not be the composer of the music.</i></small>
-      <input class="form-control" name="author" type="text" id="author">
+      <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="author" type="text" id="author">
 
       <br>
       <label for="copyright">Copyright</label>
       <small><i>to the lyrics, may not be the same as the music.</i></small>
-      <input class="form-control" name="copyright" type="text" id="copyright">
+      <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="copyright" type="text" id="copyright">
 
       <br>
       <label for="lyrics">Lyrics</label>
       <small><b>Do not upload lyrics unless the song is out of copyright.</b></small>
-      <textarea class="form-control" name="lyrics" id="lyrics"></textarea>
+      <textarea class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="lyrics" id="lyrics"></textarea>
 
       <br>
       <label for="notes">Notes</label>
-      <textarea class="form-control" name="notes" id="notes"></textarea>
+      <textarea class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="notes" id="notes"></textarea>
 
       <br>
       <label for="current">In current list?</label>
       <input type="checkbox" name="current" checked value=1>
 
       <br>
-      <div class="d-grid gap-2 m-3">
-        <input class="btn btn-success btn-lg" type="submit" value="Save">
+      <div class="d-grid gap-2 m-6">
+        <input class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl" type="submit" value="Save">
       </div>
     </div>
   </form>

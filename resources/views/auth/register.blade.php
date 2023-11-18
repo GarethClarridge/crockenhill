@@ -4,7 +4,7 @@
 
 	<div>
 		@if (count($errors) > 0)
-			<div class="alert alert-danger">
+			<div class="relative px-3 py-3 mb-4 border rounded bg-red-200 border-red-300 text-red-800">
 				<strong>There were some problems with those details:</strong><br><br>
 				<ul>
 					@foreach ($errors->all() as $error)
@@ -18,37 +18,37 @@
 			<input type="hidden" name="_token" value="{{ csrf_token() }}">
 
 			<div class="mb-3">
-				<label class="col-md-4 control-label">Name</label>
-				<div class="col-md-6">
-					<input type="text" class="form-control" name="name" value="{{ old('name') }}">
+				<label class="md:w-1/3 pr-4 pl-4 control-label">Name</label>
+				<div class="md:w-1/2 pr-4 pl-4">
+					<input type="text" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="name" value="{{ old('name') }}">
 				</div>
 			</div>
 
 			<div class="mb-3">
-				<label class="col-md-4 control-label">Email Address</label>
-				<div class="col-md-6">
-					<input type="email" class="form-control" name="email" value="{{ old('email') }}">
+				<label class="md:w-1/3 pr-4 pl-4 control-label">Email Address</label>
+				<div class="md:w-1/2 pr-4 pl-4">
+					<input type="email" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="email" value="{{ old('email') }}">
 				</div>
 			</div>
 
 			<div class="mb-3">
-				<label class="col-md-4 control-label">Password</label>
-				<div class="col-md-6">
-					<input type="password" class="form-control" name="password">
+				<label class="md:w-1/3 pr-4 pl-4 control-label">Password</label>
+				<div class="md:w-1/2 pr-4 pl-4">
+					<input type="password" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="password">
 				</div>
 			</div>
 
 			<div class="mb-3">
-				<label class="col-md-4 control-label">Confirm Password</label>
-				<div class="col-md-6">
-					<input type="password" class="form-control" name="password_confirmation">
+				<label class="md:w-1/3 pr-4 pl-4 control-label">Confirm Password</label>
+				<div class="md:w-1/2 pr-4 pl-4">
+					<input type="password" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="password_confirmation">
 				</div>
 			</div>
 
 			<div class="mb-3">
-				<div class="col-md-6 col-md-offset-4">
+				<div class="md:w-1/2 pr-4 pl-4 col-md-offset-4">
 					<div class="d-grid gap-2 mb-3">
-						<button type="submit" class="btn btn-primary">
+						<button type="submit" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline bg-blue-600 hover:bg-blue-600">
 							Register
 						</button>
 					</div>
