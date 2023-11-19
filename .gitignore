@@ -5,6 +5,7 @@
 /public/images/photos
 /public/documents
 /public/storage
+/public/hot
 /storage/*.key
 /vendor
 /.idea

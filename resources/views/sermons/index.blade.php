@@ -8,7 +8,6 @@
         Upload a new sermon
       </x-button>
     </div>
-  
   @endcan
 
   @foreach ($latest_sermons as $date => $sermons)
