@@ -60,7 +60,7 @@
           
       <x-page-card :page="$pages->firstWhere('slug', 'sunday-services')" />
 
-      <x-page-card :page="$pages->firstWhere('slug', 'sunday-services')" />
+      <x-page-card :page="$pages->firstWhere('slug', 'evening-service')" />
         
       <x-page-card :page="$pages->firstWhere('slug', 'bible-study')" />
         

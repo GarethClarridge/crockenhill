@@ -17,21 +17,21 @@
         </h1>
 
         <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right">
-          <p class="my-2">
+          <p class="hover:scale-110 my-2">
             <a href="#worshipping-god">
-              <span class="px-2 py-1 bg-white">
+              <span class="px-2 py-1 bg-white ">
                 Worshipping God
               </span>
             </a>
           </p>
-          <p class="my-2">
+          <p class="hover:scale-110 my-2">
             <a href="#strengthening-believers">
               <span class="px-2 py-1 bg-white">
                 Strengthening believers
               </span>
             </a>
           </p>
-          <p class="my-2">
+          <p class="hover:scale-110 my-2">
             <a href="#proclaiming-jesus-christ-to-all">
               <span class="px-2 py-1 bg-white">
                 Proclaiming Jesus Christ to all
@@ -72,11 +72,10 @@
         </a> at 10:30am on Sundays.
       </p>
     </x-text>
-    
 
     <x-youtube 
-      link="https://www.youtube.com/embed/2uuZ0amyWFE" 
-      title="Sunday 5th November 2023"
+      link="https://www.youtube.com/embed?listType=playlist&list=UUtSUTtkZlALToswWQpWS2kA" 
+      title=""
     />
 
     <x-h2>
@@ -92,7 +91,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center max-w-2xl mx-auto mt-6">
 
-      <x-page-card :page="$pages->firstWhere('slug', 'sunday-services')" />
+      <x-page-card :page="$pages->firstWhere('slug', 'evening-service')" />
         
       <x-page-card :page="$pages->firstWhere('slug', 'bible-study')" />
 
@@ -115,7 +114,7 @@
       title="Good News in 90 Seconds"
     />
 
-    <div class="mx-6">
+    <div class="m-12">
       <x-button link="/christ">
         Find out more about this good news
         <i class="ml-1 fas fa-arrow-circle-right"></i>
@@ -123,7 +122,7 @@
     </div>
     
     <x-text>
-      <p class="">
+      <p class="my-6">
         If you've got questions, do get in touch using the details below.
         We'd love to listen.
       </p>
