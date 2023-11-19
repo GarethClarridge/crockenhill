@@ -58,9 +58,9 @@
 
     <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
           
-      <x-page-card :page="$pages->firstWhere('slug', 'sunday-services')" />
+      <x-page-card :page="$pages->firstWhere('slug', 'sunday-mornings')" />
 
-      <x-page-card :page="$pages->firstWhere('slug', 'evening-service')" />
+      <x-page-card :page="$pages->firstWhere('slug', 'sunday-evenings')" />
         
       <x-page-card :page="$pages->firstWhere('slug', 'bible-study')" />
         
