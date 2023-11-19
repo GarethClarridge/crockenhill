@@ -156,7 +156,7 @@ Route::permanentRedirect('whatson/buzzclub', 'community/buzz-club');
 Route::permanentRedirect('whatson/carolsatthechequers', 'community/carols-at-the-chequers');
 Route::permanentRedirect('whatson/christianityexplored', 'community/christianity-explored');
 Route::permanentRedirect('whatson/coffeecup', 'community/coffee-cup');
-Route::permanentRedirect('whatson/sunday', 'community/sunday-services');
+Route::permanentRedirect('whatson/sunday', 'community/sunday-mornings');
 
 // - Before restructure
 Route::permanentRedirect('about-us', 'church');
@@ -175,7 +175,7 @@ Route::permanentRedirect('whats-on/buzzclub', 'community/buzz-club');
 Route::permanentRedirect('whats-on/carolsatthechequers', 'community/carols-at-the-chequers');
 Route::permanentRedirect('whats-on/christianityexplored', 'community/christianity-explored');
 Route::permanentRedirect('whats-on/coffeecup', 'community/coffee-cup');
-Route::permanentRedirect('whats-on/sunday', 'community/sunday-services');
+Route::permanentRedirect('whats-on/sunday', 'community/sunday-mornings');
 
 // - Shortened URLs for advertising
 Route::permanentRedirect('buzz-club', 'community/buzz-club');

@@ -83,7 +83,7 @@
 {{-- Safeguarding --}}
 
   @if ($type === 'ChildrenAndYoungPeople'
-        || $slug === 'sunday-services')
+        || $slug === 'sunday-mornings')
     <hr>
     <small class="prose">
       All activities at the church are carried out in accordance with our

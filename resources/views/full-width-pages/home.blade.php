@@ -49,10 +49,6 @@
         the village of Crockenhill, just outside Swanley.
       </p>
 
-      <p class="">
-        We meet to worship God and hear from his Word on Sundays at 10:30am.
-        You're more than welcome to join us - we'd love to see you!
-      </p>
     </x-text>
 
     <x-h2>
@@ -63,10 +59,11 @@
       <p class="">
         We meet to worship God together as a church every Sunday at 10:30am.
         Services involve reading the Bible, praying, singing
-        and hearing God's word preached.
+        and hearing God's word preached.  We also meet on Sunday evenings at 
+        6pm for a service mostly focussed on prayer.
       </p>
       <p class="">
-        If you can't make it in person you can watch our services on
+        You're more than welcome to join us - we'd love to see you! If you can't make it in person you can watch our morning services on
         <a class="inline" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
           our YouTube channel
         </a> at 10:30am on Sundays.
@@ -91,7 +88,7 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center max-w-2xl mx-auto mt-6">
 
-      <x-page-card :page="$pages->firstWhere('slug', 'evening-service')" />
+      <x-page-card :page="$pages->firstWhere('slug', 'sunday-evenings')" />
         
       <x-page-card :page="$pages->firstWhere('slug', 'bible-study')" />
 
@@ -124,7 +121,7 @@
     <x-text>
       <p class="my-6">
         If you've got questions, do get in touch using the details below.
-        We'd love to listen.
+        We'd love to hear from you.
       </p>
     </x-text>
 
