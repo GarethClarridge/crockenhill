@@ -40,6 +40,7 @@
   </script>
     
   @vite(['resources/css/main.scss', 'resources/js/app.js'])
+  
 </head>
 
 <body class="bg-slate-200">
