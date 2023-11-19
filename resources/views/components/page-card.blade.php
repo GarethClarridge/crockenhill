@@ -35,6 +35,8 @@
                     <i class="ml-1 fas fa-arrow-circle-right"></i>
                 </x-button>
             @endif
+
+            <x-edit-buttons slug="{{$page->slug}}"/>
             
         </div>
     </div>
