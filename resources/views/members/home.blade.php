@@ -3,6 +3,7 @@
 @section('dynamic_content')
 
   <div class="my-6 space-y-3">
+    
     @can ('edit-sermons')
       <x-button link="/christ/sermons">
         Edit sermons
