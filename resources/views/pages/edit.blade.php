@@ -1,3 +1,7 @@
+@php
+  use Illuminate\Support\Str;
+@endphp
+
 @extends('layouts/page')
 
 @section('dynamic_content')
@@ -18,75 +22,65 @@
         </div>
       @endif
 
-      <div class="edit-metadata mt-3 flex flex-wrap ">
-        <div class="w-2/3">
-          <div class="mb-3">
-            <label for="heading">Heading</label>
-            <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="heading" name="heading" type="text" value="{{$page->heading}}">
-          </div>
+      <div class="">
+          <label class="block" for="heading">Heading</label>
+          <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" id="heading" name="heading" type="text" value="{{$page->heading}}">
 
-          <div class="mb-3">
-            <label for="description">Description <small>(returned on Google searches)</small></label>
-            <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="description" name="description" type="text" value="{{$page->description}}">
-          </div>
+          <label class="block mt-6" for="description">Description <small>(displayed in page cards and possibly returned on Google searches)</small></label>
+          <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" id="description" name="description" type="text">{{$page->description}}</textarea>
 
-          <div class="mb-3">
-            <label for="area">Website section</label>
-            <select class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="area" value="{{$page->area}}">
-              @if ($page->area == 'christ')
-                <option value="christ" selected>Christ</option>
-              @else
-                <option value="christ">Christ</option>
-              @endif
+          <label class="block mt-6" for="area">Website section</label>
+          <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" name="area" value="{{$page->area}}">
+            @if ($page->area == 'christ')
+              <option value="christ" selected>Christ</option>
+            @else
+              <option value="christ">Christ</option>
+            @endif
 
-              @if ($page->area == 'church')
-                <option value="church" selected>Church</option>
-              @else
-                <option value="church">Church</option>
-              @endif
+            @if ($page->area == 'church')
+              <option value="church" selected>Church</option>
+            @else
+              <option value="church">Church</option>
+            @endif
 
-              @if ($page->area == 'community')
-                <option value="community" selected>Community</option>
-              @else
-                <option value="community">Community</option>
-              @endif
-            </select>
-          </div>
-        </div>
-        <div class="mb-3 w-1/3">
+            @if ($page->area == 'community')
+              <option value="community" selected>Community</option>
+            @else
+              <option value="community">Community</option>
+            @endif
+          </select>
+
           @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
             <div>
-              Heading image
+              <p class="mt-6 mb-1">Heading image</p>
               <img src="{{$headingpicture}}" alt="{{$headingpicture}}" class="max-w-full h-auto" id="headingpicture">
             </div>
           @endif
 
           <div>
-            <label class="form-label" for="heading-image">Upload a new heading image</label>
-            <input name="heading-image" type="file" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded py-2 px-4 text-lg leading-normal rounded" id="heading-image" onchange=file_changed() aria-describedby="heading-image">
+            <label class="block mt-6" for="heading-image">Upload a new heading image</label>
+            <input name="heading-image" type="file" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-2 px-4 text-lg leading-normal rounded" id="heading-image" onchange=file_changed() aria-describedby="heading-image">
           </div>
-        </div>
+
       </div>
 
-      <div class="flex flex-wrap ">
+      <div class="grid grid-cols-2 gap-12 my-6">
 
 
-        <div class="w-1/2">
-          <div class="mb-3">
-            <label for="markdown" class="h4">Markdown content</label>
-            @if ($page->markdown)
-              <textarea class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="markdown" id="markdown-input" rows="20">{{trim($page->markdown)}}</textarea>
-            @else
-              <textarea class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="markdown" id="markdown-input" rows="20">{{trim($page->body)}}</textarea>
-            @endif
-          </div>
+        <div class="">
+          <label class="block mb-3" for="markdown">Markdown content</label>
+          @if ($page->markdown)
+            <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" name="markdown" id="markdown-input" rows="20">{{trim($page->markdown)}}</textarea>
+          @else
+            <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" name="markdown" id="markdown-input" rows="20">{{trim($page->body)}}</textarea>
+          @endif
         </div>
 
-        <div class="w-1/2">
-          <h4>
+        <div class="">
+          <h4 class="mb-3">
             Rendered content
           </h4>
-          <div id="rendered-content">
+          <div id="rendered-content" class="prose mt-1 block bg-white py-3 px-6 rounded-md border border-gray-300 shadow-sm ">
             {!!$page->body!!}
           </div>
         </div>

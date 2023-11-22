@@ -11,13 +11,13 @@ module.exports = {
     extend: {
       fontFamily: {
         'sans'    : ['Lato', 'Open Sans', 'Helvetica', 'Arial', 'sans-serif'],
-        'display' : ['Oswald', 'Lato', 'Open Sans', 'Helvetica', 'Arial', 'sans-serif'],
+        'display' : ['Oswald', 'Open Sans', 'Helvetica', 'Arial', 'sans-serif'],
       }
     }
   },
   plugins: [
-    require('@tailwindcss/typography'),
     require('@tailwindcss/forms'),
+    require('@tailwindcss/typography'),
   ],
 }
 

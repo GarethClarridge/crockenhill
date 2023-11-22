@@ -1,11 +1,13 @@
 @extends('layouts/page')
 
 @section('dynamic_content')
-  <div class="d-grid gap-2 mb-3">
-    <a href="pages/create" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline bg-blue-600 hover:bg-blue-600" role="button">Create a new page</a>
-  </div>
+  <x-button link="pages/create">
+    Create a new page
+  </x-button>
 
-  <h2>Existing pages:</h2>
+  <x-h2>
+    Existing pages
+  </x-h2>
 
   <div class="block w-full overflow-auto scrolling-touch">
     <table class="w-full max-w-full mb-4 bg-transparent table-hover">

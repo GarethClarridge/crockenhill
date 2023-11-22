@@ -87,7 +87,7 @@
 
     <li class="">
       <a class="bg-black text-white px-6 py-3 rounded-md text-xl" href="/christ">
-        <i class="hidden min-[400px]:inline fa fa-cross"></i>
+        <i class="hidden min-[530px]:inline fa fa-cross"></i>
         <span class="">Christ</span>
       </a>
       <ul class="mt-6">          
@@ -105,7 +105,7 @@
 
     <li class="">
       <a class="bg-black text-white px-6 py-3 rounded-md text-xl" href="/church">
-        <i class="hidden min-[400px]:inline fa fa-church"></i>
+        <i class="hidden min-[530px]:inline fa fa-church"></i>
         <span class="">Church</span>
       </a>
       <ul class="mt-6">          
@@ -123,7 +123,7 @@
 
     <li class="">
       <a class="bg-black text-white px-6 py-3 rounded-md text-xl" href="/community">
-        <i class="hidden min-[400px]:inline fa fa-users"></i>
+        <i class="hidden min-[530px]:inline fa fa-users"></i>
         <span class="">Community</span>
       </a>
       <ul class="mt-6">          
