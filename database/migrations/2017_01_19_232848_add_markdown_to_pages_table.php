@@ -13,9 +13,9 @@ class AddMarkdownToPagesTable extends Migration
      */
     public function up()
     {
-      // Schema::table('pages', function (Blueprint $table) {
-      //   $table->text('markdown')->nullable();
-      // });
+      Schema::table('pages', function (Blueprint $table) {
+        $table->text('markdown')->nullable();
+      });
     }
 
     /**

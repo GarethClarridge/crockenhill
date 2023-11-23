@@ -12,10 +12,10 @@ class DropOldCategoriesSongsTable extends Migration
      */
     public function up()
     {
-      // Schema::table('songs', function (Blueprint $table) {
-      //     $table->dropColumn('major_category');
-      //     $table->dropColumn('minor_category');
-      // });
+      Schema::table('songs', function (Blueprint $table) {
+          $table->dropColumn('major_category');
+          $table->dropColumn('minor_category');
+      });
     }
 
     /**

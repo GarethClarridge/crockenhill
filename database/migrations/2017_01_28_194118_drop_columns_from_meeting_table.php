@@ -13,11 +13,11 @@ class DropColumnsFromMeetingTable extends Migration
      */
     public function up()
     {
-      // Schema::table('meetings', function (Blueprint $table) {
-      //   $table->dropColumn('heading');
-      //   $table->dropColumn('description');
-      //   $table->dropColumn('body');
-      // });
+      Schema::table('meetings', function (Blueprint $table) {
+        $table->dropColumn('heading');
+        $table->dropColumn('description');
+        $table->dropColumn('body');
+      });
     }
 
     /**
