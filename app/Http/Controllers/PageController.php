@@ -124,11 +124,19 @@ class PageController extends Controller {
         ->save('images/headings/small/'.$slug.'.jpg');
     }
 
+    if (\Request::input('navigation-radio') == 'yes'){
+      $navigation = true;
+    } else {
+      $navigation = false;
+    };
+
+
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->heading = \Request::input('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Request::input('heading'));
 		$page->description = \Request::input('description');
     $page->area = \Request::input('area');
+    $page->navigation = $navigation;
 		$page->markdown = $markdown;
     $page->body = trim($html);
     $page->save();

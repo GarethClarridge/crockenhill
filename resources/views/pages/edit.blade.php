@@ -49,6 +49,30 @@
               <option value="community">Community</option>
             @endif
           </select>
+          
+            <p class="mt-6">Appears in navigation</p>
+            <div class="grid grid-cols-2 gap-3 pt-2">
+              <div class="h-full flex items-center ps-4 bg-gray-300 rounded">
+                @if ($page->navigation)
+                  <input checked id="navigation-radio-1" type="radio" value="yes" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
+                @else 
+                  <input id="navigation-radio-1" type="radio" value="yes" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
+                @endif
+                  <label for="navigation-radio-1" class="w-full py-4 ms-2 text-sm font-medium text-gray-900">
+                    Yes
+                  </label>
+              </div>
+              <div class="h-full flex items-center ps-4 bg-gray-300 rounded">
+                @if ($page->navigation)
+                  <input id="navigation-radio-2" type="radio" value="no" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
+                @else
+                  <input checked id="navigation-radio-2" type="radio" value="no" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
+                @endif
+                  <label for="navigation-radio-2" class="w-full py-4 ms-2 text-sm font-medium text-gray-900">
+                    No
+                  </label>
+              </div>
+            </div>
 
           @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
             <div>
@@ -64,7 +88,7 @@
 
       </div>
 
-      <div class="grid grid-cols-2 gap-12 my-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-12 my-6">
 
 
         <div class="">
