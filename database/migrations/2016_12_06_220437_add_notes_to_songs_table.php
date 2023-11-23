@@ -12,9 +12,9 @@ class AddNotesToSongsTable extends Migration
      */
     public function up()
     {
-      Schema::table('songs', function (Blueprint $table) {
-          $table->text('notes')->nullable();
-      });
+      // Schema::table('songs', function (Blueprint $table) {
+      //     $table->text('notes')->nullable();
+      // });
     }
 
     /**
