@@ -12,6 +12,9 @@ module.exports = {
       fontFamily: {
         'sans'    : ['Lato', 'Open Sans', 'Helvetica', 'Arial', 'sans-serif'],
         'display' : ['Oswald', 'Open Sans', 'Helvetica', 'Arial', 'sans-serif'],
+      },
+      backgroundImage: {
+        'cbc-pattern': "url('/images/pattern-wide.png')",
       }
     }
   },
