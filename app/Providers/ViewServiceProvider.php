@@ -28,7 +28,9 @@ class ViewServiceProvider extends ServiceProvider
     {
       \View::composer('includes.header', function($view)
       {
-        $pages = \Crockenhill\Page::all();
+        $pages = \Crockenhill\Page::where('navigation', 1)
+                                ->orderBy('slug')
+                                ->get();
         $view->with('pages', $pages);
       });
 
