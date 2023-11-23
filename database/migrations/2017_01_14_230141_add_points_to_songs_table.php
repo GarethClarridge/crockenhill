@@ -13,9 +13,9 @@ class AddPointsToSongsTable extends Migration
      */
      public function up()
      {
-       Schema::table('sermons', function (Blueprint $table) {
-         $table->text('points')->nullable();
-       });
+      //  Schema::table('sermons', function (Blueprint $table) {
+      //    $table->text('points')->nullable();
+      //  });
      }
 
     /**

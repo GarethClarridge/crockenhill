@@ -12,10 +12,10 @@ class ChangeRecommendedToCurrentSongsTable extends Migration
      */
     public function up()
     {
-      Schema::table('songs', function (Blueprint $table) {
-          $table->dropColumn('recommended');
-          $table->boolean('current')->default(1);
-      });
+      // Schema::table('songs', function (Blueprint $table) {
+      //     $table->dropColumn('recommended');
+      //     $table->boolean('current')->default(1);
+      // });
     }
 
     /**
