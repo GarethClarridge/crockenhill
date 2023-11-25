@@ -49,7 +49,7 @@
         <i class="fa fa-bars"></i>
       </button>
 
-      <div class="w-100 lg:hidden col-span-8 flex bg-gradient-to-r from-cyan-200 to-blue-200 text-blue-950 py-2">
+      <div class="w-100 lg:hidden col-span-8 flex bg-gradient-to-r from-green-100 to-emerald-100 text-emerald-950 py-2">
         <ul class="mx-auto flex font-display">
           <li>
             <a class="px-8 py-2 text-center" href="/christ">
@@ -80,13 +80,13 @@
 
 <div x-show="expanded" 
       x-collapse 
-      class="absolute z-10 backdrop-blur-sm bg-white/80 w-screen font-display p-6 leading-loose text-lg" 
+      class="absolute z-10 backdrop-blur-sm bg-gradient-to-r from-green-100/80 to-emerald-100/80 w-screen font-display p-6 leading-loose text-lg" 
       tabindex="-1"
       x-cloak>
   <ul class="grid grid-cols-3 text-center mt-3">
 
     <li class="">
-      <a class="bg-black text-white px-6 py-3 rounded-md text-xl" href="/christ">
+      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white px-6 py-3 rounded-md text-xl" href="/christ">
         <i class="hidden min-[530px]:inline fa fa-cross"></i>
         <span class="">Christ</span>
       </a>
@@ -104,7 +104,7 @@
     </li>
 
     <li class="">
-      <a class="bg-black text-white px-6 py-3 rounded-md text-xl" href="/church">
+      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white px-6 py-3 rounded-md text-xl" href="/church">
         <i class="hidden min-[530px]:inline fa fa-church"></i>
         <span class="">Church</span>
       </a>
@@ -122,7 +122,7 @@
     </li>
 
     <li class="">
-      <a class="bg-black text-white px-6 py-3 rounded-md text-xl" href="/community">
+      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white px-6 py-3 rounded-md text-xl" href="/community">
         <i class="hidden min-[530px]:inline fa fa-users"></i>
         <span class="">Community</span>
       </a>
