@@ -4,7 +4,7 @@
 
 {{-- Details --}}
 
-<div class="bg-gradient-to-r from-cyan-500 to-blue-500 my-12 px-6 md:px-16 py-12 text-white text-3xl font-display">
+<div class="bg-cbc-pattern bg-cover my-12 px-6 md:px-16 py-12 text-white text-3xl font-display">
   <table>
     <tbody>
       @if ($day != '')

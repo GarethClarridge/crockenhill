@@ -54,7 +54,7 @@
                     name="_token" 
                     value="{{ csrf_token() }}">
             <a href="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit"
-                class="w-full no-underline mx-auto block max-w-md p-4 text-center text-white rounded-bl-md bg-gradient-to-r from-cyan-500 to-blue-500 focus:ring-2 focus:ring-blue-800 focus:ring-offset-2 transition-all">
+                class="w-full no-underline mx-auto block max-w-md p-4 text-center text-white rounded-bl-md bg-cbc-pattern bg-cover focus:ring-2 focus:ring-blue-800 focus:ring-offset-2 transition-all">
                 Edit
                 <i class="ms-2 fas fa-pencil-alt"></i>
             </a>
