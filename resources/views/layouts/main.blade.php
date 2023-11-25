@@ -50,7 +50,7 @@
 
     @yield('content')
 
-    <footer class="bg-gradient-to-r from-cyan-500 to-blue-500 p-6 mt-6">
+    <footer class="bg-cbc-pattern bg-cover p-6 mt-6">
         @include('includes.footer')
     </footer>
 </body>

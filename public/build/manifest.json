@@ -1,6 +1,10 @@
 {
+  "public/images/pattern-wide.png": {
+    "file": "assets/pattern-wide-f8c4c6a5.png",
+    "src": "public/images/pattern-wide.png"
+  },
   "resources/css/main.scss": {
-    "file": "assets/main-afbe7ec9.css",
+    "file": "assets/main-992e5ad8.css",
     "isEntry": true,
     "src": "resources/css/main.scss"
   },

@@ -6,7 +6,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
 
-<div class="w-100 text-white grid grid-cols-7 lg:grid-cols-12 justify-between bg-gradient-to-r from-cyan-500 to-blue-500">
+<div class="w-100 text-white grid grid-cols-7 lg:grid-cols-12 justify-between bg-cbc-pattern bg-cover">
 
       <a class="p-2" href="/">
         <img src="/images/White.png" class="inline-block align-top max-h-8" alt="Crockenhill Baptist Church logo">
