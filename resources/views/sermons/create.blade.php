@@ -92,25 +92,23 @@
 
   </form>
 
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+  <input type="file">
 
-  <script type="text/javascript">
-    document.querySelector('input[type="file"]').onchange = function(e) {
-        id3(this.files[0], function(err, tags) {
-            // tags now contains your ID3 tags
-            document.getElementById('title').value     = tags.title;
-            document.getElementById('preacher').value  = tags.artist;
-            document.getElementById('series').value    = tags.album;
-            if (tags.comment) {
-              document.getElementById('reference').value = tags.comment;
-            }
-            
+  <script type="module">
+    import * as id3 from '//unpkg.com/id3js@^2/lib/id3.js';
 
-        });
-        var span = document.getElementById('filename')
-        span.innerHTML = span.innerHTML + document.querySelector('input[type="file"]').value;
-        span.classList.remove("hidden");
-    }
+    document
+      .querySelector('input[type="file"]')
+      .addEventListener('change', async (e) => {
+        const tags = await id3.fromFile(e.currentTarget.files[0]);
+        // tags now contains v1, v2 and merged tags
+        document.getElementById('title').value     = tags.title;
+        document.getElementById('preacher').value  = tags.artist;
+        document.getElementById('series').value    = tags.album;
+        if (tags.comment) {
+          document.getElementById('reference').value = tags.comment;
+        }
+      });
   </script>
 
 @stop
