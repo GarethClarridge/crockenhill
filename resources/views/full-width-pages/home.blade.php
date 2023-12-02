@@ -75,6 +75,50 @@
       title=""
     />
 
+    <section class="-mb-10 bg-cover bg-center bg-[url('/public/images/homepage/christmas2023.jpg')] bg-gray-700 bg-blend-multiply">
+        <div class="px-4 mx-auto max-w-screen-xl text-center pt-24 pb-12 lg:py-56">
+            <h2 class="mb-4 text-4xl font-display leading-none text-white md:text-5xl lg:text-6xl">
+              Christmas at Crockenhill Baptist Church
+            </h2>
+            <h3 class="font-display mt-8 text-xl text-gray-300 lg:text-2xl sm:px-16 lg:px-48">
+              Comfort and Joy
+            </h3>
+            <p class="mb-8 text-lg font-normal text-gray-300 lg:text-xl sm:px-16 lg:px-48">
+              Saturday 2nd, 3-6pm
+            </p>
+            <h3 class="font-display mt-8 text-xl text-gray-300 lg:text-2xl sm:px-16 lg:px-48">
+              Family Talk
+            </h3>
+            <p class="mb-8 text-lg font-normal text-gray-300 lg:text-xl sm:px-16 lg:px-48">
+              Sunday 10th, 4-6pm
+            </p>
+            <h3 class="font-display mt-8 text-xl text-gray-300 lg:text-2xl sm:px-16 lg:px-48">
+              Coffee Cup Carols
+            </h3>
+            <p class="mb-8 text-lg font-normal text-gray-300 lg:text-xl sm:px-16 lg:px-48">
+              Thursday 14th, 10:30am
+            </p>
+            <h3 class="font-display mt-8 text-xl text-gray-300 lg:text-2xl sm:px-16 lg:px-48">
+              Carols in the Chequers
+            </h3>
+            <p class="mb-8 text-lg font-normal text-gray-300 lg:text-xl sm:px-16 lg:px-48">
+              Wednesday 20th, 7:30pm
+            </p>
+            <h3 class="font-display mt-8 text-xl text-gray-300 lg:text-2xl sm:px-16 lg:px-48">
+              Carols by Candlelight
+            </h3>
+            <p class="mb-8 text-lg font-normal text-gray-300 lg:text-xl sm:px-16 lg:px-48">
+              Sunday 24th, 6:00pm
+            </p>
+            <h3 class="font-display mt-8 text-xl text-gray-300 lg:text-2xl sm:px-16 lg:px-48">
+              Christmas Day Family Service
+            </h3>
+            <p class="mb-8 text-lg font-normal text-gray-300 lg:text-xl sm:px-16 lg:px-48">
+              Monday 25th, 10:30am
+            </p>
+        </div>
+    </section>
+
     <x-h2>
       Strengthening believers
     </x-h2>

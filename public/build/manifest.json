@@ -1,10 +1,14 @@
 {
+  "public/images/homepage/christmas2023.jpg": {
+    "file": "assets/christmas2023-66a46e63.jpg",
+    "src": "public/images/homepage/christmas2023.jpg"
+  },
   "public/images/pattern-wide.png": {
     "file": "assets/pattern-wide-f8c4c6a5.png",
     "src": "public/images/pattern-wide.png"
   },
   "resources/css/main.scss": {
-    "file": "assets/main-35cf6077.css",
+    "file": "assets/main-c08a9de8.css",
     "isEntry": true,
     "src": "resources/css/main.scss"
   },
