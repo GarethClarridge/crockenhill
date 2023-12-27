@@ -1,24 +1,27 @@
-<?php namespace Crockenhill\Http\Controllers;
+<?php
+
+namespace Crockenhill\Http\Controllers;
 
 use League\CommonMark\CommonMarkConverter;
 use Intervention\Image\Image;
 
-class PageController extends Controller {
+class PageController extends Controller
+{
 
-	public function showPage()
-	{
-		return view('layouts/page');
-	}
+  public function showPage()
+  {
+    return view('layouts/page');
+  }
 
-	public function index()
+  public function index()
   {
     if (\Gate::denies('edit-pages')) {
       abort(403);
     }
-		$pages = \Crockenhill\Page::orderBy('area', 'asc')->get();
+    $pages = \Crockenhill\Page::orderBy('area', 'asc')->get();
 
     return view('pages.index', array(
-	    'pages'         => $pages
+      'pages'         => $pages
     ));
   }
 
@@ -29,8 +32,8 @@ class PageController extends Controller {
     }
 
     return view('pages.create', array(
-			'heading' => 'Create a page'
-		));
+      'heading' => 'Create a page'
+    ));
   }
 
   public function store()
@@ -39,18 +42,25 @@ class PageController extends Controller {
       abort(403);
     }
 
-		//Convert markdown
-		$converter = new CommonMarkConverter();
-		$markdown = \Request::input('markdown');
-		$html = $converter->convert($markdown);
+    //Convert markdown
+    $converter = new CommonMarkConverter();
+    $markdown = \Request::input('markdown');
+    $html = $converter->convert($markdown);
+
+    if (\Request::input('navigation-radio') == 'yes') {
+      $navigation = true;
+    } else {
+      $navigation = false;
+    };
 
     $page = new \Crockenhill\Page;
     $page->heading = \Request::input('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Request::input('heading'));
     $page->area = \Request::input('area');
-		$page->markdown = $markdown;
+    $page->markdown = $markdown;
     $page->body = trim($html);
-		$page->description = \Request::input('description');
+    $page->description = \Request::input('description');
+    $page->navigation = $navigation;
     $page->save();
 
     if (\Request::file('heading-image')) {
@@ -62,17 +72,17 @@ class PageController extends Controller {
         $constraint->aspectRatio();
         $constraint->upsize();
       })
-        ->save('images/headings/large/'.$slug.'.jpg');
+        ->save('images/headings/large/' . $slug . '.jpg');
 
       // Make smaller image for aside
       $image->resize(300, null, function ($constraint) {
         $constraint->aspectRatio();
         $constraint->upsize();
-        })
-        ->save('images/headings/small/'.$slug.'.jpg');
+      })
+        ->save('images/headings/small/' . $slug . '.jpg');
     };
 
-    return redirect('/church/members/pages')->with('message', $page->heading.' successfully created!');
+    return redirect('/church/members/pages')->with('message', $page->heading . ' successfully created!');
   }
 
   public function edit($slug)
@@ -81,17 +91,17 @@ class PageController extends Controller {
       abort(403);
     }
 
-		session(['backUrl' => url()->previous()]);
+    session(['backUrl' => url()->previous()]);
 
-		$page = \Crockenhill\Page::where('slug', $slug)->first();
-		$heading = 'Edit page';
-    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
+    $page = \Crockenhill\Page::where('slug', $slug)->first();
+    $heading = 'Edit page';
+    $headingpicture = '/images/headings/large/' . $slug . '.jpg';
 
     return view('pages.edit', array(
-	    'page' 		        => $page,
-			'heading'         => $heading,
+      'page'             => $page,
+      'heading'         => $heading,
       'headingpicture'  => $headingpicture
-		));
+    ));
   }
 
   public function update($slug)
@@ -100,10 +110,10 @@ class PageController extends Controller {
       abort(403);
     }
 
-		//Convert markdown
-		$converter = new CommonMarkConverter();
-		$markdown = \Request::input('markdown');
-		$html = $converter->convert($markdown);
+    //Convert markdown
+    $converter = new CommonMarkConverter();
+    $markdown = \Request::input('markdown');
+    $html = $converter->convert($markdown);
 
     if (\Request::file('heading-image')) {
       // create new image instance
@@ -114,17 +124,17 @@ class PageController extends Controller {
         $constraint->aspectRatio();
         $constraint->upsize();
       })
-        ->save('images/headings/large/'.$slug.'.jpg');
+        ->save('images/headings/large/' . $slug . '.jpg');
 
       // Make smaller image for aside
       $image->resize(300, null, function ($constraint) {
         $constraint->aspectRatio();
         $constraint->upsize();
-        })
-        ->save('images/headings/small/'.$slug.'.jpg');
+      })
+        ->save('images/headings/small/' . $slug . '.jpg');
     }
 
-    if (\Request::input('navigation-radio') == 'yes'){
+    if (\Request::input('navigation-radio') == 'yes') {
       $navigation = true;
     } else {
       $navigation = false;
@@ -134,18 +144,18 @@ class PageController extends Controller {
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->heading = \Request::input('heading');
     $page->slug = \Illuminate\Support\Str::slug(\Request::input('heading'));
-		$page->description = \Request::input('description');
+    $page->description = \Request::input('description');
     $page->area = \Request::input('area');
     $page->navigation = $navigation;
-		$page->markdown = $markdown;
+    $page->markdown = $markdown;
     $page->body = trim($html);
     $page->save();
 
-		$backUrl = session('backUrl');
+    $backUrl = session('backUrl');
 
     return ($backUrl !== url()->previous())
-			? redirect($backUrl)->with('message', $page->heading.' successfully updated!')
-			: redirect('/church/members/pages')->with('message', $page->heading.' successfully updated!');
+      ? redirect($backUrl)->with('message', $page->heading . ' successfully updated!')
+      : redirect('/church/members/pages')->with('message', $page->heading . ' successfully updated!');
   }
 
   public function destroy($slug)
@@ -157,6 +167,6 @@ class PageController extends Controller {
     $page = \Crockenhill\Page::where('slug', $slug)->first();
     $page->delete();
 
-    return redirect('/church/members/pages')->with('message', $page->heading.' successfully deleted!');
+    return redirect('/church/members/pages')->with('message', $page->heading . ' successfully deleted!');
   }
 }
