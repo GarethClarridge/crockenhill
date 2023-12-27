@@ -285,7 +285,7 @@ Church
       How we store information safely.
     </x-clickable-card>
 
-    <x-clickable-card link="records-retention-policy" heading="Data protection policy">
+    <x-clickable-card link="records-retention-policy" heading="Records retention policy">
       Our policy on retaining and destroying records.
     </x-clickable-card>
 
