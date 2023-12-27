@@ -69,6 +69,14 @@ Route::group(array('prefix' => 'christ/sermons'), function()
         'as' => 'sermonStore',
         'uses' => 'SermonController@store'
     ));
+    Route::get('/upload', array(
+      'as' => 'sermonUpload',
+      'uses' => 'SermonController@upload'
+    ));
+    Route::post('/post', array(
+      'as' => 'sermonPost',
+      'uses' => 'SermonController@post'
+    ));
     Route::get('/{year}/{month}/{slug}', array(
         'as' => 'showSermon',
         'uses' => 'SermonController@show'
