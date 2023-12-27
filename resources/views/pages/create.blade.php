@@ -1,66 +1,79 @@
+@php
+use Illuminate\Support\Str;
+@endphp
+
 @extends('layouts/page')
 
 @section('dynamic_content')
 
-<form class="mb-3" action="/church/members/pages" method="post">
+<form class="" action="/church/members/pages" method="post">
   <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
   @if (count($errors) > 0)
-    <div class="relative px-3 py-3 mb-4 border rounded bg-red-200 border-red-300 text-red-800">
-      <strong>Whoops!</strong> There were some problems:<br><br>
-      <ul>
-        @foreach ($errors->all() as $error)
-          <li>{{ $error }}</li>
-        @endforeach
-      </ul>
-    </div>
+  <div class="relative px-3 py-3 mb-4 border rounded bg-red-200 border-red-300 text-red-800">
+    <strong>Whoops!</strong> There were some problems:<br><br>
+    <ul>
+      @foreach ($errors->all() as $error)
+      <li>{{ $error }}</li>
+      @endforeach
+    </ul>
+  </div>
   @endif
 
-  <div class="edit-metadata mt-3 flex flex-wrap ">
-        <div class="w-2/3">
-          <div class="mb-3">
-            <label for="heading">Heading</label>
-            <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="heading" name="heading" type="text">
-          </div>
+  <div class="">
+    <label class="block" for="heading">Heading</label>
+    <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" id="heading" name="heading" type="text" value="">
 
-          <div class="mb-3">
-            <label for="description">Description <small>(returned on Google searches)</small></label>
-            <input class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="description" name="description" type="text">
-          </div>
+    <label class="block mt-6" for="description">Description <small>(displayed in page cards and possibly returned on Google searches)</small></label>
+    <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" id="description" name="description" type="text"></textarea>
 
-          <div class="mb-3">
-            <label for="area">Website section</label>
-            <select class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="area">
-              <option value="christ">Christ</option>
-              <option value="church">Church</option>
-              <option value="community">Community</option>
-            </select>
-          </div>
-        </div>
-        <div class="mb-3 w-1/3">
-          <div>
-            <label class="form-label" for="heading-image">Upload a new heading image</label>
-            <input name="heading-image" type="file" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded py-2 px-4 text-lg leading-normal rounded" id="heading-image" onchange=file_changed() aria-describedby="heading-image">
-          </div>
-        </div>
+    <label class="block mt-6" for="area">Website section</label>
+    <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" name="area" value="">
+      <option value="christ">Christ</option>
+      <option value="church">Church</option>
+      <option value="community">Community</option>
+    </select>
+
+    <p class="mt-6">Appears in navigation</p>
+    <div class="grid grid-cols-2 gap-3 pt-2">
+      <div class="h-full flex items-center ps-4 bg-gray-300 rounded">
+        <input id="navigation-radio-1" type="radio" value="yes" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
+        <label for="navigation-radio-1" class="w-full py-4 ms-2 text-sm font-medium text-gray-900">
+          Yes
+        </label>
       </div>
-
-  <div class="flex flex-wrap ">
-    <div class="w-1/2">
-      <div class="mb-3">
-        <label for="markdown">Markdown content</label>
-        <textarea class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" name="markdown" id="markdown-input" rows="20"></textarea>
+      <div class="h-full flex items-center ps-4 bg-gray-300 rounded">
+        <input id="navigation-radio-2" type="radio" value="no" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
+        <label for="navigation-radio-2" class="w-full py-4 ms-2 text-sm font-medium text-gray-900">
+          No
+        </label>
       </div>
     </div>
 
-    <div class="w-1/2">
-      <h4>
+    <div>
+      <label class="block mt-6" for="heading-image">Upload a new heading image</label>
+      <input name="heading-image" type="file" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-2 px-4 text-lg leading-normal rounded" id="heading-image" onchange=file_changed() aria-describedby="heading-image">
+    </div>
+
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-12 my-6">
+
+
+    <div class="">
+      <label class="block mb-3" for="markdown">Markdown content</label>
+      <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" name="markdown" id="markdown-input" rows="20"></textarea>
+    </div>
+
+    <div class="">
+      <h4 class="mb-3">
         Rendered content
       </h4>
-      <div id="rendered-content">
+      <div id="rendered-content" class="prose mt-1 block bg-white py-3 px-6 rounded-md border border-gray-300 shadow-sm ">
 
       </div>
     </div>
+
   </div>
 
   <div class="form-actions">
@@ -81,21 +94,31 @@
 " charset="utf-8"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js" charset="utf-8"></script>
 <script type="text/javascript">
-
   function markdownInit() {
-    var markdown      = document.getElementById("markdown-input");
-    var render        = document.getElementById("rendered-content");
+    var markdown = document.getElementById("markdown-input");
+    var render = document.getElementById("rendered-content");
     markdown.onfocus = function blankRender() {
       render.innerHTML = '';
     }
     markdown.onblur = function markdown() {
-      var converter     = new showdown.Converter();
-      var markdown      = document.getElementById("markdown-input");
-      render.innerHTML  = converter.makeHtml(markdown.value);
+      var converter = new showdown.Converter();
+      var markdown = document.getElementById("markdown-input");
+      render.innerHTML = converter.makeHtml(markdown.value);
     }
   }
 
   window.onload = markdownInit();
+
+  function file_changed() {
+    var selectedFile = document.getElementById('heading-image').files[0];
+    var img = document.getElementById('headingpicture')
+
+    var reader = new FileReader();
+    reader.onload = function() {
+      img.src = this.result
+    }
+    reader.readAsDataURL(selectedFile);
+  }
 </script>
 
 @stop
