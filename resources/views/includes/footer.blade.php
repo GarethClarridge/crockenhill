@@ -47,7 +47,7 @@
     </x-card>
 
     <x-card heading="Visit us">
-      <address class="mb-0">
+      <address class="mb-6">
         Crockenhill Baptist Church, Eynsford Road, Crockenhill, Kent, BR8 8JS
       </address>
 
@@ -71,11 +71,6 @@
   </div>
 </div>
 
-
-<section class="md:w-1/2 mx-auto p-4 my-4">
-  <img src="/svg/OutlineNameWhite.svg" width="100%" alt="Crockenhill Baptist Church logo">
-</section>
-
 <section class="md:w-1/2 mx-auto p-4 my-4">
   <a class="fiec-footer" href="https://www.fiec.org.uk">
     <img src="/images/fiec-affiliated-tagline-white.png" width="100%" alt="Affiliated to the Fellowship of Independent Evangelical Churches">
@@ -83,5 +78,15 @@
 </section>
 
 <section class="pr-4 text-white">
-  <p class="text-center"><small>&copy; {{ date('Y') }} Crockenhill Baptist Church</small></p>
+  <p class="text-center">
+    <small>
+      &copy; {{ date('Y') }} Crockenhill Baptist Church
+    </small>
+  </p>
+  <p class="text-center">
+    <small>
+      Crockenhill Baptist Church is a <a class="underline" href="https://www.gov.uk/setting-up-charity/structures">charitable incorporated organisation</a>,
+      charity number <a class="underline" href="https://register-of-charities.charitycommission.gov.uk/charity-search/-/charity-details/5203647">1199873</a>.
+    </small>
+  </p>
 </section>
