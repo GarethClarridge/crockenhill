@@ -78,8 +78,10 @@ Church
 
   <div class="mx-6">
     <x-button link="/community">
-      See our other activities
-      <i class="ml-1 fas fa-arrow-circle-right"></i>
+      <div class="flex items-center justify-center">
+        See our other activities
+        <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
+      </div>
     </x-button>
   </div>
 
@@ -151,8 +153,10 @@ Church
     </p>
 
     <x-button link="/christ">
-      Find out more about the good news of Jesus Christ
-      <i class="ml-1 fas fa-arrow-circle-right"></i>
+      <div class="flex items-center justify-center">
+        Find out more about the good news of Jesus Christ
+        <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
+      </div>
     </x-button>
   </x-text>
 

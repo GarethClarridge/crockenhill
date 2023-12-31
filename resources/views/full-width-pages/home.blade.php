@@ -2,80 +2,81 @@
 
 @section('title', 'Crockenhill Baptist Church')
 
-@section('description', '<meta name="description" content="We are an independent evangelical church located in the village of Crockenhill in Kent.">')
+@section('description', '
+<meta name="description" content="We are an independent evangelical church located in the village of Crockenhill in Kent.">')
 
 @section('content')
 
-  <main id="home" class="text-sm">
+<main id="home" class="text-sm">
 
-    <div class="full-width-head py-16 mb-16" style="background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url({{ asset('/images/homepage/Collage.jpg')}})">
-      <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
-        <h1 class="text-white text-6xl font-display p-12 text-center md:text-left">
-          Crockenhill<br>
-          Baptist<br>
-          Church.<br>
-        </h1>
+  <div class="full-width-head py-16 mb-16" style="background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url({{ asset('/images/homepage/Collage.jpg')}})">
+    <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
+      <h1 class="text-white text-6xl font-display p-12 text-center md:text-left">
+        Crockenhill<br>
+        Baptist<br>
+        Church.<br>
+      </h1>
 
-        <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right">
-          <p class="hover:scale-110 my-2">
-            <a href="#worshipping-god">
-              <span class="px-2 py-1 bg-white ">
-                Worshipping God
-              </span>
-            </a>
-          </p>
-          <p class="hover:scale-110 my-2">
-            <a href="#strengthening-believers">
-              <span class="px-2 py-1 bg-white">
-                Strengthening believers
-              </span>
-            </a>
-          </p>
-          <p class="hover:scale-110 my-2">
-            <a href="#proclaiming-jesus-christ-to-all">
-              <span class="px-2 py-1 bg-white">
-                Proclaiming Jesus Christ to all
-              </span>
-            </a>
-          </p>
-        </div>
+      <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right">
+        <p class="hover:scale-110 my-2">
+          <a href="#worshipping-god">
+            <span class="px-2 py-1 bg-white ">
+              Worshipping God
+            </span>
+          </a>
+        </p>
+        <p class="hover:scale-110 my-2">
+          <a href="#strengthening-believers">
+            <span class="px-2 py-1 bg-white">
+              Strengthening believers
+            </span>
+          </a>
+        </p>
+        <p class="hover:scale-110 my-2">
+          <a href="#proclaiming-jesus-christ-to-all">
+            <span class="px-2 py-1 bg-white">
+              Proclaiming Jesus Christ to all
+            </span>
+          </a>
+        </p>
       </div>
-
     </div>
 
-   <x-text>
-      <p class="">
-        Crockenhill Baptist Church is friendly, Bible teaching church in
-        the village of Crockenhill, just outside Swanley.
-      </p>
+  </div>
 
-    </x-text>
+  <x-text>
+    <p class="">
+      Crockenhill Baptist Church is friendly, Bible teaching church in
+      the village of Crockenhill, just outside Swanley.
+    </p>
 
-    <x-h2>
-      Worshipping God
-    </x-h2>
+  </x-text>
 
-   <x-text>
-      <p class="">
-        We meet to worship God together as a church every Sunday at 10:30am.
-        Services involve reading the Bible, praying, singing
-        and hearing God's word preached.  We also meet on Sunday evenings at 
-        6pm for a service mostly focussed on prayer.
-      </p>
-      <p class="">
-        You're more than welcome to join us - we'd love to see you! If you can't make it in person you can watch our morning services on
-        <a class="inline" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
-          our YouTube channel
-        </a> at 10:30am on Sundays.
-      </p>
-    </x-text>
+  <x-h2>
+    Worshipping God
+  </x-h2>
 
-    <x-youtube 
+  <x-text>
+    <p class="">
+      We meet to worship God together as a church every Sunday at 10:30am.
+      Services involve reading the Bible, praying, singing
+      and hearing God's word preached. We also meet on Sunday evenings at
+      6pm for a service mostly focussed on prayer.
+    </p>
+    <p class="">
+      You're more than welcome to join us - we'd love to see you! If you can't make it in person you can watch our morning services on
+      <a class="inline" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+        our YouTube channel
+      </a> at 10:30am on Sundays.
+    </p>
+  </x-text>
+
+  <!-- <x-youtube 
       link="https://www.youtube.com/embed?listType=playlist&list=UUtSUTtkZlALToswWQpWS2kA" 
       title=""
-    />
+    /> -->
 
-    <section class="-mb-10 bg-cover bg-center bg-[url('/public/images/homepage/christmas2023.jpg')] bg-gray-700 bg-blend-multiply">
+  <!-- <section class="-mb-10 bg-cover bg-center bg-[url('/public/images/homepage/christmas2023.jpg')] bg-gray-700 bg-blend-multiply">
         <div class="px-4 mx-auto max-w-screen-xl text-center pt-24 pb-12">
             <h2 class="mb-20 text-4xl font-display leading-none text-white md:text-5xl lg:text-6xl">
               Christmas at Crockenhill Baptist Church
@@ -117,59 +118,58 @@
               Monday 25th, 10:30am
             </p>
         </div>
-    </section>
+    </section> -->
 
-    <x-h2>
-      Strengthening believers
-    </x-h2>
+  <x-h2>
+    Strengthening believers
+  </x-h2>
 
-    <x-text>
-      <p class="">
-        We want to continue to grow in our faith: becoming closer to God
-        as the Holy Spirit makes us more like Jesus.
-      </p>
-    </x-text>
+  <x-text>
+    <p class="">
+      We want to continue to grow in our faith: becoming closer to God
+      as the Holy Spirit makes us more like Jesus.
+    </p>
+  </x-text>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center max-w-2xl mx-auto mt-6">
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center max-w-2xl mx-auto mt-6">
 
-      <x-page-card :page="$pages->firstWhere('slug', 'sunday-evenings')" />
-        
-      <x-page-card :page="$pages->firstWhere('slug', 'bible-study')" />
+    <x-page-card :page="$pages->firstWhere('slug', 'sunday-evenings')" />
 
-    </div>
+    <x-page-card :page="$pages->firstWhere('slug', 'bible-study')" />
+
+  </div>
 
 
-    <x-h2>
-      Proclaiming Jesus Christ to all
-    </x-h2>
+  <x-h2>
+    Proclaiming Jesus Christ to all
+  </x-h2>
 
-   <x-text>
-      <p class="">
-        We're eager to tell people about Jesus.
-        After all, Christianity is good news:
-      </p>
-    </x-text>
+  <x-text>
+    <p class="">
+      We're eager to tell people about Jesus.
+      After all, Christianity is good news!
+    </p>
+  </x-text>
 
-    <x-youtube 
-      link="https://www.youtube.com/embed/Ue3rHGDMzjU" 
-      title="Good News in 90 Seconds"
-    />
+  <!-- <x-youtube link="https://www.youtube.com/embed/Ue3rHGDMzjU" title="Good News in 90 Seconds" /> -->
 
-    <div class="m-12">
-      <x-button link="/christ">
+  <div class="m-12">
+    <x-button link="/christ">
+      <div class="flex items-center justify-center">
         Find out more about this good news
-        <i class="ml-1 fas fa-arrow-circle-right"></i>
-      </x-button>
-    </div>
-    
-    <x-text>
-      <p class="my-6">
-        If you've got questions, do get in touch using the details below.
-        We'd love to hear from you.
-      </p>
-    </x-text>
+        <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
+      </div>
+    </x-button>
+  </div>
+
+  <x-text>
+    <p class="my-6">
+      If you've got questions, do get in touch using the details below.
+      We'd love to hear from you.
+    </p>
+  </x-text>
 
 
-  </main>
+</main>
 
 @stop
