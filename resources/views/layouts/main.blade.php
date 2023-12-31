@@ -16,8 +16,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,300;1,400;1,700&family=Oswald:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <script src="https://kit.fontawesome.com/cbe28a5c6a.js" crossorigin="anonymous"></script>
-
   <link type="text/css" rel="stylesheet" href="/stylesheets/print.css" media="print">
 
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=GvJNbAA7Wv">
@@ -29,29 +27,36 @@
   <meta name="theme-color" content="#16324f">
 
   <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    (function(i, s, o, g, r, a, m) {
+      i['GoogleAnalyticsObject'] = r;
+      i[r] = i[r] || function() {
+        (i[r].q = i[r].q || []).push(arguments)
+      }, i[r].l = 1 * new Date();
+      a = s.createElement(o),
+        m = s.getElementsByTagName(o)[0];
+      a.async = 1;
+      a.src = g;
+      m.parentNode.insertBefore(a, m)
+    })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
 
     ga('create', 'UA-81335303-1', 'auto');
     ga('send', 'pageview');
-
   </script>
-    
+
   @vite(['resources/css/main.scss', 'resources/js/app.js'])
-  
+
 </head>
 
 <body class="bg-slate-200">
-    <header x-data="{ expanded: false }">
-        @include('includes.header')
-    </header>
+  <header x-data="{ expanded: false }">
+    @include('includes.header')
+  </header>
 
-    @yield('content')
+  @yield('content')
 
-    <footer class="bg-cbc-pattern bg-cover p-6 mt-6">
-        @include('includes.footer')
-    </footer>
+  <footer class="bg-cbc-pattern bg-cover p-6 mt-6">
+    @include('includes.footer')
+  </footer>
 </body>
+
 </html>

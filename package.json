@@ -13,7 +13,6 @@
   "author": "Gareth Clarridge",
   "license": "BSD-2-Clause",
   "devDependencies": {
-    "@fortawesome/fontawesome-free": "^6.4.2",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.10",
     "autoprefixer": "^10.4.16",
