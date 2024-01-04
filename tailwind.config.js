@@ -14,7 +14,7 @@ module.exports = {
         'display' : ['Oswald', 'Open Sans', 'Helvetica', 'Arial', 'sans-serif'],
       },
       backgroundImage: {
-        'cbc-pattern': "url('/public/images/pattern-wide.png')",
+        'cbc-pattern': "url('/public/images/pattern.svg')",
       }
     }
   },

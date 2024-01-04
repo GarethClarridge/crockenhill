@@ -3,12 +3,12 @@
     "file": "assets/christmas2023-66a46e63.jpg",
     "src": "public/images/homepage/christmas2023.jpg"
   },
-  "public/images/pattern-wide.png": {
-    "file": "assets/pattern-wide-f8c4c6a5.png",
-    "src": "public/images/pattern-wide.png"
+  "public/images/pattern.svg": {
+    "file": "assets/pattern-bbb45ace.svg",
+    "src": "public/images/pattern.svg"
   },
   "resources/css/main.scss": {
-    "file": "assets/main-1015a4c5.css",
+    "file": "assets/main-2b55a571.css",
     "isEntry": true,
     "src": "resources/css/main.scss"
   },

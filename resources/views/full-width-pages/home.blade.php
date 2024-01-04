@@ -9,7 +9,7 @@
 
 <main id="home" class="text-sm">
 
-  <div class="full-width-head py-16 mb-16" style="background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url({{ asset('/images/homepage/Collage.jpg')}})">
+  <div class="full-width-head py-16 mb-16" style="background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url({{ asset('/images/homepage/Collage.webp')}})">
     <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
       <h1 class="text-white text-6xl font-display p-12 text-center md:text-left">
         Crockenhill<br>
