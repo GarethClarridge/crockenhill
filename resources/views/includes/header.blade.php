@@ -42,7 +42,7 @@
     </ul>
   </div>
 
-  <button class="inline-block align-right select-none font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline ms-4 text-right flex items-center justify-end" type="button" @click="expanded = ! expanded">
+  <button class="inline-block align-right select-none font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline ms-4 text-right flex items-center justify-end" type="button" role="button" aria-label="Navigation" @click="expanded = ! expanded">
     <x-heroicon-m-bars-3 class="h-6 w-6" />
   </button>
 
