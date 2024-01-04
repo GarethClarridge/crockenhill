@@ -57,7 +57,7 @@
       @if ($email != '')
       <tr class="leading-relaxed md:leading-loose">
         <th scope="row" class="my-3 flex items-center">
-          <x-heroicon-o-envelop class="h-10 w-10 mr-2" />
+          <x-heroicon-o-envelope class="h-10 w-10 mr-2" />
         </th>
         <td>{{$email}}</td>
       </tr>
