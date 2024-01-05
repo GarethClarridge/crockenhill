@@ -20,7 +20,7 @@
   <div class="hidden w-100 lg:block col-span-5 flex my-auto pb-1">
     <ul class="mx-auto flex font-display text-l fill-white">
       <li>
-        <a class="px-8 py-2 flex justify-between items-center" href="/christ">
+        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/christ">
           <x-icon-cross class="h-4 w-4 mr-1" />
           <span class="">Christ</span>
         </a>
