@@ -27,14 +27,14 @@
       </li>
 
       <li>
-        <a class="px-8 py-2 flex justify-between items-center" href="/church">
+        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/church">
           <x-icon-church class="h-5 w-5 mr-1" />
           <span class="">Church</span>
         </a>
       </li>
 
       <li>
-        <a class="px-8 py-2 flex justify-between items-center" href="/community">
+        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/community">
           <x-heroicon-s-user-group class="h-5 w-5 mr-1" />
           <span class="">Community</span>
         </a>
