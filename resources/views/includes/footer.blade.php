@@ -73,7 +73,7 @@
 
 <section class="md:w-1/2 mx-auto p-4 my-4">
   <a class="fiec-footer" href="https://www.fiec.org.uk">
-    <img src="/images/affiliated-to-FIEC-logo-white.webp" alt="Affiliated to the Fellowship of Independent Evangelical Churches">
+    <img src="/images/affiliated-to-FIEC-logo-white.webp" alt="Affiliated to the Fellowship of Independent Evangelical Churches" loading="lazy">
   </a>
 </section>
 
