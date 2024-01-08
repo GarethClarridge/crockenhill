@@ -8,7 +8,7 @@
 <div class="w-100 text-white grid grid-cols-7 lg:grid-cols-12 justify-between bg-cbc-pattern bg-cover">
 
   <a class="p-2" href="/">
-    <img src="/images/White.png" class="inline-block align-top max-h-8" alt="Crockenhill Baptist Church logo">
+    <img src="/images/IconWhite.svg" class="inline-block align-top max-h-8" alt="Crockenhill Baptist Church logo">
   </a>
 
   <a class="font-display col-span-5 text-xl min-[400px]:text-2xl text-center flex" href="/">
