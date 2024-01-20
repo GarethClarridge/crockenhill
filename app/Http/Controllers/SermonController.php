@@ -369,7 +369,7 @@ class SermonController extends Controller
     $sermon->filename   = $filename;
     $sermon->date       = $date;
     $sermon->service    = $service;
-    $sermon->slug       = Str::slug('Title');
+    $sermon->slug       = Str::slug($track->getTitle());
     $sermon->series     = $track->getAlbum();
     $sermon->reference  = $reference;
     $sermon->preacher   = $track->getArtist();
