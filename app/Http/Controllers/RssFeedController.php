@@ -10,34 +10,37 @@ class RssFeedController extends Controller
 {
   public function eveningFeed()
   {
-      $sermons = \Crockenhill\Sermon::whereYear('date', '>=', '2022')
-        ->where('service', 'evening')
-        ->orderBy('created_at', 'desc')
-        ->get();
+    $sermons = \Crockenhill\Sermon::whereYear('date', '>=', '2022')
+      ->where('service', 'evening')
+      ->orderBy('created_at', 'desc')
+      ->get();
 
-      foreach ($sermons as $sermon) {
-        if (file_exists($_SERVER['DOCUMENT_ROOT']."/media/sermons/$sermon->filename.mp3")) {
-          $audio = new Mp3Info($_SERVER['DOCUMENT_ROOT']."/media/sermons/$sermon->filename.mp3");
-        }
-
-
-        $sermon['duration'] = $audio->duration;
+    foreach ($sermons as $sermon) {
+      if (file_exists($_SERVER['DOCUMENT_ROOT'] . "/media/sermons/$sermon->filename.mp3")) {
+        $audio = new Mp3Info($_SERVER['DOCUMENT_ROOT'] . "/media/sermons/$sermon->filename.mp3");
       }
 
-      return response()->view('rss.eveningFeed', compact('sermons'))->header('Content-Type', 'application/xml');
+      $sermon['duration'] = $audio->duration;
+    }
+
+    return response()->view('rss.eveningFeed', compact('sermons'))->header('Content-Type', 'application/xml');
   }
 
   public function morningFeed()
   {
-      $sermons = \Crockenhill\Sermon::where('service', 'morning')->orderBy('created_at', 'desc')->
-      limit(3)->get();
+    $sermons = \Crockenhill\Sermon::whereYear('date', '>=', '2022')
+      ->where('service', 'morning')
+      ->orderBy('created_at', 'desc')
+      ->get();
 
-      foreach ($sermons as $sermon) {
-        $audio = new Mp3Info($_SERVER['DOCUMENT_ROOT']."/media/sermons/$sermon->filename.mp3");
-
-        $sermon['duration'] = $audio->duration;
+    foreach ($sermons as $sermon) {
+      if (file_exists($_SERVER['DOCUMENT_ROOT'] . "/media/sermons/$sermon->filename.mp3")) {
+        $audio = new Mp3Info($_SERVER['DOCUMENT_ROOT'] . "/media/sermons/$sermon->filename.mp3");
       }
 
-      return response()->view('rss.eveningFeed', compact('sermons'))->header('Content-Type', 'application/xml');
+      $sermon['duration'] = $audio->duration;
+    }
+
+    return response()->view('rss.morningFeed', compact('sermons'))->header('Content-Type', 'application/xml');
   }
 }
