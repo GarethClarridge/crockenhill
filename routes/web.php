@@ -1,5 +1,9 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -11,43 +15,52 @@
 |
 */
 
-Route::get('/', ['as' => 'Home', function()
-{
-    return view('full-width-pages/home');
+Route::get('/', ['as' => 'Home', function () {
+  return view('full-width-pages/home');
 }]);
 
 // Special pages route
-Route::get('/christmas', array(
-  'as' => 'christmas', function()
-  {
-    return view('full-width-pages/christmas');
-  })
+Route::get(
+  '/christmas',
+  array(
+    'as' => 'christmas', function () {
+      return view('full-width-pages/christmas');
+    }
+  )
 );
-Route::get('/easter', array(
-  'as' => 'easter', function()
-  {
-    return view('full-width-pages/easter');
-  })
+Route::get(
+  '/easter',
+  array(
+    'as' => 'easter', function () {
+      return view('full-width-pages/easter');
+    }
+  )
 );
-Route::get('/christianity-explored', array(
-  'as' => 'christianity-explored', function()
-  {
-    return view('full-width-pages/christianity-explored');
-  })
+Route::get(
+  '/christianity-explored',
+  array(
+    'as' => 'christianity-explored', function () {
+      return view('full-width-pages/christianity-explored');
+    }
+  )
 );
 
 // Full width pages
-Route::get('/christ', array(
-  'as' => 'christ', function()
-  {
-    return view('full-width-pages/christ');
-  })
+Route::get(
+  '/christ',
+  array(
+    'as' => 'christ', function () {
+      return view('full-width-pages/christ');
+    }
+  )
 );
-Route::get('/church', array(
-  'as' => 'church', function()
-  {
-    return view('full-width-pages/church');
-  })
+Route::get(
+  '/church',
+  array(
+    'as' => 'church', function () {
+      return view('full-width-pages/church');
+    }
+  )
 );
 //Community routes
 Route::resource('community', 'MeetingController');
@@ -55,93 +68,91 @@ Route::resource('community', 'MeetingController');
 
 
 // Sermon routes
-Route::group(array('prefix' => 'christ/sermons'), function()
-{
-    Route::get('/', array(
-        'as' => 'sermonIndex',
-        'uses' => 'SermonController@index'
-    ));
-    Route::get('/create', array(
-        'as' => 'sermonCreate',
-        'uses' => 'SermonController@create'
-    ));
-    Route::post('/', array(
-        'as' => 'sermonStore',
-        'uses' => 'SermonController@store'
-    ));
-    Route::get('/upload', array(
-      'as' => 'sermonUpload',
-      'uses' => 'SermonController@upload'
-    ));
-    Route::post('/post', array(
-      'as' => 'sermonPost',
-      'uses' => 'SermonController@post'
-    ));
-    Route::get('/{year}/{month}/{slug}', array(
-        'as' => 'showSermon',
-        'uses' => 'SermonController@show'
-    ));
-    Route::get('/{year}/{month}/{slug}/edit', array(
-        'as' => 'editSermon',
-        'uses' => 'SermonController@edit'
-    ));
-    Route::post('/{year}/{month}/{slug}/edit', array(
-        'as' => 'updateSermon',
-        'uses' => 'SermonController@update'
-    ));
-    Route::post('/{year}/{month}/{slug}/delete', array(
-        'as' => 'destroySermon',
-        'uses' => 'SermonController@destroy'
-    ));
-    Route::get('all', array(
-        'as' => 'allSermons',
-        'uses' => 'SermonController@getAll'
-    ));
-    Route::get('preachers', array(
-        'as' => 'getPreachers',
-        'uses' => 'SermonController@getPreachers'
-    ));
-    Route::get('preachers/{preacher}', array(
-        'as' => 'getPreacher',
-        'uses' => 'SermonController@getPreacher'
-    ));
-    Route::get('series', array(
-        'as' => 'getSerieses',
-        'uses' => 'SermonController@getSerieses'
-    ));
-    Route::get('series/{series}', array(
-        'as' => 'getSeries',
-        'uses' => 'SermonController@getSeries'
-    ));
-    Route::get('{service}', array(
-        'as' => 'getService',
-        'uses' => 'SermonController@getService'
-    ));
+Route::group(array('prefix' => 'christ/sermons'), function () {
+  Route::get('/', array(
+    'as' => 'sermonIndex',
+    'uses' => 'SermonController@index'
+  ));
+  Route::get('/create', array(
+    'as' => 'sermonCreate',
+    'uses' => 'SermonController@create'
+  ));
+  Route::post('/', array(
+    'as' => 'sermonStore',
+    'uses' => 'SermonController@store'
+  ));
+  Route::get('/upload', array(
+    'as' => 'sermonUpload',
+    'uses' => 'SermonController@upload'
+  ));
+  Route::post('/post', array(
+    'as' => 'sermonPost',
+    'uses' => 'SermonController@post'
+  ));
+  Route::get('/{year}/{month}/{slug}', array(
+    'as' => 'showSermon',
+    'uses' => 'SermonController@show'
+  ));
+  Route::get('/{year}/{month}/{slug}/edit', array(
+    'as' => 'editSermon',
+    'uses' => 'SermonController@edit'
+  ));
+  Route::post('/{year}/{month}/{slug}/edit', array(
+    'as' => 'updateSermon',
+    'uses' => 'SermonController@update'
+  ));
+  Route::post('/{year}/{month}/{slug}/delete', array(
+    'as' => 'destroySermon',
+    'uses' => 'SermonController@destroy'
+  ));
+  Route::get('all', array(
+    'as' => 'allSermons',
+    'uses' => 'SermonController@getAll'
+  ));
+  Route::get('preachers', array(
+    'as' => 'getPreachers',
+    'uses' => 'SermonController@getPreachers'
+  ));
+  Route::get('preachers/{preacher}', array(
+    'as' => 'getPreacher',
+    'uses' => 'SermonController@getPreacher'
+  ));
+  Route::get('series', array(
+    'as' => 'getSerieses',
+    'uses' => 'SermonController@getSerieses'
+  ));
+  Route::get('series/{series}', array(
+    'as' => 'getSeries',
+    'uses' => 'SermonController@getSeries'
+  ));
+  Route::get('{service}', array(
+    'as' => 'getService',
+    'uses' => 'SermonController@getService'
+  ));
 
-    Route::get('evening/feed', 'RssFeedController@eveningFeed');
-    Route::get('morning/feed', 'RssFeedController@morningFeed');
+  Route::get('evening/feed', 'RssFeedController@eveningFeed');
+  Route::get('morning/feed', 'RssFeedController@morningFeed');
 });
 
 //Members routes
 Auth::routes();
-Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function()
-{
-    Route::get('', [
-        'uses' => 'MemberController@home'
-    ]);
-    // Manage pages
-    Route::resource('pages', 'PageController');
-    // Manage sermons
-    Route::resource('sermons', 'SermonController');
-    // Songs
-    Route::get('songs/service-record', 'SongController@getServiceRecord');
-    Route::post('songs/service-record', 'SongController@postServiceRecord');
+Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
+  Route::get('', [
+    'uses' => 'MemberController@home'
+  ]);
+  // Manage pages
+  Route::resource('pages', 'PageController');
+  // Manage sermons
+  Route::resource('sermons', 'SermonController');
+  // Songs
+  Route::get('songs/service-record', 'SongController@getServiceRecord');
+  Route::post('songs/service-record', 'SongController@postServiceRecord');
 
-    Route::get('songs/{id}/{title}', 'SongController@showSong');
-    Route::get('songs/{id}/{title}/edit', 'SongController@editSong');
-    Route::post('songs/{id}/{title}/edit', 'SongController@updateSong');
+  Route::get('songs/{id}/{title}', 'SongController@showSong');
+  Route::get('songs/{id}/{title}/edit', 'SongController@editSong');
+  Route::post('songs/{id}/{title}/edit', 'SongController@updateSong');
 
-    Route::resource('songs', 'SongController');
+  Route::resource('songs', 'SongController');
 });
 
 // Permanent Redirects
@@ -202,7 +213,6 @@ Route::get('/{area}/{slug}', array('uses' => 'PageController@showPage'));
 
 
 
-Route::get('500', function()
-{
-    abort(500);
+Route::get('500', function () {
+  abort(500);
 });
