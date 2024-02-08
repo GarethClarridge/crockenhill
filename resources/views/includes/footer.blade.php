@@ -3,7 +3,7 @@
 
     <x-card heading="Catch up">
       <div class="p-2 mb-3">
-        <x-button link="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
+        <x-button link="https://www.youtube.com/@crockenhillbaptistchurch9727/streams">
           See morning services on our YouTube channel.
         </x-button>
       </div>
@@ -39,7 +39,7 @@
         <li class="my-2">
           <div class="flex items-center">
             <x-icon-youtube class="h-5 w-5 mr-1" />
-            <a class="" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">Subscribe to our YouTube channel</a>
+            <a class="" href="https://www.youtube.com/@crockenhillbaptistchurch9727/streams">Subscribe to our YouTube channel</a>
           </div>
         </li>
       </ul>
