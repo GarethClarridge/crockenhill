@@ -3,7 +3,7 @@
 
     <x-card heading="Catch up">
       <div class="p-2 mb-3">
-        <x-button link="/https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
+        <x-button link="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA">
           See morning services on our YouTube channel.
         </x-button>
       </div>
