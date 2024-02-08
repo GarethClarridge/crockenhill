@@ -65,7 +65,7 @@
     </p>
     <p class="">
       You're more than welcome to join us - we'd love to see you! If you can't make it in person you can watch our morning services on
-      <a class="inline" href="https://www.youtube.com/channel/UCtSUTtkZlALToswWQpWS2kA/">
+      <a class="inline" href="https://www.youtube.com/@crockenhillbaptistchurch9727/streams">
         our YouTube channel
       </a> at 10:30am on Sundays.
     </p>
