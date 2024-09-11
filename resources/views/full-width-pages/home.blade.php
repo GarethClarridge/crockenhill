@@ -9,7 +9,42 @@
 
 <main id="home" class="text-sm">
 
-  <div class="full-width-head py-16 mb-16" style="background-image: linear-gradient( rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4) ), url({{ asset('/images/homepage/Collage.webp')}})">
+  <div class="full-width-head py-16 mb-16 hidden md:block" style="background-image: linear-gradient( rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3) ), url({{ asset('/images/homepage/may2024wide.webp')}}); background-position: right; background-size: cover;">
+    <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
+      <h1 class="text-white text-6xl font-display p-12 text-center md:text-left">
+        Crockenhill<br>
+        Baptist<br>
+        Church.<br>
+      </h1>
+
+      <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right">
+        <p class="hover:scale-110 my-2">
+          <a href="#worshipping-god">
+            <span class="px-2 py-1 bg-white ">
+              Worshipping God
+            </span>
+          </a>
+        </p>
+        <p class="hover:scale-110 my-2">
+          <a href="#strengthening-believers">
+            <span class="px-2 py-1 bg-white">
+              Strengthening believers
+            </span>
+          </a>
+        </p>
+        <p class="hover:scale-110 my-2">
+          <a href="#proclaiming-jesus-christ-to-all">
+            <span class="px-2 py-1 bg-white">
+              Proclaiming Jesus Christ to all
+            </span>
+          </a>
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="full-width-head py-16 mb-16 md:hidden" style="background-image: linear-gradient( rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2) ), url({{ asset('/images/homepage/may2024mobile.webp')}}); background-position: bottom; background-size: cover;">
     <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
       <h1 class="text-white text-6xl font-display p-12 text-center md:text-left">
         Crockenhill<br>
