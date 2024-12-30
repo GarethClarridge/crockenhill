@@ -111,7 +111,7 @@
       title=""
     /> -->
 
-  <section class="-mb-10 bg-cover bg-center bg-[url('/public/images/homepage/christmas2023.jpg')] bg-gray-700 bg-blend-multiply">
+  <!-- <section class="-mb-10 bg-cover bg-center bg-[url('/public/images/homepage/christmas2023.jpg')] bg-gray-700 bg-blend-multiply">
     <div class="my-10 px-4 mx-auto max-w-screen-xl text-center pt-24 pb-12">
       <h2 class="mb-20 text-4xl font-display leading-none text-white md:text-5xl lg:text-6xl">
         Christmas at Crockenhill Baptist Church
@@ -147,7 +147,7 @@
         Wednesday 25th, 10:30am
       </p>
     </div>
-  </section>
+  </section> -->
 
   <x-h2>
     Strengthening believers
