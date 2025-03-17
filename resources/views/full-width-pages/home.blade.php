@@ -82,7 +82,7 @@
   <x-text>
     <p class="">
       Crockenhill Baptist Church is friendly, Bible teaching church in
-      the village of Crockenhill, just outside Swanley and on the road between St Mary Cray and Eysnford.
+      the village of Crockenhill, just outside Swanley and on the road between St Mary Cray and Eynsford.
     </p>
 
   </x-text>
