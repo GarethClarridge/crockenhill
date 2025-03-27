@@ -72,6 +72,8 @@ Community
 
     <x-page-card :page="$pages->firstWhere('slug', 'family-talk')" />
 
+    <x-page-card :page="$pages->firstWhere('slug', 'buzz-club')" />
+
   </div>
 
 
