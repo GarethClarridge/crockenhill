@@ -23,7 +23,8 @@ Route::get('/', ['as' => 'Home', function () {
 Route::get(
   '/christmas',
   array(
-    'as' => 'christmas', function () {
+    'as' => 'christmas',
+    function () {
       return view('full-width-pages/christmas');
     }
   )
@@ -31,7 +32,8 @@ Route::get(
 Route::get(
   '/easter',
   array(
-    'as' => 'easter', function () {
+    'as' => 'easter',
+    function () {
       return view('full-width-pages/easter');
     }
   )
@@ -39,7 +41,8 @@ Route::get(
 Route::get(
   '/christianity-explored',
   array(
-    'as' => 'christianity-explored', function () {
+    'as' => 'christianity-explored',
+    function () {
       return view('full-width-pages/christianity-explored');
     }
   )
@@ -49,7 +52,8 @@ Route::get(
 Route::get(
   '/christ',
   array(
-    'as' => 'christ', function () {
+    'as' => 'christ',
+    function () {
       return view('full-width-pages/christ');
     }
   )
@@ -57,7 +61,8 @@ Route::get(
 Route::get(
   '/church',
   array(
-    'as' => 'church', function () {
+    'as' => 'church',
+    function () {
       return view('full-width-pages/church');
     }
   )
@@ -153,7 +158,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
   Route::post('songs/{id}/{title}/edit', 'SongController@updateSong');
 
   Route::resource('songs', 'SongController');
+
+  // Service recordings
+  Route::resource('services', 'ServiceController');
 });
+
+Route::get('phpinfo', fn() => phpinfo());
 
 // Permanent Redirects
 // - Very old website
