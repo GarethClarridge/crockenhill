@@ -21,6 +21,7 @@
 		"wapmorgan/mp3info": "^0.0.7"
 	},
   	"require-dev": {
+		"laravel/sail": "^1.43",
 		"mockery/mockery": "0.9.*",
 		"phpunit/phpunit": "^11.0"
 	},
