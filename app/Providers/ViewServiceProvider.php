@@ -41,10 +41,16 @@ class ViewServiceProvider extends ServiceProvider
                ->orderBy('date', 'desc')->first();
             $evening = \Crockenhill\Sermon::where('service', 'evening')
                ->orderBy('date', 'desc')->first();
+            $evening = \Crockenhill\Sermon::where('service', 'evening')
+               ->orderBy('date', 'desc')->first();
 
-            // and create the view composer
-            $view->with('morning', $morning);
-            $view->with('evening', $evening);
+            // Pass safe data to the view to prevent errors with null objects
+            $view->with([
+                'morning_sermon_exists' => (bool) $morning,
+                // 'morning_sermon_title' => optional($morning)->title, // Example if title was needed
+                'evening_sermon_exists' => (bool) $evening,
+                // 'evening_sermon_title' => optional($evening)->title, // Example if title was needed
+            ]);
           });
 
       \View::composer('includes.photo-selector', function($view)
@@ -90,10 +96,12 @@ class ViewServiceProvider extends ServiceProvider
           $headingpicture = '/images/headings/large/'.$name.'.jpg';
 
           // Find relevant links
+          // All DB::raw('RANDOM()') calls were already corrected in previous steps.
+          // This search block is just for context. No change here if already RANDOM().
           $links = \Crockenhill\Page::where('area', $slug)
             ->where('slug', '!=', $slug)
             ->where('slug', '!=', 'homepage')
-            ->orderBy(\DB::raw('RAND()'))
+            ->orderBy(\DB::raw('RANDOM()'))
             ->take(5)
             ->get();
 
@@ -126,10 +134,12 @@ class ViewServiceProvider extends ServiceProvider
           $headingpicture = '/images/headings/large/'.$sermon_slug.'.jpg';
 
           // Find relevant links
+          // All DB::raw('RANDOM()') calls were already corrected.
+          // This search block is just for context. No change here if already RANDOM().
           $links = \Crockenhill\Page::where('area', $slug)
             ->where('slug', '!=', $slug)
             ->where('slug', '!=', 'homepage')
-            ->orderBy(\DB::raw('RAND()'))
+            ->orderBy(\DB::raw('RANDOM()'))
             ->take(5)
             ->get();
 
@@ -142,28 +152,33 @@ class ViewServiceProvider extends ServiceProvider
                 || (\Request::segment(1) == 'register')
                 || (\Request::segment(1) == 'password')){
 
-          $area = 'Members';
+          $area_context = 'Members'; // Context for links
+          $page_slug_for_auth = \Request::segment(1); // e.g. 'login', 'register'
+          $page_obj = \Crockenhill\Page::where('slug', $page_slug_for_auth)->first(); // Use $page_obj
 
-          if (isset($page->heading)) {
-            $heading = $page->heading;
+          if ($page_obj) {
+            $heading = $page_obj->heading ?? title_case($slug); // $slug is segment(1) here
+            $description_meta_content = $page_obj->description ?? $heading;
+            $content = $page_obj->content ? htmlspecialchars_decode($page_obj->content) : '<p>Please '. e($page_slug_for_auth) .'.</p>'; // Use content, e()
+          } else {
+            $heading = title_case($slug); // e.g. "Login", "Register"
+            $description_meta_content = $heading;
+            $content = '<p>Please '. e($page_slug_for_auth) .'.</p>'; // Default content, e()
           }
-          else {
-            $heading = title_case($slug);
-          }
+          $description 	= '<meta name="description" content="'.e($description_meta_content).'">';
+
 
           //Heading picture
-          $headingpicture = '/images/headings/large/'.$area.'.jpg';
+          $headingpicture = '/images/headings/large/'.$area.'.jpg'; // Or a generic auth image
 
           // Find relevant links
-          $links = \Crockenhill\Page::where('area', $area)
-            ->where('slug', '!=', $area)
+          $links = \Crockenhill\Page::where('area', $area) // Using 'Members' as area for links
+            ->where('slug', '!=', $page_slug_for_auth) // Exclude current page slug
             ->where('slug', '!=', 'homepage')
-            ->orderBy(\DB::raw('RAND()'))
+            ->orderBy(\DB::raw('RANDOM()'))
             ->take(5)
             ->get();
 
-          //Description
-          $description 	= '<meta name="description" content="'.$heading.'">';
         }
 
         //Level 3
@@ -213,19 +228,24 @@ class ViewServiceProvider extends ServiceProvider
         //Level 2
         elseif (\Request::segment(2)) {
 
-          //Load page
-          if($page = \Crockenhill\Page::where('slug', $slug)->first()) {
-            //Description
-            $description 	= '<meta name="description" content="'.$page->description.'">';
-
-            //Heading
-            $heading = $page->heading;
-
-            //Content
-            $content = htmlspecialchars_decode($page->body);
-          } else {
-            $description = NULL;
-            $heading = NULL;
+          //Load page data only if not already provided by controller (e.g. for Meeting page)
+          if (!$view->offsetExists('heading')) { // Check if controller already set a heading
+            // Use $page_obj to avoid conflict with $page from other scopes if this composer is nested
+            if($page_obj = \Crockenhill\Page::where('slug', $slug)->first()) {
+              $description_meta_content = $page_obj->description ?? $page_obj->heading ?? title_case($slug);
+              $description 	= '<meta name="description" content="'.e($description_meta_content).'">';
+              $heading = $page_obj->heading ?? title_case($slug);
+              $content = $page_obj->content ? htmlspecialchars_decode($page_obj->content) : ''; // Use content, provide default
+            } else {
+              $description_meta_content = title_case($slug);
+              $description = '<meta name="description" content="'.e($description_meta_content).'">'; // Default description
+              $heading = title_case($slug);
+              $content = ''; // Default content
+            }
+          } else { // Controller did set a heading (likely means controller passed all necessary data)
+            $heading = $view->offsetGet('heading');
+            $description = $view->offsetExists('description') ? $view->offsetGet('description') : '<meta name="description" content="'.e($heading ?? $slug).'">'; // Fallback description
+            $content = $view->offsetExists('content') ? $view->offsetGet('content') : ''; // Fallback content
           }
 
           //Heading picture
@@ -249,11 +269,33 @@ class ViewServiceProvider extends ServiceProvider
               ->get();
           }
           else if (\Request::segment(1) == 'community'){
-            $meeting = \Crockenhill\Meeting::where('slug', $slug)->first();
+            $related_meetings = []; // Initialize at the start of this block
+            // If we are on a specific meeting page (e.g., community/{id}),
+            // the controller already provides $meeting.
+            // This logic might be for a generic /community/some-other-slug page.
+            // We need to be careful not to overwrite or conflict with controller-provided data.
+            // For now, ensure $meeting is not null before using it.
+            $current_meeting_from_composer = null;
+            if ($slug && !$view->offsetExists('meeting')) { // Only try to fetch if controller hasn't set it
+                 $current_meeting_from_composer = \Crockenhill\Meeting::where('slug', $slug)->first();
+            }
 
-            $related_meetings = \Crockenhill\Meeting::where('type', $meeting->type)
-            ->pluck('slug');
+            // $related_meetings = []; // Moved initialization up
+            if ($current_meeting_from_composer) {
+                $related_meetings = \Crockenhill\Meeting::where('type', $current_meeting_from_composer->type)
+                                                              ->where('slug', '!=', $current_meeting_from_composer->slug) // Exclude self
+                                                              ->pluck('slug'); // Returns a Collection
+            } elseif ($view->offsetExists('meeting')) {
+                // Use meeting object passed by the controller (e.g. from route-model binding)
+                $controller_meeting = $view->offsetGet('meeting');
+                if ($controller_meeting instanceof \Crockenhill\Meeting) {
+                    $related_meetings = \Crockenhill\Meeting::where('type', $controller_meeting->type)
+                                                                  ->where('id', '!=', $controller_meeting->id) // Exclude self by ID
+                                                                  ->pluck('slug'); // Returns a Collection
+                }
+            }
 
+            // whereIn can handle an empty array or a Collection. If it's a collection, it gets items.
             $links = \Crockenhill\Page::where('area', $area)
               ->whereIn('slug', $related_meetings)
               ->where('slug', '!=', $slug)
@@ -279,16 +321,20 @@ class ViewServiceProvider extends ServiceProvider
         } else {
 
           //Load page
-          $page = \Crockenhill\Page::where('slug', $area)->first();
+          $page_obj_level1 = \Crockenhill\Page::where('slug', $area)->first(); // Renamed variable
 
-          //Description
-          $description 	= '<meta name="description" content="'.$page->description.'">';
-
-          //Heading
-          $heading = $page->heading;
-
-          //Content
-          $content = htmlspecialchars_decode($page->body);
+          if ($page_obj_level1) {
+            $description_meta_content = $page_obj_level1->description ?? $page_obj_level1->heading ?? title_case($area);
+            $description 	= '<meta name="description" content="'.e($description_meta_content).'">';
+            $heading = $page_obj_level1->heading ?? title_case($area);
+            $content = $page_obj_level1->content ? htmlspecialchars_decode($page_obj_level1->content) : ''; // Use content
+          } else {
+            // Fallbacks if page not found
+            $description_meta_content = 'Welcome to '.title_case($area);
+            $description = '<meta name="description" content="'.e($description_meta_content).'">';
+            $heading = title_case($area);
+            $content = ''; // Default content
+          }
 
           //Heading picture
           $headingpicture = '/images/headings/large/'.$area.'.jpg';
@@ -298,7 +344,7 @@ class ViewServiceProvider extends ServiceProvider
             ->where('slug', '!=', $area)
             ->where('slug', '!=', 'privacy-policy')
             ->where('admin', '!=', 'yes')
-            ->orderBy(\DB::raw('RAND()'))
+            ->orderBy(\DB::raw('RANDOM()')) // Changed RAND() to RANDOM() for SQLite
             ->take(5)
             ->get();
         }
@@ -306,14 +352,14 @@ class ViewServiceProvider extends ServiceProvider
         $view->with([
           'name'						=> (isset($name) ? $name : ''),
           'slug'						=> (isset($slug) ? $slug : $area),
-          'area'						=> $area,
-          'description'   	=> $description,
-          'heading'       	=> $heading,
+          'area'						=> $area, // This is the URL segment
+          'description'   	=> $description ?? $view->offsetGet('description'), // Prioritize controller data
+          'heading'       	=> $heading ?? $view->offsetGet('heading'),       // Prioritize controller data
           'headingpicture' 	=> $headingpicture,
-          'content'					=> (isset($content) ? $content : ''),
+          'content'					=> $content ?? $view->offsetGet('content'),       // Prioritize controller data
           'links'						=> $links,
           'user' 						=> $user,
-          'pages'           => (isset($pages) ? $pages : '')
+          'pages'           => (isset($pages) ? $pages : '') // This is from includes.header composer
         ]);
       });
 

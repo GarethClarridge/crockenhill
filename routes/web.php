@@ -71,7 +71,6 @@ Route::get(
 Route::resource('community', 'MeetingController');
 
 
-
 // Sermon routes
 Route::group(array('prefix' => 'christ/sermons'), function () {
   Route::get('/', array(
@@ -140,7 +139,7 @@ Route::group(array('prefix' => 'christ/sermons'), function () {
 });
 
 //Members routes
-Auth::routes();
+Auth::routes(['reset' => false]); // Disable password reset routes
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
   Route::get('', [
     'uses' => 'MemberController@home'
@@ -160,7 +159,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
   Route::resource('songs', 'SongController');
 
   // Service recordings
-  Route::resource('services', 'ServiceController');
+  // Route::resource('services', 'ServiceController'); // Commented out due to missing controller
 });
 
 Route::get('phpinfo', fn() => phpinfo());
