@@ -44,7 +44,7 @@
               <tr>
                 <td class="px-4 py-2 border">
                   <a href="{{ route('community.show', $meeting->slug) }}" class="text-blue-600 hover:underline">
-                    {{ $meeting->title ?: Str::title(str_replace('-', ' ', $meeting->slug)) }}
+                    {{ $meeting->title ?: \Illuminate\Support\Str::title(str_replace('-', ' ', $meeting->slug)) }}
                   </a>
                 </td>
                 <td class="px-4 py-2 border">{{ $meeting->slug }}</td>
