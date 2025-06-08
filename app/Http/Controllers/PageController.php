@@ -2,171 +2,200 @@
 
 namespace Crockenhill\Http\Controllers;
 
+use App\Http\Requests\StorePageRequest;
+use App\Http\Requests\UpdatePageRequest;
+use App\Services\PageImageService;
+use Crockenhill\Page;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\Str;
 use League\CommonMark\CommonMarkConverter;
-use Intervention\Image\Image;
 
 class PageController extends Controller
 {
+    public function __construct(private PageImageService $pageImageService)
+    {
+    }
 
-  public function showPage()
+    // This method seems generic, leaving as is.
+    public function showPage()
   {
     return view('layouts/page');
   }
 
+  /**
+   * Display a listing of the resource.
+   *
+   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+   */
   public function index()
   {
-    if (\Gate::denies('edit-pages')) {
+    if (Gate::denies('edit-pages')) {
       abort(403);
     }
-    $pages = \Crockenhill\Page::orderBy('area', 'asc')->get();
+    $pages = Page::orderBy('area', 'asc')->get();
 
-    return view('pages.index', array(
-      'pages'         => $pages
-    ));
+    return View::make('pages.index', ['pages' => $pages]);
   }
 
+  /**
+   * Show the form for creating a new resource.
+   *
+   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+   */
   public function create()
   {
-    if (\Gate::denies('edit-pages')) {
+    if (Gate::denies('edit-pages')) {
       abort(403);
     }
-
-    return view('pages.create', array(
-      'heading' => 'Create a page'
-    ));
+    return View::make('pages.create', ['heading' => 'Create a page']);
   }
 
-  public function store()
+  /**
+   * Display the specified resource.
+   *
+   * @param Page $page
+   * @param CommonMarkConverter $converter
+   * @return \Illuminate\View\View
+   */
+  public function show(Page $page, CommonMarkConverter $converter)
   {
-    if (\Gate::denies('edit-pages')) {
-      abort(403);
-    }
+      $html = $converter->convert($page->markdown);
+      // The view 'pages.show' might expect $page->body, ensure consistency
+      // or update the view. Assuming $html is what's needed.
+      return View::make('pages.show')->with(compact('page', 'html'));
+  }
 
-    //Convert markdown
-    $converter = new CommonMarkConverter();
-    $markdown = \Request::input('markdown');
-    $html = $converter->convert($markdown);
+  /**
+   * Store a newly created resource in storage.
+   *
+   * @param StorePageRequest $request
+   * @param CommonMarkConverter $converter
+   * @return RedirectResponse
+   */
+  public function store(StorePageRequest $request, CommonMarkConverter $converter): RedirectResponse
+  {
+    $validated = $request->validated();
 
-    if (\Request::input('navigation-radio') == 'yes') {
-      $navigation = true;
-    } else {
-      $navigation = false;
-    };
+    $html = $converter->convert($validated['markdown']);
+    $navigation = ($validated['navigation-radio'] == 'yes');
 
-    $page = new \Crockenhill\Page;
-    $page->heading = \Request::input('heading');
-    $page->slug = \Illuminate\Support\Str::slug(\Request::input('heading'));
-    $page->area = \Request::input('area');
-    $page->markdown = $markdown;
+    $page = new Page;
+    $page->heading = $validated['heading'];
+    $page->slug = Str::slug($validated['heading']);
+    $page->area = $validated['area'];
+    $page->markdown = $validated['markdown'];
     $page->body = trim($html);
-    $page->description = \Request::input('description');
+    $page->description = $validated['description'] ?? null;
     $page->navigation = $navigation;
-    $page->save();
+    $page->save(); // Save once to ensure $page->slug is set for image path
 
-    if (\Request::file('heading-image')) {
-      // create new image instance
-      $image = \Image::make(\Request::file('heading-image')->getRealPath());
-
-      // Make large image for article
-      $image->resize(2000, null, function ($constraint) {
-        $constraint->aspectRatio();
-        $constraint->upsize();
-      })
-        ->save('images/headings/large/' . $slug . '.jpg');
-
-      // Make smaller image for aside
-      $image->resize(300, null, function ($constraint) {
-        $constraint->aspectRatio();
-        $constraint->upsize();
-      })
-        ->save('images/headings/small/' . $slug . '.jpg');
-    };
-
-    return redirect('/church/members/pages')->with('message', $page->heading . ' successfully created!');
-  }
-
-  public function edit($slug)
-  {
-    if (\Gate::denies('edit-pages')) {
-      abort(403);
+    if ($request->hasFile('heading-image')) {
+        $this->pageImageService->handleImageUpload($request->file('heading-image'), $page->slug);
     }
 
-    session(['backUrl' => url()->previous()]);
+    Session::flash('message', $page->heading . ' successfully created!');
+    return Redirect::to('/church/members/pages');
+  }
 
-    $page = \Crockenhill\Page::where('slug', $slug)->first();
+  /**
+   * Show the form for editing the specified resource.
+   *
+   * @param Page $page
+   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+   */
+  public function edit(Page $page)
+  {
+    if (Gate::denies('edit-pages')) {
+        abort(403);
+    }
+
+    // session(['backUrl' => url()->previous()]); // Consider if this is still needed or handled differently
+    Session::put('backUrl', url()->previous());
+
+
     $heading = 'Edit page';
-    $headingpicture = '/images/headings/large/' . $slug . '.jpg';
+    // Assuming images are always jpg as per store method.
+    // If image_extension was stored on the model, that could be used.
+    $headingpicture = '/images/headings/large/' . $page->slug . '.jpg';
+    if (!file_exists(public_path($headingpicture))) {
+        $headingpicture = null; // Or a default image
+    }
 
-    return view('pages.edit', array(
-      'page'             => $page,
-      'heading'         => $heading,
-      'headingpicture'  => $headingpicture
-    ));
+
+    return View::make('pages.edit', [
+        'page' => $page,
+        'heading' => $heading,
+        'headingpicture' => $headingpicture
+    ]);
   }
 
-  public function update($slug)
+  /**
+   * Update the specified resource in storage.
+   *
+   * @param UpdatePageRequest $request
+   * @param Page $page
+   * @param CommonMarkConverter $converter
+   * @return RedirectResponse
+   */
+  public function update(UpdatePageRequest $request, Page $page, CommonMarkConverter $converter): RedirectResponse
   {
-    if (\Gate::denies('edit-pages')) {
-      abort(403);
-    }
+    $validated = $request->validated();
 
-    //Convert markdown
-    $converter = new CommonMarkConverter();
-    $markdown = \Request::input('markdown');
-    $html = $converter->convert($markdown);
+    $html = $converter->convert($validated['markdown']);
+    $navigation = ($validated['navigation-radio'] == 'yes');
 
-    if (\Request::file('heading-image')) {
-      // create new image instance
-      $image = \Image::make(\Request::file('heading-image')->getRealPath());
-
-      // Make large image for article
-      $image->resize(2000, null, function ($constraint) {
-        $constraint->aspectRatio();
-        $constraint->upsize();
-      })
-        ->save('images/headings/large/' . $slug . '.jpg');
-
-      // Make smaller image for aside
-      $image->resize(300, null, function ($constraint) {
-        $constraint->aspectRatio();
-        $constraint->upsize();
-      })
-        ->save('images/headings/small/' . $slug . '.jpg');
-    }
-
-    if (\Request::input('navigation-radio') == 'yes') {
-      $navigation = true;
-    } else {
-      $navigation = false;
-    };
-
-
-    $page = \Crockenhill\Page::where('slug', $slug)->first();
-    $page->heading = \Request::input('heading');
-    $page->slug = \Illuminate\Support\Str::slug(\Request::input('heading'));
-    $page->description = \Request::input('description');
-    $page->area = \Request::input('area');
+    $page->heading = $validated['heading'];
+    $page->description = $validated['description'] ?? null;
+    $page->area = $validated['area'];
     $page->navigation = $navigation;
-    $page->markdown = $markdown;
+    $page->markdown = $validated['markdown'];
     $page->body = trim($html);
+
+    $newSlug = Str::slug($validated['heading']);
+    $oldSlug = $page->slug; // Get the original slug
+
+    if ($oldSlug !== $newSlug) {
+        $this->pageImageService->deleteImages($oldSlug);
+        $page->slug = $newSlug;
+    }
+
+    if ($request->hasFile('heading-image')) {
+        // If a new image is uploaded and slug has changed, old images (by oldSlug) are already deleted.
+        // If slug hasn't changed, handleImageUpload will overwrite.
+        // If new image but old slug had no image, it will create.
+        $this->pageImageService->handleImageUpload($request->file('heading-image'), $page->slug);
+    }
+
     $page->save();
 
-    $backUrl = session('backUrl');
+    $backUrl = Session::get('backUrl');
+    Session::forget('backUrl'); // Clean up session variable
 
-    return ($backUrl !== url()->previous())
-      ? redirect($backUrl)->with('message', $page->heading . ' successfully updated!')
-      : redirect('/church/members/pages')->with('message', $page->heading . ' successfully updated!');
+    return ($backUrl && $backUrl !== url()->previous()) // Check if backUrl exists
+      ? Redirect::to($backUrl)->with('message', $page->heading . ' successfully updated!')
+      : Redirect::to('/church/members/pages')->with('message', $page->heading . ' successfully updated!');
   }
 
-  public function destroy($slug)
+  /**
+   * Remove the specified resource from storage.
+   *
+   * @param Page $page
+   * @return RedirectResponse
+   */
+  public function destroy(Page $page): RedirectResponse
   {
-    if (\Gate::denies('edit-pages')) {
-      abort(403);
+    if (Gate::denies('edit-pages')) {
+        abort(403);
     }
 
-    $page = \Crockenhill\Page::where('slug', $slug)->first();
+    $this->pageImageService->deleteImages($page->slug);
     $page->delete();
 
-    return redirect('/church/members/pages')->with('message', $page->heading . ' successfully deleted!');
+    Session::flash('message', $page->heading . ' successfully deleted!');
+    return Redirect::to('/church/members/pages');
   }
 }
