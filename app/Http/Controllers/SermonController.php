@@ -231,7 +231,10 @@ class SermonController extends Controller
     // to an array when $sermon->points is assigned and saved.
     // Update points only if the key exists in validated data (meaning it was submitted and passed validation)
     if (array_key_exists('points', $validatedData)) {
-        $sermon->points = $validatedData['points']; // $validatedData['points'] is already validated JSON string or null
+        // Explicitly decode JSON string to array here.
+        // If $validatedData['points'] is null, json_decode(null, true) is null.
+        // If $validatedData['points'] is a valid JSON string, it's decoded to an array.
+        $sermon->points = $validatedData['points'] ? json_decode($validatedData['points'], true) : null;
     }
 
     if ($sermon->save()) {

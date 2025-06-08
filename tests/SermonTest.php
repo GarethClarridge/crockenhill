@@ -146,6 +146,15 @@ class SermonTest extends TestCase
         // Also check new slug
         $this->assertEquals(Str::slug('Updated Sermon Title'), $sermon->slug);
 
+        // Now, fetch the sermon's show page and check if points are rendered
+        // $sermonDate was defined earlier for the update URL. We need year/month for the show URL.
+        // The slug might have changed if the title changed, so use $sermon->slug (refreshed).
+        $showUrl = "/christ/sermons/" . (new \DateTime($sermon->date))->format('Y') . "/" . (new \DateTime($sermon->date))->format('m') . "/{$sermon->slug}";
+        $showResponse = $this->get($showUrl);
+        $showResponse->assertStatus(200);
+        $showResponse->assertSee('New Point 1'); // Check for the main point text
+        $showResponse->assertSee('New Sub 1.1'); // Check for the sub-point text
+
         Auth::logout();
     }
 
@@ -418,6 +427,74 @@ class SermonTest extends TestCase
         $response = $this->get("/christ/sermons/service/{$serviceType}");
         $response->assertStatus(200);
         $response->assertSee('Morning Service Sermon');
+    }
+
+    public function test_update_sermon_with_null_points_does_not_render_points_section()
+    {
+        Auth::loginUsingId(2); // Authorized user
+        $sermon = $this->createTestSermon([
+            'points' => json_encode([['point' => 'Initial Point', 'sub_points' => ['Initial Sub']]])
+        ]);
+
+        $updatedData = [
+            'title' => $sermon->title, // Keep other fields same or update as needed
+            'date' => $sermon->date,
+            'service' => $sermon->service,
+            'preacher' => $sermon->preacher,
+            'points' => null, // Send null for points (UpdateSermonRequest allows nullable)
+        ];
+
+        $sermonDate = new \DateTime($sermon->date);
+        $updateUrl = "/christ/sermons/" . $sermonDate->format('Y') . "/" . $sermonDate->format('m') . "/{$sermon->slug}/edit";
+
+        $response = $this->post($updateUrl, $updatedData); // POST to /edit as per form
+        $response->assertStatus(302); // Expect redirect
+
+        $sermon->refresh();
+        $this->assertNull($sermon->points);
+
+        // Fetch the show page
+        $showUrl = "/christ/sermons/" . $sermonDate->format('Y') . "/" . $sermonDate->format('m') . "/{$sermon->slug}";
+        $showResponse = $this->get($showUrl);
+        $showResponse->assertStatus(200);
+        $showResponse->assertDontSee('Sermon Outline'); // The H2 heading for points section
+        $showResponse->assertDontSee('Initial Point'); // Ensure old points are gone
+
+        Auth::logout();
+    }
+
+    public function test_update_sermon_with_empty_array_points_does_not_render_points_section()
+    {
+        Auth::loginUsingId(2); // Authorized user
+        $sermon = $this->createTestSermon([
+            'points' => json_encode([['point' => 'Another Initial Point']])
+        ]);
+
+        $updatedData = [
+            'title' => $sermon->title,
+            'date' => $sermon->date,
+            'service' => $sermon->service,
+            'preacher' => $sermon->preacher,
+            'points' => '[]', // Send JSON string for empty array
+        ];
+
+        $sermonDate = new \DateTime($sermon->date);
+        $updateUrl = "/christ/sermons/" . $sermonDate->format('Y') . "/" . $sermonDate->format('m') . "/{$sermon->slug}/edit";
+
+        $response = $this->post($updateUrl, $updatedData);
+        $response->assertStatus(302);
+
+        $sermon->refresh();
+        $this->assertEquals([], $sermon->points); // Expect empty array
+
+        // Fetch the show page
+        $showUrl = "/christ/sermons/" . $sermonDate->format('Y') . "/" . $sermonDate->format('m') . "/{$sermon->slug}";
+        $showResponse = $this->get($showUrl);
+        $showResponse->assertStatus(200);
+        $showResponse->assertDontSee('Sermon Outline');
+        $showResponse->assertDontSee('Another Initial Point');
+
+        Auth::logout();
     }
 
     public function test_edit_sermon_form_pre_populates_date_correctly()
