@@ -15,6 +15,7 @@
 		"league/commonmark": "^2.2",
 		"owen-oj/laravel-getid3": "^2.2",
 		"pbmedia/laravel-ffmpeg": "^8.7",
+		"pusher/pusher-php-server": "^7.2",
 		"symfony/http-client": "^6.0",
 		"symfony/mailgun-mailer": "^6.0",
 		"symfony/postmark-mailer": "^6.0",
