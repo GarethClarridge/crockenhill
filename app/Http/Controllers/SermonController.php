@@ -12,6 +12,8 @@ use Crockenhill\Page;
 use Illuminate\Support\Facades\DB; // Added for DB facade
 use Illuminate\Support\Facades\Storage; // Added for Storage facade
 use Crockenhill\Http\Requests\StoreSermonRequest; // Added for Form Request
+use Crockenhill\Http\Requests\UpdateSermonRequest; // Added for Update Form Request
+use Crockenhill\Http\Requests\PostSermonRequest; // Added for Post Form Request
 
 class SermonController extends Controller
 {
@@ -208,24 +210,34 @@ class SermonController extends Controller
    * @param  int  $id
    * @return Response
    */
-  public function update($year, $month, $slug, Request $request)
+  public function update($year, $month, $slug, UpdateSermonRequest $request) // Changed Request to UpdateSermonRequest
   {
-    if (Gate::denies('edit-sermons')) {
-      abort(403);
-    }
+    // Gate check removed, handled by UpdateSermonRequest
 
     $sermon = $this->findSermonOrFail((int)$year, (int)$month, $slug);
-    $sermon->title      = trim($request->input('title'));
-    $sermon->date       = $request->input('date');
-    $sermon->service    = $request->input('service');
-    $sermon->slug       = Str::slug($request->input('title'));
-    $sermon->series     = trim($request->input('series'));
-    $sermon->reference  = trim($request->input('reference'));
-    $sermon->preacher   = trim($request->input('preacher'));
-    $sermon->points     = trim($request->input('points')); // Points handling in update is not changed to JSON as per subtask note.
+
+    $validatedData = $request->validated();
+
+    $sermon->title      = $validatedData['title'];
+    $sermon->date       = $validatedData['date'];
+    $sermon->service    = $validatedData['service'];
+    $sermon->slug       = Str::slug($validatedData['title']); // Update slug if title changes
+    $sermon->series     = $validatedData['series'] ?? null;
+    $sermon->reference  = $validatedData['reference'] ?? null;
+    $sermon->preacher   = $validatedData['preacher'];
+
+    // The 'points' attribute from $validatedData will be a JSON string or null.
+    // The Sermon model's $casts property will automatically convert this JSON string
+    // to an array when $sermon->points is assigned and saved.
+    if (isset($validatedData['points'])) {
+        $sermon->points = $validatedData['points'];
+    } else {
+        $sermon->points = null; // Explicitly set to null if not provided or cleared
+    }
+
     $sermon->save();
 
-    return redirect()->route('sermonIndex')->with('message', '"' . $request->input('title') . '" successfully updated!');
+    return redirect()->route('sermonIndex')->with('message', '"' . $sermon->title . '" successfully updated!');
   }
 
   /**
@@ -335,17 +347,13 @@ class SermonController extends Controller
    *
    * @return Response
    */
-  public function post(Request $request)
+  public function post(PostSermonRequest $request) // Changed from Request to PostSermonRequest
   {
-    if (Gate::denies('edit-sermons')) {
-        abort(403);
-    }
+    // Manual Gate check removed
+    // Manual file validation check removed
 
-    if (!$request->hasFile('file') || !$request->file('file')->isValid()) {
-        return redirect()->back()->with('error', 'No valid file uploaded.');
-    }
-
-    $file = $request->file('file');
+    // $request is now an instance of PostSermonRequest, validation has passed.
+    $file = $request->file('file'); // This is safe to call now.
 
     // ID3 - get info from the temporary uploaded file
     $track = new \Owenoj\LaravelGetId3\GetId3($file); // Pass the UploadedFile object
@@ -361,6 +369,8 @@ class SermonController extends Controller
       $service = 'morning';
     } elseif (Str::afterLast($originalFilenameBase, '-') === 'pm') {
       $service = 'evening';
+    } else {
+      $service = 'other'; // Default service if not 'am' or 'pm'
     };
 
     //Reference
@@ -378,16 +388,17 @@ class SermonController extends Controller
 
     $sermon = new \Crockenhill\Sermon;
     $sermon->title      = $track->getTitle();
-    $sermon->filename   = $path; // Use the new path
-    $sermon->date       = $date;
+    $sermon->filename   = $path;
+    $sermon->date       = $date; // This date is parsed from filename, might need validation/conversion
     $sermon->service    = $service;
-    $sermon->slug       = Str::slug($track->getTitle());
+    $sermon->slug       = Str::slug($track->getTitle() ?? $originalFilenameBase); // Fallback for slug
     $sermon->series     = $track->getAlbum();
     $sermon->reference  = $reference;
     $sermon->preacher   = $track->getArtist();
+    // Points are not handled by this upload method.
     $sermon->save();
 
-    return redirect()->route('sermonIndex')->with('message', $track->getTitle() . ' successfully posted!');
+    return redirect()->route('sermonIndex')->with('message', ($track->getTitle() ?? 'Sermon') . ' successfully posted!');
   }
 
   private function findSermonOrFail(int $year, int $month, string $slug): \Crockenhill\Sermon
