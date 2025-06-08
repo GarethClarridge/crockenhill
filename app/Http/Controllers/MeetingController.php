@@ -239,7 +239,7 @@ class MeetingController extends Controller {
         // This will throw an AuthorizationException (resulting in a 403 response) if fails.
         Gate::authorize('edit-pages');
 
-        $meetings = Meeting::orderBy('title', 'asc')->get();
+        $meetings = Meeting::orderByRaw('COALESCE(title, slug) asc')->get();
         // Alternatively, for pagination:
         // $meetings = Meeting::orderBy('title', 'asc')->paginate(20);
 
