@@ -83,7 +83,7 @@
 
           <div>
             <label class="block mt-6" for="heading-image">Upload a new heading image</label>
-            <input name="heading-image" type="file" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-2 px-4 text-lg leading-normal rounded" id="heading-image" onchange=file_changed() aria-describedby="heading-image">
+            <input name="heading-image" type="file" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 py-2 px-4 text-lg leading-normal rounded" id="heading-image" aria-describedby="heading-image">
           </div>
 
       </div>
@@ -123,38 +123,5 @@
       <!-- @include('includes.photo-selector') -->
     </div>
   </form>
-
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.6.0/showdown.min.js
-" charset="utf-8"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js" charset="utf-8"></script>
-<script type="text/javascript">
-
-  function markdownInit() {
-    var markdown      = document.getElementById("markdown-input");
-    var render        = document.getElementById("rendered-content");
-    markdown.onfocus = function blankRender() {
-      render.innerHTML = '';
-    }
-    markdown.onblur = function markdown() {
-      var converter     = new showdown.Converter();
-      var markdown      = document.getElementById("markdown-input");
-      render.innerHTML  = converter.makeHtml(markdown.value);
-    }
-  }
-
-  window.onload = markdownInit();
-
-  function file_changed(){
-    var selectedFile = document.getElementById('heading-image').files[0];
-    var img = document.getElementById('headingpicture')
-
-    var reader = new FileReader();
-    reader.onload = function(){
-      img.src = this.result
-    }
-    reader.readAsDataURL(selectedFile);
-  }
-</script>
 
 @stop
