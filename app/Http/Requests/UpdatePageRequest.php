@@ -1,10 +1,15 @@
 <?php
 
-namespace App\Http\Requests;
+namespace Crockenhill\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
+/**
+ * Form Request for validating and authorizing the update of an existing Page.
+ * Handles the validation rules for all fields related to a page
+ * and ensures the user has 'edit-pages' permission.
+ */
 class UpdatePageRequest extends FormRequest
 {
     /**

@@ -1,20 +1,26 @@
 <?php
 
-namespace App\Services;
+namespace Crockenhill\Services;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
 
+/**
+ * Service class for handling page heading image uploads, processing, and deletion.
+ * Encapsulates logic related to storing and managing different sizes of page images.
+ */
 class PageImageService
 {
     private $storageDisk = 'public_images';
 
     /**
      * Handles the upload and processing of a page heading image.
+     * Creates large (2000px wide) and small (300px wide) versions of the image.
+     * Images are saved as JPEGs.
      *
-     * @param UploadedFile $file The uploaded file instance.
-     * @param string $slug The slug of the page.
+     * @param \Illuminate\Http\UploadedFile $file The uploaded file instance.
+     * @param string $slug The slug of the page, used in the filename.
      * @return void
      */
     public function handleImageUpload(UploadedFile $file, string $slug): void
@@ -44,9 +50,9 @@ class PageImageService
     }
 
     /**
-     * Deletes the heading images associated with a slug.
+     * Deletes the large and small heading images associated with a given slug.
      *
-     * @param string $slug The slug of the page.
+     * @param string $slug The slug of the page whose images should be deleted.
      * @return void
      */
     public function deleteImages(string $slug): void

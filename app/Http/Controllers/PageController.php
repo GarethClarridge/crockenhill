@@ -2,9 +2,9 @@
 
 namespace Crockenhill\Http\Controllers;
 
-use App\Http\Requests\StorePageRequest;
-use App\Http\Requests\UpdatePageRequest;
-use App\Services\PageImageService;
+use Crockenhill\Http\Requests\StorePageRequest;
+use Crockenhill\Http\Requests\UpdatePageRequest;
+use Crockenhill\Services\PageImageService;
 use Crockenhill\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -16,20 +16,31 @@ use League\CommonMark\CommonMarkConverter;
 
 class PageController extends Controller
 {
+    /**
+     * PageController constructor.
+     *
+     * @param PageImageService $pageImageService Service for handling page image uploads and deletions.
+     */
     public function __construct(private PageImageService $pageImageService)
     {
     }
 
-    // This method seems generic, leaving as is.
+    /**
+     * Display a generic page layout.
+     * Note: This method seems generic and might not be directly related to CRUD of specific page models.
+     *
+     * @return \Illuminate\View\View
+     */
     public function showPage()
   {
     return view('layouts/page');
   }
 
   /**
-   * Display a listing of the resource.
+   * Display a listing of all pages for administrative purposes.
+   * Requires 'edit-pages' authorization.
    *
-   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse Returns a view with all pages or redirects if not authorized.
    */
   public function index()
   {
@@ -42,9 +53,10 @@ class PageController extends Controller
   }
 
   /**
-   * Show the form for creating a new resource.
+   * Show the form for creating a new page.
+   * Requires 'edit-pages' authorization.
    *
-   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse Returns the page creation view or redirects if not authorized.
    */
   public function create()
   {
@@ -55,11 +67,12 @@ class PageController extends Controller
   }
 
   /**
-   * Display the specified resource.
+   * Display the specified page to the public.
+   * Uses route model binding to fetch the Page by its slug.
    *
-   * @param Page $page
-   * @param CommonMarkConverter $converter
-   * @return \Illuminate\View\View
+   * @param \Crockenhill\Page $page The Page model instance.
+   * @param \League\CommonMark\CommonMarkConverter $converter Service to convert markdown to HTML.
+   * @return \Illuminate\View\View Returns the view for displaying the page.
    */
   public function show(Page $page, CommonMarkConverter $converter)
   {
@@ -70,11 +83,12 @@ class PageController extends Controller
   }
 
   /**
-   * Store a newly created resource in storage.
+   * Store a newly created page in storage.
+   * Validated and authorized by StorePageRequest.
    *
-   * @param StorePageRequest $request
-   * @param CommonMarkConverter $converter
-   * @return RedirectResponse
+   * @param \Crockenhill\Http\Requests\StorePageRequest $request The validated request for storing a page.
+   * @param \League\CommonMark\CommonMarkConverter $converter Service to convert markdown to HTML.
+   * @return \Illuminate\Http\RedirectResponse Redirects to the pages index with a success message.
    */
   public function store(StorePageRequest $request, CommonMarkConverter $converter): RedirectResponse
   {
@@ -102,10 +116,11 @@ class PageController extends Controller
   }
 
   /**
-   * Show the form for editing the specified resource.
+   * Show the form for editing the specified page.
+   * Requires 'edit-pages' authorization. Uses route model binding.
    *
-   * @param Page $page
-   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
+   * @param \Crockenhill\Page $page The Page model instance to edit.
+   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse Returns the page editing view or redirects if not authorized.
    */
   public function edit(Page $page)
   {
@@ -134,12 +149,13 @@ class PageController extends Controller
   }
 
   /**
-   * Update the specified resource in storage.
+   * Update the specified page in storage.
+   * Validated and authorized by UpdatePageRequest. Uses route model binding.
    *
-   * @param UpdatePageRequest $request
-   * @param Page $page
-   * @param CommonMarkConverter $converter
-   * @return RedirectResponse
+   * @param \Crockenhill\Http\Requests\UpdatePageRequest $request The validated request for updating a page.
+   * @param \Crockenhill\Page $page The Page model instance to update.
+   * @param \League\CommonMark\CommonMarkConverter $converter Service to convert markdown to HTML.
+   * @return \Illuminate\Http\RedirectResponse Redirects with a success message.
    */
   public function update(UpdatePageRequest $request, Page $page, CommonMarkConverter $converter): RedirectResponse
   {
@@ -181,10 +197,11 @@ class PageController extends Controller
   }
 
   /**
-   * Remove the specified resource from storage.
+   * Remove the specified page from storage.
+   * Requires 'edit-pages' authorization. Uses route model binding.
    *
-   * @param Page $page
-   * @return RedirectResponse
+   * @param \Crockenhill\Page $page The Page model instance to delete.
+   * @return \Illuminate\Http\RedirectResponse Redirects to the pages index with a success message.
    */
   public function destroy(Page $page): RedirectResponse
   {
