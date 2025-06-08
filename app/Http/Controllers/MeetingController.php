@@ -1,5 +1,14 @@
 <?php namespace Crockenhill\Http\Controllers;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Crockenhill\Meeting;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\Rule; // Added for unique rule in update
+// Gate facade might be needed if uncommenting authorization checks
+// use Illuminate\Support\Facades\Gate;
+
 class MeetingController extends Controller {
 
 	/**
@@ -20,7 +29,12 @@ class MeetingController extends Controller {
 	 */
 	public function create()
 	{
-		//
+        // Assuming 'edit-meetings' or a similar permission would be used.
+        // For now, let's mirror 'edit-pages' or assume direct access if no specific meeting perm yet.
+        // if (Gate::denies('edit-meetings')) { // Or 'edit-pages'
+        //     abort(403);
+        // }
+        return view('meetings.create'); // Assumes this view will be created
 	}
 
 
@@ -29,10 +43,41 @@ class MeetingController extends Controller {
 	 *
 	 * @return Response
 	 */
-	public function store()
-	{
-		//
-	}
+    public function store(Request $request)
+    {
+        // if (Gate::denies('edit-meetings')) { // Or 'edit-pages'
+        //     abort(403);
+        // }
+
+        $validatedData = $request->validate([
+            'title' => 'required|string|max:255',
+            'slug' => 'required|string|unique:meetings,slug|max:75',
+            'type' => 'required|string|in:SundayAndBibleStudies,ChildrenAndYoungPeople,Adults,Occasional',
+            'day' => 'required|string|max:75',
+            'location' => 'required|string|max:75',
+            'who' => 'required|string|max:75',
+            'StartTime' => 'nullable|date_format:H:i', // Assumes H:i format for time
+            'EndTime' => 'nullable|date_format:H:i|after_or_equal:StartTime',
+            'pictures' => 'nullable|boolean',
+            'LeadersPhone' => 'nullable|string|max:10',
+            'LeadersEmail' => 'nullable|email|max:50',
+        ]);
+
+        // Handle boolean for pictures if it comes as 'on' or similar from form
+        $validatedData['pictures'] = $request->has('pictures');
+
+        // If slug is not provided or needs to be auto-generated from title:
+        // if (empty($validatedData['slug'])) {
+        //     $validatedData['slug'] = Str::slug($validatedData['title']);
+        //     // Re-validate slug for uniqueness if auto-generated, or handle potential collision.
+        // }
+
+        $meeting = Meeting::create($validatedData);
+
+        Session::flash('message', $meeting->title . ' successfully created!');
+        // Redirect to the new meeting's show page, using 'community' as the route name base
+        return Redirect::route('community.show', $meeting->slug);
+    }
 
 
 	/**
@@ -43,8 +88,10 @@ class MeetingController extends Controller {
 	 */
 	public function show($slug)
 	{
-  	$meeting 			= \Crockenhill\Meeting::where('slug', $slug)->first();
-    $type					= $meeting->type;
+	$meeting 			= \Crockenhill\Meeting::where('slug', $slug)->firstOrFail(); // Use firstOrFail to handle not found
+
+    $title        = $meeting->title; // New title field
+    $type					= $meeting->type;   // Existing ENUM type
     $starttime		= $meeting->StartTime;
     $endtime			= $meeting->EndTime;
     $day 					= $meeting->day;
@@ -54,15 +101,17 @@ class MeetingController extends Controller {
     $email				= $meeting->LeadersEmail;
 
     //Photos
-    if ($meeting->pictures === '1') {
+    // Assuming 'pictures' is cast to boolean in the Meeting model
+    if ($meeting->pictures) {
     	$filelist = scandir($_SERVER['DOCUMENT_ROOT'].'/images/meetings/'.$slug);
     	$photos 	= array_slice($filelist, 2);
     } else {
     	$photos = '';
     }
 
-		return view('meetings.meeting', array(
+		return view('meetings.meeting', [ // Use short array syntax for consistency if preferred
 		    'slug'          => $slug,
+        'title'         => $title, // Pass the new title
         'type'					=> $type,
         'starttime'			=> $starttime,
         'endtime'				=> $endtime,
@@ -72,7 +121,7 @@ class MeetingController extends Controller {
         'phone'					=> $phone,
         'email'					=> $email,
         'photos'				=> $photos
-		));
+		]);
 	}
 
 
@@ -82,22 +131,55 @@ class MeetingController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function edit($id)
+	public function edit(Meeting $community) // Using Route Model Binding
 	{
-		//
+        // if (Gate::denies('edit-meetings')) { // Or 'edit-pages'
+        //     abort(403);
+        // }
+        // The variable $community (singular of resource name 'community') is injected by RMB
+        return view('meetings.edit', ['meeting' => $community]);
 	}
 
 
 	/**
 	 * Update the specified resource in storage.
 	 *
-	 * @param  int  $id
+	 * @param  int  $id // This will be Meeting $community due to RMB
 	 * @return Response
 	 */
-	public function update($id)
-	{
-		//
-	}
+    public function update(Request $request, Meeting $community) // Using Route Model Binding
+    {
+        // if (Gate::denies('edit-meetings')) { // Or 'edit-pages'
+        //     abort(403);
+        // }
+
+        $validatedData = $request->validate([
+            'title' => 'required|string|max:255',
+            'slug' => [
+                'required',
+                'string',
+                Rule::unique('meetings', 'slug')->ignore($community->id),
+                'max:75'
+            ],
+            'type' => 'required|string|in:SundayAndBibleStudies,ChildrenAndYoungPeople,Adults,Occasional',
+            'day' => 'required|string|max:75',
+            'location' => 'required|string|max:75',
+            'who' => 'required|string|max:75',
+            'StartTime' => 'nullable|date_format:H:i',
+            'EndTime' => 'nullable|date_format:H:i|after_or_equal:StartTime',
+            'pictures' => 'nullable|boolean',
+            'LeadersPhone' => 'nullable|string|max:10',
+            'LeadersEmail' => 'nullable|email|max:50',
+        ]);
+
+        $validatedData['pictures'] = $request->has('pictures');
+
+        $community->update($validatedData);
+
+        Session::flash('message', $community->title . ' successfully updated!');
+        // Redirect to the meeting's show page, using 'community' as the route name base
+        return Redirect::route('community.show', $community->slug);
+    }
 
 
 	/**
