@@ -130,10 +130,9 @@ class SermonTest extends TestCase
         ];
 
         $sermonDate = new \DateTime($sermon->date); // Ensure date is treated as such
-        $response = $this->put(
-            "/christ/sermons/" . $sermonDate->format('Y') . "/" . $sermonDate->format('m') . "/{$sermon->slug}",
-            $updatedData
-        );
+        // Corrected URL and HTTP method
+        $updateUrl = "/christ/sermons/" . $sermonDate->format('Y') . "/" . $sermonDate->format('m') . "/{$sermon->slug}/edit";
+        $response = $this->post($updateUrl, $updatedData); // Changed from put() to post() and updated URL
 
         $response->assertStatus(302);
         $response->assertRedirect(route('sermonIndex')); // As per controller
@@ -419,5 +418,66 @@ class SermonTest extends TestCase
         $response = $this->get("/christ/sermons/service/{$serviceType}");
         $response->assertStatus(200);
         $response->assertSee('Morning Service Sermon');
+    }
+
+    public function test_edit_sermon_form_pre_populates_date_correctly()
+    {
+        Auth::loginUsingId(2); // Authorized user
+        $testDate = '2023-07-15';
+        $sermon = $this->createTestSermon(['date' => $testDate]);
+
+        $sermonDateObj = new \DateTime($sermon->date); // Use the actual sermon date for URL
+        $editUrl = "/christ/sermons/" . $sermonDateObj->format('Y') . "/" . $sermonDateObj->format('m') . "/{$sermon->slug}/edit";
+
+        $response = $this->get($editUrl);
+
+        $response->assertStatus(200);
+        // Assert that the input field for date contains the correctly formatted date
+        // The name of the input is 'date', and its value should be $testDate
+        $response->assertSee('<input type="date" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="date" name="date" value="' . $testDate . '">', false); // 'false' to not escape HTML
+
+        Auth::logout();
+    }
+
+    public function test_edit_sermon_form_does_not_have_duplicate_breadcrumbs()
+    {
+        Auth::loginUsingId(2); // Authorized user
+        $sermon = $this->createTestSermon();
+
+        $sermonDateObj = new \DateTime($sermon->date);
+        $editUrl = "/christ/sermons/" . $sermonDateObj->format('Y') . "/" . $sermonDateObj->format('m') . "/{$sermon->slug}/edit";
+
+        $response = $this->get($editUrl);
+
+        $response->assertStatus(200);
+        // Assert that the specific manually added breadcrumb structure is NOT present.
+        // We check for a unique string from that old structure.
+        // For example, the link to the sermon itself within those old breadcrumbs.
+        // The old structure was: Home > Sermons > [Series] > Sermon Title (link) > Edit
+        // The link to sermon title was: <a href="/christ/sermons/{year}/{month}/{slug}" ...>{{ $sermon->title }}</a>
+        // Let's check if this specific link structure is absent.
+        // Note: This is a bit fragile if the layout's breadcrumbs are very similar.
+        // A more robust way would be to count occurrences of <nav aria-label="Breadcrumb"> if the layout one is different.
+        // The removed breadcrumb had: <nav class="mb-6 text-sm" aria-label="Breadcrumb">
+        // Let's assume the layout one might not have "mb-6 text-sm" or be structured differently enough.
+        // For this test, let's assert that a fairly unique part of the *removed* structure is gone.
+        // The removed structure had specific links like "/christ/sermons/series/{{ Str::slug($sermon->series) }}"
+        // and the link to the sermon itself.
+        // A simpler check: the removed breadcrumb NAV had specific classes "mb-6 text-sm".
+        // If the layout's breadcrumb component (<x-breadcrumbs>) does NOT use "mb-6 text-sm" on its nav, this is a good check.
+        // From previous reading of components/breadcrumbs.blade.php, its <nav> only had class "m-6".
+        // So, we can assert the absence of "mb-6 text-sm" on a nav with aria-label="Breadcrumb".
+
+        // This assertion is tricky. A simpler way is to ensure a highly specific string from the removed breadcrumbs is gone.
+        // The removed breadcrumb had: <a href="/christ/sermons/{{ $sermonYear }}/{{ $sermonMonth }}/{{ $sermon->slug }}" ...>{{ $sermon->title }}</a>
+        // Let's verify the *absence* of this specific link structure which was unique to the removed breadcrumbs.
+        // The link to the sermon title itself before the "Edit" span.
+        $sermonLinkPattern = '/<a href="\/christ\/sermons\/' . $sermonDateObj->format('Y') . '\/' . $sermonDateObj->format('m') . '\/' . $sermon->slug . '"[^>]*>\s*' . preg_quote($sermon->title, '/') . '\s*<\/a>/';
+        $this->assertDoesNotMatchRegularExpression($sermonLinkPattern, $response->content());
+
+        // And ensure the main heading "Edit this sermon" (which the layout breadcrumbs might use) is still there.
+        $response->assertSee('Edit this sermon');
+
+        Auth::logout();
     }
 }
