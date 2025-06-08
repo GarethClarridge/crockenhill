@@ -1,5 +1,9 @@
 <?php
 
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+
 /*
 |--------------------------------------------------------------------------
 | Create The Application
@@ -11,14 +15,49 @@
 |
 */
 
-$app = new Illuminate\Foundation\Application(
-	realpath(__DIR__.'/../')
-);
+$app = Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: base_path('routes/web.php'),
+        api: base_path('routes/api.php'),
+        apiPrefix: 'api',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web(append: [
+            \Crockenhill\Http\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            // \Illuminate\Session\Middleware\AuthenticateSession::class,
+            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \Crockenhill\Http\Middleware\VerifyCsrfToken::class,
+        ]);
 
-//set the public path to this directory
-$app->bind('path.public', function() {
-    return __DIR__;
-});
+        $middleware->api(append: [
+            'throttle:60,1',
+            'bindings',
+        ]);
+
+        $middleware->alias([
+            'auth' => \Crockenhill\Http\Middleware\Authenticate::class,
+            'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
+            'bindings' => \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            'can' => \Illuminate\Auth\Middleware\Authorize::class,
+            'guest' => \Crockenhill\Http\Middleware\RedirectIfAuthenticated::class,
+            'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+        ]);
+
+        // Global middleware (explicitly listed for now, can be refined)
+        $middleware->use([
+            \Illuminate\Foundation\Http\Middleware\CheckForMaintenanceMode::class,
+            \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+            \Crockenhill\Http\Middleware\TrimStrings::class,
+            \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+        ]);
+    })
+    ->withExceptions(function (Exceptions $exceptions) {
+        // Exception handling can be configured here if needed
+    })->create();
 
 /*
 |--------------------------------------------------------------------------
