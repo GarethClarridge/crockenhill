@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use Crockenhill\Services\PageImageService;
+use Illuminate\Http\UploadedFile; // Added this
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -78,5 +79,74 @@ class PageImageServiceTest extends TestCase
         Storage::disk($storageDisk)->assertMissing($newLargePath); // Should not have been created
         Storage::disk($storageDisk)->assertMissing($oldSmallPath);
         Storage::disk($storageDisk)->assertMissing($newSmallPath); // Should not have been created
+    }
+
+    // Append these methods to the existing PageImageServiceTest class
+
+    /** @test */
+    public function it_handles_image_upload_correctly()
+    {
+        $slug = 'test-slug-for-upload';
+        $file = \Illuminate\Http\UploadedFile::fake()->image('test_image.jpg');
+
+        $imageMock = \Mockery::mock('alias:Intervention\Image\Facades\Image');
+        $imageInstanceMock = \Mockery::mock('Intervention\Image\Image');
+
+        $imageMock->shouldReceive('make')->with($file->getRealPath())->once()->andReturn($imageInstanceMock);
+
+        $imageInstanceMock->shouldReceive('resize')->with(2000, null, \Mockery::on(function($closure) {
+            $constraint = \Mockery::mock();
+            $constraint->shouldReceive('aspectRatio')->once();
+            $closure($constraint);
+            return true;
+        }))->once()->andReturnSelf();
+        $imageInstanceMock->shouldReceive('encode')->with('jpg')->once()->andReturn('large_image_data');
+
+        $imageInstanceMock->shouldReceive('resize')->with(300, null, \Mockery::on(function($closure) {
+            $constraint = \Mockery::mock();
+            $constraint->shouldReceive('aspectRatio')->once();
+            $closure($constraint);
+            return true;
+        }))->once()->andReturnSelf();
+        $imageInstanceMock->shouldReceive('encode')->with('jpg')->once()->andReturn('small_image_data');
+
+        \Illuminate\Support\Facades\Storage::shouldReceive('disk')->with('public_images')->times(4)->andReturnSelf();
+        \Illuminate\Support\Facades\Storage::shouldReceive('makeDirectory')->with('images/headings/large')->once();
+        \Illuminate\Support\Facades\Storage::shouldReceive('makeDirectory')->with('images/headings/small')->once();
+        \Illuminate\Support\Facades\Storage::shouldReceive('put')->with('images/headings/large/' . $slug . '.jpg', 'large_image_data')->once();
+        \Illuminate\Support\Facades\Storage::shouldReceive('put')->with('images/headings/small/' . $slug . '.jpg', 'small_image_data')->once();
+
+        $this->pageImageService->handleImageUpload($file, $slug);
+    }
+
+    /** @test */
+    public function it_deletes_images_if_they_exist()
+    {
+        $slug = 'slug-for-existing-images';
+        $largePath = 'images/headings/large/' . $slug . '.jpg';
+        $smallPath = 'images/headings/small/' . $slug . '.jpg';
+
+        \Illuminate\Support\Facades\Storage::shouldReceive('disk')->with('public_images')->times(4)->andReturnSelf();
+        \Illuminate\Support\Facades\Storage::shouldReceive('exists')->with($largePath)->once()->andReturn(true);
+        \Illuminate\Support\Facades\Storage::shouldReceive('delete')->with($largePath)->once();
+        \Illuminate\Support\Facades\Storage::shouldReceive('exists')->with($smallPath)->once()->andReturn(true);
+        \Illuminate\Support\Facades\Storage::shouldReceive('delete')->with($smallPath)->once();
+
+        $this->pageImageService->deleteImages($slug);
+    }
+
+    /** @test */
+    public function it_does_not_attempt_to_delete_images_if_they_do_not_exist()
+    {
+        $slug = 'slug-for-nonexistent-images';
+        $largePath = 'images/headings/large/' . $slug . '.jpg';
+        $smallPath = 'images/headings/small/' . $slug . '.jpg';
+
+        \Illuminate\Support\Facades\Storage::shouldReceive('disk')->with('public_images')->times(2)->andReturnSelf();
+        \Illuminate\Support\Facades\Storage::shouldReceive('exists')->with($largePath)->once()->andReturn(false);
+        \Illuminate\Support\Facades\Storage::shouldReceive('exists')->with($smallPath)->once()->andReturn(false);
+        \Illuminate\Support\Facades\Storage::shouldNotReceive('delete');
+
+        $this->pageImageService->deleteImages($slug);
     }
 }

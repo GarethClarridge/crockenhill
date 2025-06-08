@@ -272,4 +272,82 @@ class PageControllerTest extends TestCase
         $responseC->assertRedirect(route('pages.show', $newSlugC));
         $this->assertDatabaseHas('pages', ['id' => $pageC->id, 'slug' => $newSlugC]);
     }
+
+    /** @test */
+    public function authorized_user_can_delete_a_page()
+    {
+        Gate::shouldReceive('denies')->with('edit-pages')->andReturn(false)->atLeast()->once();
+
+        $page = $this->createPage(['slug' => 'page-to-delete']);
+
+        $this->mock(PageImageService::class, function (MockInterface $mock) use ($page) {
+            $mock->shouldReceive('deleteImages')->once()->with($page->slug);
+        });
+
+        $response = $this->delete(route('pages.destroy', $page->slug));
+
+        $response->assertRedirect('/church/members/pages');
+        $response->assertSessionHas('message', $page->heading . ' successfully deleted!');
+        $this->assertDatabaseMissing('pages', ['id' => $page->id]);
+    }
+
+    /** @test */
+    public function unauthorized_user_cannot_delete_a_page()
+    {
+        Gate::shouldReceive('denies')->with('edit-pages')->andReturn(true)->atLeast()->once();
+
+        $page = $this->createPage(['slug' => 'page-protected-from-delete']);
+
+        $this->mock(PageImageService::class, function (MockInterface $mock) {
+            $mock->shouldNotReceive('deleteImages');
+        });
+
+        $response = $this->delete(route('pages.destroy', $page->slug));
+
+        $response->assertStatus(403);
+        $this->assertDatabaseHas('pages', ['id' => $page->id]);
+    }
+
+    /** @test */
+    public function unauthenticated_user_cannot_delete_a_page()
+    {
+        $page = $this->createPage(['slug' => 'another-page-to-delete']);
+
+        $response = $this->delete(route('pages.destroy', $page->slug));
+
+        // Assuming redirect to login for web routes.
+        // Adjust if API (401/403 JSON) or different auth middleware setup.
+        $response->assertRedirectContains(route('login'));
+        $this->assertDatabaseHas('pages', ['id' => $page->id]);
+    }
+
+    /** @test */
+    public function unauthenticated_user_is_redirected_from_pages_index()
+    {
+        $response = $this->get(route('pages.index'));
+        $response->assertRedirectContains(route('login')); // Assumes 'login' is your login route name
+    }
+
+    /** @test */
+    public function authenticated_user_without_edit_permission_is_forbidden_from_pages_index()
+    {
+        // If user factory and actingAs is simple, add:
+        // $user = \Crockenhill\User::factory()->create(); $this->actingAs($user);
+        Gate::shouldReceive('denies')->with('edit-pages')->andReturn(true);
+
+        $response = $this->get(route('pages.index'));
+        $response->assertStatus(403);
+    }
+
+    /** @test */
+    public function authenticated_user_with_edit_permission_can_access_pages_index()
+    {
+        // If user factory and actingAs is simple, add:
+        // $user = \Crockenhill\User::factory()->create(); $this->actingAs($user);
+        Gate::shouldReceive('denies')->with('edit-pages')->andReturn(false);
+
+        $response = $this->get(route('pages.index'));
+        $response->assertStatus(200);
+        $response->assertViewIs('pages.index');
+    }
 }
