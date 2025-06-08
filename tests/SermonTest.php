@@ -557,4 +557,100 @@ class SermonTest extends TestCase
 
         Auth::logout();
     }
+
+    public function test_post_sermon_successful_upload_parses_filename_handles_missing_id3()
+    {
+        Auth::loginUsingId(2); // Authorized user
+        Storage::fake('public');
+
+        $originalFilename = 'My Sermon Recording-2024-07-15-pm.mp3';
+        $originalFilenameBase = pathinfo($originalFilename, PATHINFO_FILENAME); // 'My Sermon Recording-2024-07-15-pm'
+        $file = UploadedFile::fake()->create($originalFilename, 2048, 'audio/mpeg'); // 2MB
+
+        // Assuming 'sermonPost' is the named route for POST /christ/sermons/post
+        $response = $this->post(route('sermonPost'), [
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('sermonIndex'));
+        // With UploadedFile::fake(), getTitle() on GetId3 will likely be null.
+        // So, the message should use the fallback 'Sermon'.
+        $response->assertSessionHas('message', 'Sermon successfully posted!');
+
+        // Retrieve the created sermon (assuming only one will match these specific conditions)
+        // Order by ID desc to get the latest if multiple match some loose criteria.
+        $sermon = Sermon::orderBy('id', 'desc')->first();
+        $this->assertNotNull($sermon, "Sermon was not created.");
+
+        // 1. Assert file was stored (Storage::putFile generates a unique name)
+        Storage::disk('public')->assertExists($sermon->filename);
+        $this->assertStringStartsWith('sermons/', $sermon->filename); // Check it's in the sermons directory
+
+        // 2. Assert database record content
+        $this->assertEquals('2024-07-15', $sermon->date); // Parsed from filename
+        $this->assertEquals('evening', $sermon->service);    // Parsed from filename 'pm'
+
+        // For faked files, ID3 tags will be empty/null
+        $this->assertNull($sermon->title, "Title should be null for fake file without ID3 mock");
+        $this->assertNull($sermon->series, "Series should be null for fake file without ID3 mock");
+        $this->assertNull($sermon->preacher, "Preacher should be null for fake file without ID3 mock");
+        $this->assertEquals('', $sermon->reference, "Reference should be empty string for fake file without ID3 mock based on controller logic `\$reference = '';`");
+
+        // Slug should be based on $originalFilenameBase because title is null
+        $this->assertEquals(Str::slug($originalFilenameBase), $sermon->slug);
+
+        Auth::logout();
+    }
+
+    public function test_post_sermon_fails_for_unauthorized_user()
+    {
+        // Ensure no admin user is logged in.
+        // If a "basic" user factory state exists, could log that user in.
+        // For now, test as guest.
+        Auth::logout();
+
+        Storage::fake('public');
+        $originalFilename = 'AttemptedUpload-2024-07-15-am.mp3';
+        $file = UploadedFile::fake()->create($originalFilename, 1024, 'audio/mpeg');
+
+        $initialSermonCount = Sermon::count();
+
+        $response = $this->post(route('sermonPost'), [
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(403); // Expect Forbidden
+
+        // Assert no new sermon was created
+        $this->assertEquals($initialSermonCount, Sermon::count());
+
+        // Assert file was not stored (Storage::putFile would generate a unique name,
+        // so we can't easily assertMissing for a specific name without knowing it.
+        // Instead, check if the 'sermons' directory is empty or contains unexpected files.
+        // A simpler check if we know no files should be there:
+        $filesInStorage = Storage::disk('public')->files('sermons');
+        $this->assertEmpty($filesInStorage, "No files should have been stored in the 'sermons' directory.");
+    }
+
+    public function test_post_sermon_fails_if_file_is_missing()
+    {
+        Auth::loginUsingId(2); // Authorized user
+
+        // Attempt to POST without a file
+        $response = $this->post(route('sermonPost'), [
+            // No 'file' key in the data
+        ]);
+
+        $response->assertStatus(302); // Expect redirect back due to validation failure
+        $response->assertSessionHasErrors('file');
+        // Check for a specific message if one is set for 'required' in PostSermonRequest,
+        // e.g., $response->assertSessionHasErrors(['file' => 'Please select an MP3 file to upload.']);
+        // From PostSermonRequestTest, the message for 'file.required' is 'Please select an MP3 file to upload.'
+        $response->assertSessionHasErrors([
+            'file' => 'Please select an MP3 file to upload.'
+        ]);
+
+        Auth::logout();
+    }
 }
