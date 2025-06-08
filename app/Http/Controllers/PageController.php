@@ -207,12 +207,22 @@ class PageController extends Controller
         }
     }
 
-    $backUrl = Session::get('backUrl');
-    Session::forget('backUrl'); // Clean up session variable
+    // $oldSlug should have been defined earlier in the method
+    // $page->slug now holds the new slug if it was changed
 
-    return ($backUrl && $backUrl !== url()->previous())
-      ? Redirect::to($backUrl)->with('message', $page->heading . ' successfully updated!')
-      : Redirect::to('/church/members/pages')->with('message', $page->heading . ' successfully updated!');
+    if ($oldSlug !== $page->slug) {
+        // If slug changed, redirect to the page's show route with the new slug
+        Session::flash('message', $page->heading . ' successfully updated!'); // Flash message for the redirect
+        return Redirect::route('pages.show', $page->slug);
+    } else {
+        // If slug did not change, use the previous redirect logic
+        $backUrl = Session::get('backUrl');
+        Session::forget('backUrl'); // Clean up session variable
+
+        return ($backUrl && $backUrl !== url()->previous())
+          ? Redirect::to($backUrl)->with('message', $page->heading . ' successfully updated!')
+          : Redirect::to('/church/members/pages')->with('message', $page->heading . ' successfully updated!');
+    }
   }
 
   /**

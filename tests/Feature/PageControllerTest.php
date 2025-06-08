@@ -37,9 +37,7 @@ class PageControllerTest extends TestCase
     {
         $defaults = [
             'slug' => 'old-page-heading',
-            // Using a very short type due to previous "data truncated" issues.
-            // This might still be problematic if the actual column is extremely short.
-            'type' => 'Old',
+            'type' => 'OldType',
             'day' => 'Sunday',
             'location' => 'Church',
             'who' => 'Everyone',
@@ -71,11 +69,10 @@ class PageControllerTest extends TestCase
             'navigation-radio' => $page->navigation ? 'yes' : 'no',
             'markdown' => $page->markdown,
         ];
-        // Using direct URL due to previous 404 issues with route() helper.
-        $response = $this->put('/church/members/pages/' . $page->slug, $updateData);
 
+        $response = $this->put('/church/members/pages/' . $page->slug, $updateData); // Kept direct URL from previous step
 
-        $response->assertRedirect();
+        $response->assertRedirect(route('pages.show', $newSlug));
         $this->assertDatabaseHas('pages', [
             'id' => $page->id,
             'heading' => $newHeading,
@@ -117,7 +114,7 @@ class PageControllerTest extends TestCase
 
         $response = $this->put(route('pages.update', $page->slug), $updateData);
 
-        $response->assertRedirect();
+        $response->assertRedirect(route('pages.show', $newSlug));
         $this->assertDatabaseHas('pages', [
             'id' => $page->id,
             'heading' => $newHeading,
@@ -129,10 +126,10 @@ class PageControllerTest extends TestCase
     public function it_updates_page_and_associated_meeting_if_slug_changes()
     {
         $page = $this->createPage(['heading' => 'Page With Meeting', 'slug' => 'page-with-meeting']);
-        $meeting = $this->createMeeting(['slug' => 'page-with-meeting', 'type' => 'OldType']); // Ensure type is short
+        $meeting = $this->createMeeting(['slug' => 'page-with-meeting', 'type' => 'OldType']);
 
         $oldPageSlug = $page->slug;
-        $originalMeetingType = $meeting->type; // Capture original type
+        $originalMeetingType = $meeting->type;
         $newPageHeading = 'Updated Page With Meeting';
         $newPageSlug = Str::slug($newPageHeading);
 
@@ -152,7 +149,7 @@ class PageControllerTest extends TestCase
 
         $response = $this->put(route('pages.update', $page->slug), $updateData);
 
-        $response->assertRedirect();
+        $response->assertRedirect(route('pages.show', $newPageSlug));
         $this->assertDatabaseHas('pages', [
             'id' => $page->id,
             'heading' => $newPageHeading,
@@ -160,8 +157,8 @@ class PageControllerTest extends TestCase
         ]);
         $this->assertDatabaseHas('meetings', [
             'id' => $meeting->id,
-            'slug' => $newPageSlug,         // Meeting slug updated
-            'type' => $originalMeetingType, // Meeting type REMAINS UNCHANGED
+            'slug' => $newPageSlug,
+            'type' => $originalMeetingType,
         ]);
     }
 
@@ -191,7 +188,7 @@ class PageControllerTest extends TestCase
 
         $response = $this->put(route('pages.update', $page->slug), $updateData);
 
-        $response->assertRedirect();
+        $response->assertRedirect(route('pages.show', $newPageSlug));
         $this->assertDatabaseHas('pages', [
             'id' => $page->id,
             'heading' => $newPageHeading,
