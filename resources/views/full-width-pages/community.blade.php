@@ -53,11 +53,26 @@ Community
 
   <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
 
-    <x-page-card :page="$pages->firstWhere('slug', 'coffee-cup')" />
+    @php
+        $pageForCard_coffee_cup = $pages->firstWhere('slug', 'coffee-cup');
+    @endphp
+    @if ($pageForCard_coffee_cup)
+        <x-page-card :page="$pageForCard_coffee_cup" />
+    @endif
 
-    <x-page-card :page="$pages->firstWhere('slug', 'baby-talk')" />
+    @php
+        $pageForCard_baby_talk_1 = $pages->firstWhere('slug', 'baby-talk');
+    @endphp
+    @if ($pageForCard_baby_talk_1)
+        <x-page-card :page="$pageForCard_baby_talk_1" />
+    @endif
 
-    <x-page-card :page="$pages->firstWhere('slug', 'sunday-mornings')" />
+    @php
+        $pageForCard_sunday_mornings_1 = $pages->firstWhere('slug', 'sunday-mornings');
+    @endphp
+    @if ($pageForCard_sunday_mornings_1)
+        <x-page-card :page="$pageForCard_sunday_mornings_1" />
+    @endif
 
   </div>
 
@@ -68,11 +83,26 @@ Community
 
   <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
 
-    <x-page-card :page="$pages->firstWhere('slug', 'baby-talk')" />
+    @php
+        $pageForCard_baby_talk_2 = $pages->firstWhere('slug', 'baby-talk');
+    @endphp
+    @if ($pageForCard_baby_talk_2)
+        <x-page-card :page="$pageForCard_baby_talk_2" />
+    @endif
 
-    <x-page-card :page="$pages->firstWhere('slug', 'family-talk')" />
+    @php
+        $pageForCard_family_talk = $pages->firstWhere('slug', 'family-talk');
+    @endphp
+    @if ($pageForCard_family_talk)
+        <x-page-card :page="$pageForCard_family_talk" />
+    @endif
 
-    <x-page-card :page="$pages->firstWhere('slug', 'buzz-club')" />
+    @php
+        $pageForCard_buzz_club = $pages->firstWhere('slug', 'buzz-club');
+    @endphp
+    @if ($pageForCard_buzz_club)
+        <x-page-card :page="$pageForCard_buzz_club" />
+    @endif
 
   </div>
 
@@ -83,11 +113,26 @@ Community
 
   <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
 
-    <x-page-card :page="$pages->firstWhere('slug', 'sunday-mornings')" />
+    @php
+        $pageForCard_sunday_mornings_2 = $pages->firstWhere('slug', 'sunday-mornings');
+    @endphp
+    @if ($pageForCard_sunday_mornings_2)
+        <x-page-card :page="$pageForCard_sunday_mornings_2" />
+    @endif
 
-    <x-page-card :page="$pages->firstWhere('slug', 'christianity-explored')" />
+    @php
+        $pageForCard_christianity_explored = $pages->firstWhere('slug', 'christianity-explored');
+    @endphp
+    @if ($pageForCard_christianity_explored)
+        <x-page-card :page="$pageForCard_christianity_explored" />
+    @endif
 
-    <x-page-card :page="$pages->firstWhere('slug', 'bible-study')" />
+    @php
+        $pageForCard_bible_study = $pages->firstWhere('slug', 'bible-study');
+    @endphp
+    @if ($pageForCard_bible_study)
+        <x-page-card :page="$pageForCard_bible_study" />
+    @endif
 
   </div>
 
@@ -98,7 +143,12 @@ Community
 
   <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
 
-    <x-page-card :page="$pages->firstWhere('slug', 'carols-in-the-chequers')" />
+    @php
+        $pageForCard_carols_in_the_chequers = $pages->firstWhere('slug', 'carols-in-the-chequers');
+    @endphp
+    @if ($pageForCard_carols_in_the_chequers)
+        <x-page-card :page="$pageForCard_carols_in_the_chequers" />
+    @endif
 
   </div>
 
