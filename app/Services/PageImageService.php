@@ -68,4 +68,33 @@ class PageImageService
             Storage::disk($this->storageDisk)->delete($smallPath);
         }
     }
+
+    /**
+     * Renames the large and small heading images from an old slug to a new slug.
+     *
+     * @param string $oldSlug The current slug of the page.
+     * @param string $newSlug The new slug for the page.
+     * @return void
+     */
+    public function renameImages(string $oldSlug, string $newSlug): void
+    {
+        $largePathDir = 'images/headings/large';
+        $smallPathDir = 'images/headings/small';
+
+        $oldLargePath = $largePathDir . '/' . $oldSlug . '.jpg';
+        $newLargePath = $largePathDir . '/' . $newSlug . '.jpg';
+        $oldSmallPath = $smallPathDir . '/' . $oldSlug . '.jpg';
+        $newSmallPath = $smallPathDir . '/' . $newSlug . '.jpg';
+
+        Storage::disk($this->storageDisk)->makeDirectory($largePathDir);
+        Storage::disk($this->storageDisk)->makeDirectory($smallPathDir);
+
+        if (Storage::disk($this->storageDisk)->exists($oldLargePath)) {
+            Storage::disk($this->storageDisk)->move($oldLargePath, $newLargePath);
+        }
+
+        if (Storage::disk($this->storageDisk)->exists($oldSmallPath)) {
+            Storage::disk($this->storageDisk)->move($oldSmallPath, $newSmallPath);
+        }
+    }
 }

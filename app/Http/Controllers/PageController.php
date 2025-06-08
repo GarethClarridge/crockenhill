@@ -6,6 +6,7 @@ use Crockenhill\Http\Requests\StorePageRequest;
 use Crockenhill\Http\Requests\UpdatePageRequest;
 use Crockenhill\Services\PageImageService;
 use Crockenhill\Page;
+use Crockenhill\Meeting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redirect;
@@ -164,6 +165,10 @@ class PageController extends Controller
     $html = $converter->convert($validated['markdown']);
     $navigation = ($validated['navigation-radio'] == 'yes');
 
+    // Store old slug before any changes to the page model instance for it
+    $oldSlug = $page->slug;
+    $newSlug = Str::slug($validated['heading']); // Determine new slug from new heading
+
     $page->heading = $validated['heading'];
     $page->description = $validated['description'] ?? null;
     $page->area = $validated['area'];
@@ -171,27 +176,41 @@ class PageController extends Controller
     $page->markdown = $validated['markdown'];
     $page->body = trim($html);
 
-    $newSlug = Str::slug($validated['heading']);
-    $oldSlug = $page->slug; // Get the original slug
-
+    // Handle image renaming/deletion if slug changes
     if ($oldSlug !== $newSlug) {
-        $this->pageImageService->deleteImages($oldSlug);
-        $page->slug = $newSlug;
+        if (!$request->hasFile('heading-image')) {
+            // Slug changed, no new image: RENAME images
+            $this->pageImageService->renameImages($oldSlug, $newSlug);
+        } else {
+            // Slug changed, AND new image uploaded: DELETE old images
+            // The new image will be saved under the new slug by the subsequent handleImageUpload call
+            $this->pageImageService->deleteImages($oldSlug);
+        }
+        $page->slug = $newSlug; // Update slug on the model
     }
 
+    // Handle new image upload (works for both slug change and no slug change)
     if ($request->hasFile('heading-image')) {
-        // If a new image is uploaded and slug has changed, old images (by oldSlug) are already deleted.
-        // If slug hasn't changed, handleImageUpload will overwrite.
-        // If new image but old slug had no image, it will create.
-        $this->pageImageService->handleImageUpload($request->file('heading-image'), $page->slug);
+        $this->pageImageService->handleImageUpload($request->file('heading-image'), $page->slug); // Uses $page->slug which is new if changed
     }
 
     $page->save();
 
+    // Update associated Meeting's slug if page slug changed
+    if ($oldSlug !== $newSlug) {
+        $meeting = \Crockenhill\Meeting::where('slug', $oldSlug)->first();
+        if ($meeting) {
+            $meeting->slug = $newSlug;
+            // The meeting 'type' cannot be updated to page->heading due to ENUM constraints on meetings.type.
+            // Only the slug is updated to maintain association.
+            $meeting->save();
+        }
+    }
+
     $backUrl = Session::get('backUrl');
     Session::forget('backUrl'); // Clean up session variable
 
-    return ($backUrl && $backUrl !== url()->previous()) // Check if backUrl exists
+    return ($backUrl && $backUrl !== url()->previous())
       ? Redirect::to($backUrl)->with('message', $page->heading . ' successfully updated!')
       : Redirect::to('/church/members/pages')->with('message', $page->heading . ' successfully updated!');
   }
