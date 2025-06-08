@@ -195,4 +195,81 @@ class PageControllerTest extends TestCase
             'slug' => $newPageSlug,
         ]);
     }
+
+    /** @test */
+    public function test_redirect_logic_when_slug_changes()
+    {
+        // Common setup for all scenarios
+        Gate::shouldReceive('denies')->with('edit-pages')->andReturn(false);
+
+        // --- Scenario A: backUrl is in session and contains the old slug ---
+        $pageA = $this->createPage(['heading' => 'Original Heading A', 'slug' => 'original-slug-a']);
+        $oldSlugA = $pageA->slug;
+        $newHeadingA = 'New Heading A';
+        $newSlugA = Str::slug($newHeadingA);
+
+        $this->mock(PageImageService::class, function (MockInterface $mock) use ($oldSlugA, $newSlugA) {
+            $mock->shouldReceive('renameImages')->once()->with($oldSlugA, $newSlugA);
+        });
+
+        $updateDataA = [
+            'heading' => $newHeadingA, 'description' => $pageA->description, 'area' => $pageA->area,
+            'navigation-radio' => $pageA->navigation ? 'yes' : 'no', 'markdown' => $pageA->markdown,
+        ];
+
+        $backUrlPathA = 'path/' . $oldSlugA . '/context';
+        session()->put('backUrl', url($backUrlPathA));
+
+        $responseA = $this->put(route('pages.update', $oldSlugA), $updateDataA);
+        $responseA->assertRedirect(url('path/' . $newSlugA . '/context'));
+        $this->assertDatabaseHas('pages', ['id' => $pageA->id, 'slug' => $newSlugA]);
+
+
+        // --- Scenario B: backUrl is in session but does NOT contain the old slug ---
+        $pageB = $this->createPage(['heading' => 'Original Heading B', 'slug' => 'original-slug-b']);
+        $oldSlugB = $pageB->slug;
+        $newHeadingB = 'New Heading B';
+        $newSlugB = Str::slug($newHeadingB);
+
+        // Re-mock for this specific scenario if necessary, or ensure the mock is flexible.
+        // For this specific service, the mock might be called multiple times if not specific enough.
+        // We can create a fresh mock instance.
+        $this->mock(PageImageService::class, function (MockInterface $mock) use ($oldSlugB, $newSlugB) {
+            $mock->shouldReceive('renameImages')->once()->with($oldSlugB, $newSlugB);
+        });
+
+        $updateDataB = [
+            'heading' => $newHeadingB, 'description' => $pageB->description, 'area' => $pageB->area,
+            'navigation-radio' => $pageB->navigation ? 'yes' : 'no', 'markdown' => $pageB->markdown,
+        ];
+
+        $unrelatedBackUrl = url('unrelated/path');
+        session()->put('backUrl', $unrelatedBackUrl);
+
+        $responseB = $this->put(route('pages.update', $oldSlugB), $updateDataB);
+        $responseB->assertRedirect($unrelatedBackUrl);
+        $this->assertDatabaseHas('pages', ['id' => $pageB->id, 'slug' => $newSlugB]);
+
+
+        // --- Scenario C: No backUrl in session ---
+        $pageC = $this->createPage(['heading' => 'Original Heading C', 'slug' => 'original-slug-c']);
+        $oldSlugC = $pageC->slug;
+        $newHeadingC = 'New Heading C';
+        $newSlugC = Str::slug($newHeadingC);
+
+        $this->mock(PageImageService::class, function (MockInterface $mock) use ($oldSlugC, $newSlugC) {
+            $mock->shouldReceive('renameImages')->once()->with($oldSlugC, $newSlugC);
+        });
+
+        $updateDataC = [
+            'heading' => $newHeadingC, 'description' => $pageC->description, 'area' => $pageC->area,
+            'navigation-radio' => $pageC->navigation ? 'yes' : 'no', 'markdown' => $pageC->markdown,
+        ];
+
+        session()->forget('backUrl');
+
+        $responseC = $this->put(route('pages.update', $oldSlugC), $updateDataC);
+        $responseC->assertRedirect(route('pages.show', $newSlugC));
+        $this->assertDatabaseHas('pages', ['id' => $pageC->id, 'slug' => $newSlugC]);
+    }
 }

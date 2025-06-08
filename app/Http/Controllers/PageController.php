@@ -210,18 +210,29 @@ class PageController extends Controller
     // $oldSlug should have been defined earlier in the method
     // $page->slug now holds the new slug if it was changed
 
-    if ($oldSlug !== $page->slug) {
-        // If slug changed, redirect to the page's show route with the new slug
-        Session::flash('message', $page->heading . ' successfully updated!'); // Flash message for the redirect
-        return Redirect::route('pages.show', $page->slug);
-    } else {
-        // If slug did not change, use the previous redirect logic
-        $backUrl = Session::get('backUrl');
-        Session::forget('backUrl'); // Clean up session variable
+    $message = $page->heading . ' successfully updated!'; // Define message once
 
-        return ($backUrl && $backUrl !== url()->previous())
-          ? Redirect::to($backUrl)->with('message', $page->heading . ' successfully updated!')
-          : Redirect::to('/church/members/pages')->with('message', $page->heading . ' successfully updated!');
+    if ($oldSlug !== $page->slug) { // Slug was changed
+        $backUrl = Session::get('backUrl');
+        Session::forget('backUrl'); // Forget backUrl after getting it
+
+        if ($backUrl) {
+            $modifiedBackUrl = str_replace($oldSlug, $page->slug, $backUrl);
+            return Redirect::to($modifiedBackUrl)->with('message', $message);
+        } else {
+            // No backUrl, redirect to the show page with the new slug
+            return Redirect::route('pages.show', $page->slug)->with('message', $message);
+        }
+    } else { // Slug did not change
+        $backUrl = Session::get('backUrl');
+        Session::forget('backUrl'); // Forget backUrl after getting it
+
+        if ($backUrl && $backUrl !== url()->current()) { // Ensure backUrl is not the current page itself
+            return Redirect::to($backUrl)->with('message', $message);
+        } else {
+            // Default redirect to pages index if no valid backUrl
+            return Redirect::to('/church/members/pages')->with('message', $message);
+        }
     }
   }
 
