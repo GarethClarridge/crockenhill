@@ -229,15 +229,17 @@ class SermonController extends Controller
     // The 'points' attribute from $validatedData will be a JSON string or null.
     // The Sermon model's $casts property will automatically convert this JSON string
     // to an array when $sermon->points is assigned and saved.
-    if (isset($validatedData['points'])) {
-        $sermon->points = $validatedData['points'];
-    } else {
-        $sermon->points = null; // Explicitly set to null if not provided or cleared
+    // Update points only if the key exists in validated data (meaning it was submitted and passed validation)
+    if (array_key_exists('points', $validatedData)) {
+        $sermon->points = $validatedData['points']; // $validatedData['points'] is already validated JSON string or null
     }
 
-    $sermon->save();
-
-    return redirect()->route('sermonIndex')->with('message', '"' . $sermon->title . '" successfully updated!');
+    if ($sermon->save()) {
+        return redirect()->route('sermonIndex')->with('message', '"' . $sermon->title . '" successfully updated!');
+    } else {
+        // Log the failure or add more specific error handling
+        return redirect()->back()->withInput()->with('error', 'There was a problem saving the sermon. Please try again.');
+    }
   }
 
   /**
