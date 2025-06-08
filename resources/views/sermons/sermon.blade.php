@@ -3,11 +3,11 @@
 @section('dynamic_content')
 
 @php
-use Illuminate\Support\Str;
-// Define $sermon if not already available, though it should be.
-// $sermon is passed to this view.
+ use Illuminate\Support\Str;
+ // Define $sermon if not already available, though it should be.
+ // $sermon is passed to this view.
 @endphp
-<!-- <nav class="mb-6 text-sm" aria-label="Breadcrumb">
+<nav class="mb-6 text-sm" aria-label="Breadcrumb">
     <ol class="inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
         <li class="inline-flex items-center">
             <a href="/" class="inline-flex items-center text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
@@ -36,8 +36,46 @@ use Illuminate\Support\Str;
             </div>
         </li>
     </ol>
-</nav> -->
+</nav>
 {{-- Existing content of @section('dynamic_content') follows --}}
+
+@if (!empty($sermon->points) && is_array($sermon->points))
+<h2 class="mt-6 text-2xl font-semibold">Sermon Outline</h2>
+<section class="sermon-headings prose lg:prose-xl max-w-none mt-4 mb-6">
+    <ol>
+        @foreach ($sermon->points as $pointItem)
+            @if (is_array($pointItem))
+                @php
+                    $mainPointText = (isset($pointItem['point']) && is_scalar($pointItem['point'])) ? (string) $pointItem['point'] : null;
+                    $subPointsArray = (isset($pointItem['sub_points']) && is_array($pointItem['sub_points'])) ? $pointItem['sub_points'] : [];
+                @endphp
+
+                {{-- Only create a list item if there's a main point or sub-points to show --}}
+                @if (!empty($mainPointText) || !empty($subPointsArray))
+                    <li>
+                        @if (!empty($mainPointText))
+                            <span class="font-semibold text-lg">{{ $mainPointText }}</span>
+                        @endif
+
+                        @if (!empty($subPointsArray))
+                            <ul class="ml-4"> {{-- Indent sub-points --}}
+                                @foreach ($subPointsArray as $subPoint)
+                                    @if (is_scalar($subPoint))
+                                        <li>{{ (string) $subPoint }}</li>
+                                    @endif
+                                @endforeach
+                            </ul>
+                        @endif
+                    </li>
+                @endif
+            @elseif (is_scalar($pointItem))
+                {{-- Fallback for old data if $pointItem is just a string --}}
+                <li class="font-semibold text-lg">{{ (string) $pointItem }}</li>
+            @endif
+        @endforeach
+    </ol>
+</section>
+@endif
 
 <section class="space-y-6">
   <ul class="mx-6 px-6 mb-6 pb-6 prose">
@@ -76,44 +114,6 @@ use Illuminate\Support\Str;
   <audio src="{{ Storage::url($sermon->filename) }}" class="my-6 w-full" controls>
     Your browser does not support the <code>audio</code> element.
   </audio>
-
-  @if (!empty($sermon->points) && is_array($sermon->points))
-  <h2 class="mt-6 text-2xl font-semibold">Sermon Outline</h2>
-  <section class="sermon-headings prose lg:prose-xl max-w-none mt-4 mb-6">
-    <ol>
-      @foreach ($sermon->points as $pointItem)
-      @if (is_array($pointItem))
-      @php
-      $mainPointText = (isset($pointItem['point']) && is_scalar($pointItem['point'])) ? (string) $pointItem['point'] : null;
-      $subPointsArray = (isset($pointItem['sub_points']) && is_array($pointItem['sub_points'])) ? $pointItem['sub_points'] : [];
-      @endphp
-
-      {{-- Only create a list item if there's a main point or sub-points to show --}}
-      @if (!empty($mainPointText) || !empty($subPointsArray))
-      <li>
-        @if (!empty($mainPointText))
-        <span class="font-semibold text-lg">{{ $mainPointText }}</span>
-        @endif
-
-        @if (!empty($subPointsArray))
-        <ul class="ml-4"> {{-- Indent sub-points --}}
-          @foreach ($subPointsArray as $subPoint)
-          @if (is_scalar($subPoint))
-          <li>{{ (string) $subPoint }}</li>
-          @endif
-          @endforeach
-        </ul>
-        @endif
-      </li>
-      @endif
-      @elseif (is_scalar($pointItem))
-      {{-- Fallback for old data if $pointItem is just a string --}}
-      <li class="font-semibold text-lg">{{ (string) $pointItem }}</li>
-      @endif
-      @endforeach
-    </ol>
-  </section>
-  @endif
 
   <x-button link="{{ Storage::url($sermon->filename) }}">
     <div class="flex items-center justify-center">
