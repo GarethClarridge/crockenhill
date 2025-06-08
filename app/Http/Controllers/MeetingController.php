@@ -239,9 +239,17 @@ class MeetingController extends Controller {
         // This will throw an AuthorizationException (resulting in a 403 response) if fails.
         Gate::authorize('edit-pages');
 
-        $meetings = Meeting::orderByRaw('COALESCE(title, slug) asc')->get();
-        // Alternatively, for pagination:
-        // $meetings = Meeting::orderBy('title', 'asc')->paginate(20);
+        // Ensure 'use Illuminate\Support\Str;' is at the top of the file.
+        $allMeetings = Meeting::get(); // Fetch all meetings
+
+        // Sort the collection in PHP
+        $meetings = $allMeetings->sortBy(function ($meeting) {
+            $titleSortKey = $meeting->title;
+            if (empty($titleSortKey)) {
+                $titleSortKey = Str::title(str_replace('-', ' ', (string)$meeting->slug));
+            }
+            return $titleSortKey;
+        }, SORT_NATURAL | SORT_FLAG_CASE, false); // false for ascending
 
         return view('meetings.admin-index', ['meetings' => $meetings]);
     }
