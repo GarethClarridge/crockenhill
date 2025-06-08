@@ -147,6 +147,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
   ]);
   // Manage pages
   Route::resource('pages', 'PageController');
+
+  // Admin route for listing meetings
+  Route::get('meetings', [\Crockenhill\Http\Controllers\MeetingController::class, 'listAllMeetings'])->name('meetings.admin_index');
+
   // Manage sermons
   Route::resource('sermons', 'SermonController');
   // Songs

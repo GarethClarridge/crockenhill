@@ -7,8 +7,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule; // Added for unique rule in update
 use Crockenhill\Services\MeetingImageService; // Added this
-// Gate facade might be needed if uncommenting authorization checks
-// use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Gate; // Ensured this is active
 
 class MeetingController extends Controller {
 
@@ -234,5 +233,16 @@ class MeetingController extends Controller {
 		//
 	}
 
+    public function listAllMeetings() // : View  // Can add return type hint if using PHP 7.4+
+    {
+        // Authorize based on 'edit-pages' permission
+        // This will throw an AuthorizationException (resulting in a 403 response) if fails.
+        Gate::authorize('edit-pages');
 
+        $meetings = Meeting::orderBy('title', 'asc')->get();
+        // Alternatively, for pagination:
+        // $meetings = Meeting::orderBy('title', 'asc')->paginate(20);
+
+        return view('meetings.admin-index', ['meetings' => $meetings]);
+    }
 }
