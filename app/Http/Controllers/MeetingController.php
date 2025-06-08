@@ -181,10 +181,11 @@ class MeetingController extends Controller {
 
         $validatedData['pictures'] = $request->has('pictures');
 
-        $validatedData['pictures'] = $request->has('pictures');
-
         // Get the original slug BEFORE updating the model
         $oldSlug = $community->slug;
+
+        // Explicitly cast title to string before update
+        $validatedData['title'] = (string) $validatedData['title'];
 
         $community->update($validatedData); // Model is updated here, $community->slug might now be new
 
