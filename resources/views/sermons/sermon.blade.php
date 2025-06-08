@@ -44,25 +44,33 @@
 <section class="sermon-headings prose lg:prose-xl max-w-none mt-4 mb-6">
     <ol>
         @foreach ($sermon->points as $pointItem)
-            @if (!empty($pointItem['point']))
-                <li class="font-semibold text-lg">{{ $pointItem['point'] }}</li>
-            @endif
-            @if (!empty($pointItem['sub_points']) && is_array($pointItem['sub_points']))
-                @if (empty($pointItem['point'])) {{-- If only sub_points exist under a main list item --}}
+            @if (is_array($pointItem))
+                @php
+                    $mainPointText = (isset($pointItem['point']) && is_scalar($pointItem['point'])) ? (string) $pointItem['point'] : null;
+                    $subPointsArray = (isset($pointItem['sub_points']) && is_array($pointItem['sub_points'])) ? $pointItem['sub_points'] : [];
+                @endphp
+
+                {{-- Only create a list item if there's a main point or sub-points to show --}}
+                @if (!empty($mainPointText) || !empty($subPointsArray))
                     <li>
-                        <ul>
-                        @foreach ($pointItem['sub_points'] as $subPoint)
-                            <li>{{ $subPoint }}</li>
-                        @endforeach
-                        </ul>
+                        @if (!empty($mainPointText))
+                            <span class="font-semibold text-lg">{{ $mainPointText }}</span>
+                        @endif
+
+                        @if (!empty($subPointsArray))
+                            <ul class="ml-4"> {{-- Indent sub-points --}}
+                                @foreach ($subPointsArray as $subPoint)
+                                    @if (is_scalar($subPoint))
+                                        <li>{{ (string) $subPoint }}</li>
+                                    @endif
+                                @endforeach
+                            </ul>
+                        @endif
                     </li>
-                @else {{-- Sub_points nested under a main point li --}}
-                    <ul>
-                        @foreach ($pointItem['sub_points'] as $subPoint)
-                            <li>{{ $subPoint }}</li>
-                        @endforeach
-                    </ul>
                 @endif
+            @elseif (is_scalar($pointItem))
+                {{-- Fallback for old data if $pointItem is just a string --}}
+                <li class="font-semibold text-lg">{{ (string) $pointItem }}</li>
             @endif
         @endforeach
     </ol>
