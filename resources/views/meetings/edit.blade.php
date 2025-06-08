@@ -69,11 +69,11 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label class="block text-sm font-medium text-gray-700" for="StartTime">Start Time</label>
-          <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" id="StartTime" name="StartTime" type="time" value="{{ old('StartTime', $meeting->StartTime) }}">
+          <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" id="StartTime" name="StartTime" type="time" value="{{ old('StartTime', $meeting->StartTime ? \Carbon\Carbon::parse($meeting->StartTime)->format('H:i') : '') }}">
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700" for="EndTime">End Time</label>
-          <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" id="EndTime" name="EndTime" type="time" value="{{ old('EndTime', $meeting->EndTime) }}">
+          <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" id="EndTime" name="EndTime" type="time" value="{{ old('EndTime', $meeting->EndTime ? \Carbon\Carbon::parse($meeting->EndTime)->format('H:i') : '') }}">
         </div>
       </div>
 
