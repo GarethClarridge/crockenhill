@@ -6,10 +6,18 @@ use Crockenhill\Meeting;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule; // Added for unique rule in update
+use Crockenhill\Services\MeetingImageService; // Added this
 // Gate facade might be needed if uncommenting authorization checks
 // use Illuminate\Support\Facades\Gate;
 
 class MeetingController extends Controller {
+
+    private MeetingImageService $meetingImageService;
+
+    public function __construct(MeetingImageService $meetingImageService)
+    {
+        $this->meetingImageService = $meetingImageService;
+    }
 
 	/**
 	 * Display a listing of the resource.
@@ -174,11 +182,44 @@ class MeetingController extends Controller {
 
         $validatedData['pictures'] = $request->has('pictures');
 
-        $community->update($validatedData);
+        $validatedData['pictures'] = $request->has('pictures');
 
-        Session::flash('message', $community->title . ' successfully updated!');
-        // Redirect to the meeting's show page, using 'community' as the route name base
-        return Redirect::route('community.show', $community->slug);
+        // Get the original slug BEFORE updating the model
+        $oldSlug = $community->slug;
+
+        $community->update($validatedData); // Model is updated here, $community->slug might now be new
+
+        // Get the new slug AFTER updating the model
+        $newSlug = $community->slug;
+
+        // Check if the slug changed and rename the directory if it did
+        if ($oldSlug !== $newSlug) {
+            $this->meetingImageService->renameImageDirectory($oldSlug, $newSlug);
+        }
+
+        $message = $community->title . ' successfully updated!';
+
+        // Refined redirect logic
+        if ($oldSlug !== $newSlug) { // Slug was changed (checking again for redirect logic)
+            $backUrl = Session::get('backUrl');
+            Session::forget('backUrl');
+
+            if ($backUrl) {
+                $modifiedBackUrl = str_replace($oldSlug, $newSlug, $backUrl);
+                return Redirect::to($modifiedBackUrl)->with('message', $message);
+            } else {
+                return Redirect::route('community.show', $newSlug)->with('message', $message);
+            }
+        } else { // Slug did not change
+            $backUrl = Session::get('backUrl');
+            Session::forget('backUrl');
+
+            if ($backUrl && $backUrl !== url()->current()) {
+                return Redirect::to($backUrl)->with('message', $message);
+            } else {
+                return Redirect::to(route('community.index'))->with('message', $message); // Default to index
+            }
+        }
     }
 
 
