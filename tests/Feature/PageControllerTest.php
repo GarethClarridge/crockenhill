@@ -37,7 +37,7 @@ class PageControllerTest extends TestCase
     {
         $defaults = [
             'slug' => 'old-page-heading',
-            'type' => 'OldType',
+            'type' => 'Adults', // Using a valid type from validation rules
             'day' => 'Sunday',
             'location' => 'Church',
             'who' => 'Everyone',
@@ -126,7 +126,8 @@ class PageControllerTest extends TestCase
     public function it_updates_page_and_associated_meeting_if_slug_changes()
     {
         $page = $this->createPage(['heading' => 'Page With Meeting', 'slug' => 'page-with-meeting']);
-        $meeting = $this->createMeeting(['slug' => 'page-with-meeting', 'type' => 'OldType']);
+        // Ensure the created meeting type is one of the allowed enum values for this specific test too
+        $meeting = $this->createMeeting(['slug' => 'page-with-meeting', 'type' => 'SundayAndBibleStudies']);
 
         $oldPageSlug = $page->slug;
         $originalMeetingType = $meeting->type;

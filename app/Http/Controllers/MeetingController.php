@@ -25,7 +25,7 @@ class MeetingController extends Controller {
 	 */
 	public function index()
 {
-		return view('full-width-pages/community');
+		return "MeetingController Index Reached";
 	}
 
 
@@ -229,9 +229,20 @@ class MeetingController extends Controller {
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function destroy($id)
-	{
-		//
+    public function destroy(Meeting $community) // Using Route Model Binding
+    {
+        // Authorize using 'edit-pages' gate, similar to listAllMeetings
+        Gate::authorize('edit-pages');
+
+        // Delete associated images first
+        $this->meetingImageService->deleteImageDirectory($community->slug);
+
+        // Delete the meeting
+        $community->delete();
+
+        Session::flash('message', $community->title . ' successfully deleted!');
+        // Redirect to the admin index or community index page
+        return Redirect::route('community.index'); // Or meetings.admin_index if preferred for admin context
 	}
 
     public function listAllMeetings() // : View  // Can add return type hint if using PHP 7.4+

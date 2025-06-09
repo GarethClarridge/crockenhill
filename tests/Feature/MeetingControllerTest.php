@@ -23,7 +23,7 @@ class MeetingControllerTest extends TestCase
     /** @test */
     public function it_can_display_the_meetings_index()
     {
-        // Gate::shouldReceive('denies')->with('view-meetings')->andReturn(false); // Assuming a 'view-meetings' permission
+        Gate::shouldReceive('denies')->with('view-meetings')->andReturn(false); // Assuming a 'view-meetings' permission
         $this->createMeeting(); // Create at least one meeting to see on index
 
         $response = $this->get(route('community.index')); // Using 'community' as route name
@@ -34,7 +34,7 @@ class MeetingControllerTest extends TestCase
     /** @test */
     public function it_can_show_the_create_meeting_form()
     {
-        // Gate::shouldReceive('denies')->with('edit-meetings')->andReturn(false);
+        Gate::shouldReceive('denies')->with('edit-meetings')->andReturn(false);
         $response = $this->get(route('community.create'));
         $response->assertStatus(200);
         // $response->assertViewIs('meetings.create');

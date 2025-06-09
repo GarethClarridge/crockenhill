@@ -4,6 +4,16 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
+//Community routes - MOVED TO TOP FOR PRIORITY
+// Route::resource('community', \Crockenhill\Http\Controllers\MeetingController::class); // Temporarily comment out
+Route::get('/community', 'Crockenhill\Http\Controllers\MeetingController@index')->name('community.index');
+Route::get('/community/create', 'Crockenhill\Http\Controllers\MeetingController@create')->name('community.create');
+Route::post('/community', 'Crockenhill\Http\Controllers\MeetingController@store')->name('community.store');
+Route::get('/community/{meeting}', 'Crockenhill\Http\Controllers\MeetingController@show')->name('community.show'); // Assuming slug is route key for {meeting}
+Route::get('/community/{meeting}/edit', 'Crockenhill\Http\Controllers\MeetingController@edit')->name('community.edit');
+Route::put('/community/{meeting}', 'Crockenhill\Http\Controllers\MeetingController@update')->name('community.update');
+Route::delete('/community/{meeting}', 'Crockenhill\Http\Controllers\MeetingController@destroy')->name('community.destroy');
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -15,61 +25,16 @@ use Illuminate\Http\Request;
 |
 */
 
-Route::get('/', ['as' => 'Home', function () {
-  return view('full-width-pages/home');
-}]);
+Route::view('/', 'full-width-pages/home')->name('Home');
 
 // Special pages route
-Route::get(
-  '/christmas',
-  array(
-    'as' => 'christmas',
-    function () {
-      return view('full-width-pages/christmas');
-    }
-  )
-);
-Route::get(
-  '/easter',
-  array(
-    'as' => 'easter',
-    function () {
-      return view('full-width-pages/easter');
-    }
-  )
-);
-Route::get(
-  '/christianity-explored',
-  array(
-    'as' => 'christianity-explored',
-    function () {
-      return view('full-width-pages/christianity-explored');
-    }
-  )
-);
+Route::view('/christmas', 'full-width-pages/christmas')->name('christmas');
+Route::view('/easter', 'full-width-pages/easter')->name('easter');
+Route::view('/christianity-explored', 'full-width-pages/christianity-explored')->name('christianity-explored');
 
 // Full width pages
-Route::get(
-  '/christ',
-  array(
-    'as' => 'christ',
-    function () {
-      return view('full-width-pages/christ');
-    }
-  )
-);
-Route::get(
-  '/church',
-  array(
-    'as' => 'church',
-    function () {
-      return view('full-width-pages/church');
-    }
-  )
-);
-//Community routes
-Route::resource('community', 'MeetingController');
-
+Route::view('/christ', 'full-width-pages/christ')->name('christ');
+Route::view('/church', 'full-width-pages/church')->name('church');
 
 
 // Sermon routes
@@ -167,7 +132,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
   Route::resource('services', 'ServiceController');
 });
 
-Route::get('phpinfo', fn() => phpinfo());
+// Route::get('phpinfo', fn() => phpinfo()); // Commented out for now to ensure cache compatibility
 
 // Permanent Redirects
 // - Very old website
@@ -222,11 +187,11 @@ Route::permanentRedirect('resources', '/');
 
 
 // General Routes
-Route::get('/{area}/', array('uses' => 'PageController@showPage'));
-Route::get('/{area}/{slug}', array('uses' => 'PageController@showPage'));
+// Route::get('/{area}/', array('uses' => 'PageController@showPage'));
+// Route::get('/{area}/{slug}', array('uses' => 'PageController@showPage'));
 
 
 
-Route::get('500', function () {
-  abort(500);
-});
+// Route::get('500', function () { // Commented out for now
+//   abort(500);
+// });
