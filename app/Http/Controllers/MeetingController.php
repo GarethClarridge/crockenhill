@@ -109,12 +109,16 @@ class MeetingController extends Controller {
 
     //Photos
     // Assuming 'pictures' is cast to boolean in the Meeting model
+$photos = []; // Initialize photos as an empty array
     if ($meeting->pictures) {
-    	$filelist = scandir($_SERVER['DOCUMENT_ROOT'].'/images/meetings/'.$slug);
-    	$photos 	= array_slice($filelist, 2);
-    } else {
-    	$photos = '';
+    $imagePath = $_SERVER['DOCUMENT_ROOT'].'/images/meetings/'.$slug;
+    if (is_dir($imagePath)) {
+        $filelist = scandir($imagePath);
+        $photos = array_slice($filelist, 2);
     }
+    // If the directory doesn't exist, $photos remains an empty array
+    }
+// If $meeting->pictures is false, $photos also remains an empty array
 
 		return view('meetings.meeting', [ // Use short array syntax for consistency if preferred
 		    'slug'          => $slug,
