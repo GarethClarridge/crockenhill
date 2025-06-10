@@ -182,4 +182,11 @@ class MeetingControllerTest extends TestCase
             $this->markTestSkipped('Skipping view/data assertions due to non-200 response (' . $response->status() . ') on GET request. Mock for Gate::authorize was set.');
         }
     }
+
+    /** @test */
+    public function it_can_access_a_simple_known_good_route()
+    {
+        $response = $this->get(route('christ'));
+        $response->assertStatus(200);
+    }
 }
