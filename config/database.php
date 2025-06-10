@@ -41,7 +41,11 @@ return [
 
 		'mysql' => [
 			'driver'    => 'mysql',
-			'host'      => env('DB_HOST', 'localhost'),
+			'host'      => tap(env('DB_HOST', 'localhost'), function ($host) {
+                if (getenv('APP_ENV') === 'testing') { // Log only during testing
+                    error_log('[DIAGNOSTIC] DB_HOST in config/database.php resolved to: ' . $host);
+                }
+            }),
 			'port'			=> env('DB_PORT', '3306'),
 			'database'  => env('DB_DATABASE', 'forge'),
 			'username'  => env('DB_USERNAME', 'forge'),
