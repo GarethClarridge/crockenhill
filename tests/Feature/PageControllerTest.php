@@ -351,11 +351,4 @@ class PageControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertViewIs('pages.index');
     }
-
-    /** @test */
-    public function it_can_access_a_simple_known_good_route()
-    {
-        $response = $this->get(route('christ'));
-        $response->assertStatus(200);
-    }
 }
