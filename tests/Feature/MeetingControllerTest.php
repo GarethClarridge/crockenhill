@@ -186,13 +186,25 @@ class MeetingControllerTest extends TestCase
     /** @test */
     public function it_can_access_a_simple_known_good_route()
     {
+        // Ensure the application is fully bootstrapped if needed by router
+        $this->createApplication(); // Ensures app is created and bootstrapped
+
+        $router = $this->app->make('router');
+        $routes = $router->getRoutes(); // This is a RouteCollection instance
+
+        error_log("---- START Dumping all registered routes ----");
+        if (count($routes->getRoutes()) === 0) {
+            error_log("No routes registered or getRoutes() returned empty array.");
+        } else {
+            foreach ($routes->getRoutes() as $route) {
+                error_log("Registered route: methods=" . implode('|', $route->methods()) . " uri=" . $route->uri() . " name=" . ($route->getName() ?? 'N/A'));
+            }
+        }
+        error_log("---- END Dumping all registered routes ----");
+
+        // Proceed with the actual test
         $response = $this->get(route('christ'));
-        echo "Dumping headers for /christ route:\n";
-        $response->dumpHeaders();
-        echo "\nDumping session for /christ route:\n";
-        $response->dumpSession();
-        echo "\nDumping content for /christ route:\n";
-        $response->dump(); // This dumps the response content
+        // $response->dump(); // Optionally keep this if we want to see the 404 page content again
         $response->assertStatus(200);
     }
 }
