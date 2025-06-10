@@ -187,6 +187,12 @@ class MeetingControllerTest extends TestCase
     public function it_can_access_a_simple_known_good_route()
     {
         $response = $this->get(route('christ'));
+        echo "Dumping headers for /christ route:\n";
+        $response->dumpHeaders();
+        echo "\nDumping session for /christ route:\n";
+        $response->dumpSession();
+        echo "\nDumping content for /christ route:\n";
+        $response->dump(); // This dumps the response content
         $response->assertStatus(200);
     }
 }
