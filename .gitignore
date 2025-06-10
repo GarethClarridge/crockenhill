@@ -1,11 +1,6 @@
 /bower_components
 /node_modules
-/public/media
-/public/images/meetings
-/public/images/photos
-/public/documents
-/public/storage
-/public/hot
+/public/*
 /storage/*.key
 /vendor
 /.idea
@@ -14,5 +9,6 @@ package-lock.json
 Homestead.json
 Homestead.yaml
 .env
+.phpunit.result.cache
 *.mp3
 .DS_Store

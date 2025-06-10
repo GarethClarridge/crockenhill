@@ -1,6 +1,9 @@
 <?php
 
-class HomeTest extends TestCase {
+namespace Tests;
+
+class HomeTest extends TestCase
+{
 
   /**
    * A basic functional test example.
@@ -13,5 +16,4 @@ class HomeTest extends TestCase {
 
     $this->assertEquals(200, $response->getStatusCode());
   }
-
 }
