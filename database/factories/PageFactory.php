@@ -39,4 +39,48 @@ class PageFactory extends Factory
             'navigation' => $this->faker->boolean,
         ];
     }
+
+    /**
+     * Indicate that the page is in a specific area.
+     *
+     * @param  string  $areaName
+     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     */
+    public function inArea(string $areaName)
+    {
+        return $this->state(function (array $attributes) use ($areaName) {
+            return [
+                'area' => $areaName,
+            ];
+        });
+    }
+
+    /**
+     * Indicate that the page should be in navigation.
+     *
+     * @param  bool  $isNav
+     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     */
+    public function isNavigation(bool $isNav = true)
+    {
+        return $this->state(function (array $attributes) use ($isNav) {
+            return [
+                'navigation' => $isNav,
+            ];
+        });
+    }
+
+    /**
+     * Indicate that the page should not be in navigation.
+     *
+     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     */
+    public function isNotNavigation()
+    {
+        return $this->state(function (array $attributes) {
+            return [
+                'navigation' => false,
+            ];
+        });
+    }
 }
