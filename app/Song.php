@@ -1,7 +1,11 @@
 <?php namespace Crockenhill;
 
-class Song extends \Eloquent {
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Song extends Model {
  
+    use HasFactory;
     protected $table = 'songs';
 
     public function play_date()

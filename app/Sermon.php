@@ -3,9 +3,11 @@
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Feed\Feedable;
 use Spatie\Feed\FeedItem;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Sermon extends Model
 {
+    use HasFactory;
     protected $table = 'sermons';
 
     public $timestamps = false;

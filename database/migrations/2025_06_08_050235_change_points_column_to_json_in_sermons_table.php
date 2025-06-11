@@ -12,11 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sermons', function (Blueprint $table) {
-            // It's good practice to ensure the column exists before trying to change it,
-            // though in this specific flow we know it does.
-            // Change the 'points' column to JSON type.
-            // It's already nullable based on the schema, so we keep ->nullable().
-            $table->json('points')->nullable()->change();
+            // SQLite does not support changing column types directly in this manner.
+            // We'll skip this change for SQLite.
+            if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+                // Change the 'points' column to JSON type.
+                // It's already nullable based on the schema, so we keep ->nullable().
+                $table->json('points')->nullable()->change();
+            }
         });
     }
 
@@ -26,8 +28,12 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('sermons', function (Blueprint $table) {
-            // Revert the 'points' column back to TEXT type.
-            $table->text('points')->nullable()->change();
+            // SQLite does not support changing column types directly in this manner.
+            // We'll skip this change for SQLite.
+            if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+                // Revert the 'points' column back to TEXT type.
+                $table->text('points')->nullable()->change();
+            }
         });
     }
 };
