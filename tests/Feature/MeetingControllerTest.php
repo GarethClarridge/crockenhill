@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use Crockenhill\User;
-use Crockenhill\Meeting;
+use App\Models\User;
+use App\Models\Meeting;
 use Database\Factories\UserFactory;
 use Database\Factories\MeetingFactory;
 use Carbon\Carbon;

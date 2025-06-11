@@ -2,9 +2,9 @@
 
 namespace Database\Factories;
 
-use Crockenhill\PlayDate; // Corrected namespace
-use Crockenhill\Sermon;   // Corrected namespace
-use Crockenhill\Song;     // Added Song import
+use App\Models\PlayDate;
+use App\Models\Sermon;
+use App\Models\Song;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class PlayDateFactory extends Factory
@@ -34,7 +34,7 @@ class PlayDateFactory extends Factory
     /**
      * Associate the play date with a specific sermon.
      *
-     * @param \Crockenhill\Sermon|int $sermon
+     * @param \App\Models\Sermon|int $sermon
      * @return \Illuminate\Database\Eloquent\Factories\Factory
      */
     public function forSermon($sermon)
@@ -50,7 +50,7 @@ class PlayDateFactory extends Factory
     /**
      * Associate the play date with a specific song.
      *
-     * @param \Crockenhill\Song|int $song
+     * @param \App\Models\Song|int $song
      * @return \Illuminate\Database\Eloquent\Factories\Factory
      */
     public function forSong($song)

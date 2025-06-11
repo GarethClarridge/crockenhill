@@ -1,6 +1,9 @@
-<?php namespace Crockenhill;
+<?php namespace App\Models;
 
-class Meeting extends \Eloquent 
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Meeting extends Model
 {
-  
+  use HasFactory;
 }
