@@ -7,14 +7,13 @@ use Tests\TestCase;
 use Crockenhill\User; // Reverted to Crockenhill namespace
 use Database\Factories\UserFactory;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\Test;
 
 class AuthUserTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
+    #[Test]
     public function unauthenticated_user_cannot_access_user_endpoint()
     {
         // Make a GET request to /api/user without any authentication token
@@ -28,9 +27,7 @@ class AuthUserTest extends TestCase
         $response->assertJson(['message' => 'Unauthenticated.']); // Default Sanctum message
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function authenticated_user_can_access_user_endpoint()
     {
         // Create a user using UserFactory

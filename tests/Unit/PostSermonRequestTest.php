@@ -7,6 +7,7 @@ use Crockenhill\Http\Requests\PostSermonRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\UploadedFile;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class PostSermonRequestTest extends TestCase
 {
@@ -38,9 +39,7 @@ class PostSermonRequestTest extends TestCase
         $this->assertFalse($this->request->authorize());
     }
 
-    /**
-     * @dataProvider validationDataProvider
-     */
+    #[DataProvider('validationDataProvider')]
     public function test_validation_rules(array $data, bool $shouldPass, array $expectedErrors = [])
     {
         $validator = Validator::make($data, $this->request->rules(), $this->request->messages());

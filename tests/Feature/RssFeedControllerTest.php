@@ -9,6 +9,7 @@ use Crockenhill\Service;
 use Database\Factories\SermonFactory;
 use Database\Factories\ServiceFactory;
 use Carbon\Carbon;
+use PHPUnit\Framework\Attributes\Test;
 
 class RssFeedControllerTest extends TestCase
 {
@@ -42,7 +43,7 @@ class RssFeedControllerTest extends TestCase
             ], $overrides));
     }
 
-    /** @test */
+    #[Test]
     public function morning_feed_is_valid_rss_and_contains_correct_sermons()
     {
         // Create sermons
@@ -88,7 +89,7 @@ class RssFeedControllerTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function evening_feed_is_valid_rss_and_contains_correct_sermons()
     {
         $recentEveningSermon = $this->createSermonForFeed($this->eveningService, Carbon::now()->subDays(1), ['title' => 'Recent Evening Sermon']);
@@ -106,7 +107,7 @@ class RssFeedControllerTest extends TestCase
         $this->assertNotContains('Recent Morning Sermon', $itemTitles);
     }
 
-    /** @test */
+    #[Test]
     public function feed_includes_correct_sermon_details()
     {
         $sermonDate = Carbon::create(2023, 3, 15, 10, 0, 0);
@@ -150,7 +151,7 @@ class RssFeedControllerTest extends TestCase
         // $this->assertNotEmpty((string) $enclosure['length']); // Optional but good
     }
 
-    /** @test */
+    #[Test]
     public function feed_handles_empty_sermons_gracefully()
     {
         $response = $this->get('/rss/morning');
@@ -161,7 +162,7 @@ class RssFeedControllerTest extends TestCase
         $this->assertCount(0, $xml->channel->item);
     }
 
-    /** @test */
+    #[Test]
     public function feed_limit_is_enforced()
     {
         // Create more sermons than a hypothetical limit (e.g., 10)

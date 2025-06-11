@@ -12,15 +12,14 @@ use Database\Factories\ServiceFactory;
 use Database\Factories\PlayDateFactory;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use PHPUnit\Framework\Attributes\Test;
 // Assuming Preacher and Series are not models for now, will adjust if needed.
 
 class SermonTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testSermonRelationships()
     {
         $service = Service::factory()->create();
@@ -40,9 +39,7 @@ class SermonTest extends TestCase
         $this->assertTrue($sermon->playDates->contains($playDate2));
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testSermonAccessors()
     {
         $date = Carbon::create(2023, 1, 15, 10, 0, 0);
@@ -72,9 +69,7 @@ class SermonTest extends TestCase
         // If the accessor is not yet implemented, this test will guide its creation.
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testSermonMutatorsAndCasts()
     {
         // Test 'points' attribute casting to array
@@ -95,9 +90,7 @@ class SermonTest extends TestCase
         $this->assertIsArray($sermonFromFactory->points);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testSermonScopes()
     {
         // Test last12Months scope
@@ -146,9 +139,7 @@ class SermonTest extends TestCase
         $this->assertFalse($sermonsByPreacherX->contains($sermonByPreacherY));
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testHasPlayDate()
     {
         $sermon = Sermon::factory()->create();

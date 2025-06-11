@@ -6,23 +6,20 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Crockenhill\Page; // Correct namespace
 use Database\Factories\PageFactory;
+use PHPUnit\Framework\Attributes\Test;
 
 class PageTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testPageRelationships()
     {
         // Implementation will follow - likely empty or for future relationships
         $this->assertTrue(true); // Placeholder if no relationships to test initially
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testPageAccessors()
     {
         // Test getRouteAttribute
@@ -47,9 +44,7 @@ class PageTest extends TestCase
         // This will depend on the actual accessor logic in the Page model.
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testPageMutatorsAndCasts()
     {
         // Test 'navigation' attribute casting to boolean
@@ -71,9 +66,7 @@ class PageTest extends TestCase
         $this->assertIsBool($pageFromFactory->navigation);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testPageScopes()
     {
         // Test inArea() scope

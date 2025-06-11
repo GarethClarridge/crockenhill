@@ -10,14 +10,13 @@ use Database\Factories\ServiceFactory;
 use Database\Factories\SermonFactory;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Carbon\Carbon;
+use PHPUnit\Framework\Attributes\Test;
 
 class ServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testServiceRelationships()
     {
         $service = Service::factory()->create();
@@ -32,9 +31,7 @@ class ServiceTest extends TestCase
         $this->assertTrue($service->sermons->contains($sermon2));
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testServiceAccessors()
     {
         // Test getFormattedNameAttribute (assuming it returns the name directly for now)
@@ -61,9 +58,7 @@ class ServiceTest extends TestCase
         $this->assertEquals(0, $serviceWithoutSermons->upcoming_sermon_count);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testServiceMutatorsAndCasts()
     {
         // Test is_active casting to boolean
@@ -90,9 +85,7 @@ class ServiceTest extends TestCase
         // $this->assertEquals($time, $serviceWithTime->service_time);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testServiceScopes()
     {
         // Test isActive() scope
@@ -117,9 +110,7 @@ class ServiceTest extends TestCase
         // This also assumes service_time is stored in a way that direct DB ordering works as expected for time.
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testCustomServiceMethods()
     {
         // Test hasUpcomingSermons() method

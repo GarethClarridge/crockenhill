@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class PageControllerTest extends TestCase
 {
@@ -38,7 +39,7 @@ class PageControllerTest extends TestCase
         return User::factory()->create($attributes); // Default state is not admin
     }
 
-    /** @test */
+    #[Test]
     public function index_returns_200_for_admin_user()
     {
         $admin = $this->createAdminUser();
@@ -46,7 +47,7 @@ class PageControllerTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function index_returns_403_for_normal_user()
     {
         $user = $this->createNormalUser();
@@ -54,7 +55,7 @@ class PageControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function create_returns_200_for_admin_user()
     {
         $admin = $this->createAdminUser();
@@ -62,7 +63,7 @@ class PageControllerTest extends TestCase
         $response->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function create_returns_403_for_normal_user()
     {
         $user = $this->createNormalUser();
@@ -70,7 +71,7 @@ class PageControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function store_saves_page_and_redirects_for_admin_with_valid_data()
     {
         Storage::fake('public_images');
@@ -104,7 +105,7 @@ class PageControllerTest extends TestCase
         $response->assertSessionHas('message', $heading . ' successfully created!');
     }
 
-    /** @test */
+    #[Test]
     public function store_returns_validation_errors_for_admin_with_invalid_data()
     {
         $admin = $this->createAdminUser();
@@ -121,7 +122,7 @@ class PageControllerTest extends TestCase
         $response->assertSessionHasErrors(['heading', 'markdown', 'area', 'navigation-radio', 'heading-image']);
     }
 
-    /** @test */
+    #[Test]
     public function store_returns_403_for_normal_user()
     {
         $user = $this->createNormalUser();
@@ -135,7 +136,7 @@ class PageControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function edit_returns_200_for_admin_user_and_existing_page()
     {
         $admin = $this->createAdminUser();
@@ -146,7 +147,7 @@ class PageControllerTest extends TestCase
         $response->assertViewHas('page', $page);
     }
 
-    /** @test */
+    #[Test]
     public function edit_returns_403_for_normal_user_and_existing_page()
     {
         $user = $this->createNormalUser();
@@ -156,7 +157,7 @@ class PageControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function edit_returns_404_for_admin_user_and_non_existent_page()
     {
         $admin = $this->createAdminUser();
@@ -165,7 +166,7 @@ class PageControllerTest extends TestCase
         $response->assertStatus(404);
     }
 
-    /** @test */
+    #[Test]
     public function update_saves_changes_and_redirects_for_admin_with_valid_data()
     {
         Storage::fake('public_images');
@@ -209,7 +210,7 @@ class PageControllerTest extends TestCase
         $response->assertSessionHas('message', $newHeading . ' successfully updated!');
     }
 
-    /** @test */
+    #[Test]
     public function update_handles_image_replacement()
     {
         Storage::fake('public_images');
@@ -241,7 +242,7 @@ class PageControllerTest extends TestCase
     }
 
 
-    /** @test */
+    #[Test]
     public function update_returns_validation_errors_for_admin_with_invalid_data()
     {
         $admin = $this->createAdminUser();
@@ -255,7 +256,7 @@ class PageControllerTest extends TestCase
         $response->assertSessionHasErrors(['heading', 'markdown']);
     }
 
-    /** @test */
+    #[Test]
     public function update_returns_403_for_normal_user()
     {
         $user = $this->createNormalUser();
@@ -270,7 +271,7 @@ class PageControllerTest extends TestCase
         $response->assertStatus(403);
     }
 
-    /** @test */
+    #[Test]
     public function destroy_deletes_page_and_images_and_redirects_for_admin()
     {
         Storage::fake('public_images');
@@ -293,7 +294,7 @@ class PageControllerTest extends TestCase
         $response->assertSessionHas('message', $heading . ' successfully deleted!');
     }
 
-    /** @test */
+    #[Test]
     public function destroy_returns_403_for_normal_user()
     {
         $user = $this->createNormalUser();
@@ -304,7 +305,7 @@ class PageControllerTest extends TestCase
         $this->assertDatabaseHas('pages', ['id' => $page->id]); // Ensure page was not deleted
     }
 
-    /** @test */
+    #[Test]
     public function show_public_route_returns_200_for_existing_page()
     {
         $page = Page::factory()->create();
@@ -321,7 +322,7 @@ class PageControllerTest extends TestCase
         $response->assertSee($page->heading);
     }
 
-    /** @test */
+    #[Test]
     public function show_public_route_returns_404_for_non_existent_page()
     {
         $response = $this->get('/non-existent-page-slug-for-test');

@@ -13,14 +13,13 @@ use Database\Factories\PlayDateFactory;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Str;
 use Carbon\Carbon; // For date casting tests
+use PHPUnit\Framework\Attributes\Test;
 
 class SongTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testSongRelationships()
     {
         $song = Song::factory()->create();
@@ -48,9 +47,7 @@ class SongTest extends TestCase
         $this->assertTrue($song->play_date->contains($playDate2));
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testSongAccessors()
     {
         // Test getFormattedTitleAttribute (assuming it returns the title directly for now)
@@ -79,9 +76,7 @@ class SongTest extends TestCase
         $this->assertEquals('', $songWithoutRefs->scripture_references_list);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testSongMutatorsAndCasts()
     {
         // Test last_played_at casting to Carbon instance
@@ -105,9 +100,7 @@ class SongTest extends TestCase
         $this->assertEquals($lyricsText, $songWithTextLyrics->lyrics);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testSongScopes()
     {
         // Test withLyrics() scope
@@ -152,9 +145,7 @@ class SongTest extends TestCase
         // }
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testCustomSongMethods()
     {
         // Test hasScriptureReference(string $reference)

@@ -7,14 +7,13 @@ use Tests\TestCase;
 use Crockenhill\User; // Assuming User model namespace
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Test;
 
 class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
+    #[Test]
     public function registration_page_can_be_rendered()
     {
         $response = $this->get(route('register'));
@@ -26,9 +25,7 @@ class RegistrationTest extends TestCase
         $response->assertSee('Confirm Password');
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function user_can_register_with_valid_data()
     {
         $password = 'password123';
@@ -54,9 +51,7 @@ class RegistrationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function user_cannot_register_with_existing_email()
     {
         $existingUser = User::factory()->create(['email' => 'existinguser@example.com']);
@@ -77,9 +72,7 @@ class RegistrationTest extends TestCase
         $this->assertGuest();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function user_cannot_register_with_mismatched_passwords()
     {
         $userData = [
@@ -97,9 +90,7 @@ class RegistrationTest extends TestCase
         $this->assertGuest();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function user_cannot_register_with_invalid_email_format()
     {
         $userData = [
@@ -117,9 +108,7 @@ class RegistrationTest extends TestCase
         $this->assertGuest();
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function user_cannot_register_if_password_is_too_short()
     {
         // Assuming minimum password length is 8 (Laravel default)

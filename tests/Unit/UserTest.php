@@ -8,14 +8,13 @@ use Crockenhill\User; // Reverted to Crockenhill namespace
 use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon; // For date casting tests
+use PHPUnit\Framework\Attributes\Test;
 
 class UserTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testUserRelationships()
     {
         // No explicit relationships found on the User model (e.g., hasMany Pages/Sermons).
@@ -25,9 +24,7 @@ class UserTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testUserAccessors()
     {
         // Test is_admin_for_test attribute/accessor
@@ -46,9 +43,7 @@ class UserTest extends TestCase
         // For now, testing the direct attribute based on factory and common usage.
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testUserMutatorsAndCasts()
     {
         // Test password hashing
@@ -75,9 +70,7 @@ class UserTest extends TestCase
         $this->assertNull($userNoEmailVerified->email_verified_at);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testCustomUserMethods()
     {
         // No specific custom methods (e.g., hasRole(), hasPermissionTo()) found on the User model

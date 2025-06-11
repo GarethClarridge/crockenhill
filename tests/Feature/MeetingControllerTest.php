@@ -9,6 +9,7 @@ use Crockenhill\Meeting;
 use Database\Factories\UserFactory;
 use Database\Factories\MeetingFactory;
 use Carbon\Carbon;
+use PHPUnit\Framework\Attributes\Test;
 
 class MeetingControllerTest extends TestCase
 {
@@ -25,7 +26,7 @@ class MeetingControllerTest extends TestCase
     }
 
     // 1. Authentication/Authorization Tests (CUD actions)
-    /** @test */
+    #[Test]
     public function guests_cannot_access_meeting_cud_routes()
     {
         $meeting = Meeting::factory()->create();
@@ -37,7 +38,7 @@ class MeetingControllerTest extends TestCase
         $this->delete("/meetings/{$meeting->id}")->assertRedirect('/login');
     }
 
-    /** @test */
+    #[Test]
     public function regular_users_are_forbidden_from_meeting_cud_routes()
     {
         $this->actingAs($this->regularUser);
@@ -51,7 +52,7 @@ class MeetingControllerTest extends TestCase
     }
 
     // 2. testMeetingIndexPageLoads
-    /** @test */
+    #[Test]
     public function meeting_index_page_is_publicly_accessible()
     {
         Meeting::factory()->count(3)->create();
@@ -62,7 +63,7 @@ class MeetingControllerTest extends TestCase
     }
 
     // 3. testMeetingShowPageLoads
-    /** @test */
+    #[Test]
     public function meeting_show_page_is_publicly_accessible()
     {
         $meeting = Meeting::factory()->create(['name' => 'Public Meeting Details']);
@@ -72,14 +73,14 @@ class MeetingControllerTest extends TestCase
         $response->assertSee('Public Meeting Details');
     }
 
-    /** @test */
+    #[Test]
     public function meeting_show_page_returns_404_for_non_existent_meeting()
     {
         $this->get('/meetings/9999')->assertNotFound();
     }
 
     // 4. testMeetingCreatePageLoads
-    /** @test */
+    #[Test]
     public function meeting_create_page_loads_for_admin_users()
     {
         $response = $this->actingAs($this->adminUser)->get('/meetings/create');
@@ -89,7 +90,7 @@ class MeetingControllerTest extends TestCase
     }
 
     // 5. testStoreNewMeeting
-    /** @test */
+    #[Test]
     public function admin_user_can_store_new_meeting()
     {
         $meetingData = [
@@ -107,7 +108,7 @@ class MeetingControllerTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    /** @test */
+    #[Test]
     public function store_meeting_fails_with_invalid_data()
     {
         $response = $this->actingAs($this->adminUser)->post('/meetings', [
@@ -119,7 +120,7 @@ class MeetingControllerTest extends TestCase
     }
 
     // 6. testMeetingEditPageLoads
-    /** @test */
+    #[Test]
     public function meeting_edit_page_loads_for_admin_users()
     {
         $meeting = Meeting::factory()->create();
@@ -129,14 +130,14 @@ class MeetingControllerTest extends TestCase
         $response->assertSee($meeting->name);
     }
 
-    /** @test */
+    #[Test]
     public function meeting_edit_page_returns_404_for_non_existent_meeting()
     {
         $this->actingAs($this->adminUser)->get('/meetings/9999/edit')->assertNotFound();
     }
 
     // 7. testUpdateExistingMeeting
-    /** @test */
+    #[Test]
     public function admin_user_can_update_existing_meeting()
     {
         $meeting = Meeting::factory()->create(['name' => 'Old Meeting Name']);
@@ -157,7 +158,7 @@ class MeetingControllerTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    /** @test */
+    #[Test]
     public function update_meeting_fails_with_invalid_data()
     {
         $meeting = Meeting::factory()->create();
@@ -171,7 +172,7 @@ class MeetingControllerTest extends TestCase
     }
 
     // 8. testDestroyMeeting
-    /** @test */
+    #[Test]
     public function admin_user_can_destroy_meeting()
     {
         $meeting = Meeting::factory()->create();
@@ -183,7 +184,7 @@ class MeetingControllerTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    /** @test */
+    #[Test]
     public function destroy_non_existent_meeting_returns_404()
     {
         $this->actingAs($this->adminUser)->delete('/meetings/9999')->assertNotFound();

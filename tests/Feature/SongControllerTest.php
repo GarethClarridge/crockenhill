@@ -10,6 +10,7 @@ use Crockenhill\ScriptureReference;
 use Database\Factories\UserFactory;
 use Database\Factories\SongFactory;
 use Database\Factories\ScriptureReferenceFactory;
+use PHPUnit\Framework\Attributes\Test;
 
 class SongControllerTest extends TestCase
 {
@@ -61,7 +62,7 @@ class SongControllerTest extends TestCase
     }
 
     // 2. testSongIndexPageLoads
-    /** @test */
+    #[Test]
     public function song_index_page_loads_for_admin_users()
     {
         Song::factory()->count(3)->create();
@@ -72,7 +73,7 @@ class SongControllerTest extends TestCase
     }
 
     // 3. testSongCreatePageLoads
-    /** @test */
+    #[Test]
     public function song_create_page_loads_for_admin_users()
     {
         $response = $this->actingAs($this->adminUser)->get('/songs/create');
@@ -82,7 +83,7 @@ class SongControllerTest extends TestCase
     }
 
     // 4. testStoreNewSong
-    /** @test */
+    #[Test]
     public function admin_user_can_store_new_song()
     {
         $songData = [
@@ -107,7 +108,7 @@ class SongControllerTest extends TestCase
         $response->assertSessionHas('success'); // Or similar flash message
     }
 
-    /** @test */
+    #[Test]
     public function store_song_fails_with_invalid_data()
     {
         $response = $this->actingAs($this->adminUser)->post('/songs', [
@@ -119,7 +120,7 @@ class SongControllerTest extends TestCase
     }
 
     // 5. testSongShowPageLoads
-    /** @test */
+    #[Test]
     public function song_show_page_loads_for_everyone()
     {
         $song = Song::factory()->create();
@@ -133,14 +134,14 @@ class SongControllerTest extends TestCase
         $response->assertSee('Gen 1:1');
     }
 
-    /** @test */
+    #[Test]
     public function song_show_page_returns_404_for_non_existent_song()
     {
         $this->get('/songs/9999')->assertNotFound();
     }
 
     // 6. testSongEditPageLoads
-    /** @test */
+    #[Test]
     public function song_edit_page_loads_for_admin_users()
     {
         $song = Song::factory()->create();
@@ -150,14 +151,14 @@ class SongControllerTest extends TestCase
         $response->assertSee($song->title); // Check if form is pre-filled
     }
 
-    /** @test */
+    #[Test]
     public function song_edit_page_returns_404_for_non_existent_song_for_admin()
     {
         $this->actingAs($this->adminUser)->get('/songs/9999/edit')->assertNotFound();
     }
 
     // 7. testUpdateExistingSong
-    /** @test */
+    #[Test]
     public function admin_user_can_update_existing_song()
     {
         $song = Song::factory()->create();
@@ -183,7 +184,7 @@ class SongControllerTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    /** @test */
+    #[Test]
     public function update_song_fails_with_invalid_data()
     {
         $song = Song::factory()->create();
@@ -195,7 +196,7 @@ class SongControllerTest extends TestCase
     }
 
     // 8. testDestroySong
-    /** @test */
+    #[Test]
     public function admin_user_can_destroy_song()
     {
         $song = Song::factory()->create();
@@ -212,14 +213,14 @@ class SongControllerTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    /** @test */
+    #[Test]
     public function destroy_non_existent_song_returns_404_for_admin()
     {
         $this->actingAs($this->adminUser)->delete('/songs/9999')->assertNotFound();
     }
 
     // 9. testSongSearch (Placeholder - depends on actual search implementation)
-    /** @test */
+    #[Test]
     public function song_search_returns_relevant_results()
     {
         $song1 = Song::factory()->create(['title' => 'Amazing Grace']);
@@ -239,7 +240,7 @@ class SongControllerTest extends TestCase
     // Additional specific tests can be added if there's a dedicated UI for managing these links
     // or more complex logic.
 
-    /** @test */
+    #[Test]
     public function filtering_songs_by_scripture_reference()
     {
         $refString = 'John 3:16';

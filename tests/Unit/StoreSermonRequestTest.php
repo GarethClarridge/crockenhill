@@ -7,6 +7,7 @@ use Crockenhill\Http\Requests\StoreSermonRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\UploadedFile;
+use PHPUnit\Framework\Attributes\DataProvider;
 // Assuming User model is App\Models\User for Gate simulation if needed, though direct Gate mocking is better
 // use App\Models\User;
 
@@ -40,9 +41,7 @@ class StoreSermonRequestTest extends TestCase
         $this->assertFalse($this->request->authorize());
     }
 
-    /**
-     * @dataProvider validationDataProvider
-     */
+    #[DataProvider('validationDataProvider')]
     public function test_validation_rules(array $data, bool $shouldPass, array $expectedErrors = [])
     {
         $validator = Validator::make($data, $this->request->rules(), $this->request->messages());

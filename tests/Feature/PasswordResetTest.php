@@ -9,12 +9,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Test;
 
 class PasswordResetTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function password_request_page_can_be_rendered()
     {
         $response = $this->get(route('password.request'));
@@ -22,7 +23,7 @@ class PasswordResetTest extends TestCase
         $response->assertSee('Email Address');
     }
 
-    /** @test */
+    #[Test]
     public function user_can_request_password_reset_link_with_valid_email()
     {
         $user = User::factory()->create();
@@ -40,7 +41,7 @@ class PasswordResetTest extends TestCase
         // DB::table('password_resets')->where('email', $user->email)->delete();
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_request_password_reset_link_with_invalid_email()
     {
         $response = $this->post(route('password.email'), ['email' => 'nonexistent@example.com']);
@@ -52,7 +53,7 @@ class PasswordResetTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function password_reset_form_can_be_rendered_with_valid_token()
     {
         $user = User::factory()->create();
@@ -77,7 +78,7 @@ class PasswordResetTest extends TestCase
         $response->assertSeeHTML("<input type=\"hidden\" name=\"token\" value=\"{$token}\">");
     }
 
-    /** @test */
+    #[Test]
     public function user_can_reset_password_with_valid_token_and_data()
     {
         $user = User::factory()->create();
@@ -109,7 +110,7 @@ class PasswordResetTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_reset_password_with_invalid_token()
     {
         $user = User::factory()->create();
@@ -126,7 +127,7 @@ class PasswordResetTest extends TestCase
         $response->assertSessionHasErrors('email', __('passwords.token')); // Error tied to email or token
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_reset_password_with_mismatched_passwords()
     {
         $user = User::factory()->create();
@@ -144,7 +145,7 @@ class PasswordResetTest extends TestCase
         $this->assertTrue(Hash::check($user->password, $user->fresh()->password)); // Password should not change
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_reset_password_if_password_is_too_short()
     {
         $user = User::factory()->create();

@@ -10,6 +10,7 @@ use Crockenhill\Sermon; // For testing relationship implications
 use Database\Factories\UserFactory;
 use Database\Factories\ServiceFactory;
 use Database\Factories\SermonFactory;
+use PHPUnit\Framework\Attributes\Test;
 
 class ServiceControllerTest extends TestCase
 {
@@ -26,7 +27,7 @@ class ServiceControllerTest extends TestCase
     }
 
     // 1. Authentication/Authorization Tests
-    /** @test */
+    #[Test]
     public function guests_cannot_access_service_management_routes()
     {
         $service = Service::factory()->create();
@@ -40,7 +41,7 @@ class ServiceControllerTest extends TestCase
         $this->delete("/services/{$service->id}")->assertRedirect('/login');
     }
 
-    /** @test */
+    #[Test]
     public function regular_users_are_forbidden_from_service_management_routes()
     {
         $this->actingAs($this->regularUser);
@@ -56,7 +57,7 @@ class ServiceControllerTest extends TestCase
     }
 
     // 2. testServiceIndexPageLoads
-    /** @test */
+    #[Test]
     public function service_index_page_loads_for_admin_users()
     {
         Service::factory()->count(3)->create();
@@ -67,7 +68,7 @@ class ServiceControllerTest extends TestCase
     }
 
     // 3. testServiceCreatePageLoads
-    /** @test */
+    #[Test]
     public function service_create_page_loads_for_admin_users()
     {
         $response = $this->actingAs($this->adminUser)->get('/services/create');
@@ -77,7 +78,7 @@ class ServiceControllerTest extends TestCase
     }
 
     // 4. testStoreNewService
-    /** @test */
+    #[Test]
     public function admin_user_can_store_new_service()
     {
         $serviceData = [
@@ -94,7 +95,7 @@ class ServiceControllerTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    /** @test */
+    #[Test]
     public function store_service_fails_with_invalid_data()
     {
         $response = $this->actingAs($this->adminUser)->post('/services', [
@@ -108,7 +109,7 @@ class ServiceControllerTest extends TestCase
     // If a public show page exists for services, it should be tested separately.
 
     // 5. testServiceEditPageLoads
-    /** @test */
+    #[Test]
     public function service_edit_page_loads_for_admin_users()
     {
         $service = Service::factory()->create();
@@ -118,14 +119,14 @@ class ServiceControllerTest extends TestCase
         $response->assertSee($service->name);
     }
 
-    /** @test */
+    #[Test]
     public function service_edit_page_returns_404_for_non_existent_service()
     {
         $this->actingAs($this->adminUser)->get('/services/9999/edit')->assertNotFound();
     }
 
     // 6. testUpdateExistingService
-    /** @test */
+    #[Test]
     public function admin_user_can_update_existing_service()
     {
         $service = Service::factory()->create(['name' => 'Old Name', 'is_active' => true]);
@@ -147,7 +148,7 @@ class ServiceControllerTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    /** @test */
+    #[Test]
     public function update_service_fails_with_invalid_data()
     {
         $service = Service::factory()->create();
@@ -160,7 +161,7 @@ class ServiceControllerTest extends TestCase
     }
 
     // 7. testDestroyService
-    /** @test */
+    #[Test]
     public function admin_user_can_destroy_service()
     {
         $service = Service::factory()->create();
@@ -181,7 +182,7 @@ class ServiceControllerTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    /** @test */
+    #[Test]
     public function destroy_non_existent_service_returns_404()
     {
         $this->actingAs($this->adminUser)->delete('/services/9999')->assertNotFound();

@@ -6,6 +6,7 @@ use Tests\TestCase;
 use Crockenhill\Http\Requests\UpdateSermonRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Gate;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class UpdateSermonRequestTest extends TestCase
 {
@@ -37,9 +38,7 @@ class UpdateSermonRequestTest extends TestCase
         $this->assertFalse($this->request->authorize());
     }
 
-    /**
-     * @dataProvider validationDataProvider
-     */
+    #[DataProvider('validationDataProvider')]
     public function test_validation_rules(array $data, bool $shouldPass, array $expectedErrors = [])
     {
         // For UpdateSermonRequest, route parameters might be needed for the request object

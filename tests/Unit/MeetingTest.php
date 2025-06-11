@@ -8,14 +8,13 @@ use Crockenhill\Meeting; // Assuming Crockenhill namespace
 use Database\Factories\MeetingFactory; // Will create if not exists
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Carbon\Carbon;
+use PHPUnit\Framework\Attributes\Test;
 
 class MeetingTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testMeetingRelationships()
     {
         // No relationships are defined on the Meeting model yet.
@@ -28,9 +27,7 @@ class MeetingTest extends TestCase
         $this->assertTrue(true); // Basic assertion
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testMeetingAccessors()
     {
         // Test getFormattedDateTimeAttribute
@@ -51,9 +48,7 @@ class MeetingTest extends TestCase
         $this->assertNull($meetingWithoutAddress->location_address);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testMeetingMutatorsAndCasts()
     {
         // Test meeting_date casting to Carbon instance
@@ -77,9 +72,7 @@ class MeetingTest extends TestCase
         $this->assertNull($meetingWithoutFrequency->frequency);
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testMeetingScopes()
     {
         // Test isRecurring() scope
@@ -118,9 +111,7 @@ class MeetingTest extends TestCase
         // }
     }
 
-    /**
-     * @test
-     */
+    #[Test]
     public function testCustomMeetingMethods()
     {
         // Test getNextOccurrence() method for a weekly recurring meeting
