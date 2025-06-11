@@ -4,7 +4,7 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Models\User; // Corrected namespace
+use Crockenhill\User; // Reverted to Crockenhill namespace
 use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon; // For date casting tests

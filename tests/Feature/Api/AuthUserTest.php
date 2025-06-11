@@ -4,7 +4,7 @@ namespace Tests\Feature\Api;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\Models\User; // Assuming User model is in Crockenhill namespace
+use Crockenhill\User; // Reverted to Crockenhill namespace
 use Database\Factories\UserFactory;
 use Laravel\Sanctum\Sanctum;
 

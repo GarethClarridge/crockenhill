@@ -1,15 +1,11 @@
-<?php namespace App\Models;
+<?php namespace Crockenhill;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Str;
 use Spatie\Feed\Feedable;
 use Spatie\Feed\FeedItem;
 
 class Sermon extends Model
 {
-    use HasFactory;
-
     protected $table = 'sermons';
 
     public $timestamps = false;
@@ -40,14 +36,4 @@ class Sermon extends Model
         'date' => 'date',
         'points' => 'array',
     ];
-
-    public function getSeriesUrlAttribute()
-    {
-        return '/series/' . Str::slug($this->series);
-    }
-
-    public function getPreacherUrlAttribute()
-    {
-        return '/preachers/' . Str::slug($this->preacher);
-    }
 }

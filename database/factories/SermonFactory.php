@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\Sermon;
-use App\Models\Service;
+use Crockenhill\Sermon;
+use Crockenhill\Service;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -57,7 +57,7 @@ class SermonFactory extends Factory
     /**
      * Indicate that the sermon belongs to a specific service.
      *
-     * @param  \App\Models\Service|int  $service
+     * @param  \Crockenhill\Service|int  $service
      * @return \Illuminate\Database\Eloquent\Factories\Factory
      */
     public function forService($service)

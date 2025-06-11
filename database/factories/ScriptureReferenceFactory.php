@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\Models\ScriptureReference;
-use App\Models\Song;
+use Crockenhill\ScriptureReference;
+use Crockenhill\Song;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ScriptureReferenceFactory extends Factory
@@ -32,7 +32,7 @@ class ScriptureReferenceFactory extends Factory
     /**
      * Associate the scripture reference with a specific song.
      *
-     * @param \App\Models\Song|int $song
+     * @param \Crockenhill\Song|int $song
      * @return \Illuminate\Database\Eloquent\Factories\Factory
      */
     public function forSong($song)

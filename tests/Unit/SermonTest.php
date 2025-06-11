@@ -4,9 +4,9 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Models\Sermon;
-use App\Models\Service;
-use App\Models\PlayDate;
+use Crockenhill\Sermon;
+use Crockenhill\Service;
+use Crockenhill\PlayDate;
 use Database\Factories\SermonFactory;
 use Database\Factories\ServiceFactory;
 use Database\Factories\PlayDateFactory;
