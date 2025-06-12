@@ -13,113 +13,92 @@ class SongController extends Controller {
    */
   public function index()
   {
-    // Load songs
-    $songs =\Crockenhill\Song::all();
+    try {
+      // Load songs
+      $songs = \Crockenhill\Song::all();
 
-    foreach ($songs as $song) {
+      foreach ($songs as $song) {
+        $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
+                                  ->orderBy('date', 'desc')
+                                  ->first();
+        $song['last_played'] = $last_played_record ? $last_played_record->date : null;
+
+        // Information about how often we've sung it recently
+        $years = 2;
+        $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
+                                  ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
+                                  ->count();
+        $song['frequency'] = $frequency >= 1 ? $frequency : 0;
+        $song['nip'] = $song->praise_number === null ? 'nip' : 'praise';
+      }
+
+      $last_service_uploaded = \Crockenhill\PlayDate::orderBy('date', 'desc')->first(['date']);
+
+      return view('songs.index', [
+        'songs' => $songs->sortByDesc('frequency'),
+        'last_service_uploaded' => $last_service_uploaded
+      ]);
+    } catch (\Exception $e) {
+      \Log::error('Error in SongController@index: ' . $e->getMessage());
+      return view('songs.index', [
+        'songs' => collect(),
+        'last_service_uploaded' => null
+      ]);
+    }
+  }
+
+  public function show($id)
+  {
+    try {
+      $song = \Crockenhill\Song::findOrFail($id);
+      $lyrics = nl2br(trim($song->lyrics));
+
       $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
                                 ->orderBy('date', 'desc')
                                 ->first();
-      if ($last_played_record) {
-        $last_played = $last_played_record->date;
-      } else {
-        $last_played = NULL;
-      }
-      $song['last_played'] = $last_played;
+      $song['last_played'] = $last_played_record ? $last_played_record->date : null;
 
-      // Information about how often we've sung it recently
       $years = 2;
       $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
                                 ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
                                 ->count();
-      if ($frequency >= 1) {
-        $song['frequency'] = $frequency;
-      } else {
-        $song['frequency'] = 0;
+      $song['frequency'] = $frequency >= 1 ? $frequency : 0;
+
+      $scripture = \Crockenhill\ScriptureReference::where('song_id', $song->id)->get();
+
+      $sung_morning = \Crockenhill\PlayDate::where('song_id', $song->id)
+                                ->where('time', 'a')
+                                ->count();
+      $sung_evening = \Crockenhill\PlayDate::where('song_id', $song->id)
+                                ->where('time', 'p')
+                                ->count();
+
+      $sung_year = [];
+      $now = date('Y');
+      while ($now > 2003) {
+        $times = \Crockenhill\PlayDate::where('song_id', $song->id)
+                            ->where('date', 'LIKE', $now.'%')
+                            ->count();
+        $sung_year[$now] = $times;
+        $now--;
       }
 
-      if ($song->praise_number == NULL) {
-        $song['nip'] = 'nip';
-      } else {
-        $song['nip'] = 'praise';
-      }
+      return view('songs.show', [
+        'song' => $song,
+        'lyrics' => $lyrics,
+        'last_played' => $song['last_played'],
+        'frequency' => $song['frequency'],
+        'years' => $years,
+        'scripture' => $scripture,
+        'sungmorning' => $sung_morning,
+        'sungevening' => $sung_evening,
+        'sungyear' => array_reverse($sung_year, true),
+        'year' => date('Y')
+      ]);
+    } catch (\Exception $e) {
+      \Log::error('Error in SongController@show: ' . $e->getMessage());
+      abort(404);
     }
-
-    $last_service_uploaded = \Crockenhill\PlayDate::orderBy('date', 'desc')->first(['date']);
-
-    // Present page
-    return view('songs.index', array(
-      'songs'       => $songs->sortByDesc('frequency'),
-      'last_service_uploaded' => $last_service_uploaded
-    ));
-  }
-
-  public function showSong($id, $title)
-  {
-    // Look up song in songs table of database
-    $song =\Crockenhill\Song::where('id', $id)->first();
-
-    // Present lyrics in a readable format
-    $lyrics = nl2br(trim($song->lyrics));
-
-    $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
-                              ->orderBy('date', 'desc')
-                              ->first();
-    if ($last_played_record) {
-      $last_played = $last_played_record->date;
-    } else {
-      $last_played = NULL;
-    }
-    $song['last_played'] = $last_played;
-
-    // Information about how often we've sung it recently
-    $years = 2;
-    $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
-                              ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
-                              ->count();
-    if ($frequency >= 1) {
-      $song['frequency'] = $frequency;
-    } else {
-      $song['frequency'] = 0;
-    }
-
-    // Scripture References
-    $scripture = \Crockenhill\ScriptureReference::where('song_id', $song->id)->get();
-
-    // Graph information
-    // Morning vs Evening Pie Chart Data
-    $sung_morning = \Crockenhill\PlayDate::where('song_id', $song->id)
-                              ->where('time', 'a')
-                              ->count();
-    $sung_evening = \Crockenhill\PlayDate::where('song_id', $song->id)
-                              ->where('time', 'p')
-                              ->count();
-
-    // Popularity over time Line Graph Data
-    $sung_year = [];
-    $now = date('Y');
-    while ($now > 2003) {
-      $times = \Crockenhill\PlayDate::where('song_id', $song->id)
-                          ->where('date', 'LIKE', $now.'%')
-                          ->count();
-      $sung_year[$now] = $times;
-      $now--;
-    }
-
-    // Present page
-    return view('songs.song', array(
-      'song'        => $song,
-      'lyrics'      => $lyrics,
-      'last_played' => $last_played,
-      'frequency'   => $frequency,
-      'years'       => $years,
-      //'texts'       => $references,
-      'scripture'   => $scripture,
-      'sungmorning' => $sung_morning,
-      'sungevening' => $sung_evening,
-      'sungyear'    => array_reverse($sung_year, true),
-      'year'        => date('Y')
-    ));
   }
 
   public function getServiceRecord()
@@ -187,81 +166,137 @@ class SongController extends Controller {
       abort(403);
     }
 
-    // Present page
     return view('songs.create');
   }
 
-  public function store()
+  public function store(Request $request)
   {
     if (\Gate::denies('edit-songs')) {
       abort(403);
     }
 
-    // Get input
-    $title        = \Request::input('title');
-    $alternative  = \Request::input('alternative_title');
-    $category     = \Request::input('major-category');
-    $subcategory  = \Request::input('minor-category');
-    $author       = \Request::input('author');
-    $copyright    = \Request::input('copyright');
-    $lyrics       = \Request::input('lyrics');
-    $notes        = \Request::input('notes');
-    $current      = \Request::input('current');
+    $validated = $request->validate([
+      'title' => 'required|string|max:255',
+      'lyrics' => 'required|string',
+      'copyright' => 'nullable|string|max:255',
+      'ccli_number' => 'nullable|string|max:50',
+      'scripture_references' => 'nullable|array'
+    ]);
 
-    // Save new song
-    $song = new \Crockenhill\Song;
-    $song->title              = $title;
-    $song->alternative_title  = $alternative;
-    $song->major_category     = $category;
-    $song->minor_category     = $subcategory;
-    $song->author             = $author;
-    $song->copyright          = $copyright;
-    $song->lyrics             = $lyrics;
-    $song->notes              = $notes;
-    $song->current            = $current;
-    $song->save();
+    try {
+      $song = \Crockenhill\Song::create($validated);
 
-    // Send user back to index
-    return redirect('/church/members/songs')->with('message', '"'.\Request::input('title').'" successfully uploaded!');
+      if ($request->has('scripture_references')) {
+        foreach ($request->scripture_references as $reference) {
+          \Crockenhill\ScriptureReference::create([
+            'song_id' => $song->id,
+            'reference_string' => $reference
+          ]);
+        }
+      }
+
+      return redirect('/church/members/songs')->with('success', 'Song created successfully');
+    } catch (\Exception $e) {
+      \Log::error('Error creating song: ' . $e->getMessage());
+      return back()->withInput()->withErrors(['error' => 'Error creating song']);
+    }
   }
 
-  public function editSong($id, $title)
+  public function edit($id)
   {
     if (\Gate::denies('edit-songs')) {
       abort(403);
     }
 
-    // Look up song in songs table of database
-    $song =\Crockenhill\Song::where('id', $id)->first();
-
-    // Present page
-    return view('songs.edit', array(
-      'song'        => $song
-    ));
+    try {
+      $song = \Crockenhill\Song::findOrFail($id);
+      $scripture = \Crockenhill\ScriptureReference::where('song_id', $id)->get();
+      
+      return view('songs.edit', [
+        'song' => $song,
+        'scripture' => $scripture
+      ]);
+    } catch (\Exception $e) {
+      \Log::error('Error in SongController@edit: ' . $e->getMessage());
+      abort(404);
+    }
   }
 
-  public function updateSong($id, $title)
-	{
+  public function update(Request $request, $id)
+  {
     if (\Gate::denies('edit-songs')) {
       abort(403);
     }
 
-    // Look up song in songs table of database
-    $song =\Crockenhill\Song::where('id', $id)->first();
+    $validated = $request->validate([
+      'title' => 'required|string|max:255',
+      'lyrics' => 'required|string',
+      'copyright' => 'nullable|string|max:255',
+      'ccli_number' => 'nullable|string|max:50',
+      'scripture_references' => 'nullable|array'
+    ]);
 
-    $song->title              = \Request::input('title');
-    $song->alternative_title  = \Request::input('alternative_title');
-    $song->major_category     = \Request::input('major_category');
-    $song->minor_category     = \Request::input('minor_category');
-    $song->author             = \Request::input('author');
-    $song->copyright          = \Request::input('copyright');
-    $song->lyrics             = \Request::input('lyrics');
-    $song->notes              = \Request::input('notes');
-    $song->current            = \Request::input('current');
-    $song->save();
+    try {
+      $song = \Crockenhill\Song::findOrFail($id);
+      $song->update($validated);
 
-    // Send user back to index
-    return redirect('/church/members/songs')->with('message', '"'.$song->title.'" successfully updated!');
-	}
+      if ($request->has('scripture_references')) {
+        \Crockenhill\ScriptureReference::where('song_id', $id)->delete();
+        foreach ($request->scripture_references as $reference) {
+          \Crockenhill\ScriptureReference::create([
+            'song_id' => $id,
+            'reference_string' => $reference
+          ]);
+        }
+      }
+
+      return redirect('/church/members/songs')->with('success', 'Song updated successfully');
+    } catch (\Exception $e) {
+      \Log::error('Error updating song: ' . $e->getMessage());
+      return back()->withInput()->withErrors(['error' => 'Error updating song']);
+    }
+  }
+
+  public function destroy($id)
+  {
+    if (\Gate::denies('edit-songs')) {
+      abort(403);
+    }
+
+    try {
+      $song = \Crockenhill\Song::findOrFail($id);
+      \Crockenhill\ScriptureReference::where('song_id', $id)->delete();
+      $song->delete();
+      return redirect('/church/members/songs')->with('success', 'Song deleted successfully');
+    } catch (\Exception $e) {
+      \Log::error('Error deleting song: ' . $e->getMessage());
+      return redirect('/church/members/songs')->with('error', 'Error deleting song');
+    }
+  }
+
+  public function search(Request $request)
+  {
+    $query = $request->input('q');
+    $songs = \Crockenhill\Song::where('title', 'like', "%{$query}%")
+      ->orWhere('lyrics', 'like', "%{$query}%")
+      ->get();
+
+    return view('songs.index', [
+      'songs' => $songs,
+      'search_query' => $query
+    ]);
+  }
+
+  public function byScripture($reference)
+  {
+    $songs = \Crockenhill\Song::whereHas('scriptureReferences', function($query) use ($reference) {
+      $query->where('reference_string', 'like', "%{$reference}%");
+    })->get();
+
+    return view('songs.index', [
+      'songs' => $songs,
+      'scripture_reference' => $reference
+    ]);
+  }
 
 }

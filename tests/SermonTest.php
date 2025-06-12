@@ -751,5 +751,3 @@ class SermonTest extends TestCase
         // $this->assertEquals(Str::slug('ID3 Title Present'), $sermon->slug);
     }
 }
-
-[end of tests/SermonTest.php]

@@ -150,18 +150,19 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
   // Manage sermons
   Route::resource('sermons', 'SermonController');
   // Songs
+  Route::resource('songs', 'SongController');
+  Route::get('songs/search', 'SongController@search');
+  Route::get('songs/scripture/{reference}', 'SongController@byScripture');
   Route::get('songs/service-record', 'SongController@getServiceRecord');
   Route::post('songs/service-record', 'SongController@postServiceRecord');
-
-  Route::get('songs/{id}/{title}', 'SongController@showSong');
-  Route::get('songs/{id}/{title}/edit', 'SongController@editSong');
-  Route::post('songs/{id}/{title}/edit', 'SongController@updateSong');
-
-  Route::resource('songs', 'SongController');
 
   // Service recordings
   Route::resource('services', 'ServiceController');
 });
+
+// RSS Feed routes
+Route::get('rss/morning', 'RssFeedController@morningFeed');
+Route::get('rss/evening', 'RssFeedController@eveningFeed');
 
 Route::get('phpinfo', fn() => phpinfo());
 

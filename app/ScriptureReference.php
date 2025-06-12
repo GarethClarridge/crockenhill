@@ -1,12 +1,16 @@
 <?php namespace Crockenhill;
 
-class ScriptureReference extends \Eloquent {
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class ScriptureReference extends Model
+{
+    use HasFactory;
  
     protected $table = 'scripture_references';
 
-    public function post()
+    public function song()
     {
-      return $this->belongsTo('Song');
+        return $this->belongsTo(Song::class);
     }
- 
 }

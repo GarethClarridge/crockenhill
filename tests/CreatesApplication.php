@@ -19,7 +19,7 @@ trait CreatesApplication
         $app->make(Kernel::class)->bootstrap();
 
         // Force migrations to run for the testing environment.
-        Artisan::call('migrate');
+        Artisan::call('migrate:fresh', ['--env' => 'testing']);
         
         return $app;
     }

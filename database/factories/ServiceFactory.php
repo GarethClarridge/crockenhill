@@ -22,6 +22,10 @@ class ServiceFactory extends Factory
     public function definition()
     {
         return [
+            'date' => $this->faker->date(),
+            'type' => $this->faker->randomElement(['morning', 'evening']),
+            'video' => $this->faker->url,
+            'audio' => $this->faker->url,
             'name' => $this->faker->word,
             'description' => $this->faker->sentence,
             'service_time' => $this->faker->time('H:i:s'), // Default time
