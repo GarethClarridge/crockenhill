@@ -7,4 +7,21 @@ class Meeting extends Model
 {
     use HasFactory;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'slug',
+        'type',
+        'StartTime',
+        'EndTime',
+        'day',
+        'location',
+        'who',
+        'LeadersPhone',
+        'LeadersEmail',
+        'pictures',
+    ];
 }

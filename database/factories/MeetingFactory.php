@@ -22,15 +22,26 @@ class MeetingFactory extends Factory
      */
     public function definition()
     {
+        $name = $this->faker->words(3, true) . ' Meeting';
         return [
-            'name' => $this->faker->words(3, true) . ' Meeting',
+            'slug' => $this->faker->slug,
+            'type' => $this->faker->word,
+            'StartTime' => $this->faker->time('H:i:s'),
+            'EndTime' => $this->faker->time('H:i:s'),
+            'day' => $this->faker->dayOfWeek,
+            'location' => $this->faker->address,
+            'who' => $this->faker->name,
+            'LeadersPhone' => $this->faker->optional()->phoneNumber,
+            'LeadersEmail' => $this->faker->optional()->email,
+            'pictures' => $this->faker->boolean(50) ? '1' : '0',
+            // Retaining fields from original factory for now,
+            // as they might be used elsewhere or for different meeting types.
+            // Consider removing/refactoring if confirmed unused.
+            'name' => $name, // If 'type' is more like a category, 'name' might still be relevant.
             'meeting_date' => $this->faker->dateTimeThisYear(),
-            'location_name' => $this->faker->optional()->company,
-            'location_address' => $this->faker->optional()->address,
             'description' => $this->faker->optional()->paragraph,
-            'is_recurring' => $this->faker->boolean(20), // Default to mostly not recurring
-            'frequency' => null, // e.g., 'weekly', 'monthly', or a more structured format
-            // 'next_occurrence_at' => null, // Could be calculated or stored
+            'is_recurring' => $this->faker->boolean(20),
+            'frequency' => null,
         ];
     }
 
