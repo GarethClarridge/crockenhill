@@ -1,0 +1,34 @@
+[00:00:00.001811333 / 00:00:00.001811333] [7262696 bytes] PHPUnit Started (PHPUnit 11.5.22 using PHP 8.4.7 (cli) on Linux)
+[00:00:00.013743833 / 00:00:00.011932500] [8596288 bytes] Test Runner Configured
+[00:00:00.013972917 / 00:00:00.000229084] [8596288 bytes] Bootstrap Finished (/var/www/html/vendor/autoload.php)
+[00:00:00.028772875 / 00:00:00.014799958] [9666968 bytes] Event Facade Sealed
+[00:00:00.050325500 / 00:00:00.021552625] [12700360 bytes] Test Suite Loaded (82 tests)
+[00:00:00.051625417 / 00:00:00.001299917] [12834464 bytes] Test Runner Started
+[00:00:00.052997000 / 00:00:00.001371583] [12884432 bytes] Test Suite Sorted
+[00:00:00.053559208 / 00:00:00.000562208] [12891056 bytes] Test Runner Execution Started (82 tests)
+[00:00:00.053796875 / 00:00:00.000237667] [12891056 bytes] Test Suite Started (/var/www/html/phpunit.xml, 82 tests)
+[00:00:00.053997292 / 00:00:00.000200417] [12891056 bytes] Test Suite Started (Feature, 82 tests)
+[00:00:00.054232875 / 00:00:00.000235583] [12897864 bytes] Test Suite Started (Tests\Feature\Api\AuthUserTest, 2 tests)
+[00:00:00.057161000 / 00:00:00.002928125] [13407552 bytes] Test Preparation Started (Tests\Feature\Api\AuthUserTest::unauthenticated_user_cannot_access_user_endpoint)
+[00:00:00.850945709 / 00:00:00.793784709] [39994824 bytes] Before Test Method Called (Tests\Feature\Api\AuthUserTest::setUp)
+[00:00:00.851155459 / 00:00:00.000209750] [39994824 bytes] Before Test Method Finished:
+                                                           - Tests\Feature\Api\AuthUserTest::setUp
+[00:00:00.851302251 / 00:00:00.000146792] [39851016 bytes] Test Prepared (Tests\Feature\Api\AuthUserTest::unauthenticated_user_cannot_access_user_endpoint)
+[00:00:00.869032709 / 00:00:00.017730458] [41721080 bytes] Test Failed (Tests\Feature\Api\AuthUserTest::unauthenticated_user_cannot_access_user_endpoint)
+                                                           Expected response status code [401] but received 404.
+                                                           Failed asserting that 404 is identical to 401.
+[00:00:00.872380751 / 00:00:00.003348042] [41721080 bytes] After Test Method Called (Tests\Feature\Api\AuthUserTest::tearDown)
+[00:00:00.872564084 / 00:00:00.000183333] [41721080 bytes] After Test Method Finished:
+                                                           - Tests\Feature\Api\AuthUserTest::tearDown
+[00:00:00.874494334 / 00:00:00.001930250] [41721080 bytes] Test Finished (Tests\Feature\Api\AuthUserTest::unauthenticated_user_cannot_access_user_endpoint)
+[00:00:00.874656709 / 00:00:00.000162375] [41721080 bytes] Test Runner Execution Aborted
+[00:00:00.874853959 / 00:00:00.000197250] [41721080 bytes] After Last Test Method Called (Tests\Feature\Api\AuthUserTest::tearDownAfterClass)
+[00:00:00.874969834 / 00:00:00.000115875] [41721080 bytes] After Last Test Method Finished:
+                                                           - Tests\Feature\Api\AuthUserTest::tearDownAfterClass
+[00:00:00.875097334 / 00:00:00.000127500] [41721080 bytes] Test Suite Finished (Tests\Feature\Api\AuthUserTest, 2 tests)
+[00:00:00.875214417 / 00:00:00.000117083] [41721080 bytes] Test Runner Execution Aborted
+[00:00:00.875326376 / 00:00:00.000111959] [41721080 bytes] Test Suite Finished (Feature, 82 tests)
+[00:00:00.875466417 / 00:00:00.000140041] [41721080 bytes] Test Suite Finished (/var/www/html/phpunit.xml, 82 tests)
+[00:00:00.875865667 / 00:00:00.000399250] [41721080 bytes] Test Runner Execution Finished
+[00:00:00.881564334 / 00:00:00.005698667] [41721080 bytes] Test Runner Finished
+[00:00:00.882293959 / 00:00:00.000729625] [41721080 bytes] PHPUnit Finished (Shell Exit Code: 1)
