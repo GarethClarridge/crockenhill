@@ -25,3 +25,11 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ### License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT)
+
+## Testing
+
+This project uses PHPUnit for testing. To run the tests, execute the following command in the root of the project:
+
+```bash
+./vendor/bin/phpunit
+```
