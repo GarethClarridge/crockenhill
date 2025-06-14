@@ -95,6 +95,11 @@ CREATE TABLE `pages` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+-- Add homepage entry
+INSERT INTO `pages` (`slug`, `heading`, `description`, `area`, `body`, `admin`, `created_at`, `updated_at`, `markdown`, `navigation`) VALUES
+('homepage', 'Welcome to Crockenhill', 'This is the homepage of Crockenhill Baptist Church.', 'homepage', '<p>Welcome!</p>', 'no', '2024-01-01 00:00:00', '2024-01-01 00:00:00', NULL, 1);
+
 DROP TABLE IF EXISTS `password_reset_tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
