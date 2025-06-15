@@ -1,10 +1,13 @@
-<?php namespace Crockenhill\Http\Controllers;
+<?php
 
-use Crockenhill\Http\Requests;
-use Crockenhill\Http\Controllers\Controller;
+namespace App\Http\Controllers;
+
+use App\Http\Requests;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
-class SongController extends Controller {
+class SongController extends Controller
+{
 
   /**
    * Display a listing of the resource.
@@ -14,12 +17,12 @@ class SongController extends Controller {
   public function index()
   {
     // Load songs
-    $songs =\Crockenhill\Song::all();
+    $songs = \App\Song::all();
 
     foreach ($songs as $song) {
-      $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
-                                ->orderBy('date', 'desc')
-                                ->first();
+      $last_played_record = \App\PlayDate::where('song_id', $song->id)
+        ->orderBy('date', 'desc')
+        ->first();
       if ($last_played_record) {
         $last_played = $last_played_record->date;
       } else {
@@ -29,9 +32,9 @@ class SongController extends Controller {
 
       // Information about how often we've sung it recently
       $years = 2;
-      $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
-                                ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
-                                ->count();
+      $frequency = \App\PlayDate::where('song_id', $song->id)
+        ->where('date', '>', date('Y-m-d', strtotime("-" . $years . " years")))
+        ->count();
       if ($frequency >= 1) {
         $song['frequency'] = $frequency;
       } else {
@@ -45,7 +48,7 @@ class SongController extends Controller {
       }
     }
 
-    $last_service_uploaded = \Crockenhill\PlayDate::orderBy('date', 'desc')->first(['date']);
+    $last_service_uploaded = \App\PlayDate::orderBy('date', 'desc')->first(['date']);
 
     // Present page
     return view('songs.index', array(
@@ -57,14 +60,14 @@ class SongController extends Controller {
   public function showSong($id, $title)
   {
     // Look up song in songs table of database
-    $song =\Crockenhill\Song::where('id', $id)->first();
+    $song = \App\Song::where('id', $id)->first();
 
     // Present lyrics in a readable format
     $lyrics = nl2br(trim($song->lyrics));
 
-    $last_played_record = \Crockenhill\PlayDate::where('song_id', $song->id)
-                              ->orderBy('date', 'desc')
-                              ->first();
+    $last_played_record = \App\PlayDate::where('song_id', $song->id)
+      ->orderBy('date', 'desc')
+      ->first();
     if ($last_played_record) {
       $last_played = $last_played_record->date;
     } else {
@@ -74,9 +77,9 @@ class SongController extends Controller {
 
     // Information about how often we've sung it recently
     $years = 2;
-    $frequency = \Crockenhill\PlayDate::where('song_id', $song->id)
-                              ->where('date', '>', date('Y-m-d', strtotime("-".$years." years")))
-                              ->count();
+    $frequency = \App\PlayDate::where('song_id', $song->id)
+      ->where('date', '>', date('Y-m-d', strtotime("-" . $years . " years")))
+      ->count();
     if ($frequency >= 1) {
       $song['frequency'] = $frequency;
     } else {
@@ -84,24 +87,24 @@ class SongController extends Controller {
     }
 
     // Scripture References
-    $scripture = \Crockenhill\ScriptureReference::where('song_id', $song->id)->get();
+    $scripture = \App\ScriptureReference::where('song_id', $song->id)->get();
 
     // Graph information
     // Morning vs Evening Pie Chart Data
-    $sung_morning = \Crockenhill\PlayDate::where('song_id', $song->id)
-                              ->where('time', 'a')
-                              ->count();
-    $sung_evening = \Crockenhill\PlayDate::where('song_id', $song->id)
-                              ->where('time', 'p')
-                              ->count();
+    $sung_morning = \App\PlayDate::where('song_id', $song->id)
+      ->where('time', 'a')
+      ->count();
+    $sung_evening = \App\PlayDate::where('song_id', $song->id)
+      ->where('time', 'p')
+      ->count();
 
     // Popularity over time Line Graph Data
     $sung_year = [];
     $now = date('Y');
     while ($now > 2003) {
-      $times = \Crockenhill\PlayDate::where('song_id', $song->id)
-                          ->where('date', 'LIKE', $now.'%')
-                          ->count();
+      $times = \App\PlayDate::where('song_id', $song->id)
+        ->where('date', 'LIKE', $now . '%')
+        ->count();
       $sung_year[$now] = $times;
       $now--;
     }
@@ -132,21 +135,21 @@ class SongController extends Controller {
     $services = array('am' => 'Morning', 'pm' => 'Evening');
 
     // Next service upload date
-    $last_service_uploaded = \Crockenhill\PlayDate::orderBy('date', 'desc')->first(['date']);
+    $last_service_uploaded = \App\PlayDate::orderBy('date', 'desc')->first(['date']);
     $last_service_uploaded_date = strtotime($last_service_uploaded['date']);
     $next_service_upload_date = strtotime("+7 day", $last_service_uploaded_date);
 
     // Get NIP titles
-    $songs = \Crockenhill\Song::select('id','praise_number','title')
-                  ->orderBy('id', 'asc')
-                  ->get();
+    $songs = \App\Song::select('id', 'praise_number', 'title')
+      ->orderBy('id', 'asc')
+      ->get();
 
     // Present page
     return view('songs.service-record', array(
       'services'    => $services,
       'lastsunday'  => date('Y-m-d', strtotime('last Sunday')),
       'songs'        => $songs,
-      'next_service_upload_date' => date("Y-m-d",$next_service_upload_date),
+      'next_service_upload_date' => date("Y-m-d", $next_service_upload_date),
     ));
   }
 
@@ -158,17 +161,17 @@ class SongController extends Controller {
 
     $date = \Request::input('date');
 
-    $services = ['am','pm'];
+    $services = ['am', 'pm'];
 
     foreach ($services as $service) {
-      for ($i=1; $i < 10; $i++) {
-        if (\Request::input($service.$i, '') != '') {
-          $song_id = \Request::input($service.$i);
-          if (\Crockenhill\Song::where('id', $song_id)->first()) {
-            $song =\Crockenhill\Song::where('id', $song_id)->first();
+      for ($i = 1; $i < 10; $i++) {
+        if (\Request::input($service . $i, '') != '') {
+          $song_id = \Request::input($service . $i);
+          if (\App\Song::where('id', $song_id)->first()) {
+            $song = \App\Song::where('id', $song_id)->first();
           }
 
-          $playdate = new \Crockenhill\PlayDate;
+          $playdate = new \App\PlayDate;
           $playdate->song_id = $song->id;
           $playdate->date = $date;
           $playdate->time = $service[0];
@@ -209,7 +212,7 @@ class SongController extends Controller {
     $current      = \Request::input('current');
 
     // Save new song
-    $song = new \Crockenhill\Song;
+    $song = new \App\Song;
     $song->title              = $title;
     $song->alternative_title  = $alternative;
     $song->major_category     = $category;
@@ -222,7 +225,7 @@ class SongController extends Controller {
     $song->save();
 
     // Send user back to index
-    return redirect('/church/members/songs')->with('message', '"'.\Request::input('title').'" successfully uploaded!');
+    return redirect('/church/members/songs')->with('message', '"' . \Request::input('title') . '" successfully uploaded!');
   }
 
   public function editSong($id, $title)
@@ -232,7 +235,7 @@ class SongController extends Controller {
     }
 
     // Look up song in songs table of database
-    $song =\Crockenhill\Song::where('id', $id)->first();
+    $song = \App\Song::where('id', $id)->first();
 
     // Present page
     return view('songs.edit', array(
@@ -241,13 +244,13 @@ class SongController extends Controller {
   }
 
   public function updateSong($id, $title)
-	{
+  {
     if (\Gate::denies('edit-songs')) {
       abort(403);
     }
 
     // Look up song in songs table of database
-    $song =\Crockenhill\Song::where('id', $id)->first();
+    $song = \App\Song::where('id', $id)->first();
 
     $song->title              = \Request::input('title');
     $song->alternative_title  = \Request::input('alternative_title');
@@ -261,7 +264,6 @@ class SongController extends Controller {
     $song->save();
 
     // Send user back to index
-    return redirect('/church/members/songs')->with('message', '"'.$song->title.'" successfully updated!');
-	}
-
+    return redirect('/church/members/songs')->with('message', '"' . $song->title . '" successfully updated!');
+  }
 }

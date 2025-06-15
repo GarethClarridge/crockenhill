@@ -1,8 +1,6 @@
 <?php
 
-use Illuminate\Foundation\Testing\WithoutMiddleware;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+namespace Tests;
 
 class LoginTest extends TestCase
 {
@@ -20,9 +18,9 @@ class LoginTest extends TestCase
 
   public function testUserLoginForm()
   {
-  $this->visit('/church/members/login')
-       ->type('email@crockenhill.org', 'email')
-       ->type('password', 'password');
+    $this->visit('/church/members/login')
+      ->type('email@crockenhill.org', 'email')
+      ->type('password', 'password');
   }
 
   public function testUserLogin()
@@ -30,7 +28,7 @@ class LoginTest extends TestCase
     Auth::loginUsingId(2);
 
     $this->visit('/church/members')
-          ->see('Welcome to the members');
+      ->see('Welcome to the members');
 
     Auth::logout();
   }

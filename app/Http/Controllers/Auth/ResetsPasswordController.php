@@ -1,13 +1,13 @@
 <?php
 
-namespace Crockenhill\Http\Controllers\Auth;
+namespace App\Http\Controllers\Auth;
 
-use Crockenhill\Http\Controllers\Controller;
+use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\ResetsPasswords;
 
 class ResetsPasswordController extends Controller
 {
-    /*
+  /*
     |--------------------------------------------------------------------------
     | Password Reset Controller
     |--------------------------------------------------------------------------
@@ -18,22 +18,22 @@ class ResetsPasswordController extends Controller
     |
     */
 
-    use ResetsPasswords;
+  use ResetsPasswords;
 
-    /**
-     * Where to redirect users after resetting their password.
-     *
-     * @var string
-     */
-    protected $redirectTo = '/church/members';
+  /**
+   * Where to redirect users after resetting their password.
+   *
+   * @var string
+   */
+  protected $redirectTo = '/church/members';
 
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        $this->middleware('guest');
-    }
+  /**
+   * Create a new controller instance.
+   *
+   * @return void
+   */
+  public function __construct()
+  {
+    $this->middleware('guest');
+  }
 }

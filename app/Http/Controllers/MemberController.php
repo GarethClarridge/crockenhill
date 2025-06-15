@@ -1,9 +1,12 @@
-<?php namespace Crockenhill\Http\Controllers;
+<?php
 
-class MemberController extends Controller {
+namespace App\Http\Controllers;
 
-	public function home()
-	{
-		return view('members.home');
+class MemberController extends Controller
+{
+
+  public function home()
+  {
+    return view('members.home');
   }
 }

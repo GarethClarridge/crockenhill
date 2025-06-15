@@ -1,7 +1,10 @@
-<?php namespace Crockenhill\Events;
+<?php
 
-abstract class Event {
+namespace App\Events;
 
-	//
+abstract class Event
+{
+
+  //
 
 }
