@@ -12,8 +12,7 @@ class CreateScriptureReferencesTable extends Migration
       $table->increments('id');
       $table->string('reference', 11);
       $table->smallInteger('song_id');
-      $table->timestamp('created_at')->default('0000-00-00 00:00:00');
-      $table->timestamp('updated_at')->default('0000-00-00 00:00:00');
+      $table->timestamps();
     });
   }
 

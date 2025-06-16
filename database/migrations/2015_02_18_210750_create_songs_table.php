@@ -1,4 +1,3 @@
-
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -20,80 +19,16 @@ class CreateSongsTable extends Migration
       $table->boolean('current')->default(true);
       $table->text('notes')->nullable();
       $table->enum('major_category', [
-        'Psalms',
-        'Approaching God',
-        'Children\'s',
-        'Christ\'s Lordship over all of life',
-        'The Bible',
-        'The Christian life',
-        'The church',
-        'The Father',
-        'The future',
-        'The gospel',
-        'The Holy Spirit',
-        'The Son'
+        'mc_1', 'mc_2', 'mc_3', 'mc_4', 'mc_5', 'mc_6', 'mc_7', 'mc_8', 'mc_9', 'mc_10', 'mc_11', 'mc_12'
       ])->nullable();
       $table->enum('minor_category', [
-        'The eternal Trinity',
-        'Adoration and thanksgiving',
-        'Creator and sustainer',
-        'Morning and evening',
-        'The Lord\'s Day',
-        'Beginning and ending of the year',
-        'His character',
-        'His providence',
-        'His love',
-        'His covenant',
-        'His name and praise',
-        'His birth and childhood',
-        'His life and ministry',
-        'His suffering and death',
-        'His resurrection',
-        'His ascension and reign',
-        'His priesthood and intercession',
-        'His return in glory',
-        'His person and power',
-        'His presence in the church',
-        'His work in revival',
-        'Authority and sufficiency',
-        'Enjoyment and obedience',
-        'Character and privileges',
-        'Fellowship',
-        'Gifts and ministries',
-        'The life of prayer',
-        'Evangelism and mission',
-        'Baptism',
-        'The Lord\'s Supper',
-        'Invitation and warning',
-        'Crying out for God',
-        'New birth and new life',
-        'Repentance and faith',
-        'Union with Christ',
-        'Love for Christ',
-        'Freedom in Christ',
-        'Submission and trust',
-        'Assurance and hope',
-        'Peace and joy',
-        'Holiness',
-        'Humbling and restoration',
-        'Commitment and obedience',
-        'Zeal in service',
-        'Guidance',
-        'Suffering and trial',
-        'Spiritual warfare',
-        'Perseverance',
-        'Facing death',
-        'The earth and harvest',
-        'Christian citizenship',
-        'Christian marriage',
-        'Families and children',
-        'Health and healing',
-        'Work and leisure',
-        'Those in need',
-        'Government and nations',
-        'The resurrection of the body',
-        'Judgement and hell',
-        'Heaven and glory'
+        'min_c_1', 'min_c_2', 'min_c_3', 'min_c_4', 'min_c_5', 'min_c_6', 'min_c_7', 'min_c_8', 'min_c_9', 'min_c_10',
+        'min_c_11', 'min_c_12', 'min_c_13', 'min_c_14', 'min_c_15', 'min_c_16', 'min_c_17', 'min_c_18', 'min_c_19', 'min_c_20',
+        'min_c_21', 'min_c_22', 'min_c_23', 'min_c_24', 'min_c_25', 'min_c_26', 'min_c_27', 'min_c_28', 'min_c_29', 'min_c_30',
+        'min_c_31', 'min_c_32', 'min_c_33', 'min_c_34', 'min_c_35', 'min_c_36', 'min_c_37', 'min_c_38', 'min_c_39', 'min_c_40',
+        'min_c_41', 'min_c_42', 'min_c_43', 'min_c_44', 'min_c_45', 'min_c_46', 'min_c_47', 'min_c_48', 'min_c_49', 'min_c_50',
+        'min_c_51', 'min_c_52', 'min_c_53', 'min_c_54', 'min_c_55', 'min_c_56', 'min_c_57', 'min_c_58', 'min_c_59', 'min_c_60',
+        'min_c_61'
       ])->nullable();
       $table->timestamps();
     });
