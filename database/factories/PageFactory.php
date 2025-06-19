@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Page;
+use App\Models\Page;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 use League\CommonMark\CommonMarkConverter;

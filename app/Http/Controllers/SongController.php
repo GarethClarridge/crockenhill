@@ -20,7 +20,7 @@ class SongController extends Controller
     $songs = \App\Song::all();
 
     foreach ($songs as $song) {
-      $last_played_record = \App\PlayDate::where('song_id', $song->id)
+      $last_played_record = \App\Models\PlayDate::where('song_id', $song->id)
         ->orderBy('date', 'desc')
         ->first();
       if ($last_played_record) {
@@ -32,7 +32,7 @@ class SongController extends Controller
 
       // Information about how often we've sung it recently
       $years = 2;
-      $frequency = \App\PlayDate::where('song_id', $song->id)
+      $frequency = \App\Models\PlayDate::where('song_id', $song->id)
         ->where('date', '>', date('Y-m-d', strtotime("-" . $years . " years")))
         ->count();
       if ($frequency >= 1) {
@@ -48,7 +48,7 @@ class SongController extends Controller
       }
     }
 
-    $last_service_uploaded = \App\PlayDate::orderBy('date', 'desc')->first(['date']);
+    $last_service_uploaded = \App\Models\PlayDate::orderBy('date', 'desc')->first(['date']);
 
     // Present page
     return view('songs.index', array(
@@ -65,7 +65,7 @@ class SongController extends Controller
     // Present lyrics in a readable format
     $lyrics = nl2br(trim($song->lyrics));
 
-    $last_played_record = \App\PlayDate::where('song_id', $song->id)
+    $last_played_record = \App\Models\PlayDate::where('song_id', $song->id)
       ->orderBy('date', 'desc')
       ->first();
     if ($last_played_record) {
@@ -77,7 +77,7 @@ class SongController extends Controller
 
     // Information about how often we've sung it recently
     $years = 2;
-    $frequency = \App\PlayDate::where('song_id', $song->id)
+    $frequency = \App\Models\PlayDate::where('song_id', $song->id)
       ->where('date', '>', date('Y-m-d', strtotime("-" . $years . " years")))
       ->count();
     if ($frequency >= 1) {
@@ -87,14 +87,14 @@ class SongController extends Controller
     }
 
     // Scripture References
-    $scripture = \App\ScriptureReference::where('song_id', $song->id)->get();
+    $scripture = \App\Models\ScriptureReference::where('song_id', $song->id)->get();
 
     // Graph information
     // Morning vs Evening Pie Chart Data
-    $sung_morning = \App\PlayDate::where('song_id', $song->id)
+    $sung_morning = \App\Models\PlayDate::where('song_id', $song->id)
       ->where('time', 'a')
       ->count();
-    $sung_evening = \App\PlayDate::where('song_id', $song->id)
+    $sung_evening = \App\Models\PlayDate::where('song_id', $song->id)
       ->where('time', 'p')
       ->count();
 
@@ -102,7 +102,7 @@ class SongController extends Controller
     $sung_year = [];
     $now = date('Y');
     while ($now > 2003) {
-      $times = \App\PlayDate::where('song_id', $song->id)
+      $times = \App\Models\PlayDate::where('song_id', $song->id)
         ->where('date', 'LIKE', $now . '%')
         ->count();
       $sung_year[$now] = $times;
@@ -135,7 +135,7 @@ class SongController extends Controller
     $services = array('am' => 'Morning', 'pm' => 'Evening');
 
     // Next service upload date
-    $last_service_uploaded = \App\PlayDate::orderBy('date', 'desc')->first(['date']);
+    $last_service_uploaded = \App\Models\PlayDate::orderBy('date', 'desc')->first(['date']);
     $last_service_uploaded_date = strtotime($last_service_uploaded['date']);
     $next_service_upload_date = strtotime("+7 day", $last_service_uploaded_date);
 
@@ -167,11 +167,11 @@ class SongController extends Controller
       for ($i = 1; $i < 10; $i++) {
         if (\Request::input($service . $i, '') != '') {
           $song_id = \Request::input($service . $i);
-          if (\App\Song::where('id', $song_id)->first()) {
-            $song = \App\Song::where('id', $song_id)->first();
+          if (\App\Models\Song::where('id', $song_id)->first()) {
+            $song = \App\Models\Song::where('id', $song_id)->first();
           }
 
-          $playdate = new \App\PlayDate;
+          $playdate = new \App\Models\PlayDate;
           $playdate->song_id = $song->id;
           $playdate->date = $date;
           $playdate->time = $service[0];

@@ -4,9 +4,9 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\User;
-use App\Service;
-use App\Sermon; // For testing relationship implications
+use App\Models\User;
+use App\Models\Service;
+use App\Models\Sermon; // For testing relationship implications
 use Database\Factories\UserFactory;
 use Database\Factories\ServiceFactory;
 use Database\Factories\SermonFactory;
@@ -21,15 +21,15 @@ class ServiceControllerTest extends TestCase
   protected function setUp(): void
   {
     parent::setUp();
-    $this->adminUser = User::factory()->admin()->create();
-    $this->regularUser = User::factory()->create(['is_admin_for_test' => false]);
+    $this->adminUser = \App\Models\User::factory()->admin()->create();
+    $this->regularUser = \App\Models\User::factory()->create(['is_admin_for_test' => false]);
   }
 
   // 1. Authentication/Authorization Tests
   /** @test */
   public function guests_cannot_access_service_management_routes()
   {
-    $service = Service::factory()->create();
+    $service = \App\Models\Service::factory()->create();
 
     $this->get('/services')->assertRedirect('/login');
     $this->get('/services/create')->assertRedirect('/login');
@@ -44,7 +44,7 @@ class ServiceControllerTest extends TestCase
   public function regular_users_are_forbidden_from_service_management_routes()
   {
     $this->actingAs($this->regularUser);
-    $service = Service::factory()->create();
+    $service = \App\Models\Service::factory()->create();
 
     $this->get('/services')->assertForbidden();
     $this->get('/services/create')->assertForbidden();
@@ -59,7 +59,7 @@ class ServiceControllerTest extends TestCase
   /** @test */
   public function service_index_page_loads_for_admin_users()
   {
-    Service::factory()->count(3)->create();
+    \App\Models\Service::factory()->count(3)->create();
     $response = $this->actingAs($this->adminUser)->get('/services');
     $response->assertOk();
     $response->assertViewIs('services.index'); // Assuming a view name
@@ -111,7 +111,7 @@ class ServiceControllerTest extends TestCase
   /** @test */
   public function service_edit_page_loads_for_admin_users()
   {
-    $service = Service::factory()->create();
+    $service = \App\Models\Service::factory()->create();
     $response = $this->actingAs($this->adminUser)->get("/services/{$service->id}/edit");
     $response->assertOk();
     $response->assertViewIs('services.edit');
@@ -128,7 +128,7 @@ class ServiceControllerTest extends TestCase
   /** @test */
   public function admin_user_can_update_existing_service()
   {
-    $service = Service::factory()->create(['name' => 'Old Name', 'is_active' => true]);
+    $service = \App\Models\Service::factory()->create(['name' => 'Old Name', 'is_active' => true]);
     $updateData = [
       'name' => 'New Service Name',
       'description' => 'Updated description.',
@@ -150,21 +150,21 @@ class ServiceControllerTest extends TestCase
   /** @test */
   public function update_service_fails_with_invalid_data()
   {
-    $service = Service::factory()->create();
+    $service = \App\Models\Service::factory()->create();
     $originalName = $service->name;
     $response = $this->actingAs($this->adminUser)->put("/services/{$service->id}", [
       'name' => '', // Name is required
     ]);
     $response->assertSessionHasErrors('name');
-    $this->assertEquals($originalName, Service::find($service->id)->name);
+    $this->assertEquals($originalName, \App\Models\Service::find($service->id)->name);
   }
 
   // 7. testDestroyService
   /** @test */
   public function admin_user_can_destroy_service()
   {
-    $service = Service::factory()->create();
-    $sermon = Sermon::factory()->forService($service)->create(); // Associated sermon
+    $service = \App\Models\Service::factory()->create();
+    $sermon = \App\Models\Sermon::factory()->forService($service)->create(); // Associated sermon
 
     $response = $this->actingAs($this->adminUser)->delete("/services/{$service->id}");
 

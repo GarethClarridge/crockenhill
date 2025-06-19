@@ -46,7 +46,7 @@ class MeetingController extends Controller
    */
   public function show($slug)
   {
-    $meeting       = \App\Meeting::where('slug', $slug)->first();
+    $meeting       = \App\Models\Meeting::where('slug', $slug)->first();
     $type          = $meeting->type;
     $starttime    = $meeting->StartTime;
     $endtime      = $meeting->EndTime;

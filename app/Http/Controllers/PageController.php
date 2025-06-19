@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePageRequest;
 use App\Http\Requests\UpdatePageRequest;
 use App\Services\PageImageService;
-use App\Page;
+use App\Models\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redirect;
@@ -68,11 +68,11 @@ class PageController extends Controller
    * Display the specified page to the public.
    * Uses route model binding to fetch the Page by its slug.
    *
-   * @param \App\Page $page The Page model instance.
+   * @param \App\Models\Page $page The Page model instance.
    * @param \League\CommonMark\CommonMarkConverter $converter Service to convert markdown to HTML.
    * @return \Illuminate\View\View Returns the view for displaying the page.
    */
-  public function show(Page $page, CommonMarkConverter $converter)
+  public function show(\App\Models\Page $page, CommonMarkConverter $converter)
   {
     $html = $converter->convert($page->markdown);
     // The view 'pages.show' might expect $page->body, ensure consistency
@@ -117,10 +117,10 @@ class PageController extends Controller
    * Show the form for editing the specified page.
    * Requires 'edit-pages' authorization. Uses route model binding.
    *
-   * @param \App\Page $page The Page model instance to edit.
+   * @param \App\Models\Page $page The Page model instance to edit.
    * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse Returns the page editing view or redirects if not authorized.
    */
-  public function edit(Page $page)
+  public function edit(\App\Models\Page $page)
   {
     if (Gate::denies('edit-pages')) {
       abort(403);
@@ -151,11 +151,11 @@ class PageController extends Controller
    * Validated and authorized by UpdatePageRequest. Uses route model binding.
    *
    * @param \App\Http\Requests\UpdatePageRequest $request The validated request for updating a page.
-   * @param \App\Page $page The Page model instance to update.
+   * @param \App\Models\Page $page The Page model instance to update.
    * @param \League\CommonMark\CommonMarkConverter $converter Service to convert markdown to HTML.
    * @return \Illuminate\Http\RedirectResponse Redirects with a success message.
    */
-  public function update(UpdatePageRequest $request, Page $page, CommonMarkConverter $converter): RedirectResponse
+  public function update(UpdatePageRequest $request, \App\Models\Page $page, CommonMarkConverter $converter): RedirectResponse
   {
     $validated = $request->validated();
 
@@ -198,10 +198,10 @@ class PageController extends Controller
    * Remove the specified page from storage.
    * Requires 'edit-pages' authorization. Uses route model binding.
    *
-   * @param \App\Page $page The Page model instance to delete.
+   * @param \App\Models\Page $page The Page model instance to delete.
    * @return \Illuminate\Http\RedirectResponse Redirects to the pages index with a success message.
    */
-  public function destroy(Page $page): RedirectResponse
+  public function destroy(\App\Models\Page $page): RedirectResponse
   {
     if (Gate::denies('edit-pages')) {
       abort(403);

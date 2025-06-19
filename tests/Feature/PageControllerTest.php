@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\User;
-use App\Page;
+use App\Models\User;
+use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -28,14 +28,14 @@ class PageControllerTest extends TestCase
     // and ensure User model has 'is_admin_for_test' attribute or a way to set it.
   }
 
-  protected function createAdminUser(array $attributes = []): User
+  protected function createAdminUser(array $attributes = []): \App\Models\User
   {
-    return User::factory()->admin()->create($attributes);
+    return \App\Models\User::factory()->admin()->create($attributes);
   }
 
-  protected function createNormalUser(array $attributes = []): User
+  protected function createNormalUser(array $attributes = []): \App\Models\User
   {
-    return User::factory()->create($attributes); // Default state is not admin
+    return \App\Models\User::factory()->create($attributes); // Default state is not admin
   }
 
   /** @test */
@@ -139,7 +139,7 @@ class PageControllerTest extends TestCase
   public function edit_returns_200_for_admin_user_and_existing_page()
   {
     $admin = $this->createAdminUser();
-    $page = Page::factory()->create();
+    $page = \App\Models\Page::factory()->create();
 
     $response = $this->actingAs($admin)->get('/church/members/pages/' . $page->slug . '/edit');
     $response->assertStatus(200);
@@ -150,7 +150,7 @@ class PageControllerTest extends TestCase
   public function edit_returns_403_for_normal_user_and_existing_page()
   {
     $user = $this->createNormalUser();
-    $page = Page::factory()->create();
+    $page = \App\Models\Page::factory()->create();
 
     $response = $this->actingAs($user)->get('/church/members/pages/' . $page->slug . '/edit');
     $response->assertStatus(403);
@@ -170,7 +170,7 @@ class PageControllerTest extends TestCase
   {
     Storage::fake('public_images');
     $admin = $this->createAdminUser();
-    $page = Page::factory()->create(['heading' => 'Old Heading']);
+    $page = \App\Models\Page::factory()->create(['heading' => 'Old Heading']);
     $oldSlug = $page->slug;
 
     // Create dummy old images for the page
@@ -214,7 +214,7 @@ class PageControllerTest extends TestCase
   {
     Storage::fake('public_images');
     $admin = $this->createAdminUser();
-    $page = Page::factory()->create(['heading' => 'Page With Image']);
+    $page = \App\Models\Page::factory()->create(['heading' => 'Page With Image']);
     $slug = $page->slug;
 
     // Create dummy old images for the page
@@ -245,7 +245,7 @@ class PageControllerTest extends TestCase
   public function update_returns_validation_errors_for_admin_with_invalid_data()
   {
     $admin = $this->createAdminUser();
-    $page = Page::factory()->create();
+    $page = \App\Models\Page::factory()->create();
     $putData = [
       'heading' => '', // Invalid
       'markdown' => '', // Invalid
@@ -259,7 +259,7 @@ class PageControllerTest extends TestCase
   public function update_returns_403_for_normal_user()
   {
     $user = $this->createNormalUser();
-    $page = Page::factory()->create();
+    $page = \App\Models\Page::factory()->create();
     $putData = [
       'heading' => 'Attempted Update',
       'markdown' => 'Content',
@@ -275,7 +275,7 @@ class PageControllerTest extends TestCase
   {
     Storage::fake('public_images');
     $admin = $this->createAdminUser();
-    $page = Page::factory()->create();
+    $page = \App\Models\Page::factory()->create();
     $slug = $page->slug;
     $heading = $page->heading;
 
@@ -297,7 +297,7 @@ class PageControllerTest extends TestCase
   public function destroy_returns_403_for_normal_user()
   {
     $user = $this->createNormalUser();
-    $page = Page::factory()->create();
+    $page = \App\Models\Page::factory()->create();
 
     $response = $this->actingAs($user)->delete('/church/members/pages/' . $page->slug);
     $response->assertStatus(403);
@@ -307,7 +307,7 @@ class PageControllerTest extends TestCase
   /** @test */
   public function show_public_route_returns_200_for_existing_page()
   {
-    $page = Page::factory()->create();
+    $page = \App\Models\Page::factory()->create();
 
     // Assuming a public route like /{page:slug} or /{area}/{page:slug}
     // For this test, we'll use a simple /{slug} pattern.

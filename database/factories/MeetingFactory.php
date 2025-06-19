@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Meeting;
+use App\Models\Meeting;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Carbon\Carbon;
 

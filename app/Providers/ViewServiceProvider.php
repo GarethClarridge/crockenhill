@@ -27,7 +27,7 @@ class ViewServiceProvider extends ServiceProvider
   public function boot(Request $request)
   {
     \View::composer('includes.header', function ($view) {
-      $pages = \App\Page::where('navigation', 1)
+      $pages = \App\Models\Page::where('navigation', 1)
         ->orderBy('slug')
         ->get();
       $view->with('pages', $pages);
@@ -35,9 +35,9 @@ class ViewServiceProvider extends ServiceProvider
 
     \View::composer('includes.footer', function ($view) {
       //get the latest sermons
-      $morning = \App\Sermon::where('service', 'morning')
+      $morning = \App\Models\Sermon::where('service', 'morning')
         ->orderBy('date', 'desc')->first();
-      $evening = \App\Sermon::where('service', 'evening')
+      $evening = \App\Models\Sermon::where('service', 'evening')
         ->orderBy('date', 'desc')->first();
 
       // and create the view composer
@@ -78,13 +78,13 @@ class ViewServiceProvider extends ServiceProvider
 
         // Look up song in songs table of database
         $songnumber = \Request::segment(4);
-        $song = \App\Song::where('id', $songnumber)->first();
+        $song = \App\Models\Song::where('id', $songnumber)->first();
 
         //Heading picture
         $headingpicture = '/images/headings/large/' . $name . '.jpg';
 
         // Find relevant links
-        $links = \App\Page::where('area', $slug)
+        $links = \App\Models\Page::where('area', $slug)
           ->where('slug', '!=', $slug)
           ->where('slug', '!=', 'homepage')
           ->orderBy(\DB::raw('RAND()'))
@@ -108,7 +108,7 @@ class ViewServiceProvider extends ServiceProvider
         $month = \Request::segment(4);
         $year = \Request::segment(3);
 
-        $sermon = \App\Sermon::where('slug', $sermon_slug)
+        $sermon = \App\Models\Sermon::where('slug', $sermon_slug)
           ->whereMonth('date', '=', $month)
           ->whereYear('date', '=', $year)
           ->first();
@@ -119,7 +119,7 @@ class ViewServiceProvider extends ServiceProvider
         $headingpicture = '/images/headings/large/' . $sermon_slug . '.jpg';
 
         // Find relevant links
-        $links = \App\Page::where('area', $slug)
+        $links = \App\Models\Page::where('area', $slug)
           ->where('slug', '!=', $slug)
           ->where('slug', '!=', 'homepage')
           ->orderBy(\DB::raw('RAND()'))
@@ -148,7 +148,7 @@ class ViewServiceProvider extends ServiceProvider
         $headingpicture = '/images/headings/large/' . $area . '.jpg';
 
         // Find relevant links
-        $links = \App\Page::where('area', $area)
+        $links = \App\Models\Page::where('area', $area)
           ->where('slug', '!=', $area)
           ->where('slug', '!=', 'homepage')
           ->orderBy(\DB::raw('RAND()'))
@@ -177,20 +177,20 @@ class ViewServiceProvider extends ServiceProvider
 
         //Links
         if (\Request::segment(2) == 'sermons') {
-          $links = \App\Page::where('area', 'sermons')
+          $links = \App\Models\Page::where('area', 'sermons')
             ->where('slug', '!=', $slug)
             ->where('slug', '!=', $area)
             ->orderBy('slug', 'asc')
             ->get();
         } else if (\Request::segment(2) == 'members') {
-          $links = \App\Page::where('area', 'sermons')
+          $links = \App\Models\Page::where('area', 'sermons')
             ->where('slug', '!=', $slug)
             ->where('slug', '!=', $area)
             ->where('admin', '!=', 'yes')
             ->orderBy('slug', 'asc')
             ->get();
         } else {
-          $links = \App\Page::where('area', $area)
+          $links = \App\Models\Page::where('area', $area)
             ->where('slug', '!=', $slug)
             ->where('slug', '!=', $area)
             ->where('slug', '!=', 'privacy-policy')
@@ -204,7 +204,7 @@ class ViewServiceProvider extends ServiceProvider
       elseif (\Request::segment(2)) {
 
         //Load page
-        if ($page = \App\Page::where('slug', $slug)->first()) {
+        if ($page = \App\Models\Page::where('slug', $slug)->first()) {
           //Description
           $description   = '<meta name="description" content="' . $page->description . '">';
 
@@ -223,26 +223,26 @@ class ViewServiceProvider extends ServiceProvider
 
         //Links
         if (\Request::segment(2) == 'sermons') {
-          $links = \App\Page::where('area', 'sermons')
+          $links = \App\Models\Page::where('area', 'sermons')
             ->where('slug', '!=', $slug)
             ->where('slug', '!=', $area)
             ->where('admin', '!=', 'yes')
             ->orderBy('slug', 'asc')
             ->get();
         } else if (\Request::segment(2) == 'members') {
-          $links = \App\Page::where('area', 'sermons')
+          $links = \App\Models\Page::where('area', 'sermons')
             ->where('slug', '!=', $slug)
             ->where('slug', '!=', $area)
             ->where('admin', '!=', 'yes')
             ->orderBy('slug', 'asc')
             ->get();
         } else if (\Request::segment(1) == 'community') {
-          $meeting = \App\Meeting::where('slug', $slug)->first();
+          $meeting = \App\Models\Meeting::where('slug', $slug)->first();
 
-          $related_meetings = \App\Meeting::where('type', $meeting->type)
+          $related_meetings = \App\Models\Meeting::where('type', $meeting->type)
             ->pluck('slug');
 
-          $links = \App\Page::where('area', $area)
+          $links = \App\Models\Page::where('area', $area)
             ->whereIn('slug', $related_meetings)
             ->where('slug', '!=', $slug)
             ->where('slug', '!=', $area)
@@ -250,7 +250,7 @@ class ViewServiceProvider extends ServiceProvider
             ->orderBy('slug', 'asc')
             ->get();
         } else {
-          $links = \App\Page::where('area', $area)
+          $links = \App\Models\Page::where('area', $area)
             ->where('slug', '!=', $slug)
             ->where('slug', '!=', $area)
             ->where('slug', '!=', 'privacy-policy')
@@ -266,7 +266,7 @@ class ViewServiceProvider extends ServiceProvider
       } else {
 
         //Load page
-        $page = \App\Page::where('slug', $area)->first();
+        $page = \App\Models\Page::where('slug', $area)->first();
 
         //Description
         $description   = '<meta name="description" content="' . $page->description . '">';
@@ -281,7 +281,7 @@ class ViewServiceProvider extends ServiceProvider
         $headingpicture = '/images/headings/large/' . $area . '.jpg';
 
         //Links
-        $links = \App\Page::where('area', $area)
+        $links = \App\Models\Page::where('area', $area)
           ->where('slug', '!=', $area)
           ->where('slug', '!=', 'privacy-policy')
           ->where('admin', '!=', 'yes')
@@ -305,7 +305,7 @@ class ViewServiceProvider extends ServiceProvider
     });
 
     \View::composer(['full-width-pages.home', 'full-width-pages.community'], function ($view) {
-      $pages = \App\Page::all();
+      $pages = \App\Models\Page::all();
 
       $view->with([
         'pages'           => (isset($pages) ? $pages : '')
@@ -313,13 +313,13 @@ class ViewServiceProvider extends ServiceProvider
     });
 
     \View::composer('full-width-pages.church', function ($view) {
-      $links = \App\Page::where('area', 'church')
+      $links = \App\Models\Page::where('area', 'church')
         ->where('slug', '!=', 'privacy-policy')
         ->where('slug', '!=', 'safeguarding-policy')
         ->where('admin', '!=', 'yes')
         ->get();
 
-      $pages = \App\Page::all();
+      $pages = \App\Models\Page::all();
 
       $view->with([
         'pages' => (isset($pages) ? $pages : ''),

@@ -4,9 +4,9 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Song;
-use App\ScriptureReference;
-use App\PlayDate; // Added PlayDate model
+use App\Models\Song;
+use App\Models\ScriptureReference;
+use App\Models\PlayDate; // Added PlayDate model
 use Database\Factories\SongFactory;
 use Database\Factories\ScriptureReferenceFactory;
 use Database\Factories\PlayDateFactory;
@@ -23,11 +23,11 @@ class SongTest extends TestCase
    */
   public function testSongRelationships()
   {
-    $song = Song::factory()->create();
+    $song = \App\Models\Song::factory()->create();
 
     // Test scripture_reference() relationship (hasMany)
-    $scriptureRef1 = ScriptureReference::factory()->forSong($song)->create();
-    $scriptureRef2 = ScriptureReference::factory()->forSong($song)->create();
+    $scriptureRef1 = \App\Models\ScriptureReference::factory()->forSong($song)->create();
+    $scriptureRef2 = \App\Models\ScriptureReference::factory()->forSong($song)->create();
 
     $this->assertInstanceOf(EloquentCollection::class, $song->scripture_reference);
     $this->assertCount(2, $song->scripture_reference);
@@ -36,8 +36,8 @@ class SongTest extends TestCase
 
     // Test play_date() relationship (hasMany)
     // This assumes PlayDate model and DB table has 'song_id' column
-    $playDate1 = PlayDate::factory()->forSong($song)->create();
-    $playDate2 = PlayDate::factory()->forSong($song)->create();
+    $playDate1 = \App\Models\PlayDate::factory()->forSong($song)->create();
+    $playDate2 = \App\Models\PlayDate::factory()->forSong($song)->create();
 
     // Need to refresh the song instance to load the new play_date relations
     $song->refresh();
@@ -54,16 +54,16 @@ class SongTest extends TestCase
   public function testSongAccessors()
   {
     // Test getFormattedTitleAttribute (assuming it returns the title directly for now)
-    $songWithTitle = Song::factory()->create(['title' => 'Amazing Grace']);
+    $songWithTitle = \App\Models\Song::factory()->create(['title' => 'Amazing Grace']);
     $this->assertEquals('Amazing Grace', $songWithTitle->formatted_title);
     // This test assumes an accessor like:
     // public function getFormattedTitleAttribute() { return $this->attributes['title']; }
     // Or more complex logic if formatting is involved.
 
     // Test getScriptureReferencesListAttribute
-    $songWithRefs = Song::factory()->create();
-    $ref1 = ScriptureReference::factory()->forSong($songWithRefs)->create(['reference_string' => 'John 3:16']);
-    $ref2 = ScriptureReference::factory()->forSong($songWithRefs)->create(['reference_string' => 'Psalm 23']);
+    $songWithRefs = \App\Models\Song::factory()->create();
+    $ref1 = \App\Models\ScriptureReference::factory()->forSong($songWithRefs)->create(['reference_string' => 'John 3:16']);
+    $ref2 = \App\Models\ScriptureReference::factory()->forSong($songWithRefs)->create(['reference_string' => 'Psalm 23']);
 
     // Refresh to ensure relationship is loaded if accessor queries it
     $songWithRefs->refresh();
@@ -75,7 +75,7 @@ class SongTest extends TestCase
     //     return $this->scripture_reference->pluck('reference_string')->implode(', ');
     // }
 
-    $songWithoutRefs = Song::factory()->create();
+    $songWithoutRefs = \App\Models\Song::factory()->create();
     $this->assertEquals('', $songWithoutRefs->scripture_references_list);
   }
 
@@ -87,21 +87,21 @@ class SongTest extends TestCase
     // Test last_played_at casting to Carbon instance
     // This assumes 'last_played_at' column exists and is cast to datetime in Song model
     $now = Carbon::now();
-    $songWithPlayDate = Song::factory()->create(['last_played_at' => $now]);
+    $songWithPlayDate = \App\Models\Song::factory()->create(['last_played_at' => $now]);
     $this->assertInstanceOf(Carbon::class, $songWithPlayDate->last_played_at);
     $this->assertEquals($now->toDateTimeString(), $songWithPlayDate->last_played_at->toDateTimeString());
 
-    $songWithoutPlayDate = Song::factory()->create(['last_played_at' => null]);
+    $songWithoutPlayDate = \App\Models\Song::factory()->create(['last_played_at' => null]);
     $this->assertNull($songWithoutPlayDate->last_played_at);
 
     // Test lyrics attribute (assuming it's a text field, no specific cast needed beyond string)
     // If lyrics were JSON, the test would be:
     // $lyricsArray = ['verse1' => 'Line 1', 'chorus' => 'Chorus line'];
-    // $songWithJsonLyrics = Song::factory()->create(['lyrics' => json_encode($lyricsArray)]);
+    // $songWithJsonLyrics = \App\Models\Song::factory()->create(['lyrics' => json_encode($lyricsArray)]);
     // $this->assertIsArray($songWithJsonLyrics->lyrics);
     // $this->assertEquals($lyricsArray, $songWithJsonLyrics->lyrics);
     $lyricsText = "Verse 1...\nChorus...";
-    $songWithTextLyrics = Song::factory()->withLyrics($lyricsText)->create();
+    $songWithTextLyrics = \App\Models\Song::factory()->withLyrics($lyricsText)->create();
     $this->assertEquals($lyricsText, $songWithTextLyrics->lyrics);
   }
 
@@ -111,20 +111,20 @@ class SongTest extends TestCase
   public function testSongScopes()
   {
     // Test withLyrics() scope
-    $songWithLyrics = Song::factory()->withLyrics('Some lyrics...')->create();
-    $songWithoutLyrics = Song::factory()->withoutLyrics()->create();
+    $songWithLyrics = \App\Models\Song::factory()->withLyrics('Some lyrics...')->create();
+    $songWithoutLyrics = \App\Models\Song::factory()->withoutLyrics()->create();
 
-    $songsFound = Song::withLyrics()->get();
+    $songsFound = \App\Models\Song::withLyrics()->get();
     $this->assertTrue($songsFound->contains($songWithLyrics));
     $this->assertFalse($songsFound->contains($songWithoutLyrics));
     // Assumes scope: public function scopeWithLyrics($query) { return $query->whereNotNull('lyrics')->where('lyrics', '!=', ''); }
 
     // Test orderByTitle() scope
-    $songB = Song::factory()->create(['title' => 'Song B']);
-    $songA = Song::factory()->create(['title' => 'Song A']);
-    $songC = Song::factory()->create(['title' => 'Song C']);
+    $songB = \App\Models\Song::factory()->create(['title' => 'Song B']);
+    $songA = \App\Models\Song::factory()->create(['title' => 'Song A']);
+    $songC = \App\Models\Song::factory()->create(['title' => 'Song C']);
 
-    $sortedSongs = Song::orderByTitle()->get();
+    $sortedSongs = \App\Models\Song::orderByTitle()->get();
     $this->assertEquals('Song A', $sortedSongs->get(0)->title);
     $this->assertEquals('Song B', $sortedSongs->get(1)->title);
     $this->assertEquals('Song C', $sortedSongs->get(2)->title);
@@ -132,15 +132,15 @@ class SongTest extends TestCase
 
     // Test matchingScripture(string $reference) scope
     $targetReference = 'John 3:16';
-    $songWithMatchingRef = Song::factory()->create();
-    ScriptureReference::factory()->forSong($songWithMatchingRef)->withReference($targetReference)->create();
+    $songWithMatchingRef = \App\Models\Song::factory()->create();
+    \App\Models\ScriptureReference::factory()->forSong($songWithMatchingRef)->withReference($targetReference)->create();
 
-    $songWithDifferentRef = Song::factory()->create();
-    ScriptureReference::factory()->forSong($songWithDifferentRef)->withReference('Psalm 23')->create();
+    $songWithDifferentRef = \App\Models\Song::factory()->create();
+    \App\Models\ScriptureReference::factory()->forSong($songWithDifferentRef)->withReference('Psalm 23')->create();
 
-    $songWithNoRef = Song::factory()->create();
+    $songWithNoRef = \App\Models\Song::factory()->create();
 
-    $matchingSongs = Song::matchingScripture($targetReference)->get();
+    $matchingSongs = \App\Models\Song::matchingScripture($targetReference)->get();
     $this->assertCount(1, $matchingSongs);
     $this->assertTrue($matchingSongs->contains($songWithMatchingRef));
     $this->assertFalse($matchingSongs->contains($songWithDifferentRef));
@@ -161,13 +161,13 @@ class SongTest extends TestCase
     $targetReference = 'John 3:16';
     $otherReference = 'Psalm 23';
 
-    $songWithTargetRef = Song::factory()->create();
-    ScriptureReference::factory()->forSong($songWithTargetRef)->withReference($targetReference)->create();
+    $songWithTargetRef = \App\Models\Song::factory()->create();
+    \App\Models\ScriptureReference::factory()->forSong($songWithTargetRef)->withReference($targetReference)->create();
 
-    $songWithOtherRef = Song::factory()->create();
-    ScriptureReference::factory()->forSong($songWithOtherRef)->withReference($otherReference)->create();
+    $songWithOtherRef = \App\Models\Song::factory()->create();
+    \App\Models\ScriptureReference::factory()->forSong($songWithOtherRef)->withReference($otherReference)->create();
 
-    $songWithNoRefs = Song::factory()->create();
+    $songWithNoRefs = \App\Models\Song::factory()->create();
 
     $this->assertTrue($songWithTargetRef->hasScriptureReference($targetReference));
     $this->assertFalse($songWithTargetRef->hasScriptureReference($otherReference));

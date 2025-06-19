@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use App\ScriptureReference;
-use App\Song;
+use App\Models\ScriptureReference;
+use App\Models\Song;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ScriptureReferenceFactory extends Factory
@@ -23,7 +23,7 @@ class ScriptureReferenceFactory extends Factory
   public function definition()
   {
     return [
-      'song_id' => Song::factory(), // Associates with a song by default
+      'song_id' => \App\Models\Song::factory(), // Associates with a song by default
       'reference_string' => $this->faker->randomElement(['John 3:16', 'Psalm 23', 'Romans 8:28', 'Genesis 1:1']),
       // Add any other relevant fields based on actual DB schema
     ];
@@ -32,14 +32,14 @@ class ScriptureReferenceFactory extends Factory
   /**
    * Associate the scripture reference with a specific song.
    *
-   * @param \App\Song|int $song
+   * @param \App\Models\Song|int $song
    * @return \Illuminate\Database\Eloquent\Factories\Factory
    */
   public function forSong($song)
   {
     return $this->state(function (array $attributes) use ($song) {
       return [
-        'song_id' => $song instanceof Song ? $song->id : $song,
+        'song_id' => $song instanceof \App\Models\Song ? $song->id : $song,
       ];
     });
   }

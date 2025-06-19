@@ -2,9 +2,9 @@
 
 namespace Database\Factories;
 
-use App\PlayDate; // Corrected namespace
-use App\Sermon;   // Corrected namespace
-use App\Song;     // Added Song import
+use App\Models\PlayDate; // Corrected namespace
+use App\Models\Sermon;   // Corrected namespace
+use App\Models\Song;     // Added Song import
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class PlayDateFactory extends Factory
@@ -34,14 +34,14 @@ class PlayDateFactory extends Factory
   /**
    * Associate the play date with a specific sermon.
    *
-   * @param \App\Sermon|int $sermon
+   * @param \App\Models\Sermon|int $sermon
    * @return \Illuminate\Database\Eloquent\Factories\Factory
    */
   public function forSermon($sermon)
   {
     return $this->state(function (array $attributes) use ($sermon) {
       return [
-        'sermon_id' => $sermon instanceof Sermon ? $sermon->id : $sermon,
+        'sermon_id' => $sermon instanceof \App\Models\Sermon ? $sermon->id : $sermon,
         'song_id' => null,
       ];
     });
@@ -50,7 +50,7 @@ class PlayDateFactory extends Factory
   /**
    * Associate the play date with a specific song.
    *
-   * @param \App\Song|int $song
+   * @param \App\Models\Song|int $song
    * @return \Illuminate\Database\Eloquent\Factories\Factory
    */
   public function forSong($song)
@@ -58,7 +58,7 @@ class PlayDateFactory extends Factory
     return $this->state(function (array $attributes) use ($song) {
       return [
         'sermon_id' => null,
-        'song_id' => $song instanceof Song ? $song->id : $song,
+        'song_id' => $song instanceof \App\Models\Song ? $song->id : $song,
       ];
     });
   }
