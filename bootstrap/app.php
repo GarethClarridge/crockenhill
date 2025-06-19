@@ -12,12 +12,12 @@
 */
 
 $app = new Illuminate\Foundation\Application(
-	realpath(__DIR__.'/../')
+  realpath(__DIR__ . '/../')
 );
 
 //set the public path to this directory
-$app->bind('path.public', function() {
-    return __DIR__;
+$app->bind('path.public', function () {
+  return __DIR__;
 });
 
 /*
@@ -32,16 +32,16 @@ $app->bind('path.public', function() {
 */
 
 $app->singleton(
-    Illuminate\Contracts\Http\Kernel::class,
-    Crockenhill\Http\Kernel::class
+  Illuminate\Contracts\Http\Kernel::class,
+  App\Http\Kernel::class
 );
 $app->singleton(
-    Illuminate\Contracts\Console\Kernel::class,
-    Crockenhill\Console\Kernel::class
+  Illuminate\Contracts\Console\Kernel::class,
+  App\Console\Kernel::class
 );
 $app->singleton(
-    Illuminate\Contracts\Debug\ExceptionHandler::class,
-    Crockenhill\Exceptions\Handler::class
+  Illuminate\Contracts\Debug\ExceptionHandler::class,
+  App\Exceptions\Handler::class
 );
 
 /*

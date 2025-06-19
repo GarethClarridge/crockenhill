@@ -1,17 +1,19 @@
-<?php namespace Crockenhill;
+<?php
 
-class Song extends \Eloquent {
- 
-    protected $table = 'songs';
+namespace App;
 
-    public function play_date()
-    {
-      return $this->hasMany('PlayDate', 'song_id');
-    }
+class Song extends \Eloquent
+{
 
-    public function scripture_reference()
-    {
-      return $this->hasMany('ScriptureReference', 'song_id');
-    }
- 
+  protected $table = 'songs';
+
+  public function play_date()
+  {
+    return $this->hasMany('PlayDate', 'song_id');
+  }
+
+  public function scripture_reference()
+  {
+    return $this->hasMany('ScriptureReference', 'song_id');
+  }
 }

@@ -1,6 +1,6 @@
 <?php
 return [
-    /*
+  /*
   |--------------------------------------------------------------------------
   | Application Name
   |--------------------------------------------------------------------------
@@ -147,13 +147,13 @@ return [
     /*
      * Application Service Providers...
      */
-    Crockenhill\Providers\AppServiceProvider::class,
-    Crockenhill\Providers\AuthServiceProvider::class,
-    // Crockenhill\Providers\BroadcastServiceProvider::class,
-    Crockenhill\Providers\EventServiceProvider::class,
-    Crockenhill\Providers\RouteServiceProvider::class,
-    Crockenhill\Providers\ComposerServiceProvider::class,
-    Crockenhill\Providers\ViewServiceProvider::class,
+    App\Providers\AppServiceProvider::class,
+    App\Providers\AuthServiceProvider::class,
+    // App\Providers\BroadcastServiceProvider::class,
+    App\Providers\EventServiceProvider::class,
+    App\Providers\RouteServiceProvider::class,
+    App\Providers\ComposerServiceProvider::class,
+    App\Providers\ViewServiceProvider::class,
     Intervention\Image\ImageServiceProvider::class
   ],
 

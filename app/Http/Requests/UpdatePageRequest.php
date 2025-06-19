@@ -1,6 +1,6 @@
 <?php
 
-namespace Crockenhill\Http\Requests;
+namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -12,30 +12,30 @@ use Illuminate\Support\Facades\Gate;
  */
 class UpdatePageRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return Gate::allows('edit-pages');
-    }
+  /**
+   * Determine if the user is authorized to make this request.
+   *
+   * @return bool
+   */
+  public function authorize()
+  {
+    return Gate::allows('edit-pages');
+  }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
-    public function rules()
-    {
-        return [
-            'heading' => 'required|string|max:255',
-            'markdown' => 'required|string',
-            'description' => 'nullable|string',
-            'area' => 'required|string|in:christ,church,community',
-            'navigation-radio' => 'required|string|in:yes,no',
-            'heading-image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp,svg|max:2048',
-        ];
-    }
+  /**
+   * Get the validation rules that apply to the request.
+   *
+   * @return array
+   */
+  public function rules()
+  {
+    return [
+      'heading' => 'required|string|max:255',
+      'markdown' => 'required|string',
+      'description' => 'nullable|string',
+      'area' => 'required|string|in:christ,church,community',
+      'navigation-radio' => 'required|string|in:yes,no',
+      'heading-image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp,svg|max:2048',
+    ];
+  }
 }

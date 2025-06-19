@@ -1,16 +1,16 @@
 <?php
 
-namespace Crockenhill\Http\Controllers;
+namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Crockenhill\Models\Sermon;
+use App\Models\Sermon;
 use wapmorgan\Mp3Info\Mp3Info;
 
 class RssFeedController extends Controller
 {
   public function eveningFeed()
   {
-    $sermons = \Crockenhill\Sermon::whereYear('date', '>=', '2022')
+    $sermons = \App\Sermon::whereYear('date', '>=', '2022')
       ->where('service', 'evening')
       ->orderBy('created_at', 'desc')
       ->get();
@@ -28,7 +28,7 @@ class RssFeedController extends Controller
 
   public function morningFeed()
   {
-    $sermons = \Crockenhill\Sermon::whereYear('date', '>=', '2022')
+    $sermons = \App\Sermon::whereYear('date', '>=', '2022')
       ->where('service', 'morning')
       ->orderBy('created_at', 'desc')
       ->get();

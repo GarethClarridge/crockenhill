@@ -1,6 +1,5 @@
-<?php namespace Crockenhill;
+<?php
 
-class Meeting extends \Eloquent 
-{
-  
-}
+namespace App;
+
+class Meeting extends \Eloquent {}

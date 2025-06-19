@@ -1,9 +1,9 @@
 <?php
 
-namespace Crockenhill\Http\Controllers;
+namespace App\Http\Controllers;
 
-use Crockenhill\Jobs\ExtractSermonAudioFromVideo;
-use Crockenhill\Service;
+use App\Jobs\ExtractSermonAudioFromVideo;
+use App\Service;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;

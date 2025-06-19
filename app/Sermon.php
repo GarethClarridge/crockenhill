@@ -1,4 +1,6 @@
-<?php namespace Crockenhill;
+<?php
+
+namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Feed\Feedable;
@@ -6,34 +8,34 @@ use Spatie\Feed\FeedItem;
 
 class Sermon extends Model
 {
-    protected $table = 'sermons';
+  protected $table = 'sermons';
 
-    public $timestamps = false;
+  public $timestamps = false;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'title',
-        'filename',
-        'date',
-        'service',
-        'slug',
-        'series',
-        'reference',
-        'preacher',
-        'points',
-    ];
+  /**
+   * The attributes that are mass assignable.
+   *
+   * @var array<int, string>
+   */
+  protected $fillable = [
+    'title',
+    'filename',
+    'date',
+    'service',
+    'slug',
+    'series',
+    'reference',
+    'preacher',
+    'points',
+  ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'date' => 'date',
-        'points' => 'array',
-    ];
+  /**
+   * The attributes that should be cast.
+   *
+   * @var array<string, string>
+   */
+  protected $casts = [
+    'date' => 'date',
+    'points' => 'array',
+  ];
 }

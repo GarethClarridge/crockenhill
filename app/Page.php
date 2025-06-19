@@ -1,37 +1,37 @@
 <?php
 
-namespace Crockenhill;
+namespace App;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Page extends Model
 {
-    use HasFactory;
- 
-    protected $table = 'pages';
+  use HasFactory;
 
-    protected $fillable = [
-        'heading',
-        'slug',
-        'area',
-        'markdown',
-        'body',
-        'description',
-        'navigation',
-    ];
+  protected $table = 'pages';
 
-    protected $casts = [
-        'navigation' => 'boolean',
-    ];
+  protected $fillable = [
+    'heading',
+    'slug',
+    'area',
+    'markdown',
+    'body',
+    'description',
+    'navigation',
+  ];
 
-    /**
-     * Get the route key for the model.
-     *
-     * @return string
-     */
-    public function getRouteKeyName()
-    {
-        return 'slug';
-    }
+  protected $casts = [
+    'navigation' => 'boolean',
+  ];
+
+  /**
+   * Get the route key for the model.
+   *
+   * @return string
+   */
+  public function getRouteKeyName()
+  {
+    return 'slug';
+  }
 }

@@ -12,12 +12,12 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 // use App\Models\User; // Assuming this is the User model path - Corrected below
-use Crockenhill\Sermon;
+use App\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 
-use Crockenhill\User; // Corrected User model namespace
-use Crockenhill\Service;
+use App\User; // Corrected User model namespace
+use App\Service;
 use Mockery;
 use OwenOj\LaravelGetId3\GetId3;
 use Illuminate\Support\Facades\Log;

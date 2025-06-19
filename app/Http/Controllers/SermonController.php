@@ -1,19 +1,19 @@
 <?php
 
-namespace Crockenhill\Http\Controllers;
+namespace App\Http\Controllers;
 
-use Crockenhill\Http\Controllers\Controller;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Owenoj\LaravelGetId3\GetId3;
-use Crockenhill\Sermon;
-use Crockenhill\Page;
+use App\Sermon;
+use App\Page;
 use Illuminate\Support\Facades\DB; // Added for DB facade
 use Illuminate\Support\Facades\Storage; // Added for Storage facade
-use Crockenhill\Http\Requests\StoreSermonRequest; // Added for Form Request
-use Crockenhill\Http\Requests\UpdateSermonRequest; // Added for Update Form Request
-use Crockenhill\Http\Requests\PostSermonRequest; // Added for Post Form Request
+use App\Http\Requests\StoreSermonRequest; // Added for Form Request
+use App\Http\Requests\UpdateSermonRequest; // Added for Update Form Request
+use App\Http\Requests\PostSermonRequest; // Added for Post Form Request
 
 class SermonController extends Controller
 {
@@ -25,23 +25,23 @@ class SermonController extends Controller
    */
   public function index()
   {
-    $distinct_dates = \Crockenhill\Sermon::select('date')
-                                ->distinct()
-                                ->orderBy('date', 'desc')
-                                ->limit(6)
-                                ->pluck('date');
+    $distinct_dates = \App\Sermon::select('date')
+      ->distinct()
+      ->orderBy('date', 'desc')
+      ->limit(6)
+      ->pluck('date');
 
     if ($distinct_dates->isNotEmpty()) {
-        $latest_sermons = \Crockenhill\Sermon::whereIn('date', $distinct_dates)
-                         ->orderBy('date', 'desc')
-                         ->orderBy('service', 'asc')
-                         ->get()
-                         ->groupBy(function ($sermon) {
-                             // Assuming 'date' is a Carbon instance or date string 'Y-m-d'
-                             return $sermon->date instanceof \Carbon\Carbon ? $sermon->date->format('Y-m-d') : $sermon->date;
-                         });
+      $latest_sermons = \App\Sermon::whereIn('date', $distinct_dates)
+        ->orderBy('date', 'desc')
+        ->orderBy('service', 'asc')
+        ->get()
+        ->groupBy(function ($sermon) {
+          // Assuming 'date' is a Carbon instance or date string 'Y-m-d'
+          return $sermon->date instanceof \Carbon\Carbon ? $sermon->date->format('Y-m-d') : $sermon->date;
+        });
     } else {
-        $latest_sermons = collect();
+      $latest_sermons = collect();
     }
 
     return view('sermons.index', array(
@@ -51,12 +51,12 @@ class SermonController extends Controller
 
   public function getAll()
   {
-    $sermons = \Crockenhill\Sermon::orderBy('date', 'desc')
-                     ->orderBy('service', 'asc')
-                     ->get()
-                     ->groupBy(function ($sermon) {
-                         return $sermon->date instanceof \Carbon\Carbon ? $sermon->date->format('Y-m-d') : $sermon->date;
-                     });
+    $sermons = \App\Sermon::orderBy('date', 'desc')
+      ->orderBy('service', 'asc')
+      ->get()
+      ->groupBy(function ($sermon) {
+        return $sermon->date instanceof \Carbon\Carbon ? $sermon->date->format('Y-m-d') : $sermon->date;
+      });
 
     return view('sermons.all', array(
       'sermons' => $sermons,
@@ -96,36 +96,36 @@ class SermonController extends Controller
 
     $path = null;
     if ($request->hasFile('file') && $request->file('file')->isValid()) {
-        $file = $request->file('file');
-        // Store the file in 'storage/app/public/sermons' with a unique name
-        $path = Storage::disk('public')->putFile('sermons', $file);
-        if (!$path) {
-            // Handle error if file storage failed
-            return redirect()->back()->with('error', 'File upload failed.');
-        }
+      $file = $request->file('file');
+      // Store the file in 'storage/app/public/sermons' with a unique name
+      $path = Storage::disk('public')->putFile('sermons', $file);
+      if (!$path) {
+        // Handle error if file storage failed
+        return redirect()->back()->with('error', 'File upload failed.');
+      }
     } else {
-        // Handle error if file is not present or invalid
-         return redirect()->back()->with('error', 'No valid file uploaded.');
+      // Handle error if file is not present or invalid
+      return redirect()->back()->with('error', 'No valid file uploaded.');
     }
 
     $pointsData = [];
     for ($p = 1; $p < 7; $p++) {
-        if ($request->filled("point-{$p}")) {
-            $mainPoint = $request->input("point-{$p}");
-            $subPoints = [];
-            for ($i = 1; $i < 6; $i++) {
-                if ($request->filled("sub-point-{$p}-{$i}")) {
-                    $subPoints[] = $request->input("sub-point-{$p}-{$i}");
-                }
-            }
-            // Only add if main point has content, or if sub_points have content even if main is empty (adjust as needed)
-            if (!empty($mainPoint) || !empty($subPoints)) {
-                 $pointsData[] = ['point' => $mainPoint ?: '', 'sub_points' => $subPoints];
-            }
+      if ($request->filled("point-{$p}")) {
+        $mainPoint = $request->input("point-{$p}");
+        $subPoints = [];
+        for ($i = 1; $i < 6; $i++) {
+          if ($request->filled("sub-point-{$p}-{$i}")) {
+            $subPoints[] = $request->input("sub-point-{$p}-{$i}");
+          }
         }
+        // Only add if main point has content, or if sub_points have content even if main is empty (adjust as needed)
+        if (!empty($mainPoint) || !empty($subPoints)) {
+          $pointsData[] = ['point' => $mainPoint ?: '', 'sub_points' => $subPoints];
+        }
+      }
     }
 
-    $sermon = new \Crockenhill\Sermon;
+    $sermon = new \App\Sermon;
     // Use $request->input() or $request->validated() for other fields.
     // $request->validated() is preferred if all fields are in the rules.
     $validatedData = $request->validated();
@@ -190,7 +190,7 @@ class SermonController extends Controller
     }
 
     $sermon = $this->findSermonOrFail((int)$year, (int)$month, $slug);
-    $series = array_unique(\Crockenhill\Sermon::pluck('series')->all()); // Used FQCN for Sermon
+    $series = array_unique(\App\Sermon::pluck('series')->all()); // Used FQCN for Sermon
 
     // Breadcrumbs removed
 
@@ -231,17 +231,17 @@ class SermonController extends Controller
     // to an array when $sermon->points is assigned and saved.
     // Update points only if the key exists in validated data (meaning it was submitted and passed validation)
     if (array_key_exists('points', $validatedData)) {
-        // Explicitly decode JSON string to array here.
-        // If $validatedData['points'] is null, json_decode(null, true) is null.
-        // If $validatedData['points'] is a valid JSON string, it's decoded to an array.
-        $sermon->points = $validatedData['points'] ? json_decode($validatedData['points'], true) : null;
+      // Explicitly decode JSON string to array here.
+      // If $validatedData['points'] is null, json_decode(null, true) is null.
+      // If $validatedData['points'] is a valid JSON string, it's decoded to an array.
+      $sermon->points = $validatedData['points'] ? json_decode($validatedData['points'], true) : null;
     }
 
     if ($sermon->save()) {
-        return redirect()->route('sermonIndex')->with('message', '"' . $sermon->title . '" successfully updated!');
+      return redirect()->route('sermonIndex')->with('message', '"' . $sermon->title . '" successfully updated!');
     } else {
-        // Log the failure or add more specific error handling
-        return redirect()->back()->withInput()->with('error', 'There was a problem saving the sermon. Please try again.');
+      // Log the failure or add more specific error handling
+      return redirect()->back()->withInput()->with('error', 'There was a problem saving the sermon. Please try again.');
     }
   }
 
@@ -265,17 +265,17 @@ class SermonController extends Controller
 
   public function getPreachers()
   {
-    $page = \Crockenhill\Page::where('slug', 'preachers')->first();
+    $page = \App\Page::where('slug', 'preachers')->first();
 
-    $preachers_with_counts = \Crockenhill\Sermon::select('preacher', \Illuminate\Support\Facades\DB::raw('COUNT(*) as sermons_count'))
-                                   ->groupBy('preacher')
-                                   ->orderByDesc('sermons_count')
-                                   ->orderBy('preacher', 'asc')
-                                   ->get();
+    $preachers_with_counts = \App\Sermon::select('preacher', \Illuminate\Support\Facades\DB::raw('COUNT(*) as sermons_count'))
+      ->groupBy('preacher')
+      ->orderByDesc('sermons_count')
+      ->orderBy('preacher', 'asc')
+      ->get();
 
     $preacher_array = [];
     foreach ($preachers_with_counts as $preacher_data) {
-        $preacher_array[$preacher_data->preacher] = [$preacher_data->sermons_count, $preacher_data->preacher];
+      $preacher_array[$preacher_data->preacher] = [$preacher_data->sermons_count, $preacher_data->preacher];
     }
 
     return view('sermons.preachers', array(
@@ -387,11 +387,11 @@ class SermonController extends Controller
     // Now, store the file with a unique name
     $path = Storage::disk('public')->putFile('sermons', $file);
     if (!$path) {
-        // Handle error if file storage failed
-        return redirect()->back()->with('error', 'File upload failed during storage.');
+      // Handle error if file storage failed
+      return redirect()->back()->with('error', 'File upload failed during storage.');
     }
 
-    $sermon = new \Crockenhill\Sermon;
+    $sermon = new \App\Sermon;
     $sermon->title      = $track->getTitle();
     $sermon->filename   = $path;
     $sermon->date       = $date; // This date is parsed from filename, might need validation/conversion
@@ -406,16 +406,16 @@ class SermonController extends Controller
     return redirect()->route('sermonIndex')->with('message', ($track->getTitle() ?? 'Sermon') . ' successfully posted!');
   }
 
-  private function findSermonOrFail(int $year, int $month, string $slug): \Crockenhill\Sermon
+  private function findSermonOrFail(int $year, int $month, string $slug): \App\Sermon
   {
-      $sermon = \Crockenhill\Sermon::where('slug', $slug)
-          ->whereYear('date', $year)
-          ->whereMonth('date', $month)
-          ->first();
+    $sermon = \App\Sermon::where('slug', $slug)
+      ->whereYear('date', $year)
+      ->whereMonth('date', $month)
+      ->first();
 
-      if (!$sermon) {
-          abort(404, 'Sermon not found.');
-      }
-      return $sermon;
+    if (!$sermon) {
+      abort(404, 'Sermon not found.');
+    }
+    return $sermon;
   }
 }

@@ -1,12 +1,14 @@
-<?php namespace Crockenhill;
+<?php
 
-class ScriptureReference extends \Eloquent {
- 
-    protected $table = 'scripture_references';
+namespace App;
 
-    public function post()
-    {
-      return $this->belongsTo('Song');
-    }
- 
+class ScriptureReference extends \Eloquent
+{
+
+  protected $table = 'scripture_references';
+
+  public function post()
+  {
+    return $this->belongsTo('Song');
+  }
 }
