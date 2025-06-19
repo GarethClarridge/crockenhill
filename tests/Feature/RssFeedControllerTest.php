@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\Sermon;
-use App\Service;
+use App\Models\Sermon;
+use App\Models\Service;
 use Database\Factories\SermonFactory;
 use Database\Factories\ServiceFactory;
 use Carbon\Carbon;
@@ -21,13 +21,13 @@ class RssFeedControllerTest extends TestCase
   {
     parent::setUp();
     // Ensure consistent service names that the controller might expect
-    $this->morningService = Service::factory()->create(['name' => 'Morning Service']);
-    $this->eveningService = Service::factory()->create(['name' => 'Evening Service']);
+    $this->morningService = \App\Models\Service::factory()->create(['name' => 'Morning Service']);
+    $this->eveningService = \App\Models\Service::factory()->create(['name' => 'Evening Service']);
   }
 
-  private function createSermonForFeed(Service $service, Carbon $date, array $overrides = [])
+  private function createSermonForFeed(\App\Models\Service $service, Carbon $date, array $overrides = [])
   {
-    return Sermon::factory()
+    return \App\Models\Sermon::factory()
       ->forService($service)
       ->withDate($date)
       ->create(array_merge([
@@ -73,7 +73,7 @@ class RssFeedControllerTest extends TestCase
     // For now, assuming a simple "last N items from this service" logic
     // Let's create more to test ordering and limit (if any)
     $veryRecentMorningSermon = $this->createSermonForFeed($this->morningService, Carbon::now(), ['title' => 'Very Recent Morning Sermon']);
-    Sermon::factory()->count(15)->forService($this->morningService)->withDate(Carbon::now()->subDays(2))->create(); // Create more sermons
+    \App\Models\Sermon::factory()->count(15)->forService($this->morningService)->withDate(Carbon::now()->subDays(2))->create(); // Create more sermons
 
     $response = $this->get('/rss/morning');
     $xml = new \SimpleXMLElement($response->getContent());

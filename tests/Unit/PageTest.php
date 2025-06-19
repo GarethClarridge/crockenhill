@@ -4,7 +4,7 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Page; // Correct namespace
+use App\Models\Page; // Correct namespace
 use Database\Factories\PageFactory;
 
 class PageTest extends TestCase
@@ -26,13 +26,13 @@ class PageTest extends TestCase
   public function testPageAccessors()
   {
     // Test getRouteAttribute
-    $page1 = Page::factory()->create([
+    $page1 = \App\Models\Page::factory()->create([
       'area' => 'christ',
       'slug' => 'about-us',
     ]);
     $this->assertEquals('/christ/about-us', $page1->route);
 
-    $page2 = Page::factory()->create([
+    $page2 = \App\Models\Page::factory()->create([
       'area' => 'community',
       'slug' => 'events',
     ]);
@@ -53,21 +53,21 @@ class PageTest extends TestCase
   public function testPageMutatorsAndCasts()
   {
     // Test 'navigation' attribute casting to boolean
-    $pageNavTrue = Page::factory()->create(['navigation' => 1]);
+    $pageNavTrue = \App\Models\Page::factory()->create(['navigation' => 1]);
     $this->assertTrue($pageNavTrue->navigation);
 
-    $pageNavFalse = Page::factory()->create(['navigation' => 0]);
+    $pageNavFalse = \App\Models\Page::factory()->create(['navigation' => 0]);
     $this->assertFalse($pageNavFalse->navigation);
 
     // Test with actual boolean values from factory state
-    $pageNavTrueFromState = Page::factory()->isNavigation(true)->create();
+    $pageNavTrueFromState = \App\Models\Page::factory()->isNavigation(true)->create();
     $this->assertTrue($pageNavTrueFromState->navigation);
 
-    $pageNavFalseFromState = Page::factory()->isNavigation(false)->create();
+    $pageNavFalseFromState = \App\Models\Page::factory()->isNavigation(false)->create();
     $this->assertFalse($pageNavFalseFromState->navigation);
 
     // Test with factory's default random boolean
-    $pageFromFactory = Page::factory()->create();
+    $pageFromFactory = \App\Models\Page::factory()->create();
     $this->assertIsBool($pageFromFactory->navigation);
   }
 
@@ -77,28 +77,28 @@ class PageTest extends TestCase
   public function testPageScopes()
   {
     // Test inArea() scope
-    $pageInChrist = Page::factory()->inArea('christ')->create();
-    $pageInCommunity = Page::factory()->inArea('community')->create();
-    $pageInChurch = Page::factory()->inArea('church')->create();
+    $pageInChrist = \App\Models\Page::factory()->inArea('christ')->create();
+    $pageInCommunity = \App\Models\Page::factory()->inArea('community')->create();
+    $pageInChurch = \App\Models\Page::factory()->inArea('church')->create();
 
-    $christPages = Page::inArea('christ')->get();
+    $christPages = \App\Models\Page::inArea('christ')->get();
     $this->assertCount(1, $christPages);
     $this->assertTrue($christPages->contains($pageInChrist));
     $this->assertFalse($christPages->contains($pageInCommunity));
     $this->assertFalse($christPages->contains($pageInChurch));
 
-    $communityPages = Page::inArea('community')->get();
+    $communityPages = \App\Models\Page::inArea('community')->get();
     $this->assertCount(1, $communityPages);
     $this->assertTrue($communityPages->contains($pageInCommunity));
     $this->assertFalse($communityPages->contains($pageInChrist));
 
     // Test isNavigation() scope
-    $navPage1 = Page::factory()->isNavigation()->create(); // navigation = true
-    $navPage2 = Page::factory()->isNavigation(true)->create(); // navigation = true
-    $nonNavPage1 = Page::factory()->isNotNavigation()->create(); // navigation = false
-    $nonNavPage2 = Page::factory()->isNavigation(false)->create(); // navigation = false
+    $navPage1 = \App\Models\Page::factory()->isNavigation()->create(); // navigation = true
+    $navPage2 = \App\Models\Page::factory()->isNavigation(true)->create(); // navigation = true
+    $nonNavPage1 = \App\Models\Page::factory()->isNotNavigation()->create(); // navigation = false
+    $nonNavPage2 = \App\Models\Page::factory()->isNavigation(false)->create(); // navigation = false
 
-    $navigationPages = Page::isNavigation()->get();
+    $navigationPages = \App\Models\Page::isNavigation()->get();
     $this->assertCount(2, $navigationPages);
     $this->assertTrue($navigationPages->contains($navPage1));
     $this->assertTrue($navigationPages->contains($navPage2));

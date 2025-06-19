@@ -7,8 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Owenoj\LaravelGetId3\GetId3;
-use App\Sermon;
-use App\Page;
+use App\Models\Sermon;
+use App\Models\Page;
 use Illuminate\Support\Facades\DB; // Added for DB facade
 use Illuminate\Support\Facades\Storage; // Added for Storage facade
 use App\Http\Requests\StoreSermonRequest; // Added for Form Request
@@ -25,14 +25,14 @@ class SermonController extends Controller
    */
   public function index()
   {
-    $distinct_dates = \App\Sermon::select('date')
+    $distinct_dates = \App\Models\Sermon::select('date')
       ->distinct()
       ->orderBy('date', 'desc')
       ->limit(6)
       ->pluck('date');
 
     if ($distinct_dates->isNotEmpty()) {
-      $latest_sermons = \App\Sermon::whereIn('date', $distinct_dates)
+      $latest_sermons = \App\Models\Sermon::whereIn('date', $distinct_dates)
         ->orderBy('date', 'desc')
         ->orderBy('service', 'asc')
         ->get()
@@ -51,7 +51,7 @@ class SermonController extends Controller
 
   public function getAll()
   {
-    $sermons = \App\Sermon::orderBy('date', 'desc')
+    $sermons = \App\Models\Sermon::orderBy('date', 'desc')
       ->orderBy('service', 'asc')
       ->get()
       ->groupBy(function ($sermon) {
@@ -125,7 +125,7 @@ class SermonController extends Controller
       }
     }
 
-    $sermon = new \App\Sermon;
+    $sermon = new \App\Models\Sermon;
     // Use $request->input() or $request->validated() for other fields.
     // $request->validated() is preferred if all fields are in the rules.
     $validatedData = $request->validated();
@@ -190,7 +190,7 @@ class SermonController extends Controller
     }
 
     $sermon = $this->findSermonOrFail((int)$year, (int)$month, $slug);
-    $series = array_unique(\App\Sermon::pluck('series')->all()); // Used FQCN for Sermon
+    $series = array_unique(\App\Models\Sermon::pluck('series')->all()); // Used FQCN for Sermon
 
     // Breadcrumbs removed
 
@@ -265,9 +265,9 @@ class SermonController extends Controller
 
   public function getPreachers()
   {
-    $page = \App\Page::where('slug', 'preachers')->first();
+    $page = \App\Models\Page::where('slug', 'preachers')->first();
 
-    $preachers_with_counts = \App\Sermon::select('preacher', \Illuminate\Support\Facades\DB::raw('COUNT(*) as sermons_count'))
+    $preachers_with_counts = \App\Models\Sermon::select('preacher', \Illuminate\Support\Facades\DB::raw('COUNT(*) as sermons_count'))
       ->groupBy('preacher')
       ->orderByDesc('sermons_count')
       ->orderBy('preacher', 'asc')
@@ -391,7 +391,7 @@ class SermonController extends Controller
       return redirect()->back()->with('error', 'File upload failed during storage.');
     }
 
-    $sermon = new \App\Sermon;
+    $sermon = new \App\Models\Sermon;
     $sermon->title      = $track->getTitle();
     $sermon->filename   = $path;
     $sermon->date       = $date; // This date is parsed from filename, might need validation/conversion
@@ -406,9 +406,9 @@ class SermonController extends Controller
     return redirect()->route('sermonIndex')->with('message', ($track->getTitle() ?? 'Sermon') . ' successfully posted!');
   }
 
-  private function findSermonOrFail(int $year, int $month, string $slug): \App\Sermon
+  private function findSermonOrFail(int $year, int $month, string $slug): \App\Models\Sermon
   {
-    $sermon = \App\Sermon::where('slug', $slug)
+    $sermon = \App\Models\Sermon::where('slug', $slug)
       ->whereYear('date', $year)
       ->whereMonth('date', $month)
       ->first();

@@ -12,12 +12,12 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 // use App\Models\User; // Assuming this is the User model path - Corrected below
-use App\Sermon;
+use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 
-use App\User; // Corrected User model namespace
-use App\Service;
+use App\Models\User; // Corrected User model namespace
+use App\Models\Service;
 use Mockery;
 use OwenOj\LaravelGetId3\GetId3;
 use Illuminate\Support\Facades\Log;
@@ -27,17 +27,17 @@ class SermonTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected User $adminUser;
-    protected Service $morningService;
-    protected Service $eveningService;
+    protected \App\Models\User $adminUser;
+    protected \App\Models\Service $morningService;
+    protected \App\Models\Service $eveningService;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->adminUser = User::factory()->admin()->create();
+        $this->adminUser = \App\Models\User::factory()->admin()->create();
 
-        $this->morningService = Service::factory()->create(['name' => 'Morning Service']);
-        $this->eveningService = Service::factory()->create(['name' => 'Evening Service']);
+        $this->morningService = \App\Models\Service::factory()->create(['name' => 'Morning Service']);
+        $this->eveningService = \App\Models\Service::factory()->create(['name' => 'Evening Service']);
     }
 
     /**
@@ -71,9 +71,9 @@ class SermonTest extends TestCase
         $response->assertSessionHas('message', '"Test Sermon Title" successfully uploaded!');
         $response->assertRedirect(route('sermonIndex'));
 
-        $sermon = Sermon::where('title', 'Test Sermon Title')->orderBy('id', 'desc')->first();
+        $sermon = \App\Models\Sermon::where('title', 'Test Sermon Title')->orderBy('id', 'desc')->first();
         $this->assertNotNull($sermon, 'Sermon was not created in the database.');
-        $this->assertInstanceOf(Sermon::class, $sermon);
+        $this->assertInstanceOf(\App\Models\Sermon::class, $sermon);
 
     Storage::disk('public')->assertExists($sermon->filename);
 
@@ -88,7 +88,7 @@ class SermonTest extends TestCase
     }
 
     // Helper method to create a sermon for tests
-    protected function createTestSermon(array $overrides = []): Sermon
+    protected function createTestSermon(array $overrides = []): \App\Models\Sermon
     {
         $defaultServiceId = $this->morningService->id;
         if (isset($overrides['service'])) {
@@ -99,7 +99,7 @@ class SermonTest extends TestCase
         }
 
 
-        return Sermon::factory()->create(array_merge([
+        return \App\Models\Sermon::factory()->create(array_merge([
             'service_id' => $defaultServiceId,
         ], $overrides));
     }
@@ -536,14 +536,14 @@ class SermonTest extends TestCase
         $originalFilename = 'AttemptedUpload-2024-07-15-am.mp3';
         $file = UploadedFile::fake()->create($originalFilename, 1024, 'audio/mpeg');
 
-    $initialSermonCount = Sermon::count();
+    $initialSermonCount = \App\Models\Sermon::count();
 
         $response = $this->post(route('sermonPost'), [
             'file' => $file,
         ]);
         $response->assertRedirect(route('login'));
 
-        $this->assertEquals($initialSermonCount, Sermon::count());
+        $this->assertEquals($initialSermonCount, \App\Models\Sermon::count());
         $filesInStorage = Storage::disk('public')->files('sermons');
         $this->assertEmpty($filesInStorage);
     }
@@ -581,7 +581,7 @@ class SermonTest extends TestCase
         $response->assertRedirect(route('sermonIndex'));
         $response->assertSessionHas('message', 'Sermon successfully posted!');
 
-        $sermon = Sermon::orderBy('id', 'desc')->first();
+        $sermon = \App\Models\Sermon::orderBy('id', 'desc')->first();
         $this->assertNotNull($sermon);
 
         $this->assertEquals($expectedDate, Carbon::parse($sermon->date)->format('Y-m-d'));
@@ -618,23 +618,23 @@ class SermonTest extends TestCase
 
         $fileMissingDate = UploadedFile::fake()->create('Sermon Without Date-am.mp3', 1024, 'audio/mpeg');
         $this->post(route('sermonPost'), ['file' => $fileMissingDate]);
-        $sermonMissingDate = Sermon::orderBy('id', 'desc')->first();
+        $sermonMissingDate = \App\Models\Sermon::orderBy('id', 'desc')->first();
         $this->assertNotNull($sermonMissingDate);
         $this->assertEquals($today, Carbon::parse($sermonMissingDate->date)->format('Y-m-d'));
         $this->assertEquals($this->morningService->id, $sermonMissingDate->service_id);
 
-        Sermon::query()->delete();
+        \App\Models\Sermon::query()->delete();
         $fileMissingService = UploadedFile::fake()->create('Sermon Without Service-2023-09-10.mp3', 1024, 'audio/mpeg');
         $this->post(route('sermonPost'), ['file' => $fileMissingService]);
-        $sermonMissingService = Sermon::orderBy('id', 'desc')->first();
+        $sermonMissingService = \App\Models\Sermon::orderBy('id', 'desc')->first();
         $this->assertNotNull($sermonMissingService);
         $this->assertEquals('2023-09-10', Carbon::parse($sermonMissingService->date)->format('Y-m-d'));
         $this->assertEquals($this->morningService->id, $sermonMissingService->service_id);
 
-        Sermon::query()->delete();
+        \App\Models\Sermon::query()->delete();
         $fileJustTitle = UploadedFile::fake()->create('Just A Title.mp3', 1024, 'audio/mpeg');
         $this->post(route('sermonPost'), ['file' => $fileJustTitle]);
-        $sermonJustTitle = Sermon::orderBy('id', 'desc')->first();
+        $sermonJustTitle = \App\Models\Sermon::orderBy('id', 'desc')->first();
         $this->assertNotNull($sermonJustTitle);
         $this->assertEquals($today, Carbon::parse($sermonJustTitle->date)->format('Y-m-d'));
         $this->assertEquals($this->morningService->id, $sermonJustTitle->service_id);

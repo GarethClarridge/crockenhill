@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\User;
-use App\Meeting;
+use App\Models\User;
+use App\Models\Meeting;
 use Database\Factories\UserFactory;
 use Database\Factories\MeetingFactory;
 use Carbon\Carbon;
@@ -20,15 +20,15 @@ class MeetingControllerTest extends TestCase
   protected function setUp(): void
   {
     parent::setUp();
-    $this->adminUser = User::factory()->admin()->create();
-    $this->regularUser = User::factory()->create(['is_admin_for_test' => false]);
+    $this->adminUser = \App\Models\User::factory()->admin()->create();
+    $this->regularUser = \App\Models\User::factory()->create(['is_admin_for_test' => false]);
   }
 
   // 1. Authentication/Authorization Tests (CUD actions)
   /** @test */
   public function guests_cannot_access_meeting_cud_routes()
   {
-    $meeting = Meeting::factory()->create();
+    $meeting = \App\Models\Meeting::factory()->create();
 
     $this->get('/meetings/create')->assertRedirect('/login');
     $this->post('/meetings', [])->assertRedirect('/login');
@@ -41,7 +41,7 @@ class MeetingControllerTest extends TestCase
   public function regular_users_are_forbidden_from_meeting_cud_routes()
   {
     $this->actingAs($this->regularUser);
-    $meeting = Meeting::factory()->create();
+    $meeting = \App\Models\Meeting::factory()->create();
 
     $this->get('/meetings/create')->assertForbidden();
     $this->post('/meetings', [])->assertForbidden();
@@ -54,7 +54,7 @@ class MeetingControllerTest extends TestCase
   /** @test */
   public function meeting_index_page_is_publicly_accessible()
   {
-    Meeting::factory()->count(3)->create();
+    \App\Models\Meeting::factory()->count(3)->create();
     $response = $this->get('/meetings');
     $response->assertOk();
     $response->assertViewIs('meetings.index'); // Assuming a view name
@@ -65,7 +65,7 @@ class MeetingControllerTest extends TestCase
   /** @test */
   public function meeting_show_page_is_publicly_accessible()
   {
-    $meeting = Meeting::factory()->create(['name' => 'Public Meeting Details']);
+    $meeting = \App\Models\Meeting::factory()->create(['name' => 'Public Meeting Details']);
     $response = $this->get("/meetings/{$meeting->id}");
     $response->assertOk();
     $response->assertViewIs('meetings.show'); // Assuming a view name
@@ -122,7 +122,7 @@ class MeetingControllerTest extends TestCase
   /** @test */
   public function meeting_edit_page_loads_for_admin_users()
   {
-    $meeting = Meeting::factory()->create();
+    $meeting = \App\Models\Meeting::factory()->create();
     $response = $this->actingAs($this->adminUser)->get("/meetings/{$meeting->id}/edit");
     $response->assertOk();
     $response->assertViewIs('meetings.edit');
@@ -139,7 +139,7 @@ class MeetingControllerTest extends TestCase
   /** @test */
   public function admin_user_can_update_existing_meeting()
   {
-    $meeting = Meeting::factory()->create(['name' => 'Old Meeting Name']);
+    $meeting = \App\Models\Meeting::factory()->create(['name' => 'Old Meeting Name']);
     $updateData = [
       'name' => 'Updated Meeting Name',
       'meeting_date' => Carbon::now()->addMonth()->format('Y-m-d H:i:s'),
@@ -160,21 +160,21 @@ class MeetingControllerTest extends TestCase
   /** @test */
   public function update_meeting_fails_with_invalid_data()
   {
-    $meeting = Meeting::factory()->create();
+    $meeting = \App\Models\Meeting::factory()->create();
     $originalName = $meeting->name;
     $response = $this->actingAs($this->adminUser)->put("/meetings/{$meeting->id}", [
       'name' => '', // Name is required
       'meeting_date' => 'invalid-date-format',
     ]);
     $response->assertSessionHasErrors(['name', 'meeting_date']);
-    $this->assertEquals($originalName, Meeting::find($meeting->id)->name);
+    $this->assertEquals($originalName, \App\Models\Meeting::find($meeting->id)->name);
   }
 
   // 8. testDestroyMeeting
   /** @test */
   public function admin_user_can_destroy_meeting()
   {
-    $meeting = Meeting::factory()->create();
+    $meeting = \App\Models\Meeting::factory()->create();
 
     $response = $this->actingAs($this->adminUser)->delete("/meetings/{$meeting->id}");
 

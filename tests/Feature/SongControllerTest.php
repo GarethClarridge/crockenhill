@@ -4,9 +4,9 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\User;
-use App\Song;
-use App\ScriptureReference;
+use App\Models\User;
+use App\Models\Song;
+use App\Models\ScriptureReference;
 use Database\Factories\UserFactory;
 use Database\Factories\SongFactory;
 use Database\Factories\ScriptureReferenceFactory;
@@ -21,14 +21,14 @@ class SongControllerTest extends TestCase
   protected function setUp(): void
   {
     parent::setUp();
-    $this->adminUser = User::factory()->admin()->create();
-    $this->regularUser = User::factory()->create(['is_admin_for_test' => false]);
+    $this->adminUser = \App\Models\User::factory()->admin()->create();
+    $this->regularUser = \App\Models\User::factory()->create(['is_admin_for_test' => false]);
   }
 
   // 1. Authentication/Authorization Tests
   public function testGuestsCannotAccessSongManagement()
   {
-    $song = Song::factory()->create();
+    $song = \App\Models\Song::factory()->create();
 
     $this->get('/songs')->assertRedirect('/login');
     $this->get('/songs/create')->assertRedirect('/login');
@@ -44,7 +44,7 @@ class SongControllerTest extends TestCase
     // This test depends on specific authorization logic.
     // Assuming regular users can view index and show, but not CUD operations.
     $this->actingAs($this->regularUser);
-    $song = Song::factory()->create();
+    $song = \App\Models\Song::factory()->create();
 
     $this->get('/songs')->assertOk(); // Regular users can see the list
     $this->get("/songs/{$song->id}")->assertOk(); // Regular users can see a song
@@ -64,7 +64,7 @@ class SongControllerTest extends TestCase
   /** @test */
   public function song_index_page_loads_for_admin_users()
   {
-    Song::factory()->count(3)->create();
+    \App\Models\Song::factory()->count(3)->create();
     $response = $this->actingAs($this->adminUser)->get('/songs');
     $response->assertOk();
     $response->assertViewIs('songs.index'); // Assuming a view name
@@ -96,7 +96,7 @@ class SongControllerTest extends TestCase
     $response = $this->actingAs($this->adminUser)->post('/songs', $songData);
 
     $this->assertDatabaseHas('songs', ['title' => 'A Brand New Song']);
-    $newSong = Song::where('title', 'A Brand New Song')->first();
+    $newSong = \App\Models\Song::where('title', 'A Brand New Song')->first();
     $this->assertNotNull($newSong);
 
     // Check scripture references
@@ -122,8 +122,8 @@ class SongControllerTest extends TestCase
   /** @test */
   public function song_show_page_loads_for_everyone()
   {
-    $song = Song::factory()->create();
-    ScriptureReference::factory()->forSong($song)->create(['reference_string' => 'Gen 1:1']);
+    $song = \App\Models\Song::factory()->create();
+    \App\Models\ScriptureReference::factory()->forSong($song)->create(['reference_string' => 'Gen 1:1']);
 
     $response = $this->get("/songs/{$song->id}"); // Assuming ID is used in route
     $response->assertOk();
@@ -143,7 +143,7 @@ class SongControllerTest extends TestCase
   /** @test */
   public function song_edit_page_loads_for_admin_users()
   {
-    $song = Song::factory()->create();
+    $song = \App\Models\Song::factory()->create();
     $response = $this->actingAs($this->adminUser)->get("/songs/{$song->id}/edit");
     $response->assertOk();
     $response->assertViewIs('songs.edit'); // Assuming view
@@ -160,7 +160,7 @@ class SongControllerTest extends TestCase
   /** @test */
   public function admin_user_can_update_existing_song()
   {
-    $song = Song::factory()->create();
+    $song = \App\Models\Song::factory()->create();
     $updateData = [
       'title' => 'Updated Song Title',
       'lyrics' => 'Updated lyrics here.',
@@ -171,7 +171,7 @@ class SongControllerTest extends TestCase
     $response = $this->actingAs($this->adminUser)->put("/songs/{$song->id}", $updateData);
 
     $this->assertDatabaseHas('songs', ['id' => $song->id, 'title' => 'Updated Song Title']);
-    $updatedSong = Song::find($song->id);
+    $updatedSong = \App\Models\Song::find($song->id);
     $this->assertEquals('Updated lyrics here.', $updatedSong->lyrics);
 
     // Check scripture references update (assuming old ones are removed or handled)
@@ -186,21 +186,21 @@ class SongControllerTest extends TestCase
   /** @test */
   public function update_song_fails_with_invalid_data()
   {
-    $song = Song::factory()->create();
+    $song = \App\Models\Song::factory()->create();
     $response = $this->actingAs($this->adminUser)->put("/songs/{$song->id}", [
       'title' => '', // Title is required
     ]);
     $response->assertSessionHasErrors('title');
-    $this->assertNotEquals('', Song::find($song->id)->title); // Title should not have changed
+    $this->assertNotEquals('', \App\Models\Song::find($song->id)->title); // Title should not have changed
   }
 
   // 8. testDestroySong
   /** @test */
   public function admin_user_can_destroy_song()
   {
-    $song = Song::factory()->create();
+    $song = \App\Models\Song::factory()->create();
     // Also create scripture references to test cascading delete or manual delete in controller
-    ScriptureReference::factory()->count(2)->forSong($song)->create();
+    \App\Models\ScriptureReference::factory()->count(2)->forSong($song)->create();
 
     $response = $this->actingAs($this->adminUser)->delete("/songs/{$song->id}");
 
@@ -222,9 +222,9 @@ class SongControllerTest extends TestCase
   /** @test */
   public function song_search_returns_relevant_results()
   {
-    $song1 = Song::factory()->create(['title' => 'Amazing Grace']);
-    $song2 = Song::factory()->create(['title' => 'Grace Alone']);
-    $song3 = Song::factory()->create(['title' => 'Mighty Fortress']);
+    $song1 = \App\Models\Song::factory()->create(['title' => 'Amazing Grace']);
+    $song2 = \App\Models\Song::factory()->create(['title' => 'Grace Alone']);
+    $song3 = \App\Models\Song::factory()->create(['title' => 'Mighty Fortress']);
 
     // Assuming search route is /songs/search?q=Grace
     $response = $this->actingAs($this->adminUser)->get('/songs/search?q=Grace');
@@ -245,11 +245,11 @@ class SongControllerTest extends TestCase
     $refString = 'John 3:16';
     $refSlug = \Illuminate\Support\Str::slug($refString); // Assuming slugified ref for route
 
-    $song1 = Song::factory()->create();
-    ScriptureReference::factory()->forSong($song1)->create(['reference_string' => $refString]);
+    $song1 = \App\Models\Song::factory()->create();
+    \App\Models\ScriptureReference::factory()->forSong($song1)->create(['reference_string' => $refString]);
 
-    $song2 = Song::factory()->create();
-    ScriptureReference::factory()->forSong($song2)->create(['reference_string' => 'Psalm 23']);
+    $song2 = \App\Models\Song::factory()->create();
+    \App\Models\ScriptureReference::factory()->forSong($song2)->create(['reference_string' => 'Psalm 23']);
 
     // Assuming a route like /songs/scripture/john-3-16
     $response = $this->get("/songs/scripture/{$refSlug}");
