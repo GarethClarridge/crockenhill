@@ -1,6 +1,6 @@
 <?php
 
-namespace Crockenhill\View\Components;
+namespace App\View\Components;
 
 use Closure;
 use Illuminate\Contracts\View\View;
