@@ -1,5 +1,5 @@
 suites:
     main:
-        namespace: Crockenhill
-        psr4_prefix: Crockenhill
+        namespace: app
+        psr4_prefix: app
         src_path: app

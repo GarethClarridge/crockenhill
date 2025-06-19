@@ -13,14 +13,14 @@ class UserSeeder extends Seeder
     // Create admin user
     User::create([
       'name' => 'Admin User',
-      'email' => 'admin@crockenhill.org',
+      'email' => 'admin1@crockenhill.org',
       'password' => Hash::make('password'),
     ]);
 
     // Create Mark Drury (main preacher)
     User::create([
       'name' => 'Mark Drury',
-      'email' => 'mark@crockenhill.org',
+      'email' => 'markdrury@crockenhill.org',
       'password' => Hash::make('password'),
     ]);
 
