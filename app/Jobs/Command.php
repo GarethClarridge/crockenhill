@@ -1,4 +1,6 @@
-<?php namespace Crockenhill\Commands;
+<?php
+
+namespace App\Commands;
 
 // abstract class Command {
 //

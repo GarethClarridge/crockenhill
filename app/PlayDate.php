@@ -1,12 +1,14 @@
-<?php namespace Crockenhill;
+<?php
 
-class PlayDate extends \Eloquent {
- 
-    protected $table = 'play_date';
+namespace App;
 
-    public function post()
-    {
-      return $this->belongsTo('Song');
-    }
- 
+class PlayDate extends \Eloquent
+{
+
+  protected $table = 'play_date';
+
+  public function post()
+  {
+    return $this->belongsTo('Song');
+  }
 }

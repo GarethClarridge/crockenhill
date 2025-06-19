@@ -1,11 +1,14 @@
-<?php namespace Crockenhill\Http\Controllers\Auth;
+<?php
 
-use Crockenhill\Http\Controllers\Controller;
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\ResetsPasswords;
 
-class PasswordController extends Controller {
+class PasswordController extends Controller
+{
 
-	/*
+  /*
 	|--------------------------------------------------------------------------
 	| Password Reset Controller
 	|--------------------------------------------------------------------------
@@ -26,6 +29,6 @@ class PasswordController extends Controller {
 
   public function __construct()
   {
-      $this->middleware('guest');
+    $this->middleware('guest');
   }
 }

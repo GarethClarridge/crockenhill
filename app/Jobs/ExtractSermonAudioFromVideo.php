@@ -1,10 +1,10 @@
 <?php
 
-namespace Crockenhill\Jobs;
+namespace App\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Crockenhill\Service;
+use App\Service;
 
 class ExtractSermonAudioFromVideo implements ShouldQueue
 {

@@ -7,7 +7,7 @@ namespace Tests;
 // use Illuminate\Foundation\Testing\DatabaseMigrations; // Or this
 use Illuminate\Foundation\Testing\RefreshDatabase; // Recommended
 use Illuminate\Support\Facades\Auth;
-use Crockenhill\User; // Assuming User model namespace
+use App\User; // Assuming User model namespace
 
 class LoginTest extends TestCase
 {

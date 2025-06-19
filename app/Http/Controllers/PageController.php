@@ -1,11 +1,11 @@
 <?php
 
-namespace Crockenhill\Http\Controllers;
+namespace App\Http\Controllers;
 
-use Crockenhill\Http\Requests\StorePageRequest;
-use Crockenhill\Http\Requests\UpdatePageRequest;
-use Crockenhill\Services\PageImageService;
-use Crockenhill\Page;
+use App\Http\Requests\StorePageRequest;
+use App\Http\Requests\UpdatePageRequest;
+use App\Services\PageImageService;
+use App\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redirect;
@@ -16,22 +16,20 @@ use League\CommonMark\CommonMarkConverter;
 
 class PageController extends Controller
 {
-    /**
-     * PageController constructor.
-     *
-     * @param PageImageService $pageImageService Service for handling page image uploads and deletions.
-     */
-    public function __construct(private PageImageService $pageImageService)
-    {
-    }
+  /**
+   * PageController constructor.
+   *
+   * @param PageImageService $pageImageService Service for handling page image uploads and deletions.
+   */
+  public function __construct(private PageImageService $pageImageService) {}
 
-    /**
-     * Display a generic page layout.
-     * Note: This method seems generic and might not be directly related to CRUD of specific page models.
-     *
-     * @return \Illuminate\View\View
-     */
-    public function showPage()
+  /**
+   * Display a generic page layout.
+   * Note: This method seems generic and might not be directly related to CRUD of specific page models.
+   *
+   * @return \Illuminate\View\View
+   */
+  public function showPage()
   {
     return view('layouts/page');
   }
@@ -70,23 +68,23 @@ class PageController extends Controller
    * Display the specified page to the public.
    * Uses route model binding to fetch the Page by its slug.
    *
-   * @param \Crockenhill\Page $page The Page model instance.
+   * @param \App\Page $page The Page model instance.
    * @param \League\CommonMark\CommonMarkConverter $converter Service to convert markdown to HTML.
    * @return \Illuminate\View\View Returns the view for displaying the page.
    */
   public function show(Page $page, CommonMarkConverter $converter)
   {
-      $html = $converter->convert($page->markdown);
-      // The view 'pages.show' might expect $page->body, ensure consistency
-      // or update the view. Assuming $html is what's needed.
-      return View::make('pages.show')->with(compact('page', 'html'));
+    $html = $converter->convert($page->markdown);
+    // The view 'pages.show' might expect $page->body, ensure consistency
+    // or update the view. Assuming $html is what's needed.
+    return View::make('pages.show')->with(compact('page', 'html'));
   }
 
   /**
    * Store a newly created page in storage.
    * Validated and authorized by StorePageRequest.
    *
-   * @param \Crockenhill\Http\Requests\StorePageRequest $request The validated request for storing a page.
+   * @param \App\Http\Requests\StorePageRequest $request The validated request for storing a page.
    * @param \League\CommonMark\CommonMarkConverter $converter Service to convert markdown to HTML.
    * @return \Illuminate\Http\RedirectResponse Redirects to the pages index with a success message.
    */
@@ -108,7 +106,7 @@ class PageController extends Controller
     $page->save(); // Save once to ensure $page->slug is set for image path
 
     if ($request->hasFile('heading-image')) {
-        $this->pageImageService->handleImageUpload($request->file('heading-image'), $page->slug);
+      $this->pageImageService->handleImageUpload($request->file('heading-image'), $page->slug);
     }
 
     Session::flash('message', $page->heading . ' successfully created!');
@@ -119,13 +117,13 @@ class PageController extends Controller
    * Show the form for editing the specified page.
    * Requires 'edit-pages' authorization. Uses route model binding.
    *
-   * @param \Crockenhill\Page $page The Page model instance to edit.
+   * @param \App\Page $page The Page model instance to edit.
    * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse Returns the page editing view or redirects if not authorized.
    */
   public function edit(Page $page)
   {
     if (Gate::denies('edit-pages')) {
-        abort(403);
+      abort(403);
     }
 
     // session(['backUrl' => url()->previous()]); // Consider if this is still needed or handled differently
@@ -137,14 +135,14 @@ class PageController extends Controller
     // If image_extension was stored on the model, that could be used.
     $headingpicture = '/images/headings/large/' . $page->slug . '.jpg';
     if (!file_exists(public_path($headingpicture))) {
-        $headingpicture = null; // Or a default image
+      $headingpicture = null; // Or a default image
     }
 
 
     return View::make('pages.edit', [
-        'page' => $page,
-        'heading' => $heading,
-        'headingpicture' => $headingpicture
+      'page' => $page,
+      'heading' => $heading,
+      'headingpicture' => $headingpicture
     ]);
   }
 
@@ -152,8 +150,8 @@ class PageController extends Controller
    * Update the specified page in storage.
    * Validated and authorized by UpdatePageRequest. Uses route model binding.
    *
-   * @param \Crockenhill\Http\Requests\UpdatePageRequest $request The validated request for updating a page.
-   * @param \Crockenhill\Page $page The Page model instance to update.
+   * @param \App\Http\Requests\UpdatePageRequest $request The validated request for updating a page.
+   * @param \App\Page $page The Page model instance to update.
    * @param \League\CommonMark\CommonMarkConverter $converter Service to convert markdown to HTML.
    * @return \Illuminate\Http\RedirectResponse Redirects with a success message.
    */
@@ -175,15 +173,15 @@ class PageController extends Controller
     $oldSlug = $page->slug; // Get the original slug
 
     if ($oldSlug !== $newSlug) {
-        $this->pageImageService->deleteImages($oldSlug);
-        $page->slug = $newSlug;
+      $this->pageImageService->deleteImages($oldSlug);
+      $page->slug = $newSlug;
     }
 
     if ($request->hasFile('heading-image')) {
-        // If a new image is uploaded and slug has changed, old images (by oldSlug) are already deleted.
-        // If slug hasn't changed, handleImageUpload will overwrite.
-        // If new image but old slug had no image, it will create.
-        $this->pageImageService->handleImageUpload($request->file('heading-image'), $page->slug);
+      // If a new image is uploaded and slug has changed, old images (by oldSlug) are already deleted.
+      // If slug hasn't changed, handleImageUpload will overwrite.
+      // If new image but old slug had no image, it will create.
+      $this->pageImageService->handleImageUpload($request->file('heading-image'), $page->slug);
     }
 
     $page->save();
@@ -200,13 +198,13 @@ class PageController extends Controller
    * Remove the specified page from storage.
    * Requires 'edit-pages' authorization. Uses route model binding.
    *
-   * @param \Crockenhill\Page $page The Page model instance to delete.
+   * @param \App\Page $page The Page model instance to delete.
    * @return \Illuminate\Http\RedirectResponse Redirects to the pages index with a success message.
    */
   public function destroy(Page $page): RedirectResponse
   {
     if (Gate::denies('edit-pages')) {
-        abort(403);
+      abort(403);
     }
 
     $this->pageImageService->deleteImages($page->slug);
