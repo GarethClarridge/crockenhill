@@ -15,9 +15,7 @@ use Illuminate\Http\Request;
 |
 */
 
-Route::get('/', ['as' => 'Home', function () {
-  return view('full-width-pages/home');
-}]);
+Route::get('/', ['as' => 'Home', 'uses' => 'PageController@home']);
 
 // Special pages route
 Route::get(

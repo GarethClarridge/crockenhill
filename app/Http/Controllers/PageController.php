@@ -213,4 +213,10 @@ class PageController extends Controller
     Session::flash('message', $page->heading . ' successfully deleted!');
     return Redirect::to('/church/members/pages');
   }
+
+  public function home()
+  {
+    $pages = Page::whereIn('slug', ['sunday-evenings', 'bible-study'])->get();
+    return view('full-width-pages.home', compact('pages'));
+  }
 }
