@@ -161,148 +161,103 @@
 
 <script src="/scripts/list.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/list.fuzzysearch.js/0.1.0/list.fuzzysearch.js"></script>
-<script src="/scripts/jquery.min.js"></script>
 <script type="text/javascript">
-  var options = {
-    valueNames: [
-      'song-title',
-      'song-author',
-      'praise_number',
-      'song-frequency',
-      'song_major_category',
-      'song_minor_category',
-      {
-        data: ['nip']
-      }
-    ],
-    plugins: [ListFuzzySearch()]
-  };
+  document.addEventListener('DOMContentLoaded', function () {
+    var options = {
+      valueNames: [
+        'song-title',
+        'song-author',
+        'praise_number',
+        'song-frequency',
+        'song_major_category',
+        'song_minor_category',
+        { data: ['nip'] }
+      ],
+      plugins: [ListFuzzySearch()] // Assuming ListFuzzySearch is globally available
+    };
 
-  var songList = new List('song-list', options);
+    var songList = new List('song-list', options);
 
-  function updateFilter() {
-    songList.filter(function(item) {
+    function updateFilterAndSort() {
+      songList.filter(function(item) {
+        const inPraiseFilterEl = document.querySelector("input[type='radio'][name='in-praise']:checked");
+        const majorCategoryFilterEl = document.getElementById("major-category-filter");
+        const minorCategoryFilterEl = document.getElementById("minor-category-filter");
 
-      // Option filters - remove items which don't match
-      if (($("input[type='radio'][name='in-praise']:checked").val() !== 'both' &&
-          $("input[type='radio'][name='in-praise']:checked").val() !== item.values().nip) ||
-        ($("#major-category-filter").val() !== 'All' &&
-          $("#major-category-filter").val().trim() !== item.values().song_major_category.trim()) ||
-        ($("#minor-category-filter").val() !== 'All' &&
-          $("#minor-category-filter").val().trim() !== item.values().song_minor_category.trim())) {
-        return false;
-      } else {
+        const inPraiseFilter = inPraiseFilterEl ? inPraiseFilterEl.value : 'both';
+        const majorCategoryFilter = majorCategoryFilterEl ? majorCategoryFilterEl.value : 'All';
+        const minorCategoryFilter = minorCategoryFilterEl ? minorCategoryFilterEl.value : 'All';
+
+        if ((inPraiseFilter !== 'both' && inPraiseFilter !== item.values().nip) ||
+          (majorCategoryFilter !== 'All' && majorCategoryFilter.trim() !== item.values().song_major_category.trim()) ||
+          (minorCategoryFilter !== 'All' && minorCategoryFilter.trim() !== item.values().song_minor_category.trim())) {
+          return false;
+        }
         return true;
+      });
+
+      const sortByEl = document.getElementById("sort");
+      if (sortByEl) {
+        const sortBy = sortByEl.value;
+        songList.sort(sortBy, { order: (sortBy == 'song-frequency' ? "desc" : "asc") });
       }
+    }
+
+    document.querySelectorAll("input[type='radio'][name='in-praise'], #major-category-filter, #minor-category-filter, #sort").forEach(el => {
+      el.addEventListener('change', updateFilterAndSort);
     });
 
-    updateSort();
-  }
+    // Initial sort and filter
+    updateFilterAndSort();
 
-  function updateSort() {
-    if ($('#sort')[0].value == 'song-frequency') {
-      songList.sort($('#sort')[0].value, {
-        order: "desc"
+
+    var categories = {
+      "Psalms": [],
+      "Approaching God": ["The eternal Trinity", "Adoration and thanksgiving", "Creator and sustainer", "Morning and evening", "The Lord’s Day", "Beginning and ending of the year"],
+      "The Father": ["His character", "His providence", "His love", "His covenant"],
+      "The Son": ["His name and praise", "His birth and childhood", "His life and ministry", "His suffering and death", "His resurrection", "His ascension and reign", "His priesthood and intercession", "His return in glory"],
+      "The Holy Spirit": ["His person and power", "His presence in the church", "His work in revival"],
+      "The Bible": ["Authority and sufficiency", "Enjoyment and obedience"],
+      "The church": ["Character and privileges", "Fellowship", "Gifts and ministries", "The life of prayer", "Evangelism and mission", "Baptism", "The Lord’s Supper"],
+      "The gospel": ["Invitation and warning", "Crying out for God", "New birth and new life", "Repentance and faith"],
+      "The Christian life": ["Union with Christ", "Love for Christ", "Freedom in Christ", "Submission and trust", "Assurance and hope", "Peace and joy", "Holiness", "Humbling and restoration", "Commitment and obedience", "Zeal in service", "Guidance", "Suffering and trial", "Spiritual warfare", "Perseverance", "Facing death"],
+      "Christ’s lordship over all of life": ["The earth and harvest", "Christian citizenship", "Christian marriage", "Families and children", "Health and healing", "Work and leisure", "Those in need", "Government and nations"],
+      "The future": ["The resurrection of the body", "Judgement and hell", "Heaven and glory"]
+    };
+
+    const majorCategoryFilterEl = document.getElementById("major-category-filter");
+    const minorCategoryDiv = document.getElementById("minor-category-filter-div");
+    const minorCategorySelect = document.getElementById("minor-category-filter");
+
+    if (majorCategoryFilterEl && minorCategoryDiv && minorCategorySelect) {
+      majorCategoryFilterEl.addEventListener('change', function() {
+        var selection = this.value;
+        minorCategorySelect.innerHTML = '<option value="All">All</option>'; // Clear and add default 'All'
+
+        if (selection === 'All') {
+          minorCategoryDiv.style.display = 'none';
+        } else {
+          var optionsArray = categories[selection] || [];
+          optionsArray.forEach(function(optVal) {
+            let newOpt = document.createElement('option');
+            newOpt.value = optVal;
+            newOpt.textContent = optVal;
+            minorCategorySelect.appendChild(newOpt);
+          });
+          minorCategoryDiv.style.display = 'block';
+        }
+        // Trigger filter update since subcategories changed
+        updateFilterAndSort();
       });
-    } else {
-      songList.sort($('#sort')[0].value, {
-        order: "asc"
-      });
-    }
-  }
-
-  var categories = {
-    "Psalms": [],
-    "Approaching God": ["The eternal Trinity",
-      "Adoration and thanksgiving",
-      "Creator and sustainer",
-      "Morning and evening",
-      "The Lord’s Day",
-      "Beginning and ending of the year"
-    ],
-    "The Father": ["His character",
-      "His providence",
-      "His love",
-      "His covenant"
-    ],
-    "The Son": ["His name and praise",
-      "His birth and childhood",
-      "His life and ministry",
-      "His suffering and death",
-      "His resurrection",
-      "His ascension and reign",
-      "His priesthood and intercession",
-      "His return in glory"
-    ],
-    "The Holy Spirit": ["His person and power",
-      "His presence in the church",
-      "His work in revival"
-    ],
-    "The Bible": ["Authority and sufficiency",
-      "Enjoyment and obedience"
-    ],
-    "The church": ["Character and privileges",
-      "Fellowship",
-      "Gifts and ministries",
-      "The life of prayer",
-      "Evangelism and mission",
-      "Baptism",
-      "The Lord’s Supper"
-    ],
-    "The gospel": ["Invitation and warning",
-      "Crying out for God",
-      "New birth and new life",
-      "Repentance and faith"
-    ],
-    "The Christian life": ["Union with Christ",
-      "Love for Christ",
-      "Freedom in Christ",
-      "Submission and trust",
-      "Assurance and hope",
-      "Peace and joy",
-      "Holiness",
-      "Humbling and restoration",
-      "Commitment and obedience",
-      "Zeal in service",
-      "Guidance",
-      "Suffering and trial",
-      "Spiritual warfare",
-      "Perseverance",
-      "Facing death"
-    ],
-    "Christ’s lordship over all of life": ["The earth and harvest",
-      "Christian citizenship",
-      "Christian marriage",
-      "Families and children",
-      "Health and healing",
-      "Work and leisure",
-      "Those in need",
-      "Government and nations"
-    ],
-    "The future": ["The resurrection of the body",
-      "Judgement and hell",
-      "Heaven and glory"
-    ]
-  };
-
-  $("#major-category-filter").change(function() {
-    var selection = this.value;
-
-    if (selection === 'All') {
-      $("#minor-category-filter-div").hide();
-    } else {
-
-      var seloption = '<option id="minor-category-filter-option" value="All">All</option>';
-      var optionsarray = categories[selection];
-
-      $.each(optionsarray, function(i) {
-        seloption += '<option class="generated-option" value="' + optionsarray[i] + '">' + optionsarray[i] + '</option>';
-      });
-
-      $(".generated-option").remove();
-      $("#minor-category-filter-option").replaceWith(seloption);
-
-      $("#minor-category-filter-div").show();
+      // Initial state for minor category visibility
+      if (majorCategoryFilterEl.value === 'All') {
+        minorCategoryDiv.style.display = 'none';
+      } else {
+         // Ensure it's shown if a category is pre-selected on page load
+         // This part might need adjustment based on how the page initially renders
+         // For now, if not 'All', assume it should be visible.
+         minorCategoryDiv.style.display = 'block';
+      }
     }
   });
 </script>
