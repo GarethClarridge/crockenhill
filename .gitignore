@@ -12,3 +12,4 @@ Homestead.yaml
 .phpunit.result.cache
 *.mp3
 .DS_Store
+artisan_serve.log
