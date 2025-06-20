@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use App\Service;
+use App\Models\Service;
 
 class ExtractSermonAudioFromVideo implements ShouldQueue
 {
@@ -13,7 +13,7 @@ class ExtractSermonAudioFromVideo implements ShouldQueue
   /**
    * Create a new job instance.
    */
-  public function __construct(Service $service)
+  public function __construct(\App\Models\Service $service)
   {
     $this->service = $service;
   }

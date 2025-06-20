@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ExtractSermonAudioFromVideo;
-use App\Service;
+use App\Models\Service;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
@@ -20,7 +20,7 @@ class ServiceController extends Controller
     }
 
     return view('services.index', array(
-      'services' => Service::orderBy('date', 'desc')->get(),
+      'services' => \App\Models\Service::orderBy('date', 'desc')->get(),
     ));
   }
 
@@ -51,7 +51,7 @@ class ServiceController extends Controller
     $extension = $file->getClientOriginalExtension();
     $path = $file->storeAs('services/' . $name);
 
-    $service = Service::create([
+    $service = \App\Models\Service::create([
       'date'         => $request->date,
       'type'         => 'morning',
       'video'        => $path,
@@ -87,7 +87,7 @@ class ServiceController extends Controller
   /**
    * Display the specified resource.
    */
-  public function show(Service $service)
+  public function show(\App\Models\Service $service)
   {
     //
   }
@@ -95,7 +95,7 @@ class ServiceController extends Controller
   /**
    * Show the form for editing the specified resource.
    */
-  public function edit(Service $service)
+  public function edit(\App\Models\Service $service)
   {
     //
   }
@@ -103,7 +103,7 @@ class ServiceController extends Controller
   /**
    * Update the specified resource in storage.
    */
-  public function update(Request $request, Service $service)
+  public function update(Request $request, \App\Models\Service $service)
   {
     //
   }
@@ -111,7 +111,7 @@ class ServiceController extends Controller
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(Service $service)
+  public function destroy(\App\Models\Service $service)
   {
     //
   }

@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\User; // Assuming User model namespace
+use App\Models\User; // Assuming User model namespace
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -46,7 +46,7 @@ class RegistrationTest extends TestCase
       'email' => 'testuser@example.com',
     ]);
 
-    $user = User::where('email', 'testuser@example.com')->first();
+    $user = \App\Models\User::where('email', 'testuser@example.com')->first();
     $this->assertNotNull($user);
     $this->assertTrue(Hash::check($password, $user->password));
 
@@ -59,7 +59,7 @@ class RegistrationTest extends TestCase
    */
   public function user_cannot_register_with_existing_email()
   {
-    $existingUser = User::factory()->create(['email' => 'existinguser@example.com']);
+    $existingUser = \App\Models\User::factory()->create(['email' => 'existinguser@example.com']);
 
     $userData = [
       'name' => 'New User',
@@ -73,7 +73,7 @@ class RegistrationTest extends TestCase
     $response->assertRedirect(route('register')); // Or $response->assertRedirect('/register');
     $response->assertSessionHasErrors('email');
     $this->assertDatabaseCount('users', 1); // Only the original user should exist
-    $this->assertEquals($existingUser->name, User::first()->name);
+    $this->assertEquals($existingUser->name, \App\Models\User::first()->name);
     $this->assertGuest();
   }
 
