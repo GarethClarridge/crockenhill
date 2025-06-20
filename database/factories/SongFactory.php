@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Song;
+use App\Models\Song;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class SongFactory extends Factory

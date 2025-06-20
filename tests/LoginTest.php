@@ -7,7 +7,7 @@ namespace Tests;
 // use Illuminate\Foundation\Testing\DatabaseMigrations; // Or this
 use Illuminate\Foundation\Testing\RefreshDatabase; // Recommended
 use Illuminate\Support\Facades\Auth;
-use App\User; // Assuming User model namespace
+use App\Models\User; // Assuming User model namespace
 
 class LoginTest extends TestCase
 {
@@ -37,7 +37,7 @@ class LoginTest extends TestCase
   {
     // Ensure a user with ID 2 exists, or create one.
     // For robustness, let's create a user.
-    $user = User::factory()->create(); // This user will get a random ID.
+    $user = \App\Models\User::factory()->create(); // This user will get a random ID.
     // If ID 2 is specifically required by other parts of member area logic,
     // then ensure User ID 2 is created or use that specific user.
     // For just testing auth, any authenticated user should do.
@@ -59,7 +59,7 @@ class LoginTest extends TestCase
    */
   public function user_can_login_with_valid_credentials()
   {
-    $user = User::factory()->create(['password' => bcrypt($password = 'i-love-laravel')]);
+    $user = \App\Models\User::factory()->create(['password' => bcrypt($password = 'i-love-laravel')]);
 
     $response = $this->post(route('login'), [
       'email' => $user->email,
@@ -75,7 +75,7 @@ class LoginTest extends TestCase
    */
   public function user_cannot_login_with_invalid_email()
   {
-    User::factory()->create(['email' => 'realuser@example.com', 'password' => bcrypt('password123')]);
+    \App\Models\User::factory()->create(['email' => 'realuser@example.com', 'password' => bcrypt('password123')]);
 
     $response = $this->post(route('login'), [
       'email' => 'nonexistentuser@example.com',
@@ -92,7 +92,7 @@ class LoginTest extends TestCase
    */
   public function user_cannot_login_with_invalid_password()
   {
-    $user = User::factory()->create(['password' => bcrypt('real-password')]);
+    $user = \App\Models\User::factory()->create(['password' => bcrypt('real-password')]);
 
     $response = $this->post(route('login'), [
       'email' => $user->email,
@@ -109,7 +109,7 @@ class LoginTest extends TestCase
    */
   public function authenticated_user_can_logout()
   {
-    $user = User::factory()->create();
+    $user = \App\Models\User::factory()->create();
     $this->actingAs($user);
 
     $response = $this->post(route('logout'));

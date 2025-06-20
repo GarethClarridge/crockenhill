@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\User; // Assuming User model namespace
+use App\Models\User; // Assuming User model namespace
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -25,7 +25,7 @@ class PasswordResetTest extends TestCase
   /** @test */
   public function user_can_request_password_reset_link_with_valid_email()
   {
-    $user = User::factory()->create();
+    $user = \App\Models\User::factory()->create();
 
     $response = $this->post(route('password.email'), ['email' => $user->email]);
 
@@ -55,7 +55,7 @@ class PasswordResetTest extends TestCase
   /** @test */
   public function password_reset_form_can_be_rendered_with_valid_token()
   {
-    $user = User::factory()->create();
+    $user = \App\Models\User::factory()->create();
     // Manually create a token for predictability in test, or extract after posting to password.email
     $token = Password::broker()->createToken($user);
 
@@ -80,7 +80,7 @@ class PasswordResetTest extends TestCase
   /** @test */
   public function user_can_reset_password_with_valid_token_and_data()
   {
-    $user = User::factory()->create();
+    $user = \App\Models\User::factory()->create();
     $token = Password::broker()->createToken($user);
     DB::table('password_resets')->insert([
       'email' => $user->email,
@@ -112,7 +112,7 @@ class PasswordResetTest extends TestCase
   /** @test */
   public function user_cannot_reset_password_with_invalid_token()
   {
-    $user = User::factory()->create();
+    $user = \App\Models\User::factory()->create();
     $newPassword = 'new-secure-password';
 
     $response = $this->post(route('password.update'), [
@@ -129,7 +129,7 @@ class PasswordResetTest extends TestCase
   /** @test */
   public function user_cannot_reset_password_with_mismatched_passwords()
   {
-    $user = User::factory()->create();
+    $user = \App\Models\User::factory()->create();
     $token = Password::broker()->createToken($user);
     DB::table('password_resets')->insert(['email' => $user->email, 'token' => Hash::make($token), 'created_at' => now()]);
 
@@ -147,7 +147,7 @@ class PasswordResetTest extends TestCase
   /** @test */
   public function user_cannot_reset_password_if_password_is_too_short()
   {
-    $user = User::factory()->create();
+    $user = \App\Models\User::factory()->create();
     $token = Password::broker()->createToken($user);
     DB::table('password_resets')->insert(['email' => $user->email, 'token' => Hash::make($token), 'created_at' => now()]);
 

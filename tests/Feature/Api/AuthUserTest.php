@@ -4,7 +4,7 @@ namespace Tests\Feature\Api;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\User; // Assuming User model is in Crockenhill namespace
+use App\Models\User; // Assuming User model is in Crockenhill namespace
 use Database\Factories\UserFactory;
 use Laravel\Sanctum\Sanctum;
 
@@ -34,7 +34,7 @@ class AuthUserTest extends TestCase
   public function authenticated_user_can_access_user_endpoint()
   {
     // Create a user using UserFactory
-    $user = User::factory()->create([
+    $user = \App\Models\User::factory()->create([
       'name' => 'Test User',
       'email' => 'testuser@example.com',
     ]);

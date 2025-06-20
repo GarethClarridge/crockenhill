@@ -17,7 +17,7 @@ class SongController extends Controller
   public function index()
   {
     // Load songs
-    $songs = \App\Song::all();
+    $songs = \App\Models\Song::all();
 
     foreach ($songs as $song) {
       $last_played_record = \App\Models\PlayDate::where('song_id', $song->id)
@@ -60,7 +60,7 @@ class SongController extends Controller
   public function showSong($id, $title)
   {
     // Look up song in songs table of database
-    $song = \App\Song::where('id', $id)->first();
+    $song = \App\Models\Song::where('id', $id)->first();
 
     // Present lyrics in a readable format
     $lyrics = nl2br(trim($song->lyrics));
@@ -140,7 +140,7 @@ class SongController extends Controller
     $next_service_upload_date = strtotime("+7 day", $last_service_uploaded_date);
 
     // Get NIP titles
-    $songs = \App\Song::select('id', 'praise_number', 'title')
+    $songs = \App\Models\Song::select('id', 'praise_number', 'title')
       ->orderBy('id', 'asc')
       ->get();
 
@@ -212,7 +212,7 @@ class SongController extends Controller
     $current      = \Request::input('current');
 
     // Save new song
-    $song = new \App\Song;
+    $song = new \App\Models\Song;
     $song->title              = $title;
     $song->alternative_title  = $alternative;
     $song->major_category     = $category;
@@ -235,7 +235,7 @@ class SongController extends Controller
     }
 
     // Look up song in songs table of database
-    $song = \App\Song::where('id', $id)->first();
+    $song = \App\Models\Song::where('id', $id)->first();
 
     // Present page
     return view('songs.edit', array(
@@ -250,7 +250,7 @@ class SongController extends Controller
     }
 
     // Look up song in songs table of database
-    $song = \App\Song::where('id', $id)->first();
+    $song = \App\Models\Song::where('id', $id)->first();
 
     $song->title              = \Request::input('title');
     $song->alternative_title  = \Request::input('alternative_title');
