@@ -2,60 +2,50 @@
 
 namespace Database\Factories;
 
-use App\Models\ScriptureReference;
-use App\Models\Song;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ScriptureReferenceFactory extends Factory
 {
-  /**
-   * The name of the factory's corresponding model.
-   *
-   * @var string
-   */
-  protected $model = ScriptureReference::class;
-
-  /**
-   * Define the model's default state.
-   *
-   * @return array
-   */
   public function definition()
   {
-    return [
-      'song_id' => \App\Models\Song::factory(), // Associates with a song by default
-      'reference_string' => $this->faker->randomElement(['John 3:16', 'Psalm 23', 'Romans 8:28', 'Genesis 1:1']),
-      // Add any other relevant fields based on actual DB schema
+    $books = [
+      'Gen',
+      'Exo',
+      'Lev',
+      'Num',
+      'Deu',
+      'Jos',
+      'Jdg',
+      'Rut',
+      '1Sa',
+      '2Sa',
+      'Mat',
+      'Mar',
+      'Luk',
+      'Joh',
+      'Act',
+      'Rom',
+      '1Co',
+      '2Co',
+      'Gal',
+      'Eph',
+      'Psa',
+      'Pro',
+      'Ecc',
+      'Son',
+      'Isa',
+      'Jer',
+      'Lam',
+      'Eze',
+      'Dan',
+      'Hos',
     ];
-  }
 
-  /**
-   * Associate the scripture reference with a specific song.
-   *
-   * @param \App\Models\Song|int $song
-   * @return \Illuminate\Database\Eloquent\Factories\Factory
-   */
-  public function forSong($song)
-  {
-    return $this->state(function (array $attributes) use ($song) {
-      return [
-        'song_id' => $song instanceof \App\Models\Song ? $song->id : $song,
-      ];
-    });
-  }
-
-  /**
-   * Set a specific reference string.
-   *
-   * @param string $reference
-   * @return \Illuminate\Database\Eloquent\Factories\Factory
-   */
-  public function withReference(string $reference)
-  {
-    return $this->state(function (array $attributes) use ($reference) {
-      return [
-        'reference_string' => $reference,
-      ];
-    });
+    return [
+      'reference' => $this->faker->randomElement($books) . ' ' .
+        $this->faker->numberBetween(1, 150) . ':' .
+        $this->faker->numberBetween(1, 31),
+      'song_id' => $this->faker->numberBetween(1, 100),
+    ];
   }
 }

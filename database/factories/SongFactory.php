@@ -2,61 +2,57 @@
 
 namespace Database\Factories;
 
-use App\Models\Song;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class SongFactory extends Factory
 {
-  /**
-   * The name of the factory's corresponding model.
-   *
-   * @var string
-   */
-  protected $model = Song::class;
-
-  /**
-   * Define the model's default state.
-   *
-   * @return array
-   */
   public function definition()
   {
-    return [
-      'title' => $this->faker->sentence(3),
-      'slug' => $this->faker->slug(3), // Assuming slug exists or will be added
-      'lyrics' => $this->faker->paragraphs(3, true),
-      'copyright' => $this->faker->company,
-      'ccli_number' => $this->faker->optional()->randomNumber(7),
-      // Add any other relevant fields based on actual DB schema
+    $majorCategories = [
+      'Psalms',
+      'Approaching God',
+      'Children\'s',
+      'Christ\'s Lordship over all of life',
+      'The Bible',
+      'The Christian life',
+      'The church',
+      'The Father',
+      'The future',
+      'The gospel',
+      'The Holy Spirit',
+      'The Son'
     ];
-  }
 
-  /**
-   * Indicate that the song has specific lyrics.
-   *
-   * @param string $lyrics
-   * @return \Illuminate\Database\Eloquent\Factories\Factory
-   */
-  public function withLyrics(string $lyrics)
-  {
-    return $this->state(function (array $attributes) use ($lyrics) {
-      return [
-        'lyrics' => $lyrics,
-      ];
-    });
-  }
+    $minorCategories = [
+      'The eternal Trinity',
+      'Adoration and thanksgiving',
+      'Creator and sustainer',
+      'Morning and evening',
+      'The Lord\'s Day',
+      'His character',
+      'His providence',
+      'His love',
+      'His birth and childhood',
+      'His life and ministry',
+      'His suffering and death',
+      'His resurrection',
+      'New birth and new life',
+      'Repentance and faith',
+      'Union with Christ',
+      'Love for Christ',
+    ];
 
-  /**
-   * Indicate that the song has no lyrics.
-   *
-   * @return \Illuminate\Database\Eloquent\Factories\Factory
-   */
-  public function withoutLyrics()
-  {
-    return $this->state(function (array $attributes) {
-      return [
-        'lyrics' => null,
-      ];
-    });
+    return [
+      'praise_number' => $this->faker->optional()->numerify('###'),
+      'title' => $this->faker->sentence(3),
+      'author' => $this->faker->optional()->name(),
+      'lyrics' => $this->faker->optional()->paragraphs(4, true),
+      'copyright' => $this->faker->optional()->year() . ' ' . $this->faker->company(),
+      'alternative_title' => $this->faker->optional()->sentence(2),
+      'current' => $this->faker->boolean(80),
+      'notes' => $this->faker->optional()->text(200),
+      'major_category' => $this->faker->optional()->randomElement($majorCategories),
+      'minor_category' => $this->faker->optional()->randomElement($minorCategories),
+    ];
   }
 }
