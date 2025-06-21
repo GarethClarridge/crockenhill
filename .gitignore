@@ -13,3 +13,4 @@ Homestead.yaml
 *.mp3
 .DS_Store
 artisan_serve.log
+/storage/*
