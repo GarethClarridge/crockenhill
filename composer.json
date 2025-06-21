@@ -12,6 +12,7 @@
 		"intervention/image": "^2.7",
 		"laravel/framework": "^12.0",
 		"laravel/helpers": "^1.2",
+		"laravel/sanctum": "^4.0",
 		"laravel/ui": "^4.0",
 		"league/commonmark": "^2.2",
 		"owen-oj/laravel-getid3": "^2.2",

@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
+use Carbon\Carbon; // Added import
 
 class SermonFactory extends Factory
 {
@@ -42,5 +43,20 @@ class SermonFactory extends Factory
       ]),
       'points' => $this->faker->optional()->text(500),
     ];
+  }
+
+  /**
+   * Indicate that the sermon is on a specific date.
+   *
+   * @param \Carbon\Carbon $date
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function withDate(Carbon $date)
+  {
+    return $this->state(function (array $attributes) use ($date) {
+      return [
+        'date' => $date,
+      ];
+    });
   }
 }

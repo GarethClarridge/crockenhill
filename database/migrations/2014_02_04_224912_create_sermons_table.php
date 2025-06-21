@@ -9,9 +9,10 @@ class CreateSermonsTable extends Migration
   public function up()
   {
     Schema::create('sermons', function (Blueprint $table) {
-      $table->increments('id');
+      $table->unsignedInteger('id')->autoIncrement(); // Explicitly set type
+      $table->foreignId('service_id')->nullable()->constrained('services')->onDelete('set null'); // Added foreign key
       $table->date('date');
-      $table->enum('service', ['morning', 'evening'])->nullable();
+      $table->enum('service', ['morning', 'evening'])->nullable(); // This might be redundant now
       $table->string('filename', 75);
       $table->string('filetype', 8)->default('mp3');
       $table->string('title', 75);

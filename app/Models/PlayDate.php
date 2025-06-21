@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
-class PlayDate extends \Eloquent
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class PlayDate extends Model
 {
+    use HasFactory;
 
-  protected $table = 'play_date';
+    protected $table = 'play_date';
 
-  public function post()
-  {
-    return $this->belongsTo('Song');
-  }
+    public function post()
+    {
+        return $this->belongsTo('Song');
+    }
 }

@@ -55,4 +55,19 @@ class SongFactory extends Factory
       'minor_category' => $this->faker->optional()->randomElement($minorCategories),
     ];
   }
+
+  /**
+   * Indicate that the song has specific lyrics.
+   *
+   * @param string $lyrics
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function withLyrics(string $lyrics)
+  {
+    return $this->state(function (array $attributes) use ($lyrics) {
+      return [
+        'lyrics' => $lyrics,
+      ];
+    });
+  }
 }

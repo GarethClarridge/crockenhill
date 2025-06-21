@@ -2,18 +2,30 @@
 
 namespace App\Models;
 
-class Song extends \Eloquent
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use App\Models\PlayDate; // Added import
+use App\Models\ScriptureReference; // Added import
+
+class Song extends Model
 {
+    use HasFactory;
 
-  protected $table = 'songs';
+    protected $table = 'songs';
 
-  public function play_date()
-  {
-    return $this->hasMany('PlayDate', 'song_id');
-  }
+    /**
+     * Get the play dates for the song.
+     */
+    public function playDates()
+    {
+        return $this->hasMany(PlayDate::class, 'song_id');
+    }
 
-  public function scripture_reference()
-  {
-    return $this->hasMany('ScriptureReference', 'song_id');
-  }
+    /**
+     * Get the scripture references for the song.
+     */
+    public function scriptureReferences()
+    {
+        return $this->hasMany(ScriptureReference::class, 'song_id');
+    }
 }

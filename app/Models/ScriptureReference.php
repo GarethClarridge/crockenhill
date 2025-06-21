@@ -2,13 +2,21 @@
 
 namespace App\Models;
 
-class ScriptureReference extends \Eloquent
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use App\Models\Song; // Added import
+
+class ScriptureReference extends Model
 {
+    use HasFactory;
 
-  protected $table = 'scripture_references';
+    protected $table = 'scripture_references';
 
-  public function post()
-  {
-    return $this->belongsTo('Song');
-  }
+    /**
+     * Get the song that this scripture reference belongs to.
+     */
+    public function song()
+    {
+        return $this->belongsTo(Song::class);
+    }
 }

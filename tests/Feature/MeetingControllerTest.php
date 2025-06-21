@@ -21,7 +21,7 @@ class MeetingControllerTest extends TestCase
   {
     parent::setUp();
     $this->adminUser = \App\Models\User::factory()->admin()->create();
-    $this->regularUser = \App\Models\User::factory()->create(['is_admin_for_test' => false]);
+    $this->regularUser = \App\Models\User::factory()->create();
   }
 
   // 1. Authentication/Authorization Tests (CUD actions)

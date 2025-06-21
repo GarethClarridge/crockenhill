@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str; // Added for Str::title
 
 class ViewServiceProvider extends ServiceProvider
 {
@@ -268,14 +269,18 @@ class ViewServiceProvider extends ServiceProvider
         //Load page
         $page = \App\Models\Page::where('slug', $area)->first();
 
-        //Description
-        $description   = '<meta name="description" content="' . $page->description . '">';
-
-        //Heading
-        $heading = $page->heading;
-
-        //Content
-        $content = htmlspecialchars_decode($page->body);
+        if ($page) {
+          //Description
+          $description   = '<meta name="description" content="' . $page->description . '">';
+          //Heading
+          $heading = $page->heading;
+          //Content
+          $content = htmlspecialchars_decode($page->body);
+        } else {
+          $description = '<meta name="description" content="Page not found.">'; // Default description
+          $heading = Str::title(str_replace('-', ' ', $area)); // Default heading from area
+          $content = '<p>Sorry, the page you are looking for could not be found.</p>'; // Default content
+        }
 
         //Heading picture
         $headingpicture = '/images/headings/large/' . $area . '.jpg';

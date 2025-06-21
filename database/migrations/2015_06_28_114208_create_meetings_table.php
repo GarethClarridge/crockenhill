@@ -20,6 +20,8 @@ class CreateMeetingsTable extends Migration
       $table->boolean('pictures');
       $table->string('LeadersPhone', 10)->nullable();
       $table->string('LeadersEmail', 50)->nullable();
+      $table->dateTime('meeting_date')->nullable(); // Added
+      $table->boolean('is_recurring')->default(false); // Added
       $table->timestamps();
     });
   }

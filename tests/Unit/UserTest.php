@@ -30,20 +30,16 @@ class UserTest extends TestCase
    */
   public function testUserAccessors()
   {
-    // Test is_admin_for_test attribute/accessor
+    // Test is_admin attribute/accessor
     $adminUser = \App\Models\User::factory()->admin()->create();
-    $this->assertTrue($adminUser->is_admin_for_test);
+    $this->assertTrue($adminUser->is_admin);
 
-    $nonAdminUser = \App\Models\User::factory()->create(['is_admin_for_test' => false]);
-    $this->assertFalse($nonAdminUser->is_admin_for_test);
+    $nonAdminUser = \App\Models\User::factory()->create();
+    $this->assertFalse($nonAdminUser->is_admin);
 
-    // If an accessor like getIsAdminAttribute() is expected to exist and provide $user->is_admin
-    // then the User model would need:
-    // public function getIsAdminAttribute() { return $this->attributes['is_admin_for_test']; }
-    // And the test would be:
-    // $this->assertTrue($adminUser->is_admin);
-    // $this->assertFalse($nonAdminUser->is_admin);
-    // For now, testing the direct attribute based on factory and common usage.
+    // The 'is_admin' attribute is directly set by the factory and migration.
+    // An explicit accessor like getIsAdminAttribute() could be created if needed for complex logic,
+    // but for a simple boolean flag, direct attribute access (or $user->is_admin) is fine.
   }
 
   /**
@@ -81,7 +77,7 @@ class UserTest extends TestCase
   public function testCustomUserMethods()
   {
     // No specific custom methods (e.g., hasRole(), hasPermissionTo()) found on the User model
-    // beyond the handling of 'is_admin_for_test' which is tested via accessor.
+    // beyond the handling of 'is_admin' which is tested via accessor/direct attribute.
     // This test remains a placeholder.
     $user = \App\Models\User::factory()->create();
     $this->assertInstanceOf(\App\Models\User::class, $user);

@@ -12,6 +12,9 @@ class CreateServicesTable extends Migration
       $table->id();
       $table->date('date');
       $table->enum('type', ['morning', 'evening']);
+      $table->string('name')->nullable(); // Added name column
+      $table->time('start_time')->nullable(); // Added start_time column
+      $table->boolean('is_active')->default(true); // Added is_active column
       $table->string('video');
       $table->string('audio');
       $table->timestamps();

@@ -15,6 +15,21 @@ class UserFactory extends Factory
       'email' => $this->faker->unique()->safeEmail(),
       'password' => Hash::make('password'),
       'remember_token' => Str::random(10),
+      'is_admin' => false, // Default state
     ];
+  }
+
+  /**
+   * Indicate that the user is an administrator.
+   *
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function admin()
+  {
+    return $this->state(function (array $attributes) {
+      return [
+        'is_admin' => true,
+      ];
+    });
   }
 }

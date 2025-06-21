@@ -45,7 +45,22 @@ class ScriptureReferenceFactory extends Factory
       'reference' => $this->faker->randomElement($books) . ' ' .
         $this->faker->numberBetween(1, 150) . ':' .
         $this->faker->numberBetween(1, 31),
-      'song_id' => $this->faker->numberBetween(1, 100),
+      'song_id' => $this->faker->numberBetween(1, 100), // This should ideally use Song::factory()
     ];
+  }
+
+  /**
+   * Indicate that the scripture reference has a specific reference string.
+   *
+   * @param string $reference
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function withReference(string $reference)
+  {
+    return $this->state(function (array $attributes) use ($reference) {
+      return [
+        'reference' => $reference,
+      ];
+    });
   }
 }

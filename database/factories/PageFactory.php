@@ -22,4 +22,33 @@ class PageFactory extends Factory
       'navigation' => $this->faker->boolean(70),
     ];
   }
+
+  /**
+   * Indicate that the page should be a navigation item.
+   *
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function isNavigation()
+  {
+    return $this->state(function (array $attributes) {
+      return [
+        'navigation' => true,
+      ];
+    });
+  }
+
+  /**
+   * Indicate that the page belongs to a specific area.
+   *
+   * @param string $areaName
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function inArea(string $areaName)
+  {
+    return $this->state(function (array $attributes) use ($areaName) {
+      return [
+        'area' => $areaName,
+      ];
+    });
+  }
 }
