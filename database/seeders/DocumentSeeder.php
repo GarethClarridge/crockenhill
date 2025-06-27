@@ -2,6 +2,10 @@
 
 namespace Database\Seeders;
 
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use App\Models\Document; // Assuming Document model exists in App\Models
+
 class DocumentSeeder extends Seeder {
 
     public function run()
