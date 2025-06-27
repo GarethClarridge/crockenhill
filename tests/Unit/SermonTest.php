@@ -6,10 +6,10 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\Sermon;
 use App\Models\Service;
-use App\Models\PlayDate;
+// use App\Models\PlayDate; // PlayDate model is removed
 use Database\Factories\SermonFactory;
 use Database\Factories\ServiceFactory;
-use Database\Factories\PlayDateFactory;
+// use Database\Factories\PlayDateFactory; // PlayDateFactory is removed
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 // Assuming Preacher and Series are not models for now, will adjust if needed.
@@ -30,14 +30,11 @@ class SermonTest extends TestCase
         $this->assertInstanceOf(Service::class, $sermon->service);
         $this->assertEquals($service->id, $sermon->service->id);
 
-        // Ensure PlayDateFactory is used correctly and sermon_id is passed
-        $playDate1 = PlayDate::factory()->create(['sermon_id' => $sermon->id]);
-        $playDate2 = PlayDate::factory()->create(['sermon_id' => $sermon->id]);
-
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Collection::class, $sermon->playDates);
-        $this->assertCount(2, $sermon->playDates);
-        $this->assertTrue($sermon->playDates->contains($playDate1));
-        $this->assertTrue($sermon->playDates->contains($playDate2));
+        // PlayDate related assertions are removed as PlayDate feature is removed.
+        // $this->assertInstanceOf(\Illuminate\Database\Eloquent\Collection::class, $sermon->playDates);
+        // $this->assertCount(2, $sermon->playDates);
+        // $this->assertTrue($sermon->playDates->contains($playDate1));
+        // $this->assertTrue($sermon->playDates->contains($playDate2));
     }
 
     /**
@@ -146,31 +143,31 @@ class SermonTest extends TestCase
         $this->assertFalse($sermonsByPreacherX->contains($sermonByPreacherY));
     }
 
-    /**
-     * @test
-     */
-    public function testHasPlayDate()
-    {
-        $sermon = Sermon::factory()->create();
-        $playDate = Carbon::create(2023, 5, 10);
-        $otherDate = Carbon::create(2023, 5, 11);
+    // /**
+    //  * @test
+    //  */
+    // public function testHasPlayDate()
+    // {
+    //     $sermon = Sermon::factory()->create();
+    //     $playDate = Carbon::create(2023, 5, 10);
+    //     $otherDate = Carbon::create(2023, 5, 11);
 
-        // Create a play date for the sermon
-        PlayDate::factory()->create([
-            'sermon_id' => $sermon->id,
-            'played_on' => $playDate,
-        ]);
+    //     // Create a play date for the sermon
+    //     // PlayDate::factory()->create([  // PlayDate is removed
+    //     //     'sermon_id' => $sermon->id,
+    //     //     'played_on' => $playDate,
+    //     // ]);
 
-        // Test with string date
-        $this->assertTrue($sermon->hasPlayDate($playDate->toDateString()));
-        $this->assertFalse($sermon->hasPlayDate($otherDate->toDateString()));
+    //     // Test with string date
+    //     // $this->assertTrue($sermon->hasPlayDate($playDate->toDateString()));
+    //     // $this->assertFalse($sermon->hasPlayDate($otherDate->toDateString()));
 
-        // Test with Carbon instance
-        $this->assertTrue($sermon->hasPlayDate($playDate));
-        $this->assertFalse($sermon->hasPlayDate($otherDate));
+    //     // Test with Carbon instance
+    //     // $this->assertTrue($sermon->hasPlayDate($playDate));
+    //     // $this->assertFalse($sermon->hasPlayDate($otherDate));
 
-        // Test for a sermon with no play dates at all
-        $sermonWithoutPlayDates = Sermon::factory()->create();
-        $this->assertFalse($sermonWithoutPlayDates->hasPlayDate($playDate));
-    }
+    //     // Test for a sermon with no play dates at all
+    //     // $sermonWithoutPlayDates = Sermon::factory()->create();
+    //     // $this->assertFalse($sermonWithoutPlayDates->hasPlayDate($playDate));
+    // }
 }
