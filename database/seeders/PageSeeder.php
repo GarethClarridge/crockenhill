@@ -38,6 +38,15 @@ class PageSeeder extends Seeder
         'navigation' => true,
       ],
       [
+        'slug' => 'sunday-mornings',
+        'heading' => 'Sunday Mornings',
+        'description' => 'Information about our Sunday morning services.',
+        'area' => 'community', // Or appropriate area
+        'body' => 'Join us for our Sunday morning services at 10:30 AM.',
+        'admin' => 'no',
+        'navigation' => true,
+      ],
+      [
         'slug' => 'sunday-evenings',
         'heading' => 'Sunday Evenings',
         'description' => 'Information about our Sunday evening services.',
