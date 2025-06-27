@@ -50,21 +50,21 @@ Route::resource('community', MeetingController::class);
 
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
-  Route::get('/', ['as' => 'sermonIndex', 'uses' => [SermonController::class, 'index']]);
-  Route::get('/create', ['as' => 'sermonCreate', 'uses' => [SermonController::class, 'create']]);
-  Route::post('/', ['as' => 'sermonStore', 'uses' => [SermonController::class, 'store']]);
-  Route::get('/upload', ['as' => 'sermonUpload', 'uses' => [SermonController::class, 'upload']]);
-  Route::post('/post', ['as' => 'sermonPost', 'uses' => [SermonController::class, 'post']]);
-  Route::get('/{year}/{month}/{slug}', ['as' => 'showSermon', 'uses' => [SermonController::class, 'show']]);
-  Route::get('/{year}/{month}/{slug}/edit', ['as' => 'editSermon', 'uses' => [SermonController::class, 'edit']]);
-  Route::post('/{year}/{month}/{slug}/edit', ['as' => 'updateSermon', 'uses' => [SermonController::class, 'update']]);
-  Route::post('/{year}/{month}/{slug}/delete', ['as' => 'destroySermon', 'uses' => [SermonController::class, 'destroy']]);
-  Route::get('all', ['as' => 'allSermons', 'uses' => [SermonController::class, 'getAll']]);
-  Route::get('preachers', ['as' => 'getPreachers', 'uses' => [SermonController::class, 'getPreachers']]);
-  Route::get('preachers/{preacher}', ['as' => 'getPreacher', 'uses' => [SermonController::class, 'getPreacher']]);
-  Route::get('series', ['as' => 'getSerieses', 'uses' => [SermonController::class, 'getSerieses']]);
-  Route::get('series/{series}', ['as' => 'getSeries', 'uses' => [SermonController::class, 'getSeries']]);
-  Route::get('{service}', ['as' => 'getService', 'uses' => [SermonController::class, 'getService']]);
+  Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
+  Route::get('/create', [SermonController::class, 'create'])->name('sermonCreate');
+  Route::post('/', [SermonController::class, 'store'])->name('sermonStore');
+  Route::get('/upload', [SermonController::class, 'upload'])->name('sermonUpload');
+  Route::post('/post', [SermonController::class, 'post'])->name('sermonPost');
+  Route::get('/{year}/{month}/{slug}', [SermonController::class, 'show'])->name('showSermon');
+  Route::get('/{year}/{month}/{slug}/edit', [SermonController::class, 'edit'])->name('editSermon');
+  Route::post('/{year}/{month}/{slug}/edit', [SermonController::class, 'update'])->name('updateSermon');
+  Route::post('/{year}/{month}/{slug}/delete', [SermonController::class, 'destroy'])->name('destroySermon');
+  Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
+  Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
+  Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
+  Route::get('series', [SermonController::class, 'getSerieses'])->name('getSerieses');
+  Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
+  Route::get('{service}', [SermonController::class, 'getService'])->name('getService');
 
   Route::get('evening/feed', [RssFeedController::class, 'eveningFeed']);
   Route::get('morning/feed', [RssFeedController::class, 'morningFeed']);
@@ -73,7 +73,7 @@ Route::group(['prefix' => 'christ/sermons'], function () {
 //Members routes
 Auth::routes(); // This may need further review if laravel/ui is outdated.
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
-  Route::get('', [MemberController::class, 'home']);
+  Route::get('', [MemberController::class, 'home'])->name('memberHome'); // Added a name for consistency
   // Manage pages
   Route::resource('pages', PageController::class);
   // Manage sermons
