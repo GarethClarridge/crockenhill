@@ -87,7 +87,7 @@ return [
   'passwords' => [
     'users' => [
       'provider' => 'users',
-      'table' => 'password_resets',
+      'table' => 'password_reset_tokens', // Changed to match migration
       'expire' => 60,
     ],
   ],

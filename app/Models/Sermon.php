@@ -15,6 +15,14 @@ class Sermon extends Model
   public $timestamps = false;
 
   /**
+   * Get the service that this sermon belongs to.
+   */
+  public function service()
+  {
+    return $this->belongsTo(\App\Models\Service::class);
+  }
+
+  /**
    * The attributes that are mass assignable.
    *
    * @var array<int, string>

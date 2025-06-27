@@ -10,8 +10,9 @@ class CreateSermonsTable extends Migration
   {
     Schema::create('sermons', function (Blueprint $table) {
       $table->increments('id');
+      $table->foreignId('service_id')->nullable()->constrained('services')->onDelete('set null'); // Added service_id FK
       $table->date('date');
-      $table->enum('service', ['morning', 'evening'])->nullable();
+      $table->enum('service_type_enum', ['morning', 'evening'])->nullable(); // Renamed old 'service' column
       $table->string('filename', 75);
       $table->string('filetype', 8)->default('mp3');
       $table->string('title', 75);

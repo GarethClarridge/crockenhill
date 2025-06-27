@@ -8,4 +8,5 @@ use Illuminate\Database\Eloquent\Model;
 class Meeting extends Model
 {
     use HasFactory;
+    protected $guarded = []; // Allow mass assignment for all attributes
 }

@@ -12,8 +12,9 @@ class SermonFactory extends Factory
     $title = $this->faker->sentence(4);
 
     return [
+      'service_id' => \App\Models\Service::factory(), // Default to creating a new service
       'date' => $this->faker->date(),
-      'service' => $this->faker->randomElement(['morning', 'evening']),
+      'service_type_enum' => $this->faker->randomElement(['morning', 'evening']), // Keep for now, might be removable
       'filename' => Str::slug($title) . '.mp3',
       'filetype' => 'mp3',
       'title' => $title,
@@ -42,5 +43,68 @@ class SermonFactory extends Factory
       ]),
       'points' => $this->faker->optional()->text(500),
     ];
+  }
+
+  /**
+   * Indicate a specific date for the sermon.
+   *
+   * @param  \Carbon\Carbon  $date
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function withDate(\Carbon\Carbon $date)
+  {
+    return $this->state(function (array $attributes) use ($date) {
+      return [
+        'date' => $date,
+      ];
+    });
+  }
+
+  /**
+   * Indicate the service for the sermon.
+   *
+   * @param  \App\Models\Service|int  $service
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function forService($service)
+  {
+    return $this->state(function (array $attributes) use ($service) {
+      $serviceId = $service instanceof \App\Models\Service ? $service->id : $service;
+      $serviceInstance = $service instanceof \App\Models\Service ? $service : \App\Models\Service::find($serviceId);
+      return [
+        'service_id' => $serviceId,
+        'service_type_enum' => $serviceInstance ? $serviceInstance->type : $this->faker->randomElement(['morning', 'evening']),
+      ];
+    });
+  }
+
+  /**
+   * Indicate the series for the sermon.
+   *
+   * @param  string  $seriesTitle
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function inSeries(string $seriesTitle)
+  {
+    return $this->state(function (array $attributes) use ($seriesTitle) {
+      return [
+        'series' => $seriesTitle,
+      ];
+    });
+  }
+
+  /**
+   * Indicate the preacher for the sermon.
+   *
+   * @param  string  $preacherName
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function byPreacher(string $preacherName)
+  {
+    return $this->state(function (array $attributes) use ($preacherName) {
+      return [
+        'preacher' => $preacherName,
+      ];
+    });
   }
 }
