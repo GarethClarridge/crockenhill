@@ -268,14 +268,21 @@ class ViewServiceProvider extends ServiceProvider
         //Load page
         $page = \App\Models\Page::where('slug', $area)->first();
 
-        //Description
-        $description   = '<meta name="description" content="' . $page->description . '">';
+        if ($page) {
+            //Description
+            $description   = '<meta name="description" content="' . $page->description . '">';
 
-        //Heading
-        $heading = $page->heading;
+            //Heading
+            $heading = $page->heading;
 
-        //Content
-        $content = htmlspecialchars_decode($page->body);
+            //Content
+            $content = htmlspecialchars_decode($page->body);
+        } else {
+            // Default values if page is not found (e.g. for homepage handled by its own view logic)
+            $description = '<meta name="description" content="Welcome to our Church.">';
+            $heading = 'Welcome';
+            $content = '';
+        }
 
         //Heading picture
         $headingpicture = '/images/headings/large/' . $area . '.jpg';
