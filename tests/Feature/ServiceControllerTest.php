@@ -21,8 +21,8 @@ class ServiceControllerTest extends TestCase
   protected function setUp(): void
   {
     parent::setUp();
-    $this->adminUser = \App\Models\User::factory()->admin()->create();
-    $this->regularUser = \App\Models\User::factory()->create(['is_admin_for_test' => false]);
+    $this->adminUser = \App\Models\User::factory()->admin()->create(); // This now correctly sets is_admin
+    $this->regularUser = \App\Models\User::factory()->create(['is_admin' => false]); // Ensure is_admin is false
   }
 
   // 1. Authentication/Authorization Tests

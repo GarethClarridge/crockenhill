@@ -21,7 +21,7 @@ class PageControllerTest extends TestCase
 
     // Define a gate for 'edit-pages'
     Gate::define('edit-pages', function ($user) {
-      return $user->is_admin_for_test ?? false;
+      return $user->is_admin ?? false; // Changed to is_admin
     });
 
     // It's good practice to define a factory for Page model if not already present for tests

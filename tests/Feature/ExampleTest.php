@@ -18,6 +18,6 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(201);
+        $response->assertStatus(200); // Homepage should return 200 OK
     }
 }

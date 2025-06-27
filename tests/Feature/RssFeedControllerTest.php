@@ -20,9 +20,9 @@ class RssFeedControllerTest extends TestCase
   protected function setUp(): void
   {
     parent::setUp();
-    // Ensure consistent service names that the controller might expect
-    $this->morningService = \App\Models\Service::factory()->create(['name' => 'Morning Service']);
-    $this->eveningService = \App\Models\Service::factory()->create(['name' => 'Evening Service']);
+    // Create services based on type, as 'name' column doesn't exist
+    $this->morningService = \App\Models\Service::factory()->create(['type' => 'morning']);
+    $this->eveningService = \App\Models\Service::factory()->create(['type' => 'evening']);
   }
 
   private function createSermonForFeed(\App\Models\Service $service, Carbon $date, array $overrides = [])

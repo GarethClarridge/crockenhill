@@ -37,10 +37,15 @@ class ServiceTest extends TestCase
    */
   public function testServiceAccessors()
   {
-    // Test getFormattedNameAttribute (assuming it returns the name directly for now)
-    $service = \App\Models\Service::factory()->create(['name' => 'Morning Worship']);
-    $this->assertEquals('Morning Worship', $service->formatted_name);
-    // Assumes: public function getFormattedNameAttribute() { return $this->attributes['name']; }
+    // Test getFormattedNameAttribute
+    // Since 'name' column doesn't exist, this will rely on 'type' or other attributes.
+    // The actual assertion will depend on the implementation of getFormattedNameAttribute in Service.php
+    $service = \App\Models\Service::factory()->create(['type' => 'morning']);
+    $this->assertEquals('Morning Service', $service->formatted_name);
+
+    $eveningService = \App\Models\Service::factory()->create(['type' => 'evening']);
+    $this->assertEquals('Evening Service', $eveningService->formatted_name);
+    // Assumes: public function getFormattedNameAttribute() { return ucfirst($this->attributes['type']) . ' Service'; }
 
     // Test getUpcomingSermonCountAttribute
     $serviceWithSermons = \App\Models\Service::factory()->create();

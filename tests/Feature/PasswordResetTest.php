@@ -32,12 +32,12 @@ class PasswordResetTest extends TestCase
     $response->assertRedirect(route('password.request')); // Or wherever it redirects with status
     $response->assertSessionHas('status', __('passwords.sent')); // Default status message
 
-    $this->assertDatabaseHas('password_resets', [
+    $this->assertDatabaseHas('password_reset_tokens', [ // Changed table name
       'email' => $user->email,
     ]);
 
     // Clean up to avoid interference if not using RefreshDatabase per test method
-    // DB::table('password_resets')->where('email', $user->email)->delete();
+    // DB::table('password_reset_tokens')->where('email', $user->email)->delete(); // Changed table name
   }
 
   /** @test */
@@ -47,7 +47,7 @@ class PasswordResetTest extends TestCase
 
     // $response->assertRedirect(route('password.request')); // Redirects back
     $response->assertSessionHasErrors('email', __('passwords.user'));
-    $this->assertDatabaseMissing('password_resets', [
+    $this->assertDatabaseMissing('password_reset_tokens', [ // Changed table name
       'email' => 'nonexistent@example.com',
     ]);
   }
@@ -59,7 +59,7 @@ class PasswordResetTest extends TestCase
     // Manually create a token for predictability in test, or extract after posting to password.email
     $token = Password::broker()->createToken($user);
 
-    DB::table('password_resets')->insert([
+    DB::table('password_reset_tokens')->insert([ // Changed table name
       'email' => $user->email,
       'token' => Hash::make($token), // Store hashed token if app hashes it
       'created_at' => now(),
@@ -82,7 +82,7 @@ class PasswordResetTest extends TestCase
   {
     $user = \App\Models\User::factory()->create();
     $token = Password::broker()->createToken($user);
-    DB::table('password_resets')->insert([
+    DB::table('password_reset_tokens')->insert([ // Changed table name
       'email' => $user->email,
       'token' => Hash::make($token), // Assuming hashed tokens are stored from Laravel 8+
       'created_at' => now()
@@ -101,7 +101,7 @@ class PasswordResetTest extends TestCase
     $response->assertSessionHas('status', __('passwords.reset'));
 
     $this->assertTrue(Hash::check($newPassword, $user->fresh()->password));
-    $this->assertDatabaseMissing('password_resets', ['email' => $user->email]);
+    $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]); // Changed table name
 
     // Test login with new password
     $loginResponse = $this->post(route('login'), ['email' => $user->email, 'password' => $newPassword]);
@@ -131,7 +131,7 @@ class PasswordResetTest extends TestCase
   {
     $user = \App\Models\User::factory()->create();
     $token = Password::broker()->createToken($user);
-    DB::table('password_resets')->insert(['email' => $user->email, 'token' => Hash::make($token), 'created_at' => now()]);
+    DB::table('password_reset_tokens')->insert(['email' => $user->email, 'token' => Hash::make($token), 'created_at' => now()]); // Changed table name
 
     $response = $this->post(route('password.update'), [
       'token' => $token,
@@ -149,7 +149,7 @@ class PasswordResetTest extends TestCase
   {
     $user = \App\Models\User::factory()->create();
     $token = Password::broker()->createToken($user);
-    DB::table('password_resets')->insert(['email' => $user->email, 'token' => Hash::make($token), 'created_at' => now()]);
+    DB::table('password_reset_tokens')->insert(['email' => $user->email, 'token' => Hash::make($token), 'created_at' => now()]); // Changed table name
 
     $shortPassword = Str::random(5); // Assuming min length is 8
 

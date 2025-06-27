@@ -30,16 +30,16 @@ class UserTest extends TestCase
    */
   public function testUserAccessors()
   {
-    // Test is_admin_for_test attribute/accessor
-    $adminUser = \App\Models\User::factory()->admin()->create();
-    $this->assertTrue($adminUser->is_admin_for_test);
+    // Test is_admin attribute/accessor
+    $adminUser = \App\Models\User::factory()->admin()->create(); // Sets is_admin to true
+    $this->assertTrue($adminUser->is_admin);
 
-    $nonAdminUser = \App\Models\User::factory()->create(['is_admin_for_test' => false]);
-    $this->assertFalse($nonAdminUser->is_admin_for_test);
+    $nonAdminUser = \App\Models\User::factory()->create(['is_admin' => false]); // Explicitly set is_admin to false
+    $this->assertFalse($nonAdminUser->is_admin);
 
     // If an accessor like getIsAdminAttribute() is expected to exist and provide $user->is_admin
     // then the User model would need:
-    // public function getIsAdminAttribute() { return $this->attributes['is_admin_for_test']; }
+    // public function getIsAdminAttribute() { return $this->attributes['is_admin']; }
     // And the test would be:
     // $this->assertTrue($adminUser->is_admin);
     // $this->assertFalse($nonAdminUser->is_admin);
