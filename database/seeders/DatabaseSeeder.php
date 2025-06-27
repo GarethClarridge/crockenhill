@@ -10,13 +10,10 @@ class DatabaseSeeder extends Seeder
   {
     $this->call([
       UserSeeder::class,
-      SongSeeder::class,
       SermonSeeder::class,
       PageSeeder::class,
       MeetingSeeder::class,
       DocumentSeeder::class,
-      ScriptureReferenceSeeder::class,
-      PlayDateSeeder::class,
       ServiceSeeder::class,
     ]);
   }

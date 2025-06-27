@@ -9,7 +9,6 @@ use App\Http\Controllers\SermonController;
 use App\Http\Controllers\RssFeedController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
-use App\Http\Controllers\SongController;
 use App\Http\Controllers\ServiceController;
 
 /*
@@ -79,15 +78,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
   Route::resource('pages', PageController::class);
   // Manage sermons
   Route::resource('sermons', SermonController::class);
-  // Songs
-  Route::get('songs/service-record', [SongController::class, 'getServiceRecord']);
-  Route::post('songs/service-record', [SongController::class, 'postServiceRecord']);
-
-  Route::get('songs/{id}/{title}', [SongController::class, 'showSong']);
-  Route::get('songs/{id}/{title}/edit', [SongController::class, 'editSong']);
-  Route::post('songs/{id}/{title}/edit', [SongController::class, 'updateSong']);
-
-  Route::resource('songs', SongController::class);
 
   // Service recordings
   Route::resource('services', ServiceController::class);
