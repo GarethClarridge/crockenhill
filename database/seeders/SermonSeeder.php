@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Sermon;
+use App\Models\Service; // Added for Service model
 use Illuminate\Database\Seeder;
 use Carbon\Carbon;
 
@@ -10,11 +11,16 @@ class SermonSeeder extends Seeder
 {
   public function run()
   {
+    // Ensure services exist
+    $morningService = Service::firstOrCreate(['type' => 'morning'], ['date' => Carbon::now(), 'video' => 'default.mp4', 'audio' => 'default.mp3']);
+    $eveningService = Service::firstOrCreate(['type' => 'evening'], ['date' => Carbon::now(), 'video' => 'default.mp4', 'audio' => 'default.mp3']);
+
     // Create some specific sermons
     $sermons = [
       [
+        'service_id' => $morningService->id,
         'date' => '2024-12-15',
-        'service' => 'morning',
+        'service_type_enum' => 'morning', // Changed from 'service'
         'title' => 'The Birth of Our Saviour',
         'slug' => 'the-birth-of-our-saviour',
         'reference' => 'Luke 2:1-20',
@@ -24,8 +30,9 @@ class SermonSeeder extends Seeder
         'points' => '1. The historical reality\n2. The divine purpose\n3. The eternal significance'
       ],
       [
+        'service_id' => $morningService->id, // Assuming this is also a morning service
         'date' => '2024-12-08',
-        'service' => 'morning',
+        'service_type_enum' => 'morning', // Changed from 'service'
         'title' => 'Walking in the Light',
         'slug' => 'walking-in-the-light',
         'reference' => '1 John 1:5-10',
