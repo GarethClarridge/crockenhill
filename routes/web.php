@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Auth;
 // Import all necessary controllers
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\SermonController;
-use App\Http\Controllers\RssFeedController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ServiceController;
@@ -66,8 +65,6 @@ Route::group(['prefix' => 'christ/sermons'], function () {
   Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
   Route::get('{service}', [SermonController::class, 'getService'])->name('getService');
 
-  Route::get('evening/feed', [RssFeedController::class, 'eveningFeed']);
-  Route::get('morning/feed', [RssFeedController::class, 'morningFeed']);
 });
 
 //Members routes
