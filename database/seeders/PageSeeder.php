@@ -38,6 +38,24 @@ class PageSeeder extends Seeder
         'navigation' => true,
       ],
       [
+        'slug' => 'sunday-evenings',
+        'heading' => 'Sunday Evenings',
+        'description' => 'Information about our Sunday evening services.',
+        'area' => 'community', // Or appropriate area
+        'body' => 'Join us for our Sunday evening services at 6 PM.',
+        'admin' => 'no',
+        'navigation' => true,
+      ],
+      [
+        'slug' => 'bible-study',
+        'heading' => 'Bible Study',
+        'description' => 'Details about our Bible study groups.',
+        'area' => 'community', // Or appropriate area
+        'body' => 'Explore the scriptures with us in our Bible study groups.',
+        'admin' => 'no',
+        'navigation' => true,
+      ],
+      [
         'slug' => 'admin-dashboard',
         'heading' => 'Admin Dashboard',
         'description' => 'Administrative area',
