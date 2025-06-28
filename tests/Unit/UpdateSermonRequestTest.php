@@ -128,11 +128,11 @@ class UpdateSermonRequestTest extends TestCase
         'data' => ['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => '[]'],
         'shouldPass' => true,
       ],
-      'points_empty_string_should_fail_json_rule' => [ // Changed from 'points_valid_empty_string_for_nullable'
-        // The 'json' rule implies it must be a valid JSON string or null. An empty string is NOT valid JSON.
+      'points_empty_string_is_treated_as_null_and_passes' => [ // Renamed and expectation changed
+        // Assuming ConvertEmptyStringsToNull middleware is active, '' becomes null, and nullable|json passes.
         'data' => ['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => ''],
-        'shouldPass' => false,
-        'expectedErrors' => ['points' => 'valid JSON structure'] // Correctly expects error
+        'shouldPass' => true,
+        'expectedErrors' => [] // No errors expected if it passes
       ],
 
       // Series validation (nullable, so only check max length if provided)

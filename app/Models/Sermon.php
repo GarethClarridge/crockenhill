@@ -40,4 +40,47 @@ class Sermon extends Model
     'date' => 'date',
     'points' => 'array',
   ];
+
+  public function getHumanDateAttribute(): ?string
+  {
+    return $this->date ? $this->date->format('F j, Y') : null;
+  }
+
+  public function getAudioUrlAttribute(): ?string
+  {
+    return $this->filename ? url($this->filename) : null;
+  }
+
+  public function getSeriesUrlAttribute(): ?string
+  {
+    return $this->series ? url('/christ/sermons/series/' . Str::slug($this->series)) : null;
+  }
+
+  public function getPreacherUrlAttribute(): ?string
+  {
+    return $this->preacher ? url('/christ/sermons/preachers/' . Str::slug($this->preacher)) : null;
+  }
+
+  public function scopeLast12Months($query)
+  {
+    return $query->where('date', '>=', now()->subMonths(12)->startOfDay());
+  }
+
+  public function scopeForService($query, string $serviceType)
+  {
+    // This will filter by the enum 'morning' or 'evening'
+    // The test also calls this with an ID, which is incorrect for current schema.
+    // The test might need adjustment if it was expecting to pass a Service model or ID.
+    return $query->where('service', $serviceType);
+  }
+
+  public function scopeInSeries($query, string $seriesTitle)
+  {
+    return $query->where('series', $seriesTitle);
+  }
+
+  public function scopeByPreacher($query, string $preacherName)
+  {
+    return $query->where('preacher', $preacherName);
+  }
 }

@@ -47,4 +47,14 @@ class Page extends Model
     }
     return null; // Or some default/error handling if area or slug is missing
   }
+
+  public function scopeInArea($query, string $area)
+  {
+    return $query->where('area', $area);
+  }
+
+  public function scopeIsNavigation($query, bool $isNavigation = true)
+  {
+    return $query->where('navigation', $isNavigation);
+  }
 }

@@ -41,10 +41,11 @@ class SermonTest extends TestCase
     public function testSermonAccessors()
     {
         $date = Carbon::create(2023, 1, 15, 10, 0, 0);
+        $testFilename = 'sermons/audio.mp3';
         $sermon = \App\Models\Sermon::factory()->withDate($date)->create([ // Explicitly use App\Models
             'series' => 'My Sermon Series',
             'preacher' => 'John Doe',
-            'audio_url' => 'sermons/audio.mp3',
+            'filename' => $testFilename, // Changed audio_url to filename
         ]);
 
         // Test getHumanDateAttribute
@@ -52,7 +53,7 @@ class SermonTest extends TestCase
 
         // Test getAudioUrlAttribute - Assuming it returns a URL based on the stored path
         // This might need adjustment based on how audio_url is actually stored and retrieved
-        $this->assertEquals(url('sermons/audio.mp3'), $sermon->audio_url);
+        $this->assertEquals(url($testFilename), $sermon->audio_url); // Accessor should build this
 
         // Test getSeriesUrlAttribute
         // Assuming the Sermon model has a getSeriesUrlAttribute accessor
@@ -74,10 +75,11 @@ class SermonTest extends TestCase
         $pointsArray = ['Point 1: Introduction', 'Point 2: Main Body', 'Point 3: Conclusion'];
         $pointsJson = json_encode($pointsArray);
 
-        $sermonInstance = \App\Models\Sermon::factory()->create(['points' => $pointsJson]); // Explicitly use App\Models
-        $sermonWithJsonPoints = $sermonInstance->fresh(); // Re-fetch from DB to ensure casts are applied
-        $this->assertIsArray($sermonWithJsonPoints->points);
-        $this->assertEquals($pointsArray, $sermonWithJsonPoints->points);
+        $sermonCreated = \App\Models\Sermon::factory()->create(['points' => $pointsJson]); // Explicitly use App\Models
+        $sermonFetched = \App\Models\Sermon::find($sermonCreated->id); // Fetch a new instance
+
+        $this->assertIsArray($sermonFetched->points);
+        $this->assertEquals($pointsArray, $sermonFetched->points);
 
         // Test 'date' attribute casting to Carbon instance
         $sermonWithDate = \App\Models\Sermon::factory()->create(['date' => '2023-03-15']); // Explicitly use App\Models
@@ -103,18 +105,45 @@ class SermonTest extends TestCase
         $this->assertFalse($sermonsLast12Months->contains($olderThan12Months));
 
         // Test forService scope
-        $service1 = \App\Models\Service::factory()->create(); // Explicitly use App\Models
-        $service2 = \App\Models\Service::factory()->create(); // Explicitly use App\Models
-        $sermonForService1 = \App\Models\Sermon::factory()->forService($service1)->create(); // Explicitly use App\Models
-        $sermonForService2 = \App\Models\Sermon::factory()->forService($service2)->create(); // Explicitly use App\Models
+        $service1Date = Carbon::parse('2023-03-10');
+        $service1Type = 'morning';
+        $service1 = \App\Models\Service::factory()->create(['date' => $service1Date, 'type' => $service1Type]);
 
-        $sermonsForService1 = \App\Models\Sermon::forService($service1->id)->get(); // Explicitly use App\Models
-        $this->assertTrue($sermonsForService1->contains($sermonForService1));
-        $this->assertFalse($sermonsForService1->contains($sermonForService2));
+        $service2Date = Carbon::parse('2023-03-12');
+        $service2Type = 'evening';
+        $service2 = \App\Models\Service::factory()->create(['date' => $service2Date, 'type' => $service2Type]);
 
-        $sermonsForServiceByName = \App\Models\Sermon::forService($service1->name)->get(); // Explicitly use App\Models
-        $this->assertTrue($sermonsForServiceByName->contains($sermonForService1));
-        $this->assertFalse($sermonsForServiceByName->contains($sermonForService2));
+        $sermonForService1 = \App\Models\Sermon::factory()->create([
+            'date' => $service1Date,
+            'service' => $service1Type,
+        ]);
+        $sermonForService2 = \App\Models\Sermon::factory()->create([
+            'date' => $service2Date,
+            'service' => $service2Type,
+        ]);
+        // Another sermon on same date as service1 but different type
+        \App\Models\Sermon::factory()->create(['date' => $service1Date, 'service' => 'evening']);
+
+
+        // The scopeForService filters by service type (enum 'morning'/'evening')
+        // To truly test "for a specific service instance", we should also match date.
+        $sermonsForService1ByType = \App\Models\Sermon::forService($service1->type)
+                                              ->whereDate('date', $service1->date)
+                                              ->get();
+        $this->assertTrue($sermonsForService1ByType->contains($sermonForService1));
+        $this->assertFalse($sermonsForService1ByType->contains($sermonForService2));
+
+        // Test the scope with a service name (which is not how the scope is defined, scope uses type)
+        // This part of the original test was based on a 'name' attribute for Service model which doesn't exist.
+        // $sermonsForServiceByName = \App\Models\Sermon::forService($service1->name)->get();
+        // $this->assertTrue($sermonsForServiceByName->contains($sermonForService1));
+        // $this->assertFalse($sermonsForServiceByName->contains($sermonForService2));
+        // Corrected: The scope forService takes type ('morning', 'evening')
+        // If we want to assert that sermons for 'morning' services on a specific date are found:
+        $sermonsForMorningServiceOnDate = \App\Models\Sermon::forService('morning')
+                                                    ->whereDate('date', $service1Date)
+                                                    ->get();
+        $this->assertTrue($sermonsForMorningServiceOnDate->contains($sermonForService1));
 
 
         // Test inSeries scope

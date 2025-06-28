@@ -31,4 +31,30 @@ class Service extends Model
                      ->where('service', $this->type)
                      ->get();
     }
+
+    /**
+     * Get the count of upcoming sermons for this service.
+     *
+     * @return int
+     */
+    public function getUpcomingSermonCountAttribute(): int
+    {
+        return Sermon::where('date', $this->date)
+                     ->where('service', $this->type)
+                     ->where('date', '>=', today())
+                     ->count();
+    }
+
+    /**
+     * Check if the service has any upcoming sermons.
+     *
+     * @return bool
+     */
+    public function hasUpcomingSermons(): bool
+    {
+        return Sermon::where('date', $this->date)
+                     ->where('service', $this->type)
+                     ->where('date', '>=', today())
+                     ->exists();
+    }
 }
