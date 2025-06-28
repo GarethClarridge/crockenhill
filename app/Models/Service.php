@@ -41,7 +41,7 @@ class Service extends Model
     {
         return Sermon::where('date', $this->date)
                      ->where('service', $this->type)
-                     ->where('date', '>=', today())
+                     ->whereDate('date', '>=', today()->toDateString())
                      ->count();
     }
 
@@ -54,7 +54,7 @@ class Service extends Model
     {
         return Sermon::where('date', $this->date)
                      ->where('service', $this->type)
-                     ->where('date', '>=', today())
+                     ->whereDate('date', '>=', today()->toDateString())
                      ->exists();
     }
 }

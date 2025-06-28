@@ -69,6 +69,8 @@ class PageTest extends TestCase
   #[Test] // Replaced @test
   public function testPageScopes()
   {
+    \App\Models\Page::query()->delete(); // Clear pages before this test
+
     // Test inArea() scope
     $pageInChrist = \App\Models\Page::factory()->inArea('christ')->create();
     $pageInCommunity = \App\Models\Page::factory()->inArea('community')->create();

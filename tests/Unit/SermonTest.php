@@ -12,6 +12,7 @@ use App\Models\Service;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use PHPUnit\Framework\Attributes\Test; // Added import
+use Illuminate\Support\Facades\Log; // Added for debugging
 // Assuming Preacher and Series are not models for now, will adjust if needed.
 
 class SermonTest extends TestCase
@@ -77,6 +78,9 @@ class SermonTest extends TestCase
 
         $sermonCreated = \App\Models\Sermon::factory()->create(['points' => $pointsJson]); // Explicitly use App\Models
         $sermonFetched = \App\Models\Sermon::find($sermonCreated->id); // Fetch a new instance
+
+        Log::info('SermonTest - Raw points from DB for Sermon ID ' . $sermonFetched->id . ': ' . print_r($sermonFetched->getAttributes()['points'], true));
+        Log::info('SermonTest - Casted points type for Sermon ID ' . $sermonFetched->id . ': ' . gettype($sermonFetched->points));
 
         $this->assertIsArray($sermonFetched->points);
         $this->assertEquals($pointsArray, $sermonFetched->points);

@@ -58,31 +58,46 @@ class ServiceTest extends TestCase
     // Assumes: public function getFormattedNameAttribute() { return ucfirst($this->attributes['type']) . ' Service'; }
 
     // Test getUpcomingSermonCountAttribute
-    $serviceWithSermons = \App\Models\Service::factory()->create();
-    \App\Models\Sermon::factory()->create([ // Past
-        'date' => Carbon::now()->subWeek(),
+    $futureDate = Carbon::now()->addWeek()->startOfDay(); // Ensure it's upcoming
+    $serviceWithSermons = \App\Models\Service::factory()->create([
+        'date' => $futureDate,
+        'type' => 'morning'
+    ]);
+
+    // Sermons that should be counted as upcoming FOR THIS SERVICE
+    \App\Models\Sermon::factory()->create([
+        'date' => $futureDate, // Same date as service
         'service' => $serviceWithSermons->type,
     ]);
-    \App\Models\Sermon::factory()->create([   // Future
-        'date' => Carbon::now()->addWeek(),
-        'service' => $serviceWithSermons->type,
-    ]);
-    \App\Models\Sermon::factory()->create([  // Future
-        'date' => Carbon::now()->addMonth(),
+    \App\Models\Sermon::factory()->create([
+        'date' => $futureDate, // Same date as service
         'service' => $serviceWithSermons->type,
     ]);
 
-    // Refresh to load relationships if accessor depends on them being preloaded.
-    // However, a good accessor would query the relationship itself.
-    // $serviceWithSermons->refresh();
+    // Sermon for this service, but in the past (relative to service date, though service date itself is future)
+    // This specific sermon won't be "upcoming" if service date is future. The accessor counts sermons for *this service's date* that are also upcoming globally.
+    // For the count to be 2, the service date itself must be >= today.
+    // And the sermons must match that service date.
+
+    // Sermon on a different date for the same service type (should not be counted by this service instance's accessor)
+    \App\Models\Sermon::factory()->create([
+        'date' => $futureDate->copy()->addDay(),
+        'service' => $serviceWithSermons->type,
+    ]);
+     // Sermon for this service date, but different type (should not be counted)
+    \App\Models\Sermon::factory()->create([
+        'date' => $futureDate,
+        'service' => 'evening',
+    ]);
+
 
     $this->assertEquals(2, $serviceWithSermons->upcoming_sermon_count);
-    // Assumes: public function getUpcomingSermonCountAttribute() {
-    //     return Sermon::where('date', $this->date)->where('service', $this->type)->where('date', '>=', Carbon::now())->count();
-    // }
 
-    $serviceWithoutSermons = \App\Models\Service::factory()->create();
-    $this->assertEquals(0, $serviceWithoutSermons->upcoming_sermon_count);
+    $serviceWithoutMatchingSermons = \App\Models\Service::factory()->create(['date' => Carbon::now()->subDay()]); // A past service
+    $this->assertEquals(0, $serviceWithoutMatchingSermons->upcoming_sermon_count);
+
+    $serviceTodayNoSermons = \App\Models\Service::factory()->create(['date' => today(), 'type' => 'morning']);
+    $this->assertEquals(0, $serviceTodayNoSermons->upcoming_sermon_count);
   }
 
   #[Test] // Replaced @test
@@ -148,27 +163,31 @@ class ServiceTest extends TestCase
   public function testCustomServiceMethods()
   {
     // Test hasUpcomingSermons() method
-    $dateUpcoming = Carbon::now()->addDays(7);
+    $dateUpcoming = today()->addDays(7)->startOfDay(); // Use today() for consistency with accessor
     $serviceWithUpcoming = \App\Models\Service::factory()->create(['date' => $dateUpcoming, 'type' => 'morning']);
     \App\Models\Sermon::factory()->create([
-        'date' => $dateUpcoming,
-        'service' => 'morning',
+        'date' => $dateUpcoming, // Match the service's date
+        'service' => 'morning',   // Match the service's type
     ]);
 
-    $datePast = Carbon::now()->subDays(7);
+    $datePast = today()->subDays(7)->startOfDay();
     $serviceWithPast = \App\Models\Service::factory()->create(['date' => $datePast, 'type' => 'evening']);
     \App\Models\Sermon::factory()->create([
-        'date' => $datePast,
-        'service' => 'evening',
+        'date' => $datePast,      // Match the service's date
+        'service' => 'evening',   // Match the service's type
     ]);
 
-    $serviceWithNoSermons = \App\Models\Service::factory()->create();
+    // Service for today, but no sermons
+    $serviceWithNoSermons = \App\Models\Service::factory()->create(['date' => today()]);
+    // A sermon for a different service (different date or type)
+    \App\Models\Sermon::factory()->create(['date' => today()->addDay(), 'service' => $serviceWithNoSermons->type]);
+
 
     $this->assertTrue($serviceWithUpcoming->hasUpcomingSermons());
-    $this->assertFalse($serviceWithPast->hasUpcomingSermons());
-    $this->assertFalse($serviceWithNoSermons->hasUpcomingSermons());
+    $this->assertFalse($serviceWithPast->hasUpcomingSermons()); // This service's date is in the past
+    $this->assertFalse($serviceWithNoSermons->hasUpcomingSermons()); // No sermons for this service's date & type
     // Assumes: public function hasUpcomingSermons(): bool {
-    //     return $this->getSermons()->where('date', '>=', Carbon::today())->isNotEmpty(); // Or similar logic
+    //     return Sermon::where('date', $this->date)->where('service', $this->type)->whereDate('date', '>=', today()->toDateString())->exists();
     // }
   }
 }

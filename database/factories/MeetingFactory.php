@@ -56,6 +56,7 @@ class MeetingFactory extends Factory
       return [
         'meeting_date' => $date,
         'day' => $date->format('l'), // Update day based on the specific date
+        'StartTime' => $date->format('H:i:s'), // Ensure StartTime matches the specific time
       ];
     });
   }
