@@ -72,12 +72,12 @@ class SermonTest extends TestCase
     #[Test] // Replaced @test
     public function testSermonMutatorsAndCasts()
     {
-        // Test 'points' attribute casting to array
+        // Test 'points' attribute casting to array when explicitly set with valid JSON
         $pointsArray = ['Point 1: Introduction', 'Point 2: Main Body', 'Point 3: Conclusion'];
         $pointsJson = json_encode($pointsArray);
 
-        $sermonCreated = \App\Models\Sermon::factory()->create(['points' => $pointsJson]); // Explicitly use App\Models
-        $sermonFetched = \App\Models\Sermon::find($sermonCreated->id); // Fetch a new instance
+        $sermonCreated = \App\Models\Sermon::factory()->create(['points' => $pointsJson]);
+        $sermonFetched = \App\Models\Sermon::find($sermonCreated->id);
 
         Log::info('SermonTest - Raw points from DB for Sermon ID ' . $sermonFetched->id . ': ' . print_r($sermonFetched->getAttributes()['points'], true));
         Log::info('SermonTest - Casted points type for Sermon ID ' . $sermonFetched->id . ': ' . gettype($sermonFetched->points));
@@ -86,24 +86,28 @@ class SermonTest extends TestCase
         $this->assertEquals($pointsArray, $sermonFetched->points);
 
         // Test 'date' attribute casting to Carbon instance
-        $sermonWithDate = \App\Models\Sermon::factory()->create(['date' => '2023-03-15']); // Explicitly use App\Models
+        $sermonWithDate = \App\Models\Sermon::factory()->create(['date' => '2023-03-15']);
         $this->assertInstanceOf(Carbon::class, $sermonWithDate->date);
 
-        $sermonFromFactory = \App\Models\Sermon::factory()->create(); // Factory sets a date, Explicitly use App\Models
+        // Test 'points' from default factory creation (can be null or non-JSON text via faker->optional()->text())
+        $sermonFromFactory = \App\Models\Sermon::factory()->create();
         $this->assertInstanceOf(Carbon::class, $sermonFromFactory->date);
-        // Check if points from factory are cast to array
-        $this->assertIsArray($sermonFromFactory->points);
+        // Check if points from factory are cast to array OR are null after accessor processing
+        $this->assertTrue(
+            is_array($sermonFromFactory->points) || is_null($sermonFromFactory->points),
+            'Points attribute should be an array or null after accessor processing when using default factory state.'
+        );
     }
 
     #[Test] // Replaced @test
     public function testSermonScopes()
     {
         // Test last12Months scope
-        $withinLast12Months = \App\Models\Sermon::factory()->withDate(Carbon::now()->subMonths(6))->create(); // Explicitly use App\Models
-        $olderThan12Months = \App\Models\Sermon::factory()->withDate(Carbon::now()->subMonths(15))->create(); // Explicitly use App\Models
-        $futureSermon = \App\Models\Sermon::factory()->withDate(Carbon::now()->addMonths(2))->create(); // Should also be included, Explicitly use App\Models
+        $withinLast12Months = \App\Models\Sermon::factory()->withDate(Carbon::now()->subMonths(6))->create();
+        $olderThan12Months = \App\Models\Sermon::factory()->withDate(Carbon::now()->subMonths(15))->create();
+        $futureSermon = \App\Models\Sermon::factory()->withDate(Carbon::now()->addMonths(2))->create();
 
-        $sermonsLast12Months = \App\Models\Sermon::last12Months()->get(); // Explicitly use App\Models
+        $sermonsLast12Months = \App\Models\Sermon::last12Months()->get();
         $this->assertTrue($sermonsLast12Months->contains($withinLast12Months));
         $this->assertTrue($sermonsLast12Months->contains($futureSermon));
         $this->assertFalse($sermonsLast12Months->contains($olderThan12Months));
@@ -137,11 +141,6 @@ class SermonTest extends TestCase
         $this->assertTrue($sermonsForService1ByType->contains($sermonForService1));
         $this->assertFalse($sermonsForService1ByType->contains($sermonForService2));
 
-        // Test the scope with a service name (which is not how the scope is defined, scope uses type)
-        // This part of the original test was based on a 'name' attribute for Service model which doesn't exist.
-        // $sermonsForServiceByName = \App\Models\Sermon::forService($service1->name)->get();
-        // $this->assertTrue($sermonsForServiceByName->contains($sermonForService1));
-        // $this->assertFalse($sermonsForServiceByName->contains($sermonForService2));
         // Corrected: The scope forService takes type ('morning', 'evening')
         // If we want to assert that sermons for 'morning' services on a specific date are found:
         $sermonsForMorningServiceOnDate = \App\Models\Sermon::forService('morning')
@@ -153,20 +152,20 @@ class SermonTest extends TestCase
         // Test inSeries scope
         $seriesATitle = 'The Beatitudes';
         $seriesBTitle = 'Fruit of the Spirit';
-        $sermonInSeriesA = \App\Models\Sermon::factory()->inSeries($seriesATitle)->create(); // Explicitly use App\Models
-        $sermonInSeriesB = \App\Models\Sermon::factory()->inSeries($seriesBTitle)->create(); // Explicitly use App\Models
+        $sermonInSeriesA = \App\Models\Sermon::factory()->inSeries($seriesATitle)->create();
+        $sermonInSeriesB = \App\Models\Sermon::factory()->inSeries($seriesBTitle)->create();
 
-        $sermonsInSeriesA = \App\Models\Sermon::inSeries($seriesATitle)->get(); // Explicitly use App\Models
+        $sermonsInSeriesA = \App\Models\Sermon::inSeries($seriesATitle)->get();
         $this->assertTrue($sermonsInSeriesA->contains($sermonInSeriesA));
         $this->assertFalse($sermonsInSeriesA->contains($sermonInSeriesB));
 
         // Test byPreacher scope
         $preacherXName = 'Rev. Dr. Smith';
         $preacherYName = 'Pastor Jones';
-        $sermonByPreacherX = \App\Models\Sermon::factory()->byPreacher($preacherXName)->create(); // Explicitly use App\Models
-        $sermonByPreacherY = \App\Models\Sermon::factory()->byPreacher($preacherYName)->create(); // Explicitly use App\Models
+        $sermonByPreacherX = \App\Models\Sermon::factory()->byPreacher($preacherXName)->create();
+        $sermonByPreacherY = \App\Models\Sermon::factory()->byPreacher($preacherYName)->create();
 
-        $sermonsByPreacherX = \App\Models\Sermon::byPreacher($preacherXName)->get(); // Explicitly use App\Models
+        $sermonsByPreacherX = \App\Models\Sermon::byPreacher($preacherXName)->get();
         $this->assertTrue($sermonsByPreacherX->contains($sermonByPreacherX));
         $this->assertFalse($sermonsByPreacherX->contains($sermonByPreacherY));
     }
