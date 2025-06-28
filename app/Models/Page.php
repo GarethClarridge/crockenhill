@@ -34,4 +34,17 @@ class Page extends Model
   {
     return 'slug';
   }
+
+  /**
+   * Get the page's full route path.
+   *
+   * @return string
+   */
+  public function getRouteAttribute()
+  {
+    if ($this->area && $this->slug) {
+      return '/' . trim($this->area, '/') . '/' . trim($this->slug, '/');
+    }
+    return null; // Or some default/error handling if area or slug is missing
+  }
 }

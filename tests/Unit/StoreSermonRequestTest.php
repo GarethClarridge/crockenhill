@@ -7,6 +7,8 @@ use App\Http\Requests\StoreSermonRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\UploadedFile;
+use PHPUnit\Framework\Attributes\Test; // Added import
+use PHPUnit\Framework\Attributes\DataProvider; // Added import
 // Assuming User model is App\Models\User for Gate simulation if needed, though direct Gate mocking is better
 // use App\Models\User;
 
@@ -20,6 +22,7 @@ class StoreSermonRequestTest extends TestCase
     $this->request = new StoreSermonRequest();
   }
 
+  #[Test] // Added Test
   public function test_authorize_allows_user_with_edit_sermons_permission()
   {
     Gate::shouldReceive('allows')
@@ -30,6 +33,7 @@ class StoreSermonRequestTest extends TestCase
     $this->assertTrue($this->request->authorize());
   }
 
+  #[Test] // Added Test
   public function test_authorize_denies_user_without_edit_sermons_permission()
   {
     Gate::shouldReceive('allows')
@@ -40,9 +44,8 @@ class StoreSermonRequestTest extends TestCase
     $this->assertFalse($this->request->authorize());
   }
 
-  /**
-   * @dataProvider validationDataProvider
-   */
+  #[Test] // Added Test
+  #[DataProvider('validationDataProvider')] // Replaced @dataProvider
   public function test_validation_rules(array $data, bool $shouldPass, array $expectedErrors = [])
   {
     $validator = Validator::make($data, $this->request->rules(), $this->request->messages());

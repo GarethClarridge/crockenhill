@@ -5,17 +5,16 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\User; // Corrected namespace
-use Database\Factories\UserFactory;
+// UserFactory not explicitly used with Model::factory()
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon; // For date casting tests
+use PHPUnit\Framework\Attributes\Test; // Added import
 
 class UserTest extends TestCase
 {
   use RefreshDatabase;
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testUserRelationships()
   {
     // No explicit relationships found on the User model (e.g., hasMany Pages/Sermons).
@@ -25,9 +24,7 @@ class UserTest extends TestCase
     $this->assertTrue(true);
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testUserAccessors()
   {
     // Test is_admin attribute/accessor
@@ -46,9 +43,7 @@ class UserTest extends TestCase
     // For now, testing the direct attribute based on factory and common usage.
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testUserMutatorsAndCasts()
   {
     // Test password hashing
@@ -75,9 +70,7 @@ class UserTest extends TestCase
     $this->assertNull($userNoEmailVerified->email_verified_at);
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testCustomUserMethods()
   {
     // No specific custom methods (e.g., hasRole(), hasPermissionTo()) found on the User model

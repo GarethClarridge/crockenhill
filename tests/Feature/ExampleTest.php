@@ -6,6 +6,7 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\WithoutMiddleware;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test; // Added import
 
 class ExampleTest extends TestCase
 {
@@ -14,7 +15,8 @@ class ExampleTest extends TestCase
      *
      * @return void
      */
-    public function testBasicTest()
+    #[Test] // Added Test attribute
+    public function testBasicTest() // Kept original method name, standard is camelCase though
     {
         $response = $this->get('/');
 

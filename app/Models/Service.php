@@ -19,4 +19,16 @@ class Service extends Model
     {
         return ucfirst($this->type) . ' Service';
     }
+
+    /**
+     * Get the sermons associated with this specific service (same date and type).
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getSermons()
+    {
+        return Sermon::where('date', $this->date)
+                     ->where('service', $this->type)
+                     ->get();
+    }
 }

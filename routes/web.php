@@ -44,8 +44,8 @@ Route::get('/church', ['as' => 'church', function () {
       return view('full-width-pages/church');
 }]);
 
-//Community routes
-Route::resource('community', MeetingController::class);
+//Meeting routes
+Route::resource('meetings', MeetingController::class);
 
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {

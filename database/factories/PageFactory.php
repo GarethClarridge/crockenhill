@@ -22,4 +22,27 @@ class PageFactory extends Factory
       'navigation' => $this->faker->boolean(70),
     ];
   }
+
+  public function isNavigation(bool $isNav = true): Factory
+  {
+    return $this->state(function (array $attributes) use ($isNav) {
+      return [
+        'navigation' => $isNav,
+      ];
+    });
+  }
+
+  public function isNotNavigation(): Factory
+  {
+    return $this->isNavigation(false);
+  }
+
+  public function inArea(string $areaName): Factory
+  {
+    return $this->state(function (array $attributes) use ($areaName) {
+      return [
+        'area' => $areaName,
+      ];
+    });
+  }
 }

@@ -5,17 +5,16 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\Meeting; // Assuming Crockenhill namespace
-use Database\Factories\MeetingFactory; // Will create if not exists
+// MeetingFactory not explicitly used if using Model::factory()
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Carbon\Carbon;
+use PHPUnit\Framework\Attributes\Test; // Added import
 
 class MeetingTest extends TestCase
 {
   use RefreshDatabase;
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testMeetingRelationships()
   {
     // No relationships are defined on the Meeting model yet.
@@ -28,9 +27,7 @@ class MeetingTest extends TestCase
     $this->assertTrue(true); // Basic assertion
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testMeetingAccessors()
   {
     // Test getFormattedDateTimeAttribute
@@ -51,9 +48,7 @@ class MeetingTest extends TestCase
     $this->assertNull($meetingWithoutAddress->location_address);
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testMeetingMutatorsAndCasts()
   {
     // Test meeting_date casting to Carbon instance
@@ -77,9 +72,7 @@ class MeetingTest extends TestCase
     $this->assertNull($meetingWithoutFrequency->frequency);
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testMeetingScopes()
   {
     // Test isRecurring() scope
@@ -118,9 +111,7 @@ class MeetingTest extends TestCase
     // }
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testCustomMeetingMethods()
   {
     // Test getNextOccurrence() method for a weekly recurring meeting

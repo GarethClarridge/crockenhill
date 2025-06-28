@@ -6,6 +6,8 @@ use Tests\TestCase;
 use App\Http\Requests\UpdateSermonRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Gate;
+use PHPUnit\Framework\Attributes\Test; // Added import
+use PHPUnit\Framework\Attributes\DataProvider; // Added import
 
 class UpdateSermonRequestTest extends TestCase
 {
@@ -17,6 +19,7 @@ class UpdateSermonRequestTest extends TestCase
     $this->request = new UpdateSermonRequest();
   }
 
+  #[Test] // Added Test
   public function test_authorize_allows_user_with_edit_sermons_permission()
   {
     Gate::shouldReceive('allows')
@@ -27,6 +30,7 @@ class UpdateSermonRequestTest extends TestCase
     $this->assertTrue($this->request->authorize());
   }
 
+  #[Test] // Added Test
   public function test_authorize_denies_user_without_edit_sermons_permission()
   {
     Gate::shouldReceive('allows')
@@ -37,9 +41,8 @@ class UpdateSermonRequestTest extends TestCase
     $this->assertFalse($this->request->authorize());
   }
 
-  /**
-   * @dataProvider validationDataProvider
-   */
+  #[Test] // Added Test
+  #[DataProvider('validationDataProvider')] // Replaced @dataProvider
   public function test_validation_rules(array $data, bool $shouldPass, array $expectedErrors = [])
   {
     // For UpdateSermonRequest, route parameters might be needed for the request object
@@ -117,7 +120,7 @@ class UpdateSermonRequestTest extends TestCase
 
       // Service validation
       'service_missing' => [['title' => 'VT', 'date' => '2024-01-01', 'preacher' => 'VP'], false, ['service' => 'required']],
-      'service_invalid_value' => [['title' => 'VT', 'date' => '2024-01-01', 'service' => 'special', 'preacher' => 'VP'], false, ['service' => 'valid service']],
+      'service_invalid_value' => [['title' => 'VT', 'date' => '2024-01-01', 'service' => 'special', 'preacher' => 'VP'], false, ['service' => 'selected service is invalid']],
 
       // Points validation
       'points_invalid_json' => [['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => $invalidJsonPoints], false, ['points' => 'valid JSON structure']],
@@ -125,11 +128,11 @@ class UpdateSermonRequestTest extends TestCase
         'data' => ['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => '[]'],
         'shouldPass' => true,
       ],
-      'points_valid_empty_string_for_nullable' => [ // Empty string should fail json, but nullable makes it pass if it becomes null
-        // The 'json' rule implies it must be a valid JSON string or null. An empty string is not valid JSON.
+      'points_empty_string_should_fail_json_rule' => [ // Changed from 'points_valid_empty_string_for_nullable'
+        // The 'json' rule implies it must be a valid JSON string or null. An empty string is NOT valid JSON.
         'data' => ['title' => 'VT', 'date' => '2024-01-01', 'service' => 'morning', 'preacher' => 'VP', 'points' => ''],
-        'shouldPass' => false, // Laravel's 'json' rule: empty string is not valid json.
-        'expectedErrors' => ['points' => 'valid JSON structure']
+        'shouldPass' => false,
+        'expectedErrors' => ['points' => 'valid JSON structure'] // Correctly expects error
       ],
 
       // Series validation (nullable, so only check max length if provided)

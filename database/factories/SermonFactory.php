@@ -43,4 +43,31 @@ class SermonFactory extends Factory
       'points' => $this->faker->optional()->text(500),
     ];
   }
+
+  public function withDate(\Carbon\Carbon $date): Factory
+  {
+    return $this->state(function (array $attributes) use ($date) {
+      return [
+        'date' => $date,
+      ];
+    });
+  }
+
+  public function inSeries(string $seriesTitle): Factory
+  {
+    return $this->state(function (array $attributes) use ($seriesTitle) {
+      return [
+        'series' => $seriesTitle,
+      ];
+    });
+  }
+
+  public function byPreacher(string $preacherName): Factory
+  {
+    return $this->state(function (array $attributes) use ($preacherName) {
+      return [
+        'preacher' => $preacherName,
+      ];
+    });
+  }
 }

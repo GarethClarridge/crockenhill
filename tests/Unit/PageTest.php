@@ -5,24 +5,21 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\Page; // Correct namespace
-use Database\Factories\PageFactory;
+// PageFactory not explicitly used if using Model::factory()
+use PHPUnit\Framework\Attributes\Test; // Added import
 
 class PageTest extends TestCase
 {
   use RefreshDatabase;
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testPageRelationships()
   {
     // Implementation will follow - likely empty or for future relationships
     $this->assertTrue(true); // Placeholder if no relationships to test initially
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testPageAccessors()
   {
     // Test getRouteAttribute
@@ -47,9 +44,7 @@ class PageTest extends TestCase
     // This will depend on the actual accessor logic in the Page model.
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testPageMutatorsAndCasts()
   {
     // Test 'navigation' attribute casting to boolean
@@ -71,9 +66,7 @@ class PageTest extends TestCase
     $this->assertIsBool($pageFromFactory->navigation);
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function testPageScopes()
   {
     // Test inArea() scope

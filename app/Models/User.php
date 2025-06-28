@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\Hash; // Import Hash
 
 class User extends Authenticatable
 {
@@ -31,4 +32,15 @@ class User extends Authenticatable
    * @var array
    */
   protected $hidden = ['password', 'remember_token'];
+
+  /**
+   * Hash the user's password.
+   *
+   * @param  string  $value
+   * @return void
+   */
+  public function setPasswordAttribute($value)
+  {
+    $this->attributes['password'] = Hash::make($value);
+  }
 }

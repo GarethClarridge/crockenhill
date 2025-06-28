@@ -5,16 +5,15 @@ namespace Tests\Feature\Api;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User; // Assuming User model is in Crockenhill namespace
-use Database\Factories\UserFactory;
+// No need to import UserFactory directly if using User::factory()
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\Test; // Added import
 
 class AuthUserTest extends TestCase
 {
   use RefreshDatabase;
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function unauthenticated_user_cannot_access_user_endpoint()
   {
     // Make a GET request to /api/user without any authentication token
@@ -28,9 +27,7 @@ class AuthUserTest extends TestCase
     $response->assertJson(['message' => 'Unauthenticated.']); // Default Sanctum message
   }
 
-  /**
-   * @test
-   */
+  #[Test] // Replaced @test
   public function authenticated_user_can_access_user_endpoint()
   {
     // Create a user using UserFactory
