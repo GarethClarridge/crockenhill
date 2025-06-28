@@ -8,10 +8,11 @@ class CreatePagesTable extends Migration
 {
   public function up()
   {
-    Schema::create('pages', function (Blueprint $table) {
-      $table->increments('id');
-      $table->string('slug');
-      $table->string('heading');
+    if (!Schema::hasTable('pages')) {
+      Schema::create('pages', function (Blueprint $table) {
+        $table->increments('id');
+        $table->string('slug');
+        $table->string('heading');
       $table->text('description');
       $table->string('area', 50);
       $table->text('body');

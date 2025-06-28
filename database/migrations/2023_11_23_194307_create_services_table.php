@@ -8,10 +8,11 @@ class CreateServicesTable extends Migration
 {
   public function up()
   {
-    Schema::create('services', function (Blueprint $table) {
-      $table->id();
-      $table->date('date');
-      $table->enum('type', ['morning', 'evening']);
+    if (!Schema::hasTable('services')) {
+      Schema::create('services', function (Blueprint $table) {
+        $table->id();
+        $table->date('date');
+        $table->enum('type', ['morning', 'evening']);
       $table->string('video');
       $table->string('audio');
       $table->timestamps();

@@ -8,10 +8,11 @@ class CreateMeetingsTable extends Migration
 {
   public function up()
   {
-    Schema::create('meetings', function (Blueprint $table) {
-      $table->increments('id');
-      $table->string('slug', 75);
-      $table->enum('type', ['SundayAndBibleStudies', 'ChildrenAndYoungPeople', 'Adults', 'Occasional']);
+    if (!Schema::hasTable('meetings')) {
+      Schema::create('meetings', function (Blueprint $table) {
+        $table->increments('id');
+        $table->string('slug', 75);
+        $table->enum('type', ['SundayAndBibleStudies', 'ChildrenAndYoungPeople', 'Adults', 'Occasional']);
       $table->time('StartTime')->nullable();
       $table->time('EndTime')->nullable();
       $table->string('day', 75);

@@ -8,10 +8,11 @@ class CreateSermonsTable extends Migration
 {
   public function up()
   {
-    Schema::create('sermons', function (Blueprint $table) {
-      $table->increments('id');
-      $table->date('date');
-      $table->enum('service', ['morning', 'evening'])->nullable();
+    if (!Schema::hasTable('sermons')) {
+      Schema::create('sermons', function (Blueprint $table) {
+        $table->increments('id');
+        $table->date('date');
+        $table->enum('service', ['morning', 'evening'])->nullable();
       $table->string('filename', 75);
       $table->string('filetype', 8)->default('mp3');
       $table->string('title', 75);
