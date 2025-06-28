@@ -39,8 +39,24 @@ class Sermon extends Model
    */
   protected $casts = [
     'date' => 'date',
-    'points' => 'array',
+    // 'points' => 'array', // Intentionally commenting out to let accessor handle it explicitly
   ];
+
+  /**
+   * Get the points attribute.
+   * Ensures that points are returned as an array.
+   *
+   * @param  string|null  $value
+   * @return array|null
+   */
+  public function getPointsAttribute($value)
+  {
+    if (is_string($value)) {
+      $decoded = json_decode($value, true);
+      return (json_last_error() === JSON_ERROR_NONE) ? $decoded : null; // Return null if not valid JSON
+    }
+    return $value; // Should ideally already be an array if setter/casting worked, or null
+  }
 
   public function getHumanDateAttribute(): ?string
   {

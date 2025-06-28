@@ -58,13 +58,13 @@ class SermonTest extends TestCase
 
         // Test getSeriesUrlAttribute
         // Assuming the Sermon model has a getSeriesUrlAttribute accessor
-        $expectedSeriesUrl = '/series/' . Str::slug('My Sermon Series');
+        $expectedSeriesUrl = '/christ/sermons/series/' . Str::slug('My Sermon Series'); // Corrected expected path
         $this->assertEquals($expectedSeriesUrl, $sermon->series_url);
         // If the accessor is not yet implemented, this test will guide its creation.
 
         // Test getPreacherUrlAttribute
         // Assuming the Sermon model has a getPreacherUrlAttribute accessor
-        $expectedPreacherUrl = '/preachers/' . Str::slug('John Doe');
+        $expectedPreacherUrl = '/christ/sermons/preachers/' . Str::slug('John Doe'); // Corrected expected path
         $this->assertEquals($expectedPreacherUrl, $sermon->preacher_url);
         // If the accessor is not yet implemented, this test will guide its creation.
     }
