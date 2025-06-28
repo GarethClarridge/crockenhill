@@ -18,7 +18,8 @@ class CreateSessionTable extends Migration
       $table->string('ip_address')->nullable();
       $table->text('user_agent');
     });
-  }
+  } // Closing brace for the if statement
+}
 
   public function down()
   {

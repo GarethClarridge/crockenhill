@@ -23,7 +23,8 @@ class CreateSermonsTable extends Migration
       $table->text('points')->nullable();
       $table->timestamps();
     });
-  }
+  } // Closing brace for the if statement
+}
 
   public function down()
   {

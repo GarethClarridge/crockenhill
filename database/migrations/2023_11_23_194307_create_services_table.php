@@ -17,7 +17,8 @@ class CreateServicesTable extends Migration
       $table->string('audio');
       $table->timestamps();
     });
-  }
+  } // Closing brace for the if statement
+}
 
   public function down()
   {

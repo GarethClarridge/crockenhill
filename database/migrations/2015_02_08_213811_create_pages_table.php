@@ -21,7 +21,8 @@ class CreatePagesTable extends Migration
       $table->boolean('navigation');
       $table->timestamps();
     });
-  }
+  } // Closing brace for the if statement
+}
 
   public function down()
   {

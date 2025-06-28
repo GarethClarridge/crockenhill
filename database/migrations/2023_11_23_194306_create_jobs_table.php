@@ -18,7 +18,8 @@ class CreateJobsTable extends Migration
       $table->unsignedInteger('available_at');
       $table->unsignedInteger('created_at');
     });
-  }
+  } // Closing brace for the if statement
+}
 
   public function down()
   {

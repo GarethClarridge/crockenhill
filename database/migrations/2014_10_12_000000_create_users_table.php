@@ -18,7 +18,8 @@ class CreateUsersTable extends Migration
       $table->rememberToken();
       $table->timestamps();
     });
-  }
+  } // Closing brace for the if statement
+}
 
   public function down()
   {

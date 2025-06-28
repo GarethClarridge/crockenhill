@@ -15,7 +15,8 @@ class CreatePasswordResetTokensTable extends Migration
         $table->string('token');
         $table->timestamp('created_at')->nullable();
     });
-  }
+  } // Closing brace for the if statement
+}
 
   public function down()
   {

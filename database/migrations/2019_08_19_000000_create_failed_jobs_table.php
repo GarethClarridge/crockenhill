@@ -23,7 +23,8 @@ return new class extends Migration
             $table->longText('exception');
             $table->timestamp('failed_at')->useCurrent();
         });
-    }
+    } // Closing brace for the if statement
+}
 
     /**
      * Reverse the migrations.

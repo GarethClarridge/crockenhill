@@ -23,7 +23,8 @@ class CreateMeetingsTable extends Migration
       $table->string('LeadersEmail', 50)->nullable();
       $table->timestamps();
     });
-  }
+  } // Closing brace for the if statement
+}
 
   public function down()
   {

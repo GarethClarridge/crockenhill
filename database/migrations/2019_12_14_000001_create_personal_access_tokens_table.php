@@ -19,7 +19,8 @@ class CreatePersonalAccessTokensTable extends Migration
       $table->timestamp('expires_at')->nullable();
       $table->timestamps();
     });
-  }
+  } // Closing brace for the if statement
+}
 
 
   public function down()
