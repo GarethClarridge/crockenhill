@@ -13,7 +13,7 @@ class UserFactory extends Factory
     return [
       'name' => $this->faker->name(),
       'email' => $this->faker->unique()->safeEmail(),
-      'email_verified_at' => now(), // Added this line
+      // 'email_verified_at' => now(), // Reverted: column does not exist
       'password' => 'password', // Store plain text, mutator will hash it
       'remember_token' => Str::random(10),
     ];
