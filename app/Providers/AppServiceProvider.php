@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Auth;
 // use Laravel\Dusk\DuskServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -17,8 +18,8 @@ class AppServiceProvider extends ServiceProvider
   {
 
     // Share user with all views
-    if (\Auth::user()) {
-      $user = \Auth::user();
+    if (Auth::user()) {
+      $user = Auth::user();
     } else {
       $user = null;
     }
