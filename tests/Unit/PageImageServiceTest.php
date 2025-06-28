@@ -6,8 +6,6 @@ use App\Services\PageImageService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image as InterventionImageFacade; // Alias to avoid conflict if any
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver as GdDriver; // Or specific driver used
 use Intervention\Image\Image; // The Image instance class
 use Tests\TestCase;
 use Mockery; // For mocking Image instance methods if needed
