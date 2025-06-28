@@ -13,29 +13,25 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasTable('users')) {
-            // It's good practice to ensure the columns actually exist before trying to modify them,
-            // though in this specific scenario, their problematic definition is the issue.
-
-            // Before changing column definitions, it's often necessary to update existing
-            // rows that have the problematic '0000-00-00 00:00:00' value if the column
-            // is NOT NULL. However, making them NULLable first and then setting a
-            // proper default is generally safer and more compatible.
-
-            // The goal is to make them TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            // Or TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP if your application logic requires NOT NULL.
-            // Going with NULL for broader compatibility with potentially old/weird data.
-
+            // Step 1: Update existing '0000-00-00 00:00:00' dates to NOW()
+            // This is important if the columns are currently NOT NULL or if such values exist.
             if (Schema::hasColumn('users', 'created_at')) {
-                // For MySQL:
-                // This attempts to change the column to be nullable and default to current timestamp.
-                // If it's already NOT NULL and contains '0000-00-00...', this specific statement might fail.
-                // A multi-step process (e.g., update data, then alter) is more robust for production.
-                // But for fixing the definition to allow other alters, this is a common approach.
+                // Using CAST to char is a robust way to find 'zero dates'
+                DB::statement("UPDATE users SET created_at = NOW() WHERE CAST(created_at AS CHAR(20)) = '0000-00-00 00:00:00'");
+            }
+            if (Schema::hasColumn('users', 'updated_at')) {
+                DB::statement("UPDATE users SET updated_at = NOW() WHERE CAST(updated_at AS CHAR(20)) = '0000-00-00 00:00:00'");
+            }
+
+            // Step 2: Modify columns to be nullable first, then set the default.
+            // This can help avoid issues if changing nullability and default in one step is problematic.
+            if (Schema::hasColumn('users', 'created_at')) {
+                DB::statement("ALTER TABLE users MODIFY COLUMN created_at TIMESTAMP NULL");
                 DB::statement("ALTER TABLE users MODIFY COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
             }
 
             if (Schema::hasColumn('users', 'updated_at')) {
-                // For MySQL:
+                DB::statement("ALTER TABLE users MODIFY COLUMN updated_at TIMESTAMP NULL");
                 DB::statement("ALTER TABLE users MODIFY COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
             }
         }
@@ -43,21 +39,19 @@ return new class extends Migration
 
     /**
      * Reverse the migrations.
-     *
-     * Note: Reversing this precisely can be tricky if the original state was truly problematic.
-     * For simplicity, we might just acknowledge they were changed.
-     * If they were previously NOT NULL with an invalid default, simply dropping and re-adding
-     * them according to the original (flawed) spec might not be desirable.
      */
     public function down(): void
     {
+        // Reverting these changes to a potentially problematic state is complex and often not desired.
+        // If absolutely necessary, one would need to know the exact prior column definitions.
+        // For example, if they were NOT NULL and had an invalid default like '0000-00-00 00:00:00'.
         // Schema::table('users', function (Blueprint $table) {
-        //     // If you wanted to revert, you'd need to know the exact previous state.
-        //     // For example, if they were NOT NULL with '0000-00-00...' default (which is invalid).
-        //     // $table->timestamp('created_at')->nullable(false)->change(); // This might not set the old problematic default
-        //     // $table->timestamp('updated_at')->nullable(false)->change();
+        //     if (Schema::hasColumn('users', 'created_at')) {
+        //         // $table->timestamp('created_at')->nullable(false)->change(); // This would require a valid default or existing data to be valid
+        //     }
+        //     if (Schema::hasColumn('users', 'updated_at')) {
+        //         // $table->timestamp('updated_at')->nullable(false)->change();
+        //     }
         // });
-        // Given the original issue, a simple down might not be fully restorative to the problematic state.
-        // It's often safer to ensure the 'up' makes it valid and accept that as the new baseline.
     }
 };
