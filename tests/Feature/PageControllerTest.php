@@ -325,7 +325,7 @@ class PageControllerTest extends TestCase
   #[Test]
   public function show_public_route_returns_404_for_non_existent_page()
   {
-    $response = $this->get('/non-existent-page-slug-for-test');
+    $response = $this->get('/some-area/non-existent-page-slug-for-test');
     $response->assertStatus(404);
   }
 }

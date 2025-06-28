@@ -69,7 +69,7 @@ class MeetingControllerTest extends TestCase
     // Create a meeting with a specific slug to make assertion easier
     $slugToTest = 'public-meeting-details-' . Str::random(5);
     $meeting = \App\Models\Meeting::factory()->create(['slug' => $slugToTest, 'type' => 'Occasional']);
-    $response = $this->get("/meetings/{$meeting->id}"); // Assuming show route uses ID or resolves slug
+    $response = $this->get("/meetings/{$meeting->slug}");
     $response->assertOk();
     $response->assertViewIs('meetings.show');
     $response->assertSee($slugToTest); // Assert based on slug or other displayed data

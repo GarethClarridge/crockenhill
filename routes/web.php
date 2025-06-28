@@ -69,6 +69,21 @@ Route::group(['prefix' => 'christ/sermons'], function () {
 
 //Members routes
 Auth::routes(); // This may need further review if laravel/ui is outdated.
+
+// Manual Password Reset Routes (if Auth::routes() is not providing them)
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\ResetsPasswordController;
+use App\Http\Controllers\Auth\RegisterController; // Added for manual registration routes
+
+Route::get('forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+Route::post('forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('reset-password/{token}', [ResetsPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('reset-password', [ResetsPasswordController::class, 'reset'])->name('password.update');
+
+// Manual Registration Routes (if Auth::routes() is not providing them)
+Route::get('register', [RegisterController::class, 'showRegistrationForm'])->name('register');
+Route::post('register', [RegisterController::class, 'register']);
+
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
   Route::get('', [MemberController::class, 'home'])->name('memberHome'); // Added a name for consistency
   // Manage pages
@@ -129,8 +144,8 @@ Route::permanentRedirect('online', '/');
 Route::permanentRedirect('resources', '/');
 
 // General Routes
-Route::get('/{area}/', [PageController::class, 'showPage']);
-Route::get('/{area}/{slug}', [PageController::class, 'showPage']);
+Route::get('/{area}/', [PageController::class, 'showPage'])->name('pages.showArea'); // Keep for area-only if needed, or remove
+Route::get('/{area}/{page}', [PageController::class, 'show'])->name('pages.showPublic');
 
 Route::get('500', function () {
   abort(500);

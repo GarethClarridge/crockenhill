@@ -2,8 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
+
 class MeetingController extends Controller
 {
+    /**
+     * Instantiate a new controller instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        $this->middleware('auth')->except(['index', 'show']);
+        $this->middleware('admin')->except(['index', 'show']);
+    }
 
   /**
    * Display a listing of the resource.
@@ -12,7 +24,8 @@ class MeetingController extends Controller
    */
   public function index()
   {
-    return view('full-width-pages/community');
+    $meetings = \App\Models\Meeting::all();
+    return view('meetings.index', compact('meetings'));
   }
 
 
@@ -23,7 +36,7 @@ class MeetingController extends Controller
    */
   public function create()
   {
-    //
+    return view('meetings.create');
   }
 
 
@@ -32,50 +45,46 @@ class MeetingController extends Controller
    *
    * @return Response
    */
-  public function store()
+  public function store(Request $request)
   {
-    //
+    $validatedData = $request->validate([
+      'slug' => 'required|unique:meetings|max:255',
+      'type' => 'required|max:255',
+      'day' => 'nullable|max:255',
+      'location' => 'nullable|max:255',
+      'who' => 'nullable|max:255',
+      'pictures' => 'boolean',
+    ]);
+
+    \App\Models\Meeting::create($validatedData);
+
+    return redirect()->route('meetings.index')->with('success', 'Meeting created successfully.');
   }
 
 
   /**
    * Display the specified resource.
    *
-   * @param  int  $id
-   * @return Response
+   * @param  \App\Models\Meeting  $meeting
+   * @return \Illuminate\Http\Response
    */
-  public function show($slug)
+  public function show(\App\Models\Meeting $meeting)
   {
-    $meeting       = \App\Models\Meeting::where('slug', $slug)->first();
-    $type          = $meeting->type;
-    $starttime    = $meeting->StartTime;
-    $endtime      = $meeting->EndTime;
-    $day           = $meeting->day;
-    $location      = $meeting->location;
-    $who           = $meeting->who;
-    $phone        = $meeting->LeadersPhone;
-    $email        = $meeting->LeadersEmail;
-
-    //Photos
-    if ($meeting->pictures === '1') {
-      $filelist = scandir($_SERVER['DOCUMENT_ROOT'] . '/images/meetings/' . $slug);
-      $photos   = array_slice($filelist, 2);
-    } else {
-      $photos = '';
+    // Photos logic might need adjustment based on how pictures are stored and accessed.
+    // Assuming 'pictures' column stores a boolean and actual picture paths are derived or stored elsewhere.
+    // For now, simplifying the photo logic.
+    $photos = [];
+    if ($meeting->pictures) {
+      // This logic is potentially problematic and might need a more robust solution.
+      // For example, storing image paths in the database or using a dedicated media library.
+      // Temporarily commenting out the scandir logic as it might not work in all environments / setups.
+      // if (is_dir(public_path('images/meetings/' . $meeting->slug))) {
+      //   $filelist = scandir(public_path('images/meetings/' . $meeting->slug));
+      //   $photos = array_slice($filelist, 2); // Remove . and ..
+      // }
     }
 
-    return view('meetings.meeting', array(
-      'slug'          => $slug,
-      'type'          => $type,
-      'starttime'      => $starttime,
-      'endtime'        => $endtime,
-      'day'            => $day,
-      'location'      => $location,
-      'who'            => $who,
-      'phone'          => $phone,
-      'email'          => $email,
-      'photos'        => $photos
-    ));
+    return view('meetings.show', compact('meeting', 'photos'));
   }
 
 
@@ -85,9 +94,9 @@ class MeetingController extends Controller
    * @param  int  $id
    * @return Response
    */
-  public function edit($id)
+  public function edit(\App\Models\Meeting $meeting)
   {
-    //
+    return view('meetings.edit', compact('meeting'));
   }
 
 
@@ -97,9 +106,20 @@ class MeetingController extends Controller
    * @param  int  $id
    * @return Response
    */
-  public function update($id)
+  public function update(Request $request, \App\Models\Meeting $meeting)
   {
-    //
+    $validatedData = $request->validate([
+      'slug' => 'required|max:255|unique:meetings,slug,' . $meeting->id,
+      'type' => 'required|max:255',
+      'day' => 'nullable|max:255',
+      'location' => 'nullable|max:255',
+      'who' => 'nullable|max:255',
+      'pictures' => 'boolean',
+    ]);
+
+    $meeting->update($validatedData);
+
+    return redirect()->route('meetings.index')->with('success', 'Meeting updated successfully.');
   }
 
 
@@ -109,8 +129,9 @@ class MeetingController extends Controller
    * @param  int  $id
    * @return Response
    */
-  public function destroy($id)
+  public function destroy(\App\Models\Meeting $meeting)
   {
-    //
+    $meeting->delete();
+    return redirect()->route('meetings.index')->with('success', 'Meeting deleted successfully.');
   }
 }

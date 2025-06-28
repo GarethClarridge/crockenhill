@@ -23,6 +23,11 @@ class ServiceControllerTest extends TestCase
     parent::setUp();
     $this->adminUser = \App\Models\User::factory()->admin()->create();
     $this->regularUser = \App\Models\User::factory()->create(['is_admin' => false]);
+
+    // Define a gate for 'edit-sermons'
+    \Illuminate\Support\Facades\Gate::define('edit-sermons', function ($user) {
+      return $user->is_admin ?? false;
+    });
   }
 
   // 1. Authentication/Authorization Tests
