@@ -72,9 +72,9 @@ class PageTest extends TestCase
     \App\Models\Page::query()->delete(); // Clear pages before this test
 
     // Test inArea() scope
-    $pageInChrist = \App\Models\Page::factory()->inArea('christ')->create();
-    $pageInCommunity = \App\Models\Page::factory()->inArea('community')->create();
-    $pageInChurch = \App\Models\Page::factory()->inArea('church')->create();
+    $pageInChrist = \App\Models\Page::factory()->inArea('christ')->create(['navigation' => false]);
+    $pageInCommunity = \App\Models\Page::factory()->inArea('community')->create(['navigation' => false]);
+    $pageInChurch = \App\Models\Page::factory()->inArea('church')->create(['navigation' => false]);
 
     $christPages = \App\Models\Page::inArea('christ')->get();
     $this->assertCount(1, $christPages);

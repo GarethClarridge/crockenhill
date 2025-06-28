@@ -54,12 +54,12 @@ class Sermon extends Model
 
   public function getSeriesUrlAttribute(): ?string
   {
-    return $this->series ? url('/christ/sermons/series/' . Str::slug($this->series)) : null;
+    return $this->series ? '/christ/sermons/series/' . Str::slug($this->series) : null;
   }
 
   public function getPreacherUrlAttribute(): ?string
   {
-    return $this->preacher ? url('/christ/sermons/preachers/' . Str::slug($this->preacher)) : null;
+    return $this->preacher ? '/christ/sermons/preachers/' . Str::slug($this->preacher) : null;
   }
 
   public function scopeLast12Months($query)

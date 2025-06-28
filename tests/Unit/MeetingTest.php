@@ -37,15 +37,13 @@ class MeetingTest extends TestCase
     $this->assertEquals($date->format('F j, Y, g:i A'), $meetingWithDate->formatted_date_time);
     // Assumes: public function getFormattedDateTimeAttribute() { return $this->meeting_date ? $this->meeting_date->format('F j, Y, g:i A') : null; }
 
-    // Test getLocationAddressAttribute (assuming it directly returns location_address)
+    // Test location (formerly location_address)
     $address = '123 Main St, Anytown, AT 12345';
-    $meetingWithAddress = \App\Models\Meeting::factory()->create(['location_address' => $address]);
-    $this->assertEquals($address, $meetingWithAddress->location_address);
-    // Assumes: public function getLocationAddressAttribute() { return $this->attributes['location_address']; }
-    // Or, it's just a direct attribute access if no transformation is needed.
+    $meetingWithAddress = \App\Models\Meeting::factory()->create(['location' => $address]);
+    $this->assertEquals($address, $meetingWithAddress->location);
 
-    $meetingWithoutAddress = \App\Models\Meeting::factory()->create(['location_address' => null]);
-    $this->assertNull($meetingWithoutAddress->location_address);
+    $meetingWithoutAddress = \App\Models\Meeting::factory()->create(['location' => null]);
+    $this->assertNull($meetingWithoutAddress->location);
   }
 
   #[Test] // Replaced @test

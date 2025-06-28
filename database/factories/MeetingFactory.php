@@ -4,26 +4,26 @@ namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
-use Carbon\Carbon; // Import Carbon
+use Carbon\Carbon;
 
 class MeetingFactory extends Factory
 {
   public function definition()
   {
-    $title = $this->faker->words(3, true); // This local $title is for the slug
-    $isRecurring = $this->faker->boolean(30); // 30% chance of being recurring
+    $title = $this->faker->words(3, true);
+    $isRecurring = $this->faker->boolean(30);
+    $meetingDate = $this->faker->dateTimeBetween('+0 days', '+1 year');
 
     return [
-      'slug' => Str::slug($title), // slug is still based on a generated title concept
+      'slug' => Str::slug($title),
       'type' => $this->faker->randomElement([
         'SundayAndBibleStudies',
         'ChildrenAndYoungPeople',
         'Adults',
         'Occasional'
       ]),
-      'StartTime' => $this->faker->optional()->time(),
-      'EndTime' => $this->faker->optional()->time(),
-      // 'day' is now set by onDate, or by meeting_date's day in definition
+      'StartTime' => $this->faker->optional()->time('H:i:s'),
+      'EndTime' => $this->faker->optional()->time('H:i:s'),
       'location' => $this->faker->randomElement([
         'Main Hall',
         'Church Building',
@@ -42,9 +42,8 @@ class MeetingFactory extends Factory
       'LeadersPhone' => $this->faker->optional()->numerify('##########'),
       'LeadersEmail' => $this->faker->optional()->safeEmail(),
 
-      // New fields
-      'meeting_date' => $meetingDate = $this->faker->dateTimeBetween('+0 days', '+1 year'),
-      'day' => Carbon::parse($meetingDate)->format('l'), // Set day based on meeting_date
+      'meeting_date' => $meetingDate,
+      'day' => Carbon::parse($meetingDate)->format('l'),
       'is_recurring' => $isRecurring,
       'frequency' => $isRecurring ? $this->faker->randomElement(['daily', 'weekly', 'monthly', 'annually']) : null,
     ];
@@ -55,7 +54,7 @@ class MeetingFactory extends Factory
     return $this->state(function (array $attributes) use ($date) {
       return [
         'meeting_date' => $date,
-        'day' => $date->format('l'), // Update day based on the specific date
+        'day' => $date->format('l'),
         'StartTime' => $date->format('H:i:s'), // Ensure StartTime matches the specific time
       ];
     });
@@ -88,6 +87,7 @@ class MeetingFactory extends Factory
       return [
         'meeting_date' => $date,
         'day' => $date->format('l'),
+        'StartTime' => $date->format('H:i:s'),
       ];
     });
   }
@@ -99,6 +99,7 @@ class MeetingFactory extends Factory
       return [
         'meeting_date' => $date,
         'day' => $date->format('l'),
+        'StartTime' => $date->format('H:i:s'),
       ];
     });
   }
