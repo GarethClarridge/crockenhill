@@ -15,6 +15,8 @@ class UserSeeder extends Seeder
       'name' => 'Admin User',
       'email' => 'admin1@crockenhill.org',
       'password' => Hash::make('password'),
+      'is_admin' => true,
+      'is_member' => true,
     ]);
 
     // Create Mark Drury (main preacher)
@@ -22,6 +24,15 @@ class UserSeeder extends Seeder
       'name' => 'Mark Drury',
       'email' => 'markdrury@crockenhill.org',
       'password' => Hash::make('password'),
+      'is_member' => true,
+    ]);
+
+    // Create user from old hardcoded list
+    User::create([
+      'name' => 'Gareth Clarridge',
+      'email' => 'garethclarridge@hotmail.co.uk',
+      'password' => Hash::make('password'), // Default password, user should reset
+      'is_member' => true,
     ]);
 
     // Create additional users

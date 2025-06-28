@@ -24,7 +24,17 @@ class User extends Authenticatable
    *
    * @var array
    */
-  protected $fillable = ['name', 'email', 'password'];
+  protected $fillable = ['name', 'email', 'password', 'is_admin', 'is_member'];
+
+  /**
+   * The attributes that should be cast.
+   *
+   * @var array<string, string>
+   */
+  protected $casts = [
+    'is_admin' => 'boolean',
+    'is_member' => 'boolean',
+  ];
 
   /**
    * The attributes excluded from the model's JSON form.

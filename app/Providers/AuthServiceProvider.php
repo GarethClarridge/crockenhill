@@ -35,14 +35,10 @@ class AuthServiceProvider extends ServiceProvider
         return null; // Important: return null if not granting/denying here
     });
 
-    // Gate for seeing member content (can remain email-based if that's the logic)
+    // Gate for seeing member content
     \Gate::define('see-member-content', function ($user) {
-      $member_emails = [
-        "garethclarridge@hotmail.co.uk",
-        // Consider if empty string "" is intentional or a typo
-      ];
-      // Ensure $user->email is not null before in_array if that's possible
-      return !empty($user->email) && in_array($user->email, array_filter($member_emails));
+      // User must be logged in and have the is_member flag set to true.
+      return $user && $user->is_member;
     });
 
     // Define other gates based on is_admin or specific roles/permissions

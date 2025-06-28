@@ -32,4 +32,18 @@ class UserFactory extends Factory
       ];
     });
   }
+
+  /**
+   * Indicate that the user is a member.
+   *
+   * @return \Illuminate\Database\Eloquent\Factories\Factory
+   */
+  public function member()
+  {
+    return $this->state(function (array $attributes) {
+      return [
+        'is_member' => true,
+      ];
+    });
+  }
 }
