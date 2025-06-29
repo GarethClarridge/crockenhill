@@ -1,3 +1,3 @@
 <x-guest-layout>
-    <livewire:auth.register />
+    <livewire:auth.verify-email />
 </x-guest-layout> 

@@ -32,15 +32,4 @@ class User extends Authenticatable
    * @var array
    */
   protected $hidden = ['password', 'remember_token'];
-
-  /**
-   * Hash the user's password.
-   *
-   * @param  string  $value
-   * @return void
-   */
-  public function setPasswordAttribute($value)
-  {
-    $this->attributes['password'] = Hash::make($value);
-  }
 }
