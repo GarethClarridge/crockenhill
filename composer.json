@@ -15,7 +15,7 @@
 		"laravel/sanctum": "^4.0",
 		"laravel/ui": "^4.0",
 		"league/commonmark": "^2.2",
-		"livewire/livewire": "^3.6",
+		"livewire/livewire": "^3.0",
 		"owen-oj/laravel-getid3": "^2.2",
 		"pbmedia/laravel-ffmpeg": "^8.7",
 		"pusher/pusher-php-server": "^7.2",
