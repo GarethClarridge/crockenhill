@@ -7,6 +7,7 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -55,6 +56,42 @@ class LoginTest extends TestCase
     }
 
     #[Test]
+    public function user_can_login_with_remember_me(): void
+    {
+        $user = User::factory()->create([
+            'password' => bcrypt('password123'),
+        ]);
+
+        $credentials = [
+            'email' => $user->email,
+            'password' => 'password123',
+        ];
+
+        $this->assertTrue(Auth::attempt($credentials, true));
+        $this->assertAuthenticatedAs($user);
+        $this->assertNotNull($user->fresh()->remember_token);
+    }
+
+    #[Test]
+    public function user_cannot_login_with_nonexistent_email(): void
+    {
+        $credentials = [
+            'email' => 'nonexistent@example.com',
+            'password' => 'password123',
+        ];
+
+        $this->assertFalse(Auth::attempt($credentials));
+        $this->assertGuest();
+    }
+
+    #[Test]
+    public function user_cannot_login_with_empty_credentials(): void
+    {
+        $this->assertFalse(Auth::attempt([]));
+        $this->assertGuest();
+    }
+
+    #[Test]
     public function user_can_logout(): void
     {
         $user = User::factory()->create([
@@ -66,5 +103,27 @@ class LoginTest extends TestCase
         
         Auth::logout();
         $this->assertGuest();
+    }
+
+    #[Test]
+    public function user_can_logout_and_session_is_cleared(): void
+    {
+        $user = User::factory()->create([
+            'password' => bcrypt('password123'),
+        ]);
+
+        $this->be($user);
+        $this->assertAuthenticatedAs($user);
+        
+        // Add some session data
+        session(['test_key' => 'test_value']);
+        $this->assertEquals('test_value', session('test_key'));
+        
+        Auth::logout();
+        session()->invalidate();
+        session()->regenerateToken();
+
+        $this->assertGuest();
+        $this->assertNull(session('test_key'));
     }
 } 
