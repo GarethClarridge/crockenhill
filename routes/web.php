@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
 // Import all necessary controllers
 use App\Http\Controllers\MeetingController;
@@ -159,3 +160,9 @@ Route::post('logout', function () {
     request()->session()->regenerateToken();
     return redirect('/');
 })->name('logout');
+
+// Add the email verification route
+Route::get('verify-email/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+    return redirect('/church/members');
+})->middleware(['auth', 'signed', 'throttle:6,1'])->name('verification.verify');

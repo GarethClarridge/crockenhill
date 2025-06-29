@@ -39,7 +39,8 @@ class Register extends Component
             'password' => Hash::make($this->password),
         ]);
         Auth::login($user);
-        return redirect('/church/members');
+        $user->sendEmailVerificationNotification();
+        return redirect()->route('verification.notice');
     }
 
     public function render()

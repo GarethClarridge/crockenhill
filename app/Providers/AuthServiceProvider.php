@@ -25,14 +25,14 @@ class AuthServiceProvider extends ServiceProvider
   public function boot()
   {
     Gate::before(function ($user, $ability) {
-      if ($user->email === "admin@crockenhill.org") {
+      if (str_ends_with($user->email, '@crockenhill.org')) {
         return true;
       }
     });
 
     Gate::define('see-member-content', function ($user) {
       $member_emails = [
-        "garethclarridge@hotmail.co.uk",
+        "",
         ""
       ];
       return in_array($user->email, $member_emails);
@@ -40,7 +40,7 @@ class AuthServiceProvider extends ServiceProvider
 
     Gate::define('edit-sermons', function ($user) {
       $emails = [
-        "garethclarridge@hotmail.co.uk",
+        "",
         ""
       ];
       return in_array($user->email, $emails);
@@ -48,7 +48,7 @@ class AuthServiceProvider extends ServiceProvider
 
     Gate::define('edit-songs', function ($user) {
       $emails = [
-        "garethclarridge@hotmail.co.uk",
+        "",
         ""
       ];
       return in_array($user->email, $emails);
@@ -56,7 +56,7 @@ class AuthServiceProvider extends ServiceProvider
 
     Gate::define('edit-pages', function ($user) {
       $emails = [
-        "garethclarridge@hotmail.co.uk",
+        "",
         ""
       ];
       return in_array($user->email, $emails);
