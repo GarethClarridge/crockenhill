@@ -5,7 +5,7 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\Sermon;
-use App\Models\Service;
+// use App\Models\Service;
 // use App\Models\PlayDate; // PlayDate model is removed
 // SermonFactory and ServiceFactory not explicitly used with Model::factory()
 // use Database\Factories\PlayDateFactory; // PlayDateFactory is removed
@@ -112,14 +112,11 @@ class SermonTest extends TestCase
         $this->assertTrue($sermonsLast12Months->contains($futureSermon));
         $this->assertFalse($sermonsLast12Months->contains($olderThan12Months));
 
-        // Test forService scope
+        // Test forService scope (no Service model, just use string type)
         $service1Date = Carbon::parse('2023-03-10');
         $service1Type = 'morning';
-        $service1 = \App\Models\Service::factory()->create(['date' => $service1Date, 'type' => $service1Type]);
-
         $service2Date = Carbon::parse('2023-03-12');
         $service2Type = 'evening';
-        $service2 = \App\Models\Service::factory()->create(['date' => $service2Date, 'type' => $service2Type]);
 
         $sermonForService1 = \App\Models\Sermon::factory()->create([
             'date' => $service1Date,
@@ -132,22 +129,18 @@ class SermonTest extends TestCase
         // Another sermon on same date as service1 but different type
         \App\Models\Sermon::factory()->create(['date' => $service1Date, 'service' => 'evening']);
 
-
         // The scopeForService filters by service type (enum 'morning'/'evening')
-        // To truly test "for a specific service instance", we should also match date.
-        $sermonsForService1ByType = \App\Models\Sermon::forService($service1->type)
-                                              ->whereDate('date', $service1->date)
+        $sermonsForService1ByType = \App\Models\Sermon::forService($service1Type)
+                                              ->whereDate('date', $service1Date)
                                               ->get();
         $this->assertTrue($sermonsForService1ByType->contains($sermonForService1));
         $this->assertFalse($sermonsForService1ByType->contains($sermonForService2));
 
-        // Corrected: The scope forService takes type ('morning', 'evening')
         // If we want to assert that sermons for 'morning' services on a specific date are found:
         $sermonsForMorningServiceOnDate = \App\Models\Sermon::forService('morning')
                                                     ->whereDate('date', $service1Date)
                                                     ->get();
         $this->assertTrue($sermonsForMorningServiceOnDate->contains($sermonForService1));
-
 
         // Test inSeries scope
         $seriesATitle = 'The Beatitudes';

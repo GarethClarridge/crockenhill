@@ -9,7 +9,6 @@ use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\SermonController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
-use App\Http\Controllers\ServiceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -93,9 +92,6 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
   Route::resource('pages', PageController::class);
   // Manage sermons
   Route::resource('sermons', SermonController::class);
-
-  // Service recordings
-  Route::resource('services', ServiceController::class);
 });
 
 Route::get('phpinfo', fn() => phpinfo());
