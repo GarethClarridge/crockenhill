@@ -2,18 +2,16 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-use App\Models\Meeting; // Required for policy check
-use Illuminate\Validation\Rules\Enum as EnumRule; // Renamed to avoid conflict
-use App\Enums\MeetingType; // Added Enum import
+use App\Enums\MeetingType;
+use App\Models\Meeting;
+use Illuminate\Foundation\Http\FormRequest; // Required for policy check
+use Illuminate\Validation\Rule; // Renamed to avoid conflict
+use Illuminate\Validation\Rules\Enum as EnumRule; // Added Enum import
 
 class UpdateMeetingRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {

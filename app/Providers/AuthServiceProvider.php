@@ -11,50 +11,52 @@ use Illuminate\Support\Facades\Gate;
 
 class AuthServiceProvider extends ServiceProvider
 {
-  /**
-   * The policy mappings for the application.
-   *
-   * @var array<class-string, class-string>
-   */
-  protected $policies = [
-    // 'Crockenhill\Model' => 'Crockenhill\Policies\ModelPolicy', // Original placeholder
-    Sermon::class => SermonPolicy::class,
-    Page::class => PagePolicy::class,
-  ];
+    /**
+     * The policy mappings for the application.
+     *
+     * @var array<class-string, class-string>
+     */
+    protected $policies = [
+        // 'Crockenhill\Model' => 'Crockenhill\Policies\ModelPolicy', // Original placeholder
+        Sermon::class => SermonPolicy::class,
+        Page::class => PagePolicy::class,
+    ];
 
-  /**
-   * Register any application authentication / authorization services.
-   *
-   * @return void
-   */
-  public function boot()
-  {
-    $this->registerPolicies();
+    /**
+     * Register any application authentication / authorization services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+        $this->registerPolicies();
 
-    Gate::before(function ($user, $ability) {
-      if (method_exists($user, 'hasVerifiedEmail') && !$user->hasVerifiedEmail()) {
-        return false;
-      }
-      if (str_ends_with($user->email, '@crockenhill.org')) {
-        return true;
-      }
-      return null; // Explicitly return null if no decision is made by this `before` callback
-    });
+        Gate::before(function ($user, $ability) {
+            if (method_exists($user, 'hasVerifiedEmail') && ! $user->hasVerifiedEmail()) {
+                return false;
+            }
+            if (str_ends_with($user->email, '@crockenhill.org')) {
+                return true;
+            }
 
-    Gate::define('see-member-content', function ($user) {
-      $member_emails = [
-        "", // Placeholder
-        ""  // Placeholder
-      ];
-      // Ensure $user is an object and email property exists
-      if (is_object($user) && property_exists($user, 'email')) {
-        return in_array($user->email, $member_emails);
-      }
-      return false;
-    });
+            return null; // Explicitly return null if no decision is made by this `before` callback
+        });
 
-    // Gate::define('edit-sermons', ...) // Removed, handled by SermonPolicy
-    // Gate::define('edit-songs', ...) // Removed as unused and logic would be part of SermonPolicy if relevant
-    // Gate::define('edit-pages', ...) // Removed, handled by PagePolicy
-  }
+        Gate::define('see-member-content', function ($user) {
+            $member_emails = [
+                '', // Placeholder
+                '',  // Placeholder
+            ];
+            // Ensure $user is an object and email property exists
+            if (is_object($user) && property_exists($user, 'email')) {
+                return in_array($user->email, $member_emails);
+            }
+
+            return false;
+        });
+
+        // Gate::define('edit-sermons', ...) // Removed, handled by SermonPolicy
+        // Gate::define('edit-songs', ...) // Removed as unused and logic would be part of SermonPolicy if relevant
+        // Gate::define('edit-pages', ...) // Removed, handled by PagePolicy
+    }
 }

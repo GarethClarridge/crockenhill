@@ -11,14 +11,14 @@ enum SermonService: string
     public function label(): string
     {
         return match ($this) {
-            static::MORNING => 'Morning',
-            static::EVENING => 'Evening',
-            static::OTHER => 'Other',
+            self::MORNING => 'Morning',
+            self::EVENING => 'Evening',
+            self::OTHER => 'Other',
         };
     }
 
     public static function values(): array
     {
-        return array_map(fn($case) => $case->value, self::cases());
+        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

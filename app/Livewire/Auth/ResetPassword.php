@@ -2,19 +2,24 @@
 
 namespace App\Livewire\Auth;
 
-use Livewire\Component;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
+use Livewire\Component;
 
 class ResetPassword extends Component
 {
     public $token;
+
     public $email = '';
+
     public $password = '';
+
     public $password_confirmation = '';
+
     public $status = '';
+
     public $error = '';
 
     public function mount($token)
@@ -37,6 +42,7 @@ class ResetPassword extends Component
         ]);
         if ($validator->fails()) {
             $this->error = $validator->errors()->first();
+
             return;
         }
         $status = Password::reset($data, function ($user, $password) {
@@ -46,6 +52,7 @@ class ResetPassword extends Component
         });
         if ($status === Password::PASSWORD_RESET) {
             $this->status = __($status);
+
             return redirect('/church/members');
         } else {
             $this->error = __($status);
@@ -56,4 +63,4 @@ class ResetPassword extends Component
     {
         return view('livewire.auth.reset-password');
     }
-} 
+}

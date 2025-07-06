@@ -18,9 +18,10 @@ class PagePolicy
     {
         // This logic is taken directly from the original Gate::define('edit-pages')
         $emails = [
-            "", // Placeholder, effectively means no one unless Gate::before allows
-            ""
+            '', // Placeholder, effectively means no one unless Gate::before allows
+            '',
         ];
+
         return in_array($user->email, $emails);
     }
 

@@ -13,16 +13,16 @@ enum PageArea: string
     public function label(): string
     {
         return match ($this) {
-            static::CHRIST => 'Christ',
-            static::CHURCH => 'Church',
-            static::COMMUNITY => 'Community',
-            static::MEMBERS => 'Members',
-            static::SERMONS => 'Sermons',
+            self::CHRIST => 'Christ',
+            self::CHURCH => 'Church',
+            self::COMMUNITY => 'Community',
+            self::MEMBERS => 'Members',
+            self::SERMONS => 'Sermons',
         };
     }
 
     public static function values(): array
     {
-        return array_map(fn($case) => $case->value, self::cases());
+        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

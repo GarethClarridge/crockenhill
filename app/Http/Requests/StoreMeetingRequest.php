@@ -2,17 +2,14 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Enum as EnumRule; // Renamed to avoid conflict with class Enum
-use App\Enums\MeetingType; // Added Enum import
+use App\Enums\MeetingType;
+use Illuminate\Foundation\Http\FormRequest; // Renamed to avoid conflict with class Enum
+use Illuminate\Validation\Rules\Enum as EnumRule; // Added Enum import
 
 class StoreMeetingRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {

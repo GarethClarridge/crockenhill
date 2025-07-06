@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Auth;
 
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class PasswordResetTest extends TestCase
 {
@@ -14,4 +14,4 @@ class PasswordResetTest extends TestCase
     {
         $this->assertTrue(true);
     }
-} 
+}

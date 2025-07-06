@@ -12,16 +12,16 @@ enum MeetingType: string
     public function label(): string
     {
         return match ($this) {
-            static::SUNDAY_AND_BIBLE_STUDIES => 'Sunday & Bible Studies',
-            static::CHILDREN_AND_YOUNG_PEOPLE => 'Children & Young People',
-            static::ADULTS => 'Adults',
-            static::OCCASIONAL => 'Occasional',
+            self::SUNDAY_AND_BIBLE_STUDIES => 'Sunday & Bible Studies',
+            self::CHILDREN_AND_YOUNG_PEOPLE => 'Children & Young People',
+            self::ADULTS => 'Adults',
+            self::OCCASIONAL => 'Occasional',
         };
     }
 
     // Helper to get all values for validation rules
     public static function values(): array
     {
-        return array_map(fn($case) => $case->value, self::cases());
+        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

@@ -2,18 +2,19 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\Sermon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 // use App\Models\Service;
 // use App\Models\PlayDate; // PlayDate model is removed
 // SermonFactory and ServiceFactory not explicitly used with Model::factory()
 // use Database\Factories\PlayDateFactory; // PlayDateFactory is removed
-use Illuminate\Support\Str;
-use Illuminate\Support\Carbon;
-use PHPUnit\Framework\Attributes\Test; // Added import
-use Illuminate\Support\Facades\Log; // Added for debugging
-use Illuminate\Support\Facades\Storage; // Added for Storage::disk in tests
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str; // Added import
+use PHPUnit\Framework\Attributes\Test; // Added for debugging
+use Tests\TestCase; // Added for Storage::disk in tests
+
 // Assuming Preacher and Series are not models for now, will adjust if needed.
 
 class SermonTest extends TestCase
@@ -21,17 +22,17 @@ class SermonTest extends TestCase
     use RefreshDatabase;
 
     #[Test] // Replaced @test
-    public function testSermonRelationships()
+    public function test_sermon_relationships()
     {
         // $serviceModel = \App\Models\Service::factory()->create(); // Not a direct relationship anymore
         $sermon = \App\Models\Sermon::factory()->create([
-            'service' => 'morning' // Example enum value
+            'service' => 'morning', // Example enum value
         ]);
 
         $this->assertInstanceOf(\App\Enums\SermonService::class, $sermon->service);
         $this->assertContains($sermon->service, [
             \App\Enums\SermonService::MORNING,
-            \App\Enums\SermonService::EVENING
+            \App\Enums\SermonService::EVENING,
         ]);
         // $this->assertEquals($serviceModel->id, $sermon->service->id); // This was incorrect
 
@@ -43,7 +44,7 @@ class SermonTest extends TestCase
     }
 
     #[Test] // Replaced @test
-    public function testSermonAccessors()
+    public function test_sermon_accessors()
     {
         $date = Carbon::create(2023, 1, 15, 10, 0, 0);
         $testFilename = 'sermons/audio.mp3';
@@ -62,19 +63,19 @@ class SermonTest extends TestCase
 
         // Test getSeriesUrlAttribute
         // Assuming the Sermon model has a getSeriesUrlAttribute accessor
-        $expectedSeriesUrl = '/christ/sermons/series/' . Str::slug('My Sermon Series'); // Corrected expected path
+        $expectedSeriesUrl = '/christ/sermons/series/'.Str::slug('My Sermon Series'); // Corrected expected path
         $this->assertEquals($expectedSeriesUrl, $sermon->series_url);
         // If the accessor is not yet implemented, this test will guide its creation.
 
         // Test getPreacherUrlAttribute
         // Assuming the Sermon model has a getPreacherUrlAttribute accessor
-        $expectedPreacherUrl = '/christ/sermons/preachers/' . Str::slug('John Doe'); // Corrected expected path
+        $expectedPreacherUrl = '/christ/sermons/preachers/'.Str::slug('John Doe'); // Corrected expected path
         $this->assertEquals($expectedPreacherUrl, $sermon->preacher_url);
         // If the accessor is not yet implemented, this test will guide its creation.
     }
 
     #[Test] // Replaced @test
-    public function testSermonMutatorsAndCasts()
+    public function test_sermon_mutators_and_casts()
     {
         // Test 'points' attribute casting to array when explicitly set with valid JSON
         $pointsArray = ['Point 1: Introduction', 'Point 2: Main Body', 'Point 3: Conclusion'];
@@ -83,8 +84,8 @@ class SermonTest extends TestCase
         $sermonCreated = \App\Models\Sermon::factory()->create(['points' => $pointsArray]); // Pass array directly
         $sermonFetched = \App\Models\Sermon::find($sermonCreated->id);
 
-        Log::info('SermonTest - Raw points from DB for Sermon ID ' . $sermonFetched->id . ': ' . print_r($sermonFetched->getAttributes()['points'], true));
-        Log::info('SermonTest - Casted points type for Sermon ID ' . $sermonFetched->id . ': ' . gettype($sermonFetched->points));
+        Log::info('SermonTest - Raw points from DB for Sermon ID '.$sermonFetched->id.': '.print_r($sermonFetched->getAttributes()['points'], true));
+        Log::info('SermonTest - Casted points type for Sermon ID '.$sermonFetched->id.': '.gettype($sermonFetched->points));
 
         $this->assertIsArray($sermonFetched->points);
         $this->assertEquals($pointsArray, $sermonFetched->points);
@@ -104,7 +105,7 @@ class SermonTest extends TestCase
     }
 
     #[Test] // Replaced @test
-    public function testSermonScopes()
+    public function test_sermon_scopes()
     {
         // Test last12Months scope
         $withinLast12Months = \App\Models\Sermon::factory()->withDate(Carbon::now()->subMonths(6))->create();
@@ -135,15 +136,15 @@ class SermonTest extends TestCase
 
         // The scopeForService filters by service type (enum 'morning'/'evening')
         $sermonsForService1ByType = \App\Models\Sermon::forService($service1Type)
-                                              ->whereDate('date', $service1Date)
-                                              ->get();
+            ->whereDate('date', $service1Date)
+            ->get();
         $this->assertTrue($sermonsForService1ByType->contains($sermonForService1));
         $this->assertFalse($sermonsForService1ByType->contains($sermonForService2));
 
         // If we want to assert that sermons for 'morning' services on a specific date are found:
         $sermonsForMorningServiceOnDate = \App\Models\Sermon::forService('morning')
-                                                    ->whereDate('date', $service1Date)
-                                                    ->get();
+            ->whereDate('date', $service1Date)
+            ->get();
         $this->assertTrue($sermonsForMorningServiceOnDate->contains($sermonForService1));
 
         // Test inSeries scope

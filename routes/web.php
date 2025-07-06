@@ -1,15 +1,12 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
-
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 // Import all necessary controllers
-use App\Http\Controllers\Auth\AuthenticatedSessionController; // Added this line
-use App\Http\Controllers\MeetingController;
-use App\Http\Controllers\SermonController;
+use App\Http\Controllers\MeetingController; // Added this line
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\SermonController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,30 +31,30 @@ Route::view('/christ', 'full-width-pages.christ')->name('christ');
 Route::view('/church', 'full-width-pages.church')->name('church');
 Route::view('/community', 'full-width-pages.community')->name('community');
 
-//Meeting routes
+// Meeting routes
 Route::resource('meetings', MeetingController::class);
 
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
-  Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
-  Route::get('/create', [SermonController::class, 'create'])->name('sermonCreate');
-  Route::post('/', [SermonController::class, 'store'])->name('sermonStore');
-  Route::get('/upload', [SermonController::class, 'upload'])->name('sermonUpload');
-  Route::post('/post', [SermonController::class, 'post'])->name('sermonPost');
-  Route::get('/{year}/{month}/{slug}', [SermonController::class, 'show'])->name('showSermon');
-  Route::get('/{year}/{month}/{slug}/edit', [SermonController::class, 'edit'])->name('editSermon');
-  Route::post('/{year}/{month}/{slug}/edit', [SermonController::class, 'update'])->name('updateSermon');
-  Route::post('/{year}/{month}/{slug}/delete', [SermonController::class, 'destroy'])->name('destroySermon');
-  Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
-  Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
-  Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
-  Route::get('series', [SermonController::class, 'getSerieses'])->name('getSerieses');
-  Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
-  Route::get('{service}', [SermonController::class, 'getService'])->name('getService');
+    Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
+    Route::get('/create', [SermonController::class, 'create'])->name('sermonCreate');
+    Route::post('/', [SermonController::class, 'store'])->name('sermonStore');
+    Route::get('/upload', [SermonController::class, 'upload'])->name('sermonUpload');
+    Route::post('/post', [SermonController::class, 'post'])->name('sermonPost');
+    Route::get('/{year}/{month}/{slug}', [SermonController::class, 'show'])->name('showSermon');
+    Route::get('/{year}/{month}/{slug}/edit', [SermonController::class, 'edit'])->name('editSermon');
+    Route::post('/{year}/{month}/{slug}/edit', [SermonController::class, 'update'])->name('updateSermon');
+    Route::post('/{year}/{month}/{slug}/delete', [SermonController::class, 'destroy'])->name('destroySermon');
+    Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
+    Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
+    Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
+    Route::get('series', [SermonController::class, 'getSerieses'])->name('getSerieses');
+    Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
+    Route::get('{service}', [SermonController::class, 'getService'])->name('getService');
 
 });
 
-//Members routes
+// Members routes
 
 // Add Livewire authentication routes using string syntax for Blade views
 Route::get('login', function () {
@@ -77,14 +74,14 @@ Route::get('verify-email', function () {
 })->middleware('auth')->name('verification.notice');
 
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
-  Route::get('', MemberController::class)->name('memberHome'); // Changed for invokable controller
-  // Manage pages
-  Route::resource('pages', PageController::class);
-  // Manage sermons
-  Route::resource('sermons', SermonController::class);
+    Route::get('', MemberController::class)->name('memberHome'); // Changed for invokable controller
+    // Manage pages
+    Route::resource('pages', PageController::class);
+    // Manage sermons
+    Route::resource('sermons', SermonController::class);
 });
 
-Route::get('phpinfo', fn() => phpinfo());
+Route::get('phpinfo', fn () => phpinfo());
 
 // Permanent Redirects (unchanged)
 Route::permanentRedirect('aboutus', 'church');
@@ -137,7 +134,7 @@ Route::get('/{area}/', [PageController::class, 'showPage'])->name('pages.showAre
 Route::get('/{area}/{page}', [PageController::class, 'show'])->name('pages.showPublic');
 
 Route::get('500', function () {
-  abort(500);
+    abort(500);
 });
 
 Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])

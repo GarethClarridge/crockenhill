@@ -7,9 +7,8 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\RateLimiter;
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class LoginTest extends TestCase
 {
@@ -100,7 +99,7 @@ class LoginTest extends TestCase
 
         $this->be($user);
         $this->assertAuthenticatedAs($user);
-        
+
         Auth::logout();
         $this->assertGuest();
     }
@@ -114,11 +113,11 @@ class LoginTest extends TestCase
 
         $this->be($user);
         $this->assertAuthenticatedAs($user);
-        
+
         // Add some session data
         session(['test_key' => 'test_value']);
         $this->assertEquals('test_value', session('test_key'));
-        
+
         Auth::logout();
         session()->invalidate();
         session()->regenerateToken();
@@ -126,4 +125,4 @@ class LoginTest extends TestCase
         $this->assertGuest();
         $this->assertNull(session('test_key'));
     }
-} 
+}

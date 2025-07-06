@@ -2,10 +2,8 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
-use PHPUnit\Framework\Attributes\Test; // Added import
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase; // Added import
 
 class ExampleTest extends TestCase
 {
@@ -15,7 +13,7 @@ class ExampleTest extends TestCase
      * @return void
      */
     #[Test] // Added Test attribute
-    public function testBasicTest()
+    public function test_basic_test()
     {
         $this->assertTrue(true);
     }

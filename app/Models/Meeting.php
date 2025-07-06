@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use App\Enums\MeetingFrequency;
+use App\Enums\MeetingType;
 use Illuminate\Database\Eloquent\Builder; // For scope return types
-use Illuminate\Support\Carbon; // For type hinting Carbon instances
-use App\Enums\MeetingType; // Added Enum import
-use App\Enums\MeetingFrequency; // Added Enum import
+use Illuminate\Database\Eloquent\Factories\HasFactory; // For type hinting Carbon instances
+use Illuminate\Database\Eloquent\Model; // Added Enum import
+use Illuminate\Support\Carbon; // Added Enum import
 
 /**
  * App\Models\Meeting
@@ -15,8 +15,8 @@ use App\Enums\MeetingFrequency; // Added Enum import
  * @property int $id
  * @property string $slug
  * @property MeetingType $type
- * @property ?Carbon $StartTime  // Cast to datetime:H:i:s -> Carbon
- * @property ?Carbon $EndTime    // Cast to datetime:H:i:s -> Carbon
+ * @property ?Carbon $StartTime // Cast to datetime:H:i:s -> Carbon
+ * @property ?Carbon $EndTime // Cast to datetime:H:i:s -> Carbon
  * @property string $day
  * @property ?string $location
  * @property string $who
@@ -29,6 +29,7 @@ use App\Enums\MeetingFrequency; // Added Enum import
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
  * @property-read ?string $formatted_date_time
+ *
  * @method static \Database\Factories\MeetingFactory factory(...$parameters)
  * @method static Builder|Meeting newModelQuery()
  * @method static Builder|Meeting newQuery()
@@ -36,6 +37,7 @@ use App\Enums\MeetingFrequency; // Added Enum import
  * @method static Builder|Meeting isRecurring()
  * @method static Builder|Meeting upcoming()
  * @method static Builder|Meeting onDate(Carbon $date)
+ *
  * @mixin \Eloquent
  */
 class Meeting extends Model
@@ -92,8 +94,10 @@ class Meeting extends Model
             if ($this->StartTime instanceof Carbon) {
                 $dateTime = $this->meeting_date->copy()->setTimeFrom($this->StartTime);
             }
+
             return $dateTime->format('F j, Y, g:i A');
         }
+
         return null;
     }
 
@@ -118,7 +122,7 @@ class Meeting extends Model
      */
     public function getNextOccurrence(): ?Carbon
     {
-        if (!$this->is_recurring || !$this->meeting_date || !$this->frequency) {
+        if (! $this->is_recurring || ! $this->meeting_date || ! $this->frequency) {
             return null;
         }
 
@@ -173,7 +177,7 @@ class Meeting extends Model
                         ->day($originalMeetingTime->day)
                         ->setTimeFrom($originalMeetingTime);
                 }
-                 // Ensure it respects the original day if possible
+                // Ensure it respects the original day if possible
                 if ($nextOccurrence->month !== $originalMeetingTime->month || $nextOccurrence->day !== $originalMeetingTime->day) {
                     $nextOccurrence->month($originalMeetingTime->month)->day($originalMeetingTime->day);
                 }
@@ -182,6 +186,7 @@ class Meeting extends Model
                 // This case should ideally not be reached if frequency is always a valid Enum or null
                 return null;
         }
+
         return $nextOccurrence;
     }
 }

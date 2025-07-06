@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class RouteTest extends TestCase
 {
@@ -25,4 +25,4 @@ class RouteTest extends TestCase
             $response->assertSee($expectedText);
         }
     }
-} 
+}

@@ -2,18 +2,22 @@
 
 namespace App\Livewire\Auth;
 
-use Livewire\Component;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Livewire\Component;
 
 class Register extends Component
 {
     public $name = '';
+
     public $email = '';
+
     public $password = '';
+
     public $password_confirmation = '';
+
     public $error = '';
 
     public function register()
@@ -31,6 +35,7 @@ class Register extends Component
         ]);
         if ($validator->fails()) {
             $this->error = $validator->errors()->first();
+
             return;
         }
         $user = User::create([
@@ -40,6 +45,7 @@ class Register extends Component
         ]);
         Auth::login($user);
         $user->sendEmailVerificationNotification();
+
         return redirect()->route('verification.notice');
     }
 
@@ -47,4 +53,4 @@ class Register extends Component
     {
         return view('livewire.auth.register');
     }
-} 
+}

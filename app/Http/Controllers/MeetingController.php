@@ -28,6 +28,7 @@ class MeetingController extends Controller
     public function index()
     {
         $meetings = Meeting::all();
+
         return view('meetings.index', compact('meetings'));
     }
 
@@ -44,7 +45,6 @@ class MeetingController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \App\Http\Requests\StoreMeetingRequest  $request
      * @return \Illuminate\Http\RedirectResponse
      */
     public function store(StoreMeetingRequest $request)
@@ -58,7 +58,6 @@ class MeetingController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param  \App\Models\Meeting  $meeting
      * @return \Illuminate\View\View
      */
     public function show(\App\Models\Meeting $meeting)
@@ -83,7 +82,6 @@ class MeetingController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  \App\Models\Meeting  $meeting
      * @return \Illuminate\View\View
      */
     public function edit(\App\Models\Meeting $meeting)
@@ -94,8 +92,6 @@ class MeetingController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \App\Http\Requests\UpdateMeetingRequest  $request
-     * @param  \App\Models\Meeting  $meeting
      * @return \Illuminate\Http\RedirectResponse
      */
     public function update(UpdateMeetingRequest $request, Meeting $meeting)
@@ -109,12 +105,12 @@ class MeetingController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Meeting  $meeting
      * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Meeting $meeting)
     {
         $meeting->delete();
+
         return redirect()->route('meetings.index')->with('success', 'Meeting deleted successfully.');
     }
 }

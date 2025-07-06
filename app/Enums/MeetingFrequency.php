@@ -12,15 +12,15 @@ enum MeetingFrequency: string
     public function label(): string
     {
         return match ($this) {
-            static::DAILY => 'Daily',
-            static::WEEKLY => 'Weekly',
-            static::MONTHLY => 'Monthly',
-            static::ANNUALLY => 'Annually',
+            self::DAILY => 'Daily',
+            self::WEEKLY => 'Weekly',
+            self::MONTHLY => 'Monthly',
+            self::ANNUALLY => 'Annually',
         };
     }
 
     public static function values(): array
     {
-        return array_map(fn($case) => $case->value, self::cases());
+        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

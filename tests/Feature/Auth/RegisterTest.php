@@ -8,8 +8,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class RegisterTest extends TestCase
 {
@@ -53,7 +53,7 @@ class RegisterTest extends TestCase
 
         // Try to create second user with same email
         $this->expectException(\Illuminate\Database\QueryException::class);
-        
+
         User::create([
             'name' => 'Jane Doe',
             'email' => 'john@example.com', // Same email
@@ -124,4 +124,4 @@ class RegisterTest extends TestCase
         $this->assertTrue(Hash::check($password, $user->password));
         $this->assertFalse(Hash::check($password_confirmation, $user->password));
     }
-} 
+}

@@ -2,60 +2,59 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Models\Page;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 // use Laravel\Dusk\DuskServiceProvider;
-use App\Models\Page;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
 
-  /**
-   * Bootstrap any application services.
-   *
-   * @return void
-   */
-  public function boot()
-  {
+        // Share user with all views
+        if (Auth::user()) {
+            $user = Auth::user();
+        } else {
+            $user = null;
+        }
 
-    // Share user with all views
-    if (Auth::user()) {
-      $user = Auth::user();
-    } else {
-      $user = null;
+        view()->share('user', $user);
+
+        // Share $pages with the header component
+        View::composer('components.layout.header', function ($view) {
+            $view->with('pages', Page::all());
+        });
     }
 
-    view()->share('user', $user);
+    /**
+     * Register any application services.
+     *
+     * This service provider is a great spot to register your various container
+     * bindings with the application. As you can see, we are registering our
+     * "Registrar" implementation here. You can add your own bindings too!
+     *
+     * @return void
+     */
+    public function register()
+    {
+        $this->app->bind(
+            'Illuminate\Contracts\Auth\Registrar',
+            'App\Services\Registrar'
+        );
 
-    // Share $pages with the header component
-    View::composer('components.layout.header', function ($view) {
-      $view->with('pages', Page::all());
-    });
-  }
+        $this->app->bind('path.public', function () {
+            return base_path().'/public';
+        });
 
-  /**
-   * Register any application services.
-   *
-   * This service provider is a great spot to register your various container
-   * bindings with the application. As you can see, we are registering our
-   * "Registrar" implementation here. You can add your own bindings too!
-   *
-   * @return void
-   */
-  public function register()
-  {
-    $this->app->bind(
-      'Illuminate\Contracts\Auth\Registrar',
-      'App\Services\Registrar'
-    );
-
-    $this->app->bind('path.public', function () {
-      return base_path() . '/public';
-    });
-
-    // if ($this->app->environment('local', 'testing')) {
-    //   $this->app->register(DuskServiceProvider::class);
-    // }
-  }
+        // if ($this->app->environment('local', 'testing')) {
+        //   $this->app->register(DuskServiceProvider::class);
+        // }
+    }
 }
