@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use Illuminate\Contracts\Events\Dispatcher as DispatcherContract;
@@ -11,7 +13,7 @@ class EventServiceProvider extends ServiceProvider
   /**
    * The event handler mappings for the application.
    *
-   * @var array
+   * @var array<string, array<int, string>>
    */
   protected $listen = [
     'event.name' => [

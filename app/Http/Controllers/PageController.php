@@ -38,7 +38,7 @@ class PageController extends Controller
    * Display a listing of all pages for administrative purposes.
    * Requires 'edit-pages' authorization.
    *
-   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse Returns a view with all pages or redirects if not authorized.
+   * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse Returns a view with all pages or redirects if not authorized.
    */
   public function index()
   {
@@ -52,7 +52,7 @@ class PageController extends Controller
    * Show the form for creating a new page.
    * Requires 'edit-pages' authorization.
    *
-   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse Returns the page creation view or redirects if not authorized.
+   * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse Returns the page creation view or redirects if not authorized.
    */
   public function create()
   {
@@ -66,7 +66,7 @@ class PageController extends Controller
    *
    * @param \App\Models\Page $page The Page model instance.
    * @param \League\CommonMark\CommonMarkConverter $converter Service to convert markdown to HTML.
-   * @return \Illuminate\View\View Returns the view for displaying the page.
+   * @return \Illuminate\Contracts\View\View Returns the view for displaying the page.
    */
   public function show(\App\Models\Page $page, CommonMarkConverter $converter)
   {
@@ -114,7 +114,7 @@ class PageController extends Controller
    * Requires 'edit-pages' authorization. Uses route model binding.
    *
    * @param \App\Models\Page $page The Page model instance to edit.
-   * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse Returns the page editing view or redirects if not authorized.
+   * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse Returns the page editing view or redirects if not authorized.
    */
   public function edit(\App\Models\Page $page)
   {

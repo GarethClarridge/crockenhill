@@ -45,7 +45,7 @@ class Meeting extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'slug',
@@ -127,11 +127,6 @@ class Meeting extends Model
 
         if ($nextOccurrence->gte($now)) {
             return $nextOccurrence;
-        }
-
-        // Ensure $this->frequency is an instance of MeetingFrequency due to casting
-        if (!$this->frequency instanceof MeetingFrequency) {
-            return null; // Should not happen if casting is correct and data is valid
         }
 
         switch ($this->frequency) {

@@ -39,7 +39,7 @@ class Page extends Model
   /**
    * The attributes that are mass assignable.
    *
-   * @var array<int, string>
+   * @var list<string>
    */
   protected $fillable = [
     'heading',
@@ -76,11 +76,10 @@ class Page extends Model
    */
   public function getRouteAttribute(): ?string
   {
-    if ($this->area && $this->slug) {
-      $area = $this->area instanceof \BackedEnum ? $this->area->value : $this->area;
-      return '/' . trim($area, '/') . '/' . trim($this->slug, '/');
+    if ($this->slug) {
+      return '/' . trim($this->area->value, '/') . '/' . trim($this->slug, '/');
     }
-    return null; // Or some default/error handling if area or slug is missing
+    return null; // Or some default/error handling if slug is missing
   }
 
   public function scopeInArea(Builder $query, string $area): Builder

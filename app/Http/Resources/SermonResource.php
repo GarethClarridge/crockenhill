@@ -5,6 +5,9 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin \App\Models\Sermon
+ */
 class SermonResource extends JsonResource
 {
     /**
@@ -18,7 +21,7 @@ class SermonResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'slug' => $this->slug,
-            'date' => $this->date?->format('Y-m-d'),
+            'date' => $this->date->format('Y-m-d'),
             'human_date' => $this->human_date,
             'service' => $this->service,
             'preacher' => $this->preacher,
@@ -28,8 +31,6 @@ class SermonResource extends JsonResource
             'audio_url' => $this->audio_url,
             'series_url' => $this->series_url,
             'preacher_url' => $this->preacher_url,
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

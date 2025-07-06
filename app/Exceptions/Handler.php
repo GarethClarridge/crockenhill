@@ -10,7 +10,7 @@ class Handler extends ExceptionHandler
   /**
    * A list of the exception types that are not reported.
    *
-   * @var array
+   * @var array<int, class-string<Throwable>>
    */
   protected $dontReport = [
     //
@@ -19,7 +19,7 @@ class Handler extends ExceptionHandler
   /**
    * A list of the inputs that are never flashed for validation exceptions.
    *
-   * @var array
+   * @var array<int, string>
    */
   protected $dontFlash = [
     'password',
@@ -43,11 +43,18 @@ class Handler extends ExceptionHandler
    * Render an exception into an HTTP response.
    *
    * @param  \Illuminate\Http\Request  $request
-   * @param  \Exception  $exception
+   * @param  \Throwable  $exception
    * @return \Illuminate\Http\Response
    */
   public function render($request, Throwable $exception)
   {
-    return parent::render($request, $exception);
+    $response = parent::render($request, $exception);
+
+    // Ensure the response is an instance of Illuminate\Http\Response
+    if (!$response instanceof \Illuminate\Http\Response) {
+      return response($response->getContent(), $response->getStatusCode(), $response->headers->all());
+    }
+
+    return $response;
   }
 }

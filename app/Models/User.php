@@ -44,7 +44,7 @@ class User extends Authenticatable implements MustVerifyEmail
   /**
    * The attributes that are mass assignable.
    *
-   * @var array<int, string>
+   * @var list<string>
    */
   protected $fillable = [
       'name',
@@ -56,7 +56,7 @@ class User extends Authenticatable implements MustVerifyEmail
   /**
    * The attributes excluded from the model's JSON form.
    *
-   * @var array<int, string>
+   * @var list<string>
    */
   protected $hidden = [
       'password',

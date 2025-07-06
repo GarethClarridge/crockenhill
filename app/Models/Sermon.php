@@ -49,7 +49,7 @@ class Sermon extends Model
   /**
    * The attributes that are mass assignable.
    *
-   * @var array<int, string>
+   * @var list<string>
    */
   protected $fillable = [
     'title',
@@ -96,7 +96,7 @@ class Sermon extends Model
 
   public function getHumanDateAttribute(): ?string
   {
-    return $this->date ? $this->date->format('F j, Y') : null;
+    return $this->date->format('F j, Y');
   }
 
   public function getAudioUrlAttribute(): ?string

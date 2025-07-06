@@ -20,12 +20,11 @@ class StoreMeetingRequest extends FormRequest
         // If a specific MeetingPolicy exists or needs to be created, this should use it.
         // For now, checking if the user has a general admin capability.
         // This replicates the middleware protection on the controller route.
-        return $this->user() && $this->user()->tokenCan('admin') || ($this->user() && method_exists($this->user(), 'is_admin') && $this->user()->is_admin);
+        return $this->user() && $this->user()->is_admin;
         // A more robust way would be to create MeetingPolicy and use:
         // return $this->user()->can('create', \App\Models\Meeting::class);
         // For now, this matches the 'admin' middleware which is not standard Laravel policy based.
         // The 'admin' middleware is EnsureUserIsAdmin.php which checks $request->user()->is_admin
-        return $this->user() && $this->user()->is_admin;
     }
 
     /**

@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\Storage; // Added for Storage facade
 use App\Http\Requests\StoreSermonRequest; // Added for Form Request
 use App\Http\Requests\UpdateSermonRequest; // Added for Update Form Request
 use App\Http\Requests\PostSermonRequest; // Added for Post Form Request
+use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
+use App\Enums\SermonService;
 
 class SermonController extends Controller
 {
@@ -21,54 +25,51 @@ class SermonController extends Controller
   /**
    * Display a listing of the resource.
    *
-   * @return Response
+   * @return View
    */
-  public function index()
+  public function index(): View
   {
-    $distinct_dates = \App\Models\Sermon::select('date')
+    $distinct_dates = Sermon::select('date')
       ->distinct()
       ->orderBy('date', 'desc')
       ->limit(6)
       ->pluck('date');
 
     if ($distinct_dates->isNotEmpty()) {
-      $latest_sermons = \App\Models\Sermon::whereIn('date', $distinct_dates)
+      $latest_sermons = Sermon::whereIn('date', $distinct_dates)
         ->orderBy('date', 'desc')
         ->orderBy('service', 'asc')
         ->get()
-        ->groupBy(function ($sermon) {
-          // Assuming 'date' is a Carbon instance or date string 'Y-m-d'
-          return $sermon->date instanceof \Carbon\Carbon ? $sermon->date->format('Y-m-d') : $sermon->date;
-        });
+        ->groupBy(fn($sermon) => $sermon->date->format('Y-m-d'));
     } else {
       $latest_sermons = collect();
     }
 
-    return view('sermons.index', array(
+    return view('sermons.index', [
       'latest_sermons' => $latest_sermons
-    ));
+    ]);
   }
 
   public function getAll()
   {
-    $sermons = \App\Models\Sermon::orderBy('date', 'desc')
+    $sermons = Sermon::orderBy('date', 'desc')
       ->orderBy('service', 'asc')
       ->get()
       ->groupBy(function ($sermon) {
-        return $sermon->date instanceof \Carbon\Carbon ? $sermon->date->format('Y-m-d') : $sermon->date;
+        return $sermon->date->format('Y-m-d');
       });
 
-    return view('sermons.all', array(
+    return view('sermons.all', [
       'sermons' => $sermons,
-    ));
+    ]);
   }
 
   /**
    * Show the form for creating a new resource.
    *
-   * @return Response
+   * @return View
    */
-  public function create()
+  public function create(): View
   {
     $this->authorize('create', Sermon::class);
 
@@ -83,9 +84,9 @@ class SermonController extends Controller
   /**
    * Store a newly created resource in storage.
    *
-   * @return Response
+   * @return RedirectResponse
    */
-  public function store(StoreSermonRequest $request) // Changed Request to StoreSermonRequest
+  public function store(StoreSermonRequest $request): RedirectResponse
   {
     // Gate check removed, handled by StoreSermonRequest::authorize()
 
@@ -130,8 +131,8 @@ class SermonController extends Controller
 
     $sermon->title      = $validatedData['title'];
     $sermon->filename   = $path; // filename comes from storage, not direct validation
-    $sermon->date       = $validatedData['date'];
-    $sermon->service    = $validatedData['service'];
+    $sermon->date       = Carbon::parse($validatedData['date']);
+    $sermon->service    = SermonService::from($validatedData['service']);
     $sermon->slug       = Str::slug($validatedData['title']); // Use validated title for slug
     $sermon->series     = $validatedData['series'] ?? null; // Handle nullable
     $sermon->reference  = $validatedData['reference'] ?? null; // Handle nullable
@@ -147,10 +148,12 @@ class SermonController extends Controller
   /**
    * Display the specified resource.
    *
-   * @param  int  $id
-   * @return Response
+   * @param  int  $year
+   * @param  int  $month
+   * @param  string $slug
+   * @return View
    */
-  public function show($year, $month, $slug)
+  public function show($year, $month, $slug): View
   {
     $sermon = $this->findSermonOrFail((int)$year, (int)$month, $slug);
     $heading = $sermon->title;
@@ -178,10 +181,12 @@ class SermonController extends Controller
   /**
    * Show the form for editing the specified resource.
    *
-   * @param  int  $id
-   * @return Response
+   * @param  int  $year
+   * @param  int  $month
+   * @param  string $slug
+   * @return View
    */
-  public function edit($year, $month, $slug)
+  public function edit($year, $month, $slug): View
   {
     $sermon = $this->findSermonOrFail((int)$year, (int)$month, $slug);
     $this->authorize('update', $sermon);
@@ -203,10 +208,13 @@ class SermonController extends Controller
   /**
    * Update the specified resource in storage.
    *
-   * @param  int  $id
-   * @return Response
+   * @param  int  $year
+   * @param  int  $month
+   * @param  string $slug
+   * @param  UpdateSermonRequest $request
+   * @return RedirectResponse
    */
-  public function update($year, $month, $slug, UpdateSermonRequest $request) // Changed Request to UpdateSermonRequest
+  public function update($year, $month, $slug, UpdateSermonRequest $request): RedirectResponse
   {
     // Gate check removed, handled by UpdateSermonRequest
 
@@ -215,8 +223,8 @@ class SermonController extends Controller
     $validatedData = $request->validated();
 
     $sermon->title      = $validatedData['title'];
-    $sermon->date       = $validatedData['date'];
-    $sermon->service    = $validatedData['service'];
+    $sermon->date       = Carbon::parse($validatedData['date']);
+    $sermon->service    = SermonService::from($validatedData['service']);
     $sermon->slug       = Str::slug($validatedData['title']); // Update slug if title changes
     $sermon->series     = $validatedData['series'] ?? null;
     $sermon->reference  = $validatedData['reference'] ?? null;
@@ -244,10 +252,12 @@ class SermonController extends Controller
   /**
    * Remove the specified resource from storage.
    *
-   * @param  int  $id
-   * @return Response
+   * @param  int  $year
+   * @param  int  $month
+   * @param  string $slug
+   * @return RedirectResponse
    */
-  public function destroy($year, $month, $slug)
+  public function destroy($year, $month, $slug): RedirectResponse
   {
     $sermon = $this->findSermonOrFail((int)$year, (int)$month, $slug);
     $this->authorize('delete', $sermon);
@@ -257,11 +267,11 @@ class SermonController extends Controller
     return redirect()->route('sermonIndex')->with('message', 'Sermon successfully deleted!');
   }
 
-  public function getPreachers()
+  public function getPreachers(): View
   {
-    $page = \App\Models\Page::where('slug', 'preachers')->first();
+    $page = Page::where('slug', 'preachers')->first();
 
-    $preachers_with_counts = \App\Models\Sermon::select('preacher', \Illuminate\Support\Facades\DB::raw('COUNT(*) as sermons_count'))
+    $preachers_with_counts = Sermon::select('preacher', DB::raw('COUNT(*) as sermons_count'))
       ->groupBy('preacher')
       ->orderByDesc('sermons_count')
       ->orderBy('preacher', 'asc')
@@ -269,6 +279,7 @@ class SermonController extends Controller
 
     $preacher_array = [];
     foreach ($preachers_with_counts as $preacher_data) {
+      /** @phpstan-ignore-next-line */
       $preacher_array[$preacher_data->preacher] = [$preacher_data->sermons_count, $preacher_data->preacher];
     }
 
@@ -328,9 +339,9 @@ class SermonController extends Controller
   /**
    * Show the simple upload for creating a new resource.
    *
-   * @return Response
+   * @return View
    */
-  public function upload()
+  public function upload(): View
   {
     $this->authorize('create', Sermon::class);
 
@@ -342,9 +353,9 @@ class SermonController extends Controller
   /**
    * Post a newly created resource in storage.
    *
-   * @return Response
+   * @return RedirectResponse
    */
-  public function post(PostSermonRequest $request) // Changed from Request to PostSermonRequest
+  public function post(PostSermonRequest $request): RedirectResponse
   {
     // Manual Gate check removed
     // Manual file validation check removed
@@ -362,12 +373,10 @@ class SermonController extends Controller
 
 
     $date = Str::beforeLast($originalFilenameBase, '-');
-    if (Str::afterLast($originalFilenameBase, '-') === 'am') {
-      $service = 'morning';
-    } elseif (Str::afterLast($originalFilenameBase, '-') === 'pm') {
-      $service = 'evening';
-    } else {
-      $service = 'other'; // Default service if not 'am' or 'pm'
+    $serviceString = match (Str::afterLast($originalFilenameBase, '-')) {
+      'am' => 'morning',
+      'pm' => 'evening',
+      default => 'other',
     };
 
     //Reference
@@ -386,16 +395,16 @@ class SermonController extends Controller
     $sermon = new \App\Models\Sermon;
     $sermon->title      = $track->getTitle();
     $sermon->filename   = $path;
-    $sermon->date       = $date; // This date is parsed from filename, might need validation/conversion
-    $sermon->service    = $service;
-    $sermon->slug       = Str::slug($track->getTitle() ?? $originalFilenameBase); // Fallback for slug
+    $sermon->date       = Carbon::parse($date);
+    $sermon->service    = SermonService::from($serviceString);
+    $sermon->slug       = Str::slug($track->getTitle() ?: $originalFilenameBase); // Fallback for slug
     $sermon->series     = $track->getAlbum();
     $sermon->reference  = $reference;
     $sermon->preacher   = $track->getArtist();
     // Points are not handled by this upload method.
     $sermon->save();
 
-    return redirect()->route('sermonIndex')->with('message', ($track->getTitle() ?? 'Sermon') . ' successfully posted!');
+    return redirect()->route('sermonIndex')->with('message', ($track->getTitle() ?: 'Sermon') . ' successfully posted!');
   }
 
   private function findSermonOrFail(int $year, int $month, string $slug): \App\Models\Sermon
