@@ -8,6 +8,7 @@ use App\Policies\PagePolicy;
 use App\Policies\SermonPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -35,7 +36,7 @@ class AuthServiceProvider extends ServiceProvider
             if (method_exists($user, 'hasVerifiedEmail') && ! $user->hasVerifiedEmail()) {
                 return false;
             }
-            if (str_ends_with($user->email, '@crockenhill.org')) {
+            if (Str::endsWith($user->email, '@crockenhill.org')) {
                 return true;
             }
 
