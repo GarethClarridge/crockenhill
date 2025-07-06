@@ -130,8 +130,8 @@ Route::permanentRedirect('online', '/');
 Route::permanentRedirect('resources', '/');
 
 // Catch-all dynamic page routes (these must be last!)
-Route::get('/{area}/', [PageController::class, 'showPage'])->name('pages.showArea'); // Keep for area-only if needed, or remove
-Route::get('/{area}/{page}', [PageController::class, 'show'])->name('pages.showPublic');
+Route::get('/{area}', [PageController::class, 'showPage'])->name('pages.showArea'); // Area-only route without trailing slash
+Route::get('/{area}/{slug}', [PageController::class, 'show'])->name('pages.showPublic');
 
 Route::get('500', function () {
     abort(500);

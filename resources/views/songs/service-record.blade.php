@@ -18,11 +18,11 @@
 @section('dynamic_content')
 
 <section>
-  <form action="/church/members/songs/service-record" method="post" class="form-horizontal">
+  <form action="/church/members/songs/service-record" method="post" class="space-y-4">
     <input type="hidden" name="_token" value="{{ csrf_token() }}">
 
     <div class="mb-3">
-      <label for="date" class="control-label">Date</label>
+      <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
       <input type="date" name="date" value="{{ $next_service_upload_date }}" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded">
     </div>
 
@@ -34,7 +34,7 @@
           <div class="container mx-auto sm:px-4">
             <div class="flex flex-wrap ">
               <div class="w-1/6">
-                <label for="{{$key.$i}}" class="control-label">{{$i}}</label>
+                <label for="{{$key.$i}}" class="block text-sm font-medium text-gray-700 mb-1">{{$i}}</label>
               </div>
               <div class="w-5/6">
                 <select name="{{$key.$i}}" class="song-select block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded">
@@ -54,8 +54,8 @@
       @endfor
     @endforeach
 
-      <div class="d-grid gap-2 m-6">
-        <input class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl" type="submit" value="Save">
+      <div class="grid gap-2 m-6">
+        <x-form-button variant="primary" size="xl">Save</x-form-button>
       </div>
     </div>
   </form>

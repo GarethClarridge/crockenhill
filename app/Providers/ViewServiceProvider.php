@@ -62,57 +62,112 @@ class ViewServiceProvider extends ServiceProvider
             // User
             $user = Auth::user();
 
-            // Set name, slug and area from url
-            if (request()->segment(3)) {
-                $name = request()->segment(3);
-                $slug = request()->segment(2);
-                $area = request()->segment(1);
-            } elseif (request()->segment(2)) {
-                $name = null;
-                $slug = request()->segment(2);
-                $area = request()->segment(1);
+            // Check if a page was passed from the controller
+            $page = $view->page ?? null;
+            
+            if ($page) {
+                // Use the page data from the controller
+                $description = '<meta name="description" content="'.$page->description.'">';
+                $heading = $page->heading;
+                $content = htmlspecialchars_decode($page->body);
+                $headingpicture = '/images/headings/large/'.$page->slug.'.jpg';
+                $area = $page->area->value;
+                $slug = $page->slug;
+                $links = Page::where('area', $area)
+                    ->where('slug', '!=', $slug)
+                    ->where('slug', '!=', 'privacy-policy')
+                    ->where('admin', '!=', 'yes')
+                    ->orderBy(DB::raw('RAND()'))
+                    ->take(5)
+                    ->get();
+                $view->with([
+                    'description' => $description,
+                    'heading' => $heading,
+                    'content' => $content,
+                    'headingpicture' => $headingpicture,
+                    'area' => $area,
+                    'slug' => $slug,
+                    'links' => $links,
+                ]);
             } else {
-                $name = null;
-                $slug = request()->segment(1);
-                $area = request()->segment(1);
-            }
+                // Fall back to existing URL-based logic
+                // Set name, slug and area from url
+                if (request()->segment(3)) {
+                    $name = request()->segment(3);
+                    $slug = request()->segment(2);
+                    $area = request()->segment(1);
+                } elseif (request()->segment(2)) {
+                    $name = null;
+                    $slug = request()->segment(2);
+                    $area = request()->segment(1);
+                } else {
+                    $name = null;
+                    $slug = request()->segment(1);
+                    $area = request()->segment(1);
+                }
 
-            // Initialize variables
-            $description = '';
-            $heading = '';
-            $headingpicture = '';
-            $content = '';
-            $links = collect();
-            $pages = collect();
+                // Initialize variables
+                $description = '';
+                $heading = '';
+                $headingpicture = '';
+                $content = '';
+                $links = collect();
+                $pages = collect();
 
-            // Songs - Note: Song model doesn't exist, so this section is commented out
-            // if (request()->segment(3) == 'songs' && request()->segment(5)) {
-            //   // Look up song in songs table of database
-            //   $songnumber = request()->segment(4);
-            //   $song = \App\Models\Song::where('id', $songnumber)->first();
-            //   // ... rest of song logic
-            // }
+                // Songs - Note: Song model doesn't exist, so this section is commented out
+                // if (request()->segment(3) == 'songs' && request()->segment(5)) {
+                //   // Look up song in songs table of database
+                //   $songnumber = request()->segment(4);
+                //   $song = \App\Models\Song::where('id', $songnumber)->first();
+                //   // ... rest of song logic
+                // }
 
-            // Sermons
-            if (request()->segment(2) == 'sermons' && request()->segment(5)) {
-                $sermon_slug = request()->segment(5);
-                $month = request()->segment(4);
-                $year = request()->segment(3);
+                // Sermons
+                if (request()->segment(2) == 'sermons' && request()->segment(5)) {
+                    $sermon_slug = request()->segment(5);
+                    $month = request()->segment(4);
+                    $year = request()->segment(3);
 
-                $sermon = Sermon::where('slug', $sermon_slug)
-                    ->whereMonth('date', '=', $month)
-                    ->whereYear('date', '=', $year)
-                    ->first();
+                    $sermon = Sermon::where('slug', $sermon_slug)
+                        ->whereMonth('date', '=', $month)
+                        ->whereYear('date', '=', $year)
+                        ->first();
 
-                if ($sermon) {
-                    $heading = $sermon->title;
+                    if ($sermon) {
+                        $heading = $sermon->title;
+
+                        // Heading picture
+                        $headingpicture = '/images/headings/large/'.$sermon_slug.'.jpg';
+
+                        // Find relevant links
+                        $links = Page::where('area', $slug)
+                            ->where('slug', '!=', $slug)
+                            ->where('slug', '!=', 'homepage')
+                            ->orderBy(DB::raw('RAND()'))
+                            ->take(5)
+                            ->get();
+
+                        // Description
+                        $description = '<meta name="description" content="'.$heading.'">';
+                    }
+                }
+
+                // Auth
+                elseif ((request()->segment(1) == 'login')
+                  || (request()->segment(1) == 'register')
+                  || (request()->segment(1) == 'password')
+                ) {
+
+                    $area = 'Members';
+
+                    $heading = ucwords(str_replace('-', ' ', $slug));
 
                     // Heading picture
-                    $headingpicture = '/images/headings/large/'.$sermon_slug.'.jpg';
+                    $headingpicture = '/images/headings/large/'.$area.'.jpg';
 
                     // Find relevant links
-                    $links = Page::where('area', $slug)
-                        ->where('slug', '!=', $slug)
+                    $links = Page::where('area', $area)
+                        ->where('slug', '!=', $area)
                         ->where('slug', '!=', 'homepage')
                         ->orderBy(DB::raw('RAND()'))
                         ->take(5)
@@ -121,186 +176,158 @@ class ViewServiceProvider extends ServiceProvider
                     // Description
                     $description = '<meta name="description" content="'.$heading.'">';
                 }
-            }
 
-            // Auth
-            elseif ((request()->segment(1) == 'login')
-              || (request()->segment(1) == 'register')
-              || (request()->segment(1) == 'password')
-            ) {
+                // Level 3
+                elseif (request()->segment(3)) {
 
-                $area = 'Members';
-
-                $heading = ucwords(str_replace('-', ' ', $slug));
-
-                // Heading picture
-                $headingpicture = '/images/headings/large/'.$area.'.jpg';
-
-                // Find relevant links
-                $links = Page::where('area', $area)
-                    ->where('slug', '!=', $area)
-                    ->where('slug', '!=', 'homepage')
-                    ->orderBy(DB::raw('RAND()'))
-                    ->take(5)
-                    ->get();
-
-                // Description
-                $description = '<meta name="description" content="'.$heading.'">';
-            }
-
-            // Level 3
-            elseif (request()->segment(3)) {
-
-                // Description
-                $description = '<meta name="description" content="'.$slug.': '.$name.'">';
-
-                // Heading
-                if ($view->heading) {
-                    $heading = $view->heading;
-                } else {
-                    $heading = str_replace('-', ' ', ucwords(request()->segment(count(request()->segments()))));
-                }
-
-                // Heading picture
-                $headingpicture = '/images/headings/large/'.$slug.'.jpg';
-
-                // Links
-                if (request()->segment(2) == 'sermons') {
-                    $links = Page::where('area', 'sermons')
-                        ->where('slug', '!=', $slug)
-                        ->where('slug', '!=', $area)
-                        ->orderBy('slug', 'asc')
-                        ->get();
-                } elseif (request()->segment(2) == 'members') {
-                    $links = Page::where('area', 'sermons')
-                        ->where('slug', '!=', $slug)
-                        ->where('slug', '!=', $area)
-                        ->where('admin', '!=', 'yes')
-                        ->orderBy('slug', 'asc')
-                        ->get();
-                } else {
-                    $links = Page::where('area', $area)
-                        ->where('slug', '!=', $slug)
-                        ->where('slug', '!=', $area)
-                        ->where('slug', '!=', 'privacy-policy')
-                        ->where('admin', '!=', 'yes')
-                        ->orderBy('slug', 'asc')
-                        ->get();
-                }
-            }
-
-            // Level 2
-            elseif (request()->segment(2)) {
-
-                // Load page
-                $page = Page::where('slug', $slug)->first();
-                if ($page) {
                     // Description
-                    $description = '<meta name="description" content="'.$page->description.'">';
+                    $description = '<meta name="description" content="'.$slug.': '.$name.'">';
 
                     // Heading
-                    $heading = $page->heading;
+                    if ($view->heading) {
+                        $heading = $view->heading;
+                    } else {
+                        $heading = str_replace('-', ' ', ucwords(request()->segment(count(request()->segments()))));
+                    }
 
-                    // Content
-                    $content = htmlspecialchars_decode($page->body);
-                } else {
-                    $description = null;
-                    $heading = null;
-                }
+                    // Heading picture
+                    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
 
-                // Heading picture
-                $headingpicture = '/images/headings/large/'.$slug.'.jpg';
-
-                // Links
-                if (request()->segment(2) == 'sermons') {
-                    $links = Page::where('area', 'sermons')
-                        ->where('slug', '!=', $slug)
-                        ->where('slug', '!=', $area)
-                        ->where('admin', '!=', 'yes')
-                        ->orderBy('slug', 'asc')
-                        ->get();
-                } elseif (request()->segment(2) == 'members') {
-                    $links = Page::where('area', 'sermons')
-                        ->where('slug', '!=', $slug)
-                        ->where('slug', '!=', $area)
-                        ->where('admin', '!=', 'yes')
-                        ->orderBy('slug', 'asc')
-                        ->get();
-                } elseif (request()->segment(1) == 'community') {
-                    $meeting = Meeting::where('slug', $slug)->first();
-
-                    if ($meeting) {
-                        $related_meetings = Meeting::where('type', $meeting->type)
-                            ->pluck('slug');
-
-                        $links = Page::where('area', $area)
-                            ->whereIn('slug', $related_meetings)
+                    // Links
+                    if (request()->segment(2) == 'sermons') {
+                        $links = Page::where('area', 'sermons')
+                            ->where('slug', '!=', $slug)
+                            ->where('slug', '!=', $area)
+                            ->orderBy('slug', 'asc')
+                            ->get();
+                    } elseif (request()->segment(2) == 'members') {
+                        $links = Page::where('area', 'sermons')
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', $area)
                             ->where('admin', '!=', 'yes')
                             ->orderBy('slug', 'asc')
                             ->get();
+                    } else {
+                        $links = Page::where('area', $area)
+                            ->where('slug', '!=', $slug)
+                            ->where('slug', '!=', $area)
+                            ->where('slug', '!=', 'privacy-policy')
+                            ->where('admin', '!=', 'yes')
+                            ->orderBy('slug', 'asc')
+                            ->get();
                     }
-                } else {
+                }
+
+                // Level 2
+                elseif (request()->segment(2)) {
+
+                    // Load page - filter by both area and slug
+                    $page = Page::where('slug', $slug)->where('area', $area)->first();
+                    if ($page) {
+                        // Description
+                        $description = '<meta name="description" content="'.$page->description.'">';
+
+                        // Heading
+                        $heading = $page->heading;
+
+                        // Content
+                        $content = htmlspecialchars_decode($page->body);
+                    } else {
+                        $description = null;
+                        $heading = null;
+                    }
+
+                    // Heading picture
+                    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
+
+                    // Links
+                    if (request()->segment(2) == 'sermons') {
+                        $links = Page::where('area', 'sermons')
+                            ->where('slug', '!=', $slug)
+                            ->where('slug', '!=', $area)
+                            ->where('admin', '!=', 'yes')
+                            ->orderBy('slug', 'asc')
+                            ->get();
+                    } elseif (request()->segment(2) == 'members') {
+                        $links = Page::where('area', 'sermons')
+                            ->where('slug', '!=', $slug)
+                            ->where('slug', '!=', $area)
+                            ->where('admin', '!=', 'yes')
+                            ->orderBy('slug', 'asc')
+                            ->get();
+                    } elseif (request()->segment(1) == 'community') {
+                        $meeting = Meeting::where('slug', $slug)->first();
+
+                        if ($meeting) {
+                            $related_meetings = Meeting::where('type', $meeting->type)
+                                ->pluck('slug');
+
+                            $links = Page::where('area', $area)
+                                ->whereIn('slug', $related_meetings)
+                                ->where('slug', '!=', $slug)
+                                ->where('slug', '!=', $area)
+                                ->where('admin', '!=', 'yes')
+                                ->orderBy('slug', 'asc')
+                                ->get();
+                        }
+                    } else {
+                        $links = Page::where('area', $area)
+                            ->where('slug', '!=', $slug)
+                            ->where('slug', '!=', $area)
+                            ->where('slug', '!=', 'privacy-policy')
+                            ->where('slug', '!=', 'attending-in-person')
+                            ->where('slug', '!=', 'resources')
+                            ->where('admin', '!=', 'yes')
+                            ->orderBy('slug', 'asc')
+                            ->get();
+                    }
+                }
+
+                // Level 1
+                else {
+
+                    // Load page - filter by both area and slug
+                    $page = Page::where('slug', $area)->where('area', $area)->first();
+
+                    if ($page) {
+                        // Description
+                        $description = '<meta name="description" content="'.$page->description.'">';
+
+                        // Heading
+                        $heading = $page->heading;
+
+                        // Content
+                        $content = htmlspecialchars_decode($page->body);
+                    } else {
+                        // Default values if page is not found (e.g. for homepage handled by its own view logic)
+                        $description = '<meta name="description" content="Welcome to our Church.">';
+                        $heading = 'Welcome';
+                        $content = '';
+                    }
+
+                    // Heading picture
+                    $headingpicture = '/images/headings/large/'.$area.'.jpg';
+
+                    // Links
                     $links = Page::where('area', $area)
-                        ->where('slug', '!=', $slug)
                         ->where('slug', '!=', $area)
                         ->where('slug', '!=', 'privacy-policy')
-                        ->where('slug', '!=', 'attending-in-person')
-                        ->where('slug', '!=', 'resources')
                         ->where('admin', '!=', 'yes')
-                        ->orderBy('slug', 'asc')
+                        ->orderBy(DB::raw('RAND()'))
+                        ->take(5)
                         ->get();
                 }
+
+                $view->with([
+                    'description' => $description,
+                    'heading' => $heading,
+                    'content' => $content,
+                    'headingpicture' => $headingpicture,
+                    'area' => $area ?? null,
+                    'slug' => $slug ?? null,
+                    'links' => $links,
+                ]);
             }
-
-            // Level 1
-            else {
-
-                // Load page
-                $page = Page::where('slug', $area)->first();
-
-                if ($page) {
-                    // Description
-                    $description = '<meta name="description" content="'.$page->description.'">';
-
-                    // Heading
-                    $heading = $page->heading;
-
-                    // Content
-                    $content = htmlspecialchars_decode($page->body);
-                } else {
-                    // Default values if page is not found (e.g. for homepage handled by its own view logic)
-                    $description = '<meta name="description" content="Welcome to our Church.">';
-                    $heading = 'Welcome';
-                    $content = '';
-                }
-
-                // Heading picture
-                $headingpicture = '/images/headings/large/'.$area.'.jpg';
-
-                // Links
-                $links = Page::where('area', $area)
-                    ->where('slug', '!=', $area)
-                    ->where('slug', '!=', 'privacy-policy')
-                    ->where('admin', '!=', 'yes')
-                    ->orderBy(DB::raw('RAND()'))
-                    ->take(5)
-                    ->get();
-            }
-
-            $view->with([
-                'name' => $name ?? '',
-                'slug' => $slug ?? $area,
-                'area' => $area,
-                'description' => $description,
-                'heading' => $heading,
-                'headingpicture' => $headingpicture,
-                'content' => $content,
-                'links' => $links,
-                'user' => $user,
-                'pages' => $pages,
-            ]);
         });
 
         View::composer(['full-width-pages.home', 'full-width-pages.community'], function ($view) {

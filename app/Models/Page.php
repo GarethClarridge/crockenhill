@@ -85,9 +85,10 @@ class Page extends Model
         return null; // Or some default/error handling if slug is missing
     }
 
-    public function scopeInArea(Builder $query, string $area): Builder
+    public function scopeInArea(Builder $query, string|PageArea $area): Builder
     {
-        return $query->where('area', $area);
+        $areaValue = $area instanceof PageArea ? $area->value : $area;
+        return $query->where('area', $areaValue);
     }
 
     public function scopeIsNavigation(Builder $query, bool $isNavigation = true): Builder

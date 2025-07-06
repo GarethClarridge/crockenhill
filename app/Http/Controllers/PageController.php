@@ -30,6 +30,12 @@ class PageController extends Controller
      */
     public function showPage()
     {
+        // Debug: Log that showPage was called
+        \Log::info('PageController::showPage called', [
+            'request_url' => request()->url(),
+            'segments' => request()->segments(),
+        ]);
+        
         return view('layouts/page');
     }
 
@@ -62,19 +68,68 @@ class PageController extends Controller
 
     /**
      * Display the specified page to the public.
-     * Uses route model binding to fetch the Page by its slug.
+     * Manually resolves the page by slug and area.
      *
-     * @param  \App\Models\Page  $page  The Page model instance.
+     * @param  string  $area  The area of the page.
+     * @param  string  $slug  The slug of the page.
      * @param  \League\CommonMark\CommonMarkConverter  $converter  Service to convert markdown to HTML.
      * @return \Illuminate\Contracts\View\View Returns the view for displaying the page.
      */
-    public function show(\App\Models\Page $page, CommonMarkConverter $converter)
+    public function show(string $area, string $slug, CommonMarkConverter $converter)
     {
-        $html = $converter->convert($page->markdown);
+        // Debug: Log the parameters
+        \Log::info('PageController::show called', [
+            'area' => $area,
+            'slug' => $slug,
+            'request_url' => request()->url(),
+        ]);
 
-        // The view 'pages.show' might expect $page->body, ensure consistency
-        // or update the view. Assuming $html is what's needed.
-        return View::make('pages.show')->with(compact('page', 'html'));
+        // Debug: Check if pages exist in database
+        $allPages = Page::all();
+        \Log::info('All pages in database', [
+            'count' => $allPages->count(),
+            'pages' => $allPages->map(fn($p) => ['id' => $p->id, 'slug' => $p->slug, 'area' => $p->area->value])->toArray(),
+        ]);
+
+        // Debug: Check the specific query
+        $query = Page::where('slug', $slug)->where('area', $area);
+        \Log::info('Page query', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings(),
+        ]);
+
+        // Manually resolve the page by slug and area
+        $page = $query->first();
+        
+        if (!$page) {
+            \Log::error('Page not found', [
+                'area' => $area,
+                'slug' => $slug,
+                'query_sql' => $query->toSql(),
+                'query_bindings' => $query->getBindings(),
+            ]);
+            abort(404, 'Page not found');
+        }
+
+        \Log::info('Page found', [
+            'page_id' => $page->id,
+            'page_slug' => $page->slug,
+            'page_area' => $page->area->value,
+        ]);
+
+        // The ViewServiceProvider handles most of the page display logic through view composers
+        // We just need to pass the page data to the view
+        $html = $converter->convert($page->markdown);
+        
+        return View::make('layouts/page')->with([
+            'page' => $page,
+            'html' => $html,
+            'content' => $html, // The view composer expects 'content'
+            'heading' => $page->heading,
+            'description' => $page->description,
+            'area' => $page->area->value,
+            'slug' => $page->slug,
+        ]);
     }
 
     /**

@@ -52,23 +52,23 @@
           
             <p class="mt-6">Appears in navigation</p>
             <div class="grid grid-cols-2 gap-3 pt-2">
-              <div class="h-full flex items-center ps-4 bg-gray-300 rounded">
+              <div class="h-full flex items-center pl-4 bg-gray-300 rounded">
                 @if ($page->navigation)
                   <input checked id="navigation-radio-1" type="radio" value="yes" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
                 @else 
                   <input id="navigation-radio-1" type="radio" value="yes" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
                 @endif
-                  <label for="navigation-radio-1" class="w-full py-4 ms-2 text-sm font-medium text-gray-900">
+                  <label for="navigation-radio-1" class="w-full py-4 ml-2 text-sm font-medium text-gray-900">
                     Yes
                   </label>
               </div>
-              <div class="h-full flex items-center ps-4 bg-gray-300 rounded">
+              <div class="h-full flex items-center pl-4 bg-gray-300 rounded">
                 @if ($page->navigation)
                   <input id="navigation-radio-2" type="radio" value="no" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
                 @else
                   <input checked id="navigation-radio-2" type="radio" value="no" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
                 @endif
-                  <label for="navigation-radio-2" class="w-full py-4 ms-2 text-sm font-medium text-gray-900">
+                  <label for="navigation-radio-2" class="w-full py-4 ml-2 text-sm font-medium text-gray-900">
                     No
                   </label>
               </div>
@@ -112,11 +112,11 @@
       </div>
 
       <div class="form-actions my-3">
-        <div class="d-grid gap-2 mb-3">
-          <input class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl" type="submit" value="Save">
+        <div class="grid gap-2 mb-3">
+          <x-form-button variant="primary" size="xl">Save</x-form-button>
         </div>
         <div class="text-center">
-          <a href="/church/members/pages/" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline btn-outline py-3 px-4 leading-tight text-xl">Cancel</a>
+          <x-button link="/church/members/pages/" variant="outline">Cancel</x-button>
         </div>
       </div>
 

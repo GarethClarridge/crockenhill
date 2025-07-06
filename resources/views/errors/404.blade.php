@@ -20,8 +20,8 @@
 
                     <p>Sorry, that page doesn't seem to exist.</p>
 
-                    <div class="d-grid gap-2 m-6">
-                      <a class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded  no-underline bg-blue-600 hover:bg-blue-600 py-3 px-4 leading-tight text-xl" href="/">Go to the homepage</a>
+                    <div class="grid gap-2 m-6">
+                      <x-button link="/" variant="primary">Go to the homepage</x-button>
                     </div>
 
                 </article>

@@ -38,16 +38,12 @@ class PageFactory extends Factory
         return $this->isNavigation(false);
     }
 
-    public function inArea(string $areaName): Factory
+    public function inArea(string|\App\Enums\PageArea $area): Factory
     {
-        return $this->state(function (array $attributes) use ($areaName) {
-            if (! in_array($areaName, PageArea::values(), true)) {
-                throw new \InvalidArgumentException("Invalid area: $areaName");
-            }
-
-            return [
-                'area' => $areaName,
-            ];
-        });
+        $areaValue = $area instanceof \App\Enums\PageArea ? $area->value : $area;
+        if (!in_array($areaValue, \App\Enums\PageArea::values(), true)) {
+            throw new \InvalidArgumentException("Invalid area: $areaValue");
+        }
+        return $this->state(fn () => ['area' => $areaValue]);
     }
 }
