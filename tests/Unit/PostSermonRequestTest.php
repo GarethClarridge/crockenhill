@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test; // Added import
 use PHPUnit\Framework\Attributes\DataProvider; // Added import
+use Mockery;
 
 class PostSermonRequestTest extends TestCase
 {
@@ -20,24 +21,30 @@ class PostSermonRequestTest extends TestCase
     $this->request = new PostSermonRequest();
   }
 
-  #[Test] // Added Test
-  public function test_authorize_allows_user_with_edit_sermons_permission()
+  #[Test]
+  public function test_authorize_allows_user_with_create_permission()
   {
-    Gate::shouldReceive('allows')
+    $user = Mockery::mock(\stdClass::class);
+    $user->shouldReceive('can')
       ->once()
-      ->with('edit-sermons')
+      ->with('create', \App\Models\Sermon::class)
       ->andReturn(true);
+
+    $this->request->setUserResolver(fn () => $user);
 
     $this->assertTrue($this->request->authorize());
   }
 
-  #[Test] // Added Test
-  public function test_authorize_denies_user_without_edit_sermons_permission()
+  #[Test]
+  public function test_authorize_denies_user_without_create_permission()
   {
-    Gate::shouldReceive('allows')
+    $user = Mockery::mock(\stdClass::class);
+    $user->shouldReceive('can')
       ->once()
-      ->with('edit-sermons')
+      ->with('create', \App\Models\Sermon::class)
       ->andReturn(false);
+
+    $this->request->setUserResolver(fn () => $user);
 
     $this->assertFalse($this->request->authorize());
   }

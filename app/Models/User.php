@@ -39,7 +39,7 @@ class User extends Authenticatable implements MustVerifyEmail
   /**
    * The database table used by the model.
    */
-  protected string $table = 'users';
+  protected $table = 'users';
 
   /**
    * The attributes that are mass assignable.

@@ -10,9 +10,10 @@ use App\Models\Sermon;
 // SermonFactory and ServiceFactory not explicitly used with Model::factory()
 // use Database\Factories\PlayDateFactory; // PlayDateFactory is removed
 use Illuminate\Support\Str;
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test; // Added import
 use Illuminate\Support\Facades\Log; // Added for debugging
+use Illuminate\Support\Facades\Storage; // Added for Storage::disk in tests
 // Assuming Preacher and Series are not models for now, will adjust if needed.
 
 class SermonTest extends TestCase
@@ -27,8 +28,11 @@ class SermonTest extends TestCase
             'service' => 'morning' // Example enum value
         ]);
 
-        $this->assertIsString($sermon->service);
-        $this->assertContains($sermon->service, ['morning', 'evening']);
+        $this->assertInstanceOf(\App\Enums\SermonService::class, $sermon->service);
+        $this->assertContains($sermon->service, [
+            \App\Enums\SermonService::MORNING,
+            \App\Enums\SermonService::EVENING
+        ]);
         // $this->assertEquals($serviceModel->id, $sermon->service->id); // This was incorrect
 
         // PlayDate related assertions are removed as PlayDate feature is removed.
@@ -54,7 +58,7 @@ class SermonTest extends TestCase
 
         // Test getAudioUrlAttribute - Assuming it returns a URL based on the stored path
         // This might need adjustment based on how audio_url is actually stored and retrieved
-        $this->assertEquals(url($testFilename), $sermon->audio_url); // Accessor should build this
+        $this->assertEquals(Storage::disk('public')->url($testFilename), $sermon->audio_url); // Accessor should build this
 
         // Test getSeriesUrlAttribute
         // Assuming the Sermon model has a getSeriesUrlAttribute accessor
@@ -74,9 +78,9 @@ class SermonTest extends TestCase
     {
         // Test 'points' attribute casting to array when explicitly set with valid JSON
         $pointsArray = ['Point 1: Introduction', 'Point 2: Main Body', 'Point 3: Conclusion'];
-        $pointsJson = json_encode($pointsArray);
+        // $pointsJson = json_encode($pointsArray); // No longer needed
 
-        $sermonCreated = \App\Models\Sermon::factory()->create(['points' => $pointsJson]);
+        $sermonCreated = \App\Models\Sermon::factory()->create(['points' => $pointsArray]); // Pass array directly
         $sermonFetched = \App\Models\Sermon::find($sermonCreated->id);
 
         Log::info('SermonTest - Raw points from DB for Sermon ID ' . $sermonFetched->id . ': ' . print_r($sermonFetched->getAttributes()['points'], true));

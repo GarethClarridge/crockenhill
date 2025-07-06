@@ -40,7 +40,10 @@ class SermonFactory extends Factory
         'Life of David',
         'Parables of Jesus',
       ]),
-      'points' => $this->faker->optional()->text(500),
+      'points' => $this->faker->optional()->randomElement([
+        null,
+        [$this->faker->sentence(), $this->faker->sentence(), $this->faker->sentence()],
+      ]),
     ];
   }
 

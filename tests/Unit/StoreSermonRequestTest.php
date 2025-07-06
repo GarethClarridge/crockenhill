@@ -22,26 +22,38 @@ class StoreSermonRequestTest extends TestCase
     $this->request = new StoreSermonRequest();
   }
 
-  #[Test] // Added Test
+  #[Test]
   public function test_authorize_allows_user_with_edit_sermons_permission()
   {
-    Gate::shouldReceive('allows')
+    $mockUser = \Mockery::mock();
+    $mockUser->shouldReceive('can')
       ->once()
-      ->with('edit-sermons')
+      ->with('create', \App\Models\Sermon::class)
       ->andReturn(true);
 
-    $this->assertTrue($this->request->authorize());
+    $request = \Mockery::mock(StoreSermonRequest::class)->makePartial();
+    $request->shouldAllowMockingProtectedMethods()
+      ->shouldReceive('user')
+      ->andReturn($mockUser);
+
+    $this->assertTrue($request->authorize());
   }
 
-  #[Test] // Added Test
+  #[Test]
   public function test_authorize_denies_user_without_edit_sermons_permission()
   {
-    Gate::shouldReceive('allows')
+    $mockUser = \Mockery::mock();
+    $mockUser->shouldReceive('can')
       ->once()
-      ->with('edit-sermons')
+      ->with('create', \App\Models\Sermon::class)
       ->andReturn(false);
 
-    $this->assertFalse($this->request->authorize());
+    $request = \Mockery::mock(StoreSermonRequest::class)->makePartial();
+    $request->shouldAllowMockingProtectedMethods()
+      ->shouldReceive('user')
+      ->andReturn($mockUser);
+
+    $this->assertFalse($request->authorize());
   }
 
   #[Test] // Added Test
@@ -118,7 +130,13 @@ class StoreSermonRequestTest extends TestCase
 
       // Service validation
       'service_missing' => [['title' => 'VT', 'file' => $dummyMp3, 'date' => '2024-01-01', 'preacher' => 'VP'], false, ['service' => 'required']],
-      'service_invalid_value' => [['title' => 'VT', 'file' => $dummyMp3, 'date' => '2024-01-01', 'service' => 'special', 'preacher' => 'VP'], false, ['service' => 'valid service']],
+      'service_invalid_value' => [[
+        'title' => 'VT',
+        'file' => $dummyMp3,
+        'date' => '2024-01-01',
+        'service' => 'special',
+        'preacher' => 'VP'
+      ], false, ['service' => 'The selected service is invalid.']],
 
       // Series validation (nullable, so only check max length if provided)
       'series_too_long' => [['title' => 'VT', 'file' => $dummyMp3, 'date' => '2024-01-01', 'service' => 'morning', 'series' => str_repeat('b', 256), 'preacher' => 'VP'], false, ['series' => '255 characters']],

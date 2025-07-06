@@ -32,6 +32,7 @@ Route::view('/christianity-explored', 'full-width-pages.christianity-explored')-
 // Full width pages
 Route::view('/christ', 'full-width-pages.christ')->name('christ');
 Route::view('/church', 'full-width-pages.church')->name('church');
+Route::view('/community', 'full-width-pages.community')->name('community');
 
 //Meeting routes
 Route::resource('meetings', MeetingController::class);
@@ -131,7 +132,7 @@ Route::permanentRedirect('reopening', 'attending-in-person');
 Route::permanentRedirect('online', '/');
 Route::permanentRedirect('resources', '/');
 
-// General Routes
+// Catch-all dynamic page routes (these must be last!)
 Route::get('/{area}/', [PageController::class, 'showPage'])->name('pages.showArea'); // Keep for area-only if needed, or remove
 Route::get('/{area}/{page}', [PageController::class, 'show'])->name('pages.showPublic');
 

@@ -19,26 +19,82 @@ class UpdateSermonRequestTest extends TestCase
     $this->request = new UpdateSermonRequest();
   }
 
-  #[Test] // Added Test
-  public function test_authorize_allows_user_with_edit_sermons_permission()
+  #[Test]
+  public function test_authorize_allows_user_with_update_permission()
   {
-    Gate::shouldReceive('allows')
-      ->once()
-      ->with('edit-sermons')
-      ->andReturn(true);
+    // Create a fake sermon with known date and slug
+    $sermon = \App\Models\Sermon::factory()->create([
+      'slug' => 'test-sermon',
+      'date' => '2024-06-01',
+    ]);
 
-    $this->assertTrue($this->request->authorize());
+    // Mock the user
+    $user = $this->getMockBuilder(\App\Models\User::class)
+      ->disableOriginalConstructor()
+      ->getMock();
+    $user->expects($this->once())
+      ->method('can')
+      ->withAnyParameters()
+      ->willReturn(true);
+
+    // Mock the request to return the user and correct route params
+    $request = $this->getMockBuilder(\App\Http\Requests\UpdateSermonRequest::class)
+      ->onlyMethods(['user', 'route'])
+      ->getMock();
+    $request->expects($this->any())
+      ->method('user')
+      ->willReturn($user);
+    $request->expects($this->any())
+      ->method('route')
+      ->willReturnCallback(function ($param) {
+        return match ($param) {
+          'year' => 2024,
+          'month' => 6,
+          'slug' => 'test-sermon',
+          default => null,
+        };
+      });
+
+    $this->assertTrue($request->authorize());
   }
 
-  #[Test] // Added Test
-  public function test_authorize_denies_user_without_edit_sermons_permission()
+  #[Test]
+  public function test_authorize_denies_user_without_update_permission()
   {
-    Gate::shouldReceive('allows')
-      ->once()
-      ->with('edit-sermons')
-      ->andReturn(false);
+    // Create a fake sermon with known date and slug
+    $sermon = \App\Models\Sermon::factory()->create([
+      'slug' => 'test-sermon',
+      'date' => '2024-06-01',
+    ]);
 
-    $this->assertFalse($this->request->authorize());
+    // Mock the user
+    $user = $this->getMockBuilder(\App\Models\User::class)
+      ->disableOriginalConstructor()
+      ->getMock();
+    $user->expects($this->once())
+      ->method('can')
+      ->withAnyParameters()
+      ->willReturn(false);
+
+    // Mock the request to return the user and correct route params
+    $request = $this->getMockBuilder(\App\Http\Requests\UpdateSermonRequest::class)
+      ->onlyMethods(['user', 'route'])
+      ->getMock();
+    $request->expects($this->any())
+      ->method('user')
+      ->willReturn($user);
+    $request->expects($this->any())
+      ->method('route')
+      ->willReturnCallback(function ($param) {
+        return match ($param) {
+          'year' => 2024,
+          'month' => 6,
+          'slug' => 'test-sermon',
+          default => null,
+        };
+      });
+
+    $this->assertFalse($request->authorize());
   }
 
   #[Test] // Added Test

@@ -7,7 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\Meeting; // Assuming Crockenhill namespace
 // MeetingFactory not explicitly used if using Model::factory()
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test; // Added import
 
 class MeetingTest extends TestCase
@@ -64,7 +64,7 @@ class MeetingTest extends TestCase
 
     // Test frequency (assuming it's a string, no special cast yet)
     $meetingWithFrequency = \App\Models\Meeting::factory()->recurring('monthly')->create();
-    $this->assertEquals('monthly', $meetingWithFrequency->frequency);
+    $this->assertEquals(\App\Enums\MeetingFrequency::MONTHLY, $meetingWithFrequency->frequency);
 
     $meetingWithoutFrequency = \App\Models\Meeting::factory()->notRecurring()->create();
     $this->assertNull($meetingWithoutFrequency->frequency);

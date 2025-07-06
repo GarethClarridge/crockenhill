@@ -2,6 +2,7 @@
 'page',
 ])
 
+@if ($page)
 <div class="relative max-w-full flex-1 px-4 mb-4">
   <div class="rounded-lg shadow bg-white border-1 border-gray-300 p-0 m-2">
     <div class="relative overflow-hidden">
@@ -43,3 +44,4 @@
     </div>
   </div>
 </div>
+@endif

@@ -78,6 +78,8 @@ class Meeting extends Model
         'frequency' => MeetingFrequency::class,
     ];
 
+    protected $table = 'meetings';
+
     /**
      * Get the meeting's formatted date and time.
      * Example: January 15, 2023, 10:30 AM

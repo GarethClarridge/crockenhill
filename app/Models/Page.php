@@ -34,7 +34,7 @@ class Page extends Model
 {
   use HasFactory;
 
-  protected string $table = 'pages';
+  protected $table = 'pages';
 
   /**
    * The attributes that are mass assignable.
@@ -77,7 +77,8 @@ class Page extends Model
   public function getRouteAttribute(): ?string
   {
     if ($this->area && $this->slug) {
-      return '/' . trim($this->area, '/') . '/' . trim($this->slug, '/');
+      $area = $this->area instanceof \BackedEnum ? $this->area->value : $this->area;
+      return '/' . trim($area, '/') . '/' . trim($this->slug, '/');
     }
     return null; // Or some default/error handling if area or slug is missing
   }

@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
+use App\Enums\PageArea;
 
 class PageFactory extends Factory
 {
@@ -15,7 +16,7 @@ class PageFactory extends Factory
       'slug' => Str::slug($heading),
       'heading' => $heading,
       'description' => $this->faker->sentence(10),
-      'area' => $this->faker->randomElement(['main', 'sidebar', 'footer', 'header']),
+      'area' => $this->faker->randomElement(PageArea::values()),
       'body' => $this->faker->paragraphs(3, true),
       'admin' => $this->faker->randomElement(['yes', 'no']),
       'markdown' => $this->faker->optional()->paragraphs(2, true),
@@ -40,6 +41,9 @@ class PageFactory extends Factory
   public function inArea(string $areaName): Factory
   {
     return $this->state(function (array $attributes) use ($areaName) {
+      if (!in_array($areaName, PageArea::values(), true)) {
+        throw new \InvalidArgumentException("Invalid area: $areaName");
+      }
       return [
         'area' => $areaName,
       ];

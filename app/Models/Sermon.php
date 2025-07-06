@@ -42,9 +42,9 @@ use App\Enums\SermonService; // Added Enum import
 class Sermon extends Model
 {
   use HasFactory;
-  protected string $table = 'sermons';
+  protected $table = 'sermons';
 
-  public bool $timestamps = false;
+  public $timestamps = false;
 
   /**
    * The attributes that are mass assignable.

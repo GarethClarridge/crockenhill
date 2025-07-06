@@ -51,6 +51,7 @@ class StoreSermonRequest extends FormRequest
       'file.max' => 'The sermon audio file may not be greater than 50MB.',
       'file.mimes' => 'The sermon audio file must be an MP3.',
       'service.in' => 'Please select a valid service (morning, evening, or other).',
+      'service.enum' => 'Please select a valid service (morning, evening, or other).',
     ];
   }
 }
