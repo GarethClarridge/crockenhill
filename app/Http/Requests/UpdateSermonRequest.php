@@ -4,12 +4,30 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use App\Models\Sermon; // Added for type hinting and fetching model
+use Illuminate\Validation\Rules\Enum; // Added for Enum validation
+use App\Enums\SermonService; // Added Enum import
 
 class UpdateSermonRequest extends FormRequest
 {
   public function authorize(): bool
   {
-    return Gate::allows('edit-sermons');
+    $year = $this->route('year');
+    $month = $this->route('month');
+    $slug = $this->route('slug');
+
+    // Attempt to find the sermon model instance
+    // This replicates the logic from SermonController::findSermonOrFail without aborting directly
+    $sermon = Sermon::where('slug', $slug)
+                     ->whereYear('date', $year)
+                     ->whereMonth('date', $month)
+                     ->first();
+
+    if (!$sermon) {
+        return false; // If sermon not found, deny access
+    }
+
+    return $this->user()->can('update', $sermon);
   }
 
   public function rules(): array
@@ -19,7 +37,7 @@ class UpdateSermonRequest extends FormRequest
       // 'file' is not included here; file updates are typically handled separately or not at all in this form.
       // If file updates were allowed, it would be 'nullable|file|mimes:mp3|max:51200'.
       'date'      => 'required|date_format:Y-m-d',
-      'service'   => 'required|string|in:morning,evening,other',
+      'service'   => ['required', new Enum(SermonService::class)],
       'series'    => 'nullable|string|max:255',
       'reference' => 'nullable|string|max:255',
       'preacher'  => 'required|string|max:255',

@@ -1,0 +1,26 @@
+<?php
+
+namespace App\Enums;
+
+enum MeetingFrequency: string
+{
+    case DAILY = 'daily';
+    case WEEKLY = 'weekly';
+    case MONTHLY = 'monthly';
+    case ANNUALLY = 'annually';
+
+    public function label(): string
+    {
+        return match ($this) {
+            static::DAILY => 'Daily',
+            static::WEEKLY => 'Weekly',
+            static::MONTHLY => 'Monthly',
+            static::ANNUALLY => 'Annually',
+        };
+    }
+
+    public static function values(): array
+    {
+        return array_column(self::cases(), 'value');
+    }
+}

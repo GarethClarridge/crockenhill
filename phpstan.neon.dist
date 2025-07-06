@@ -1,0 +1,36 @@
+includes:
+    - ./vendor/nunomaduro/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+        - routes/
+        - config/
+        # You can add more paths here, like:
+        # - database/factories/
+        # - database/seeders/
+
+    # Level 9 is the highest level, start lower if you have a lot of code to refactor.
+    level: 5
+
+    ignoreErrors:
+        # Example:
+        # - '#PHPDoc tag @var for variable \$foo is missing typehint#'
+        # -
+        #     message: '#Offset \d+ does not exist on array#'
+        #     paths:
+        #         - app/SomeFile.php
+
+    # Optional: For better performance, you can specify a cache directory
+    # tmpDir: storage/framework/cache/phpstan
+
+    # Optional: If you want to check for missing @property / @method phpDocs in models
+    # checkModelProperties: true
+
+    # Optional: If you are using Larastan's strict mode
+    # strictMode: true
+
+    # Some common configurations that might be useful:
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
+    treatPhpDocTypesAsCertain: false # Set to true for stricter type checking based on PHPDocs

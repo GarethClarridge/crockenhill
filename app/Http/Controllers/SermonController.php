@@ -70,9 +70,7 @@ class SermonController extends Controller
    */
   public function create()
   {
-    if (Gate::denies('edit-sermons')) {
-      abort(403);
-    }
+    $this->authorize('create', Sermon::class);
 
     $series = array_unique(Sermon::pluck('series')->all());
 
@@ -185,11 +183,9 @@ class SermonController extends Controller
    */
   public function edit($year, $month, $slug)
   {
-    if (Gate::denies('edit-sermons')) {
-      abort(403);
-    }
-
     $sermon = $this->findSermonOrFail((int)$year, (int)$month, $slug);
+    $this->authorize('update', $sermon);
+
     $series = array_unique(\App\Models\Sermon::pluck('series')->all()); // Used FQCN for Sermon
 
     // Breadcrumbs removed
@@ -253,11 +249,9 @@ class SermonController extends Controller
    */
   public function destroy($year, $month, $slug)
   {
-    if (Gate::denies('edit-sermons')) {
-      abort(403);
-    }
-
     $sermon = $this->findSermonOrFail((int)$year, (int)$month, $slug);
+    $this->authorize('delete', $sermon);
+
     $sermon->delete();
 
     return redirect()->route('sermonIndex')->with('message', 'Sermon successfully deleted!');
@@ -338,9 +332,7 @@ class SermonController extends Controller
    */
   public function upload()
   {
-    if (Gate::denies('edit-sermons')) {
-      abort(403);
-    };
+    $this->authorize('create', Sermon::class);
 
     return view('sermons.upload', array(
       'heading' => "Upload sermon",

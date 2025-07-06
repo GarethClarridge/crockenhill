@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rules\Enum; // Added for Enum validation
+use App\Enums\SermonService; // Added Enum import
 
 class StoreSermonRequest extends FormRequest
 {
@@ -14,8 +16,7 @@ class StoreSermonRequest extends FormRequest
    */
   public function authorize()
   {
-    // Reuse the same authorization logic as in the controller
-    return Gate::allows('edit-sermons');
+    return $this->user()->can('create', \App\Models\Sermon::class);
   }
 
   /**
@@ -29,7 +30,7 @@ class StoreSermonRequest extends FormRequest
       'title'     => 'required|string|max:255',
       'file'      => 'required|file|mimes:mp3|max:51200', // Max 50MB
       'date'      => 'required|date_format:Y-m-d', // Assuming Y-m-d format from form
-      'service'   => 'required|string|in:morning,evening,other', // Added 'other' as a common fallback
+      'service'   => ['required', new Enum(SermonService::class)],
       'series'    => 'nullable|string|max:255',
       'reference' => 'nullable|string|max:255',
       'preacher'  => 'required|string|max:255',

@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rules\Enum; // Added for Enum validation
+use App\Enums\PageArea; // Added Enum import
 
 /**
  * Form Request for validating and authorizing the creation of a new Page.
@@ -19,7 +21,7 @@ class StorePageRequest extends FormRequest
    */
   public function authorize()
   {
-    return Gate::allows('edit-pages');
+    return $this->user()->can('create', \App\Models\Page::class);
   }
 
   /**
@@ -33,7 +35,7 @@ class StorePageRequest extends FormRequest
       'heading' => 'required|string|max:255',
       'markdown' => 'required|string',
       'description' => 'nullable|string',
-      'area' => 'required|string|in:christ,church,community',
+      'area' => ['required', new Enum(PageArea::class)],
       'navigation-radio' => 'required|string|in:yes,no',
       'heading-image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp,svg|max:2048',
     ];

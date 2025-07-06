@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
 // Import all necessary controllers
+use App\Http\Controllers\Auth\AuthenticatedSessionController; // Added this line
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\SermonController;
 use App\Http\Controllers\MemberController;
@@ -21,28 +22,16 @@ use App\Http\Controllers\PageController;
 |
 */
 
-Route::get('/', ['as' => 'Home', function () {
-  return view('full-width-pages/home');
-}]);
+Route::view('/', 'full-width-pages.home')->name('Home');
 
 // Special pages route
-Route::get('/christmas', ['as' => 'christmas', function () {
-      return view('full-width-pages/christmas');
-}]);
-Route::get('/easter', ['as' => 'easter', function () {
-      return view('full-width-pages/easter');
-}]);
-Route::get('/christianity-explored', ['as' => 'christianity-explored', function () {
-      return view('full-width-pages/christianity-explored');
-}]);
+Route::view('/christmas', 'full-width-pages.christmas')->name('christmas');
+Route::view('/easter', 'full-width-pages.easter')->name('easter');
+Route::view('/christianity-explored', 'full-width-pages.christianity-explored')->name('christianity-explored');
 
 // Full width pages
-Route::get('/christ', ['as' => 'christ', function () {
-      return view('full-width-pages/christ');
-}]);
-Route::get('/church', ['as' => 'church', function () {
-      return view('full-width-pages/church');
-}]);
+Route::view('/christ', 'full-width-pages.christ')->name('christ');
+Route::view('/church', 'full-width-pages.church')->name('church');
 
 //Meeting routes
 Route::resource('meetings', MeetingController::class);
@@ -87,7 +76,7 @@ Route::get('verify-email', function () {
 })->middleware('auth')->name('verification.notice');
 
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
-  Route::get('', [MemberController::class, 'home'])->name('memberHome'); // Added a name for consistency
+  Route::get('', MemberController::class)->name('memberHome'); // Changed for invokable controller
   // Manage pages
   Route::resource('pages', PageController::class);
   // Manage sermons
@@ -150,15 +139,10 @@ Route::get('500', function () {
   abort(500);
 });
 
-Route::post('logout', function () {
-    \Illuminate\Support\Facades\Auth::logout();
-    request()->session()->invalidate();
-    request()->session()->regenerateToken();
-    return redirect('/');
-})->name('logout');
+Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
+    ->name('logout');
 
 // Add the email verification route
-Route::get('verify-email/{id}/{hash}', function (EmailVerificationRequest $request) {
-    $request->fulfill();
-    return redirect('/church/members');
-})->middleware(['auth', 'signed', 'throttle:6,1'])->name('verification.verify');
+Route::get('verify-email/{id}/{hash}', [AuthenticatedSessionController::class, 'verifyEmail'])
+    ->middleware(['auth', 'signed', 'throttle:6,1'])
+    ->name('verification.verify');

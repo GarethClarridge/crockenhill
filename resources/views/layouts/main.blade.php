@@ -43,13 +43,13 @@
 
 <body class="bg-slate-200">
   <header x-data="{ expanded: false }">
-    @include('includes.header')
+    <x-layout.header />
   </header>
 
   @yield('content')
 
   <footer class="bg-cbc-pattern bg-cover p-6 mt-6">
-    @include('includes.footer')
+    <x-layout.footer />
   </footer>
 </body>
 

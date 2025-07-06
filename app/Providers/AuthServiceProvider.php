@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
-use Illuminate\Contracts\Auth\Access\Gate as GateContract;
+use App\Models\Page;
+use App\Models\Sermon;
+use App\Policies\PagePolicy;
+use App\Policies\SermonPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -14,7 +17,9 @@ class AuthServiceProvider extends ServiceProvider
    * @var array
    */
   protected $policies = [
-    'Crockenhill\Model' => 'Crockenhill\Policies\ModelPolicy',
+    // 'Crockenhill\Model' => 'Crockenhill\Policies\ModelPolicy', // Original placeholder
+    Sermon::class => SermonPolicy::class,
+    Page::class => PagePolicy::class,
   ];
 
   /**
@@ -24,42 +29,32 @@ class AuthServiceProvider extends ServiceProvider
    */
   public function boot()
   {
+    $this->registerPolicies();
+
     Gate::before(function ($user, $ability) {
+      if (method_exists($user, 'hasVerifiedEmail') && !$user->hasVerifiedEmail()) {
+        return false;
+      }
       if (str_ends_with($user->email, '@crockenhill.org')) {
         return true;
       }
+      return null; // Explicitly return null if no decision is made by this `before` callback
     });
 
     Gate::define('see-member-content', function ($user) {
       $member_emails = [
-        "",
-        ""
+        "", // Placeholder
+        ""  // Placeholder
       ];
-      return in_array($user->email, $member_emails);
+      // Ensure $user is an object and email property exists
+      if (is_object($user) && property_exists($user, 'email')) {
+        return in_array($user->email, $member_emails);
+      }
+      return false;
     });
 
-    Gate::define('edit-sermons', function ($user) {
-      $emails = [
-        "",
-        ""
-      ];
-      return in_array($user->email, $emails);
-    });
-
-    Gate::define('edit-songs', function ($user) {
-      $emails = [
-        "",
-        ""
-      ];
-      return in_array($user->email, $emails);
-    });
-
-    Gate::define('edit-pages', function ($user) {
-      $emails = [
-        "",
-        ""
-      ];
-      return in_array($user->email, $emails);
-    });
+    // Gate::define('edit-sermons', ...) // Removed, handled by SermonPolicy
+    // Gate::define('edit-songs', ...) // Removed as unused and logic would be part of SermonPolicy if relevant
+    // Gate::define('edit-pages', ...) // Removed, handled by PagePolicy
   }
 }

@@ -42,9 +42,7 @@ class PageController extends Controller
    */
   public function index()
   {
-    if (Gate::denies('edit-pages')) {
-      abort(403);
-    }
+    $this->authorize('viewAny', Page::class);
     $pages = Page::orderBy('area', 'asc')->get();
 
     return View::make('pages.index', ['pages' => $pages]);
@@ -58,9 +56,7 @@ class PageController extends Controller
    */
   public function create()
   {
-    if (Gate::denies('edit-pages')) {
-      abort(403);
-    }
+    $this->authorize('create', Page::class);
     return View::make('pages.create', ['heading' => 'Create a page']);
   }
 
@@ -122,9 +118,7 @@ class PageController extends Controller
    */
   public function edit(\App\Models\Page $page)
   {
-    if (Gate::denies('edit-pages')) {
-      abort(403);
-    }
+    $this->authorize('update', $page);
 
     // session(['backUrl' => url()->previous()]); // Consider if this is still needed or handled differently
     Session::put('backUrl', url()->previous());
@@ -203,9 +197,7 @@ class PageController extends Controller
    */
   public function destroy(\App\Models\Page $page): RedirectResponse
   {
-    if (Gate::denies('edit-pages')) {
-      abort(403);
-    }
+    $this->authorize('delete', $page);
 
     $this->pageImageService->deleteImages($page->slug);
     $page->delete();

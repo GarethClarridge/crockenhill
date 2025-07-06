@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+// use Illuminate\Http\Request; // Replaced by specific Form Requests
+use App\Http\Requests\StoreMeetingRequest;
+use App\Http\Requests\UpdateMeetingRequest;
+use App\Models\Meeting;
 
 class MeetingController extends Controller
 {
@@ -20,11 +23,11 @@ class MeetingController extends Controller
   /**
    * Display a listing of the resource.
    *
-   * @return Response
+   * @return \Illuminate\View\View
    */
   public function index()
   {
-    $meetings = \App\Models\Meeting::all();
+    $meetings = Meeting::all();
     return view('meetings.index', compact('meetings'));
   }
 
@@ -32,7 +35,7 @@ class MeetingController extends Controller
   /**
    * Show the form for creating a new resource.
    *
-   * @return Response
+   * @return \Illuminate\View\View
    */
   public function create()
   {
@@ -43,20 +46,13 @@ class MeetingController extends Controller
   /**
    * Store a newly created resource in storage.
    *
-   * @return Response
+   * @param  \App\Http\Requests\StoreMeetingRequest  $request
+   * @return \Illuminate\Http\RedirectResponse
    */
-  public function store(Request $request)
+  public function store(StoreMeetingRequest $request)
   {
-    $validatedData = $request->validate([
-      'slug' => 'required|unique:meetings|max:255',
-      'type' => 'required|max:255',
-      'day' => 'nullable|max:255',
-      'location' => 'nullable|max:255',
-      'who' => 'nullable|max:255',
-      'pictures' => 'boolean',
-    ]);
-
-    \App\Models\Meeting::create($validatedData);
+    $validatedData = $request->validated();
+    Meeting::create($validatedData);
 
     return redirect()->route('meetings.index')->with('success', 'Meeting created successfully.');
   }
@@ -103,20 +99,13 @@ class MeetingController extends Controller
   /**
    * Update the specified resource in storage.
    *
-   * @param  int  $id
-   * @return Response
+   * @param  \App\Http\Requests\UpdateMeetingRequest  $request
+   * @param  \App\Models\Meeting  $meeting
+   * @return \Illuminate\Http\RedirectResponse
    */
-  public function update(Request $request, \App\Models\Meeting $meeting)
+  public function update(UpdateMeetingRequest $request, Meeting $meeting)
   {
-    $validatedData = $request->validate([
-      'slug' => 'required|max:255|unique:meetings,slug,' . $meeting->id,
-      'type' => 'required|max:255',
-      'day' => 'nullable|max:255',
-      'location' => 'nullable|max:255',
-      'who' => 'nullable|max:255',
-      'pictures' => 'boolean',
-    ]);
-
+    $validatedData = $request->validated();
     $meeting->update($validatedData);
 
     return redirect()->route('meetings.index')->with('success', 'Meeting updated successfully.');
@@ -126,10 +115,10 @@ class MeetingController extends Controller
   /**
    * Remove the specified resource from storage.
    *
-   * @param  int  $id
-   * @return Response
+   * @param  \App\Models\Meeting  $meeting
+   * @return \Illuminate\Http\RedirectResponse
    */
-  public function destroy(\App\Models\Meeting $meeting)
+  public function destroy(Meeting $meeting)
   {
     $meeting->delete();
     return redirect()->route('meetings.index')->with('success', 'Meeting deleted successfully.');

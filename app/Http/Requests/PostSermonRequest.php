@@ -14,7 +14,7 @@ class PostSermonRequest extends FormRequest
    */
   public function authorize(): bool
   {
-    return Gate::allows('edit-sermons');
+    return $this->user()->can('create', \App\Models\Sermon::class);
   }
 
   /**
