@@ -87,7 +87,7 @@
       </a>
       <ul class="mt-6">
         @foreach ($pages as $page)
-        @if ($page->area == 'christ')
+        @if ($page->area->value == 'christ')
         <li class="leading-none mb-6">
           <a class="" href="/christ/{{$page->slug}}">
             {{$page->heading}}
@@ -107,7 +107,7 @@
       </a>
       <ul class="mt-6">
         @foreach ($pages as $page)
-        @if ($page->area == 'church')
+        @if ($page->area->value == 'church')
         <li class="leading-none mb-6">
           <a class="" href="/church/{{$page->slug}}">
             {{$page->heading}}
@@ -127,7 +127,7 @@
       </a>
       <ul class="mt-6">
         @foreach ($pages as $page)
-        @if ($page->area == 'community')
+        @if ($page->area->value == 'community')
         <li class="leading-none mb-6">
           <a class="" href="/community/{{$page->slug}}">
             {{$page->heading}}

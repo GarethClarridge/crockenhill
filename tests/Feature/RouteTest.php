@@ -258,12 +258,15 @@ class RouteTest extends TestCase
         $response1 = $this->get('/christ/same-slug');
         $response1->assertStatus(200);
         $response1->assertSee('Christ Page');
-        $response1->assertDontSee('Church Page');
+        // More precise: ensure the main heading is 'Christ Page' and not 'Church Page'
+        $response1->assertSee('<h1>Christ</h1>', false); // Check the Christ page content
+        $response1->assertDontSee('<h1>Church</h1>', false); // Ensure Church page content is not present
 
         $response2 = $this->get('/church/same-slug');
         $response2->assertStatus(200);
         $response2->assertSee('Church Page');
-        $response2->assertDontSee('Christ Page');
+        $response2->assertSee('<h1>Church</h1>', false); // Check the Church page content
+        $response2->assertDontSee('<h1>Christ</h1>', false); // Ensure Christ page content is not present
     }
 
     #[Test]
@@ -284,5 +287,44 @@ class RouteTest extends TestCase
         $response = $this->get('/christ/debug-test');
         $response->assertStatus(200);
         $response->assertSee('Debug Test');
+    }
+
+    #[Test]
+    public function navigation_pages_appear_in_navigation_header(): void
+    {
+        // Create navigation pages for each area
+        $christPage = Page::factory()->create([
+            'area' => PageArea::CHRIST->value,
+            'slug' => 'nav-christ',
+            'heading' => 'Nav Christ',
+            'navigation' => true,
+            'admin' => 'no',
+        ]);
+        $churchPage = Page::factory()->create([
+            'area' => PageArea::CHURCH->value,
+            'slug' => 'nav-church',
+            'heading' => 'Nav Church',
+            'navigation' => true,
+            'admin' => 'no',
+        ]);
+        $communityPage = Page::factory()->create([
+            'area' => PageArea::COMMUNITY->value,
+            'slug' => 'nav-community',
+            'heading' => 'Nav Community',
+            'navigation' => true,
+            'admin' => 'no',
+        ]);
+
+        // Visit a page that renders the header
+        $response = $this->get('/christ/nav-christ');
+        $response->assertStatus(200);
+        // Check that navigation links are present
+        $response->assertSee('Nav Christ');
+        $response->assertSee('Nav Church');
+        $response->assertSee('Nav Community');
+        // Check that the links are correct
+        $response->assertSee('/christ/nav-christ');
+        $response->assertSee('/church/nav-church');
+        $response->assertSee('/community/nav-community');
     }
 }

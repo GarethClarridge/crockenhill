@@ -29,7 +29,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Share $pages with the header component
         View::composer('components.layout.header', function ($view) {
-            $view->with('pages', Page::all());
+            $view->with('pages', Page::isNavigation()->get());
         });
     }
 
