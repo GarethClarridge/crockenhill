@@ -34,6 +34,25 @@ Route::view('/community', 'full-width-pages.community')->name('community');
 // Meeting routes
 Route::resource('meetings', MeetingController::class);
 
+// Community meeting or page route (must be above catch-alls)
+Route::get('/community/{slug}', function ($slug) {
+    $meeting = \App\Models\Meeting::where('slug', $slug)->first();
+    if ($meeting) {
+        $photos = [];
+        if ($meeting->pictures) {
+            // Add your photo logic here if needed
+            // Example: if (is_dir(public_path('images/meetings/' . $meeting->slug))) {
+            //   $filelist = scandir(public_path('images/meetings/' . $meeting->slug));
+            //   $photos = array_slice($filelist, 2); // Remove . and ..
+            // }
+        }
+        return view('meetings.show', compact('meeting', 'photos'));
+    }
+    // Fallback to page controller
+    return app(\App\Http\Controllers\PageController::class)
+        ->show('community', $slug, app(\League\CommonMark\CommonMarkConverter::class));
+})->name('community.meeting-or-page');
+
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');

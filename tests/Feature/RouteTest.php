@@ -327,4 +327,35 @@ class RouteTest extends TestCase
         $response->assertSee('/church/nav-church');
         $response->assertSee('/community/nav-community');
     }
+
+    #[Test]
+    public function community_slug_renders_meeting_view_when_meeting_exists(): void
+    {
+        // Create a meeting with a known slug
+        $meeting = \App\Models\Meeting::factory()->create([
+            'slug' => 'test-meeting',
+            'day' => 'Monday',
+            'StartTime' => '10:00:00',
+            'EndTime' => '11:00:00',
+            'location' => 'Test Hall',
+            'who' => 'Everyone',
+            'pictures' => false,
+            'LeadersPhone' => '0123456789',
+            'LeadersEmail' => 'leader@example.com',
+            'type' => 'Adults',
+        ]);
+
+        $response = $this->get('/community/test-meeting');
+        $response->assertStatus(200);
+        // Assert that meeting details are present
+        $response->assertSee('Monday');
+        $response->assertSee('10:00am');
+        $response->assertSee('11:00am');
+        $response->assertSee('Test Hall');
+        $response->assertSee('Everyone');
+        $response->assertSee('0123456789');
+        $response->assertSee('leader@example.com');
+        // Should not see generic page fallback content (e.g. markdown body)
+        $response->assertDontSee('Test Content');
+    }
 }

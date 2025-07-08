@@ -119,7 +119,7 @@ class PageController extends Controller
 
         // The ViewServiceProvider handles most of the page display logic through view composers
         // We just need to pass the page data to the view
-        $html = $converter->convert($page->markdown);
+        $html = $converter->convert($page->markdown ?? '');
         
         return View::make('layouts/page')->with([
             'page' => $page,
