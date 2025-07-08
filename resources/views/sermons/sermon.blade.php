@@ -21,7 +21,7 @@ use Illuminate\Support\Str;
     @if ($sermon->service != null)
     <li class="my-2 flex items-center">
       <x-heroicon-o-clock class="h-5 w-5 mr-2" />
-      {{ \Illuminate\Support\Str::title($sermon->service) }}
+      {{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}
     </li>
     @endif
     @if ($sermon->preacher != null)

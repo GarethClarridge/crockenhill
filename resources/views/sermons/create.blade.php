@@ -31,16 +31,11 @@
 
   <div class="mb-3">
     <label for="service">Service</label>
-    @if (time() <= strtotime('15:00:00')) <select type="service" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="service" name="service">
-      <option value="morning" selected>Morning (main service)</option>
-      <option value="evening">Evening (prayer service)</option>
-      </select>
-      @else
-      <select type="service" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="service" name="service">
-        <option value="morning">Morning (main service)</option>
-        <option value="evening" selected>Evening (prayer service)</option>
-      </select>
-      @endif
+    <select class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="service" name="service">
+      @foreach (\App\Enums\SermonService::cases() as $service)
+        <option value="{{ $service->value }}" {{ old('service', 'morning') === $service->value ? 'selected' : '' }}>{{ $service->label() }}</option>
+      @endforeach
+    </select>
   </div>
 
   <div class="mb-3">

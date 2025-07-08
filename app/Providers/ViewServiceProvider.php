@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Enums\SermonService;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Sermon;
@@ -39,9 +40,9 @@ class ViewServiceProvider extends ServiceProvider
 
         View::composer('includes.footer', function ($view) {
             // get the latest sermons
-            $morning = Sermon::where('service', 'morning')
+            $morning = Sermon::where('service', SermonService::MORNING->value)
                 ->orderBy('date', 'desc')->first();
-            $evening = Sermon::where('service', 'evening')
+            $evening = Sermon::where('service', SermonService::EVENING->value)
                 ->orderBy('date', 'desc')->first();
 
             // and create the view composer

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\SermonService;
 use App\Models\Sermon;
 use Illuminate\Database\Seeder;
 
@@ -13,7 +14,7 @@ class SermonSeeder extends Seeder
         $sermons = [
             [
                 'date' => '2024-12-15',
-                'service' => 'morning',
+                'service' => SermonService::MORNING->value,
                 'title' => 'The Birth of Our Saviour',
                 'slug' => 'the-birth-of-our-saviour',
                 'reference' => 'Luke 2:1-20',
@@ -24,7 +25,7 @@ class SermonSeeder extends Seeder
             ],
             [
                 'date' => '2024-12-08',
-                'service' => 'morning',
+                'service' => SermonService::MORNING->value,
                 'title' => 'Walking in the Light',
                 'slug' => 'walking-in-the-light',
                 'reference' => '1 John 1:5-10',
@@ -32,6 +33,17 @@ class SermonSeeder extends Seeder
                 'series' => '1 John',
                 'filename' => '1-john-walking-in-light.mp3',
                 'points' => '1. God is light\n2. Fellowship with God\n3. Confession and forgiveness',
+            ],
+            [
+                'date' => '2024-12-01',
+                'service' => SermonService::OTHER->value,
+                'title' => 'Special Service Example',
+                'slug' => 'special-service-example',
+                'reference' => 'Psalm 100',
+                'preacher' => 'Guest Speaker',
+                'series' => 'Special Events',
+                'filename' => 'special-2024-other.mp3',
+                'points' => '1. Praise\n2. Thanksgiving',
             ],
         ];
 

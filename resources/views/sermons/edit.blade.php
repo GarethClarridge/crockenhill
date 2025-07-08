@@ -25,17 +25,11 @@
 
   <div class="mb-3">
     <label for="service">Service</label>
-    @if ($sermon->service == 'morning')
-    <select type="service" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="service" name="service">
-      <option value="morning" selected>Morning</option>
-      <option value="evening">Evening (or afternoon)</option>
+    <select class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="service" name="service">
+      @foreach (\App\Enums\SermonService::cases() as $service)
+        <option value="{{ $service->value }}" {{ ($sermon->service instanceof \App\Enums\SermonService ? $sermon->service->value : $sermon->service) === $service->value ? 'selected' : '' }}>{{ $service->label() }}</option>
+      @endforeach
     </select>
-    @else
-    <select type="service" class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" id="service" name="service">
-      <option value="morning">Morning</option>
-      <option value="evening" selected>Evening (or afternoon)</option>
-    </select>
-    @endif
   </div>
 
   <div class="mb-3">

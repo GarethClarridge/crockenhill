@@ -11,7 +11,7 @@ class CreateSermonsTable extends Migration
         Schema::create('sermons', function (Blueprint $table) {
             $table->increments('id');
             $table->date('date');
-            $table->enum('service', ['morning', 'evening'])->nullable();
+            $table->enum('service', ['morning', 'evening', 'other'])->nullable();
             $table->string('filename', 75);
             $table->string('filetype', 8)->default('mp3');
             $table->string('title', 75);
