@@ -98,6 +98,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
     Route::resource('pages', PageController::class);
     // Manage sermons
     Route::resource('sermons', SermonController::class);
+    // Manage meetings
+    Route::resource('meetings', MeetingController::class);
 });
 
 Route::get('phpinfo', fn () => phpinfo());

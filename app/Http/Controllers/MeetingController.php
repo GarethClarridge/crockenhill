@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
-// use Illuminate\Http\Request; // Replaced by specific Form Requests
 use App\Http\Requests\StoreMeetingRequest;
 use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Meeting;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\View;
 
 class MeetingController extends Controller
 {
@@ -16,30 +19,32 @@ class MeetingController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth')->except(['index', 'show']);
-        $this->middleware('admin')->except(['index', 'show']);
+        $this->middleware('auth')->except(['show']);
     }
 
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\View\View
+     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
     public function index()
     {
-        $meetings = Meeting::all();
+        $this->authorize('viewAny', Meeting::class);
+        $meetings = Meeting::orderBy('meeting_date', 'desc')->get();
 
-        return view('meetings.index', compact('meetings'));
+        return View::make('meetings.index', ['meetings' => $meetings]);
     }
 
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\View\View
+     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
     public function create()
     {
-        return view('meetings.create');
+        $this->authorize('create', Meeting::class);
+
+        return View::make('meetings.create', ['heading' => 'Create a meeting']);
     }
 
     /**
@@ -47,20 +52,23 @@ class MeetingController extends Controller
      *
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(StoreMeetingRequest $request)
+    public function store(StoreMeetingRequest $request): RedirectResponse
     {
-        $validatedData = $request->validated();
-        Meeting::create($validatedData);
+        $validated = $request->validated();
+        
+        $meeting = Meeting::create($validated);
 
-        return redirect()->route('meetings.index')->with('success', 'Meeting created successfully.');
+        Session::flash('message', 'Meeting "' . $meeting->slug . '" successfully created!');
+
+        return Redirect::to('/church/members/meetings');
     }
 
     /**
      * Display the specified resource.
      *
-     * @return \Illuminate\View\View
+     * @return \Illuminate\Contracts\View\View
      */
-    public function show(\App\Models\Meeting $meeting)
+    public function show(Meeting $meeting)
     {
         // Photos logic might need adjustment based on how pictures are stored and accessed.
         // Assuming 'pictures' column stores a boolean and actual picture paths are derived or stored elsewhere.
@@ -82,11 +90,20 @@ class MeetingController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @return \Illuminate\View\View
+     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
-    public function edit(\App\Models\Meeting $meeting)
+    public function edit(Meeting $meeting)
     {
-        return view('meetings.edit', compact('meeting'));
+        $this->authorize('update', $meeting);
+
+        Session::put('backUrl', url()->previous());
+
+        $heading = 'Edit meeting';
+
+        return View::make('meetings.edit', [
+            'meeting' => $meeting,
+            'heading' => $heading,
+        ]);
     }
 
     /**
@@ -94,12 +111,18 @@ class MeetingController extends Controller
      *
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function update(UpdateMeetingRequest $request, Meeting $meeting)
+    public function update(UpdateMeetingRequest $request, Meeting $meeting): RedirectResponse
     {
-        $validatedData = $request->validated();
-        $meeting->update($validatedData);
+        $validated = $request->validated();
+        
+        $meeting->update($validated);
 
-        return redirect()->route('meetings.index')->with('success', 'Meeting updated successfully.');
+        $backUrl = Session::get('backUrl');
+        Session::forget('backUrl');
+
+        return ($backUrl && $backUrl !== url()->previous())
+          ? Redirect::to($backUrl)->with('message', 'Meeting "' . $meeting->slug . '" successfully updated!')
+          : Redirect::to('/church/members/meetings')->with('message', 'Meeting "' . $meeting->slug . '" successfully updated!');
     }
 
     /**
@@ -107,10 +130,15 @@ class MeetingController extends Controller
      *
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function destroy(Meeting $meeting)
+    public function destroy(Meeting $meeting): RedirectResponse
     {
+        $this->authorize('delete', $meeting);
+
+        $meetingSlug = $meeting->slug;
         $meeting->delete();
 
-        return redirect()->route('meetings.index')->with('success', 'Meeting deleted successfully.');
+        Session::flash('message', 'Meeting "' . $meetingSlug . '" successfully deleted!');
+
+        return Redirect::to('/church/members/meetings');
     }
 }

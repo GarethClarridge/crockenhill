@@ -37,7 +37,7 @@
     ga('send', 'pageview');
   </script>
 
-  @vite(['resources/css/main.scss', 'resources/js/app.js'])
+  @vite(['resources/css/app.scss', 'resources/js/app.js'])
 
 </head>
 

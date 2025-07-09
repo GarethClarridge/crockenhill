@@ -83,6 +83,14 @@ class Meeting extends Model
     protected $table = 'meetings';
 
     /**
+     * Get the route key for the model.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
+    /**
      * Get the meeting's formatted date and time.
      * Example: January 15, 2023, 10:30 AM
      */

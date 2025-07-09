@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Models\Meeting;
 use Illuminate\Foundation\Http\FormRequest; // Required for policy check
@@ -15,13 +16,7 @@ class UpdateMeetingRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Assuming updating meetings requires admin privileges.
-        // This replicates the middleware protection on the controller route.
-        // $meeting = $this->route('meeting'); // Get the meeting instance from the route
-        // return $this->user()->can('update', $meeting);
-        // For now, this matches the 'admin' middleware which is not standard Laravel policy based.
-        // The 'admin' middleware is EnsureUserIsAdmin.php which checks $request->user()->is_admin
-        return $this->user() && $this->user()->is_admin;
+        return $this->user()->can('update', $this->route('meeting'));
     }
 
     /**
@@ -37,19 +32,21 @@ class UpdateMeetingRequest extends FormRequest
             'slug' => [
                 'required',
                 'string',
-                'max:255',
+                'max:75',
                 Rule::unique('meetings', 'slug')->ignore($meetingId),
             ],
             'type' => ['required', new EnumRule(MeetingType::class)],
-            'day' => 'nullable|string|max:255',
-            'location' => 'nullable|string|max:255',
-            'who' => 'nullable|string|max:255',
+            'day' => 'required|string|max:75',
+            'location' => 'nullable|string|max:75',
+            'who' => 'required|string|max:75',
             'pictures' => 'required|boolean',
-            // Adding other fields from migration, similar to StoreMeetingRequest
-            'StartTime' => 'nullable|date_format:H:i:s',
-            'EndTime' => 'nullable|date_format:H:i:s',
+            'StartTime' => 'nullable|date_format:H:i:s,H:i',
+            'EndTime' => 'nullable|date_format:H:i:s,H:i',
             'LeadersPhone' => 'nullable|string|max:10',
             'LeadersEmail' => 'nullable|email|max:50',
+            'meeting_date' => 'nullable|date',
+            'is_recurring' => 'nullable|boolean',
+            'frequency' => ['nullable', new EnumRule(MeetingFrequency::class)],
         ];
     }
 }

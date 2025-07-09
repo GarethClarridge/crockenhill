@@ -7,22 +7,22 @@
     "file": "assets/pattern-Cymk78WI.svg",
     "src": "public/images/pattern.svg"
   },
+  "resources/css/app.scss": {
+    "file": "assets/app-CYVsv_Xd.css",
+    "src": "resources/css/app.scss",
+    "isEntry": true
+  },
   "resources/js/app.js": {
-    "file": "assets/app-BD86o-OF.js",
+    "file": "assets/app-lPHJr8Pm.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "css": [
-      "assets/app-D_m98aqi.css"
+      "assets/app-CYVsv_Xd.css"
     ],
     "assets": [
       "assets/christmas2023-D0OeEOCU.jpg",
       "assets/pattern-Cymk78WI.svg"
     ]
-  },
-  "resources/scss/app.scss": {
-    "file": "assets/app-D_m98aqi.css",
-    "src": "resources/scss/app.scss",
-    "isEntry": true
   }
 }

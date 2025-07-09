@@ -9,9 +9,11 @@
         Edit sermons
       </x-button>
     @endcan
-    <x-button link="/church/members/songs">
-      View song list
-    </x-button>
+    @can ('edit-meetings')
+      <x-button link="/church/members/meetings">
+        Edit meetings
+      </x-button>
+    @endcan
     @can ('edit-pages')
       <x-button link="/church/members/pages">
         Edit pages
