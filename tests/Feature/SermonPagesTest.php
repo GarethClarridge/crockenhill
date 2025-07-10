@@ -47,7 +47,7 @@ class SermonPagesTest extends TestCase
     public function test_sermon_show_page_renders(): void
     {
         $sermon = Sermon::first();
-        $url = "/christ/sermons/{$sermon->date->format('Y')}/{$sermon->date->format('m')}/{$sermon->slug}";
+        $url = "/christ/sermons/{$sermon->slug}";
         $response = $this->get($url);
         $response->assertStatus(200);
         $response->assertSee($sermon->title);

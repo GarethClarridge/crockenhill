@@ -40,12 +40,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Middleware aliases (moved from Kernel)
         $middleware->alias([
-            'auth' => \App\Http\Middleware\Authenticate::class, // Ensure this class exists
+            'auth' => \App\Http\Middleware\Authenticate::class,
             'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
             'bindings' => \Illuminate\Routing\Middleware\SubstituteBindings::class,
             'can' => \Illuminate\Auth\Middleware\Authorize::class,
             'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class, // Ensure this class exists
             'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

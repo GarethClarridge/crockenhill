@@ -231,12 +231,12 @@ class RouteTest extends TestCase
     }
 
     #[Test]
-    public function pages_with_same_slug_in_different_areas_work_correctly(): void
+    public function pages_with_unique_slugs_in_different_areas_work_correctly(): void
     {
-        // Create pages with same slug but different areas
+        // Create pages with unique slugs in different areas
         $christPage = Page::factory()->create([
             'area' => PageArea::CHRIST->value,
-            'slug' => 'same-slug',
+            'slug' => 'christ-page',
             'heading' => 'Christ Page',
             'markdown' => '# Christ',
             'body' => '<h1>Christ</h1>',
@@ -246,7 +246,7 @@ class RouteTest extends TestCase
 
         $churchPage = Page::factory()->create([
             'area' => PageArea::CHURCH->value,
-            'slug' => 'same-slug',
+            'slug' => 'church-page',
             'heading' => 'Church Page',
             'markdown' => '# Church',
             'body' => '<h1>Church</h1>',
@@ -254,15 +254,14 @@ class RouteTest extends TestCase
             'admin' => 'no',
         ]);
 
-        // Test both pages work correctly
-        $response1 = $this->get('/christ/same-slug');
+        // Test both pages work correctly with unique slugs
+        $response1 = $this->get('/christ/christ-page');
         $response1->assertStatus(200);
         $response1->assertSee('Christ Page');
-        // More precise: ensure the main heading is 'Christ Page' and not 'Church Page'
         $response1->assertSee('<h1>Christ</h1>', false); // Check the Christ page content
         $response1->assertDontSee('<h1>Church</h1>', false); // Ensure Church page content is not present
 
-        $response2 = $this->get('/church/same-slug');
+        $response2 = $this->get('/church/church-page');
         $response2->assertStatus(200);
         $response2->assertSee('Church Page');
         $response2->assertSee('<h1>Church</h1>', false); // Check the Church page content

@@ -14,9 +14,7 @@ class EventServiceProvider extends ServiceProvider
      * @var array<string, array<int, string>>
      */
     protected $listen = [
-        'event.name' => [
-            'EventListener',
-        ],
+        //
     ];
 
     /**

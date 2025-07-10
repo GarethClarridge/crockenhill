@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreMeetingRequest;
@@ -19,7 +21,7 @@ class MeetingController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth')->except(['show']);
+        $this->middleware('auth')->except(['show', 'showCommunityContent']);
     }
 
     /**
@@ -85,6 +87,39 @@ class MeetingController extends Controller
         }
 
         return view('meetings.show', compact('meeting', 'photos'));
+    }
+
+    /**
+     * Show a meeting or page from the community area.
+     */
+    public function showCommunityContent(string $slug)
+    {
+        $meeting = Meeting::where('slug', $slug)->first();
+        
+        if ($meeting) {
+            $photos = [];
+            if ($meeting->pictures) {
+                // Add your photo logic here if needed
+                // Example: if (is_dir(public_path('images/meetings/' . $meeting->slug))) {
+                //   $filelist = scandir(public_path('images/meetings/' . $meeting->slug));
+                //   $photos = array_slice($filelist, 2); // Remove . and ..
+                // }
+            }
+            return view('meetings.show', compact('meeting', 'photos'));
+        }
+        
+        // Check if there's a page in the community area
+        $page = \App\Models\Page::where('slug', $slug)
+            ->where('area', 'community')
+            ->first();
+            
+        if ($page) {
+            return app(\App\Http\Controllers\PageController::class)
+                ->show('community', $slug, app(\League\CommonMark\CommonMarkConverter::class));
+        }
+        
+        // Neither meeting nor page found
+        abort(404);
     }
 
     /**

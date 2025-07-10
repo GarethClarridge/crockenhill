@@ -35,23 +35,7 @@ Route::view('/community', 'full-width-pages.community')->name('community');
 Route::resource('meetings', MeetingController::class);
 
 // Community meeting or page route (must be above catch-alls)
-Route::get('/community/{slug}', function ($slug) {
-    $meeting = \App\Models\Meeting::where('slug', $slug)->first();
-    if ($meeting) {
-        $photos = [];
-        if ($meeting->pictures) {
-            // Add your photo logic here if needed
-            // Example: if (is_dir(public_path('images/meetings/' . $meeting->slug))) {
-            //   $filelist = scandir(public_path('images/meetings/' . $meeting->slug));
-            //   $photos = array_slice($filelist, 2); // Remove . and ..
-            // }
-        }
-        return view('meetings.show', compact('meeting', 'photos'));
-    }
-    // Fallback to page controller
-    return app(\App\Http\Controllers\PageController::class)
-        ->show('community', $slug, app(\League\CommonMark\CommonMarkConverter::class));
-})->name('community.meeting-or-page');
+Route::get('/community/{slug}', [MeetingController::class, 'showCommunityContent'])->name('community.meeting-or-page');
 
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
@@ -60,16 +44,16 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::post('/', [SermonController::class, 'store'])->name('sermonStore');
     Route::get('/upload', [SermonController::class, 'upload'])->name('sermonUpload');
     Route::post('/post', [SermonController::class, 'post'])->name('sermonPost');
-    Route::get('/{year}/{month}/{slug}', [SermonController::class, 'show'])->name('showSermon');
-    Route::get('/{year}/{month}/{slug}/edit', [SermonController::class, 'edit'])->name('editSermon');
-    Route::post('/{year}/{month}/{slug}/edit', [SermonController::class, 'update'])->name('updateSermon');
-    Route::post('/{year}/{month}/{slug}/delete', [SermonController::class, 'destroy'])->name('destroySermon');
     Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
     Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
     Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
     Route::get('series', [SermonController::class, 'getSerieses'])->name('getSerieses');
     Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
-    Route::get('{service}', [SermonController::class, 'getService'])->name('getService');
+    Route::get('{service}', [SermonController::class, 'getService'])->where('service', 'morning|evening|other')->name('getService');
+    Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');
+    Route::get('/{sermon:slug}/edit', [SermonController::class, 'edit'])->name('editSermon');
+    Route::post('/{sermon:slug}/edit', [SermonController::class, 'update'])->name('updateSermon');
+    Route::post('/{sermon:slug}/delete', [SermonController::class, 'destroy'])->name('destroySermon');
 
 });
 
@@ -102,7 +86,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
     Route::resource('meetings', MeetingController::class);
 });
 
-Route::get('phpinfo', fn () => phpinfo());
+Route::get('phpinfo', fn () => phpinfo())->middleware('admin');
 
 // Permanent Redirects (unchanged)
 Route::permanentRedirect('aboutus', 'church');

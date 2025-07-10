@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Enums\SermonService;
@@ -138,14 +140,9 @@ class SermonController extends Controller
 
     /**
      * Display the specified resource.
-     *
-     * @param  int  $year
-     * @param  int  $month
-     * @param  string  $slug
      */
-    public function show($year, $month, $slug): View
+    public function show(Sermon $sermon): View
     {
-        $sermon = $this->findSermonOrFail((int) $year, (int) $month, $slug);
         $heading = $sermon->title;
 
         // Breadcrumbs removed
@@ -159,7 +156,7 @@ class SermonController extends Controller
         // $breadcrumbs[] = ['title' => $sermon->title, 'active' => true];
 
         return view('sermons.sermon', [
-            'slug' => $slug,
+            'slug' => $sermon->slug,
             'heading' => $heading,
             'description' => '<meta name="description" content="'.$sermon->title.': a sermon preached at Crockenhill Baptist Church.">', // Used $sermon->title instead of $sermon->heading
             // 'breadcrumbs' => $breadcrumbs, // Removed
@@ -170,14 +167,9 @@ class SermonController extends Controller
 
     /**
      * Show the form for editing the specified resource.
-     *
-     * @param  int  $year
-     * @param  int  $month
-     * @param  string  $slug
      */
-    public function edit($year, $month, $slug): View
+    public function edit(Sermon $sermon): View
     {
-        $sermon = $this->findSermonOrFail((int) $year, (int) $month, $slug);
         $this->authorize('update', $sermon);
 
         $series = array_unique(\App\Models\Sermon::pluck('series')->all()); // Used FQCN for Sermon
@@ -196,16 +188,10 @@ class SermonController extends Controller
 
     /**
      * Update the specified resource in storage.
-     *
-     * @param  int  $year
-     * @param  int  $month
-     * @param  string  $slug
      */
-    public function update($year, $month, $slug, UpdateSermonRequest $request): RedirectResponse
+    public function update(Sermon $sermon, UpdateSermonRequest $request): RedirectResponse
     {
         // Gate check removed, handled by UpdateSermonRequest
-
-        $sermon = $this->findSermonOrFail((int) $year, (int) $month, $slug);
 
         $validatedData = $request->validated();
 
@@ -238,14 +224,9 @@ class SermonController extends Controller
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @param  int  $year
-     * @param  int  $month
-     * @param  string  $slug
      */
-    public function destroy($year, $month, $slug): RedirectResponse
+    public function destroy(Sermon $sermon): RedirectResponse
     {
-        $sermon = $this->findSermonOrFail((int) $year, (int) $month, $slug);
         $this->authorize('delete', $sermon);
 
         $sermon->delete();

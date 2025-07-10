@@ -4,3 +4,26 @@
   margin-bottom: $grid-gutter-width;
   padding: $grid-gutter-width;
 }
+
+// Bootstrap-like media query mixins
+@mixin media-breakpoint-up($name, $breakpoints: $grid-breakpoints) {
+  $min: map-get($breakpoints, $name);
+  @if $min != 0 {
+    @media (min-width: $min) {
+      @content;
+    }
+  } @else {
+    @content;
+  }
+}
+
+@mixin media-breakpoint-down($name, $breakpoints: $grid-breakpoints) {
+  $max: map-get($breakpoints, $name);
+  @if $max != 0 {
+    @media (max-width: $max - 1px) {
+      @content;
+    }
+  } @else {
+    @content;
+  }
+}

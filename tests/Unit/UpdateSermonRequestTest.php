@@ -60,9 +60,9 @@ class UpdateSermonRequestTest extends TestCase
     #[Test]
     public function test_authorize_denies_user_without_update_permission()
     {
-        // Create a fake sermon with known date and slug
+        // Create a fake sermon with known date and unique slug
         $sermon = \App\Models\Sermon::factory()->create([
-            'slug' => 'test-sermon',
+            'slug' => 'test-sermon-' . uniqid(),
             'date' => '2024-06-01',
         ]);
 

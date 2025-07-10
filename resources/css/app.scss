@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@import 'variables';
+@import 'cbc/mixins';
+@import 'cbc/cards';
+@import 'cbc/header';
+@import 'cbc/home';
+@import 'cbc/footer';
+@import 'cbc/pages';
+@import 'cbc/sermons';
+@import 'cbc/text';
+
 @layer base {
     [x-cloak] {
         display: none !important;
