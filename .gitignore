@@ -1,6 +1,8 @@
 /bower_components
 /node_modules
 /public/*
+!/public/build
+!/public/fonts
 /storage/*.key
 /vendor
 /.idea
