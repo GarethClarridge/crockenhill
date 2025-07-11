@@ -18,3 +18,4 @@ artisan_serve.log
 /public/scripts
 /public/styles
 /public/vendor
+/public/hot
