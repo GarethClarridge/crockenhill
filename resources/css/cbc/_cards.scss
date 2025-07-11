@@ -1,3 +1,7 @@
+@use 'sass:map';
+@use '../variables' as *;
+@use 'mixins' as *;
+
 .bg-emerald-950 {
   background-image: url("/images/pattern-wide.png");
   background-size: cover;
@@ -53,7 +57,7 @@ aside {
   .read-more {
     text-align: right;
     font-style: italic;
-    padding-top: map-get($spacers, 1);
+    padding-top: map.get($spacers, 1);
   }
 }
 
@@ -64,14 +68,14 @@ aside {
       @include media-breakpoint-up(sm) {
         max-width: 50.1%;
         float: left;
-        padding: map-get($spacers, 4) map-get($spacers, 3) map-get($spacers, 4) 0;
+        padding: map.get($spacers, 4) map.get($spacers, 3) map.get($spacers, 4) 0;
       }
     }
   }
   p:nth-of-type(2n) img {
     @include media-breakpoint-up(sm) {
       float: right;
-      padding-left: map-get($spacers, 4);
+      padding-left: map.get($spacers, 4);
       padding-right: 0;
     }
   }

@@ -18,21 +18,21 @@
       </h1>
 
       <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right">
-        <p class="hover:scale-110 my-2">
+        <p class="hover:scale-110 my-4">
           <a href="#worshipping-god">
             <span class="px-2 py-1 bg-white ">
               Worshipping God
             </span>
           </a>
         </p>
-        <p class="hover:scale-110 my-2">
+        <p class="hover:scale-110 my-4">
           <a href="#strengthening-believers">
             <span class="px-2 py-1 bg-white">
               Strengthening believers
             </span>
           </a>
         </p>
-        <p class="hover:scale-110 my-2">
+        <p class="hover:scale-110 my-4">
           <a href="#proclaiming-jesus-christ-to-all">
             <span class="px-2 py-1 bg-white">
               Proclaiming Jesus Christ to all
@@ -46,28 +46,28 @@
 
   <div class="full-width-head py-16 mb-16 md:hidden" style="background-image: linear-gradient( rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2) ), url({{ asset('/images/homepage/may2024mobile.webp')}}); background-position: bottom; background-size: cover;">
     <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
-      <h1 class="text-white text-6xl font-display p-12 text-center md:text-left">
+      <h1 class="text-white font-display text-6xl p-12 text-center md:text-left">
         Crockenhill<br>
         Baptist<br>
         Church.<br>
       </h1>
 
-      <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right">
-        <p class="hover:scale-110 my-2">
+      <div class="p-3 m-6 leading-10 text-xl self-center font-display text-center md:text-right">
+        <p class="hover:scale-110 my-4">
           <a href="#worshipping-god">
             <span class="px-2 py-1 bg-white ">
               Worshipping God
             </span>
           </a>
         </p>
-        <p class="hover:scale-110 my-2">
+        <p class="hover:scale-110 my-4">
           <a href="#strengthening-believers">
             <span class="px-2 py-1 bg-white">
               Strengthening believers
             </span>
           </a>
         </p>
-        <p class="hover:scale-110 my-2">
+        <p class="hover:scale-110 my-4">
           <a href="#proclaiming-jesus-christ-to-all">
             <span class="px-2 py-1 bg-white">
               Proclaiming Jesus Christ to all
@@ -86,6 +86,10 @@
     </p>
 
   </x-text>
+
+  <h2 id="sign-up-for-buzz-club" class="bg-yellow-400 bg-cover mt-10 -mb-10 p-16 text-center text-white text-3xl font-display">
+    <a href="/buzz-club" class="underline">Sign up here for Buzz Club 2025</a>
+  </h2>
 
   <x-h2>
     Worshipping God

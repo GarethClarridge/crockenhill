@@ -11,6 +11,13 @@ export default defineConfig({
             usePolling: true,
         },
     },
+    css: {
+        preprocessorOptions: {
+            scss: {
+                api: 'modern-compiler'
+            }
+        }
+    },
     build: {
         rollupOptions: {
             output: {

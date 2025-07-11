@@ -1,3 +1,6 @@
+@use 'sass:map';
+@use '../variables' as *;
+
 // #christmas-page {
 //   margin: 0px;
 //
@@ -36,7 +39,7 @@
 //   font-style: italic;
 //
 //   span {
-//     background-color: map-get($theme-colors, secondary);
+//     background-color: map.get($theme-colors, secondary);
 //     line-height: 3em;
 //
 //     box-decoration-break: clone;
@@ -82,7 +85,7 @@
       &:hover {
         background-color: white;
         border-color: white;
-        color: map-get($theme-colors, dark) !important;
+        color: map.get($theme-colors, dark) !important;
       }
     }
   }

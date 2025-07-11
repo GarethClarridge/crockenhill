@@ -1,3 +1,6 @@
+@use '../variables' as *;
+@use 'mixins' as *;
+
 .navbar-site-name {
   @include media-breakpoint-down(md) {
     display: none;

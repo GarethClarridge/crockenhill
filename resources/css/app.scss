@@ -1,16 +1,16 @@
+@use 'variables';
+@use 'cbc/mixins';
+@use 'cbc/cards';
+@use 'cbc/header';
+@use 'cbc/home';
+@use 'cbc/footer';
+@use 'cbc/pages';
+@use 'cbc/sermons';
+@use 'cbc/text';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import 'variables';
-@import 'cbc/mixins';
-@import 'cbc/cards';
-@import 'cbc/header';
-@import 'cbc/home';
-@import 'cbc/footer';
-@import 'cbc/pages';
-@import 'cbc/sermons';
-@import 'cbc/text';
 
 @layer base {
     [x-cloak] {
@@ -24,7 +24,7 @@
   font-weight: 400;
   font-display: swap;
   src: 
-    url(/fonts/oswald-regular.woff2) format("woff2"),
+    url(/fonts/oswald-regular.woff2) format("woff2");
 }
 
 @font-face { 
@@ -33,7 +33,7 @@
   font-weight: 400;
   font-display: swap;
   src: 
-    url(/fonts/lato-regular.woff2) format("woff2"),
+    url(/fonts/lato-regular.woff2) format("woff2");
 }
 
 @font-face { 
@@ -42,7 +42,7 @@
   font-weight: 400;
   font-display: swap;
   src: 
-    url(/fonts/lato-italic.woff2) format("woff2"),
+    url(/fonts/lato-italic.woff2) format("woff2");
 }
 
 @font-face { 
@@ -51,5 +51,5 @@
   font-weight: 700;
   font-display: swap;
   src: 
-    url(/fonts/lato-bold.woff2) format("woff2"),
+    url(/fonts/lato-bold.woff2) format("woff2");
 }
