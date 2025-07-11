@@ -1,8 +1,5 @@
 /bower_components
 /node_modules
-/public/*
-!/public/build
-!/public/fonts
 /storage/*.key
 /vendor
 /.idea
@@ -16,3 +13,8 @@ Homestead.yaml
 .DS_Store
 artisan_serve.log
 /storage/*
+/public/images
+/public/media
+/public/scripts
+/public/styles
+/public/vendor
