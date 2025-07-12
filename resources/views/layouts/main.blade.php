@@ -46,6 +46,15 @@
     <x-layout.header />
   </header>
 
+  @unless(Route::currentRouteName() === 'Home')
+  <div class="bg-yellow-400 text-white text-center py-4 md:py-2 font-display">
+    <div class="flex flex-col md:flex-row items-center justify-center text-lg md:text-base">
+      <a href="/buzz-club">🐝 &nbsp;Sign up for Buzz Club, our free holiday club for primary school children running 4-7th August.</a>
+      <x-heroicon-s-arrow-right-circle class="h-6 w-6 mt-2 md:mt-0 md:ml-2" />
+    </div>
+  </div>
+  @endunless
+
   @yield('content')
 
   <footer class="bg-cbc-pattern bg-cover p-6 mt-6">
