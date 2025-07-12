@@ -122,6 +122,7 @@ Route::permanentRedirect('whats-on/adventurers', 'community/adventurers');
 Route::permanentRedirect('whats-on/babytalk', 'community/baby-talk');
 Route::permanentRedirect('whats-on/biblestudy', 'community/bible-study');
 Route::permanentRedirect('whats-on/buzzclub', 'community/buzz-club');
+Route::permanentRedirect('whats-on/buzz-club', 'community/buzz-club');
 Route::permanentRedirect('whats-on/carolsatthechequers', 'community/carols-at-the-chequers');
 Route::permanentRedirect('whats-on/christianityexplored', 'community/christianity-explored');
 Route::permanentRedirect('whats-on/coffeecup', 'community/coffee-cup');
