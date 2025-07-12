@@ -1,10 +1,8 @@
 @extends('layouts/page')
 
-@section('dynamic_content')
+@section('full_width_content')
 
-    @foreach ($sermons as $sermon)
-      <x-sermon-card :$sermon/>
-    @endforeach
+  <x-sermon-list :sermons="$sermons" :groupedByDate="false" />
 
 
 @stop
