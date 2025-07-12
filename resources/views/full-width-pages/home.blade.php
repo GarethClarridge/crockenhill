@@ -9,82 +9,65 @@
 
 <main id="home" class="text-sm">
 
-  <div class="full-width-head py-16 mb-16 hidden md:block" style="background-image: linear-gradient( rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3) ), url({{ asset('/images/homepage/may2024wide.webp')}}); background-position: right; background-size: cover;">
+  <div class="full-width-head py-16 mb-16 hidden md:block" style="background-image: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url({{ asset('/images/homepage/may2024wide.webp') }}); background-position: right; background-size: cover;">
     <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
       <h1 class="text-white text-6xl font-display p-12 text-center md:text-left">
         Crockenhill<br>
         Baptist<br>
-        Church.<br>
+        Church.
       </h1>
-
       <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right">
         <p class="hover:scale-110 my-4">
           <a href="#worshipping-god">
-            <span class="px-2 py-1 bg-white ">
-              Worshipping God
-            </span>
+            <span class="px-2 py-1 bg-white">Worshipping God</span>
           </a>
         </p>
         <p class="hover:scale-110 my-4">
           <a href="#strengthening-believers">
-            <span class="px-2 py-1 bg-white">
-              Strengthening believers
-            </span>
+            <span class="px-2 py-1 bg-white">Strengthening believers</span>
           </a>
         </p>
         <p class="hover:scale-110 my-4">
           <a href="#proclaiming-jesus-christ-to-all">
-            <span class="px-2 py-1 bg-white">
-              Proclaiming Jesus Christ to all
-            </span>
+            <span class="px-2 py-1 bg-white">Proclaiming Jesus Christ to all</span>
           </a>
         </p>
       </div>
     </div>
-
   </div>
 
-  <div class="full-width-head py-16 mb-16 md:hidden" style="background-image: linear-gradient( rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2) ), url({{ asset('/images/homepage/may2024mobile.webp')}}); background-position: bottom; background-size: cover;">
-    <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
-      <h1 class="text-white font-display text-6xl p-12 text-center md:text-left">
+  <div class="full-width-head py-16 mb-16 md:hidden" style="background-image: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url({{ asset('/images/homepage/may2024mobile.webp') }}); background-position: bottom; background-size: cover;">
+    <div class="grid grid-cols-1 mx-auto justify-items-center">
+      <h1 class="text-white font-display text-6xl p-12 text-center">
         Crockenhill<br>
         Baptist<br>
-        Church.<br>
+        Church.
       </h1>
-
-      <div class="p-3 m-6 leading-10 text-xl self-center font-display text-center md:text-right">
+      <div class="p-3 m-6 leading-10 text-xl font-display text-center">
         <p class="hover:scale-110 my-4">
           <a href="#worshipping-god">
-            <span class="px-2 py-1 bg-white ">
-              Worshipping God
-            </span>
+            <span class="px-2 py-1 bg-white">Worshipping God</span>
           </a>
         </p>
         <p class="hover:scale-110 my-4">
           <a href="#strengthening-believers">
-            <span class="px-2 py-1 bg-white">
-              Strengthening believers
-            </span>
+            <span class="px-2 py-1 bg-white">Strengthening believers</span>
           </a>
         </p>
         <p class="hover:scale-110 my-4">
           <a href="#proclaiming-jesus-christ-to-all">
-            <span class="px-2 py-1 bg-white">
-              Proclaiming Jesus Christ to all
-            </span>
+            <span class="px-2 py-1 bg-white">Proclaiming Jesus Christ to all</span>
           </a>
         </p>
       </div>
     </div>
-
   </div>
 
   <x-text>
-    <p class="">
+    <p>
       Crockenhill Baptist Church is friendly, Bible teaching church in
       the village of Crockenhill, just outside Swanley and on the road between St Mary Cray and Eynsford.
     </p>
-
   </x-text>
 
   <h2 id="sign-up-for-buzz-club" class="bg-yellow-400 bg-cover mt-10 -mb-10 p-16 text-center text-white text-3xl font-display">
@@ -96,13 +79,13 @@
   </x-h2>
 
   <x-text>
-    <p class="">
+    <p>
       We meet to worship God together as a church every Sunday at 10:30am.
       Services involve reading the Bible, praying, singing
       and hearing God's word preached. We also meet on Sunday evenings at
       6pm for a service mostly focussed on prayer.
     </p>
-    <p class="">
+    <p>
       You're more than welcome to join us - we'd love to see you! If you can't make it in person you can watch our morning services on
       <a class="inline" href="https://www.youtube.com/@crockenhillbaptistchurch9727/streams">
         our YouTube channel
@@ -158,13 +141,13 @@
   </x-h2>
 
   <x-text>
-    <p class="">
+    <p>
       We want to continue to grow in our faith: becoming closer to God
       as the Holy Spirit makes us more like Jesus.
     </p>
   </x-text>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center max-w-2xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 gap-2 justify-center max-w-2xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'sunday-evenings')" />
 
@@ -178,7 +161,7 @@
   </x-h2>
 
   <x-text>
-    <p class="">
+    <p>
       We're eager to tell people about Jesus.
       After all, Christianity is good news!
     </p>
@@ -201,7 +184,6 @@
       We'd love to hear from you.
     </p>
   </x-text>
-
 
 </main>
 

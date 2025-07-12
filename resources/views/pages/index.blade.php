@@ -1,15 +1,17 @@
 @extends('layouts/page')
 
 @section('dynamic_content')
-  <x-button link="pages/create">
-    Create a new page
-  </x-button>
+  <div class="px-6 max-w-2xl mx-auto mt-6">
+    <x-button link="pages/create">
+      Create a new page
+    </x-button>
+  </div>
 
   <x-h2>
     Existing pages
   </x-h2>
 
-  <div class="block w-full overflow-auto scrolling-touch">
+  <div class="px-6 max-w-4xl mx-auto mt-6 block w-full overflow-auto scrolling-touch">
     <table class="w-full max-w-full mb-4 bg-transparent table-hover">
       <thead>
         <tr>

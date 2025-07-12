@@ -2,7 +2,7 @@
 
 @section('dynamic_content')
 
-  <div class="my-6 space-y-3">
+  <div class="px-6 grid grid-cols-1 gap-2 max-w-2xl mx-auto mt-6">
     
     @can ('edit-sermons')
       <x-button link="/christ/sermons">

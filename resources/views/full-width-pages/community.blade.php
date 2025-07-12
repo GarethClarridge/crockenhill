@@ -35,7 +35,7 @@ Community
     </p>
   </x-text>
 
-  <div class="grid grid-cols-1 gap-3 mx-12 my-6">
+  <div class="px-6 grid grid-cols-1 gap-2 max-w-2xl mx-auto mt-6">
     <x-button link="#i-want-to-meet-local-people">
       I want to meet local people
     </x-button>
@@ -51,7 +51,7 @@ Community
     I want to meet local people
   </x-h2>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'coffee-cup')" />
 
@@ -66,7 +66,7 @@ Community
     I've got children
   </x-h2>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'baby-talk')" />
 
@@ -81,7 +81,7 @@ Community
     I want to find out more about Jesus
   </x-h2>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'sunday-mornings')" />
 
@@ -96,7 +96,7 @@ Community
     Occasional events
   </x-h2>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'carols-in-the-chequers')" />
 

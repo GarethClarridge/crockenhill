@@ -13,7 +13,7 @@
 
     <x-h1>
       Christ
-    </x-h1>      
+    </x-h1>
 
     <x-text>
       <p>
@@ -36,7 +36,7 @@
       title=""
     />
     
-    <div class="grid grid-cols-1 gap-3 mx-12">
+    <div class="px-6 grid grid-cols-1 gap-2 max-w-2xl mx-auto mt-6">
       <x-button link="#who-is-jesus">
         Who is Jesus?
       </x-button>

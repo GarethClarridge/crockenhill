@@ -55,7 +55,7 @@
     Related pages
   </x-h2>
   <div class="mx-auto max-w-2xl xl:max-w-3xl px-12 md:px-6">
-    <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-5xl mx-auto mt-6">
+    <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
       @foreach ($links as $link)
       <x-page-card :page="$link" />
       @endforeach
