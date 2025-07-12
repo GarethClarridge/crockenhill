@@ -31,6 +31,9 @@ Route::view('/christ', 'full-width-pages.christ')->name('christ');
 Route::view('/church', 'full-width-pages.church')->name('church');
 Route::view('/community', 'full-width-pages.community')->name('community');
 
+// High priority redirect that needs to be processed early
+Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
+
 // Meeting routes
 Route::resource('meetings', MeetingController::class);
 
@@ -88,49 +91,49 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
 
 Route::get('phpinfo', fn () => phpinfo())->middleware('admin');
 
-// Permanent Redirects (unchanged)
-Route::permanentRedirect('aboutus', 'church');
+// Permanent Redirects (fixed with absolute paths)
+// Specific whats-on/* redirects must come before general whats-on redirect
+Route::permanentRedirect('whats-on/1150', '/community/1150');
+Route::permanentRedirect('whats-on/adventurers', '/community/adventurers');
+Route::permanentRedirect('whats-on/babytalk', '/community/baby-talk');
+Route::permanentRedirect('whats-on/biblestudy', '/community/bible-study');
+Route::permanentRedirect('whats-on/carolsatthechequers', '/community/carols-at-the-chequers');
+Route::permanentRedirect('whats-on/christianityexplored', '/community/christianity-explored');
+Route::permanentRedirect('whats-on/coffeecup', '/community/coffee-cup');
+Route::permanentRedirect('whats-on/sunday', '/community/sunday-mornings');
+
+Route::permanentRedirect('aboutus', '/church');
 Route::permanentRedirect('contacttus', '/');
-Route::permanentRedirect('links', 'church/links');
-Route::permanentRedirect('whatson', 'community');
-Route::permanentRedirect('whats-on', 'community');
-Route::permanentRedirect('where', 'church/find-us');
-Route::permanentRedirect('aboutus/history', 'church/history');
-Route::permanentRedirect('aboutus/pastor', 'church/pastor');
-Route::permanentRedirect('aboutus/statementoffaith', 'church/statement-of-faith');
-Route::permanentRedirect('aboutus/whatwebelieve', 'church/what-we-believe');
-Route::permanentRedirect('whatson/1150', 'community/1150');
-Route::permanentRedirect('whatson/adventurers', 'community/adventurers');
-Route::permanentRedirect('whatson/babytalk', 'community/baby-talk');
-Route::permanentRedirect('whatson/biblestudy', 'community/bible-study');
-Route::permanentRedirect('whatson/buzzclub', 'community/buzz-club');
-Route::permanentRedirect('whatson/carolsatthechequers', 'community/carols-at-the-chequers');
-Route::permanentRedirect('whatson/christianityexplored', 'community/christianity-explored');
-Route::permanentRedirect('whatson/coffeecup', 'community/coffee-cup');
-Route::permanentRedirect('whatson/sunday', 'community/sunday-mornings');
+Route::permanentRedirect('links', '/church/links');
+Route::permanentRedirect('whatson', '/community');
+Route::permanentRedirect('whats-on', '/community');
+Route::permanentRedirect('where', '/church/find-us');
+Route::permanentRedirect('aboutus/history', '/church/history');
+Route::permanentRedirect('aboutus/pastor', '/church/pastor');
+Route::permanentRedirect('aboutus/statementoffaith', '/church/statement-of-faith');
+Route::permanentRedirect('aboutus/whatwebelieve', '/church/what-we-believe');
+Route::permanentRedirect('whatson/1150', '/community/1150');
+Route::permanentRedirect('whatson/adventurers', '/community/adventurers');
+Route::permanentRedirect('whatson/babytalk', '/community/baby-talk');
+Route::permanentRedirect('whatson/biblestudy', '/community/bible-study');
+Route::permanentRedirect('whatson/buzzclub', '/community/buzz-club');
+Route::permanentRedirect('whatson/carolsatthechequers', '/community/carols-at-the-chequers');
+Route::permanentRedirect('whatson/christianityexplored', '/community/christianity-explored');
+Route::permanentRedirect('whatson/coffeecup', '/community/coffee-cup');
+Route::permanentRedirect('whatson/sunday', '/community/sunday-mornings');
 
-Route::permanentRedirect('about-us', 'church');
-Route::permanentRedirect('about-us/history', 'church/history');
-Route::permanentRedirect('about-us/pastor', 'church/pastor');
-Route::permanentRedirect('about-us/links', 'church/links');
-Route::permanentRedirect('about-us/statementoffaith', 'church/statement-of-faith');
-Route::permanentRedirect('about-us/whatwebelieve', 'church/what-we-believe');
-Route::permanentRedirect('about-us/privacy-policy', 'church/privacy-policy');
-Route::permanentRedirect('about-us/safeguarding-policy', 'church/safeguarding-policy');
-Route::permanentRedirect('whats-on/1150', 'community/1150');
-Route::permanentRedirect('whats-on/adventurers', 'community/adventurers');
-Route::permanentRedirect('whats-on/babytalk', 'community/baby-talk');
-Route::permanentRedirect('whats-on/biblestudy', 'community/bible-study');
-Route::permanentRedirect('whats-on/buzzclub', 'community/buzz-club');
-Route::permanentRedirect('whats-on/buzz-club', 'community/buzz-club');
-Route::permanentRedirect('whats-on/carolsatthechequers', 'community/carols-at-the-chequers');
-Route::permanentRedirect('whats-on/christianityexplored', 'community/christianity-explored');
-Route::permanentRedirect('whats-on/coffeecup', 'community/coffee-cup');
-Route::permanentRedirect('whats-on/sunday', 'community/sunday-mornings');
+Route::permanentRedirect('about-us', '/church');
+Route::permanentRedirect('about-us/history', '/church/history');
+Route::permanentRedirect('about-us/pastor', '/church/pastor');
+Route::permanentRedirect('about-us/links', '/church/links');
+Route::permanentRedirect('about-us/statementoffaith', '/church/statement-of-faith');
+Route::permanentRedirect('about-us/whatwebelieve', '/church/what-we-believe');
+Route::permanentRedirect('about-us/privacy-policy', '/church/privacy-policy');
+Route::permanentRedirect('about-us/safeguarding-policy', '/church/safeguarding-policy');
 
-Route::permanentRedirect('buzz-club', 'community/buzz-club');
-Route::permanentRedirect('messy-church', 'community/messy-church');
-Route::permanentRedirect('reopening', 'attending-in-person');
+Route::permanentRedirect('buzz-club', '/community/buzz-club');
+Route::permanentRedirect('messy-church', '/community/messy-church');
+Route::permanentRedirect('reopening', '/attending-in-person');
 
 Route::permanentRedirect('online', '/');
 Route::permanentRedirect('resources', '/');
