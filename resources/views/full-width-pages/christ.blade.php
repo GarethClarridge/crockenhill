@@ -36,7 +36,7 @@
       title=""
     />
     
-    <div class="px-6 grid grid-cols-1 gap-2 max-w-2xl mx-auto mt-6">
+    <x-button-grid>
       <x-button link="#who-is-jesus">
         Who is Jesus?
       </x-button>
@@ -49,7 +49,7 @@
       <x-button link="#where-can-i-find-out-more">
         Where can I find out more?
       </x-button>
-    </div>
+    </x-button-grid>
     
     <x-h2>
       Who is Jesus?

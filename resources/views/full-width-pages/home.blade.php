@@ -17,21 +17,9 @@
         Church.
       </h1>
       <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right">
-        <p class="hover:scale-110 my-4">
-          <a href="#worshipping-god">
-            <span class="px-2 py-1 bg-white">Worshipping God</span>
-          </a>
-        </p>
-        <p class="hover:scale-110 my-4">
-          <a href="#strengthening-believers">
-            <span class="px-2 py-1 bg-white">Strengthening believers</span>
-          </a>
-        </p>
-        <p class="hover:scale-110 my-4">
-          <a href="#proclaiming-jesus-christ-to-all">
-            <span class="px-2 py-1 bg-white">Proclaiming Jesus Christ to all</span>
-          </a>
-        </p>
+        <x-hero-nav-link href="#worshipping-god" text="Worshipping God" />
+        <x-hero-nav-link href="#strengthening-believers" text="Strengthening believers" />
+        <x-hero-nav-link href="#proclaiming-jesus-christ-to-all" text="Proclaiming Jesus Christ to all" />
       </div>
     </div>
   </div>
@@ -44,21 +32,9 @@
         Church.
       </h1>
       <div class="p-3 m-6 leading-10 text-xl font-display text-center">
-        <p class="hover:scale-110 my-4">
-          <a href="#worshipping-god">
-            <span class="px-2 py-1 bg-white">Worshipping God</span>
-          </a>
-        </p>
-        <p class="hover:scale-110 my-4">
-          <a href="#strengthening-believers">
-            <span class="px-2 py-1 bg-white">Strengthening believers</span>
-          </a>
-        </p>
-        <p class="hover:scale-110 my-4">
-          <a href="#proclaiming-jesus-christ-to-all">
-            <span class="px-2 py-1 bg-white">Proclaiming Jesus Christ to all</span>
-          </a>
-        </p>
+        <x-hero-nav-link href="#worshipping-god" text="Worshipping God" />
+        <x-hero-nav-link href="#strengthening-believers" text="Strengthening believers" />
+        <x-hero-nav-link href="#proclaiming-jesus-christ-to-all" text="Proclaiming Jesus Christ to all" />
       </div>
     </div>
   </div>

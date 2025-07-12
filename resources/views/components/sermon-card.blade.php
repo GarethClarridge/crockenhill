@@ -45,21 +45,11 @@
   </ul>
 
   @can ('edit-sermons')
-  <form method="POST" action="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8" class="-mt-6 grid grid-cols-2">
-    <input type="hidden" name="_token" value="{{ csrf_token() }}">
-    <a href="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit" class="w-full no-underline mx-auto block max-w-md p-4 text-center text-white rounded-bl-md bg-cbc-pattern bg-cover focus:ring-2 focus:ring-blue-800 focus:ring-offset-2 transition-all">
-      <div class="flex items-center justify-center">
-        <x-heroicon-s-pencil-square class="h-6 w-6 mr-2" />
-        Edit
-      </div>
-    </a>
-
-    <button type="submit" class="w-full no-underline mx-auto block max-w-md p-4 text-center text-white rounded-br-md bg-gradient-to-r from-rose-600 to-rose-700 focus:ring-2 focus:ring-blue-800 focus:ring-offset-2 transition-all">
-      <div class="flex items-center justify-center">
-        <x-heroicon-s-trash class="h-6 w-6 mr-2" />
-        Delete
-      </div>
-    </button>
-  </form>
+    <x-admin-actions 
+      :editRoute="'/christ/sermons/' . date('Y', strtotime($sermon->date)) . '/' . date('m', strtotime($sermon->date)) . '/' . $sermon->slug . '/edit'"
+      :deleteRoute="'/christ/sermons/' . date('Y', strtotime($sermon->date)) . '/' . date('m', strtotime($sermon->date)) . '/' . $sermon->slug . '/delete'"
+      deleteConfirmMessage="Are you sure you want to delete this sermon?"
+      layout="grid"
+      :withIcons="true" />
   @endcan
 </div>

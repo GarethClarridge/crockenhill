@@ -11,48 +11,29 @@
     Existing pages
   </x-h2>
 
-  <div class="px-6 max-w-4xl mx-auto mt-6 block w-full overflow-auto scrolling-touch">
-    <table class="w-full max-w-full mb-4 bg-transparent table-hover">
-      <thead>
-        <tr>
-          <th>Title</th>
-          <th>Section</th>
-          <th>Last edited</th>
-          <th><span class="sr-only">Actions</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        @foreach ($pages as $page)
-          <tr>
-            <td>
-              @if ($page->area == $page->slug)
-                <a href="/{{$page->slug}}">
-              @else
-                <a href="/{{$page->area}}/{{$page->slug}}">
-              @endif
-                  {{ $page->heading }}
-                </a>
-            </td>
-            <td>{{ $page->area }}</td>
-            <td>{{ $page->updated_at }}</td>
-            <td>
-              <form class="flex items-center" action="/church/members/pages/{{$page->slug}}" method="POST">
-                <input type="hidden" name="_method" value="DELETE">
-                <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                <div class="relative inline-flex align-middle">
-                  <a href="/church/members/pages/{{$page->slug}}/edit" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline bg-green-500 hover:bg-green-600">
-                    Edit
-                  </a>
-                  <button type="submit" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline bg-red-600 hover:bg-red-700">
-                    Delete
-                  </button>
-                </div>
-              </form>
-            </td>
-          </tr>
-        @endforeach
-      </tbody>
-    </table>
-  </div>
+  <x-admin-table :headers="['Title', 'Section', 'Last edited', '']">
+    @foreach ($pages as $page)
+      <tr>
+        <td>
+          @if ($page->area == $page->slug)
+            <a href="/{{$page->slug}}">
+          @else
+            <a href="/{{$page->area}}/{{$page->slug}}">
+          @endif
+              {{ $page->heading }}
+            </a>
+        </td>
+        <td>{{ $page->area }}</td>
+        <td>{{ $page->updated_at }}</td>
+        <td>
+          <x-admin-actions 
+            :editRoute="'/church/members/pages/' . $page->slug . '/edit'"
+            :deleteRoute="'/church/members/pages/' . $page->slug"
+            deleteConfirmMessage="Are you sure you want to delete this page?"
+            layout="inline" />
+        </td>
+      </tr>
+    @endforeach
+  </x-admin-table>
 
 @stop
