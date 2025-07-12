@@ -59,7 +59,10 @@
   </x-text>
 
   <h2 id="sign-up-for-buzz-club" class="bg-yellow-400 bg-cover mt-10 -mb-10 p-16 text-center text-white text-3xl font-display">
-    <a href="/buzz-club" class="underline">Sign up here for Buzz Club 2025</a>
+    <div class="flex flex-col md:flex-row items-center justify-center">
+      <a href="/buzz-club">🐝 &nbsp Sign up here for Buzz Club, our free holiday club for primary school children running 4-7th August.</a>
+      <x-heroicon-s-arrow-right-circle class="h-8 w-8 mt-2 md:mt-0 md:ml-2" />
+    </div>
   </h2>
 
   <x-h2>
