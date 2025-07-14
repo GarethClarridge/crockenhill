@@ -3,7 +3,8 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         // Convert any legacy or unexpected values to the correct enum values
@@ -17,4 +18,4 @@ return new class extends Migration {
     {
         // No-op: cannot reliably revert
     }
-}; 
+};

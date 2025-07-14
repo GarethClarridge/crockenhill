@@ -4,10 +4,14 @@ namespace App\Models;
 
 use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
-use Illuminate\Database\Eloquent\Builder; // For scope return types
-use Illuminate\Database\Eloquent\Factories\HasFactory; // For type hinting Carbon instances
-use Illuminate\Database\Eloquent\Model; // Added Enum import
-use Illuminate\Support\Carbon; // Added Enum import
+use App\Services\CalendarService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Spatie\GoogleCalendar\Event;
 
 /**
  * App\Models\Meeting
@@ -196,5 +200,45 @@ class Meeting extends Model
         }
 
         return $nextOccurrence;
+    }
+
+    public function calendarEvents(): HasMany
+    {
+        return $this->hasMany(CalendarEvent::class, 'meeting_slug', 'slug');
+    }
+
+    public function getUpcomingEventsAttribute(): Collection
+    {
+        return $this->calendarEvents()
+            ->upcoming()
+            ->confirmed()
+            ->orderBy('start_datetime')
+            ->limit(config('calendar.performance.eager_load_limit', 100))
+            ->get();
+    }
+
+    public function getPastEventsAttribute(): Collection
+    {
+        return $this->calendarEvents()
+            ->past()
+            ->confirmed()
+            ->orderBy('start_datetime', 'desc')
+            ->limit(config('calendar.performance.eager_load_limit', 100))
+            ->get();
+    }
+
+    public function getNextEventAttribute(): ?CalendarEvent
+    {
+        return $this->upcoming_events->first();
+    }
+
+    public function getLastEventAttribute(): ?CalendarEvent
+    {
+        return $this->past_events->first();
+    }
+
+    public function createEvent(array $eventData): Event
+    {
+        return app(CalendarService::class)->createEventForMeeting($this->slug, $eventData);
     }
 }

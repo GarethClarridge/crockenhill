@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\CalendarAdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\CalendarController;
 // Import all necessary controllers
 use App\Http\Controllers\MeetingController; // Added this line
 use App\Http\Controllers\MemberController;
@@ -36,6 +38,11 @@ Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
 
 // Meeting routes
 Route::resource('meetings', MeetingController::class);
+
+// Calendar routes
+Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+Route::get('/calendar/uncategorized', [CalendarController::class, 'uncategorized'])->name('calendar.uncategorized');
+Route::get('/meetings/{meeting}/events', [CalendarController::class, 'eventsForMeeting'])->name('meetings.events');
 
 // Community meeting or page route (must be above catch-alls)
 Route::get('/community/{slug}', [MeetingController::class, 'showCommunityContent'])->name('community.meeting-or-page');
@@ -87,6 +94,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
     Route::resource('sermons', SermonController::class);
     // Manage meetings
     Route::resource('meetings', MeetingController::class);
+
+    // Calendar admin routes
+    Route::get('calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('admin.calendar.uncategorized');
+    Route::post('calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('admin.calendar.categorize');
+    Route::get('calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('admin.calendar.patterns');
+    Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
 });
 
 Route::get('phpinfo', fn () => phpinfo())->middleware('admin');

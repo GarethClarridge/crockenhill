@@ -14,7 +14,8 @@
 		"laravel/tinker": "^2.10",
 		"league/commonmark": "^2.2",
 		"livewire/livewire": "^3.0",
-		"owen-oj/laravel-getid3": "^2.2"
+		"owen-oj/laravel-getid3": "^2.2",
+		"spatie/laravel-google-calendar": "^3.8"
 	},
   	"require-dev": {
 		"barryvdh/laravel-debugbar": "^3.13",

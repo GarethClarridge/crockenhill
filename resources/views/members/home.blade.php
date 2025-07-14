@@ -13,6 +13,20 @@
       <x-button link="/church/members/meetings">
         Edit meetings
       </x-button>
+      <form method="POST" action="{{ route('admin.calendar.sync') }}">
+        @csrf
+        <x-form-button type="submit">
+          Sync events from Google Calendar
+        </x-form-button>
+      </form>
+          
+      <x-button link="{{ route('admin.calendar.patterns') }}">
+        Show event:meeting matching patterns
+      </x-button>
+
+      <x-button link="/church/members/calendar/uncategorized">
+        Categorise non-matching calendar events
+      </x-button>
     @endcan
     @can ('edit-pages')
       <x-button link="/church/members/pages">

@@ -51,16 +51,14 @@ class MeetingController extends Controller
 
     /**
      * Store a newly created resource in storage.
-     *
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(StoreMeetingRequest $request): RedirectResponse
     {
         $validated = $request->validated();
-        
+
         $meeting = Meeting::create($validated);
 
-        Session::flash('message', 'Meeting "' . $meeting->slug . '" successfully created!');
+        Session::flash('message', 'Meeting "'.$meeting->slug.'" successfully created!');
 
         return Redirect::to('/church/members/meetings');
     }
@@ -72,13 +70,26 @@ class MeetingController extends Controller
      */
     public function show(Meeting $meeting)
     {
+        // Eager load calendar events to avoid N+1 queries
+        $meeting->load([
+            'calendarEvents' => function ($query) {
+                $query->upcoming()->confirmed()->orderBy('start_datetime')->limit(5);
+            },
+        ]);
+
+        $upcomingEvents = $meeting->calendarEvents;
+
+        // Load past events separately if needed
+        $pastEvents = $meeting->calendarEvents()
+            ->past()
+            ->confirmed()
+            ->orderBy('start_datetime', 'desc')
+            ->limit(10)
+            ->get();
+
         // Photos logic might need adjustment based on how pictures are stored and accessed.
-        // Assuming 'pictures' column stores a boolean and actual picture paths are derived or stored elsewhere.
-        // For now, simplifying the photo logic.
         $photos = [];
         if ($meeting->pictures) {
-            // This logic is potentially problematic and might need a more robust solution.
-            // For example, storing image paths in the database or using a dedicated media library.
             // Temporarily commenting out the scandir logic as it might not work in all environments / setups.
             // if (is_dir(public_path('images/meetings/' . $meeting->slug))) {
             //   $filelist = scandir(public_path('images/meetings/' . $meeting->slug));
@@ -86,7 +97,7 @@ class MeetingController extends Controller
             // }
         }
 
-        return view('meetings.show', compact('meeting', 'photos'));
+        return view('meetings.show', compact('meeting', 'photos', 'upcomingEvents', 'pastEvents'));
     }
 
     /**
@@ -95,29 +106,41 @@ class MeetingController extends Controller
     public function showCommunityContent(string $slug)
     {
         $meeting = Meeting::where('slug', $slug)->first();
-        
+
         if ($meeting) {
+            // Eager load calendar events
+            $meeting->load([
+                'calendarEvents' => function ($query) {
+                    $query->upcoming()->confirmed()->orderBy('start_datetime')->limit(5);
+                },
+            ]);
+
+            $upcomingEvents = $meeting->calendarEvents;
+            $pastEvents = $meeting->calendarEvents()
+                ->past()
+                ->confirmed()
+                ->orderBy('start_datetime', 'desc')
+                ->limit(10)
+                ->get();
+
             $photos = [];
             if ($meeting->pictures) {
                 // Add your photo logic here if needed
-                // Example: if (is_dir(public_path('images/meetings/' . $meeting->slug))) {
-                //   $filelist = scandir(public_path('images/meetings/' . $meeting->slug));
-                //   $photos = array_slice($filelist, 2); // Remove . and ..
-                // }
             }
-            return view('meetings.show', compact('meeting', 'photos'));
+
+            return view('meetings.show', compact('meeting', 'photos', 'upcomingEvents', 'pastEvents'));
         }
-        
+
         // Check if there's a page in the community area
         $page = \App\Models\Page::where('slug', $slug)
             ->where('area', 'community')
             ->first();
-            
+
         if ($page) {
             return app(\App\Http\Controllers\PageController::class)
                 ->show('community', $slug, app(\League\CommonMark\CommonMarkConverter::class));
         }
-        
+
         // Neither meeting nor page found
         abort(404);
     }
@@ -143,27 +166,23 @@ class MeetingController extends Controller
 
     /**
      * Update the specified resource in storage.
-     *
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(UpdateMeetingRequest $request, Meeting $meeting): RedirectResponse
     {
         $validated = $request->validated();
-        
+
         $meeting->update($validated);
 
         $backUrl = Session::get('backUrl');
         Session::forget('backUrl');
 
         return ($backUrl && $backUrl !== url()->previous())
-          ? Redirect::to($backUrl)->with('message', 'Meeting "' . $meeting->slug . '" successfully updated!')
-          : Redirect::to('/church/members/meetings')->with('message', 'Meeting "' . $meeting->slug . '" successfully updated!');
+          ? Redirect::to($backUrl)->with('message', 'Meeting "'.$meeting->slug.'" successfully updated!')
+          : Redirect::to('/church/members/meetings')->with('message', 'Meeting "'.$meeting->slug.'" successfully updated!');
     }
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Meeting $meeting): RedirectResponse
     {
@@ -172,7 +191,7 @@ class MeetingController extends Controller
         $meetingSlug = $meeting->slug;
         $meeting->delete();
 
-        Session::flash('message', 'Meeting "' . $meetingSlug . '" successfully deleted!');
+        Session::flash('message', 'Meeting "'.$meetingSlug.'" successfully deleted!');
 
         return Redirect::to('/church/members/meetings');
     }

@@ -88,6 +88,7 @@ class Page extends Model
     public function scopeInArea(Builder $query, string|PageArea $area): Builder
     {
         $areaValue = $area instanceof PageArea ? $area->value : $area;
+
         return $query->where('area', $areaValue);
     }
 

@@ -62,7 +62,7 @@ class UpdateSermonRequestTest extends TestCase
     {
         // Create a fake sermon with known date and unique slug
         $sermon = \App\Models\Sermon::factory()->create([
-            'slug' => 'test-sermon-' . uniqid(),
+            'slug' => 'test-sermon-'.uniqid(),
             'date' => '2024-06-01',
         ]);
 

@@ -37,7 +37,7 @@ class PageController extends Controller
             'request_url' => request()->url(),
             'segments' => request()->segments(),
         ]);
-        
+
         return view('layouts/page');
     }
 
@@ -90,7 +90,7 @@ class PageController extends Controller
         $allPages = Page::all();
         \Log::info('All pages in database', [
             'count' => $allPages->count(),
-            'pages' => $allPages->map(fn($p) => ['id' => $p->id, 'slug' => $p->slug, 'area' => $p->area->value])->toArray(),
+            'pages' => $allPages->map(fn ($p) => ['id' => $p->id, 'slug' => $p->slug, 'area' => $p->area->value])->toArray(),
         ]);
 
         // Debug: Check the specific query
@@ -102,8 +102,8 @@ class PageController extends Controller
 
         // Manually resolve the page by slug and area
         $page = $query->first();
-        
-        if (!$page) {
+
+        if (! $page) {
             \Log::error('Page not found', [
                 'area' => $area,
                 'slug' => $slug,
@@ -122,7 +122,7 @@ class PageController extends Controller
         // The ViewServiceProvider handles most of the page display logic through view composers
         // We just need to pass the page data to the view
         $html = $converter->convert($page->markdown ?? '');
-        
+
         return View::make('layouts/page')->with([
             'page' => $page,
             'html' => $html,

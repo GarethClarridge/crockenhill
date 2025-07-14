@@ -65,7 +65,7 @@ class ViewServiceProvider extends ServiceProvider
 
             // Check if a page was passed from the controller
             $page = $view->page ?? null;
-            
+
             if ($page) {
                 // Use the page data from the controller
                 $description = '<meta name="description" content="'.$page->description.'">';

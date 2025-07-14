@@ -2,12 +2,12 @@
 
 namespace Tests\Unit;
 
-use App\Models\Page;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use PHPUnit\Framework\Attributes\Test; // Correct namespace
-// PageFactory not explicitly used if using Model::factory()
-use Tests\TestCase; // Added import
 use App\Enums\PageArea;
+use App\Models\Page;
+use Illuminate\Foundation\Testing\RefreshDatabase; // Correct namespace
+// PageFactory not explicitly used if using Model::factory()
+use PHPUnit\Framework\Attributes\Test; // Added import
+use Tests\TestCase;
 
 class PageTest extends TestCase
 {
@@ -107,7 +107,7 @@ class PageTest extends TestCase
     {
         // This test specifically ensures that the PageController show method
         // can handle string parameters without throwing type errors
-        
+
         $page = \App\Models\Page::factory()->create([
             'area' => PageArea::CHRIST->value,
             'slug' => 'test-slug',
@@ -119,8 +119,8 @@ class PageTest extends TestCase
 
         // Test that the page can be found by area and slug
         $foundPage = Page::where('slug', 'test-slug')
-                        ->where('area', PageArea::CHRIST->value)
-                        ->first();
+            ->where('area', PageArea::CHRIST->value)
+            ->first();
 
         $this->assertNotNull($foundPage);
         $this->assertEquals($page->id, $foundPage->id);
@@ -146,7 +146,7 @@ class PageTest extends TestCase
         $html = '# About Us
 
 This is about us.';
-        
+
         $expectedData = [
             'page' => $page,
             'html' => $html,

@@ -7,14 +7,14 @@ namespace Tests\Feature;
 use App\Enums\SermonService;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 use Illuminate\Support\Str;
+use Tests\TestCase;
 
 class SermonPagesTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
         // Create test sermons for each service type
@@ -75,7 +75,7 @@ class SermonPagesTest extends TestCase
     public function test_sermon_preacher_page_renders(): void
     {
         $sermon = Sermon::first();
-        $response = $this->get('/christ/sermons/preachers/' . Str::slug($sermon->preacher));
+        $response = $this->get('/christ/sermons/preachers/'.Str::slug($sermon->preacher));
         $response->assertStatus(200);
         $response->assertSee($sermon->preacher);
     }
@@ -84,11 +84,11 @@ class SermonPagesTest extends TestCase
     {
         $sermon = Sermon::first();
         if ($sermon->series) {
-            $response = $this->get('/christ/sermons/series/' . Str::slug($sermon->series));
+            $response = $this->get('/christ/sermons/series/'.Str::slug($sermon->series));
             $response->assertStatus(200);
             $response->assertSee($sermon->series);
         } else {
             $this->assertTrue(true); // No series to test
         }
     }
-} 
+}

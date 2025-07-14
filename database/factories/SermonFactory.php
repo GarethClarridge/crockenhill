@@ -2,9 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\SermonService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
-use App\Enums\SermonService;
 
 class SermonFactory extends Factory
 {

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\Page;
 use App\Enums\PageArea;
+use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -171,7 +171,7 @@ class RouteTest extends TestCase
     {
         // This test ensures that the route model binding error we fixed doesn't occur again
         // The error was: "Argument #1 must be of type App\Models\Page, string given"
-        
+
         // Create a page
         $page = Page::factory()->create([
             'area' => PageArea::CHRIST->value,
@@ -185,7 +185,7 @@ class RouteTest extends TestCase
 
         // This should not throw a TypeError about argument types
         $response = $this->get('/christ/binding-test');
-        
+
         // If we get here without a TypeError, the fix is working
         $response->assertStatus(200);
         $response->assertSee('Binding Test');
@@ -225,7 +225,7 @@ class RouteTest extends TestCase
         $response2->assertStatus(200);
         $response2->assertSee('Second Page'); // Check the page heading
         $response2->assertSee('Second'); // Check the page content
-        
+
         // Note: Related pages sections may show other pages in the same area as links,
         // which is correct behavior and helps with navigation.
     }

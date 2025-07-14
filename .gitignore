@@ -19,3 +19,4 @@ artisan_serve.log
 /public/styles
 /public/vendor
 /public/hot
+/storage/app/google-calendar/service-account-credentials.json
