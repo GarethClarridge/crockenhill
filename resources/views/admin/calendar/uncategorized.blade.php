@@ -21,66 +21,30 @@
 @if($uncategorizedEvents->count() > 0)
   <div class="space-y-6">
     @foreach($uncategorizedEvents as $event)
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div class="flex items-start justify-between">
-          <div class="flex-1 mr-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">
-              {{ $event->title }}
-            </h3>
+      <x-calendar-event-card 
+        :event="$event" 
+        variant="admin"
+        date-format="l, F j, Y"
+        description-limit="200"
+      >
+        <div class="flex-shrink-0 ml-6">
+          <form method="POST" action="{{ route('admin.calendar.categorize') }}" class="flex items-center space-x-2">
+            @csrf
+            <input type="hidden" name="event_id" value="{{ $event->id }}">
             
-            <div class="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-              <div class="flex items-center">
-                <x-heroicon-o-calendar class="h-4 w-4 mr-1" />
-                {{ $event->start_datetime->format('l, F j, Y') }}
-              </div>
-              
-              <div class="flex items-center">
-                <x-heroicon-o-clock class="h-4 w-4 mr-1" />
-                {{ $event->start_datetime->format('g:i A') }}
-                @if($event->end_datetime)
-                  - {{ $event->end_datetime->format('g:i A') }}
-                @endif
-              </div>
-              
-              @if($event->location)
-                <div class="flex items-center">
-                  <x-heroicon-o-map-pin class="h-4 w-4 mr-1" />
-                  {{ $event->location }}
-                </div>
-              @endif
-              
-              @if($event->speaker)
-                <div class="flex items-center">
-                  <x-heroicon-o-user class="h-4 w-4 mr-1" />
-                  {{ $event->speaker }}
-                </div>
-              @endif
-            </div>
+            <select name="meeting_slug" required class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+              <option value="">Select meeting type...</option>
+              @foreach($meetings as $meeting)
+                <option value="{{ $meeting->slug }}">{{ $meeting->slug }}</option>
+              @endforeach
+            </select>
             
-            @if($event->description)
-              <p class="text-sm text-gray-700 mb-3">{{ Str::limit($event->description, 200) }}</p>
-            @endif
-          </div>
-          
-          <div class="flex-shrink-0">
-            <form method="POST" action="{{ route('admin.calendar.categorize') }}" class="flex items-center space-x-2">
-              @csrf
-              <input type="hidden" name="event_id" value="{{ $event->id }}">
-              
-              <select name="meeting_slug" required class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-                <option value="">Select meeting type...</option>
-                @foreach($meetings as $meeting)
-                  <option value="{{ $meeting->slug }}">{{ $meeting->slug }}</option>
-                @endforeach
-              </select>
-              
-              <x-form-button type="submit" variant="primary" size="sm">
-                Categorize
-              </x-form-button>
-            </form>
-          </div>
+            <x-form-button type="submit" variant="primary" size="sm">
+              Categorize
+            </x-form-button>
+          </form>
         </div>
-      </div>
+      </x-calendar-event-card>
     @endforeach
   </div>
 @else

@@ -83,42 +83,13 @@
 
 <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
   @foreach($upcomingEvents->take(6) as $event)
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <h4 class="font-medium text-gray-900 mb-2">{{ $event->title }}</h4>
-      
-      <div class="space-y-1 text-sm text-gray-600">
-        <div class="flex items-center">
-          <x-heroicon-o-calendar class="h-4 w-4 mr-2" />
-          {{ $event->start_datetime->format('M j, Y') }}
-        </div>
-        
-        <div class="flex items-center">
-          <x-heroicon-o-clock class="h-4 w-4 mr-2" />
-          {{ $event->start_datetime->format('g:i A') }}
-          @if($event->end_datetime)
-            - {{ $event->end_datetime->format('g:i A') }}
-          @endif
-        </div>
-        
-        @if($event->speaker)
-          <div class="flex items-center">
-            <x-heroicon-o-user class="h-4 w-4 mr-2" />
-            {{ $event->speaker }}
-          </div>
-        @endif
-        
-        @if($event->location && $event->location !== $meeting->location)
-          <div class="flex items-center">
-            <x-heroicon-o-map-pin class="h-4 w-4 mr-2" />
-            {{ $event->location }}
-          </div>
-        @endif
-      </div>
-      
-      @if($event->description)
-        <p class="text-xs text-gray-600 mt-2">{{ Str::limit($event->description, 80) }}</p>
-      @endif
-    </div>
+    <x-calendar-event-card 
+      :event="$event" 
+      :meeting="$meeting"
+      :show-meeting-badge="false"
+      description-limit="80"
+      date-format="M j, Y"
+    />
   @endforeach
 </div>
 
@@ -138,15 +109,7 @@
   <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Events</h3>
   <div class="space-y-2">
     @foreach($pastEvents->take(3) as $event)
-      <div class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded">
-        <div>
-          <span class="text-sm font-medium text-gray-900">{{ $event->title }}</span>
-          @if($event->speaker)
-            <span class="text-sm text-gray-600">- {{ $event->speaker }}</span>
-          @endif
-        </div>
-        <span class="text-sm text-gray-500">{{ $event->start_datetime->format('M j') }}</span>
-      </div>
+      <x-calendar-event-compact :event="$event" />
     @endforeach
   </div>
   
