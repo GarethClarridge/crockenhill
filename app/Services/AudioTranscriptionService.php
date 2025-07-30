@@ -439,12 +439,27 @@ class AudioTranscriptionService
     // Fix common transcription issues
     $text = str_replace([' ,', ' .', ' !', ' ?'], [',', '.', '!', '?'], $text);
 
+    // Apply British English spelling corrections
+    $text = $this->applyBritishEnglishSpelling($text);
+
     // Ensure sentences end with proper punctuation
     if (!preg_match('/[.!?]$/', trim($text))) {
       $text = trim($text) . '.';
     }
 
     return trim($text);
+  }
+
+  /**
+   * Apply British English spelling corrections to transcript text
+   *
+   * @param string $text Text to correct
+   * @return string Text with British English spelling
+   */
+  private function applyBritishEnglishSpelling(string $text): string
+  {
+    $converter = app(BritishEnglishConverter::class);
+    return $converter->convert($text);
   }
 
   /**

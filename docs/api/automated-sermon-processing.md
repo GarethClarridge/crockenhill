@@ -1,4 +1,4 @@
-# Automated Sermon Processing API Documentation
+# Automated sermon processing API documentation
 
 ## Overview
 
@@ -18,7 +18,7 @@ All API endpoints require authentication using Laravel Sanctum tokens. Include t
 Authorization: Bearer {your-api-token}
 ```
 
-## Rate Limiting
+## Rate limiting
 
 The API implements rate limiting to prevent abuse:
 
@@ -31,7 +31,7 @@ Rate limit headers are included in responses:
 - `X-RateLimit-Remaining`: Remaining requests in current window
 - `X-RateLimit-Reset`: Unix timestamp when the rate limit resets
 
-## Content Types
+## Content types
 
 - **Request**: `multipart/form-data` for file uploads, `application/json` for other requests
 - **Response**: `application/json`
@@ -40,7 +40,7 @@ Rate limit headers are included in responses:
 
 ## Endpoints
 
-### 1. Upload Sermon for Automated Processing
+### 1. Upload sermon for automated processing
 
 Upload an audio file for automated sermon processing.
 
@@ -50,13 +50,13 @@ Upload an audio file for automated sermon processing.
 
 **Rate Limit**: `sermon-upload` (10 requests/hour)
 
-**Request Parameters**:
+**Request parameters**:
 
 | Parameter | Type | Required | Description                     |
 | --------- | ---- | -------- | ------------------------------- |
 | `file`    | File | Yes      | Audio file (MP3, WAV, M4A, MP4) |
 
-**File Requirements**:
+**File requirements**:
 - **Maximum Size**: 100MB
 - **Allowed Formats**: MP3, WAV, M4A, MP4
 - **MIME Types**: `audio/mpeg`, `audio/mp3`, `audio/wav`, `audio/x-wav`, `audio/mp4`, `audio/m4a`
@@ -81,7 +81,7 @@ curl -X POST https://your-domain.com/api/sermons/automated \
 
 **Error Responses**:
 
-**400 Bad Request** - Invalid file:
+**400 Bad request** - Invalid file:
 ```json
 {
   "success": false,
@@ -90,7 +90,7 @@ curl -X POST https://your-domain.com/api/sermons/automated \
 }
 ```
 
-**422 Unprocessable Entity** - Validation errors:
+**422 Unprocessable entity** - Validation errors:
 ```json
 {
   "success": false,
@@ -104,7 +104,7 @@ curl -X POST https://your-domain.com/api/sermons/automated \
 }
 ```
 
-**429 Too Many Requests** - Rate limit exceeded:
+**429 Too many requests** - Rate limit exceeded:
 ```json
 {
   "success": false,
@@ -114,7 +114,7 @@ curl -X POST https://your-domain.com/api/sermons/automated \
 }
 ```
 
-**500 Internal Server Error** - Server error:
+**500 Internal server error** - Server error:
 ```json
 {
   "success": false,
@@ -125,7 +125,7 @@ curl -X POST https://your-domain.com/api/sermons/automated \
 
 ---
 
-### 2. Get Processing Status
+### 2. Get processing status
 
 Check the status of a sermon processing job.
 
@@ -171,7 +171,7 @@ curl -X GET https://your-domain.com/api/sermons/processing/550e8400-e29b-41d4-a7
 }
 ```
 
-**Completed Processing Response**:
+**Completed processing response**:
 ```json
 {
   "found": true,
@@ -195,7 +195,7 @@ curl -X GET https://your-domain.com/api/sermons/processing/550e8400-e29b-41d4-a7
 }
 ```
 
-**Failed Processing Response**:
+**Failed processing response**:
 ```json
 {
   "found": true,
@@ -223,7 +223,7 @@ curl -X GET https://your-domain.com/api/sermons/processing/550e8400-e29b-41d4-a7
 }
 ```
 
-**404 Not Found** - Processing ID not found:
+**404 Not found** - Processing ID not found:
 ```json
 {
   "found": false,
@@ -233,7 +233,7 @@ curl -X GET https://your-domain.com/api/sermons/processing/550e8400-e29b-41d4-a7
 
 ---
 
-### 3. Retry Failed Processing
+### 3. Retry failed processing
 
 Retry a failed processing job.
 
@@ -289,7 +289,7 @@ curl -X POST https://your-domain.com/api/sermons/processing/550e8400-e29b-41d4-a
 
 ---
 
-### 4. Apply Graceful Degradation
+### 4. Apply graceful degradation
 
 Apply graceful degradation to a failed processing job, creating a sermon record with available data.
 
@@ -333,7 +333,7 @@ curl -X POST https://your-domain.com/api/sermons/processing/550e8400-e29b-41d4-a
 
 ---
 
-### 5. Get Processing Statistics
+### 5. Get processing statistics
 
 Get comprehensive processing statistics and monitoring data.
 
@@ -418,7 +418,7 @@ curl -X GET "https://your-domain.com/api/sermons/processing/statistics?days=30" 
 
 ---
 
-### 6. Get Failed Processing Logs
+### 6. Get failed processing logs
 
 Get a list of failed processing jobs for manual review.
 
@@ -466,7 +466,7 @@ curl -X GET "https://your-domain.com/api/sermons/processing/failed?limit=10" \
 
 ---
 
-### 7. System Health Check
+### 7. System health check
 
 Check the health status of the automated sermon processing system.
 
@@ -482,7 +482,7 @@ curl -X GET https://your-domain.com/api/sermons/processing/health \
   -H "Authorization: Bearer your-api-token"
 ```
 
-**Healthy Response** (200 OK):
+**Healthy response** (200 OK):
 ```json
 {
   "overall_status": "healthy",
@@ -509,7 +509,7 @@ curl -X GET https://your-domain.com/api/sermons/processing/health \
 }
 ```
 
-**Degraded Response** (200 OK):
+**Degraded response** (200 OK):
 ```json
 {
   "overall_status": "degraded",
@@ -537,7 +537,7 @@ curl -X GET https://your-domain.com/api/sermons/processing/health \
 }
 ```
 
-**Error Response** (503 Service Unavailable):
+**Error response** (503 Service unavailable):
 ```json
 {
   "overall_status": "error",
@@ -564,7 +564,7 @@ curl -X GET https://your-domain.com/api/sermons/processing/health \
 
 ---
 
-## Error Codes Reference
+## Error codes reference
 
 | Error Code              | Description                           | HTTP Status | Retry Recommended |
 | ----------------------- | ------------------------------------- | ----------- | ----------------- |
@@ -582,33 +582,33 @@ curl -X GET https://your-domain.com/api/sermons/processing/health \
 
 ---
 
-## Processing Pipeline
+## Processing pipeline
 
 The automated sermon processing follows this pipeline:
 
-1. **File Upload & Validation**
+1. **File upload & validation**
    - Validate file format and size
    - Store file securely
    - Create processing record
 
-2. **Metadata Extraction**
+2. **Metadata extraction**
    - Extract date from filename
    - Determine service type (AM/PM) from creation time
    - Set default preacher
 
-3. **Audio Transcription**
+3. **Audio transcription**
    - Transcribe audio using OpenAI Whisper
    - Store transcript as Markdown file
    - Validate transcript quality
 
-4. **AI Content Analysis**
+4. **AI content analysis**
    - Generate sermon title (max 12 words)
    - Identify sermon series from existing database
    - Extract primary Bible passage reference
    - Generate sermon point headings
    - Create concise sermon summary (under 200 words)
 
-5. **Sermon Record Creation**
+5. **Sermon record creation**
    - Create sermon record with processed data
    - Generate URL slug from title
    - Update processing status to completed
@@ -619,9 +619,9 @@ The automated sermon processing follows this pipeline:
 
 ---
 
-## Best Practices
+## Best practices
 
-### File Naming Convention
+### File naming convention
 
 For optimal metadata extraction, use this filename format:
 ```
@@ -632,7 +632,7 @@ Examples:
 - `sermon-2024-01-15-am.mp3`
 - `sermon-2024-01-15-pm.wav`
 
-### Error Handling
+### Error handling
 
 - Always check the `success` field in responses
 - Use the `error_code` field for programmatic error handling

@@ -121,7 +121,7 @@ class SermonAnalysisService
           'messages' => [
             [
               'role' => 'system',
-              'content' => 'You are a theological assistant specialized in analyzing Christian sermon transcripts. You provide accurate, structured analysis in JSON format.'
+              'content' => 'You are a theological assistant specialised in analysing Christian sermon transcripts. You provide accurate, structured analysis in JSON format using British English spelling and sentence case formatting (capitalise only the first word and proper nouns, not every word).'
             ],
             [
               'role' => 'user',
@@ -268,20 +268,20 @@ TRANSCRIPT:
 
 Please provide a JSON response with this exact structure:
 {
-    "title": "A descriptive sermon title (maximum 12 words)",
+    "title": "A descriptive sermon title in sentence case (maximum 12 words)",
     "series": "Name of matching existing series or null if no match",
     "reference": "Primary Bible passage being preached (e.g., 'John 3:16-21')",
-    "points": ["Main point 1", "Main point 2", "Main point 3"],
-    "summary": "A concise summary of the sermon in under 200 words"
+    "points": ["Main point 1 in sentence case", "Main point 2 in sentence case", "Main point 3 in sentence case"],
+    "summary": "A concise summary of the sermon in under 200 words using British English"
 }
 
 ANALYSIS GUIDELINES:
 
-1. TITLE: Create a clear, engaging title that captures the sermon's main theme. Maximum 12 words. Focus on the central message or key Bible passage.
+1. TITLE: Create a clear, engaging title that captures the sermon's main theme. Maximum 12 words. Focus on the central message or key Bible passage. Use sentence case (capitalise only the first word and proper nouns, not every word).
 
 2. SERIES: Only match to an existing series if the content clearly belongs to that series. Look for:
    - Book studies (e.g., "1 John", "Romans", "Genesis")
-   - Thematic series (e.g., "Christmas Messages", "Easter", "Prayer")
+   - Thematic series (e.g., "Christmas messages", "Easter", "Prayer")
    - If uncertain or no clear match, return null
 
 3. REFERENCE: Identify the PRIMARY Bible passage being expounded. This should be:
@@ -292,14 +292,14 @@ ANALYSIS GUIDELINES:
 
 4. POINTS: Extract 2-5 main sermon points/headings that structure the message:
    - Focus on the preacher's main divisions or arguments
-   - Use clear, concise language
+   - Use clear, concise language in sentence case
    - Avoid sub-points or detailed explanations
    - If no clear structure is evident, create logical divisions based on content flow
 
 5. SUMMARY: Create a concise summary of the sermon in under 200 words that:
    - Captures the main message and key themes
    - Stays faithful to the transcript content
-   - Uses clear, accessible language
+   - Uses clear, accessible British English
    - Focuses on the practical application and spiritual insights
    - Avoids theological jargon where possible
 
@@ -342,9 +342,11 @@ PROMPT;
     // Validate points (must be array of strings)
     $points = [];
     if (isset($analysisData['points']) && is_array($analysisData['points'])) {
+      $converter = app(BritishEnglishConverter::class);
       foreach ($analysisData['points'] as $point) {
         if (is_string($point) && !empty(trim($point))) {
-          $points[] = trim($point);
+          $cleanPoint = $converter->convert(trim($point));
+          $points[] = $cleanPoint;
         }
       }
     }
@@ -378,11 +380,15 @@ PROMPT;
     $title = trim($title);
 
     if (empty($title)) {
-      return 'Untitled Sermon';
+      return 'Untitled sermon';
     }
 
     // Remove quotes if present
     $title = trim($title, '"\'');
+
+    // Apply British English spelling corrections
+    $converter = app(BritishEnglishConverter::class);
+    $title = $converter->convert($title);
 
     // Limit to maximum words
     $words = explode(' ', $title);
@@ -393,7 +399,7 @@ PROMPT;
 
     // Ensure title is not too short
     if (strlen($title) < 3) {
-      return 'Untitled Sermon';
+      return 'Untitled sermon';
     }
 
     return $title;
@@ -439,6 +445,10 @@ PROMPT;
     if (strlen($summary) < 20) {
       return null;
     }
+
+    // Apply British English spelling corrections
+    $converter = app(BritishEnglishConverter::class);
+    $summary = $converter->convert($summary);
 
     // Limit to approximately 200 words
     $words = explode(' ', $summary);
