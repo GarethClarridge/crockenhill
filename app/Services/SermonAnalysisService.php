@@ -271,7 +271,8 @@ Please provide a JSON response with this exact structure:
     "title": "A descriptive sermon title (maximum 12 words)",
     "series": "Name of matching existing series or null if no match",
     "reference": "Primary Bible passage being preached (e.g., 'John 3:16-21')",
-    "points": ["Main point 1", "Main point 2", "Main point 3"]
+    "points": ["Main point 1", "Main point 2", "Main point 3"],
+    "summary": "A concise summary of the sermon in under 200 words"
 }
 
 ANALYSIS GUIDELINES:
@@ -294,6 +295,13 @@ ANALYSIS GUIDELINES:
    - Use clear, concise language
    - Avoid sub-points or detailed explanations
    - If no clear structure is evident, create logical divisions based on content flow
+
+5. SUMMARY: Create a concise summary of the sermon in under 200 words that:
+   - Captures the main message and key themes
+   - Stays faithful to the transcript content
+   - Uses clear, accessible language
+   - Focuses on the practical application and spiritual insights
+   - Avoids theological jargon where possible
 
 Respond only with the JSON object, no additional text.
 PROMPT;
@@ -346,11 +354,15 @@ PROMPT;
       $points = ['Main Message']; // Fallback point
     }
 
+    // Validate and clean summary
+    $summary = $this->validateAndCleanSummary($analysisData['summary'] ?? '');
+
     return [
       'title' => $title,
       'series' => $series,
       'reference' => $reference,
       'points' => $points,
+      'summary' => $summary,
       'transcript' => $originalTranscript
     ];
   }
@@ -404,6 +416,49 @@ PROMPT;
 
     // If it doesn't match basic pattern, return null
     return null;
+  }
+
+  /**
+   * Validate and clean sermon summary
+   *
+   * @param string $summary Raw summary from AI
+   * @return string|null Validated and cleaned summary or null if invalid
+   */
+  private function validateAndCleanSummary(string $summary): ?string
+  {
+    $summary = trim($summary);
+
+    if (empty($summary)) {
+      return null;
+    }
+
+    // Remove quotes if present
+    $summary = trim($summary, '"\'');
+
+    // Ensure summary is not too short to be meaningful
+    if (strlen($summary) < 20) {
+      return null;
+    }
+
+    // Limit to approximately 200 words
+    $words = explode(' ', $summary);
+    if (count($words) > 200) {
+      $words = array_slice($words, 0, 200);
+      $summary = implode(' ', $words);
+
+      // Try to end on a complete sentence
+      $lastPeriod = strrpos($summary, '.');
+      $lastExclamation = strrpos($summary, '!');
+      $lastQuestion = strrpos($summary, '?');
+
+      $lastSentenceEnd = max($lastPeriod, $lastExclamation, $lastQuestion);
+
+      if ($lastSentenceEnd !== false && $lastSentenceEnd > strlen($summary) * 0.8) {
+        $summary = substr($summary, 0, $lastSentenceEnd + 1);
+      }
+    }
+
+    return $summary;
   }
 
   /**
@@ -502,6 +557,7 @@ PROMPT;
       'series' => null,
       'reference' => null,
       'points' => ['Main Message'], // Simple fallback
+      'summary' => null, // No summary available when AI fails
       'transcript' => $transcript
     ];
   }

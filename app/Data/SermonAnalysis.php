@@ -20,6 +20,8 @@ class SermonAnalysis extends Data
     #[Required]
     public readonly array $points,
 
+    public readonly ?string $summary,
+
     #[Required]
     public readonly string $transcript,
   ) {}
@@ -32,6 +34,7 @@ class SermonAnalysis extends Data
     ?string $series,
     ?string $reference,
     array $points,
+    ?string $summary,
     string $transcript
   ): self {
     // Validate and truncate title to max 12 words
@@ -42,6 +45,7 @@ class SermonAnalysis extends Data
       series: $series,
       reference: $reference,
       points: $points,
+      summary: $summary,
       transcript: $transcript
     );
   }
@@ -93,9 +97,10 @@ class SermonAnalysis extends Data
     $series = !empty($analysisData['series']) ? $analysisData['series'] : null;
     $reference = !empty($analysisData['reference']) ? $analysisData['reference'] : null;
     $points = $analysisData['points'] ?? [];
+    $summary = !empty($analysisData['summary']) ? $analysisData['summary'] : null;
     $transcript = $analysisData['transcript'] ?? '';
 
-    return self::create($title, $series, $reference, $points, $transcript);
+    return self::create($title, $series, $reference, $points, $summary, $transcript);
   }
 
   /**
@@ -108,6 +113,7 @@ class SermonAnalysis extends Data
       'series' => $this->series,
       'reference' => $this->reference,
       'points' => $this->getPointsAsJson(),
+      'summary' => $this->summary,
     ];
   }
 

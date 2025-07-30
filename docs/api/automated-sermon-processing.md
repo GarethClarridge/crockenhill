@@ -189,7 +189,8 @@ curl -X GET https://your-domain.com/api/sermons/processing/550e8400-e29b-41d4-a7
     "series": "Parables of Jesus",
     "reference": "Matthew 13:1-23",
     "transcript_generated": true,
-    "points_extracted": 3
+    "points_extracted": 3,
+    "summary_generated": true
   }
 }
 ```
@@ -324,6 +325,7 @@ curl -X POST https://your-domain.com/api/sermons/processing/550e8400-e29b-41d4-a
     "reference": null,
     "transcript_available": false,
     "points_extracted": 0,
+    "summary_generated": false,
     "manual_review_required": true
   }
 }
@@ -604,6 +606,7 @@ The automated sermon processing follows this pipeline:
    - Identify sermon series from existing database
    - Extract primary Bible passage reference
    - Generate sermon point headings
+   - Create concise sermon summary (under 200 words)
 
 5. **Sermon Record Creation**
    - Create sermon record with processed data

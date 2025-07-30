@@ -71,6 +71,7 @@ class Sermon extends Model
     'reference',
     'preacher',
     'points', // Stored as JSON string, handled by accessor/mutator potentially
+    'summary', // AI-generated sermon summary
     'transcript_path', // Added for automated sermon processing
   ];
 
