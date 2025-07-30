@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory; // For scope return types
 // use Spatie\Feed\Feedable; // Not used in this file
 // use Spatie\Feed\FeedItem; // Not used in this file
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon; // For type hinting Carbon instances
 use Illuminate\Support\Str; // Added Enum import
 
@@ -38,110 +39,308 @@ use Illuminate\Support\Str; // Added Enum import
  * @method static Builder|Sermon forService(string $serviceType)
  * @method static Builder|Sermon inSeries(string $seriesTitle)
  * @method static Builder|Sermon byPreacher(string $preacherName)
+ * @method static Builder|Sermon automated()
+ * @method static Builder|Sermon manual()
+ * @method static Builder|Sermon processingCompleted()
+ * @method static Builder|Sermon processingFailed()
+ * @method static Builder|Sermon processingInProgress()
  *
  * @mixin \Eloquent
  */
 class Sermon extends Model
 {
-    use HasFactory;
+  use HasFactory;
 
-    protected $table = 'sermons';
+  protected $table = 'sermons';
 
-    public $timestamps = false;
+  public $timestamps = false;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'title',
-        'filename',
-        'filetype', // Added filetype as it's in the migration
-        'date',
-        'service',
-        'slug',
-        'series',
-        'reference',
-        'preacher',
-        'points', // Stored as JSON string, handled by accessor/mutator potentially
-    ];
+  /**
+   * The attributes that are mass assignable.
+   *
+   * @var list<string>
+   */
+  protected $fillable = [
+    'title',
+    'filename',
+    'filetype', // Added filetype as it's in the migration
+    'date',
+    'service',
+    'slug',
+    'series',
+    'reference',
+    'preacher',
+    'points', // Stored as JSON string, handled by accessor/mutator potentially
+    'transcript_path', // Added for automated sermon processing
+  ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'date' => 'date',
-        'points' => 'array', // Let Eloquent handle the casting to array for `points`
-        'service' => SermonService::class,
-    ];
+  /**
+   * The attributes that should be cast.
+   *
+   * @var array<string, string>
+   */
+  protected $casts = [
+    'date' => 'date',
+    'points' => 'array', // Let Eloquent handle the casting to array for `points`
+    'service' => SermonService::class,
+  ];
 
-    // Accessor for points is no longer strictly needed if 'points' => 'array' cast is used.
-    // Eloquent's 'array' cast will handle JSON decode/encode.
-    // If custom logic beyond simple JSON (like specific object mapping) was needed, accessor/mutator is good.
-    // For now, relying on 'array' cast simplifies.
-    // public function getPointsAttribute($value): ?array
-    // {
-    //   if (is_string($value)) {
-    //     $decoded = json_decode($value, true);
-    //     return (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
-    //   }
-    //   return is_array($value) ? $value : null; // Ensure it's an array or null
-    // }
+  // Accessor for points is no longer strictly needed if 'points' => 'array' cast is used.
+  // Eloquent's 'array' cast will handle JSON decode/encode.
+  // If custom logic beyond simple JSON (like specific object mapping) was needed, accessor/mutator is good.
+  // For now, relying on 'array' cast simplifies.
+  // public function getPointsAttribute($value): ?array
+  // {
+  //   if (is_string($value)) {
+  //     $decoded = json_decode($value, true);
+  //     return (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+  //   }
+  //   return is_array($value) ? $value : null; // Ensure it's an array or null
+  // }
 
-    // public function setPointsAttribute($value): void
-    // {
-    //   $this->attributes['points'] = is_array($value) ? json_encode($value) : null;
-    // }
+  // public function setPointsAttribute($value): void
+  // {
+  //   $this->attributes['points'] = is_array($value) ? json_encode($value) : null;
+  // }
 
-    public function getHumanDateAttribute(): ?string
-    {
-        return $this->date->format('F j, Y');
+  public function getHumanDateAttribute(): ?string
+  {
+    return $this->date->format('F j, Y');
+  }
+
+  public function getAudioUrlAttribute(): ?string
+  {
+    // Assuming filename already includes 'public/media/sermons/' path part or similar
+    // Or if it's just the filename, Storage::url() should be used.
+    // The original url($this->filename) might be problematic if filename is not a full public path.
+    // For now, keeping original logic, but this is a common point of failure.
+    // If 'filename' stores something like 'sermons/audio.mp3' and 'public' disk is the default for url(),
+    // then Storage::disk('public')->url($this->filename) would be more robust.
+    // Given the `PostSermonRequest` stores to `Storage::disk('public')->putFile('sermons', $file);`
+    // the path stored in `filename` will be like `sermons/generated_name.mp3`.
+    // So, Storage::url() is appropriate.
+    return $this->filename ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->filename) : null;
+  }
+
+  public function getSeriesUrlAttribute(): ?string
+  {
+    return $this->series ? '/christ/sermons/series/' . Str::slug($this->series) : null;
+  }
+
+  public function getPreacherUrlAttribute(): ?string
+  {
+    return $this->preacher ? '/christ/sermons/preachers/' . Str::slug($this->preacher) : null;
+  }
+
+  public function scopeLast12Months(Builder $query): Builder
+  {
+    return $query->where('date', '>=', now()->subMonths(12)->startOfDay());
+  }
+
+  public function scopeForService(Builder $query, string $serviceType): Builder
+  {
+    return $query->where('service', $serviceType);
+  }
+
+  public function scopeInSeries(Builder $query, string $seriesTitle): Builder
+  {
+    return $query->where('series', $seriesTitle);
+  }
+
+  public function scopeByPreacher(Builder $query, string $preacherName): Builder
+  {
+    return $query->where('preacher', $preacherName);
+  }
+
+  /**
+   * Scope to get only automated sermons
+   */
+  public function scopeAutomated(Builder $query): Builder
+  {
+    return $query->where(function ($q) {
+      $q->whereNotNull('transcript_path')
+        ->orWhereHas('processingLogs');
+    });
+  }
+
+  /**
+   * Scope to get only manually created sermons
+   */
+  public function scopeManual(Builder $query): Builder
+  {
+    return $query->where(function ($q) {
+      $q->whereNull('transcript_path')
+        ->whereDoesntHave('processingLogs');
+    });
+  }
+
+  /**
+   * Scope to get sermons with completed processing
+   */
+  public function scopeProcessingCompleted(Builder $query): Builder
+  {
+    return $query->whereHas('processingLogs', function ($q) {
+      $q->where('status', \App\Enums\ProcessingStatus::COMPLETED);
+    });
+  }
+
+  /**
+   * Scope to get sermons with failed processing
+   */
+  public function scopeProcessingFailed(Builder $query): Builder
+  {
+    return $query->whereHas('processingLogs', function ($q) {
+      $q->where('status', \App\Enums\ProcessingStatus::FAILED);
+    });
+  }
+
+  /**
+   * Scope to get sermons currently being processed
+   */
+  public function scopeProcessingInProgress(Builder $query): Builder
+  {
+    return $query->whereHas('processingLogs', function ($q) {
+      $q->where('status', \App\Enums\ProcessingStatus::PROCESSING);
+    });
+  }
+
+  /**
+   * Get the processing logs for this sermon.
+   */
+  public function processingLogs(): HasMany
+  {
+    return $this->hasMany(SermonProcessingLog::class);
+  }
+
+  /**
+   * Get the transcript content for this sermon
+   *
+   * @return string|null The transcript content or null if not available
+   */
+  public function getTranscriptAttribute(): ?string
+  {
+    if (!$this->transcript_path) {
+      return null;
     }
 
-    public function getAudioUrlAttribute(): ?string
-    {
-        // Assuming filename already includes 'public/media/sermons/' path part or similar
-        // Or if it's just the filename, Storage::url() should be used.
-        // The original url($this->filename) might be problematic if filename is not a full public path.
-        // For now, keeping original logic, but this is a common point of failure.
-        // If 'filename' stores something like 'sermons/audio.mp3' and 'public' disk is the default for url(),
-        // then Storage::disk('public')->url($this->filename) would be more robust.
-        // Given the `PostSermonRequest` stores to `Storage::disk('public')->putFile('sermons', $file);`
-        // the path stored in `filename` will be like `sermons/generated_name.mp3`.
-        // So, Storage::url() is appropriate.
-        return $this->filename ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->filename) : null;
+    try {
+      return \Illuminate\Support\Facades\Storage::get($this->transcript_path);
+    } catch (\Exception $e) {
+      \Illuminate\Support\Facades\Log::warning('Failed to read transcript file', [
+        'sermon_id' => $this->id,
+        'transcript_path' => $this->transcript_path,
+        'error' => $e->getMessage()
+      ]);
+      return null;
+    }
+  }
+
+  /**
+   * Check if this sermon has a transcript available
+   *
+   * @return bool True if transcript exists and is readable
+   */
+  public function hasTranscript(): bool
+  {
+    if (!$this->transcript_path) {
+      return false;
     }
 
-    public function getSeriesUrlAttribute(): ?string
-    {
-        return $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null;
-    }
+    return \Illuminate\Support\Facades\Storage::exists($this->transcript_path);
+  }
 
-    public function getPreacherUrlAttribute(): ?string
-    {
-        return $this->preacher ? '/christ/sermons/preachers/'.Str::slug($this->preacher) : null;
-    }
+  /**
+   * Get the full path to the transcript file
+   *
+   * @return string|null The full storage path or null if not set
+   */
+  public function getTranscriptPath(): ?string
+  {
+    return $this->transcript_path;
+  }
 
-    public function scopeLast12Months(Builder $query): Builder
-    {
-        return $query->where('date', '>=', now()->subMonths(12)->startOfDay());
-    }
+  /**
+   * Set the transcript path for this sermon
+   *
+   * @param string|null $path The storage path to the transcript file
+   * @return void
+   */
+  public function setTranscriptPath(?string $path): void
+  {
+    $this->transcript_path = $path;
+  }
 
-    public function scopeForService(Builder $query, string $serviceType): Builder
-    {
-        return $query->where('service', $serviceType);
-    }
+  /**
+   * Check if this sermon was created through automated processing
+   *
+   * @return bool True if sermon was automatically processed
+   */
+  public function isAutomated(): bool
+  {
+    return !empty($this->transcript_path) || $this->processingLogs()->exists();
+  }
 
-    public function scopeInSeries(Builder $query, string $seriesTitle): Builder
-    {
-        return $query->where('series', $seriesTitle);
-    }
+  /**
+   * Check if this sermon was created manually
+   *
+   * @return bool True if sermon was manually created
+   */
+  public function isManual(): bool
+  {
+    return !$this->isAutomated();
+  }
 
-    public function scopeByPreacher(Builder $query, string $preacherName): Builder
-    {
-        return $query->where('preacher', $preacherName);
-    }
+  /**
+   * Get the current processing status for this sermon
+   *
+   * @return ProcessingStatus|null The current processing status or null if not automated
+   */
+  public function getProcessingStatus(): ?\App\Enums\ProcessingStatus
+  {
+    $latestLog = $this->processingLogs()->latest()->first();
+    return $latestLog?->status;
+  }
+
+  /**
+   * Check if processing is complete for this sermon
+   *
+   * @return bool True if processing is completed
+   */
+  public function isProcessingComplete(): bool
+  {
+    $status = $this->getProcessingStatus();
+    return $status?->isComplete() ?? false;
+  }
+
+  /**
+   * Check if processing has failed for this sermon
+   *
+   * @return bool True if processing has failed
+   */
+  public function isProcessingFailed(): bool
+  {
+    $status = $this->getProcessingStatus();
+    return $status?->isFailed() ?? false;
+  }
+
+  /**
+   * Check if processing is currently in progress for this sermon
+   *
+   * @return bool True if processing is in progress
+   */
+  public function isProcessingInProgress(): bool
+  {
+    $status = $this->getProcessingStatus();
+    return $status?->isInProgress() ?? false;
+  }
+
+  /**
+   * Get the latest processing log for this sermon
+   *
+   * @return SermonProcessingLog|null The latest processing log or null
+   */
+  public function getLatestProcessingLog(): ?SermonProcessingLog
+  {
+    return $this->processingLogs()->latest()->first();
+  }
 }

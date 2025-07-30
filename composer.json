@@ -14,8 +14,12 @@
 		"laravel/tinker": "^2.10",
 		"league/commonmark": "^2.2",
 		"livewire/livewire": "^3.0",
+		"openai-php/laravel": "^0.14.0",
 		"owen-oj/laravel-getid3": "^2.2",
-		"spatie/laravel-google-calendar": "^3.8"
+		"predis/predis": "^3.1",
+		"spatie/laravel-data": "^4.17",
+		"spatie/laravel-google-calendar": "^3.8",
+		"techwilk/bible-verse-parser": "^2.8"
 	},
   	"require-dev": {
 		"barryvdh/laravel-debugbar": "^3.13",
@@ -67,6 +71,9 @@
   "config": {
     "preferred-install": "dist",
     "sort-packages": true,
-		"optimize-autoloader": true
+		"optimize-autoloader": true,
+		"allow-plugins": {
+			"php-http/discovery": true
+		}
   }
 }

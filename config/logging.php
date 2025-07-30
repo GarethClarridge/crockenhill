@@ -2,7 +2,7 @@
 
 return [
 
-    /*
+  /*
     |--------------------------------------------------------------------------
     | Default Log Channel
     |--------------------------------------------------------------------------
@@ -13,9 +13,9 @@ return [
     |
     */
 
-    'default' => env('LOG_CHANNEL', 'stack'),
+  'default' => env('LOG_CHANNEL', 'stack'),
 
-    /*
+  /*
     |--------------------------------------------------------------------------
     | Log Channels
     |--------------------------------------------------------------------------
@@ -29,42 +29,57 @@ return [
     |
     */
 
-    'channels' => [
-        'stack' => [
-            'driver' => 'stack',
-            'channels' => ['single'],
-        ],
-
-        'single' => [
-            'driver' => 'single',
-            'path' => storage_path('logs/laravel.log'),
-            'level' => 'debug',
-        ],
-
-        'daily' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/laravel.log'),
-            'level' => 'debug',
-            'days' => 7,
-        ],
-
-        'slack' => [
-            'driver' => 'slack',
-            'url' => env('LOG_SLACK_WEBHOOK_URL'),
-            'username' => 'Laravel Log',
-            'emoji' => ':boom:',
-            'level' => 'critical',
-        ],
-
-        'syslog' => [
-            'driver' => 'syslog',
-            'level' => 'debug',
-        ],
-
-        'errorlog' => [
-            'driver' => 'errorlog',
-            'level' => 'debug',
-        ],
+  'channels' => [
+    'stack' => [
+      'driver' => 'stack',
+      'channels' => ['single'],
     ],
+
+    'single' => [
+      'driver' => 'single',
+      'path' => storage_path('logs/laravel.log'),
+      'level' => 'debug',
+    ],
+
+    'daily' => [
+      'driver' => 'daily',
+      'path' => storage_path('logs/laravel.log'),
+      'level' => 'debug',
+      'days' => 7,
+    ],
+
+    'sermon-processing' => [
+      'driver' => 'daily',
+      'path' => storage_path('logs/sermon-processing.log'),
+      'level' => 'debug',
+      'days' => 30,
+      'tap' => [App\Logging\SermonProcessingLogFormatter::class],
+    ],
+
+    'performance' => [
+      'driver' => 'daily',
+      'path' => storage_path('logs/performance.log'),
+      'level' => 'info',
+      'days' => 14,
+    ],
+
+    'slack' => [
+      'driver' => 'slack',
+      'url' => env('LOG_SLACK_WEBHOOK_URL'),
+      'username' => 'Laravel Log',
+      'emoji' => ':boom:',
+      'level' => 'critical',
+    ],
+
+    'syslog' => [
+      'driver' => 'syslog',
+      'level' => 'debug',
+    ],
+
+    'errorlog' => [
+      'driver' => 'errorlog',
+      'level' => 'debug',
+    ],
+  ],
 
 ];

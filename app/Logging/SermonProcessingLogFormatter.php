@@ -1,0 +1,99 @@
+<?php
+
+namespace App\Logging;
+
+use Monolog\Formatter\LineFormatter;
+use Monolog\LogRecord;
+
+class SermonProcessingLogFormatter
+{
+  /**
+   * Customize the given logger instance.
+   */
+  public function __invoke($logger)
+  {
+    foreach ($logger->getHandlers() as $handler) {
+      $handler->setFormatter(new class extends LineFormatter {
+        public function format(LogRecord $record): string
+        {
+          // Custom format for sermon processing logs
+          $output = sprintf(
+            "[%s] %s.%s: %s\n",
+            $record->datetime->format('Y-m-d H:i:s'),
+            $record->level->name,
+            $record->channel,
+            $record->message
+          );
+
+          // Add context information in a structured way
+          if (!empty($record->context)) {
+            $context = $this->formatContext($record->context);
+            if ($context) {
+              $output .= "Context: " . $context . "\n";
+            }
+          }
+
+          // Add extra information if present
+          if (!empty($record->extra)) {
+            $extra = json_encode($record->extra, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $output .= "Extra: " . $extra . "\n";
+          }
+
+          return $output;
+        }
+
+        private function formatContext(array $context): string
+        {
+          // Format specific fields for better readability
+          $formatted = [];
+
+          foreach ($context as $key => $value) {
+            switch ($key) {
+              case 'processing_id':
+                $formatted[] = "ID: {$value}";
+                break;
+              case 'step':
+                $formatted[] = "Step: {$value}";
+                break;
+              case 'status':
+                $formatted[] = "Status: {$value}";
+                break;
+              case 'memory_usage':
+                $formatted[] = "Memory: " . $this->formatBytes($value);
+                break;
+              case 'response_time_ms':
+                $formatted[] = "Response: {$value}ms";
+                break;
+              case 'file_size_human':
+                $formatted[] = "Size: {$value}";
+                break;
+              case 'timestamp':
+                // Skip timestamp as it's already in the log format
+                break;
+              default:
+                if (is_array($value) || is_object($value)) {
+                  $formatted[] = "{$key}: " . json_encode($value, JSON_UNESCAPED_SLASHES);
+                } else {
+                  $formatted[] = "{$key}: {$value}";
+                }
+            }
+          }
+
+          return implode(' | ', $formatted);
+        }
+
+        private function formatBytes(int $bytes): string
+        {
+          $units = ['B', 'KB', 'MB', 'GB'];
+          $bytes = max($bytes, 0);
+          $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+          $pow = min($pow, count($units) - 1);
+
+          $bytes /= (1 << (10 * $pow));
+
+          return round($bytes, 2) . ' ' . $units[$pow];
+        }
+      });
+    }
+  }
+}

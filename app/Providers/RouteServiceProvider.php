@@ -10,31 +10,47 @@ use Illuminate\Support\Facades\Route;
 
 class RouteServiceProvider extends ServiceProvider
 {
-    /**
-     * The path to your application's "home" route.
-     *
-     * Typically, users are redirected here after authentication.
-     *
-     * @var string
-     */
-    public const HOME = '/church/members';
+  /**
+   * The path to your application's "home" route.
+   *
+   * Typically, users are redirected here after authentication.
+   *
+   * @var string
+   */
+  public const HOME = '/church/members';
 
-    /**
-     * Define your route model bindings, pattern filters, and other route configuration.
-     */
-    public function boot(): void
-    {
-        RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
-        });
+  /**
+   * Define your route model bindings, pattern filters, and other route configuration.
+   */
+  public function boot(): void
+  {
+    RateLimiter::for('api', function (Request $request) {
+      return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+    });
 
-        $this->routes(function () {
-            Route::middleware('api')
-                ->prefix('api')
-                ->group(base_path('routes/api.php'));
+    // Rate limiter for sermon file uploads - more restrictive due to processing overhead
+    RateLimiter::for('sermon-upload', function (Request $request) {
+      return [
+        Limit::perMinute(5)->by($request->user()?->id ?: $request->ip()),
+        Limit::perHour(20)->by($request->user()?->id ?: $request->ip()),
+      ];
+    });
 
-            Route::middleware('web')
-                ->group(base_path('routes/web.php'));
-        });
-    }
+    // Rate limiter for sermon processing retries - prevent retry spam
+    RateLimiter::for('sermon-retry', function (Request $request) {
+      return [
+        Limit::perMinute(2)->by($request->user()?->id ?: $request->ip()),
+        Limit::perHour(10)->by($request->user()?->id ?: $request->ip()),
+      ];
+    });
+
+    $this->routes(function () {
+      Route::middleware('api')
+        ->prefix('api')
+        ->group(base_path('routes/api.php'));
+
+      Route::middleware('web')
+        ->group(base_path('routes/web.php'));
+    });
+  }
 }
