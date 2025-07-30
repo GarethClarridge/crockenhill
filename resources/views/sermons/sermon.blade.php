@@ -86,6 +86,16 @@ use Illuminate\Support\Str;
   </section>
   @endif
 
+  @if ($sermon->hasTranscript())
+  <section class="sermon-transcript prose lg:prose-xl max-w-none mt-4 mb-6">
+    <div class="bg-gray-50 p-6 rounded-lg border">
+      <div class="transcript-content">
+        {!! Str::markdown($sermon->transcript) !!}
+      </div>
+    </div>
+  </section>
+  @endif
+
   <x-button link="{{ Storage::url($sermon->filename) }}">
     <div class="flex items-center justify-center">
       <x-heroicon-s-folder-arrow-down class="h-5 w-5 mr-2" />
