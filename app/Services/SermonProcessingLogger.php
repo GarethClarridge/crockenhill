@@ -42,7 +42,7 @@ class SermonProcessingLogger
       'metrics' => array_merge($metrics, [
         'memory_usage' => memory_get_usage(true),
         'peak_memory' => memory_get_peak_usage(true),
-        'execution_time' => microtime(true) - LARAVEL_START,
+        'execution_time' => microtime(true) - (defined('LARAVEL_START') ? LARAVEL_START : $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)),
       ]),
       'timestamp' => now()->toISOString(),
     ];
@@ -137,7 +137,7 @@ class SermonProcessingLogger
     $context = [
       'processing_id' => $processingId,
       'final_status' => $status,
-      'total_execution_time' => microtime(true) - LARAVEL_START,
+      'total_execution_time' => microtime(true) - (defined('LARAVEL_START') ? LARAVEL_START : $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)),
       'peak_memory_usage' => memory_get_peak_usage(true),
       'statistics' => $statistics,
       'timestamp' => now()->toISOString(),

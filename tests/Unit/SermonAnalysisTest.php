@@ -12,7 +12,8 @@ class SermonAnalysisTest extends TestCase
   {
     config(['sermon-processing.analysis.openai_api_key' => 'test-api-key']);
 
-    $service = new SermonAnalysisService();
+    $logger = app(\App\Services\SermonProcessingLogger::class);
+    $service = new SermonAnalysisService($logger);
     $this->assertInstanceOf(SermonAnalysisService::class, $service);
   }
 
@@ -24,6 +25,7 @@ class SermonAnalysisTest extends TestCase
     $this->expectException(Exception::class);
     $this->expectExceptionMessage('OpenAI API key not configured for analysis service');
 
-    new SermonAnalysisService();
+    $logger = app(\App\Services\SermonProcessingLogger::class);
+    new SermonAnalysisService($logger);
   }
 }

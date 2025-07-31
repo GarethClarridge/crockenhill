@@ -163,6 +163,7 @@ class UpdateSermonRecord implements ShouldQueue
       series: null,
       reference: null,
       points: ['Main Message'],
+      summary: null,
       transcript: $transcript
     );
   }

@@ -546,7 +546,7 @@ PROMPT;
       403, // Forbidden - insufficient permissions
     ];
 
-    return in_array($exception->getCode(), $nonRetryableCodes);
+    return in_array($exception->getStatusCode(), $nonRetryableCodes);
   }
 
   /**

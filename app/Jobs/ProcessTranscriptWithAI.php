@@ -175,6 +175,7 @@ class ProcessTranscriptWithAI implements ShouldQueue
         series: null, // No series matching in fallback
         reference: null, // No Bible passage extraction in fallback
         points: ['Main Message'], // Simple fallback points
+        summary: null, // No summary available in fallback
         transcript: $transcript
       );
 

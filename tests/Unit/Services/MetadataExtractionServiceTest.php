@@ -8,6 +8,7 @@ use App\Services\MetadataExtractionService;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MetadataExtractionServiceTest extends TestCase
@@ -21,7 +22,7 @@ class MetadataExtractionServiceTest extends TestCase
     Storage::fake('local');
   }
 
-  /** @test */
+  #[Test]
   public function it_extracts_iso_date_format_from_filename(): void
   {
     $testCases = [
@@ -38,7 +39,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_extracts_european_date_format_from_filename(): void
   {
     $testCases = [
@@ -55,7 +56,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_extracts_compact_date_format_from_filename(): void
   {
     $testCases = [
@@ -71,7 +72,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_extracts_year_only_when_no_full_date_found(): void
   {
     $testCases = [
@@ -86,7 +87,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_falls_back_to_current_date_when_no_date_found(): void
   {
     $testCases = [
@@ -103,7 +104,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_validates_dates_correctly(): void
   {
     // Valid dates
@@ -119,7 +120,7 @@ class MetadataExtractionServiceTest extends TestCase
     $this->assertFalse($this->service->isValidDate(2030, 1, 1)); // Too far in future
   }
 
-  /** @test */
+  #[Test]
   public function it_handles_invalid_dates_gracefully(): void
   {
     $testCases = [
@@ -136,7 +137,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_determines_service_from_time_correctly(): void
   {
     // Morning times (6 AM - 2 PM)
@@ -168,7 +169,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_determines_service_from_filename_patterns(): void
   {
     // Morning patterns
@@ -205,7 +206,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_defaults_to_morning_service_when_no_pattern_found(): void
   {
     $neutralFilenames = [
@@ -221,7 +222,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_avoids_false_matches_in_filename_patterns(): void
   {
     // These should not match AM/PM patterns
@@ -237,7 +238,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_extracts_metadata_from_file_path(): void
   {
     $filePath = '/path/to/2024-01-15_morning_sermon.mp3';
@@ -251,7 +252,7 @@ class MetadataExtractionServiceTest extends TestCase
     $this->assertEquals('2024-01-15_morning_sermon.mp3', $result->originalName);
   }
 
-  /** @test */
+  #[Test]
   public function it_validates_audio_file_format(): void
   {
     // Create a mock uploaded file
@@ -265,7 +266,7 @@ class MetadataExtractionServiceTest extends TestCase
     $this->assertArrayHasKey('info', $result);
   }
 
-  /** @test */
+  #[Test]
   public function it_rejects_files_that_are_too_large(): void
   {
     // Create a file larger than 100MB
@@ -278,7 +279,7 @@ class MetadataExtractionServiceTest extends TestCase
     $this->assertStringContainsString('File size too large', $result['errors'][0]);
   }
 
-  /** @test */
+  #[Test]
   public function it_guesses_format_from_extension(): void
   {
     $reflection = new \ReflectionClass($this->service);
@@ -302,7 +303,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_handles_complex_filename_patterns(): void
   {
     $complexFilenames = [
@@ -329,7 +330,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_preserves_dates_with_dots_in_filenames(): void
   {
     // These filenames contain dots in Bible references that should not interfere with date extraction
@@ -345,7 +346,7 @@ class MetadataExtractionServiceTest extends TestCase
     }
   }
 
-  /** @test */
+  #[Test]
   public function it_handles_edge_cases_gracefully(): void
   {
     // Empty filename

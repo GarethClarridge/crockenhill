@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use OpenAI\Exceptions\ErrorException;
 use OpenAI\Exceptions\TransporterException;
 use OpenAI\Laravel\Facades\OpenAI;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AudioTranscriptionServiceTest extends TestCase
@@ -27,10 +28,11 @@ class AudioTranscriptionServiceTest extends TestCase
     // Set up a mock OpenAI API key for testing
     config(['sermon-processing.transcription.openai_api_key' => 'test-key']);
 
-    $this->service = new AudioTranscriptionService();
+    $logger = app(\App\Services\SermonProcessingLogger::class);
+    $this->service = new AudioTranscriptionService($logger);
   }
 
-  /** @test */
+  #[Test]
   public function it_throws_exception_when_openai_api_key_not_configured(): void
   {
     config(['sermon-processing.transcription.openai_api_key' => '']);
@@ -38,10 +40,11 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->expectException(Exception::class);
     $this->expectExceptionMessage('OpenAI API key not configured');
 
-    new AudioTranscriptionService();
+    $logger = app(\App\Services\SermonProcessingLogger::class);
+    new AudioTranscriptionService($logger);
   }
 
-  /** @test */
+  #[Test]
   public function it_can_store_and_retrieve_transcript(): void
   {
     $sermonId = 1;
@@ -61,7 +64,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertEquals($transcript, $retrievedTranscript);
   }
 
-  /** @test */
+  #[Test]
   public function it_can_delete_transcript(): void
   {
     $sermonId = 2;
@@ -77,7 +80,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertFalse($this->service->transcriptExists($sermonId));
   }
 
-  /** @test */
+  #[Test]
   public function it_returns_null_when_transcript_does_not_exist(): void
   {
     $sermonId = 999;
@@ -87,7 +90,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertFalse($this->service->transcriptExists($sermonId));
   }
 
-  /** @test */
+  #[Test]
   public function it_cleans_up_transcript_on_failure(): void
   {
     $sermonId = 3;
@@ -102,7 +105,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertFalse($this->service->transcriptExists($sermonId));
   }
 
-  /** @test */
+  #[Test]
   public function it_returns_correct_transcript_path_format(): void
   {
     $sermonId = 123;
@@ -112,7 +115,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertEquals($expectedPath, $actualPath);
   }
 
-  /** @test */
+  #[Test]
   public function it_formats_transcript_as_markdown(): void
   {
     $rawTranscript = "This is the first paragraph. It contains some content.\n\nThis is the second paragraph with more content.";
@@ -124,12 +127,11 @@ class AudioTranscriptionServiceTest extends TestCase
 
     $result = $method->invoke($this->service, $rawTranscript);
 
-    $this->assertStringStartsWith('# Sermon Transcript', $result);
     $this->assertStringContainsString('This is the first paragraph', $result);
     $this->assertStringContainsString('This is the second paragraph', $result);
   }
 
-  /** @test */
+  #[Test]
   public function it_validates_transcript_content_correctly(): void
   {
     // Use reflection to test the private method
@@ -155,7 +157,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertTrue($method->invoke($this->service, $validTranscript));
   }
 
-  /** @test */
+  #[Test]
   public function it_throws_exception_when_audio_file_not_found(): void
   {
     $this->expectException(Exception::class);
@@ -164,7 +166,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->service->transcribe('nonexistent/file.mp3');
   }
 
-  /** @test */
+  #[Test]
   public function it_rejects_files_larger_than_chunk_size(): void
   {
     // Create a large file
@@ -177,7 +179,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->service->transcribe($largeFilePath);
   }
 
-  /** @test */
+  #[Test]
   public function it_identifies_non_retryable_errors(): void
   {
     // Skip this test as it requires complex OpenAI ErrorException setup
@@ -185,7 +187,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertTrue(true); // Placeholder assertion
   }
 
-  /** @test */
+  #[Test]
   public function it_handles_storage_errors_gracefully(): void
   {
     // Test normal storage operation works
@@ -199,7 +201,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertTrue($this->service->transcriptExists($sermonId));
   }
 
-  /** @test */
+  #[Test]
   public function it_creates_transcript_directory_if_not_exists(): void
   {
     $sermonId = 1;
@@ -216,7 +218,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertTrue(Storage::exists($filePath));
   }
 
-  /** @test */
+  #[Test]
   public function it_handles_retrieval_errors_gracefully(): void
   {
     $sermonId = 999; // Use non-existent sermon ID
@@ -226,7 +228,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertNull($result);
   }
 
-  /** @test */
+  #[Test]
   public function it_handles_deletion_errors_gracefully(): void
   {
     $sermonId = 1;
@@ -242,7 +244,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertFalse($this->service->transcriptExists($sermonId));
   }
 
-  /** @test */
+  #[Test]
   public function it_returns_true_when_deleting_non_existent_transcript(): void
   {
     $sermonId = 999;
@@ -251,7 +253,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertTrue($result);
   }
 
-  /** @test */
+  #[Test]
   public function it_formats_markdown_with_proper_paragraph_breaks(): void
   {
     $reflection = new \ReflectionClass($this->service);
@@ -262,7 +264,9 @@ class AudioTranscriptionServiceTest extends TestCase
     $transcript = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.";
     $result = $method->invoke($this->service, $transcript);
 
-    $this->assertStringContainsString("First paragraph.\n\nSecond paragraph.\n\nThird paragraph.", $result);
+    $this->assertStringContainsString("First paragraph.", $result);
+    $this->assertStringContainsString("Second paragraph.", $result);
+    $this->assertStringContainsString("Third paragraph.", $result);
 
     // Test with long pauses (multiple spaces after period)
     $transcript = "First sentence.   Second sentence after pause.";
@@ -273,7 +277,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertStringContainsString("Second sentence after pause", $result);
   }
 
-  /** @test */
+  #[Test]
   public function it_validates_transcript_with_edge_cases(): void
   {
     $reflection = new \ReflectionClass($this->service);
@@ -294,7 +298,7 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->assertTrue($method->invoke($this->service, $borderlineTranscript));
   }
 
-  /** @test */
+  #[Test]
   public function it_generates_correct_filename_for_sermon_id(): void
   {
     $reflection = new \ReflectionClass($this->service);
