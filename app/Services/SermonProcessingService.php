@@ -78,10 +78,82 @@ class SermonProcessingService
         $this->cleanupFile($storedFilePath);
       }
 
-      return ProcessingResult::error(
+      return ProcessingResult::failure(
+        processingId: 'failed-' . Str::uuid(),
         message: 'Failed to initiate sermon processing: ' . $e->getMessage(),
         errorCode: 'PROCESSING_INITIATION_FAILED'
       );
+    }
+  }
+
+  /**
+   * Process a sermon audio file from livestream with additional metadata
+   */
+  public function processSermonAudio(UploadedFile $file, array $livestreamMetadata = []): array
+  {
+    try {
+      Log::info('Starting livestream sermon processing', [
+        'original_filename' => $file->getClientOriginalName(),
+        'file_size' => $file->getSize(),
+        'mime_type' => $file->getMimeType(),
+        'livestream_processing_id' => $livestreamMetadata['livestream_processing_id'] ?? null,
+      ]);
+
+      // Generate unique processing ID
+      $processingId = $this->generateProcessingId();
+
+      // Validate the uploaded file
+      $this->validateAudioFile($file);
+
+      // Extract metadata from the file, enhanced with livestream context
+      $metadata = SermonMetadata::fromUploadedFile($file);
+      
+      // Enhance metadata with livestream information
+      if (!empty($livestreamMetadata['original_filename'])) {
+        $metadata = $metadata->withOriginalName($livestreamMetadata['original_filename']);
+      }
+
+      // Store the audio file securely
+      $storedFilePath = $this->storeAudioFile($file, $metadata);
+
+      // Create initial processing log with livestream context
+      $processingLog = $this->createProcessingLogWithLivestreamContext(
+        $processingId, 
+        $metadata->originalName, 
+        $livestreamMetadata
+      );
+
+      // Dispatch the job chain for processing
+      $this->dispatchProcessingChain($processingId, $metadata, $storedFilePath);
+
+      Log::info('Livestream sermon processing initiated successfully', [
+        'processing_id' => $processingId,
+        'stored_file_path' => $storedFilePath,
+        'livestream_processing_id' => $livestreamMetadata['livestream_processing_id'] ?? null,
+      ]);
+
+      return [
+        'success' => true,
+        'processing_id' => $processingId,
+        'sermon_id' => null, // Will be set when sermon record is created
+        'message' => 'Livestream sermon processing initiated successfully',
+        'status_url' => route('api.sermons.processing.status', ['processingId' => $processingId]),
+        'metadata' => $livestreamMetadata,
+      ];
+    } catch (\Exception $e) {
+      Log::error('Failed to initiate livestream sermon processing', [
+        'original_filename' => $file->getClientOriginalName(),
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+        'livestream_processing_id' => $livestreamMetadata['livestream_processing_id'] ?? null,
+      ]);
+
+      // Clean up any partial files
+      if (isset($storedFilePath)) {
+        $this->cleanupFile($storedFilePath);
+      }
+
+      throw new \Exception('Failed to initiate livestream sermon processing: ' . $e->getMessage());
     }
   }
 
@@ -257,6 +329,30 @@ class SermonProcessingService
   }
 
   /**
+   * Create initial processing log entry with livestream context
+   */
+  private function createProcessingLogWithLivestreamContext(
+    string $processingId, 
+    string $originalFilename, 
+    array $livestreamMetadata
+  ): SermonProcessingLog {
+    $logData = [
+      'processing_id' => $processingId,
+      'original_filename' => $originalFilename,
+      'status' => ProcessingStatus::PENDING,
+      'current_step' => 'initiated_from_livestream',
+    ];
+
+    // For now, we'll store livestream context in the current_step field
+    // In the future, a processing_metadata JSON field could be added to the migration
+    if (!empty($livestreamMetadata['livestream_processing_id'])) {
+      $logData['current_step'] = 'initiated_from_livestream:' . $livestreamMetadata['livestream_processing_id'];
+    }
+
+    return SermonProcessingLog::create($logData);
+  }
+
+  /**
    * Dispatch the job chain for processing
    */
   private function dispatchProcessingChain(string $processingId, SermonMetadata $metadata, string $storedFilePath): void
@@ -286,14 +382,16 @@ class SermonProcessingService
       $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
 
       if (!$processingLog) {
-        return ProcessingResult::error(
+        return ProcessingResult::failure(
+          processingId: $processingId,
           message: 'Processing log not found',
           errorCode: 'PROCESSING_LOG_NOT_FOUND'
         );
       }
 
       if (!$processingLog->isFailed()) {
-        return ProcessingResult::error(
+        return ProcessingResult::failure(
+          processingId: $processingId,
           message: 'Processing is not in failed state',
           errorCode: 'PROCESSING_NOT_FAILED'
         );
@@ -325,7 +423,8 @@ class SermonProcessingService
         'trace' => $e->getTraceAsString(),
       ]);
 
-      return ProcessingResult::error(
+      return ProcessingResult::failure(
+        processingId: $processingId,
         message: 'Failed to retry processing: ' . $e->getMessage(),
         errorCode: 'RETRY_FAILED'
       );
@@ -417,7 +516,8 @@ class SermonProcessingService
       $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
 
       if (!$processingLog) {
-        return ProcessingResult::error(
+        return ProcessingResult::failure(
+          processingId: $processingId,
           message: 'Processing log not found',
           errorCode: 'PROCESSING_LOG_NOT_FOUND'
         );
@@ -426,7 +526,8 @@ class SermonProcessingService
       $sermon = $processingLog->sermon;
 
       if (!$sermon) {
-        return ProcessingResult::error(
+        return ProcessingResult::failure(
+          processingId: $processingId,
           message: 'No sermon record found for graceful degradation',
           errorCode: 'NO_SERMON_RECORD'
         );
@@ -467,7 +568,8 @@ class SermonProcessingService
         'trace' => $e->getTraceAsString(),
       ]);
 
-      return ProcessingResult::error(
+      return ProcessingResult::failure(
+        processingId: $processingId,
         message: 'Failed to apply graceful degradation: ' . $e->getMessage(),
         errorCode: 'DEGRADATION_FAILED'
       );

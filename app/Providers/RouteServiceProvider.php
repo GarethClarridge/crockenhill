@@ -44,6 +44,22 @@ class RouteServiceProvider extends ServiceProvider
       ];
     });
 
+    // Rate limiter for livestream video uploads - very restrictive due to high processing overhead
+    RateLimiter::for('livestream-upload', function (Request $request) {
+      return [
+        Limit::perMinute(1)->by($request->user()?->id ?: $request->ip()),
+        Limit::perHour(5)->by($request->user()?->id ?: $request->ip()),
+      ];
+    });
+
+    // Rate limiter for livestream processing retries - prevent retry spam
+    RateLimiter::for('livestream-retry', function (Request $request) {
+      return [
+        Limit::perMinute(1)->by($request->user()?->id ?: $request->ip()),
+        Limit::perHour(3)->by($request->user()?->id ?: $request->ip()),
+      ];
+    });
+
     $this->routes(function () {
       Route::middleware('api')
         ->prefix('api')

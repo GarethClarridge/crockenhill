@@ -66,8 +66,20 @@ class CreateSermonRecord implements ShouldQueue
       $initialTitle = $this->generateInitialTitle();
       $slug = $this->generateUniqueSlug($initialTitle);
 
+      // Check if this is from a livestream
+      $isFromLivestream = str_contains($processingLog->current_step ?? '', 'livestream');
+      $livestreamProcessingId = null;
+      
+      if ($isFromLivestream) {
+        // Extract livestream processing ID from current_step
+        $parts = explode(':', $processingLog->current_step);
+        if (count($parts) > 1) {
+          $livestreamProcessingId = $parts[1];
+        }
+      }
+
       // Create the sermon record with 'processing' status
-      $sermon = Sermon::create([
+      $sermonData = [
         'title' => $initialTitle,
         'filename' => $this->storedFilePath,
         'filetype' => pathinfo($this->metadata->originalName, PATHINFO_EXTENSION),
@@ -79,7 +91,16 @@ class CreateSermonRecord implements ShouldQueue
         'preacher' => 'Mark Drury', // Default preacher as specified
         'points' => null, // Will be filled by AI analysis
         'transcript_path' => null, // Will be set after transcription
-      ]);
+      ];
+
+      // Add livestream-specific fields if applicable
+      if ($isFromLivestream && $livestreamProcessingId) {
+        $sermonData['source_type'] = 'livestream';
+        $sermonData['livestream_processing_id'] = $livestreamProcessingId;
+        // Note: video_file_path, segment times will be set later by SermonMetadataIntegrationService
+      }
+
+      $sermon = Sermon::create($sermonData);
 
       // Update processing log with sermon ID
       $processingLog->update([

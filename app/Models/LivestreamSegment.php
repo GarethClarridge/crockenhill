@@ -1,0 +1,196 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+
+class LivestreamSegment extends Model
+{
+    use HasFactory;
+    protected $fillable = [
+        'processing_id',
+        'processing_log_id',
+        'segment_index',
+        'start_time',
+        'end_time',
+        'duration',
+        'classification',
+        'avg_rms',
+        'peak_rms',
+        'is_sermon_candidate',
+        'is_sermon_segment',
+        'segment_order',
+        'metadata',
+    ];
+
+    protected $casts = [
+        'metadata' => 'array',
+        'start_time' => 'float',
+        'end_time' => 'float',
+        'duration' => 'float',
+        'avg_rms' => 'float',
+        'peak_rms' => 'float',
+        'is_sermon_candidate' => 'boolean',
+        'segment_order' => 'integer',
+    ];
+
+    public function processingLog(): BelongsTo
+    {
+        return $this->belongsTo(LivestreamProcessingLog::class, 'processing_log_id');
+    }
+
+    public function scopeClassifiedAs(Builder $query, string $classification): Builder
+    {
+        return $query->where('classification', $classification);
+    }
+
+    public function scopeSpeech(Builder $query): Builder
+    {
+        return $query->where('classification', 'speech');
+    }
+
+    public function scopeSong(Builder $query): Builder
+    {
+        return $query->where('classification', 'song');
+    }
+
+    public function scopeSilence(Builder $query): Builder
+    {
+        return $query->where('classification', 'silence');
+    }
+
+    public function scopeSermonCandidates(Builder $query): Builder
+    {
+        return $query->where('is_sermon_candidate', true);
+    }
+
+    public function scopeByDurationRange(Builder $query, float $minDuration, float $maxDuration = null): Builder
+    {
+        $query->where('duration', '>=', $minDuration);
+        
+        if ($maxDuration !== null) {
+            $query->where('duration', '<=', $maxDuration);
+        }
+        
+        return $query;
+    }
+
+    public function scopeOrderedByTime(Builder $query): Builder
+    {
+        return $query->orderBy('start_time');
+    }
+
+    public function scopeOrderedByDuration(Builder $query, string $direction = 'desc'): Builder
+    {
+        return $query->orderBy('duration', $direction);
+    }
+
+    public function isSpeech(): bool
+    {
+        return $this->classification === 'speech';
+    }
+
+    public function isSong(): bool
+    {
+        return $this->classification === 'song';
+    }
+
+    public function isSilence(): bool
+    {
+        return $this->classification === 'silence';
+    }
+
+    public function isSermonCandidate(): bool
+    {
+        return $this->is_sermon_candidate;
+    }
+
+    public function getDurationInMinutes(): float
+    {
+        return round($this->duration / 60, 2);
+    }
+
+    public function getStartTimeFormatted(): string
+    {
+        return $this->formatTime($this->start_time);
+    }
+
+    public function getEndTimeFormatted(): string
+    {
+        return $this->formatTime($this->end_time);
+    }
+
+    public function getDurationFormatted(): string
+    {
+        return $this->formatDuration($this->duration);
+    }
+
+    private function formatTime(float $seconds): string
+    {
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $seconds = $seconds % 60;
+
+        if ($hours > 0) {
+            return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
+        }
+
+        return sprintf('%02d:%02d', $minutes, $seconds);
+    }
+
+    private function formatDuration(float $seconds): string
+    {
+        $minutes = floor($seconds / 60);
+        $seconds = $seconds % 60;
+
+        if ($minutes > 60) {
+            $hours = floor($minutes / 60);
+            $minutes = $minutes % 60;
+            return sprintf('%dh %dm %ds', $hours, $minutes, $seconds);
+        }
+
+        return sprintf('%dm %ds', $minutes, $seconds);
+    }
+
+    protected function timeRange(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->getStartTimeFormatted() . ' - ' . $this->getEndTimeFormatted()
+        );
+    }
+
+    protected function classificationDisplay(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => ucfirst($this->classification)
+        );
+    }
+
+    public static function getLongestSpeechSegment(int $processingLogId): ?self
+    {
+        return static::where('processing_log_id', $processingLogId)
+            ->speech()
+            ->orderByDuration()
+            ->first();
+    }
+
+    public static function getSegmentsSummary(int $processingLogId): array
+    {
+        $segments = static::where('processing_log_id', $processingLogId)->get();
+        
+        return [
+            'total_segments' => $segments->count(),
+            'speech_segments' => $segments->where('classification', 'speech')->count(),
+            'song_segments' => $segments->where('classification', 'song')->count(),
+            'silence_segments' => $segments->where('classification', 'silence')->count(),
+            'total_duration' => $segments->sum('duration'),
+            'speech_duration' => $segments->where('classification', 'speech')->sum('duration'),
+            'song_duration' => $segments->where('classification', 'song')->sum('duration'),
+            'longest_speech_duration' => $segments->where('classification', 'speech')->max('duration'),
+        ];
+    }
+}

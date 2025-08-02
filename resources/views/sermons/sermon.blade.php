@@ -71,6 +71,32 @@ use Illuminate\Support\Str;
         Your browser does not support the <code>audio</code> element.
       </audio>
 
+      @if (!empty($sermon->video_file_path))
+      <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+          <x-heroicon-o-video-camera class="h-5 w-5 mr-2" />
+          Video Recording
+          @if ($sermon->source_type === 'livestream')
+          <span class="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+            <x-heroicon-s-signal class="h-3 w-3 mr-1" />
+            From Livestream
+          </span>
+          @endif
+        </h3>
+        <video src="{{ Storage::disk(config('livestream-processing.sermon_disk', 'local'))->url($sermon->video_file_path) }}" class="w-full max-h-96" controls>
+          Your browser does not support the <code>video</code> element.
+        </video>
+        
+        @if ($sermon->source_type === 'livestream' && $sermon->segment_start_time && $sermon->segment_end_time)
+        <div class="mt-2 text-sm text-gray-600">
+          <span class="font-medium">Sermon segment:</span> 
+          {{ gmdate('H:i:s', $sermon->segment_start_time) }} - {{ gmdate('H:i:s', $sermon->segment_end_time) }}
+          ({{ round(($sermon->segment_end_time - $sermon->segment_start_time) / 60, 1) }} minutes)
+        </div>
+        @endif
+      </div>
+      @endif
+
     </dl>
 
     {{-- Sermon Summary --}}
@@ -198,6 +224,51 @@ use Illuminate\Support\Str;
     <x-heroicon-o-cog-6-tooth class="h-5 w-5 mr-2" />
     Admin Actions
   </h3>
+
+  @if ($sermon->source_type === 'livestream' && $sermon->livestreamProcessing)
+  <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+    <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+      <x-heroicon-o-signal class="h-4 w-4 mr-2" />
+      Livestream Processing Information
+    </h4>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      <div>
+        <span class="font-medium text-gray-700">Original File:</span>
+        <span class="text-gray-600">{{ $sermon->livestreamProcessing->original_filename }}</span>
+      </div>
+      <div>
+        <span class="font-medium text-gray-700">Processing Date:</span>
+        <span class="text-gray-600">{{ $sermon->livestreamProcessing->created_at->format('Y-m-d H:i:s') }}</span>
+      </div>
+      <div>
+        <span class="font-medium text-gray-700">Status:</span>
+        <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full 
+          @if($sermon->livestreamProcessing->status === 'completed') bg-green-100 text-green-800
+          @elseif($sermon->livestreamProcessing->status === 'failed') bg-red-100 text-red-800
+          @elseif($sermon->livestreamProcessing->status === 'processing') bg-yellow-100 text-yellow-800
+          @else bg-gray-100 text-gray-800 @endif">
+          {{ ucfirst($sermon->livestreamProcessing->status) }}
+        </span>
+      </div>
+      <div>
+        <span class="font-medium text-gray-700">Total Segments:</span>
+        <span class="text-gray-600">{{ $sermon->livestreamProcessing->segments->count() }}</span>
+      </div>
+      @if ($sermon->livestreamProcessing->duration_seconds)
+      <div>
+        <span class="font-medium text-gray-700">Total Duration:</span>
+        <span class="text-gray-600">{{ gmdate('H:i:s', $sermon->livestreamProcessing->duration_seconds) }}</span>
+      </div>
+      @endif
+      @if ($sermon->livestreamProcessing->processing_id)
+      <div>
+        <span class="font-medium text-gray-700">Processing ID:</span>
+        <span class="text-gray-600 font-mono text-xs">{{ $sermon->livestreamProcessing->processing_id }}</span>
+      </div>
+      @endif
+    </div>
+  </div>
+  @endif
 
   <form method="POST" action="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     <input type="hidden" name="_token" value="{{ csrf_token() }}">

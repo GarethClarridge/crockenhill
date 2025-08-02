@@ -76,6 +76,19 @@ return [
 
   /*
     |--------------------------------------------------------------------------
+    | Queue Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Queue settings for processing jobs.
+    |
+    */
+  'queue' => [
+    'name' => env('LIVESTREAM_QUEUE_NAME', 'livestream-processing'),
+    'connection' => env('LIVESTREAM_QUEUE_CONNECTION', 'database'),
+  ],
+
+  /*
+    |--------------------------------------------------------------------------
     | Notification Configuration
     |--------------------------------------------------------------------------
     |
@@ -109,6 +122,20 @@ return [
   'audio_sample_rate' => env('LIVESTREAM_AUDIO_SAMPLE_RATE', 44100),
   'video_quality_preset' => env('LIVESTREAM_VIDEO_PRESET', 'medium'), // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
   'preserve_original_quality' => env('LIVESTREAM_PRESERVE_QUALITY', true),
+
+  /*
+    |--------------------------------------------------------------------------
+    | Storage Paths
+    |--------------------------------------------------------------------------
+    |
+    | Directory paths for organizing stored files.
+    |
+    */
+  'storage' => [
+    'video_path' => env('LIVESTREAM_VIDEO_PATH', 'sermons/videos'),
+    'audio_path' => env('LIVESTREAM_AUDIO_PATH', 'sermons/audio'),
+    'temp_path' => env('LIVESTREAM_TEMP_PATH', 'temp/livestreams'),
+  ],
 
   /*
     |--------------------------------------------------------------------------

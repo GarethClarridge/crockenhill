@@ -73,6 +73,12 @@ class Sermon extends Model
     'points', // Stored as JSON string, handled by accessor/mutator potentially
     'summary', // AI-generated sermon summary
     'transcript_path', // Added for automated sermon processing
+    'livestream_processing_id', // Link to livestream processing
+    'video_file_path', // Path to sermon video file
+    'source_type', // Source type: manual, livestream, upload
+    'segment_start_time', // Start time of sermon segment in livestream
+    'segment_end_time', // End time of sermon segment in livestream
+    'livestream_metadata', // Additional livestream metadata
   ];
 
   /**
@@ -84,6 +90,9 @@ class Sermon extends Model
     'date' => 'date',
     'points' => 'array', // Let Eloquent handle the casting to array for `points`
     'service' => SermonService::class,
+    'livestream_metadata' => 'array',
+    'segment_start_time' => 'float',
+    'segment_end_time' => 'float',
   ];
 
   // Accessor for points is no longer strictly needed if 'points' => 'array' cast is used.
@@ -211,6 +220,14 @@ class Sermon extends Model
   public function processingLogs(): HasMany
   {
     return $this->hasMany(SermonProcessingLog::class);
+  }
+
+  /**
+   * Get the livestream processing log for this sermon.
+   */
+  public function livestreamProcessing(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+  {
+    return $this->belongsTo(LivestreamProcessingLog::class, 'livestream_processing_id');
   }
 
   /**
@@ -343,5 +360,120 @@ class Sermon extends Model
   public function getLatestProcessingLog(): ?SermonProcessingLog
   {
     return $this->processingLogs()->latest()->first();
+  }
+
+  /**
+   * Check if this sermon came from a livestream
+   *
+   * @return bool True if sermon was extracted from livestream
+   */
+  public function isFromLivestream(): bool
+  {
+    return $this->source_type === 'livestream';
+  }
+
+  /**
+   * Check if this sermon has an associated video file
+   *
+   * @return bool True if video file exists
+   */
+  public function hasVideo(): bool
+  {
+    return !empty($this->video_file_path);
+  }
+
+  /**
+   * Get the video URL for this sermon
+   *
+   * @return string|null The video URL or null if no video
+   */
+  public function getVideoUrlAttribute(): ?string
+  {
+    if (!$this->video_file_path) {
+      return null;
+    }
+
+    return \Illuminate\Support\Facades\Storage::disk(config('livestream-processing.sermon_disk'))->url($this->video_file_path);
+  }
+
+  /**
+   * Get the segment duration for livestream sermons
+   *
+   * @return float|null Duration in seconds or null if not from livestream
+   */
+  public function getSegmentDuration(): ?float
+  {
+    if (!$this->isFromLivestream() || !$this->segment_start_time || !$this->segment_end_time) {
+      return null;
+    }
+
+    return $this->segment_end_time - $this->segment_start_time;
+  }
+
+  /**
+   * Get formatted segment duration
+   *
+   * @return string|null Formatted duration or null
+   */
+  public function getSegmentDurationFormatted(): ?string
+  {
+    $duration = $this->getSegmentDuration();
+    
+    if ($duration === null) {
+      return null;
+    }
+
+    $minutes = floor($duration / 60);
+    $seconds = $duration % 60;
+
+    return sprintf('%dm %ds', $minutes, $seconds);
+  }
+
+  /**
+   * Get livestream metadata with defaults
+   *
+   * @return array The livestream metadata array
+   */
+  public function getLivestreamInfo(): array
+  {
+    if (!$this->isFromLivestream()) {
+      return [];
+    }
+
+    return [
+      'processing_id' => $this->livestream_processing_id,
+      'original_filename' => $this->livestreamProcessing?->original_filename,
+      'segment_start_time' => $this->segment_start_time,
+      'segment_end_time' => $this->segment_end_time,
+      'segment_duration' => $this->getSegmentDuration(),
+      'segment_duration_formatted' => $this->getSegmentDurationFormatted(),
+      'has_video' => $this->hasVideo(),
+      'video_url' => $this->getVideoUrlAttribute(),
+      'metadata' => $this->livestream_metadata ?? [],
+    ];
+  }
+
+  /**
+   * Scope to get only livestream sermons
+   */
+  public function scopeFromLivestream(Builder $query): Builder
+  {
+    return $query->where('source_type', 'livestream');
+  }
+
+  /**
+   * Scope to get sermons with video files
+   */
+  public function scopeWithVideo(Builder $query): Builder
+  {
+    return $query->whereNotNull('video_file_path');
+  }
+
+  /**
+   * Scope to get sermons by source type
+   */
+  public function scopeBySourceType(Builder $query, string $sourceType): Builder
+  {
+    return $query->where('source_type', $sourceType);
   }
 }

@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+### .kiro/specs/ Amazon-style Specification System
+**IMPORTANT**: This project follows Amazon's spec-driven development methodology with structured specifications in .kiro/specs/ folder. Each spec contains:
+- **requirements.md**: Detailed functional requirements and specifications
+- **design.md**: Technical architecture, component design, and implementation approach
+- **tasks.md**: Task breakdown with direct references to requirements.md sections
+If there is an individual task in the selected spec folder, refer to the `requirements.md` file in that folder as mentioned in the task. Use `design.md` for overall context or when necessary.
+
+### .kiro/steering Documentation
+**IMPORTANT**: This project uses .kiro/steering folder for comprehensive project documentation. Always reference the markdown files in this folder for:
+- Detailed project specifications and requirements
+- Task breakdowns and development roadmap
+- UX improvements and feature implementations
+- Technical decisions and architectural guidance
+Check .kiro/steering/*.md files before making any significant changes to understand the full context and requirements.
+
 ## Project Overview
 
 This is a Laravel-based church website for Crockenhill Baptist Church. The application manages:
@@ -9,6 +24,7 @@ This is a Laravel-based church website for Crockenhill Baptist Church. The appli
 - **Sermons**: Audio recordings with metadata (preacher, series, reference, etc.)
 - **Meetings**: Church events with scheduling and location information
 - **Members**: Authentication and admin areas
+- **Livestream Processing**: Automated video segmentation and sermon extraction from livestream recordings
 
 ## Development Commands
 
@@ -125,6 +141,9 @@ Uses Intervention Image library for image processing. Service class `PageImageSe
 ### Audio Processing
 Uses `owen-oj/laravel-getid3` for audio file metadata extraction when uploading sermons.
 
+### Livestream Video Processing
+Uses FFmpeg for video analysis and segmentation. The `php-ffmpeg/php-ffmpeg` package provides Laravel integration for video processing tasks.
+
 ### Caching Strategy
 Standard Laravel caching is used. Clear caches during development with `sail artisan cache:clear`.
 
@@ -134,3 +153,96 @@ Standard Laravel caching is used. Clear caches during development with `sail art
 - Static assets are served from `public/` directory
 - Audio files are served through Laravel's storage system
 - Database uses standard Laravel migrations for deployment
+
+### Livestream Processing Deployment
+
+#### System Requirements
+- **FFmpeg**: Required for video processing and audio analysis
+  - Install: `sudo apt-get install ffmpeg` (Ubuntu/Debian) or `brew install ffmpeg` (macOS)
+  - Verify installation: `ffmpeg -version`
+- **PHP Extensions**: Ensure `php-gd`, `php-imagick`, and `php-ffmpeg` are available
+- **Storage**: Adequate disk space for video files (recommend 100GB+ for production)
+- **Memory**: Minimum 4GB RAM for video processing jobs
+- **Queue Workers**: Configured and running for background job processing
+
+#### Environment Configuration
+Add to `.env`:
+```bash
+# Livestream Processing Configuration
+LIVESTREAM_RMS_THRESHOLD=-30.0
+LIVESTREAM_MIN_SECTION_DURATION=60.0
+LIVESTREAM_MIN_SERMON_DURATION=300.0
+LIVESTREAM_MAX_FILE_SIZE=2147483648  # 2GB
+FFMPEG_PATH=/usr/bin/ffmpeg
+FFPROBE_PATH=/usr/bin/ffprobe
+LIVESTREAM_ADMIN_EMAIL=admin@church.com
+LIVESTREAM_STORAGE_DISK=local
+LIVESTREAM_SERMON_DISK=sermon_disk
+
+# Queue Configuration (required for processing jobs)
+QUEUE_CONNECTION=database  # or redis
+```
+
+#### Database Setup
+Run migrations for livestream processing:
+```bash
+php artisan migrate
+```
+
+#### Storage Configuration
+Ensure storage directories exist and are writable:
+```bash
+mkdir -p storage/app/livestreams
+mkdir -p storage/app/temp
+mkdir -p storage/app/sermons
+chmod -R 755 storage/app/livestreams
+chmod -R 755 storage/app/temp
+chmod -R 755 storage/app/sermons
+```
+
+#### Queue Worker Setup
+Configure supervisord or systemd to run queue workers:
+
+**supervisord.conf:**
+```ini
+[program:laravel-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /path/to/application/artisan queue:work --sleep=3 --tries=3 --timeout=3600
+autostart=true
+autorestart=true
+user=www-data
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/path/to/application/storage/logs/worker.log
+```
+
+#### Health Check Setup
+Register health checks in `app/Providers/HealthServiceProvider.php`:
+```php
+use App\HealthChecks\FFmpegHealthCheck;
+use App\HealthChecks\LivestreamQueueHealthCheck;
+use App\HealthChecks\StorageSpaceHealthCheck;
+
+Health::checks([
+    FFmpegHealthCheck::new()->name('ffmpeg-availability'),
+    LivestreamQueueHealthCheck::new()->name('livestream-queue'),
+    StorageSpaceHealthCheck::new()->name('video-storage'),
+]);
+```
+
+#### Monitoring and Alerting
+- Monitor disk space usage for video storage
+- Set up alerts for failed processing jobs
+- Monitor queue worker health and processing times
+- Configure email notifications for processing failures
+
+#### Backup Considerations
+- Original livestream files should be backed up before cleanup
+- Sermon videos should be included in regular backup procedures
+- Database includes processing logs and segment metadata
+
+#### Security Notes
+- Ensure video files are stored outside web root
+- Configure appropriate file upload limits in web server
+- Implement rate limiting on API endpoints
+- Regularly rotate API tokens and update access controls
