@@ -26,7 +26,7 @@ Upload and process a full livestream video file.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `file` | File | Yes | Video file (MP4, MOV, AVI, MKV) |
+| `video` | File | Yes | Video file (MP4, MOV, AVI, MKV) |
 | `options` | JSON | No | Processing preferences (reserved for future use) |
 
 #### File Requirements
@@ -69,7 +69,7 @@ Upload and process a full livestream video file.
 ```bash
 curl -X POST \
   -H "Authorization: Bearer YOUR_API_TOKEN" \
-  -F "file=@/path/to/livestream.mp4" \
+  -F "video=@/path/to/livestream.mp4" \
   https://your-domain.com/api/livestreams/process
 ```
 
@@ -204,6 +204,8 @@ curl -X GET \
 2. AI analysis extracts metadata (title, preacher, series, etc.)
 3. Sermon record is created and linked to original livestream
 
+**Important:** Extracted sermon audio files must be under 50MB for AI transcription processing. Longer sermons from large video files may exceed this limit and fail during the transcription step.
+
 ### 7. Cleanup
 
 1. Temporary files are cleaned up
@@ -224,6 +226,12 @@ curl -X GET \
 | `FFPROBE_PATH` | `/usr/bin/ffprobe` | Path to FFprobe binary |
 | `LIVESTREAM_STORAGE_DISK` | `local` | Storage disk for livestream files |
 | `LIVESTREAM_SERMON_DISK` | `sermon_disk` | Storage disk for sermon videos |
+| `LIVESTREAM_RATE_LIMITING_ENABLED` | `true` | Enable/disable API rate limiting |
+| `LIVESTREAM_UPLOAD_RATE_PER_MINUTE` | `1` | Upload requests per minute |
+| `LIVESTREAM_UPLOAD_RATE_PER_HOUR` | `5` | Upload requests per hour |
+| `LIVESTREAM_RETRY_RATE_PER_MINUTE` | `1` | Retry requests per minute |
+| `LIVESTREAM_RETRY_RATE_PER_HOUR` | `3` | Retry requests per hour |
+| `LIVESTREAM_STATUS_RATE_PER_MINUTE` | `60` | Status requests per minute |
 
 ### Supported File Formats
 
@@ -244,6 +252,7 @@ curl -X GET \
 | `FFMPEG_ERROR` | 500 | FFmpeg command failed |
 | `STORAGE_ERROR` | 500 | File storage failed |
 | `NO_SERMON_FOUND` | 422 | No suitable sermon segment identified |
+| `SERMON_FILE_TOO_LARGE` | 422 | Extracted sermon audio exceeds transcription limit (50MB) |
 
 ### Error Response Format
 
@@ -260,10 +269,43 @@ curl -X GET \
 
 ## Rate Limiting
 
-- **Upload endpoint:** 5 requests per minute per user
+Rate limiting is configurable and can be adjusted or disabled entirely for development environments.
+
+### Default Production Limits
+
+- **Upload endpoint:** 1 request per minute, 5 requests per hour per user
+- **Retry endpoint:** 1 request per minute, 3 requests per hour per user
 - **Status endpoint:** 60 requests per minute per user
 
-Rate limits can be configured in the application's rate limiting middleware.
+### Configuration
+
+Rate limiting can be configured via environment variables:
+
+```bash
+# Enable/disable rate limiting (useful for development)
+LIVESTREAM_RATE_LIMITING_ENABLED=true
+
+# Upload endpoint limits
+LIVESTREAM_UPLOAD_RATE_PER_MINUTE=1
+LIVESTREAM_UPLOAD_RATE_PER_HOUR=5
+
+# Retry endpoint limits
+LIVESTREAM_RETRY_RATE_PER_MINUTE=1
+LIVESTREAM_RETRY_RATE_PER_HOUR=3
+
+# Status endpoint limits
+LIVESTREAM_STATUS_RATE_PER_MINUTE=60
+```
+
+### Development Environment
+
+For development environments, rate limiting can be completely disabled by setting:
+
+```bash
+LIVESTREAM_RATE_LIMITING_ENABLED=false
+```
+
+When disabled, all livestream processing endpoints will have no rate limiting applied.
 
 ## Webhooks (Future Enhancement)
 
@@ -280,7 +322,7 @@ const axios = require('axios');
 
 async function uploadLivestream(filePath, apiToken) {
   const form = new FormData();
-  form.append('file', fs.createReadStream(filePath));
+  form.append('video', fs.createReadStream(filePath));
   
   try {
     const response = await axios.post(
@@ -332,7 +374,7 @@ def upload_livestream(file_path, api_token):
     headers = {'Authorization': f'Bearer {api_token}'}
     
     with open(file_path, 'rb') as f:
-        files = {'file': f}
+        files = {'video': f}
         response = requests.post(url, files=files, headers=headers)
     
     if response.status_code == 200:
@@ -394,6 +436,12 @@ def wait_for_completion(processing_id, api_token, max_wait=3600):
    - Original quality is preserved during extraction
    - Check source video quality
    - Verify codec compatibility
+
+5. **Sermon Transcription Fails Due to File Size**
+   - Extracted sermon audio exceeds 50MB transcription limit
+   - Consider reducing video bitrate or quality before upload
+   - For very long sermons (>40 minutes), audio compression may be needed
+   - Check livestream recording settings to optimize audio quality vs file size
 
 ### Support
 

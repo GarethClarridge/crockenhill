@@ -1,0 +1,199 @@
+<?php
+
+namespace Tests\Unit\Services;
+
+use App\Services\AudioTranscriptionService;
+use App\Services\SermonProcessingLogger;
+use Exception;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+class AudioTranscriptionServiceValidationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected AudioTranscriptionService $service;
+    protected SermonProcessingLogger $mockLogger;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Mock the logger dependency
+        $this->mockLogger = $this->createMock(SermonProcessingLogger::class);
+        
+        // Set OpenAI API key for testing
+        Config::set('sermon-processing.transcription.openai_api_key', 'test-api-key');
+        
+        // Mock OpenAI configuration for Laravel OpenAI package
+        Config::set('openai.api_key', 'test-api-key');
+        
+        $this->service = new AudioTranscriptionService($this->mockLogger);
+    }
+
+    public function test_service_requires_openai_api_key(): void
+    {
+        Config::set('sermon-processing.transcription.openai_api_key', '');
+        Config::set('openai.api_key', '');
+        
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('OpenAI API key not configured for transcription service');
+        
+        new AudioTranscriptionService($this->mockLogger);
+    }
+
+    public function test_transcribe_validates_file_exists(): void
+    {
+        $nonExistentPath = 'nonexistent/audio.mp3';
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage("Audio file not found: {$nonExistentPath}");
+
+        $this->service->transcribe($nonExistentPath, 'test-processing-id');
+    }
+
+    public function test_transcribe_validates_file_size_against_config(): void
+    {
+        // Set a small file size limit for testing
+        Config::set('livestream-processing.audio_extraction.transcription_optimized.max_file_size', 1024); // 1KB
+
+        // Create a test file larger than the limit
+        $testFilePath = 'test_large_audio.mp3';
+        Storage::put($testFilePath, str_repeat('a', 2048)); // 2KB
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Audio file too large');
+
+        $this->service->transcribe($testFilePath, 'test-processing-id');
+
+        // Cleanup
+        Storage::delete($testFilePath);
+    }
+
+    public function test_file_size_validation_provides_helpful_error_message(): void
+    {
+        // Set a specific limit for testing
+        Config::set('livestream-processing.audio_extraction.transcription_optimized.max_file_size', 5 * 1024 * 1024); // 5MB
+
+        // Create a test file larger than the limit
+        $testFilePath = 'test_oversized_audio.mp3';
+        Storage::put($testFilePath, str_repeat('a', 10 * 1024 * 1024)); // 10MB
+
+        try {
+            $this->service->transcribe($testFilePath, 'test-processing-id');
+            $this->fail('Expected exception was not thrown');
+        } catch (Exception $e) {
+            $message = $e->getMessage();
+            
+            // Check that error message contains size information
+            $this->assertStringContainsString('Audio file too large', $message);
+            $this->assertStringContainsString('10', $message); // Size (may be 10MB or 10.0MB)
+            $this->assertStringContainsString('5', $message);  // Limit (may be 5MB or 5.0MB)
+            $this->assertStringContainsString('Please ensure audio is compressed for transcription', $message);
+        }
+
+        // Cleanup
+        Storage::delete($testFilePath);
+    }
+
+    public function test_validation_passes_for_appropriately_sized_files(): void
+    {
+        // Set a reasonable limit
+        Config::set('livestream-processing.audio_extraction.transcription_optimized.max_file_size', 25 * 1024 * 1024); // 25MB
+
+        // Create a small test file
+        $testFilePath = 'test_small_audio.mp3';
+        Storage::put($testFilePath, str_repeat('a', 1024 * 1024)); // 1MB
+
+        // Mock the logger to expect certain calls but not throw errors
+        $this->mockLogger->expects($this->atLeastOnce())
+                        ->method('logProcessingStep');
+
+        $this->mockLogger->expects($this->atLeastOnce())
+                        ->method('logFileOperation');
+
+        // We expect this to get past validation and fail on the actual OpenAI API call
+        // (which we're not mocking in this test)
+        try {
+            $this->service->transcribe($testFilePath, 'test-processing-id');
+        } catch (Exception $e) {
+            // The validation should pass, so any exception should be from later processing
+            $this->assertStringNotContainsString('Audio file too large', $e->getMessage());
+            $this->assertStringNotContainsString('file not found', $e->getMessage());
+        }
+
+        // Cleanup
+        Storage::delete($testFilePath);
+    }
+
+    public function test_config_max_file_size_matches_openai_limit(): void
+    {
+        $maxSize = config('livestream-processing.audio_extraction.transcription_optimized.max_file_size');
+        
+        // Should be exactly 25MB (OpenAI Whisper limit)
+        $expectedSize = 25 * 1024 * 1024;
+        $this->assertEquals($expectedSize, $maxSize);
+    }
+
+    public function test_validation_method_handles_zero_byte_files(): void
+    {
+        // Create an empty test file
+        $testFilePath = 'test_empty_audio.mp3';
+        Storage::put($testFilePath, '');
+
+        // The validation should pass (0 bytes < limit), but transcription will fail for other reasons
+        // We're not testing the full transcription flow, just that validation doesn't reject empty files
+        
+        try {
+            $this->service->transcribe($testFilePath, 'test-processing-id');
+            $this->fail('Expected some exception due to empty file or API issues');
+        } catch (Exception $e) {
+            // Should not be a file size error for empty file
+            $this->assertStringNotContainsString('Audio file too large', $e->getMessage());
+        }
+
+        // Cleanup
+        Storage::delete($testFilePath);
+    }
+
+    public function test_error_message_includes_compression_guidance(): void
+    {
+        // Create an oversized file
+        Config::set('livestream-processing.audio_extraction.transcription_optimized.max_file_size', 1024); // 1KB
+        $testFilePath = 'test_guidance_audio.mp3';
+        Storage::put($testFilePath, str_repeat('a', 2048)); // 2KB
+
+        try {
+            $this->service->transcribe($testFilePath, 'test-processing-id');
+            $this->fail('Expected exception was not thrown');
+        } catch (Exception $e) {
+            $message = $e->getMessage();
+            $this->assertStringContainsString('Please ensure audio is compressed for transcription before processing', $message);
+        }
+
+        // Cleanup
+        Storage::delete($testFilePath);
+    }
+
+    protected function tearDown(): void
+    {
+        // Clean up any remaining test files
+        $testFiles = [
+            'test_large_audio.mp3',
+            'test_oversized_audio.mp3', 
+            'test_small_audio.mp3',
+            'test_empty_audio.mp3',
+            'test_guidance_audio.mp3',
+        ];
+
+        foreach ($testFiles as $file) {
+            if (Storage::exists($file)) {
+                Storage::delete($file);
+            }
+        }
+
+        parent::tearDown();
+    }
+}

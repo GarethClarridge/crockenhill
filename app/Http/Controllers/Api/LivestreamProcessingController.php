@@ -157,7 +157,7 @@ class LivestreamProcessingController extends Controller
                             'is_sermon_candidate' => $segment->isSermonCandidate,
                             'segment_order' => $segment->segmentOrder,
                         ];
-                    }, $result->segments),
+                    }, $result->segments ?? []),
                     'segments_summary' => $result->segmentsSummary,
                     'has_sermon' => $result->hasSermon(),
                     'has_segments' => $result->hasSegments(),

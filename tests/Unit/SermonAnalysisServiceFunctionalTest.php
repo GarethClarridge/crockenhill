@@ -366,20 +366,24 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
   #[Test]
   public function it_handles_database_errors_when_getting_existing_series(): void
   {
-    // Mock database to throw exception
-    $this->mock(Sermon::class, function ($mock) {
-      $mock->shouldReceive('whereNotNull')
-        ->andThrow(new Exception('Database error'));
-    });
-
+    // Temporarily change the database connection to an invalid one to trigger exception
     $reflection = new \ReflectionClass($this->service);
     $method = $reflection->getMethod('getExistingSeries');
     $method->setAccessible(true);
 
-    $result = $method->invoke($this->service);
-
-    $this->assertIsArray($result);
-    $this->assertEmpty($result);
+    // Set an invalid database connection that will cause an exception
+    $originalConnection = config('database.default');
+    config(['database.connections.invalid' => ['driver' => 'invalid']]);
+    config(['database.default' => 'invalid']);
+    
+    try {
+      $result = $method->invoke($this->service);
+      $this->assertIsArray($result);
+      $this->assertEmpty($result);
+    } finally {
+      // Restore the original connection
+      config(['database.default' => $originalConnection]);
+    }
   }
 
   #[Test]

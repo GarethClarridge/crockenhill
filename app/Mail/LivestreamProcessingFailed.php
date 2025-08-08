@@ -14,8 +14,9 @@ class LivestreamProcessingFailed extends Mailable
 
     public function __construct(
         public string $processingId,
-        public \Throwable $exception,
-        public string $step = 'unknown'
+        public \Throwable|string $exception,
+        public string $step = 'unknown',
+        public ?array $processingMetadata = null
     ) {
     }
 
@@ -28,16 +29,27 @@ class LivestreamProcessingFailed extends Mailable
 
     public function content(): Content
     {
+        $data = [
+            'processingId' => $this->processingId,
+            'step' => $this->step,
+            'metadata' => $this->processingMetadata,
+        ];
+
+        if ($this->exception instanceof \Throwable) {
+            $data['errorMessage'] = $this->exception->getMessage();
+            $data['stackTrace'] = $this->exception->getTraceAsString();
+            $data['file'] = $this->exception->getFile();
+            $data['line'] = $this->exception->getLine();
+        } else {
+            $data['errorMessage'] = $this->exception;
+            $data['stackTrace'] = 'Stack trace not available (error provided as string)';
+            $data['file'] = 'Unknown';
+            $data['line'] = 'Unknown';
+        }
+
         return new Content(
             markdown: 'emails.livestream-processing-failed',
-            with: [
-                'processingId' => $this->processingId,
-                'step' => $this->step,
-                'errorMessage' => $this->exception->getMessage(),
-                'stackTrace' => $this->exception->getTraceAsString(),
-                'file' => $this->exception->getFile(),
-                'line' => $this->exception->getLine(),
-            ]
+            with: $data
         );
     }
 }

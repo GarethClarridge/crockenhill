@@ -73,7 +73,7 @@ class GenerateRmsLog implements ShouldQueue
         }
     }
 
-    public function failed(\Exception $exception): void
+    public function failed(\Throwable $exception): void
     {
         Log::error('GenerateRmsLog job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,

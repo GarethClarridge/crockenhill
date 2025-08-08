@@ -12,7 +12,7 @@ return [
     | sections below are classified as "speech".
     |
     */
-  'rms_threshold' => env('LIVESTREAM_RMS_THRESHOLD', -30.0),
+  'rms_threshold' => env('LIVESTREAM_RMS_THRESHOLD', -100.0),
 
   /*
     |--------------------------------------------------------------------------
@@ -95,7 +95,7 @@ return [
     | Email addresses and notification settings for processing events.
     |
     */
-  'admin_email' => env('LIVESTREAM_ADMIN_EMAIL', config('mail.from.address')),
+  'admin_email' => env('LIVESTREAM_ADMIN_EMAIL', 'admin@crockenhill.org'),
   'notify_on_success' => env('LIVESTREAM_NOTIFY_SUCCESS', false),
   'notify_on_failure' => env('LIVESTREAM_NOTIFY_FAILURE', true),
 
@@ -135,6 +135,58 @@ return [
     'video_path' => env('LIVESTREAM_VIDEO_PATH', 'sermons/videos'),
     'audio_path' => env('LIVESTREAM_AUDIO_PATH', 'sermons/audio'),
     'temp_path' => env('LIVESTREAM_TEMP_PATH', 'temp/livestreams'),
+  ],
+
+  /*
+    |--------------------------------------------------------------------------
+    | Rate Limiting Configuration
+    |--------------------------------------------------------------------------
+    |
+    | API rate limiting settings. Can be disabled in development environments
+    | by setting LIVESTREAM_RATE_LIMITING_ENABLED=false.
+    |
+    */
+  'rate_limiting' => [
+    'enabled' => env('LIVESTREAM_RATE_LIMITING_ENABLED', true),
+    'upload' => [
+      'per_minute' => env('LIVESTREAM_UPLOAD_RATE_PER_MINUTE', 1),
+      'per_hour' => env('LIVESTREAM_UPLOAD_RATE_PER_HOUR', 5),
+    ],
+    'retry' => [
+      'per_minute' => env('LIVESTREAM_RETRY_RATE_PER_MINUTE', 1),
+      'per_hour' => env('LIVESTREAM_RETRY_RATE_PER_HOUR', 3),
+    ],
+    'status' => [
+      'per_minute' => env('LIVESTREAM_STATUS_RATE_PER_MINUTE', 60),
+    ],
+  ],
+
+  /*
+    |--------------------------------------------------------------------------
+    | Audio Extraction for Transcription
+    |--------------------------------------------------------------------------
+    |
+    | Optimized audio extraction settings for transcription services.
+    | These settings balance file size with transcription accuracy.
+    |
+    */
+  'audio_extraction' => [
+    'transcription_optimized' => [
+      'bitrate' => 48, // kbps - balance of quality vs size
+      'sample_rate' => 16000, // Hz - adequate for speech recognition
+      'channels' => 1, // mono
+      'max_file_size' => 25 * 1024 * 1024, // 25MB OpenAI Whisper limit
+    ],
+    'fallback_compression' => [
+      'bitrate' => 32, // kbps - more aggressive compression
+      'sample_rate' => 16000, // Hz
+      'channels' => 1, // mono
+    ],
+    'validation' => [
+      'max_duration_minutes' => 150, // ~3.6MB at 32kbps
+      'size_check_enabled' => true,
+      'quality_check_enabled' => true,
+    ],
   ],
 
   /*

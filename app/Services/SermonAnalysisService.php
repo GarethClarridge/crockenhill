@@ -277,7 +277,11 @@ Please provide a JSON response with this exact structure:
 
 ANALYSIS GUIDELINES:
 
-1. TITLE: Create a clear, engaging title that captures the sermon's main theme. Maximum 12 words. Focus on the central message or key Bible passage. Use sentence case (capitalise only the first word and proper nouns, not every word).
+1. TITLE: Create a clear, engaging title that captures the sermon's main theme. Rules:
+   - Maximum 12 words
+   - Focus on the central message or key Bible passage
+   - Use language from the transcript where possible
+   - Use sentence case (capitalise only the first word and proper nouns, not every word)
 
 2. SERIES: Only match to an existing series if the content clearly belongs to that series. Look for:
    - Book studies (e.g., "1 John", "Romans", "Genesis")
@@ -290,18 +294,24 @@ ANALYSIS GUIDELINES:
    - Format as "Book Chapter:Verse-Verse" (e.g., "Romans 8:28-39")
    - If no clear primary passage, return null
 
-4. POINTS: Extract 2-5 main sermon points/headings that structure the message:
+4. POINTS: Extract 2-7 main sermon points/headings that structure the message:
    - Focus on the preacher's main divisions or arguments
-   - Use clear, concise language in sentence case
-   - Avoid sub-points or detailed explanations
+   - Use the preacher's own words where possible
+   - If creating points yourself, use clear, concise British English, matching the preacher's tone of voice
+   - Use sentence case
+   - Stick to below 12 words per point
    - If no clear structure is evident, create logical divisions based on content flow
+   - Use sub-points if they help to structure the message, but don't overcomplicate it
 
 5. SUMMARY: Create a concise summary of the sermon in under 200 words that:
    - Captures the main message and key themes
    - Stays faithful to the transcript content
-   - Uses clear, accessible British English
-   - Focuses on the practical application and spiritual insights
-   - Avoids theological jargon where possible
+   - Never introduces new information or ideas that are not in the transcript
+   - Uses clear, accessible, persuasive British English as would be expected from a sermon in a British conservative evangelical church
+   - Matches the tone of the sermon
+   - Uses "we" and "us" rather than "Christians" or "believers"
+   - Uses active language, not passive
+   - Never mentions "sermon" or "message" in the summary. Instead, talk as if you're the preacher summarising their own sermon
 
 Respond only with the JSON object, no additional text.
 PROMPT;

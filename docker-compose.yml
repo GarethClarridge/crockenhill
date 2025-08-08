@@ -1,7 +1,7 @@
 services:
     laravel.test:
         build:
-            context: './vendor/laravel/sail/runtimes/8.4'
+            context: './docker/8.4'
             dockerfile: Dockerfile
             args:
                 WWWGROUP: '${WWWGROUP}'
@@ -19,6 +19,8 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
+            - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
+            - './docker/php/php.ini:/etc/php/8.4/fpm/conf.d/99-livestream.ini'
         networks:
             - sail
         depends_on:
@@ -36,7 +38,7 @@ services:
             MYSQL_ALLOW_EMPTY_PASSWORD: 1
         volumes:
             - 'sail-mysql:/var/lib/mysql'
-            - './vendor/laravel/sail/database/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
+            - './docker/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
         networks:
             - sail
         healthcheck:

@@ -40,6 +40,7 @@ class SermonVideoDisplayServiceTest extends TestCase
             'source_type' => 'livestream',
             'segment_start_time' => 120.5,
             'segment_end_time' => 1800.0,
+            'series' => null,
         ]);
 
         $processing->update(['sermon_id' => $sermon->id]);
@@ -74,6 +75,7 @@ class SermonVideoDisplayServiceTest extends TestCase
         $sermon = Sermon::factory()->create([
             'video_file_path' => null,
             'source_type' => 'manual',
+            'series' => null,
         ]);
 
         $result = $this->service->getSermonWithVideo($sermon->id);
@@ -90,6 +92,7 @@ class SermonVideoDisplayServiceTest extends TestCase
 
         $sermon = Sermon::factory()->create([
             'video_file_path' => 'sermons/1/video.mp4',
+            'series' => null,
         ]);
 
         $result = $this->service->getVideoPreviewData($sermon->id);
@@ -104,6 +107,7 @@ class SermonVideoDisplayServiceTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'video_file_path' => null,
+            'series' => null,
         ]);
 
         $result = $this->service->getVideoPreviewData($sermon->id);
@@ -120,11 +124,13 @@ class SermonVideoDisplayServiceTest extends TestCase
             'livestream_processing_id' => $processing->id,
             'source_type' => 'livestream',
             'video_file_path' => 'video.mp4',
+            'series' => null,
         ]);
 
         $manualSermon = Sermon::factory()->create([
             'source_type' => 'manual',
             'video_file_path' => null,
+            'series' => null,
         ]);
 
         // Test filtering by livestream
@@ -160,6 +166,7 @@ class SermonVideoDisplayServiceTest extends TestCase
         $livestreamSermon = Sermon::factory()->create([
             'livestream_processing_id' => $processing->id,
             'source_type' => 'livestream',
+            'series' => null,
         ]);
 
         $processing->update(['sermon_id' => $livestreamSermon->id]);
@@ -177,6 +184,7 @@ class SermonVideoDisplayServiceTest extends TestCase
     {
         $manualSermon = Sermon::factory()->create([
             'source_type' => 'manual',
+            'series' => null,
         ]);
 
         $result = $this->service->getLivestreamSourceIndicator($manualSermon);

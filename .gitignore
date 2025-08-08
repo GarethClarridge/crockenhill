@@ -20,3 +20,5 @@ artisan_serve.log
 /public/vendor
 /public/hot
 /storage/app/google-calendar/service-account-credentials.json
+livestream.mp4
+small.mp4

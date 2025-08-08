@@ -420,6 +420,25 @@ class SermonController extends Controller
     return $this->destroy($sermon);
   }
 
+  /**
+   * Serve audio file for a sermon
+   */
+  public function serveAudio(Sermon $sermon)
+  {
+    if (!$sermon->filename || !Storage::exists($sermon->filename)) {
+      abort(404, 'Audio file not found.');
+    }
+
+    $path = Storage::path($sermon->filename);
+    $name = basename($sermon->filename);
+    
+    return response()->file($path, [
+      'Content-Type' => 'audio/mpeg',
+      'Content-Disposition' => 'inline; filename="' . $name . '"',
+      'Cache-Control' => 'public, max-age=3600',
+    ]);
+  }
+
   private function findSermonOrFail(int $year, int $month, string $slug): \App\Models\Sermon
   {
     $sermon = \App\Models\Sermon::where('slug', $slug)

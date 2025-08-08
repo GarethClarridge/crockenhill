@@ -75,6 +75,9 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
     ->name('destroySermonWithDate');
 
+  // Audio serving route
+  Route::get('/{sermon:slug}/audio', [SermonController::class, 'serveAudio'])->name('serveSermonAudio');
+
   // Fallback slug-only routes
   Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');
   Route::get('/{sermon:slug}/edit', [SermonController::class, 'edit'])->name('editSermon');

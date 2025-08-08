@@ -221,7 +221,7 @@ class LivestreamProcessingService
         
         // Send email notification to administrators
         Mail::to(config('livestream-processing.admin_email'))
-            ->send(new LivestreamProcessingFailed($processingId, $e->getMessage()));
+            ->send(new LivestreamProcessingFailed($processingId, $e));
     }
 
     private function buildProcessingResult(LivestreamProcessingLog $processingLog): LivestreamProcessingResult

@@ -137,4 +137,21 @@ class SermonMetadata extends Data
       filesize: $filesize
     );
   }
+
+  /**
+   * Return a new instance with the specified original name
+   */
+  public function withOriginalName(string $originalName): self
+  {
+    return new self(
+      date: $this->date,
+      service: $this->service,
+      filename: $this->filename,
+      originalName: $originalName,
+      duration: $this->duration,
+      bitrate: $this->bitrate,
+      format: $this->format,
+      filesize: $this->filesize
+    );
+  }
 }

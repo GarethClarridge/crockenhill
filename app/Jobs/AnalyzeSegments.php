@@ -48,7 +48,7 @@ class AnalyzeSegments implements ShouldQueue
                 $this->processingLog->update([
                     'sermon_start_time' => $sermonCandidate->startTime,
                     'sermon_end_time' => $sermonCandidate->endTime,
-                    'status' => 'segmentation_complete'
+                    'status' => 'segmenting'
                 ]);
 
                 Log::info('Sermon candidate identified', [
@@ -94,7 +94,9 @@ class AnalyzeSegments implements ShouldQueue
     {
         foreach ($segments as $segmentData) {
             LivestreamSegment::create([
+                'processing_id' => $this->processingLog->processing_id,
                 'processing_log_id' => $this->processingLog->id,
+                'segment_index' => $segmentData->segmentOrder,
                 'start_time' => $segmentData->startTime,
                 'end_time' => $segmentData->endTime,
                 'duration' => $segmentData->duration,
@@ -133,7 +135,7 @@ class AnalyzeSegments implements ShouldQueue
         return null;
     }
 
-    public function failed(\Exception $exception): void
+    public function failed(\Throwable $exception): void
     {
         Log::error('AnalyzeSegments job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,

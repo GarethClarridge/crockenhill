@@ -12,7 +12,7 @@ return [
   'transcription' => [
     'service' => env('TRANSCRIPTION_SERVICE', 'openai'),
     'openai_api_key' => env('OPENAI_API_KEY'),
-    'max_file_size' => 25 * 1024 * 1024, // 25MB
+    'max_file_size' => 25 * 1024 * 1024, // 25MB (OpenAI Whisper limit)
     'timeout' => 300, // 5 minutes
   ],
 

@@ -50,22 +50,47 @@ class ExtractSermon implements ShouldQueue
                 $this->processingLog->processing_id . '_sermon.mp4'
             );
 
-            $sermonAudioPath = $storageService->extractAudioFromSegment(
+            $audioExtractionResult = $storageService->extractOptimizedAudioFromSegment(
                 $videoPath,
                 $sermonSegment,
                 $this->processingLog->processing_id . '_sermon.mp3'
             );
 
+            $sermonAudioPath = $audioExtractionResult['audio_path'];
+
             $this->processingLog->update([
                 'sermon_video_path' => $sermonVideoPath,
                 'sermon_audio_path' => $sermonAudioPath,
-                'status' => 'extraction_complete'
+                'status' => 'extraction_complete',
+                'processing_metadata' => array_merge(
+                    $this->processingLog->processing_metadata ?? [],
+                    [
+                        'audio_compression' => [
+                            'original_size_mb' => round($audioExtractionResult['original_size'] / 1024 / 1024, 1),
+                            'final_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
+                            'compression_applied' => $audioExtractionResult['compression_applied'],
+                            'compression_ratio' => round($audioExtractionResult['compression_ratio'], 2),
+                            'valid_for_transcription' => $audioExtractionResult['valid_for_transcription']
+                        ]
+                    ]
+                )
             ]);
+
+            if (!$audioExtractionResult['valid_for_transcription']) {
+                Log::warning('Audio file still too large after compression', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'final_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
+                    'compression_ratio' => round($audioExtractionResult['compression_ratio'], 2)
+                ]);
+            }
 
             Log::info('Sermon extraction completed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'video_path' => $sermonVideoPath,
-                'audio_path' => $sermonAudioPath
+                'audio_path' => $sermonAudioPath,
+                'compression_applied' => $audioExtractionResult['compression_applied'],
+                'final_audio_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
+                'valid_for_transcription' => $audioExtractionResult['valid_for_transcription']
             ]);
 
             // Job chain will automatically proceed to next job
@@ -99,7 +124,7 @@ class ExtractSermon implements ShouldQueue
         );
     }
 
-    public function failed(\Exception $exception): void
+    public function failed(\Throwable $exception): void
     {
         Log::error('ExtractSermon job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,

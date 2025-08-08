@@ -67,7 +67,7 @@ use Illuminate\Support\Str;
       </div>
       @endif
 
-      <audio src="{{ Storage::url($sermon->filename) }}" class="w-full" controls>
+      <audio src="{{ route('serveSermonAudio', $sermon->slug) }}" class="w-full" controls>
         Your browser does not support the <code>audio</code> element.
       </audio>
 

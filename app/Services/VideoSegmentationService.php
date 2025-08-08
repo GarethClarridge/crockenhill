@@ -41,12 +41,22 @@ class VideoSegmentationService
         $rmsLogPath = 'temp/rms_' . Str::uuid() . '.log';
         $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
 
+        // Ensure the directory exists and is writable
+        $directory = dirname($fullRmsLogPath);
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        // Create empty file first to ensure FFmpeg can write to it
+        touch($fullRmsLogPath);
+        chmod($fullRmsLogPath, 0644);
+
         try {
             // Include pts_time for accurate timestamps as specified in design
             $command = [
                 config('livestream-processing.ffmpeg_path'),
                 '-i', $videoPath,
-                '-af', "astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:key=frame.pts_time:file={$fullRmsLogPath}",
+                '-af', "astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file={$fullRmsLogPath}",
                 '-f', 'null',
                 '-'
             ];
@@ -60,10 +70,10 @@ class VideoSegmentationService
             }
             
             if (!file_exists($fullRmsLogPath) || filesize($fullRmsLogPath) === 0) {
-                throw new \Exception('Failed to generate RMS log file');
+                throw new \Exception('Failed to generate RMS log file or file is empty');
             }
 
-            Log::info('RMS log generated successfully', ['path' => $rmsLogPath]);
+            Log::info('RMS log generated successfully', ['path' => $rmsLogPath, 'size' => filesize($fullRmsLogPath)]);
 
             return $rmsLogPath;
 
@@ -132,20 +142,27 @@ class VideoSegmentationService
         return $this->identifySermonCandidate($segments);
     }
     
-    private function parseAudioSections(string $logContent, float $threshold = null, float $minSectionDuration = null): array
+    private function parseAudioSections(string $logContent, ?float $threshold = null, ?float $minSectionDuration = null): array
     {
         $threshold = $threshold ?? $this->rmsThreshold;
         $minSectionDuration = $minSectionDuration ?? $this->minSectionDuration;
         
         $lines = explode("\n", trim($logContent));
+        
+        // Get total duration by using ffprobe (like the Python script)
+        $totalDuration = $this->getTotalDuration($logContent, $lines);
+        
+        // Calculate frame duration dynamically (like Python script)
+        $frameDuration = $totalDuration / count($lines);
+        
         $sections = [];
         $currentSection = null;
         
-        foreach ($lines as $line) {
-            // Parse both RMS level and accurate timestamp from FFmpeg output
-            if (preg_match('/frame\.pts_time=(\d+\.\d+).*lavfi\.astats\.Overall\.RMS_level=(-?\d+\.\d+)/', $line, $matches)) {
-                $time = (float) $matches[1]; // Use actual pts_time instead of calculated duration
-                $rmsLevel = (float) $matches[2];
+        foreach ($lines as $i => $line) {
+            // Parse RMS level from lavfi lines
+            if (preg_match('/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/', $line, $rmsMatches)) {
+                $rmsLevel = $rmsMatches[1] === '-inf' ? -999.0 : (float) $rmsMatches[1];
+                $time = $i * $frameDuration; // Calculate time like Python script
                 
                 if ($rmsLevel > $threshold) {
                     // Start a new loud section if none is active
@@ -167,7 +184,8 @@ class VideoSegmentationService
         }
         
         // Close any open section at end of file
-        if ($currentSection !== null && isset($time)) {
+        if ($currentSection !== null) {
+            $time = (count($lines) - 1) * $frameDuration;
             $currentSection['end'] = $time;
             if (($currentSection['end'] - $currentSection['start']) >= $minSectionDuration) {
                 $sections[] = $currentSection;
@@ -175,6 +193,26 @@ class VideoSegmentationService
         }
         
         return $sections;
+    }
+    
+    private function getTotalDuration(string $logContent, array $lines): float
+    {
+        // Try to get duration from pts_time if available (most accurate)
+        $maxTime = 0.0;
+        foreach ($lines as $line) {
+            if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $matches)) {
+                $maxTime = max($maxTime, (float) $matches[1]);
+            }
+        }
+        
+        // If we found pts_time, use that
+        if ($maxTime > 0) {
+            return $maxTime;
+        }
+        
+        // Otherwise estimate based on number of lines and audio sample rate
+        // This is a fallback - the Python script uses ffprobe for this
+        return count($lines) / 43.0; // Rough estimate based on typical frame rates
     }
     
     private function combineLoudAndQuietSections(array $loudSections, float $totalDuration): array

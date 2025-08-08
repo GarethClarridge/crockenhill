@@ -78,6 +78,7 @@ class UpdateSermonRecord implements ShouldQueue
         'series' => $analysis->series,
         'reference' => $analysis->reference,
         'points' => $analysis->points, // Will be cast to JSON by Eloquent
+        'summary' => $analysis->summary,
       ];
 
       $sermon->update($updateData);
