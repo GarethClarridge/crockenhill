@@ -124,7 +124,12 @@ The application uses Livewire 3 for authentication pages. Components are in `app
 Uses Intervention Image library for image processing. Service class `PageImageService` handles image uploads and processing.
 
 ### Audio Processing
-Uses `owen-oj/laravel-getid3` for audio file metadata extraction when uploading sermons. The `AudioTranscriptionService` handles OpenAI Whisper API transcription with automatic chunking for long audio files (>7 minutes) to prevent timeouts.
+Uses `owen-oj/laravel-getid3` for audio file metadata extraction when uploading sermons. The transcription system supports both OpenAI Whisper API and mock implementations:
+
+- **OpenAI Whisper**: Production transcription with automatic chunking for long audio files (>7 minutes) to prevent timeouts
+- **Mock Service**: Local development stub that returns the content from `sermon_7.md` to avoid API costs
+
+Transcription service is configured via `TRANSCRIPTION_SERVICE_TYPE` environment variable.
 
 ### Livestream Video Processing
 Uses FFmpeg for video analysis and segmentation. The `php-ffmpeg/php-ffmpeg` package provides Laravel integration for video processing tasks.
@@ -163,6 +168,10 @@ FFPROBE_PATH=/usr/bin/ffprobe
 LIVESTREAM_ADMIN_EMAIL=admin@church.com
 LIVESTREAM_STORAGE_DISK=local
 LIVESTREAM_SERMON_DISK=sermon_disk
+
+# Transcription Configuration
+TRANSCRIPTION_SERVICE_TYPE=mock  # Use 'openai' for production, 'mock' for local development
+OPENAI_API_KEY=your_openai_key_here  # Only needed when using openai service type
 
 # Queue Configuration (required for processing jobs)
 QUEUE_CONNECTION=database  # or redis

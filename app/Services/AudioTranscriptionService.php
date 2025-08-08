@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\TranscriptionServiceInterface;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -11,7 +12,7 @@ use OpenAI\Exceptions\TransporterException;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 
-class AudioTranscriptionService
+class AudioTranscriptionService implements TranscriptionServiceInterface
 {
   private const MAX_RETRIES = 3;
   private const RETRY_DELAY_BASE = 2; // seconds
@@ -28,8 +29,15 @@ class AudioTranscriptionService
   public function __construct(SermonProcessingLogger $logger)
   {
     $this->logger = $logger;
+  }
 
-    // Verify OpenAI API key is configured
+  /**
+   * Verify OpenAI API key is configured before making API calls
+   * 
+   * @throws Exception When OpenAI API key is not configured
+   */
+  private function ensureApiKeyConfigured(): void
+  {
     if (empty(config('sermon-processing.transcription.openai_api_key'))) {
       throw new Exception('OpenAI API key not configured for transcription service');
     }
@@ -45,6 +53,9 @@ class AudioTranscriptionService
    */
   public function transcribe(string $audioFilePath, string $processingId = 'unknown'): string
   {
+    // Verify API key is configured before proceeding
+    $this->ensureApiKeyConfigured();
+    
     $startTime = microtime(true);
 
     $this->logger->logProcessingStep(

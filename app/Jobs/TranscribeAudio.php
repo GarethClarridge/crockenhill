@@ -6,7 +6,7 @@ use App\Enums\ProcessingStatus;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\Sermon;
 use App\Models\SermonProcessingLog;
-use App\Services\AudioTranscriptionService;
+use App\Contracts\TranscriptionServiceInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -37,7 +37,7 @@ class TranscribeAudio implements ShouldQueue
   /**
    * Execute the job.
    */
-  public function handle(AudioTranscriptionService $transcriptionService): void
+  public function handle(TranscriptionServiceInterface $transcriptionService): void
   {
     try {
       Log::info('Starting audio transcription', [
@@ -131,7 +131,7 @@ class TranscribeAudio implements ShouldQueue
 
     // Clean up any partial files
     try {
-      $transcriptionService = app(AudioTranscriptionService::class);
+      $transcriptionService = app(TranscriptionServiceInterface::class);
       $transcriptionService->cleanupOnFailure($this->sermonId);
     } catch (\Exception $e) {
       Log::warning('Failed to cleanup after transcription failure', [

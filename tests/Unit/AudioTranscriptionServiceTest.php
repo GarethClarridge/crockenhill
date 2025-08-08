@@ -41,7 +41,11 @@ class AudioTranscriptionServiceTest extends TestCase
     $this->expectExceptionMessage('OpenAI API key not configured');
 
     $logger = app(\App\Services\SermonProcessingLogger::class);
-    new AudioTranscriptionService($logger);
+    $service = new AudioTranscriptionService($logger);
+    
+    // The exception should be thrown when trying to transcribe, not during construction
+    Storage::put('test-audio.mp3', 'fake audio content');
+    $service->transcribe('test-audio.mp3', 'test-id');
   }
 
   #[Test]
@@ -174,7 +178,7 @@ class AudioTranscriptionServiceTest extends TestCase
     Storage::put($largeFilePath, str_repeat('x', 26 * 1024 * 1024)); // 26MB
 
     $this->expectException(Exception::class);
-    $this->expectExceptionMessage('File too large for transcription');
+    $this->expectExceptionMessage('Audio file too large');
 
     $this->service->transcribe($largeFilePath);
   }

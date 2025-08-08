@@ -2,10 +2,13 @@
 
 namespace App\Providers;
 
+use App\Contracts\TranscriptionServiceInterface;
 use App\HealthChecks\OpenAIHealthCheck;
 use App\HealthChecks\SermonProcessingQueueHealthCheck;
 use App\HealthChecks\StorageHealthCheck;
 use App\Models\Page;
+use App\Services\AudioTranscriptionService;
+use App\Services\MockTranscriptionService;
 use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
@@ -79,6 +82,19 @@ class AppServiceProvider extends ServiceProvider
 
     $this->app->bind('path.public', function () {
       return base_path() . '/public';
+    });
+
+    // Bind transcription service based on environment configuration
+    $this->app->bind(TranscriptionServiceInterface::class, function ($app) {
+      $serviceType = config('sermon-processing.transcription.service_type', 'openai');
+      
+      switch ($serviceType) {
+        case 'mock':
+          return $app->make(MockTranscriptionService::class);
+        case 'openai':
+        default:
+          return $app->make(AudioTranscriptionService::class);
+      }
     });
 
     // if ($this->app->environment('local', 'testing')) {
