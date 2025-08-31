@@ -38,10 +38,19 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         Config::set('sermon-processing.transcription.openai_api_key', '');
         Config::set('openai.api_key', '');
         
+        $service = new AudioTranscriptionService($this->mockLogger);
+        
+        // Create a test file to trigger the validation in transcribe method
+        $testFilePath = 'test_validation_audio.mp3';
+        Storage::put($testFilePath, 'mock audio content');
+        
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('OpenAI API key not configured for transcription service');
         
-        new AudioTranscriptionService($this->mockLogger);
+        $service->transcribe($testFilePath, 'test-processing-id');
+        
+        // Cleanup
+        Storage::delete($testFilePath);
     }
 
     public function test_transcribe_validates_file_exists(): void

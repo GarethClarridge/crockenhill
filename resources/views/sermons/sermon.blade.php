@@ -215,6 +215,7 @@ use Illuminate\Support\Str;
   </script>
   @endif
 
+  </div>
 </section>
 
 {{-- Admin Actions --}}
