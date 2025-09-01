@@ -8,6 +8,7 @@ package-lock.json
 Homestead.json
 Homestead.yaml
 .env
+.env.bak
 .phpunit.result.cache
 *.mp3
 .DS_Store
@@ -21,4 +22,6 @@ artisan_serve.log
 /public/hot
 /storage/app/google-calendar/service-account-credentials.json
 livestream.mp4
+livestream2.mp4
+livestream3.mp4
 small.mp4

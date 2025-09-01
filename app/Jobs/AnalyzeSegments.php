@@ -34,10 +34,25 @@ class AnalyzeSegments implements ShouldQueue
                 throw new \Exception('RMS log path not found in processing log');
             }
 
-            $segments = $segmentationService->analyzeSegments($this->processingLog->rms_log_path);
+            $analysisResult = $segmentationService->analyzeSegments($this->processingLog->rms_log_path);
+            
+            // Handle both old format (array of segments) and new format (with metadata)
+            if (isset($analysisResult['segments'])) {
+                $segments = $analysisResult['segments'];
+                $thresholdMetadata = $analysisResult['threshold_metadata'] ?? null;
+            } else {
+                // Backward compatibility: treat as array of segments
+                $segments = $analysisResult;
+                $thresholdMetadata = null;
+            }
 
             if (empty($segments)) {
                 throw new \Exception('No segments found in RMS log analysis');
+            }
+
+            // Store threshold metadata if available
+            if ($thresholdMetadata) {
+                $this->storeThresholdMetadata($thresholdMetadata);
             }
 
             $this->storeSegments($segments);
@@ -88,6 +103,31 @@ class AnalyzeSegments implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    private function storeThresholdMetadata(array $thresholdMetadata): void
+    {
+        $updateData = [
+            'threshold_method' => $thresholdMetadata['method'] ?? 'unknown'
+        ];
+
+        // Add adaptive threshold value if present
+        if (isset($thresholdMetadata['threshold'])) {
+            $updateData['adaptive_threshold'] = $thresholdMetadata['threshold'];
+        }
+
+        // Add RMS statistics if present
+        if (isset($thresholdMetadata['rms_stats'])) {
+            $updateData['rms_stats'] = json_encode($thresholdMetadata['rms_stats']);
+        }
+
+        $this->processingLog->update($updateData);
+
+        Log::info('Threshold metadata stored', [
+            'processing_id' => $this->processingLog->processing_id,
+            'threshold_method' => $thresholdMetadata['method'] ?? 'unknown',
+            'threshold_value' => $thresholdMetadata['threshold'] ?? null
+        ]);
     }
 
     private function storeSegments(array $segments): void

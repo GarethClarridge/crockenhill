@@ -123,11 +123,12 @@ class SermonProcessingService
         $livestreamMetadata
       );
 
-      // Dispatch the job chain for processing
-      $this->dispatchProcessingChain($processingId, $metadata, $storedFilePath);
+      // Execute sermon processing synchronously for livestream integration
+      $sermon = $this->processSynchronously($processingId, $metadata, $storedFilePath, $livestreamMetadata);
 
-      Log::info('Livestream sermon processing initiated successfully', [
+      Log::info('Livestream sermon processing completed successfully', [
         'processing_id' => $processingId,
+        'sermon_id' => $sermon->id,
         'stored_file_path' => $storedFilePath,
         'livestream_processing_id' => $livestreamMetadata['livestream_processing_id'] ?? null,
       ]);
@@ -135,10 +136,15 @@ class SermonProcessingService
       return [
         'success' => true,
         'processing_id' => $processingId,
-        'sermon_id' => null, // Will be set when sermon record is created
-        'message' => 'Livestream sermon processing initiated successfully',
+        'sermon_id' => $sermon->id,
+        'message' => 'Livestream sermon processing completed successfully',
         'status_url' => route('api.sermons.processing.status', ['processingId' => $processingId]),
-        'metadata' => $livestreamMetadata,
+        'metadata' => array_merge($livestreamMetadata, [
+          'title' => $sermon->title,
+          'preacher' => $sermon->preacher,
+          'series' => $sermon->series,
+          'reference' => $sermon->reference,
+        ]),
       ];
     } catch (\Exception $e) {
       Log::error('Failed to initiate livestream sermon processing', [
@@ -1136,4 +1142,151 @@ class SermonProcessingService
       ]);
     }
   }
+
+  /**
+   * Execute sermon processing synchronously for livestream integration
+   * 
+   * This method combines the logic from CreateSermonRecord, TranscribeAudio, 
+   * and ProcessTranscriptWithAI jobs into a single synchronous flow.
+   */
+  private function processSynchronously(
+    string $processingId,
+    SermonMetadata $metadata,
+    string $storedFilePath,
+    array $livestreamMetadata
+  ): Sermon {
+    // Step 1: Create sermon record (from CreateSermonRecord job)
+    $sermon = $this->createSermonRecordSync($processingId, $metadata, $storedFilePath, $livestreamMetadata);
+    
+    // Step 2: Transcribe audio (from TranscribeAudio job)  
+    $transcript = $this->transcribeAudioSync($sermon);
+    
+    // Step 3: Process with AI (from ProcessTranscriptWithAI job)
+    $this->processTranscriptWithAISync($sermon, $transcript);
+    
+    return $sermon->fresh(); // Reload to get updated metadata
+  }
+
+  /**
+   * Create sermon record synchronously
+   */
+  private function createSermonRecordSync(
+    string $processingId,
+    SermonMetadata $metadata,
+    string $storedFilePath,
+    array $livestreamMetadata
+  ): Sermon {
+    Log::info('Creating sermon record synchronously', ['processing_id' => $processingId]);
+    
+    $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
+    $livestreamProcessingId = $livestreamMetadata['livestream_processing_id'] ?? null;
+    $isFromLivestream = !empty($livestreamProcessingId);
+
+    $sermonData = [
+      'title' => 'Untitled Sermon', // Will be filled by AI analysis
+      'slug' => Str::slug('untitled-sermon-' . time()),
+      'filename' => $storedFilePath,
+      'date' => $metadata->date ?: now(),
+      'service' => $metadata->service->value ?: 'evening',
+      'series' => null, // Will be filled by AI analysis
+      'reference' => null, // Will be filled by AI analysis  
+      'preacher' => 'Mark Drury', // Default preacher
+      'points' => null, // Will be filled by AI analysis
+      'transcript_path' => null, // Will be set after transcription
+    ];
+
+    // Add livestream-specific fields
+    if ($isFromLivestream && $livestreamProcessingId) {
+      $sermonData['source_type'] = 'livestream';
+      $sermonData['livestream_processing_id'] = $livestreamProcessingId;
+    }
+
+    $sermon = Sermon::create($sermonData);
+
+    // Update processing log with sermon ID
+    $processingLog->update([
+      'sermon_id' => $sermon->id,
+      'current_step' => 'sermon_record_created',
+    ]);
+
+    return $sermon;
+  }
+
+  /**
+   * Transcribe audio synchronously
+   */
+  private function transcribeAudioSync(Sermon $sermon): string
+  {
+    Log::info('Transcribing audio synchronously', ['sermon_id' => $sermon->id]);
+    
+    $transcriptionService = app(\App\Services\AudioTranscriptionService::class);
+    
+    if (!$sermon->filename) {
+      throw new \Exception("No audio file path found for sermon ID: {$sermon->id}");
+    }
+
+    $transcript = $transcriptionService->transcribe($sermon->filename);
+
+    if (empty($transcript)) {
+      throw new \Exception('Transcription returned empty content');
+    }
+
+    // Store transcript
+    $transcriptPath = $this->storeTranscript($sermon->id, $transcript);
+    
+    $sermon->update([
+      'transcript_path' => $transcriptPath,
+    ]);
+
+    return $transcript;
+  }
+
+  /**
+   * Process transcript with AI synchronously
+   */
+  private function processTranscriptWithAISync(Sermon $sermon, string $transcript): void
+  {
+    Log::info('Processing transcript with AI synchronously', ['sermon_id' => $sermon->id]);
+    
+    $analysisService = app(\App\Services\SermonAnalysisService::class);
+    
+    // Extract metadata using AI
+    $analysis = $analysisService->analyzeSermon($transcript, null, 'livestream-sync');
+
+    // Update sermon with AI-extracted metadata
+    $updateData = [];
+    if (!empty($analysis->title) && $analysis->title !== 'Untitled Sermon') {
+      $updateData['title'] = $analysis->title;
+      $updateData['slug'] = $this->generateUniqueSlug($analysis->title, $sermon->id);
+    }
+    if (!empty($analysis->series)) {
+      $updateData['series'] = $analysis->series;
+    }
+    if (!empty($analysis->reference)) {
+      $updateData['reference'] = $analysis->reference;
+    }
+    if (!empty($analysis->points)) {
+      $updateData['points'] = $analysis->points;
+    }
+
+    if (!empty($updateData)) {
+      $sermon->update($updateData);
+    }
+  }
+
+  /**
+   * Store transcript file
+   */
+  private function storeTranscript(int $sermonId, string $transcript): string
+  {
+    $disk = Storage::disk(config('sermon-processing.storage.transcript_disk', 'local'));
+    $path = config('sermon-processing.storage.transcript_path', 'transcripts');
+    $filename = "sermon_{$sermonId}_transcript.txt";
+    $fullPath = "{$path}/{$filename}";
+    
+    $disk->put($fullPath, $transcript);
+    
+    return $fullPath;
+  }
+
 }

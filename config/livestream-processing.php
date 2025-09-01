@@ -11,8 +11,29 @@ return [
     | Sections above this threshold are classified as "song",
     | sections below are classified as "speech".
     |
+    | When adaptive thresholds are enabled, the fixed threshold serves
+    | as a fallback if adaptive calculation fails.
+    |
     */
-  'rms_threshold' => env('LIVESTREAM_RMS_THRESHOLD', -100.0),
+  'rms_threshold' => env('LIVESTREAM_RMS_THRESHOLD', -45.0),
+
+  /*
+    |--------------------------------------------------------------------------
+    | Adaptive Threshold Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Adaptive thresholds calculate speech/music boundaries based on each
+    | file's RMS distribution rather than using fixed values.
+    |
+    */
+  'adaptive_thresholds' => [
+    'enabled' => env('LIVESTREAM_ADAPTIVE_THRESHOLDS_ENABLED', true),
+    'speech_percentile' => env('LIVESTREAM_SPEECH_PERCENTILE', 30), // 30th percentile for speech threshold
+    'fallback_enabled' => env('LIVESTREAM_ADAPTIVE_FALLBACK_ENABLED', true),
+    'min_threshold' => env('LIVESTREAM_MIN_THRESHOLD', -80.0), // Don't go below this
+    'max_threshold' => env('LIVESTREAM_MAX_THRESHOLD', -20.0), // Don't go above this
+    'min_sample_count' => env('LIVESTREAM_MIN_SAMPLE_COUNT', 1000), // Minimum RMS samples needed
+  ],
 
   /*
     |--------------------------------------------------------------------------

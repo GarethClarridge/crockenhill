@@ -122,9 +122,22 @@ class SermonMetadataIntegrationService
      */
     private function extractSermonVideo(string $processingId): ?string
     {
-        $tempPath = "temp/livestreams/{$processingId}/segments";
+        // First check if the processing log already has the sermon video path
+        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
         
-        // Look for the sermon video segment
+        if ($processing && $processing->sermon_video_path) {
+            if (file_exists($processing->sermon_video_path)) {
+                return $processing->sermon_video_path;
+            }
+            
+            Log::warning('Sermon video path in processing log does not exist', [
+                'processing_id' => $processingId,
+                'expected_path' => $processing->sermon_video_path
+            ]);
+        }
+        
+        // Fallback: Look for sermon video in the old expected location
+        $tempPath = "temp/livestreams/{$processingId}/segments";
         $files = Storage::files($tempPath);
         
         foreach ($files as $file) {
@@ -133,8 +146,9 @@ class SermonMetadataIntegrationService
             }
         }
         
-        Log::warning('No sermon video found in temporary storage', [
+        Log::warning('No sermon video found in any location', [
             'processing_id' => $processingId,
+            'processing_log_path' => $processing?->sermon_video_path,
             'temp_path' => $tempPath,
             'available_files' => $files
         ]);

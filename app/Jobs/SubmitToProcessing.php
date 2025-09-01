@@ -66,9 +66,10 @@ class SubmitToProcessing implements ShouldQueue
             $result = $sermonProcessingService->processSermonAudio($uploadedFile, $metadata);
 
             // Store video with extracted metadata using the integration service
+            $metadataWithSermonId = array_merge($result['metadata'] ?? [], ['sermon_id' => $result['sermon_id']]);
             $finalVideoPath = $metadataIntegrationService->storeVideoWithMetadata(
                 $this->processingLog->processing_id,
-                $result['metadata'] ?? []
+                $metadataWithSermonId
             );
 
             // Link video to sermon record
