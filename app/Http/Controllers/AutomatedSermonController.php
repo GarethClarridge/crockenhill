@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\AutomatedSermonUploadRequest;
+use App\Http\Requests\SermonVideoUploadRequest;
 use App\Services\SermonProcessingLogger;
 use App\Services\SermonProcessingService;
 use Illuminate\Http\JsonResponse;
@@ -70,6 +71,64 @@ class AutomatedSermonController extends Controller
       return response()->json([
         'success' => false,
         'message' => 'An unexpected error occurred during upload processing',
+        'error_code' => 'INTERNAL_ERROR',
+      ], 500);
+    }
+  }
+
+  /**
+   * Upload and process a sermon video file automatically
+   */
+  public function uploadVideo(SermonVideoUploadRequest $request): JsonResponse
+  {
+    try {
+      Log::info('Direct sermon video upload initiated', [
+        'user_id' => $request->user()?->id,
+        'original_filename' => $request->file('file')?->getClientOriginalName(),
+        'file_size' => $request->file('file')?->getSize(),
+        'ip_address' => $request->ip(),
+      ]);
+
+      $file = $request->file('file');
+
+      if (!$file || !$file->isValid()) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Invalid or corrupted video file uploaded',
+          'error_code' => 'INVALID_FILE',
+        ], 400);
+      }
+
+      // Process the video through the direct sermon pipeline
+      $result = $this->sermonProcessingService->processSermonVideo($file);
+
+      if ($result->success) {
+        Log::info('Direct sermon video processing initiated successfully', [
+          'processing_id' => $result->processingId,
+          'user_id' => $request->user()?->id,
+        ]);
+
+        return response()->json($result->toArray(), 202); // 202 Accepted for async processing
+      } else {
+        Log::warning('Direct sermon video processing failed to initiate', [
+          'error_message' => $result->message,
+          'error_code' => $result->errorCode,
+          'user_id' => $request->user()?->id,
+        ]);
+
+        return response()->json($result->toArray(), 422); // 422 Unprocessable Entity
+      }
+    } catch (\Exception $e) {
+      Log::error('Unexpected error during direct sermon video upload', [
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+        'user_id' => $request->user()?->id,
+        'original_filename' => $request->file('file')?->getClientOriginalName(),
+      ]);
+
+      return response()->json([
+        'success' => false,
+        'message' => 'An unexpected error occurred during video processing',
         'error_code' => 'INTERNAL_ERROR',
       ], 500);
     }

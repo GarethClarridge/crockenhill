@@ -36,6 +36,11 @@ Route::prefix('sermons')->name('api.sermons.')->middleware('cors')->group(functi
     ->middleware(['auth:sanctum', 'throttle:sermon-upload'])
     ->name('automated.upload');
 
+  // Direct sermon video upload endpoint
+  Route::post('video', [AutomatedSermonController::class, 'uploadVideo'])
+    ->middleware(['auth:sanctum', 'throttle:sermon-video-upload'])
+    ->name('video.upload');
+
   // Processing status and management endpoints
   Route::prefix('processing')->name('processing.')->group(function () {
     // Get processing status by ID

@@ -56,6 +56,14 @@ class RouteServiceProvider extends ServiceProvider
       ];
     });
 
+    // Rate limiter for sermon video uploads - more restrictive due to video processing overhead
+    RateLimiter::for('sermon-video-upload', function (Request $request) {
+      return [
+        Limit::perMinute(1)->by($request->user()?->id ?: $request->ip()),
+        Limit::perHour(5)->by($request->user()?->id ?: $request->ip()),
+      ];
+    });
+
     // Rate limiter for livestream video uploads - configurable and can be disabled in development
     RateLimiter::for('livestream-upload', function (Request $request) {
       if (!config('livestream-processing.rate_limiting.enabled', true)) {
