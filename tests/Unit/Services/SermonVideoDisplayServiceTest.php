@@ -2,13 +2,13 @@
 
 namespace Tests\Unit\Services;
 
-use Tests\TestCase;
-use App\Services\SermonVideoDisplayService;
-use App\Models\Sermon;
 use App\Models\LivestreamProcessingLog;
 use App\Models\LivestreamSegment;
+use App\Models\Sermon;
+use App\Services\SermonVideoDisplayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class SermonVideoDisplayServiceTest extends TestCase
 {
@@ -19,7 +19,7 @@ class SermonVideoDisplayServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonVideoDisplayService();
+        $this->service = new SermonVideoDisplayService;
         Storage::fake('local');
     }
 

@@ -13,9 +13,10 @@ use Illuminate\Support\Facades\Storage;
 
 class GenerateRmsLog implements ShouldQueue
 {
-    use Queueable, InteractsWithQueue, SerializesModels;
+    use InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 3600;
 
     public function __construct(
@@ -27,16 +28,18 @@ class GenerateRmsLog implements ShouldQueue
         try {
             Log::info('Starting RMS log generation', [
                 'processing_id' => $this->processingLog->processing_id,
-                'log_id' => $this->processingLog->id
+                'log_id' => $this->processingLog->id,
             ]);
 
+            // Update status to show RMS generation is starting
+            $this->processingLog->update(['status' => 'rms_generation']);
             $this->processingLog->markAsProcessing();
 
             $videoPath = Storage::disk(config('livestream-processing.temp_disk'))
                 ->path($this->processingLog->original_file_path);
 
-            if (!file_exists($videoPath)) {
-                throw new \Exception('Video file not found: ' . $videoPath);
+            if (! file_exists($videoPath)) {
+                throw new \Exception('Video file not found: '.$videoPath);
             }
 
             $maxFileSize = config('livestream-processing.max_file_size');
@@ -48,12 +51,12 @@ class GenerateRmsLog implements ShouldQueue
 
             $this->processingLog->update([
                 'rms_log_path' => $rmsLogPath,
-                'status' => 'processing'
+                'status' => 'processing',
             ]);
 
             Log::info('RMS log generation completed', [
                 'processing_id' => $this->processingLog->processing_id,
-                'rms_log_path' => $rmsLogPath
+                'rms_log_path' => $rmsLogPath,
             ]);
 
             // Job chain will automatically proceed to next job
@@ -62,10 +65,10 @@ class GenerateRmsLog implements ShouldQueue
             Log::error('RMS log generation failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->processingLog->markAsFailed('RMS log generation failed: ' . $e->getMessage());
+            $this->processingLog->markAsFailed('RMS log generation failed: '.$e->getMessage());
 
             // Cleanup will be handled by the chain failure handler
 
@@ -78,11 +81,11 @@ class GenerateRmsLog implements ShouldQueue
         Log::error('GenerateRmsLog job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),
-            'attempts' => $this->attempts()
+            'attempts' => $this->attempts(),
         ]);
 
         $this->processingLog->markAsFailed(
-            'RMS log generation failed after ' . $this->tries . ' attempts: ' . $exception->getMessage()
+            'RMS log generation failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
 
         // Cleanup will be handled by the chain failure handler

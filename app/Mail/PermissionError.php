@@ -15,8 +15,7 @@ class PermissionError extends Mailable
     public function __construct(
         public string $processingId,
         public string $operation
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {

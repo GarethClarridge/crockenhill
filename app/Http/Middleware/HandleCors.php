@@ -8,57 +8,57 @@ use Symfony\Component\HttpFoundation\Response;
 
 class HandleCors
 {
-  /**
-   * Handle an incoming request.
-   */
-  public function handle(Request $request, Closure $next): Response
-  {
-    // Handle preflight OPTIONS requests
-    if ($request->getMethod() === 'OPTIONS') {
-      return response('', 200)
-        ->header('Access-Control-Allow-Origin', $this->getAllowedOrigin($request))
-        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
-        ->header('Access-Control-Allow-Credentials', 'true')
-        ->header('Access-Control-Max-Age', '86400'); // 24 hours
+    /**
+     * Handle an incoming request.
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        // Handle preflight OPTIONS requests
+        if ($request->getMethod() === 'OPTIONS') {
+            return response('', 200)
+                ->header('Access-Control-Allow-Origin', $this->getAllowedOrigin($request))
+                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
+                ->header('Access-Control-Allow-Credentials', 'true')
+                ->header('Access-Control-Max-Age', '86400'); // 24 hours
+        }
+
+        $response = $next($request);
+
+        // Add CORS headers to the response
+        return $response
+            ->header('Access-Control-Allow-Origin', $this->getAllowedOrigin($request))
+            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
+            ->header('Access-Control-Allow-Credentials', 'true');
     }
 
-    $response = $next($request);
+    /**
+     * Get the allowed origin for the request
+     */
+    private function getAllowedOrigin(Request $request): string
+    {
+        $origin = $request->header('Origin');
+        $allowedOrigins = config('app.cors_allowed_origins', [
+            'https://crockenhill.org',
+            'https://www.crockenhill.org',
+        ]);
 
-    // Add CORS headers to the response
-    return $response
-      ->header('Access-Control-Allow-Origin', $this->getAllowedOrigin($request))
-      ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-      ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
-      ->header('Access-Control-Allow-Credentials', 'true');
-  }
+        // In development, allow localhost origins
+        if (app()->environment('local')) {
+            $allowedOrigins = array_merge($allowedOrigins, [
+                'http://localhost:3000',
+                'http://localhost:8000',
+                'http://127.0.0.1:3000',
+                'http://127.0.0.1:8000',
+            ]);
+        }
 
-  /**
-   * Get the allowed origin for the request
-   */
-  private function getAllowedOrigin(Request $request): string
-  {
-    $origin = $request->header('Origin');
-    $allowedOrigins = config('app.cors_allowed_origins', [
-      'https://crockenhill.org',
-      'https://www.crockenhill.org',
-    ]);
+        // If origin is in allowed list, return it; otherwise return first allowed origin
+        if ($origin && in_array($origin, $allowedOrigins)) {
+            return $origin;
+        }
 
-    // In development, allow localhost origins
-    if (app()->environment('local')) {
-      $allowedOrigins = array_merge($allowedOrigins, [
-        'http://localhost:3000',
-        'http://localhost:8000',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:8000',
-      ]);
+        return $allowedOrigins[0] ?? '*';
     }
-
-    // If origin is in allowed list, return it; otherwise return first allowed origin
-    if ($origin && in_array($origin, $allowedOrigins)) {
-      return $origin;
-    }
-
-    return $allowedOrigins[0] ?? '*';
-  }
 }

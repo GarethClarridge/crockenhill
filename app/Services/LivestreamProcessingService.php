@@ -4,23 +4,23 @@ namespace App\Services;
 
 use App\Data\LivestreamProcessingResult;
 use App\Data\LivestreamProcessingStatus;
-use App\Models\LivestreamProcessingLog;
-use App\Jobs\GenerateRmsLog;
 use App\Jobs\AnalyzeSegments;
-use App\Jobs\ExtractSermon;
-use App\Jobs\SubmitToProcessing;
 use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\ExtractSermon;
+use App\Jobs\GenerateRmsLog;
+use App\Jobs\SubmitToProcessing;
 use App\Mail\LivestreamProcessingFailed;
-use App\Services\ProcessingResult;
+use App\Models\LivestreamProcessingLog;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class LivestreamProcessingService
 {
     private VideoStorageService $storageService;
+
     private VideoSegmentationService $segmentationService;
 
     public function __construct(
@@ -40,20 +40,20 @@ class LivestreamProcessingService
     {
         try {
             $processingId = Str::uuid()->toString();
-            
+
             Log::info('Starting livestream processing', [
                 'processing_id' => $processingId,
                 'original_filename' => $videoFile->getClientOriginalName(),
-                'file_size' => $videoFile->getSize()
+                'file_size' => $videoFile->getSize(),
             ]);
 
-            if (!$this->storageService->validateStorageSpace($videoFile->getSize())) {
+            if (! $this->storageService->validateStorageSpace($videoFile->getSize())) {
                 throw new \Exception('Insufficient storage space for processing');
             }
 
             $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
-            
-            if (!$this->segmentationService->validateVideoFile($uploadResult['full_path'])) {
+
+            if (! $this->segmentationService->validateVideoFile($uploadResult['full_path'])) {
                 throw new \Exception('Invalid video file format');
             }
 
@@ -78,7 +78,7 @@ class LivestreamProcessingService
 
             Log::info('Livestream processing initiated', [
                 'processing_id' => $processingId,
-                'log_id' => $processingLog->id
+                'log_id' => $processingLog->id,
             ]);
 
             return ProcessingResult::success(
@@ -89,7 +89,7 @@ class LivestreamProcessingService
         } catch (\Exception $e) {
             Log::error('Failed to start livestream processing', [
                 'error' => $e->getMessage(),
-                'original_filename' => $videoFile->getClientOriginalName()
+                'original_filename' => $videoFile->getClientOriginalName(),
             ]);
 
             throw $e;
@@ -102,7 +102,7 @@ class LivestreamProcessingService
             ->with(['segments', 'sermon'])
             ->first();
 
-        if (!$processingLog) {
+        if (! $processingLog) {
             throw new \Exception('Processing record not found');
         }
 
@@ -126,7 +126,7 @@ class LivestreamProcessingService
             ->with(['segments', 'sermon'])
             ->first();
 
-        if (!$processingLog) {
+        if (! $processingLog) {
             throw new \Exception('Processing record not found');
         }
 
@@ -137,17 +137,17 @@ class LivestreamProcessingService
     {
         $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)->first();
 
-        if (!$processingLog) {
+        if (! $processingLog) {
             throw new \Exception('Processing record not found');
         }
 
-        if (!$processingLog->isFailed()) {
+        if (! $processingLog->isFailed()) {
             throw new \Exception('Only failed processing can be retried');
         }
 
         Log::info('Retrying livestream processing', [
             'processing_id' => $processingId,
-            'previous_status' => $processingLog->status
+            'previous_status' => $processingLog->status,
         ]);
 
         $processingLog->update([
@@ -168,7 +168,7 @@ class LivestreamProcessingService
     {
         $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)->first();
 
-        if (!$processingLog) {
+        if (! $processingLog) {
             throw new \Exception('Processing record not found');
         }
 
@@ -178,7 +178,7 @@ class LivestreamProcessingService
 
         Log::info('Cancelling livestream processing', [
             'processing_id' => $processingId,
-            'current_status' => $processingLog->status
+            'current_status' => $processingLog->status,
         ]);
 
         $processingLog->markAsFailed('Processing cancelled by user');
@@ -191,7 +191,7 @@ class LivestreamProcessingService
     private function dispatchProcessingJobs(LivestreamProcessingLog $processingLog): void
     {
         $processingId = $processingLog->processing_id;
-        
+
         // Dispatch job chain for resilient processing as specified in design
         Bus::chain([
             new GenerateRmsLog($processingLog),
@@ -201,24 +201,42 @@ class LivestreamProcessingService
             new CleanupTemporaryFiles($processingLog),
         ])->catch(function (\Throwable $e) use ($processingId) {
             $this->handleProcessingFailure($processingId, $e);
-        })->dispatch();
+        })->onQueue(config('livestream-processing.queue.name', 'default'))
+            ->dispatch();
     }
-    
+
+    /**
+     * Update the processing status for real-time progress tracking
+     */
+    public function updateProcessingStatus(string $processingId, string $status): void
+    {
+        $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+
+        if ($processingLog) {
+            $processingLog->update(['status' => $status]);
+
+            Log::info('Processing status updated', [
+                'processing_id' => $processingId,
+                'status' => $status,
+            ]);
+        }
+    }
+
     private function handleProcessingFailure(string $processingId, \Throwable $e): void
     {
         $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)->first();
-        
+
         if ($processingLog) {
             $processingLog->update([
                 'status' => 'failed',
                 'error_message' => $e->getMessage(),
                 'completed_at' => now(),
             ]);
-            
+
             // Clean up temporary files
             $this->storageService->cleanupTemporaryFiles($processingId);
         }
-        
+
         // Send email notification to administrators
         Mail::to(config('livestream-processing.admin_email'))
             ->send(new LivestreamProcessingFailed($processingId, $e));
@@ -268,9 +286,14 @@ class LivestreamProcessingService
     {
         return match ($status) {
             'pending' => 'queued',
+            'rms_generation' => 'rms_generation',
             'processing' => 'rms_generation',
+            'segmentation' => 'segment_analysis',
+            'segmenting' => 'segment_analysis',
             'segmentation_complete' => 'segment_analysis',
+            'extraction' => 'sermon_extraction',
             'extraction_complete' => 'sermon_extraction',
+            'transcription' => 'sermon_processing',
             'sermon_submitted' => 'sermon_processing',
             'completed' => 'completed',
             'failed' => 'failed',
@@ -282,9 +305,14 @@ class LivestreamProcessingService
     {
         return match ($status) {
             'pending' => 0,
+            'rms_generation' => 15,
             'processing' => 25,
+            'segmentation' => 40,
             'segmenting' => 50,
+            'segmentation_complete' => 60,
+            'extraction' => 70,
             'extraction_complete' => 75,
+            'transcription' => 85,
             'sermon_submitted' => 90,
             'completed' => 100,
             'failed' => 0,
@@ -311,7 +339,7 @@ class LivestreamProcessingService
                 'speech_segments' => $processingLog->speechSegments->count(),
                 'song_segments' => $processingLog->songSegments->count(),
                 'sermon_candidate_found' => $processingLog->sermonCandidateSegment !== null,
-                'segments' => $processingLog->segments->map(function($segment) {
+                'segments' => $processingLog->segments->map(function ($segment) {
                     return [
                         'segment_order' => $segment->segment_order,
                         'start_time' => $segment->start_time,
@@ -345,7 +373,7 @@ class LivestreamProcessingService
 
         if ($processingLog->started_at) {
             $stats['started_at'] = $processingLog->started_at->toISOString();
-            
+
             if ($processingLog->completed_at) {
                 $stats['completed_at'] = $processingLog->completed_at->toISOString();
                 $stats['processing_duration'] = $processingLog->started_at->diffInSeconds($processingLog->completed_at);

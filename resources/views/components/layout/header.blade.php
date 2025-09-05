@@ -1,9 +1,4 @@
-<!-- Alpine Plugins -->
-<script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-
-<!-- Alpine Core -->
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
+{{-- Alpine.js is automatically loaded by Livewire 3 --}}
 
 <div class="w-100 text-white grid grid-cols-7 lg:grid-cols-12 justify-between bg-cbc-pattern bg-cover">
 
@@ -75,7 +70,7 @@
 
 </div>
 
-<div x-show="expanded" x-collapse class="absolute z-10 backdrop-blur-sm bg-gradient-to-r from-green-100/80 to-emerald-100/80 w-screen font-display p-6 leading-loose text-lg" tabindex="-1" x-cloak>
+<div x-show="expanded" x-transition class="absolute z-10 backdrop-blur-sm bg-gradient-to-r from-green-100/80 to-emerald-100/80 w-screen font-display p-6 leading-loose text-lg" tabindex="-1" x-cloak>
   <ul class="grid grid-cols-3 text-center mt-3">
 
     <li class="">

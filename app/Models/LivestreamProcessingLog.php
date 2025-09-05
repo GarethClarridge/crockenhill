@@ -2,16 +2,41 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
+/**
+ * @property int $id
+ * @property string $processing_id
+ * @property string $status
+ * @property string|null $original_filename
+ * @property string|null $original_file_path
+ * @property int|null $file_size
+ * @property string|null $file_format
+ * @property float|null $duration
+ * @property string|null $rms_log_path
+ * @property string|null $sermon_audio_path
+ * @property string|null $sermon_video_path
+ * @property float|null $sermon_start_time
+ * @property float|null $sermon_end_time
+ * @property int|null $sermon_id
+ * @property string|null $error_message
+ * @property array|null $processing_metadata
+ * @property string|null $livestream_processing_id
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\LivestreamSegment> $segments
+ */
 class LivestreamProcessingLog extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'processing_id',
         'status',
@@ -150,6 +175,7 @@ class LivestreamProcessingLog extends Model
                 if ($this->started_at && $this->completed_at) {
                     return $this->started_at->diffInSeconds($this->completed_at);
                 }
+
                 return null;
             }
         );
@@ -162,7 +188,8 @@ class LivestreamProcessingLog extends Model
                 $bytes = $this->file_size;
                 $units = ['B', 'KB', 'MB', 'GB'];
                 $power = $bytes > 0 ? floor(log($bytes, 1024)) : 0;
-                return number_format($bytes / pow(1024, $power), 2, '.', ',') . ' ' . $units[$power];
+
+                return number_format($bytes / pow(1024, $power), 2, '.', ',').' '.$units[$power];
             }
         );
     }

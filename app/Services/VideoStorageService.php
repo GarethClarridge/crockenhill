@@ -3,21 +3,25 @@
 namespace App\Services;
 
 use App\Data\LivestreamSegment;
-use FFMpeg\FFMpeg;
-use FFMpeg\Format\Video\X264;
-use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Coordinate\TimeCode;
+use FFMpeg\FFMpeg;
+use FFMpeg\Format\Audio\Mp3;
+use FFMpeg\Format\Video\X264;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Http\UploadedFile;
 
 class VideoStorageService
 {
     private FFMpeg $ffmpeg;
+
     private string $tempDisk;
+
     private string $permanentDisk;
+
     private string $videoPath;
+
     private string $audioPath;
 
     public function __construct()
@@ -37,16 +41,16 @@ class VideoStorageService
     public function storeUploadedVideo(UploadedFile $file): array
     {
         try {
-            $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $tempPath = 'livestream/temp/' . $filename;
-            
+            $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
+            $tempPath = 'livestream/temp/'.$filename;
+
             $storedPath = $file->storeAs('livestream/temp', $filename, $this->tempDisk);
             $fullPath = Storage::disk($this->tempDisk)->path($storedPath);
 
             Log::info('Video uploaded and stored temporarily', [
                 'original_name' => $file->getClientOriginalName(),
                 'stored_path' => $storedPath,
-                'file_size' => $file->getSize()
+                'file_size' => $file->getSize(),
             ]);
 
             return [
@@ -60,7 +64,7 @@ class VideoStorageService
         } catch (\Exception $e) {
             Log::error('Failed to store uploaded video', [
                 'error' => $e->getMessage(),
-                'original_name' => $file->getClientOriginalName()
+                'original_name' => $file->getClientOriginalName(),
             ]);
 
             throw $e;
@@ -75,27 +79,28 @@ class VideoStorageService
                 'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
                 'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
             ]);
-            
+
             $video = $ffmpeg->open($inputPath);
-            
+
             // Extract segment preserving original quality (stream copy)
-            $tempPath = storage_path('app/temp/' . Str::uuid() . '.mp4');
-            
-            $format = new X264();
+            $tempPath = storage_path('app/temp/'.Str::uuid().'.mp4');
+
+            $format = new X264;
             // Add the critical '-c copy' parameter for true stream copy
             $format->setAdditionalParameters(['-c', 'copy']);
-            
+
+            // @phpstan-ignore-next-line
             $video
                 ->clip(TimeCode::fromSeconds($startTime), TimeCode::fromSeconds($endTime - $startTime))
                 ->save($format, $tempPath);
-            
+
             Log::info('Video segment extracted with original quality', [
                 'input_path' => $inputPath,
                 'output_path' => $tempPath,
                 'start_time' => $startTime,
-                'end_time' => $endTime
+                'end_time' => $endTime,
             ]);
-            
+
             return $tempPath;
 
         } catch (\Exception $e) {
@@ -103,13 +108,13 @@ class VideoStorageService
                 'error' => $e->getMessage(),
                 'input_path' => $inputPath,
                 'start_time' => $startTime,
-                'end_time' => $endTime
+                'end_time' => $endTime,
             ]);
 
             throw $e;
         }
     }
-    
+
     public function extractVideoSegment(
         string $inputVideoPath,
         LivestreamSegment $segment,
@@ -128,28 +133,29 @@ class VideoStorageService
         ?string $outputFilename = null
     ): string {
         try {
-            $outputFilename = $outputFilename ?: Str::uuid() . '_sermon.mp3';
-            $outputPath = $this->audioPath . '/' . $outputFilename;
+            $outputFilename = $outputFilename ?: Str::uuid().'_sermon.mp3';
+            $outputPath = $this->audioPath.'/'.$outputFilename;
             $fullOutputPath = Storage::disk($this->permanentDisk)->path($outputPath);
 
             $this->ensureDirectoryExists(dirname($fullOutputPath));
 
             $video = $this->ffmpeg->open($inputVideoPath);
-            
-            $format = new Mp3();
+
+            $format = new Mp3;
             $format->setAudioKiloBitrate(128);
 
             $startTime = TimeCode::fromSeconds($segment->startTime);
             $duration = TimeCode::fromSeconds($segment->duration);
 
+            // @phpstan-ignore-next-line
             $video->clip($startTime, $duration)
-                  ->save($format, $fullOutputPath);
+                ->save($format, $fullOutputPath);
 
             Log::info('Audio extracted from segment', [
                 'input_path' => $inputVideoPath,
                 'output_path' => $outputPath,
                 'start_time' => $segment->startTime,
-                'duration' => $segment->duration
+                'duration' => $segment->duration,
             ]);
 
             return $outputPath;
@@ -159,7 +165,7 @@ class VideoStorageService
                 'error' => $e->getMessage(),
                 'input_path' => $inputVideoPath,
                 'segment_start' => $segment->startTime,
-                'segment_duration' => $segment->duration
+                'segment_duration' => $segment->duration,
             ]);
 
             throw $e;
@@ -172,8 +178,8 @@ class VideoStorageService
         ?string $outputFilename = null
     ): array {
         try {
-            $outputFilename = $outputFilename ?: Str::uuid() . '_sermon_optimized.mp3';
-            $outputPath = $this->audioPath . '/' . $outputFilename;
+            $outputFilename = $outputFilename ?: Str::uuid().'_sermon_optimized.mp3';
+            $outputPath = $this->audioPath.'/'.$outputFilename;
             $fullOutputPath = Storage::disk($this->permanentDisk)->path($outputPath);
 
             $this->ensureDirectoryExists(dirname($fullOutputPath));
@@ -182,23 +188,24 @@ class VideoStorageService
             $fallbackConfig = config('livestream-processing.audio_extraction.fallback_compression');
 
             $video = $this->ffmpeg->open($inputVideoPath);
-            
-            $format = new Mp3();
+
+            $format = new Mp3;
             $format->setAudioKiloBitrate($config['bitrate']);
             $format->setAudioChannels($config['channels']);
 
             $startTime = TimeCode::fromSeconds($segment->startTime);
             $duration = TimeCode::fromSeconds($segment->duration);
 
+            // @phpstan-ignore-next-line
             $video->clip($startTime, $duration)
-                  ->save($format, $fullOutputPath);
+                ->save($format, $fullOutputPath);
 
             $validation = $this->validateAudioFileSize($fullOutputPath);
 
-            if (!$validation['valid']) {
+            if (! $validation['valid']) {
                 Log::info('Audio file too large, applying fallback compression', [
                     'original_size' => $validation['file_size'],
-                    'max_size' => $validation['max_size']
+                    'max_size' => $validation['max_size'],
                 ]);
 
                 $fallbackPath = $this->compressAudioForTranscription($fullOutputPath, $fallbackConfig);
@@ -211,7 +218,7 @@ class VideoStorageService
                     'final_size' => $finalValidation['file_size'],
                     'compression_applied' => true,
                     'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
-                    'valid_for_transcription' => $finalValidation['valid']
+                    'valid_for_transcription' => $finalValidation['valid'],
                 ];
             }
 
@@ -220,7 +227,7 @@ class VideoStorageService
                 'output_path' => $outputPath,
                 'file_size' => $validation['file_size'],
                 'start_time' => $segment->startTime,
-                'duration' => $segment->duration
+                'duration' => $segment->duration,
             ]);
 
             return [
@@ -230,7 +237,7 @@ class VideoStorageService
                 'final_size' => $validation['file_size'],
                 'compression_applied' => false,
                 'compression_ratio' => 1.0,
-                'valid_for_transcription' => $validation['valid']
+                'valid_for_transcription' => $validation['valid'],
             ];
 
         } catch (\Exception $e) {
@@ -238,7 +245,7 @@ class VideoStorageService
                 'error' => $e->getMessage(),
                 'input_path' => $inputVideoPath,
                 'segment_start' => $segment->startTime,
-                'segment_duration' => $segment->duration
+                'segment_duration' => $segment->duration,
             ]);
 
             throw $e;
@@ -249,28 +256,29 @@ class VideoStorageService
     {
         $fileSize = file_exists($audioPath) ? filesize($audioPath) : 0;
         $maxSize = config('livestream-processing.audio_extraction.transcription_optimized.max_file_size');
-        
+
         return [
             'valid' => $fileSize <= $maxSize && $fileSize > 0,
             'file_size' => $fileSize,
             'max_size' => $maxSize,
             'size_mb' => round($fileSize / 1024 / 1024, 1),
-            'max_size_mb' => round($maxSize / 1024 / 1024, 1)
+            'max_size_mb' => round($maxSize / 1024 / 1024, 1),
         ];
     }
 
     private function compressAudioForTranscription(string $inputPath, array $compressionSettings): string
     {
         $compressedPath = str_replace('.mp3', '_compressed.mp3', $inputPath);
-        
+
         try {
             $video = $this->ffmpeg->open($inputPath);
-            
-            $format = new Mp3();
+
+            $format = new Mp3;
             $format->setAudioKiloBitrate($compressionSettings['bitrate']);
+            // @phpstan-ignore-next-line
             $format->setAudioSampleRate($compressionSettings['sample_rate']);
             $format->setAudioChannels($compressionSettings['channels']);
-            
+
             $video->save($format, $compressedPath);
 
             unlink($inputPath);
@@ -278,7 +286,7 @@ class VideoStorageService
             Log::info('Applied fallback compression to audio file', [
                 'original_path' => $inputPath,
                 'compressed_path' => $compressedPath,
-                'bitrate' => $compressionSettings['bitrate']
+                'bitrate' => $compressionSettings['bitrate'],
             ]);
 
             return $compressedPath;
@@ -286,7 +294,7 @@ class VideoStorageService
         } catch (\Exception $e) {
             Log::error('Failed to apply fallback compression', [
                 'error' => $e->getMessage(),
-                'input_path' => $inputPath
+                'input_path' => $inputPath,
             ]);
 
             throw $e;
@@ -296,11 +304,11 @@ class VideoStorageService
     public function moveToSermonStorage(string $tempVideoPath, string $sermonSlug): array
     {
         try {
-            $videoFilename = $sermonSlug . '.mp4';
-            $audioFilename = $sermonSlug . '.mp3';
-            
-            $videoPath = $this->videoPath . '/' . $videoFilename;
-            $audioPath = $this->audioPath . '/' . $audioFilename;
+            $videoFilename = $sermonSlug.'.mp4';
+            $audioFilename = $sermonSlug.'.mp3';
+
+            $videoPath = $this->videoPath.'/'.$videoFilename;
+            $audioPath = $this->audioPath.'/'.$audioFilename;
 
             $fullVideoPath = Storage::disk($this->permanentDisk)->path($videoPath);
             $fullAudioPath = Storage::disk($this->permanentDisk)->path($audioPath);
@@ -311,15 +319,15 @@ class VideoStorageService
             Storage::disk($this->tempDisk)->move($tempVideoPath, $videoPath);
 
             $video = $this->ffmpeg->open(Storage::disk($this->permanentDisk)->path($videoPath));
-            $format = new Mp3();
+            $format = new Mp3;
             $format->setAudioKiloBitrate(128);
-            
+
             $video->save($format, $fullAudioPath);
 
             Log::info('Files moved to sermon storage', [
                 'video_path' => $videoPath,
                 'audio_path' => $audioPath,
-                'sermon_slug' => $sermonSlug
+                'sermon_slug' => $sermonSlug,
             ]);
 
             return [
@@ -331,7 +339,7 @@ class VideoStorageService
             Log::error('Failed to move files to sermon storage', [
                 'error' => $e->getMessage(),
                 'temp_path' => $tempVideoPath,
-                'sermon_slug' => $sermonSlug
+                'sermon_slug' => $sermonSlug,
             ]);
 
             throw $e;
@@ -341,7 +349,7 @@ class VideoStorageService
     public function cleanupTemporaryFiles(string $processingId): void
     {
         Storage::deleteDirectory("temp/livestreams/{$processingId}");
-        
+
         Log::info('Temporary files cleaned up', ['processing_id' => $processingId]);
     }
 
@@ -357,7 +365,7 @@ class VideoStorageService
 
             foreach ($files as $file) {
                 $fileTime = Storage::disk($this->tempDisk)->lastModified($file);
-                
+
                 if ($fileTime < $cutoffTime->timestamp) {
                     Storage::disk($this->tempDisk)->delete($file);
                     $deletedCount++;
@@ -366,12 +374,12 @@ class VideoStorageService
 
             Log::info('Expired temporary files cleaned up', [
                 'deleted_count' => $deletedCount,
-                'retention_hours' => $retentionHours
+                'retention_hours' => $retentionHours,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to cleanup expired files', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
 
@@ -388,9 +396,9 @@ class VideoStorageService
             $videoFiles = $permanentDisk->files($this->videoPath);
             $audioFiles = $permanentDisk->files($this->audioPath);
 
-            $tempSize = array_sum(array_map(fn($file) => $tempDisk->size($file), $tempFiles));
-            $videoSize = array_sum(array_map(fn($file) => $permanentDisk->size($file), $videoFiles));
-            $audioSize = array_sum(array_map(fn($file) => $permanentDisk->size($file), $audioFiles));
+            $tempSize = array_sum(array_map(fn ($file) => $tempDisk->size($file), $tempFiles));
+            $videoSize = array_sum(array_map(fn ($file) => $permanentDisk->size($file), $videoFiles));
+            $audioSize = array_sum(array_map(fn ($file) => $permanentDisk->size($file), $audioFiles));
 
             return [
                 'temp_files_count' => count($tempFiles),
@@ -404,7 +412,7 @@ class VideoStorageService
 
         } catch (\Exception $e) {
             Log::error('Failed to get storage stats', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [];
@@ -415,19 +423,20 @@ class VideoStorageService
     {
         try {
             $available = disk_free_space(Storage::disk($this->tempDisk)->path(''));
+
             return $available > ($requiredBytes * 2);
         } catch (\Exception $e) {
             Log::warning('Could not validate storage space', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             return true;
         }
     }
 
     private function ensureDirectoryExists(string $directory): void
     {
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
     }

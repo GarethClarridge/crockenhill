@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\LivestreamProcessingLog;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 use Exception;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class LivestreamErrorHandler
 {
@@ -19,9 +19,9 @@ class LivestreamErrorHandler
     public function handleProcessingFailure(string $processingId, \Throwable $exception, string $step = 'unknown'): void
     {
         $this->logger->logError($processingId, $step, $exception);
-        
+
         $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
-        
+
         if ($processing) {
             $processing->update([
                 'status' => 'failed',
@@ -35,9 +35,9 @@ class LivestreamErrorHandler
     public function handlePartialFailure(string $processingId, string $step, string $message, array $context = []): void
     {
         $this->logger->logWarning($processingId, $step, $message, $context);
-        
+
         $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
-        
+
         if ($processing && $processing->status !== 'failed') {
             $processing->update([
                 'status' => 'completed',
@@ -49,7 +49,7 @@ class LivestreamErrorHandler
     public function shouldRetry(\Throwable $exception, int $attemptNumber = 1): bool
     {
         $maxRetries = config('livestream-processing.max_retries', 3);
-        
+
         if ($attemptNumber >= $maxRetries) {
             return false;
         }
@@ -61,9 +61,9 @@ class LivestreamErrorHandler
     {
         $baseDelay = config('livestream-processing.retry_base_delay', 60);
         $maxDelay = config('livestream-processing.retry_max_delay', 3600);
-        
+
         $delay = $baseDelay * pow(2, $attemptNumber - 1);
-        
+
         return min($delay, $maxDelay);
     }
 
@@ -73,7 +73,7 @@ class LivestreamErrorHandler
             \Symfony\Component\Process\Exception\ProcessTimedOutException::class,
             \Illuminate\Http\Client\ConnectionException::class,
             \Illuminate\Database\QueryException::class,
-            \Illuminate\Filesystem\FilesystemException::class,
+            \League\Flysystem\FilesystemException::class,
         ];
 
         foreach ($retryableExceptions as $retryableException) {
@@ -91,7 +91,7 @@ class LivestreamErrorHandler
         ];
 
         $message = strtolower($exception->getMessage());
-        
+
         foreach ($retryableMessages as $retryableMessage) {
             if (str_contains($message, $retryableMessage)) {
                 return true;
@@ -109,7 +109,7 @@ class LivestreamErrorHandler
         ]);
 
         $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
-        
+
         if ($processing) {
             $processing->update([
                 'status' => 'failed',
@@ -127,10 +127,10 @@ class LivestreamErrorHandler
         ]);
 
         $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
-        
+
         if ($processing) {
             $processing->update([
-                'error_message' => 'Video extraction failed: ' . $exception->getMessage(),
+                'error_message' => 'Video extraction failed: '.$exception->getMessage(),
             ]);
         }
     }
@@ -141,11 +141,13 @@ class LivestreamErrorHandler
 
         if ($this->isDiskSpaceError($exception)) {
             $this->handleDiskSpaceError($processingId);
+
             return false;
         }
 
         if ($this->isPermissionError($exception)) {
             $this->handlePermissionError($processingId, $operation);
+
             return false;
         }
 
@@ -155,7 +157,8 @@ class LivestreamErrorHandler
     private function isDiskSpaceError(\Throwable $exception): bool
     {
         $message = strtolower($exception->getMessage());
-        return str_contains($message, 'no space left') || 
+
+        return str_contains($message, 'no space left') ||
                str_contains($message, 'disk full') ||
                str_contains($message, 'insufficient storage');
     }
@@ -163,7 +166,8 @@ class LivestreamErrorHandler
     private function isPermissionError(\Throwable $exception): bool
     {
         $message = strtolower($exception->getMessage());
-        return str_contains($message, 'permission denied') || 
+
+        return str_contains($message, 'permission denied') ||
                str_contains($message, 'access denied') ||
                str_contains($message, 'forbidden');
     }
@@ -171,7 +175,7 @@ class LivestreamErrorHandler
     private function handleDiskSpaceError(string $processingId): void
     {
         $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
-        
+
         if ($processing) {
             $processing->update([
                 'status' => 'failed',
@@ -186,7 +190,7 @@ class LivestreamErrorHandler
     private function handlePermissionError(string $processingId, string $operation): void
     {
         $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
-        
+
         if ($processing) {
             $processing->update([
                 'status' => 'failed',
@@ -230,20 +234,20 @@ class LivestreamErrorHandler
     {
         $supportedFormats = config('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        
+
         $errors = [];
-        
-        if (!in_array($extension, $supportedFormats)) {
-            $errors[] = "Unsupported file format: {$extension}. Supported formats: " . implode(', ', $supportedFormats);
+
+        if (! in_array($extension, $supportedFormats)) {
+            $errors[] = "Unsupported file format: {$extension}. Supported formats: ".implode(', ', $supportedFormats);
         }
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             $errors[] = "File does not exist: {$filePath}";
         }
 
         $maxSize = config('livestream-processing.max_file_size', 2147483648); // 2GB
         if (file_exists($filePath) && filesize($filePath) > $maxSize) {
-            $errors[] = "File size exceeds maximum allowed size of " . $this->formatBytes($maxSize);
+            $errors[] = 'File size exceeds maximum allowed size of '.$this->formatBytes($maxSize);
         }
 
         return $errors;
@@ -255,43 +259,43 @@ class LivestreamErrorHandler
         $bytes = max($bytes, 0);
         $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
         $pow = min($pow, count($units) - 1);
-        
+
         $bytes /= pow(1024, $pow);
-        
-        return round($bytes, 2) . ' ' . $units[$pow];
+
+        return round($bytes, 2).' '.$units[$pow];
     }
 
     public function checkSystemRequirements(): array
     {
         $errors = [];
-        
+
         $ffmpegPath = config('livestream-processing.ffmpeg_path', '/usr/bin/ffmpeg');
-        if (!file_exists($ffmpegPath) || !is_executable($ffmpegPath)) {
+        if (! file_exists($ffmpegPath) || ! is_executable($ffmpegPath)) {
             $errors[] = "FFmpeg not found or not executable at: {$ffmpegPath}";
         }
 
         $ffprobePath = config('livestream-processing.ffprobe_path', '/usr/bin/ffprobe');
-        if (!file_exists($ffprobePath) || !is_executable($ffprobePath)) {
+        if (! file_exists($ffprobePath) || ! is_executable($ffprobePath)) {
             $errors[] = "FFprobe not found or not executable at: {$ffprobePath}";
         }
 
         $tempDir = storage_path('app/temp');
-        if (!is_dir($tempDir) || !is_writable($tempDir)) {
+        if (! is_dir($tempDir) || ! is_writable($tempDir)) {
             $errors[] = "Temporary directory not writable: {$tempDir}";
         }
 
         $livestreamDir = storage_path('app/livestreams');
-        if (!is_dir($livestreamDir) || !is_writable($livestreamDir)) {
+        if (! is_dir($livestreamDir) || ! is_writable($livestreamDir)) {
             $errors[] = "Livestream directory not writable: {$livestreamDir}";
         }
 
         return $errors;
     }
 
-    public function gracefulDegradation(string $processingId, string $reason, callable $fallbackAction = null): void
+    public function gracefulDegradation(string $processingId, string $reason, ?callable $fallbackAction = null): void
     {
         $this->logger->logWarning($processingId, 'degradation', "Graceful degradation triggered: {$reason}");
-        
+
         if ($fallbackAction) {
             try {
                 $fallbackAction();

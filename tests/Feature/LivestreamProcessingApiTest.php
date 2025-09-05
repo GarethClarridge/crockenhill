@@ -2,18 +2,18 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\LivestreamProcessingLog;
 use App\Models\LivestreamSegment;
-use App\Models\User;
 use App\Models\Sermon;
+use App\Models\User;
+use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Bus;
-use App\Services\VideoSegmentationService;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class LivestreamProcessingApiTest extends TestCase
 {
@@ -22,10 +22,10 @@ class LivestreamProcessingApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         Storage::fake('local');
         Queue::fake();
-        
+
         // Mock the VideoSegmentationService to avoid FFmpeg validation issues in tests
         $this->mock(VideoSegmentationService::class, function ($mock) {
             $mock->shouldReceive('validateVideoFile')->andReturn(true);
@@ -39,9 +39,9 @@ class LivestreamProcessingApiTest extends TestCase
                 'codec' => 'h264',
             ]);
         });
-        
+
         Bus::fake();
-        
+
         Config::set('livestream-processing', [
             'max_file_size' => 2147483648, // 2GB
             'supported_formats' => ['mp4', 'mov', 'avi', 'mkv'],
@@ -72,7 +72,7 @@ class LivestreamProcessingApiTest extends TestCase
             ]);
 
         $processingId = $response->json('processing_id');
-        
+
         // Verify database record was created
         $this->assertDatabaseHas('livestream_processing_logs', [
             'processing_id' => $processingId,
@@ -129,7 +129,7 @@ class LivestreamProcessingApiTest extends TestCase
     public function test_upload_livestream_video_validation_file_too_large()
     {
         Config::set('livestream-processing.max_file_size', 1000); // 1KB limit
-        
+
         $user = User::factory()->create();
         $largeFile = UploadedFile::fake()->create('large.mp4', 2000, 'video/mp4'); // 2KB file
 
@@ -169,7 +169,7 @@ class LivestreamProcessingApiTest extends TestCase
     public function test_get_processing_status_successfully()
     {
         $user = User::factory()->create();
-        
+
         $processing = LivestreamProcessingLog::factory()->create([
             'processing_id' => '12345678-1234-1234-1234-123456789abc',
             'status' => 'segmenting',
@@ -216,7 +216,7 @@ class LivestreamProcessingApiTest extends TestCase
                         'start_time',
                         'end_time',
                         'classification',
-                    ]
+                    ],
                 ],
             ])
             ->assertJson([
@@ -259,7 +259,7 @@ class LivestreamProcessingApiTest extends TestCase
     public function test_processing_status_shows_progress_percentage()
     {
         $user = User::factory()->create();
-        
+
         // Test different statuses and their expected progress
         $testCases = [
             'pending' => 0,
@@ -292,7 +292,7 @@ class LivestreamProcessingApiTest extends TestCase
     public function test_processing_status_with_video_path()
     {
         $user = User::factory()->create();
-        
+
         $sermon = Sermon::factory()->create();
         $processing = LivestreamProcessingLog::factory()->create([
             'processing_id' => '12345678-1234-1234-1234-123456789def',
@@ -324,7 +324,7 @@ class LivestreamProcessingApiTest extends TestCase
     public function test_processing_status_current_step_detection()
     {
         $user = User::factory()->create();
-        
+
         $processingId = \Illuminate\Support\Str::uuid();
         $processing = LivestreamProcessingLog::factory()->create([
             'processing_id' => $processingId,
@@ -368,7 +368,7 @@ class LivestreamProcessingApiTest extends TestCase
                 ->postJson('/api/livestreams/process', [
                     'video' => $videoFile,
                 ]);
-            
+
             if ($response->status() === 201) {
                 $successCount++;
             } elseif ($response->status() === 429) {
@@ -384,18 +384,18 @@ class LivestreamProcessingApiTest extends TestCase
     public function test_api_error_handling()
     {
         $user = User::factory()->create();
-        
+
         // Test with corrupted or problematic file
         $corruptedFile = UploadedFile::fake()->create('corrupted.mp4', 1000, 'video/mp4');
 
-                    $response = $this->actingAs($user)
-                ->postJson('/api/livestreams/process', [
-                    'video' => $corruptedFile,
-                ]);
+        $response = $this->actingAs($user)
+            ->postJson('/api/livestreams/process', [
+                'video' => $corruptedFile,
+            ]);
 
         // Should handle the upload, even if processing later fails
         $response->assertStatus(201);
-        
+
         $processingId = $response->json('processing_id');
         $this->assertNotNull($processingId);
     }
@@ -451,14 +451,14 @@ class LivestreamProcessingApiTest extends TestCase
         $this->app->instance(\App\Services\LivestreamProcessingService::class, $mockService);
 
         $user = User::factory()->create();
-        
+
         $videoFile1 = UploadedFile::fake()->create('concurrent1.mp4', 1000, 'video/mp4');
         $videoFile2 = UploadedFile::fake()->create('concurrent2.mp4', 1000, 'video/mp4');
 
         // Simulate concurrent uploads
         $response1 = $this->actingAs($user)
             ->postJson('/api/livestreams/process', ['video' => $videoFile1]);
-            
+
         $response2 = $this->actingAs($user)
             ->postJson('/api/livestreams/process', ['video' => $videoFile2]);
 
@@ -470,7 +470,7 @@ class LivestreamProcessingApiTest extends TestCase
         if ($response1->status() === 201 && $response2->status() === 201) {
             $processingId1 = $response1->json('processing_id');
             $processingId2 = $response2->json('processing_id');
-            
+
             $this->assertNotEquals($processingId1, $processingId2);
         }
     }

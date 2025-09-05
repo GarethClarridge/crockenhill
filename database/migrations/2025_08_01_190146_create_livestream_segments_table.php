@@ -26,7 +26,7 @@ return new class extends Migration
             $table->float('peak_rms')->nullable();
             $table->integer('segment_order')->default(0);
             $table->json('metadata')->nullable();
-            
+
             $table->foreign('processing_id')->references('processing_id')->on('livestream_processing_logs')->onDelete('cascade');
             $table->foreign('processing_log_id')->references('id')->on('livestream_processing_logs')->onDelete('cascade');
             $table->timestamps();

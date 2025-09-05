@@ -3,9 +3,8 @@
 namespace App\Services;
 
 use App\Models\LivestreamProcessingLog;
-use App\Services\ProcessingReport;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class LivestreamProcessingLogger
 {
@@ -20,7 +19,7 @@ class LivestreamProcessingLogger
             'context' => $context,
         ]);
     }
-    
+
     public function logError(string $processingId, string $step, \Throwable $exception): void
     {
         Log::error("Livestream processing error in step: {$step}", [
@@ -58,17 +57,17 @@ class LivestreamProcessingLogger
             'metrics' => $metrics,
         ]);
     }
-    
+
     public function generateProcessingReport(string $processingId): ProcessingReport
     {
         $processing = LivestreamProcessingLog::with('segments')->where('processing_id', $processingId)->first();
-        
-        if (!$processing) {
+
+        if (! $processing) {
             throw new \Exception("Processing record not found for ID: {$processingId}");
         }
 
         $logs = $this->getProcessingLogs($processingId);
-        
+
         return new ProcessingReport([
             'processing_id' => $processingId,
             'status' => $processing->status,
@@ -91,20 +90,20 @@ class LivestreamProcessingLogger
     private function getProcessingLogs(string $processingId): Collection
     {
         $logFile = storage_path('logs/laravel.log');
-        
-        if (!file_exists($logFile)) {
+
+        if (! file_exists($logFile)) {
             return collect();
         }
 
         $logs = collect();
         $lines = file($logFile, FILE_IGNORE_NEW_LINES);
-        
+
         foreach ($lines as $line) {
             if (str_contains($line, $processingId)) {
                 $logs->push($this->parseLogLine($line));
             }
         }
-        
+
         return $logs->filter();
     }
 
@@ -117,7 +116,7 @@ class LivestreamProcessingLogger
                 'message' => $line,
             ];
         }
-        
+
         return null;
     }
 
@@ -126,7 +125,7 @@ class LivestreamProcessingLogger
         $songSegments = $segments->where('classification', 'song');
         $speechSegments = $segments->where('classification', 'speech');
         $sermonSegment = $segments->where('is_sermon_candidate', true)->first();
-        
+
         return [
             'total_count' => $segments->count(),
             'song_segments' => [
@@ -170,7 +169,7 @@ class LivestreamProcessingLogger
         if (preg_match('/"step":"([^"]+)"/', $message, $matches)) {
             return $matches[1];
         }
-        
+
         return 'unknown';
     }
 
@@ -178,7 +177,7 @@ class LivestreamProcessingLogger
     {
         $level = $success ? 'info' : 'error';
         $message = $success ? 'Livestream processing completed successfully' : 'Livestream processing failed';
-        
+
         Log::log($level, $message, [
             'processing_id' => $processingId,
             'success' => $success,
@@ -190,7 +189,7 @@ class LivestreamProcessingLogger
     public function getRecentProcessingActivity(int $hours = 24): array
     {
         $since = now()->subHours($hours);
-        
+
         $recentProcessing = LivestreamProcessingLog::where('created_at', '>=', $since)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -208,4 +207,3 @@ class LivestreamProcessingLogger
         ];
     }
 }
-

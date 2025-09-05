@@ -25,15 +25,15 @@ class SermonVideoUploadRequest extends FormRequest
         $maxFileSizeKB = $maxFileSize / 1024;
 
         $supportedFormats = config('livestream-processing.supported_formats', [
-            'mp4', 'mov', 'avi', 'mkv'
+            'mp4', 'mov', 'avi', 'mkv',
         ]);
 
         return [
             'file' => [
                 'required',
                 'file',
-                'mimes:' . implode(',', $supportedFormats),
-                'max:' . $maxFileSizeKB,
+                'mimes:'.implode(',', $supportedFormats),
+                'max:'.$maxFileSizeKB,
             ],
         ];
     }
@@ -51,7 +51,7 @@ class SermonVideoUploadRequest extends FormRequest
         return [
             'file.required' => 'Please select a video file to upload.',
             'file.file' => 'The uploaded item must be a valid file.',
-            'file.mimes' => 'The uploaded file must be one of the following types: ' . implode(', ', $supportedFormats) . '.',
+            'file.mimes' => 'The uploaded file must be one of the following types: '.implode(', ', $supportedFormats).'.',
             'file.max' => "The video file may not be greater than {$maxFileSizeMB}MB.",
         ];
     }

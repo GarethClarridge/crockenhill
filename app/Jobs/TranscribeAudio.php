@@ -2,160 +2,169 @@
 
 namespace App\Jobs;
 
-use App\Enums\ProcessingStatus;
-use App\Jobs\ProcessTranscriptWithAI;
-use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
 use App\Contracts\TranscriptionServiceInterface;
+use App\Models\Sermon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class TranscribeAudio implements ShouldQueue
+class TranscribeAudio extends ProcessingJob implements ShouldQueue
 {
-  use Queueable, InteractsWithQueue, SerializesModels;
+    use InteractsWithQueue, Queueable, SerializesModels;
 
-  /**
-   * The number of times the job may be attempted.
-   */
-  public int $tries = 3;
+    /**
+     * The number of times the job may be attempted.
+     */
+    public int $tries = 3;
 
-  /**
-   * The maximum number of seconds the job can run.
-   */
-  public int $timeout = 1800; // 30 minutes for transcription
+    /**
+     * The maximum number of seconds the job can run.
+     */
+    public int $timeout = 1800; // 30 minutes for transcription
 
-  /**
-   * Create a new job instance.
-   */
-  public function __construct(
-    public readonly int $sermonId
-  ) {}
+    /**
+     * Create a new job instance.
+     */
+    public function __construct(
+        public readonly int $sermonId
+    ) {}
 
-  /**
-   * Execute the job.
-   */
-  public function handle(TranscriptionServiceInterface $transcriptionService): void
-  {
-    try {
-      Log::info('Starting audio transcription', [
-        'sermon_id' => $this->sermonId,
-      ]);
+    /**
+     * Execute the job.
+     */
+    public function handle(TranscriptionServiceInterface $transcriptionService): void
+    {
+        try {
+            Log::info('Starting audio transcription', [
+                'sermon_id' => $this->sermonId,
+            ]);
 
-      // Get the sermon record
-      $sermon = Sermon::find($this->sermonId);
-      if (!$sermon) {
-        throw new \Exception("Sermon not found with ID: {$this->sermonId}");
-      }
+            // Get the sermon record
+            $sermon = Sermon::find($this->sermonId);
+            if (! $sermon) {
+                throw new \Exception("Sermon not found with ID: {$this->sermonId}");
+            }
 
-      // Get the processing log
-      $processingLog = $sermon->processingLogs()->latest()->first();
-      if (!$processingLog) {
-        throw new \Exception("Processing log not found for sermon ID: {$this->sermonId}");
-      }
+            // Get the processing log and initialize step logging
+            /** @var \App\Models\SermonProcessingLog|null $processingLog */
+            $processingLog = $sermon->processingLogs()->latest()->first();
+            if (! $processingLog) {
+                throw new \Exception("Processing log not found for sermon ID: {$this->sermonId}");
+            }
 
-      // Update processing log to indicate transcription started
-      $processingLog->updateStep('transcribing_audio');
+            $this->initializeStepLogging($processingLog->processing_id);
 
-      // Verify audio file exists
-      if (!$sermon->filename) {
-        throw new \Exception("No audio file path found for sermon ID: {$this->sermonId}");
-      }
+            // Check if processing has been cancelled
+            if ($this->isCancelled()) {
+                Log::info('Transcription job cancelled', ['sermon_id' => $this->sermonId]);
 
-      Log::info('Transcribing audio file', [
-        'sermon_id' => $this->sermonId,
-        'audio_file' => $sermon->filename,
-      ]);
+                return;
+            }
 
-      // Transcribe the audio file
-      $transcript = $transcriptionService->transcribe($sermon->filename);
+            // Log step start and update processing log
+            $this->logStepStart('transcribing', 'Starting audio transcription');
+            $processingLog->updateStep('transcribing_audio');
 
-      if (empty($transcript)) {
-        throw new \Exception('Transcription returned empty content');
-      }
+            // Verify audio file exists
+            if (! $sermon->filename) {
+                throw new \Exception("No audio file path found for sermon ID: {$this->sermonId}");
+            }
 
-      // Store the transcript file
-      $transcriptPath = $transcriptionService->storeTranscript($this->sermonId, $transcript);
+            Log::info('Transcribing audio file', [
+                'sermon_id' => $this->sermonId,
+                'audio_file' => $sermon->filename,
+            ]);
 
-      // Update sermon record with transcript path
-      $sermon->update([
-        'transcript_path' => $transcriptPath,
-      ]);
+            // Transcribe the audio file
+            $transcript = $transcriptionService->transcribe($sermon->filename);
 
-      // Update processing log
-      $processingLog->updateStep('transcription_completed');
+            if (empty($transcript)) {
+                throw new \Exception('Transcription returned empty content');
+            }
 
-      Log::info('Audio transcription completed successfully', [
-        'sermon_id' => $this->sermonId,
-        'transcript_path' => $transcriptPath,
-        'transcript_length' => strlen($transcript),
-        'word_count' => str_word_count($transcript),
-      ]);
+            // Store the transcript file
+            $transcriptPath = $transcriptionService->storeTranscript($this->sermonId, $transcript);
 
-      // Dispatch the next job in the chain
-      ProcessTranscriptWithAI::dispatch($this->sermonId)
-        ->onQueue(config('sermon-processing.processing.queue', 'default'));
-    } catch (\Exception $e) {
-      Log::error('Failed to transcribe audio', [
-        'sermon_id' => $this->sermonId,
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString(),
-      ]);
+            // Update sermon record with transcript path
+            $sermon->update([
+                'transcript_path' => $transcriptPath,
+            ]);
 
-      // Clean up any partial transcript files
-      if (isset($transcriptionService)) {
-        $transcriptionService->cleanupOnFailure($this->sermonId);
-      }
+            // Update processing log and mark step as complete
+            $processingLog->updateStep('transcription_completed');
+            $this->logStepComplete('transcribing', 'Audio transcription completed successfully');
 
-      // Update processing log with error
-      if (isset($processingLog)) {
-        $processingLog->markAsFailed($e->getMessage(), 'transcribing_audio');
-      }
+            Log::info('Audio transcription completed successfully', [
+                'sermon_id' => $this->sermonId,
+                'transcript_path' => $transcriptPath,
+                'transcript_length' => strlen($transcript),
+                'word_count' => str_word_count($transcript),
+            ]);
 
-      throw $e;
-    }
-  }
+            // Dispatch the next job in the chain
+            ProcessTranscriptWithAI::dispatch($this->sermonId)
+                ->onQueue(config('sermon-processing.processing.queue', 'default'));
+        } catch (\Exception $e) {
+            Log::error('Failed to transcribe audio', [
+                'sermon_id' => $this->sermonId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
-  /**
-   * Handle a job failure.
-   */
-  public function failed(\Throwable $exception): void
-  {
-    Log::error('TranscribeAudio job failed permanently', [
-      'sermon_id' => $this->sermonId,
-      'error' => $exception->getMessage(),
-      'attempts' => $this->attempts(),
-    ]);
+            // Clean up any partial transcript files
+            $transcriptionService->cleanupOnFailure($this->sermonId);
 
-    // Clean up any partial files
-    try {
-      $transcriptionService = app(TranscriptionServiceInterface::class);
-      $transcriptionService->cleanupOnFailure($this->sermonId);
-    } catch (\Exception $e) {
-      Log::warning('Failed to cleanup after transcription failure', [
-        'sermon_id' => $this->sermonId,
-        'cleanup_error' => $e->getMessage(),
-      ]);
+            // Update processing log with error and log step failure
+            if (isset($processingLog)) {
+                $processingLog->markAsFailed($e->getMessage(), 'transcribing_audio');
+                $this->logStepFailed('transcribing', $e->getMessage());
+            }
+
+            throw $e;
+        }
     }
 
-    // Mark processing as failed
-    $sermon = Sermon::find($this->sermonId);
-    if ($sermon) {
-      $processingLog = $sermon->processingLogs()->latest()->first();
-      if ($processingLog) {
-        $processingLog->markAsFailed($exception->getMessage(), 'transcribing_audio_failed');
-      }
-    }
-  }
+    /**
+     * Handle a job failure.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('TranscribeAudio job failed permanently', [
+            'sermon_id' => $this->sermonId,
+            'error' => $exception->getMessage(),
+            'attempts' => $this->attempts(),
+        ]);
 
-  /**
-   * Calculate the number of seconds to wait before retrying the job.
-   */
-  public function backoff(): array
-  {
-    // Exponential backoff: 1 minute, 5 minutes, 15 minutes
-    return [60, 300, 900];
-  }
+        // Clean up any partial files
+        try {
+            $transcriptionService = app(TranscriptionServiceInterface::class);
+            $transcriptionService->cleanupOnFailure($this->sermonId);
+        } catch (\Exception $e) {
+            Log::warning('Failed to cleanup after transcription failure', [
+                'sermon_id' => $this->sermonId,
+                'cleanup_error' => $e->getMessage(),
+            ]);
+        }
+
+        // Mark processing as failed
+        $sermon = Sermon::find($this->sermonId);
+        if ($sermon) {
+            /** @var \App\Models\SermonProcessingLog|null $processingLog */
+            $processingLog = $sermon->processingLogs()->latest()->first();
+            if ($processingLog) {
+                $processingLog->markAsFailed($exception->getMessage(), 'transcribing_audio_failed');
+            }
+        }
+    }
+
+    /**
+     * Calculate the number of seconds to wait before retrying the job.
+     */
+    public function backoff(): array
+    {
+        // Exponential backoff: 1 minute, 5 minutes, 15 minutes
+        return [60, 300, 900];
+    }
 }

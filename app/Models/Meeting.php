@@ -209,7 +209,7 @@ class Meeting extends Model
 
     public function getUpcomingEventsAttribute(): Collection
     {
-        return $this->calendarEvents()
+        return \App\Models\CalendarEvent::where('meeting_slug', $this->slug)
             ->upcoming()
             ->confirmed()
             ->orderBy('start_datetime')
@@ -219,7 +219,7 @@ class Meeting extends Model
 
     public function getPastEventsAttribute(): Collection
     {
-        return $this->calendarEvents()
+        return \App\Models\CalendarEvent::where('meeting_slug', $this->slug)
             ->past()
             ->confirmed()
             ->orderBy('start_datetime', 'desc')
@@ -229,11 +229,13 @@ class Meeting extends Model
 
     public function getNextEventAttribute(): ?CalendarEvent
     {
+        /** @var \App\Models\CalendarEvent|null */
         return $this->upcoming_events->first();
     }
 
     public function getLastEventAttribute(): ?CalendarEvent
     {
+        /** @var \App\Models\CalendarEvent|null */
         return $this->past_events->first();
     }
 

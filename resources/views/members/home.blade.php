@@ -8,6 +8,9 @@
       <x-button link="/christ/sermons">
         Edit sermons
       </x-button>
+      <x-button link="{{ route('admin.sermon-upload.create') }}">
+        Media Upload (Audio/Video/Livestream)
+      </x-button>
     @endcan
     @can ('edit-meetings')
       <x-button link="/church/members/meetings">

@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\LivestreamProcessingLog;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class AdaptiveThresholdBasicTest extends TestCase
 {
@@ -25,7 +25,7 @@ class AdaptiveThresholdBasicTest extends TestCase
     public function test_adaptive_threshold_config_loaded(): void
     {
         $config = config('livestream-processing.adaptive_thresholds');
-        
+
         $this->assertIsArray($config);
         $this->assertArrayHasKey('enabled', $config);
         $this->assertArrayHasKey('speech_percentile', $config);
@@ -49,7 +49,7 @@ class AdaptiveThresholdBasicTest extends TestCase
                 'p25' => -45.0,
                 'p50' => -38.0,
                 'p75' => -30.0,
-            ])
+            ]),
         ]);
 
         // Test that data was stored correctly
@@ -62,7 +62,7 @@ class AdaptiveThresholdBasicTest extends TestCase
         // Test that JSON data can be retrieved
         $retrieved = LivestreamProcessingLog::find($processing->id);
         $rmsStats = json_decode($retrieved->rms_stats, true);
-        
+
         $this->assertEquals(5000, $rmsStats['sample_count']);
         $this->assertEquals(-38.2, $rmsStats['mean']);
         $this->assertEquals(-42.5, $rmsStats['adaptive_threshold']);
@@ -74,7 +74,7 @@ class AdaptiveThresholdBasicTest extends TestCase
     public function test_threshold_method_enum_values(): void
     {
         $methods = ['fixed', 'adaptive', 'fallback'];
-        
+
         foreach ($methods as $method) {
             $processing = LivestreamProcessingLog::factory()->create([
                 'processing_id' => "test-{$method}",
@@ -103,7 +103,7 @@ class AdaptiveThresholdBasicTest extends TestCase
         ]);
 
         // Should not throw exception
-        $service = new VideoSegmentationService();
+        $service = new VideoSegmentationService;
         $this->assertInstanceOf(VideoSegmentationService::class, $service);
     }
 
@@ -131,7 +131,7 @@ class AdaptiveThresholdBasicTest extends TestCase
         // Speech should generally be quieter than songs
         $avgSpeech = array_sum($realRmsValues['speech']) / count($realRmsValues['speech']);
         $avgSong = array_sum($realRmsValues['song']) / count($realRmsValues['song']);
-        
+
         $this->assertLessThan($avgSong, $avgSpeech, 'Average speech RMS should be lower than average song RMS');
     }
 
@@ -142,7 +142,7 @@ class AdaptiveThresholdBasicTest extends TestCase
     {
         // Check that the new columns exist by trying to use them
         $processing = LivestreamProcessingLog::factory()->create();
-        
+
         // These should not throw database errors
         $processing->threshold_method = 'adaptive';
         $processing->adaptive_threshold = -43.2;
@@ -162,7 +162,7 @@ class AdaptiveThresholdBasicTest extends TestCase
     public function test_configuration_defaults(): void
     {
         $adaptiveConfig = config('livestream-processing.adaptive_thresholds');
-        
+
         // Test that sensible defaults are set
         $this->assertTrue($adaptiveConfig['enabled'] ?? false, 'Adaptive should be enabled by default');
         $this->assertEquals(30, $adaptiveConfig['speech_percentile'] ?? null, 'Should use 30th percentile');
@@ -178,7 +178,7 @@ class AdaptiveThresholdBasicTest extends TestCase
     public function test_phase1_implementation_integration(): void
     {
         // Test that our Phase 1 implementation left the system in a testable state
-        
+
         // 1. Database schema updated
         $processing = LivestreamProcessingLog::factory()->create([
             'threshold_method' => 'adaptive',
@@ -187,10 +187,10 @@ class AdaptiveThresholdBasicTest extends TestCase
                 'sample_count' => 185565, // Real value from our testing
                 'mean' => -39.6,
                 'p25' => -51.9,
-                'p50' => -35.1, 
+                'p50' => -35.1,
                 'p75' => -28.3,
-                'adaptive_threshold' => -44.2
-            ])
+                'adaptive_threshold' => -44.2,
+            ]),
         ]);
 
         $this->assertDatabaseHas('livestream_processing_logs', [
@@ -200,11 +200,11 @@ class AdaptiveThresholdBasicTest extends TestCase
 
         // 2. Configuration exists
         $this->assertTrue(config('livestream-processing.adaptive_thresholds.enabled'));
-        
+
         // 3. Service can be instantiated
         $service = app(VideoSegmentationService::class);
         $this->assertInstanceOf(VideoSegmentationService::class, $service);
-        
+
         // 4. JSON stats can be decoded
         $rmsStats = json_decode($processing->rms_stats, true);
         $this->assertEquals(185565, $rmsStats['sample_count']);

@@ -2,45 +2,82 @@
 
 namespace App\HealthChecks;
 
-use Spatie\Health\Checks\Check;
-use Spatie\Health\Checks\Result;
+use Illuminate\Contracts\Support\Arrayable;
 
-class FFmpegHealthCheck extends Check
+class FFmpegHealthCheck implements Arrayable
 {
-    public function run(): Result
+    /**
+     * The name of the health check.
+     */
+    public function name(): string
     {
-        $result = Result::make();
+        return 'ffmpeg-availability';
+    }
 
+    public function run(): array
+    {
         try {
             $ffmpegPath = config('livestream-processing.ffmpeg_path');
             $ffprobePath = config('livestream-processing.ffprobe_path');
 
             // Check if FFmpeg binary exists and is executable
-            if (!file_exists($ffmpegPath) || !is_executable($ffmpegPath)) {
-                return $result->failed("FFmpeg binary not found or not executable at: {$ffmpegPath}");
+            if (! file_exists($ffmpegPath) || ! is_executable($ffmpegPath)) {
+                return [
+                    'status' => 'error',
+                    'message' => "FFmpeg binary not found or not executable at: {$ffmpegPath}",
+                    'timestamp' => now()->toISOString(),
+                ];
             }
 
             // Check if FFprobe binary exists and is executable
-            if (!file_exists($ffprobePath) || !is_executable($ffprobePath)) {
-                return $result->failed("FFprobe binary not found or not executable at: {$ffprobePath}");
+            if (! file_exists($ffprobePath) || ! is_executable($ffprobePath)) {
+                return [
+                    'status' => 'error',
+                    'message' => "FFprobe binary not found or not executable at: {$ffprobePath}",
+                    'timestamp' => now()->toISOString(),
+                ];
             }
 
             // Test FFmpeg version command
             $output = shell_exec("{$ffmpegPath} -version 2>&1");
-            if (!str_contains($output, 'ffmpeg version')) {
-                return $result->failed('FFmpeg version command failed');
+            if (! str_contains($output, 'ffmpeg version')) {
+                return [
+                    'status' => 'error',
+                    'message' => 'FFmpeg version command failed',
+                    'timestamp' => now()->toISOString(),
+                ];
             }
 
             // Test FFprobe version command
             $output = shell_exec("{$ffprobePath} -version 2>&1");
-            if (!str_contains($output, 'ffprobe version')) {
-                return $result->failed('FFprobe version command failed');
+            if (! str_contains($output, 'ffprobe version')) {
+                return [
+                    'status' => 'error',
+                    'message' => 'FFprobe version command failed',
+                    'timestamp' => now()->toISOString(),
+                ];
             }
 
-            return $result->ok('FFmpeg and FFprobe are available and working');
+            return [
+                'status' => 'healthy',
+                'message' => 'FFmpeg and FFprobe are available and working',
+                'timestamp' => now()->toISOString(),
+            ];
 
         } catch (\Exception $e) {
-            return $result->failed("FFmpeg health check failed: {$e->getMessage()}");
+            return [
+                'status' => 'error',
+                'message' => "FFmpeg health check failed: {$e->getMessage()}",
+                'timestamp' => now()->toISOString(),
+            ];
         }
+    }
+
+    /**
+     * Convert the health check to an array.
+     */
+    public function toArray(): array
+    {
+        return $this->run();
     }
 }

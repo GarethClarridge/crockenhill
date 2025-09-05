@@ -2,18 +2,17 @@
 
 namespace Tests\Performance;
 
-use Tests\TestCase;
 use App\Models\LivestreamProcessingLog;
 use App\Models\LivestreamSegment;
-use App\Services\LivestreamProcessingService;
-use App\Services\VideoSegmentationService;
-use App\Services\LivestreamProcessingLogger;
 use App\Services\LivestreamMonitoringService;
+use App\Services\LivestreamProcessingLogger;
+use App\Services\LivestreamProcessingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class LivestreamProcessingPerformanceTest extends TestCase
 {
@@ -22,11 +21,11 @@ class LivestreamProcessingPerformanceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         Storage::fake('local');
         Storage::fake('sermon_disk');
         Queue::fake();
-        
+
         Config::set('livestream-processing', [
             'rms_threshold' => -30.0,
             'min_section_duration' => 60.0,
@@ -46,14 +45,14 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $largeVideoFile = UploadedFile::fake()->create('large_livestream.mp4', 500000, 'video/mp4'); // 500MB
 
         $service = app(LivestreamProcessingService::class);
-        
+
         // Measure processing initiation time
         $initStartTime = microtime(true);
         $result = $service->processLivestream($largeVideoFile);
         $initEndTime = microtime(true);
-        
+
         $initDuration = $initEndTime - $initStartTime;
-        
+
         // Verify processing record was created efficiently
         $this->assertDatabaseHas('livestream_processing_logs', [
             'processing_id' => $result->processingId,
@@ -65,7 +64,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage(true);
-        
+
         $totalDuration = $endTime - $startTime;
         $memoryUsage = $endMemory - $startMemory;
 
@@ -76,9 +75,9 @@ class LivestreamProcessingPerformanceTest extends TestCase
 
         // Log performance metrics
         echo "\nLarge File Processing Performance:\n";
-        echo "- Initialization time: " . round($initDuration, 3) . " seconds\n";
-        echo "- Total setup time: " . round($totalDuration, 3) . " seconds\n";
-        echo "- Memory usage: " . round($memoryUsage / 1024 / 1024, 2) . " MB\n";
+        echo '- Initialization time: '.round($initDuration, 3)." seconds\n";
+        echo '- Total setup time: '.round($totalDuration, 3)." seconds\n";
+        echo '- Memory usage: '.round($memoryUsage / 1024 / 1024, 2)." MB\n";
     }
 
     public function test_concurrent_processing_performance()
@@ -92,20 +91,20 @@ class LivestreamProcessingPerformanceTest extends TestCase
         // Simulate 5 concurrent uploads
         for ($i = 1; $i <= 5; $i++) {
             $videoFile = UploadedFile::fake()->create("concurrent_{$i}.mp4", 50000, 'video/mp4');
-            
+
             $concurrentStartTime = microtime(true);
             $result = $service->processLivestream($videoFile);
             $concurrentEndTime = microtime(true);
-            
+
             $processingIds[] = $result->processingId;
-            
+
             $concurrentDuration = $concurrentEndTime - $concurrentStartTime;
             $this->assertLessThan(2.0, $concurrentDuration, "Concurrent upload {$i} should take less than 2 seconds");
         }
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage(true);
-        
+
         $totalDuration = $endTime - $startTime;
         $memoryUsage = $endMemory - $startMemory;
 
@@ -122,9 +121,9 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $this->assertLessThan(200 * 1024 * 1024, $memoryUsage, 'Memory usage should be less than 200MB for 5 concurrent uploads');
 
         echo "\nConcurrent Processing Performance:\n";
-        echo "- Total time for 5 concurrent uploads: " . round($totalDuration, 3) . " seconds\n";
-        echo "- Average time per upload: " . round($totalDuration / 5, 3) . " seconds\n";
-        echo "- Memory usage: " . round($memoryUsage / 1024 / 1024, 2) . " MB\n";
+        echo '- Total time for 5 concurrent uploads: '.round($totalDuration, 3)." seconds\n";
+        echo '- Average time per upload: '.round($totalDuration / 5, 3)." seconds\n";
+        echo '- Memory usage: '.round($memoryUsage / 1024 / 1024, 2)." MB\n";
     }
 
     public function test_segmentation_performance_with_many_segments()
@@ -142,12 +141,12 @@ class LivestreamProcessingPerformanceTest extends TestCase
         // Create many segments (simulate complex segmentation)
         $segmentCount = 50;
         $segments = [];
-        
+
         $segmentCreationStart = microtime(true);
         for ($i = 0; $i < $segmentCount; $i++) {
             $startTime = $i * 144; // Every ~2.4 minutes
             $endTime = $startTime + 120; // 2 minute segments
-            
+
             $segment = LivestreamSegment::create([
                 'processing_id' => 'perf-test-segmentation',
                 'segment_index' => $i + 1,
@@ -157,7 +156,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
                 'classification' => $i % 3 === 0 ? 'song' : 'speech',
                 'is_sermon_segment' => $i === 25, // One sermon segment in the middle
             ]);
-            
+
             $segments[] = $segment;
         }
         $segmentCreationEnd = microtime(true);
@@ -178,7 +177,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage(true);
-        
+
         $totalDuration = $endTime - $startTime;
         $memoryUsage = $endMemory - $startMemory;
         $segmentCreationDuration = $segmentCreationEnd - $segmentCreationStart;
@@ -198,10 +197,10 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $this->assertLessThan(50 * 1024 * 1024, $memoryUsage, 'Memory usage should be less than 50MB');
 
         echo "\nSegmentation Performance with {$segmentCount} segments:\n";
-        echo "- Segment creation time: " . round($segmentCreationDuration, 3) . " seconds\n";
-        echo "- Query time: " . round($queryDuration, 3) . " seconds\n";
-        echo "- Sermon identification time: " . round($sermonIdentificationDuration, 3) . " seconds\n";
-        echo "- Total memory usage: " . round($memoryUsage / 1024 / 1024, 2) . " MB\n";
+        echo '- Segment creation time: '.round($segmentCreationDuration, 3)." seconds\n";
+        echo '- Query time: '.round($queryDuration, 3)." seconds\n";
+        echo '- Sermon identification time: '.round($sermonIdentificationDuration, 3)." seconds\n";
+        echo '- Total memory usage: '.round($memoryUsage / 1024 / 1024, 2)." MB\n";
     }
 
     public function test_monitoring_service_performance_with_large_dataset()
@@ -212,13 +211,13 @@ class LivestreamProcessingPerformanceTest extends TestCase
         // Create a large dataset of processing records
         $recordCount = 200;
         $processingRecords = [];
-        
+
         $creationStart = microtime(true);
         for ($i = 0; $i < $recordCount; $i++) {
             $status = ['completed', 'failed', 'processing'][rand(0, 2)];
             $createdAt = now()->subHours(rand(1, 168)); // Random time in past week
             $completedAt = $status === 'completed' ? $createdAt->copy()->addMinutes(rand(30, 180)) : null;
-            
+
             $processing = LivestreamProcessingLog::create([
                 'processing_id' => "perf-test-{$i}",
                 'original_filename' => "test-video-{$i}.mp4",
@@ -228,7 +227,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
                 'created_at' => $createdAt,
                 'completed_at' => $completedAt,
             ]);
-            
+
             // Add some segments for completed ones
             if ($status === 'completed') {
                 for ($j = 0; $j < rand(3, 8); $j++) {
@@ -242,7 +241,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
                     ]);
                 }
             }
-            
+
             $processingRecords[] = $processing;
         }
         $creationEnd = microtime(true);
@@ -264,7 +263,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage(true);
-        
+
         $totalDuration = $endTime - $startTime;
         $memoryUsage = $endMemory - $startMemory;
         $creationDuration = $creationEnd - $creationStart;
@@ -287,11 +286,11 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $this->assertLessThan(500 * 1024 * 1024, $memoryUsage, 'Memory usage should be less than 500MB');
 
         echo "\nMonitoring Performance with {$recordCount} records:\n";
-        echo "- Data creation time: " . round($creationDuration, 3) . " seconds\n";
-        echo "- Metrics calculation time: " . round($metricsDuration, 3) . " seconds\n";
-        echo "- System health check time: " . round($systemHealthDuration, 3) . " seconds\n";
-        echo "- Trends calculation time: " . round($trendsDuration, 3) . " seconds\n";
-        echo "- Total memory usage: " . round($memoryUsage / 1024 / 1024, 2) . " MB\n";
+        echo '- Data creation time: '.round($creationDuration, 3)." seconds\n";
+        echo '- Metrics calculation time: '.round($metricsDuration, 3)." seconds\n";
+        echo '- System health check time: '.round($systemHealthDuration, 3)." seconds\n";
+        echo '- Trends calculation time: '.round($trendsDuration, 3)." seconds\n";
+        echo '- Total memory usage: '.round($memoryUsage / 1024 / 1024, 2)." MB\n";
     }
 
     public function test_logging_performance_under_load()
@@ -300,11 +299,11 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $startMemory = memory_get_usage(true);
 
         $logger = app(LivestreamProcessingLogger::class);
-        
+
         // Test logging performance with many log entries
         $logCount = 1000;
         $processingId = 'perf-test-logging';
-        
+
         $loggingStart = microtime(true);
         for ($i = 0; $i < $logCount; $i++) {
             $step = ['video_analysis', 'segmentation', 'extraction', 'processing'][rand(0, 3)];
@@ -313,7 +312,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
                 'file_size' => rand(1000000, 100000000),
                 'memory_usage' => memory_get_usage(true),
             ];
-            
+
             if ($i % 10 === 0) {
                 // Occasional error logging
                 $exception = new \Exception("Test error {$i}");
@@ -337,14 +336,14 @@ class LivestreamProcessingPerformanceTest extends TestCase
                 'file_processed' => true,
                 'quality_score' => rand(70, 100),
             ];
-            
+
             $logger->logPerformanceMetrics($processingId, 'performance_test', $executionTime, $metrics);
         }
         $metricsEnd = microtime(true);
 
         $endTime = microtime(true);
         $endMemory = memory_get_usage(true);
-        
+
         $totalDuration = $endTime - $startTime;
         $memoryUsage = $endMemory - $startMemory;
         $loggingDuration = $loggingEnd - $loggingStart;
@@ -356,10 +355,10 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $this->assertLessThan(100 * 1024 * 1024, $memoryUsage, 'Memory usage should be less than 100MB');
 
         echo "\nLogging Performance:\n";
-        echo "- {$logCount} log entries time: " . round($loggingDuration, 3) . " seconds\n";
-        echo "- Average time per log entry: " . round($loggingDuration / $logCount * 1000, 3) . " ms\n";
-        echo "- 100 performance metrics time: " . round($metricsDuration, 3) . " seconds\n";
-        echo "- Total memory usage: " . round($memoryUsage / 1024 / 1024, 2) . " MB\n";
+        echo "- {$logCount} log entries time: ".round($loggingDuration, 3)." seconds\n";
+        echo '- Average time per log entry: '.round($loggingDuration / $logCount * 1000, 3)." ms\n";
+        echo '- 100 performance metrics time: '.round($metricsDuration, 3)." seconds\n";
+        echo '- Total memory usage: '.round($memoryUsage / 1024 / 1024, 2)." MB\n";
     }
 
     public function test_memory_usage_stability()
@@ -410,10 +409,10 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $this->assertLessThan(100 * 1024 * 1024, $peakGrowth, 'Peak memory growth should be less than 100MB');
 
         echo "\nMemory Usage Stability:\n";
-        echo "- Initial memory: " . round($initialMemory / 1024 / 1024, 2) . " MB\n";
-        echo "- Final memory: " . round($finalMemory / 1024 / 1024, 2) . " MB\n";
-        echo "- Memory growth: " . round($memoryGrowth / 1024 / 1024, 2) . " MB\n";
-        echo "- Peak memory: " . round($peakMemory / 1024 / 1024, 2) . " MB\n";
-        echo "- Peak growth: " . round($peakGrowth / 1024 / 1024, 2) . " MB\n";
+        echo '- Initial memory: '.round($initialMemory / 1024 / 1024, 2)." MB\n";
+        echo '- Final memory: '.round($finalMemory / 1024 / 1024, 2)." MB\n";
+        echo '- Memory growth: '.round($memoryGrowth / 1024 / 1024, 2)." MB\n";
+        echo '- Peak memory: '.round($peakMemory / 1024 / 1024, 2)." MB\n";
+        echo '- Peak growth: '.round($peakGrowth / 1024 / 1024, 2)." MB\n";
     }
 }

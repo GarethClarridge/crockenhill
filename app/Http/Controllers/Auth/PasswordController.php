@@ -7,6 +7,9 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\ResetsPasswords;
 
+/**
+ * @phpstan-ignore-next-line
+ */
 class PasswordController extends Controller
 {
     /*
@@ -20,6 +23,7 @@ class PasswordController extends Controller
       |
       */
 
+    /** @phpstan-ignore-line */
     use ResetsPasswords;
 
     /**

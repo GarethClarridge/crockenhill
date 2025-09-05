@@ -3,21 +3,22 @@
 namespace App\Jobs;
 
 use App\Models\LivestreamProcessingLog;
-use App\Services\SermonProcessingService;
 use App\Services\SermonMetadataIntegrationService;
+use App\Services\SermonProcessingService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\UploadedFile;
 
 class SubmitToProcessing implements ShouldQueue
 {
-    use Queueable, InteractsWithQueue, SerializesModels;
+    use InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 1800;
 
     public function __construct(
@@ -27,23 +28,25 @@ class SubmitToProcessing implements ShouldQueue
     public function handle(
         SermonProcessingService $sermonProcessingService,
         SermonMetadataIntegrationService $metadataIntegrationService
-    ): void
-    {
+    ): void {
         try {
+            // Update status to show transcription processing is starting
+            $this->processingLog->update(['status' => 'transcription']);
+
             Log::info('Starting sermon processing submission', [
                 'processing_id' => $this->processingLog->processing_id,
-                'audio_path' => $this->processingLog->sermon_audio_path
+                'audio_path' => $this->processingLog->sermon_audio_path,
             ]);
 
-            if (!$this->processingLog->sermon_audio_path) {
+            if (! $this->processingLog->sermon_audio_path) {
                 throw new \Exception('Sermon audio path not found in processing log');
             }
 
             $audioPath = Storage::disk(config('livestream-processing.sermon_disk'))
                 ->path($this->processingLog->sermon_audio_path);
 
-            if (!file_exists($audioPath)) {
-                throw new \Exception('Sermon audio file not found: ' . $audioPath);
+            if (! file_exists($audioPath)) {
+                throw new \Exception('Sermon audio file not found: '.$audioPath);
             }
 
             $uploadedFile = new UploadedFile(
@@ -97,7 +100,7 @@ class SubmitToProcessing implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
                 'sermon_id' => $result['sermon_id'],
                 'sermon_processing_id' => $result['processing_id'],
-                'final_video_path' => $finalVideoPath
+                'final_video_path' => $finalVideoPath,
             ]);
 
             // Job chain will automatically proceed to cleanup job
@@ -106,11 +109,11 @@ class SubmitToProcessing implements ShouldQueue
             Log::error('Sermon processing submission failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            $errorMessage = 'Sermon processing submission failed: ' . $e->getMessage();
-            
+            $errorMessage = 'Sermon processing submission failed: '.$e->getMessage();
+
             $this->processingLog->update([
                 'status' => 'failed',
                 'error_message' => $errorMessage,
@@ -135,11 +138,11 @@ class SubmitToProcessing implements ShouldQueue
         Log::error('SubmitToProcessing job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),
-            'attempts' => $this->attempts()
+            'attempts' => $this->attempts(),
         ]);
 
         $this->processingLog->markAsFailed(
-            'Sermon processing submission failed after ' . $this->tries . ' attempts: ' . $exception->getMessage()
+            'Sermon processing submission failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
 
         // Cleanup will be handled by the chain failure handler

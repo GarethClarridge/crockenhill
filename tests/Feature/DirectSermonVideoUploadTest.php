@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Services\SermonProcessingService;
+use App\Services\MediaProcessingService;
 use App\Services\ProcessingResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -17,37 +17,44 @@ class DirectSermonVideoUploadTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Set up fake storage disks for testing
         Storage::fake('local');
         Storage::fake('sermon_disk');
-        
+
         // Create test user with sermon creation permissions
         $this->user = User::factory()->create([
             'email' => 'test@crockenhill.org',
             'email_verified_at' => now(),
         ]);
-        
+
         // Mock video services to avoid FFmpeg dependency in tests
         $this->mockVideoServices();
     }
 
     protected function mockVideoServices(): void
     {
-        // Mock SermonProcessingService for successful video processing
-        $mockSermonProcessing = $this->createMock(SermonProcessingService::class);
-        
+        // Mock MediaProcessingService for successful video processing
+        $mockMediaProcessing = $this->createMock(MediaProcessingService::class);
+
         $successResult = ProcessingResult::success(
             processingId: 'test-processing-id-123',
-            message: 'Sermon processing initiated successfully',
+            message: 'Sermon video processing initiated successfully',
             statusUrl: '/api/sermons/processing/test-processing-id-123/status'
         );
-        
-        $mockSermonProcessing->method('processSermonVideo')
-                            ->willReturn($successResult);
-        
+
+        $mockMediaProcessing->method('processVideo')
+            ->willReturn($successResult);
+
+        // Also mock other methods that might be called
+        $mockMediaProcessing->method('processAudio')
+            ->willReturn($successResult);
+
+        $mockMediaProcessing->method('processLivestream')
+            ->willReturn($successResult);
+
         // Bind mock to the container
-        $this->app->instance(SermonProcessingService::class, $mockSermonProcessing);
+        $this->app->instance(MediaProcessingService::class, $mockMediaProcessing);
     }
 
     /**
@@ -142,7 +149,7 @@ class DirectSermonVideoUploadTest extends TestCase
     {
         $formats = [
             ['mp4', 'video/mp4'],
-            ['mov', 'video/quicktime'], 
+            ['mov', 'video/quicktime'],
             ['avi', 'video/x-msvideo'],
             ['mkv', 'video/x-matroska'],
         ];
@@ -153,7 +160,7 @@ class DirectSermonVideoUploadTest extends TestCase
                 'email' => "test{$index}@crockenhill.org",
                 'email_verified_at' => now(),
             ]);
-            
+
             $videoFile = UploadedFile::fake()->create("test-sermon.{$extension}", 100 * 1024, $mimeType);
 
             $response = $this->actingAs($user, 'sanctum')
@@ -185,13 +192,13 @@ class DirectSermonVideoUploadTest extends TestCase
 
         // Second upload should be rate limited (1 per minute limit)
         $videoFile2 = UploadedFile::fake()->create('test-sermon-2.mp4', 100 * 1024, 'video/mp4');
-        
+
         $response = $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/sermons/video', [
                 'file' => $videoFile2,
             ]);
 
-        // Rate limiting should block the second request  
+        // Rate limiting should block the second request
         $response->assertStatus(429); // Too Many Requests
     }
 

@@ -2,13 +2,13 @@
 
 namespace Tests\Unit\Services;
 
-use Tests\TestCase;
-use App\Services\LivestreamProcessingLogger;
-use App\Services\ProcessingReport;
 use App\Models\LivestreamProcessingLog;
 use App\Models\LivestreamSegment;
+use App\Services\LivestreamProcessingLogger;
+use App\Services\ProcessingReport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+use Tests\TestCase;
 
 class LivestreamProcessingLoggerTest extends TestCase
 {
@@ -19,7 +19,7 @@ class LivestreamProcessingLoggerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->logger = new LivestreamProcessingLogger();
+        $this->logger = new LivestreamProcessingLogger;
         Log::spy();
     }
 
@@ -106,7 +106,7 @@ class LivestreamProcessingLoggerTest extends TestCase
             ->once()
             ->with(
                 "Livestream processing performance metrics: {$step}",
-                \Mockery::on(function ($data) use ($processingId, $step, $executionTime, $metrics) {
+                \Mockery::on(function ($data) use ($processingId, $step, $metrics) {
                     return $data['processing_id'] === $processingId
                         && $data['step'] === $step
                         && $data['execution_time_seconds'] === 123.456
@@ -150,7 +150,7 @@ class LivestreamProcessingLoggerTest extends TestCase
         $report = $this->logger->generateProcessingReport('test-processing-id');
 
         $this->assertInstanceOf(ProcessingReport::class, $report);
-        
+
         $data = $report->toArray();
         $this->assertEquals('test-processing-id', $data['processing_id']);
         $this->assertEquals('completed', $data['status']);

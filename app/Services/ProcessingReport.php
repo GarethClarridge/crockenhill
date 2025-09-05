@@ -4,9 +4,7 @@ namespace App\Services;
 
 class ProcessingReport
 {
-    public function __construct(public array $data)
-    {
-    }
+    public function __construct(public array $data) {}
 
     public function toArray(): array
     {
@@ -25,12 +23,12 @@ class ProcessingReport
 
     public function hasErrors(): bool
     {
-        return !empty($this->data['errors']);
+        return ! empty($this->data['errors']);
     }
 
     public function hasWarnings(): bool
     {
-        return !empty($this->data['warnings']);
+        return ! empty($this->data['warnings']);
     }
 
     public function getProcessingDuration(): ?int

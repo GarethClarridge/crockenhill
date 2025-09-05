@@ -2,15 +2,34 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
+/**
+ * @property int $id
+ * @property string $processing_id
+ * @property int $processing_log_id
+ * @property int $segment_index
+ * @property float $start_time
+ * @property float $end_time
+ * @property float $duration
+ * @property string $classification
+ * @property float|null $avg_rms
+ * @property float|null $peak_rms
+ * @property bool $is_sermon_candidate
+ * @property bool|null $is_sermon_segment
+ * @property int|null $segment_order
+ * @property array|null $metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class LivestreamSegment extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'processing_id',
         'processing_log_id',
@@ -68,14 +87,14 @@ class LivestreamSegment extends Model
         return $query->where('is_sermon_candidate', true);
     }
 
-    public function scopeByDurationRange(Builder $query, float $minDuration, float $maxDuration = null): Builder
+    public function scopeByDurationRange(Builder $query, float $minDuration, ?float $maxDuration = null): Builder
     {
         $query->where('duration', '>=', $minDuration);
-        
+
         if ($maxDuration !== null) {
             $query->where('duration', '<=', $maxDuration);
         }
-        
+
         return $query;
     }
 
@@ -150,6 +169,7 @@ class LivestreamSegment extends Model
         if ($minutes > 60) {
             $hours = floor($minutes / 60);
             $minutes = $minutes % 60;
+
             return sprintf('%dh %dm %ds', $hours, $minutes, $seconds);
         }
 
@@ -159,7 +179,7 @@ class LivestreamSegment extends Model
     protected function timeRange(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->getStartTimeFormatted() . ' - ' . $this->getEndTimeFormatted()
+            get: fn () => $this->getStartTimeFormatted().' - '.$this->getEndTimeFormatted()
         );
     }
 
@@ -174,14 +194,14 @@ class LivestreamSegment extends Model
     {
         return static::where('processing_log_id', $processingLogId)
             ->speech()
-            ->orderByDuration()
+            ->orderByRaw('(end_time - start_time) DESC')
             ->first();
     }
 
     public static function getSegmentsSummary(int $processingLogId): array
     {
         $segments = static::where('processing_log_id', $processingLogId)->get();
-        
+
         return [
             'total_segments' => $segments->count(),
             'speech_segments' => $segments->where('classification', 'speech')->count(),

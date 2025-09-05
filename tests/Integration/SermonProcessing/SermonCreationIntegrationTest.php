@@ -2,16 +2,16 @@
 
 namespace Tests\Integration\SermonProcessing;
 
-use Tests\Integration\BaseIntegrationTest;
+use App\Data\SermonMetadata;
+use App\Enums\ProcessingStatus;
+use App\Enums\SermonService;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\ProcessTranscriptWithAI;
-use App\Data\SermonMetadata;
-use App\Services\SermonAnalysisService;
 use App\Models\Sermon;
 use App\Models\SermonProcessingLog;
-use App\Enums\SermonService;
-use App\Enums\ProcessingStatus;
+use App\Services\SermonAnalysisService;
 use Illuminate\Support\Facades\Storage;
+use Tests\Integration\BaseIntegrationTest;
 
 class SermonCreationIntegrationTest extends BaseIntegrationTest
 {
@@ -26,30 +26,30 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
             filename: 'test.mp3',
             originalName: 'test.mp3'
         );
-        
+
         $audioFile = $this->copyTestFixture('test_audio_short.mp3', 'test-integration/test.mp3');
-        
+
         // Create processing log
         $processing = SermonProcessingLog::create([
             'processing_id' => 'test-id',
             'original_filename' => 'test.mp3',
             'status' => ProcessingStatus::PENDING,
         ]);
-        
+
         // Execute job directly (would catch property access errors)
         $job = new CreateSermonRecord('test-id', $metadata, $audioFile);
         $job->handle(app(\App\Services\SermonProcessingLogger::class));
-        
+
         // Verify sermon created without errors
         $processing->refresh();
         $this->assertNotNull($processing->sermon_id);
-        
+
         $sermon = Sermon::find($processing->sermon_id);
         $this->assertNotNull($sermon);
         $this->assertEquals($metadata->date->format('Y-m-d'), $sermon->date->format('Y-m-d'));
         $this->assertEquals($metadata->service, $sermon->service);
     }
-    
+
     /**
      * Test AI analysis service instantiation and configuration
      */
@@ -57,23 +57,23 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
     {
         // This should NOT fail with "OpenAI API key not configured" since we set it in BaseIntegrationTest
         $service = app(SermonAnalysisService::class);
-        
+
         $this->assertInstanceOf(SermonAnalysisService::class, $service);
     }
-    
+
     /**
      * Test AI analysis service method signature (we expect analyzeSermon(string $transcript, ...))
      */
     public function test_ai_analysis_service_method_signature(): void
     {
         $service = app(SermonAnalysisService::class);
-        
+
         // Test that the method exists with correct signature
         $reflection = new \ReflectionClass($service);
         $method = $reflection->getMethod('analyzeSermon');
-        
+
         $this->assertTrue($method->isPublic());
-        
+
         // Check parameters
         $parameters = $method->getParameters();
         $this->assertGreaterThan(0, count($parameters));
@@ -87,12 +87,12 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
     public function test_process_transcript_with_ai_job_executes(): void
     {
         $sermon = Sermon::factory()->create([
-            'transcript_path' => 'test-transcript.md'
+            'transcript_path' => 'test-transcript.md',
         ]);
-        
+
         // Store a test transcript
         Storage::put('test-transcript.md', 'This is a comprehensive test sermon transcript about faith, hope, and love. The speaker discusses the importance of community and spiritual growth.');
-        
+
         // Create processing log
         $processing = SermonProcessingLog::create([
             'processing_id' => 'test-ai-id',
@@ -100,15 +100,15 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
             'sermon_id' => $sermon->id,
             'status' => ProcessingStatus::PROCESSING,
         ]);
-        
+
         // Execute AI processing job
         $job = new ProcessTranscriptWithAI($sermon->id);
         $job->handle(app(\App\Services\SermonAnalysisService::class));
-        
+
         // Verify AI analysis completed
         $processing->refresh();
         $sermon->refresh();
-        
+
         // Note: Job executes without errors, but title/summary would only be populated
         // with real AI analysis. For integration testing, we verify the job runs without crashing.
         $this->assertTrue(true, 'ProcessTranscriptWithAI job executed without throwing exceptions');
@@ -125,39 +125,39 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
             filename: 'test_integration.mp3',
             originalName: 'Sunday Evening Sermon.mp3'
         );
-        
+
         $audioFile = $this->copyTestFixture('test_audio_short.mp3', 'test-integration/sermon.mp3');
-        
+
         // Create processing log
-        $processingId = 'integration-test-' . uniqid();
+        $processingId = 'integration-test-'.uniqid();
         $processing = SermonProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => $metadata->originalName,
             'status' => ProcessingStatus::PENDING,
         ]);
-        
+
         // Step 1: Create sermon record
         $createJob = new CreateSermonRecord($processingId, $metadata, $audioFile);
         $createJob->handle(app(\App\Services\SermonProcessingLogger::class));
-        
+
         $processing->refresh();
         $this->assertNotNull($processing->sermon_id, 'Sermon should be created');
-        
+
         $sermon = Sermon::find($processing->sermon_id);
         $this->assertNotNull($sermon);
-        
+
         // Step 2: Process transcript with AI (if transcript exists)
         if ($sermon->transcript_path) {
             $aiJob = new ProcessTranscriptWithAI($sermon->id);
             $aiJob->handle(app(\App\Services\SermonAnalysisService::class));
-            
+
             $processing->refresh();
             $sermon->refresh();
-            
+
             $this->assertEquals(ProcessingStatus::COMPLETED, $processing->status);
             $this->assertNotEmpty($sermon->title);
         }
-        
+
         // Verify final state
         $this->assertEquals($metadata->service, $sermon->service);
         $this->assertEquals($metadata->date->format('Y-m-d'), $sermon->date->format('Y-m-d'));

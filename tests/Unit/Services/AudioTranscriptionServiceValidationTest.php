@@ -15,6 +15,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
     use RefreshDatabase;
 
     protected AudioTranscriptionService $service;
+
     protected SermonProcessingLogger $mockLogger;
 
     protected function setUp(): void
@@ -23,13 +24,13 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
         // Mock the logger dependency
         $this->mockLogger = $this->createMock(SermonProcessingLogger::class);
-        
+
         // Set OpenAI API key for testing
         Config::set('sermon-processing.transcription.openai_api_key', 'test-api-key');
-        
+
         // Mock OpenAI configuration for Laravel OpenAI package
         Config::set('openai.api_key', 'test-api-key');
-        
+
         $this->service = new AudioTranscriptionService($this->mockLogger);
     }
 
@@ -37,18 +38,18 @@ class AudioTranscriptionServiceValidationTest extends TestCase
     {
         Config::set('sermon-processing.transcription.openai_api_key', '');
         Config::set('openai.api_key', '');
-        
+
         $service = new AudioTranscriptionService($this->mockLogger);
-        
+
         // Create a test file to trigger the validation in transcribe method
         $testFilePath = 'test_validation_audio.mp3';
         Storage::put($testFilePath, 'mock audio content');
-        
+
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('OpenAI API key not configured for transcription service');
-        
+
         $service->transcribe($testFilePath, 'test-processing-id');
-        
+
         // Cleanup
         Storage::delete($testFilePath);
     }
@@ -95,7 +96,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
             $this->fail('Expected exception was not thrown');
         } catch (Exception $e) {
             $message = $e->getMessage();
-            
+
             // Check that error message contains size information
             $this->assertStringContainsString('Audio file too large', $message);
             $this->assertStringContainsString('10', $message); // Size (may be 10MB or 10.0MB)
@@ -118,10 +119,10 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
         // Mock the logger to expect certain calls but not throw errors
         $this->mockLogger->expects($this->atLeastOnce())
-                        ->method('logProcessingStep');
+            ->method('logProcessingStep');
 
         $this->mockLogger->expects($this->atLeastOnce())
-                        ->method('logFileOperation');
+            ->method('logFileOperation');
 
         // We expect this to get past validation and fail on the actual OpenAI API call
         // (which we're not mocking in this test)
@@ -140,7 +141,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
     public function test_config_max_file_size_matches_openai_limit(): void
     {
         $maxSize = config('livestream-processing.audio_extraction.transcription_optimized.max_file_size');
-        
+
         // Should be exactly 25MB (OpenAI Whisper limit)
         $expectedSize = 25 * 1024 * 1024;
         $this->assertEquals($expectedSize, $maxSize);
@@ -154,7 +155,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
         // The validation should pass (0 bytes < limit), but transcription will fail for other reasons
         // We're not testing the full transcription flow, just that validation doesn't reject empty files
-        
+
         try {
             $this->service->transcribe($testFilePath, 'test-processing-id');
             $this->fail('Expected some exception due to empty file or API issues');
@@ -191,7 +192,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         // Clean up any remaining test files
         $testFiles = [
             'test_large_audio.mp3',
-            'test_oversized_audio.mp3', 
+            'test_oversized_audio.mp3',
             'test_small_audio.mp3',
             'test_empty_audio.mp3',
             'test_guidance_audio.mp3',

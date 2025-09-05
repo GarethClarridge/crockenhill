@@ -80,7 +80,7 @@ class MeetingController extends Controller
         $upcomingEvents = $meeting->calendarEvents;
 
         // Load past events separately if needed
-        $pastEvents = $meeting->calendarEvents()
+        $pastEvents = \App\Models\CalendarEvent::where('meeting_slug', $meeting->slug)
             ->past()
             ->confirmed()
             ->orderBy('start_datetime', 'desc')
@@ -116,7 +116,7 @@ class MeetingController extends Controller
             ]);
 
             $upcomingEvents = $meeting->calendarEvents;
-            $pastEvents = $meeting->calendarEvents()
+            $pastEvents = \App\Models\CalendarEvent::where('meeting_slug', $meeting->slug)
                 ->past()
                 ->confirmed()
                 ->orderBy('start_datetime', 'desc')

@@ -18,12 +18,12 @@ class TranscriptionServiceIntegrationTest extends TestCase
     {
         // Configure to use mock service
         Config::set('sermon-processing.transcription.service_type', 'mock');
-        
+
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);
-        
+
         $service = app(TranscriptionServiceInterface::class);
-        
+
         $this->assertInstanceOf(MockTranscriptionService::class, $service);
     }
 
@@ -31,12 +31,12 @@ class TranscriptionServiceIntegrationTest extends TestCase
     {
         // Configure to use OpenAI service
         Config::set('sermon-processing.transcription.service_type', 'openai');
-        
+
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);
-        
+
         $service = app(TranscriptionServiceInterface::class);
-        
+
         $this->assertInstanceOf(AudioTranscriptionService::class, $service);
     }
 
@@ -44,12 +44,12 @@ class TranscriptionServiceIntegrationTest extends TestCase
     {
         // Don't set any config value (should default to openai)
         Config::set('sermon-processing.transcription.service_type', null);
-        
+
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);
-        
+
         $service = app(TranscriptionServiceInterface::class);
-        
+
         $this->assertInstanceOf(AudioTranscriptionService::class, $service);
     }
 
@@ -57,28 +57,28 @@ class TranscriptionServiceIntegrationTest extends TestCase
     {
         // Configure to use mock service
         Config::set('sermon-processing.transcription.service_type', 'mock');
-        
+
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);
-        
+
         // Create the default transcript file
         Storage::put('transcripts/sermon_7.md', 'Mock sermon transcript for testing.');
-        
+
         $service = app(TranscriptionServiceInterface::class);
-        
+
         // Test transcription
         $result = $service->transcribe('fake/path/to/audio.mp3', 'test-processing-id');
-        
+
         $this->assertIsString($result);
         $this->assertEquals('Mock sermon transcript for testing.', $result);
-        
+
         // Test storage and retrieval
         $sermonId = 999;
         $filePath = $service->storeTranscript($sermonId, $result);
-        
+
         $this->assertStringContainsString('sermon_999.md', $filePath);
         $this->assertTrue(Storage::exists($filePath));
-        
+
         $retrieved = $service->getTranscript($sermonId);
         $this->assertEquals($result, $retrieved);
     }
@@ -87,13 +87,13 @@ class TranscriptionServiceIntegrationTest extends TestCase
     {
         // This test ensures that dependency injection works for the TranscribeAudio job
         Config::set('sermon-processing.transcription.service_type', 'mock');
-        
+
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);
-        
+
         // The job constructor accepts TranscriptionServiceInterface
         $service = app(TranscriptionServiceInterface::class);
-        
+
         $this->assertInstanceOf(TranscriptionServiceInterface::class, $service);
         $this->assertInstanceOf(MockTranscriptionService::class, $service);
     }
@@ -107,20 +107,20 @@ class TranscriptionServiceIntegrationTest extends TestCase
             'transcriptExists',
             'deleteTranscript',
             'cleanupOnFailure',
-            'getTranscriptPath'
+            'getTranscriptPath',
         ];
-        
+
         // Test MockTranscriptionService has all required methods
         $mockReflection = new \ReflectionClass(MockTranscriptionService::class);
         foreach ($methods as $method) {
-            $this->assertTrue($mockReflection->hasMethod($method), 
+            $this->assertTrue($mockReflection->hasMethod($method),
                 "MockTranscriptionService missing method: {$method}");
         }
-        
+
         // Test AudioTranscriptionService has all required methods
         $openaiReflection = new \ReflectionClass(AudioTranscriptionService::class);
         foreach ($methods as $method) {
-            $this->assertTrue($openaiReflection->hasMethod($method), 
+            $this->assertTrue($openaiReflection->hasMethod($method),
                 "AudioTranscriptionService missing method: {$method}");
         }
     }

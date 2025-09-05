@@ -2,27 +2,35 @@
 
 namespace App\HealthChecks;
 
-use Spatie\Health\Checks\Check;
-use Spatie\Health\Checks\Result;
-use Illuminate\Support\Facades\Queue;
 use App\Models\LivestreamProcessingLog;
+use Illuminate\Contracts\Support\Arrayable;
 
-class LivestreamQueueHealthCheck extends Check
+class LivestreamQueueHealthCheck implements Arrayable
 {
-    public function run(): Result
+    /**
+     * The name of the health check.
+     */
+    public function name(): string
     {
-        $result = Result::make();
+        return 'livestream-queue';
+    }
 
+    public function run(): array
+    {
         try {
             $queueName = config('livestream-processing.queue.name');
-            
+
             // Check if there are any stuck processing jobs
             $stuckJobs = LivestreamProcessingLog::where('status', 'processing')
                 ->where('started_at', '<', now()->subHours(4))
                 ->count();
 
             if ($stuckJobs > 0) {
-                return $result->warning("Found {$stuckJobs} potentially stuck processing jobs");
+                return [
+                    'status' => 'degraded',
+                    'message' => "Found {$stuckJobs} potentially stuck processing jobs",
+                    'timestamp' => now()->toISOString(),
+                ];
             }
 
             // Check for failed jobs in the last hour
@@ -31,20 +39,44 @@ class LivestreamQueueHealthCheck extends Check
                 ->count();
 
             if ($recentFailures > 5) {
-                return $result->warning("High failure rate: {$recentFailures} failed jobs in the last hour");
+                return [
+                    'status' => 'degraded',
+                    'message' => "High failure rate: {$recentFailures} failed jobs in the last hour",
+                    'timestamp' => now()->toISOString(),
+                ];
             }
 
             // Check pending jobs count
             $pendingJobs = LivestreamProcessingLog::where('status', 'pending')->count();
-            
+
             if ($pendingJobs > 10) {
-                return $result->warning("High queue backlog: {$pendingJobs} pending jobs");
+                return [
+                    'status' => 'degraded',
+                    'message' => "High queue backlog: {$pendingJobs} pending jobs",
+                    'timestamp' => now()->toISOString(),
+                ];
             }
 
-            return $result->ok("Livestream processing queue is healthy. {$pendingJobs} pending jobs.");
+            return [
+                'status' => 'healthy',
+                'message' => "Livestream processing queue is healthy. {$pendingJobs} pending jobs.",
+                'timestamp' => now()->toISOString(),
+            ];
 
         } catch (\Exception $e) {
-            return $result->failed("Queue health check failed: {$e->getMessage()}");
+            return [
+                'status' => 'error',
+                'message' => "Queue health check failed: {$e->getMessage()}",
+                'timestamp' => now()->toISOString(),
+            ];
         }
+    }
+
+    /**
+     * Convert the health check to an array.
+     */
+    public function toArray(): array
+    {
+        return $this->run();
     }
 }

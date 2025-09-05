@@ -2,20 +2,20 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\LivestreamProcessingLog;
 use App\Models\LivestreamSegment;
 use App\Models\Sermon;
+use App\Services\LivestreamProcessingLogger;
 use App\Services\LivestreamProcessingService;
 use App\Services\VideoSegmentationService;
 use App\Services\VideoStorageService;
-use App\Services\LivestreamProcessingLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class LivestreamProcessingIntegrationTest extends TestCase
 {
@@ -24,12 +24,12 @@ class LivestreamProcessingIntegrationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         Storage::fake('local');
         Storage::fake('sermon_disk');
         Queue::fake();
         Bus::fake();
-        
+
         Config::set('livestream-processing', [
             'rms_threshold' => -30.0,
             'min_section_duration' => 60.0,
@@ -41,7 +41,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
             'sermon_disk' => 'sermon_disk',
             'temp_disk' => 'local',
         ]);
-        
+
         // Create temp directory for tests
         Storage::disk('local')->makeDirectory('temp');
     }
@@ -50,7 +50,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
     {
         // Create a mock video file
         $videoFile = UploadedFile::fake()->create('livestream.mp4', 50000, 'video/mp4');
-        
+
         // Mock the VideoSegmentationService to avoid actual file validation
         $mockSegmentationService = $this->createMock(VideoSegmentationService::class);
         $mockSegmentationService->method('validateVideoFile')->willReturn(true);
@@ -59,7 +59,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
             'format' => 'mp4',
             'size' => 50000,
         ]);
-        
+
         // Mock the VideoStorageService to avoid actual file operations
         $mockStorageService = $this->createMock(VideoStorageService::class);
         $mockStorageService->method('validateStorageSpace')->willReturn(true);
@@ -70,30 +70,30 @@ class LivestreamProcessingIntegrationTest extends TestCase
             'file_size' => 50000,
             'mime_type' => 'video/mp4',
         ]);
-        
+
         // Simulate the file being stored
         Storage::put('livestreams/temp_livestream.mp4', 'fake video content');
-        
+
         $this->app->instance(VideoSegmentationService::class, $mockSegmentationService);
         $this->app->instance(VideoStorageService::class, $mockStorageService);
-        
+
         // Create the service
         $service = app(LivestreamProcessingService::class);
-        
+
         // Process the livestream
         $result = $service->processLivestream($videoFile);
-        
+
         // Verify processing record was created
         $this->assertDatabaseHas('livestream_processing_logs', [
             'processing_id' => $result->processingId,
             'original_filename' => 'livestream.mp4',
             'status' => 'pending',
         ]);
-        
+
         // Verify file was stored
         $processing = LivestreamProcessingLog::where('processing_id', $result->processingId)->first();
         $this->assertTrue(Storage::exists($processing->original_file_path));
-        
+
         // Verify job chain was dispatched
         Bus::assertChained([
             \App\Jobs\GenerateRmsLog::class,
@@ -118,7 +118,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         Storage::put('temp/rms_test-segmentation.log', $rmsLogContent);
 
         $segmentationService = app(VideoSegmentationService::class);
-        
+
         // Simulate RMS analysis
         $segments = [
             ['start' => 0, 'end' => 180, 'classification' => 'song'],
@@ -138,7 +138,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
                 'end_time' => $segment['end'],
                 'duration' => $segment['end'] - $segment['start'],
                 'classification' => $segment['classification'],
-                'is_sermon_candidate' => $segment['classification'] === 'speech' && 
+                'is_sermon_candidate' => $segment['classification'] === 'speech' &&
                                      ($segment['end'] - $segment['start']) > 300,
                 'avg_rms' => 0.5,
                 'peak_rms' => 0.8,
@@ -148,11 +148,11 @@ class LivestreamProcessingIntegrationTest extends TestCase
 
         // Verify segments were created correctly
         $this->assertDatabaseCount('livestream_segments', 4);
-        
+
         $sermonSegment = LivestreamSegment::where('processing_log_id', $processing->id)
             ->where('is_sermon_candidate', true)
             ->first();
-            
+
         $this->assertNotNull($sermonSegment);
         $this->assertEquals(180, $sermonSegment->start_time);
         $this->assertEquals(2100, $sermonSegment->end_time);
@@ -162,21 +162,21 @@ class LivestreamProcessingIntegrationTest extends TestCase
     public function test_video_storage_integration()
     {
         $storageService = app(VideoStorageService::class);
-        
+
         // Create a temporary video file using fake storage
         Storage::disk('local')->put('temp/test_video.mp4', 'fake video content');
         $tempVideoPath = Storage::disk('local')->path('temp/test_video.mp4');
-        
+
         // Create a fake uploaded file
         $uploadedFile = UploadedFile::fake()->createWithContent('test_video.mp4', 'fake video content');
-        
+
         // Test video storage
         $result = $storageService->storeUploadedVideo($uploadedFile);
-        
+
         $this->assertArrayHasKey('temp_path', $result);
         $this->assertArrayHasKey('original_filename', $result);
         $this->assertEquals('test_video.mp4', $result['original_filename']);
-        
+
         // Clean up
         unlink($tempVideoPath);
     }
@@ -219,11 +219,11 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->assertEquals($sermon->id, $processing->sermon_id);
         $this->assertEquals('livestream', $sermon->source_type);
         $this->assertNotNull($sermon->video_file_path);
-        
+
         // Test sermon with video display
         $sermonVideoService = app(\App\Services\SermonVideoDisplayService::class);
         $sermonData = $sermonVideoService->getSermonWithVideo($sermon->id);
-        
+
         $this->assertTrue($sermonData['has_video']);
         $this->assertEquals('livestream', $sermonData['source_type']);
         $this->assertNotNull($sermonData['livestream_info']);
@@ -298,7 +298,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->assertArrayHasKey('processing_times', $metrics);
         $this->assertArrayHasKey('failure_analysis', $metrics);
         $this->assertArrayHasKey('storage_usage', $metrics);
-        
+
         // Test system health
         $health = $monitoringService->getSystemHealth();
         $this->assertArrayHasKey('queue_health', $health);
@@ -336,7 +336,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->assertEquals('completed', $report->getStatus());
         $this->assertEquals(3, $report->getSegmentCount());
         $this->assertFalse($report->hasErrors());
-        
+
         $reportData = $report->toArray();
         $this->assertEquals('test-video.mp4', $reportData['original_filename']);
         $this->assertEquals(476.84, $reportData['file_size_mb']); // ~500MB

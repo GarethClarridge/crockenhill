@@ -15,13 +15,12 @@ class LivestreamProcessingCompleted extends Mailable
     public function __construct(
         public string $processingId,
         public array $summary = []
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Livestream Processing Completed - ' . $this->processingId,
+            subject: 'Livestream Processing Completed - '.$this->processingId,
         );
     }
 

@@ -7,189 +7,189 @@ use Illuminate\Support\Facades\Storage;
 
 class BritishEnglishConverter
 {
-  private const CACHE_KEY = 'british_english_corrections';
-  private const CACHE_TTL = 86400; // 24 hours
+    private const CACHE_KEY = 'british_english_corrections';
 
-  /**
-   * Convert American English text to British English
-   *
-   * @param string $text Text to convert
-   * @return string Converted text
-   */
-  public function convert(string $text): string
-  {
-    $corrections = $this->getCorrections();
+    private const CACHE_TTL = 86400; // 24 hours
 
-    foreach ($corrections as $pattern => $replacement) {
-      $text = preg_replace($pattern, $replacement, $text);
+    /**
+     * Convert American English text to British English
+     *
+     * @param  string  $text  Text to convert
+     * @return string Converted text
+     */
+    public function convert(string $text): string
+    {
+        $corrections = $this->getCorrections();
+
+        foreach ($corrections as $pattern => $replacement) {
+            $text = preg_replace($pattern, $replacement, $text);
+        }
+
+        return $text;
     }
 
-    return $text;
-  }
-
-  /**
-   * Get spelling corrections from cache or generate them
-   *
-   * @return array Array of regex patterns and replacements
-   */
-  private function getCorrections(): array
-  {
-    return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
-      return $this->buildCorrections();
-    });
-  }
-
-  /**
-   * Build comprehensive spelling corrections
-   *
-   * @return array Array of regex patterns and replacements
-   */
-  private function buildCorrections(): array
-  {
-    // Load from external word list if available, otherwise use built-in
-    $wordList = $this->loadWordList();
-
-    if (!empty($wordList)) {
-      return $this->buildCorrectionsFromWordList($wordList);
+    /**
+     * Get spelling corrections from cache or generate them
+     *
+     * @return array Array of regex patterns and replacements
+     */
+    private function getCorrections(): array
+    {
+        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
+            return $this->buildCorrections();
+        });
     }
 
-    return $this->getBuiltInCorrections();
-  }
+    /**
+     * Build comprehensive spelling corrections
+     *
+     * @return array Array of regex patterns and replacements
+     */
+    private function buildCorrections(): array
+    {
+        // Load from external word list if available, otherwise use built-in
+        $wordList = $this->loadWordList();
 
-  /**
-   * Load word list from external source (JSON file, API, etc.)
-   *
-   * @return array|null Word list or null if not available
-   */
-  private function loadWordList(): ?array
-  {
-    // Try to load from storage first
-    $wordListPath = 'spelling/american-british-words.json';
+        if (! empty($wordList)) {
+            return $this->buildCorrectionsFromWordList($wordList);
+        }
 
-    if (Storage::exists($wordListPath)) {
-      try {
-        $content = Storage::get($wordListPath);
-        return json_decode($content, true);
-      } catch (\Exception $e) {
-        \Log::warning('Failed to load external word list', ['error' => $e->getMessage()]);
-      }
+        return $this->getBuiltInCorrections();
     }
 
-    // Could also load from external API or package here
-    return null;
-  }
+    /**
+     * Load word list from external source (JSON file, API, etc.)
+     *
+     * @return array|null Word list or null if not available
+     */
+    private function loadWordList(): ?array
+    {
+        // Try to load from storage first
+        $wordListPath = 'spelling/american-british-words.json';
 
-  /**
-   * Build corrections from external word list
-   *
-   * @param array $wordList Word list data
-   * @return array Regex patterns and replacements
-   */
-  private function buildCorrectionsFromWordList(array $wordList): array
-  {
-    $corrections = [];
+        if (Storage::exists($wordListPath)) {
+            try {
+                $content = Storage::get($wordListPath);
 
-    foreach ($wordList as $american => $british) {
-      // Create word boundary regex for exact matches
-      $pattern = '/\b' . preg_quote($american, '/') . '\b/i';
-      $corrections[$pattern] = $british;
+                return json_decode($content, true);
+            } catch (\Exception $e) {
+                \Log::warning('Failed to load external word list', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // Could also load from external API or package here
+        return null;
     }
 
-    return $corrections;
-  }
+    /**
+     * Build corrections from external word list
+     *
+     * @param  array  $wordList  Word list data
+     * @return array Regex patterns and replacements
+     */
+    private function buildCorrectionsFromWordList(array $wordList): array
+    {
+        $corrections = [];
 
-  /**
-   * Get built-in spelling corrections (fallback)
-   *
-   * @return array Array of regex patterns and replacements
-   */
-  private function getBuiltInCorrections(): array
-  {
-    return [
-      // Pattern-based corrections (more efficient than individual words)
+        foreach ($wordList as $american => $british) {
+            // Create word boundary regex for exact matches
+            $pattern = '/\b'.preg_quote($american, '/').'\b/i';
+            $corrections[$pattern] = $british;
+        }
 
-      // -ize to -ise endings (with exceptions)
-      '/\b(?!capsize|seize|prize|maize)([\w]+)ize\b/i' => '$1ise',
-      '/\b(?!capsize|seize|prize|maize)([\w]+)ization\b/i' => '$1isation',
-      '/\b(?!capsize|seize|prize|maize)([\w]+)izing\b/i' => '$1ising',
-      '/\b(?!capsize|seize|prize|maize)([\w]+)ized\b/i' => '$1ised',
+        return $corrections;
+    }
 
-      // -or to -our endings
-      '/\b(behavio|colo|favo|flavo|hono|humo|labo|neighbo|rumo|splendo|vigo)r\b/i' => '$1ur',
+    /**
+     * Get built-in spelling corrections (fallback)
+     *
+     * @return array Array of regex patterns and replacements
+     */
+    private function getBuiltInCorrections(): array
+    {
+        return [
+            // Pattern-based corrections (more efficient than individual words)
 
-      // -er to -re endings
-      '/\b(cent|met|theat|fib|goit|lit|lust|mano|mass|mit|nit|oct|salt|spect)er\b/i' => '$1re',
+            // -ize to -ise endings (with exceptions)
+            '/\b(?!capsize|seize|prize|maize)([\w]+)ize\b/i' => '$1ise',
+            '/\b(?!capsize|seize|prize|maize)([\w]+)ization\b/i' => '$1isation',
+            '/\b(?!capsize|seize|prize|maize)([\w]+)izing\b/i' => '$1ising',
+            '/\b(?!capsize|seize|prize|maize)([\w]+)ized\b/i' => '$1ised',
 
-      // -ense to -ence endings
-      '/\b(defen|licen|offen|preten)se\b/i' => '$1ce',
+            // -or to -our endings
+            '/\b(behavio|colo|favo|flavo|hono|humo|labo|neighbo|rumo|splendo|vigo)r\b/i' => '$1ur',
 
-      // Double consonants in past tense
-      '/\b(cancel|model|travel|marvel|level|label|fuel|tunnel|barrel|quarrel)ed\b/i' => '$1led',
-      '/\b(cancel|model|travel|marvel|level|label|fuel|tunnel|barrel|quarrel)ing\b/i' => '$1ling',
-      '/\b(cancel|model|travel|marvel|level|label|fuel|tunnel|barrel|quarrel)er\b/i' => '$1ler',
+            // -er to -re endings
+            '/\b(cent|met|theat|fib|goit|lit|lust|mano|mass|mit|nit|oct|salt|spect)er\b/i' => '$1re',
 
-      // -ogue endings
-      '/\bcatalog\b/i' => 'catalogue',
-      '/\bdialog\b/i' => 'dialogue',
-      '/\bmonolog\b/i' => 'monologue',
-      '/\banalog\b/i' => 'analogue',
+            // -ense to -ence endings
+            '/\b(defen|licen|offen|preten)se\b/i' => '$1ce',
 
-      // -yze to -yse
-      '/\banalyze\b/i' => 'analyse',
-      '/\banalyzing\b/i' => 'analysing',
-      '/\banalyzed\b/i' => 'analysed',
-      '/\bparalyze\b/i' => 'paralyse',
-      '/\bparalyzing\b/i' => 'paralysing',
-      '/\bparalyzed\b/i' => 'paralysed',
+            // Double consonants in past tense
+            '/\b(cancel|model|travel|marvel|level|label|fuel|tunnel|barrel|quarrel)ed\b/i' => '$1led',
+            '/\b(cancel|model|travel|marvel|level|label|fuel|tunnel|barrel|quarrel)ing\b/i' => '$1ling',
+            '/\b(cancel|model|travel|marvel|level|label|fuel|tunnel|barrel|quarrel)er\b/i' => '$1ler',
 
-      // Common individual words
-      '/\bgray\b/i' => 'grey',
-      '/\bsulfur\b/i' => 'sulphur',
-      '/\bskeptical\b/i' => 'sceptical',
-      '/\bskepticism\b/i' => 'scepticism',
-      '/\bplow\b/i' => 'plough',
-      '/\bmold\b/i' => 'mould',
-      '/\bmolding\b/i' => 'moulding',
-      '/\bmolded\b/i' => 'moulded',
-      '/\bsmolder\b/i' => 'smoulder',
-      '/\bsmoldering\b/i' => 'smouldering',
-      '/\btire\b/i' => 'tyre', // Only for the wheel context
-      '/\bpajamas\b/i' => 'pyjamas',
-      '/\bcozy\b/i' => 'cosy',
-      '/\bdoughnut\b/i' => 'doughnut', // Already correct, but ensures consistency
-      '/\bdonut\b/i' => 'doughnut',
+            // -ogue endings
+            '/\bcatalog\b/i' => 'catalogue',
+            '/\bdialog\b/i' => 'dialogue',
+            '/\bmonolog\b/i' => 'monologue',
+            '/\banalog\b/i' => 'analogue',
 
-      // -ction to -xion (traditional, though less common now)
-      // Commented out as these are becoming archaic
-      // '/\bconnection\b/i' => 'connexion',
-      // '/\breflection\b/i' => 'reflexion',
-    ];
-  }
+            // -yze to -yse
+            '/\banalyze\b/i' => 'analyse',
+            '/\banalyzing\b/i' => 'analysing',
+            '/\banalyzed\b/i' => 'analysed',
+            '/\bparalyze\b/i' => 'paralyse',
+            '/\bparalyzing\b/i' => 'paralysing',
+            '/\bparalyzed\b/i' => 'paralysed',
 
-  /**
-   * Clear the corrections cache
-   *
-   * @return void
-   */
-  public function clearCache(): void
-  {
-    Cache::forget(self::CACHE_KEY);
-  }
+            // Common individual words
+            '/\bgray\b/i' => 'grey',
+            '/\bsulfur\b/i' => 'sulphur',
+            '/\bskeptical\b/i' => 'sceptical',
+            '/\bskepticism\b/i' => 'scepticism',
+            '/\bplow\b/i' => 'plough',
+            '/\bmold\b/i' => 'mould',
+            '/\bmolding\b/i' => 'moulding',
+            '/\bmolded\b/i' => 'moulded',
+            '/\bsmolder\b/i' => 'smoulder',
+            '/\bsmoldering\b/i' => 'smouldering',
+            '/\btire\b/i' => 'tyre', // Only for the wheel context
+            '/\bpajamas\b/i' => 'pyjamas',
+            '/\bcozy\b/i' => 'cosy',
+            '/\bdoughnut\b/i' => 'doughnut', // Already correct, but ensures consistency
+            '/\bdonut\b/i' => 'doughnut',
 
-  /**
-   * Get statistics about available corrections
-   *
-   * @return array Statistics
-   */
-  public function getStats(): array
-  {
-    $corrections = $this->getCorrections();
+            // -ction to -xion (traditional, though less common now)
+            // Commented out as these are becoming archaic
+            // '/\bconnection\b/i' => 'connexion',
+            // '/\breflection\b/i' => 'reflexion',
+        ];
+    }
 
-    return [
-      'total_patterns' => count($corrections),
-      'cache_key' => self::CACHE_KEY,
-      'cache_ttl' => self::CACHE_TTL,
-      'external_wordlist_available' => Storage::exists('spelling/american-british-words.json'),
-    ];
-  }
+    /**
+     * Clear the corrections cache
+     */
+    public function clearCache(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+    }
+
+    /**
+     * Get statistics about available corrections
+     *
+     * @return array Statistics
+     */
+    public function getStats(): array
+    {
+        $corrections = $this->getCorrections();
+
+        return [
+            'total_patterns' => count($corrections),
+            'cache_key' => self::CACHE_KEY,
+            'cache_ttl' => self::CACHE_TTL,
+            'external_wordlist_available' => Storage::exists('spelling/american-british-words.json'),
+        ];
+    }
 }

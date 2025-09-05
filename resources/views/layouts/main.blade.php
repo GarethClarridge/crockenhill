@@ -8,6 +8,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="msvalidate.01" content="2EF7ECDA9644EAD5B1B36A960808B8DB" />
 
   @section('description') {{isset($description) ? $description : '<meta name="description" content="Crockenhill Baptist Church">'}} @endsection
@@ -38,6 +39,9 @@
   </script>
 
   @vite(['resources/css/app.scss', 'resources/js/app.js'])
+  
+  {{-- Livewire Styles --}}
+  @livewireStyles
 
 </head>
 
@@ -60,6 +64,9 @@
   <footer class="bg-cbc-pattern bg-cover p-6 mt-6">
     <x-layout.footer />
   </footer>
+
+  {{-- Livewire Scripts --}}
+  @livewireScripts
 </body>
 
 </html>

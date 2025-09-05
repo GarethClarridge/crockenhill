@@ -49,78 +49,82 @@ Route::get('/community/{slug}', [MeetingController::class, 'showCommunityContent
 
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
-  Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
-  Route::get('/create', [SermonController::class, 'create'])->name('sermonCreate');
-  Route::post('/', [SermonController::class, 'store'])->name('sermonStore');
-  Route::get('/upload', [SermonController::class, 'upload'])->name('sermonUpload');
-  Route::post('/post', [SermonController::class, 'post'])->name('sermonPost');
-  Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
-  Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
-  Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
-  Route::get('series', [SermonController::class, 'getSerieses'])->name('getSerieses');
-  Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
-  Route::get('{service}', [SermonController::class, 'getService'])->where('service', 'morning|evening|other')->name('getService');
+    Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
+    Route::get('/create', [SermonController::class, 'create'])->name('sermonCreate');
+    Route::post('/', [SermonController::class, 'store'])->name('sermonStore');
+    Route::get('/upload', [SermonController::class, 'upload'])->name('sermonUpload');
+    Route::post('/post', [SermonController::class, 'post'])->name('sermonPost');
+    Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
+    Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
+    Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
+    Route::get('series', [SermonController::class, 'getSerieses'])->name('getSerieses');
+    Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
+    Route::get('{service}', [SermonController::class, 'getService'])->where('service', 'morning|evening|other')->name('getService');
 
-  // Date-based sermon routes (must come before slug-only routes)
-  Route::get('/{year}/{month}/{sermon:slug}', [SermonController::class, 'showWithDate'])
-    ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-    ->name('showSermonWithDate');
-  Route::get('/{year}/{month}/{sermon:slug}/edit', [SermonController::class, 'editWithDate'])
-    ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-    ->name('editSermonWithDate');
-  Route::post('/{year}/{month}/{sermon:slug}/edit', [SermonController::class, 'updateWithDate'])
-    ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-    ->name('updateSermonWithDate');
-  Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonController::class, 'destroyWithDate'])
-    ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-    ->name('destroySermonWithDate');
+    // Date-based sermon routes (must come before slug-only routes)
+    Route::get('/{year}/{month}/{sermon:slug}', [SermonController::class, 'showWithDate'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
+        ->name('showSermonWithDate');
+    Route::get('/{year}/{month}/{sermon:slug}/edit', [SermonController::class, 'editWithDate'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
+        ->name('editSermonWithDate');
+    Route::post('/{year}/{month}/{sermon:slug}/edit', [SermonController::class, 'updateWithDate'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
+        ->name('updateSermonWithDate');
+    Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonController::class, 'destroyWithDate'])
+        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
+        ->name('destroySermonWithDate');
 
-  // Audio serving route
-  Route::get('/{sermon:slug}/audio', [SermonController::class, 'serveAudio'])->name('serveSermonAudio');
+    // Audio serving route
+    Route::get('/{sermon:slug}/audio', [SermonController::class, 'serveAudio'])->name('serveSermonAudio');
 
-  // Fallback slug-only routes
-  Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');
-  Route::get('/{sermon:slug}/edit', [SermonController::class, 'edit'])->name('editSermon');
-  Route::post('/{sermon:slug}/edit', [SermonController::class, 'update'])->name('updateSermon');
-  Route::post('/{sermon:slug}/delete', [SermonController::class, 'destroy'])->name('destroySermon');
+    // Fallback slug-only routes
+    Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');
+    Route::get('/{sermon:slug}/edit', [SermonController::class, 'edit'])->name('editSermon');
+    Route::post('/{sermon:slug}/edit', [SermonController::class, 'update'])->name('updateSermon');
+    Route::post('/{sermon:slug}/delete', [SermonController::class, 'destroy'])->name('destroySermon');
 });
 
 // Members routes
 
 // Add Livewire authentication routes using string syntax for Blade views
 Route::get('login', function () {
-  return view('auth.login');
+    return view('auth.login');
 })->name('login');
 Route::get('register', function () {
-  return view('auth.register');
+    return view('auth.register');
 })->name('register');
 Route::get('forgot-password', function () {
-  return view('auth.forgot-password');
+    return view('auth.forgot-password');
 })->name('password.request');
 Route::get('reset-password/{token}', function ($token) {
-  return view('auth.reset-password', ['token' => $token]);
+    return view('auth.reset-password', ['token' => $token]);
 })->name('password.reset');
 Route::get('verify-email', function () {
-  return view('auth.verify-email');
+    return view('auth.verify-email');
 })->middleware('auth')->name('verification.notice');
 
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
-  Route::get('', MemberController::class)->name('memberHome'); // Changed for invokable controller
-  // Manage pages
-  Route::resource('pages', PageController::class);
-  // Manage sermons
-  Route::resource('sermons', SermonController::class);
-  // Manage meetings
-  Route::resource('meetings', MeetingController::class);
+    Route::get('', MemberController::class)->name('memberHome'); // Changed for invokable controller
+    // Manage pages
+    Route::resource('pages', PageController::class);
+    // Manage sermons
+    Route::resource('sermons', SermonController::class);
+    // Manage meetings
+    Route::resource('meetings', MeetingController::class);
 
-  // Calendar admin routes
-  Route::get('calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('admin.calendar.uncategorized');
-  Route::post('calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('admin.calendar.categorize');
-  Route::get('calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('admin.calendar.patterns');
-  Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
+    // Calendar admin routes
+    Route::get('calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('admin.calendar.uncategorized');
+    Route::post('calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('admin.calendar.categorize');
+    Route::get('calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('admin.calendar.patterns');
+    Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
+
+    // Unified media upload route (replaces smart-upload)
+    Route::get('sermon-upload', [SermonController::class, 'upload'])->name('admin.sermon-upload.create');
+    Route::post('sermon-upload', [SermonController::class, 'processMedia'])->name('admin.sermon-upload.store');
 });
 
-Route::get('phpinfo', fn() => phpinfo())->middleware('admin');
+Route::get('phpinfo', fn () => phpinfo())->middleware('admin');
 
 // Permanent Redirects (fixed with absolute paths)
 // Specific whats-on/* redirects must come before general whats-on redirect
@@ -174,13 +178,13 @@ Route::get('/{area}', [PageController::class, 'showPage'])->name('pages.showArea
 Route::get('/{area}/{slug}', [PageController::class, 'show'])->name('pages.showPublic');
 
 Route::get('500', function () {
-  abort(500);
+    abort(500);
 });
 
 Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
-  ->name('logout');
+    ->name('logout');
 
 // Add the email verification route
 Route::get('verify-email/{id}/{hash}', [AuthenticatedSessionController::class, 'verifyEmail'])
-  ->middleware(['auth', 'signed', 'throttle:6,1'])
-  ->name('verification.verify');
+    ->middleware(['auth', 'signed', 'throttle:6,1'])
+    ->name('verification.verify');

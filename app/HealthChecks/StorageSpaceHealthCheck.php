@@ -2,16 +2,21 @@
 
 namespace App\HealthChecks;
 
-use Spatie\Health\Checks\Check;
-use Spatie\Health\Checks\Result;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Facades\Storage;
 
-class StorageSpaceHealthCheck extends Check
+class StorageSpaceHealthCheck implements Arrayable
 {
-    public function run(): Result
+    /**
+     * The name of the health check.
+     */
+    public function name(): string
     {
-        $result = Result::make();
+        return 'storage-space';
+    }
 
+    public function run(): array
+    {
         try {
             $checks = [
                 'livestreams' => storage_path('app/livestreams'),
@@ -30,51 +35,76 @@ class StorageSpaceHealthCheck extends Check
                 $totalUsed += $usage['used_bytes'];
                 $totalAvailable += $usage['available_bytes'];
 
-                $usagePercent = $usage['available_bytes'] > 0 
-                    ? ($usage['used_bytes'] / ($usage['used_bytes'] + $usage['available_bytes'])) * 100 
+                $usagePercent = $usage['available_bytes'] > 0
+                    ? ($usage['used_bytes'] / ($usage['used_bytes'] + $usage['available_bytes'])) * 100
                     : 0;
 
                 if ($usagePercent > 95) {
-                    $errors[] = "{$name}: {$usage['used_formatted']} used, {$usage['available_formatted']} available ({$usagePercent:.1f}% full)";
+                    $errors[] = sprintf('%s: %s used, %s available (%.1f%% full)',
+                        $name, $usage['used_formatted'], $usage['available_formatted'], $usagePercent);
                 } elseif ($usagePercent > 85) {
-                    $warnings[] = "{$name}: {$usage['used_formatted']} used, {$usage['available_formatted']} available ({$usagePercent:.1f}% full)";
+                    $warnings[] = sprintf('%s: %s used, %s available (%.1f%% full)',
+                        $name, $usage['used_formatted'], $usage['available_formatted'], $usagePercent);
                 }
 
-                $result->meta([
-                    "{$name}_used" => $usage['used_formatted'],
-                    "{$name}_available" => $usage['available_formatted'],
-                    "{$name}_usage_percent" => round($usagePercent, 1),
-                ]);
+                // Collecting metadata for final response
             }
 
             // Check sermon disk if configured
+            $metadata = ['total_used' => $this->formatBytes($totalUsed)];
             $sermonDisk = config('livestream-processing.sermon_disk');
             if ($sermonDisk && $sermonDisk !== 'local') {
                 $sermonDiskUsage = $this->checkDiskUsage($sermonDisk);
-                $result->meta(['sermon_disk_status' => $sermonDiskUsage]);
+                $metadata['sermon_disk_status'] = $sermonDiskUsage;
             }
 
-            if (!empty($errors)) {
-                return $result->failed("Critical storage space issues: " . implode('; ', $errors));
+            if (! empty($errors)) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Critical storage space issues: '.implode('; ', $errors),
+                    'metadata' => $metadata,
+                    'timestamp' => now()->toISOString(),
+                ];
             }
 
-            if (!empty($warnings)) {
-                return $result->warning("Storage space warnings: " . implode('; ', $warnings));
+            if (! empty($warnings)) {
+                return [
+                    'status' => 'degraded',
+                    'message' => 'Storage space warnings: '.implode('; ', $warnings),
+                    'metadata' => $metadata,
+                    'timestamp' => now()->toISOString(),
+                ];
             }
 
             $totalUsedFormatted = $this->formatBytes($totalUsed);
-            $result->meta(['total_used' => $totalUsedFormatted]);
 
-            return $result->ok("Storage space is healthy (total used: {$totalUsedFormatted})");
+            return [
+                'status' => 'healthy',
+                'message' => "Storage space is healthy (total used: {$totalUsedFormatted})",
+                'metadata' => $metadata,
+                'timestamp' => now()->toISOString(),
+            ];
 
         } catch (\Exception $e) {
-            return $result->failed("Storage health check error: " . $e->getMessage());
+            return [
+                'status' => 'error',
+                'message' => 'Storage health check error: '.$e->getMessage(),
+                'timestamp' => now()->toISOString(),
+            ];
         }
+    }
+
+    /**
+     * Convert the health check to an array.
+     */
+    public function toArray(): array
+    {
+        return $this->run();
     }
 
     private function getDirectoryUsage(string $path): array
     {
-        if (!is_dir($path)) {
+        if (! is_dir($path)) {
             // Create directory if it doesn't exist
             mkdir($path, 0755, true);
         }
@@ -92,7 +122,7 @@ class StorageSpaceHealthCheck extends Check
 
     private function getDirectorySize(string $path): int
     {
-        if (!is_dir($path)) {
+        if (! is_dir($path)) {
             return 0;
         }
 
@@ -115,13 +145,13 @@ class StorageSpaceHealthCheck extends Check
     {
         try {
             $disk = Storage::disk($diskName);
-            
+
             // This is basic - some disks may not support size queries
             return [
                 'status' => 'accessible',
                 'disk_name' => $diskName,
             ];
-            
+
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
@@ -137,9 +167,9 @@ class StorageSpaceHealthCheck extends Check
         $bytes = max($bytes, 0);
         $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
         $pow = min($pow, count($units) - 1);
-        
+
         $bytes /= pow(1024, $pow);
-        
-        return round($bytes, 2) . ' ' . $units[$pow];
+
+        return round($bytes, 2).' '.$units[$pow];
     }
 }

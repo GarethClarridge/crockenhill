@@ -41,7 +41,7 @@ class LivestreamProcessingResult extends Data
             'processing',
             'segmentation_complete',
             'extraction_complete',
-            'sermon_submitted'
+            'sermon_submitted',
         ]);
     }
 
@@ -57,7 +57,7 @@ class LivestreamProcessingResult extends Data
 
     public function hasSegments(): bool
     {
-        return !empty($this->segments);
+        return ! empty($this->segments);
     }
 
     public function getFileSizeFormatted(): string
@@ -65,7 +65,8 @@ class LivestreamProcessingResult extends Data
         $bytes = $this->fileSize;
         $units = ['B', 'KB', 'MB', 'GB'];
         $power = $bytes > 0 ? floor(log($bytes, 1024)) : 0;
-        return number_format($bytes / pow(1024, $power), 2, '.', ',') . ' ' . $units[$power];
+
+        return number_format($bytes / pow(1024, $power), 2, '.', ',').' '.$units[$power];
     }
 
     public function getDurationFormatted(): ?string

@@ -166,6 +166,230 @@ curl -X GET \
   https://your-domain.com/api/livestreams/processing/550e8400-e29b-41d4-a716-446655440000/status
 ```
 
+### 3. Get Processing Result
+
+Get detailed processing results and extracted sermon information.
+
+**Endpoint:** `GET /api/livestreams/processing/{processingId}/result`
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `processingId` | UUID | Yes | Processing ID returned from upload |
+
+#### Response Format
+
+**Success Response (HTTP 200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "processing_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "completed",
+    "status_display": "Completed",
+    "original_filename": "sunday-service-2024-01-15.mp4",
+    "file_size": 1073741824,
+    "file_size_formatted": "1.00 GB",
+    "file_format": "mp4",
+    "duration": 3600,
+    "duration_formatted": "01:00:00",
+    "sermon_start_time": 1200.5,
+    "sermon_end_time": 2400.0,
+    "sermon_duration_formatted": "20:00",
+    "sermon_id": 123,
+    "error_message": null,
+    "processing_metadata": {
+      "rms_threshold": -30.0,
+      "segments_found": 5,
+      "sermon_segments": 1
+    },
+    "started_at": "2024-01-15T09:00:00Z",
+    "completed_at": "2024-01-15T09:25:00Z",
+    "segments": [
+      {
+        "start_time": 0.0,
+        "end_time": 180.5,
+        "duration": 180.5,
+        "duration_formatted": "03:01",
+        "classification": "song",
+        "avg_rms": -25.2,
+        "peak_rms": -18.4,
+        "is_sermon_candidate": false,
+        "segment_order": 1
+      },
+      {
+        "start_time": 1200.5,
+        "end_time": 2400.0,
+        "duration": 1199.5,
+        "duration_formatted": "19:59",
+        "classification": "speech",
+        "avg_rms": -32.1,
+        "peak_rms": -28.7,
+        "is_sermon_candidate": true,
+        "segment_order": 3
+      }
+    ],
+    "segments_summary": {
+      "total_segments": 5,
+      "song_segments": 3,
+      "speech_segments": 2,
+      "sermon_segments": 1
+    },
+    "has_sermon": true,
+    "has_segments": true
+  }
+}
+```
+
+**Error Response (HTTP 404):**
+
+```json
+{
+  "success": false,
+  "message": "Processing record not found",
+  "error": "No processing found with the given ID"
+}
+```
+
+#### Example Request
+
+```bash
+curl -X GET \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  https://your-domain.com/api/livestreams/processing/550e8400-e29b-41d4-a716-446655440000/result
+```
+
+### 4. Retry Processing
+
+Retry failed processing for a given processing ID.
+
+**Endpoint:** `POST /api/livestreams/processing/{processingId}/retry`
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `processingId` | UUID | Yes | Processing ID to retry |
+
+#### Response Format
+
+**Success Response (HTTP 200):**
+
+```json
+{
+  "success": true,
+  "message": "Processing retry initiated successfully",
+  "data": {
+    "processing_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "pending",
+    "status_url": "/api/livestreams/processing/550e8400-e29b-41d4-a716-446655440000/status"
+  }
+}
+```
+
+**Error Response (HTTP 400):**
+
+```json
+{
+  "success": false,
+  "message": "Failed to retry processing",
+  "error": "Processing is not in a retryable state"
+}
+```
+
+#### Example Request
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  https://your-domain.com/api/livestreams/processing/550e8400-e29b-41d4-a716-446655440000/retry
+```
+
+### 5. Cancel Processing
+
+Cancel ongoing processing for a given processing ID.
+
+**Endpoint:** `DELETE /api/livestreams/processing/{processingId}`
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `processingId` | UUID | Yes | Processing ID to cancel |
+
+#### Response Format
+
+**Success Response (HTTP 200):**
+
+```json
+{
+  "success": true,
+  "message": "Processing cancelled successfully"
+}
+```
+
+**Error Response (HTTP 400):**
+
+```json
+{
+  "success": false,
+  "message": "Failed to cancel processing",
+  "error": "Processing cannot be cancelled in current state"
+}
+```
+
+#### Example Request
+
+```bash
+curl -X DELETE \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  https://your-domain.com/api/livestreams/processing/550e8400-e29b-41d4-a716-446655440000
+```
+
+### 6. Get Processing Summary
+
+Get a summary of all processing activities and statistics.
+
+**Endpoint:** `GET /api/livestreams/processing/summary`
+
+#### Response Format
+
+**Success Response (HTTP 200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "total_processed": 45,
+    "successful": 42,
+    "failed": 3,
+    "pending": 2,
+    "processing": 1,
+    "average_processing_time": 15.2,
+    "total_storage_used": "12.5 GB",
+    "success_rate": 93.3,
+    "recent_activity": [
+      {
+        "processing_id": "550e8400-e29b-41d4-a716-446655440000",
+        "filename": "service-2024-01-15.mp4",
+        "status": "completed",
+        "completed_at": "2024-01-15T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### Example Request
+
+```bash
+curl -X GET \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  https://your-domain.com/api/livestreams/processing/summary
+```
+
 ## Processing Workflow
 
 ### 1. Upload and Validation
@@ -211,6 +435,92 @@ curl -X GET \
 1. Temporary files are cleaned up
 2. Processing status is updated to completed
 3. Notifications are sent if configured
+
+## API Contract Implementation
+
+### ProcessingStatusContract
+
+The Livestream Processing API implements the `ProcessingStatusContract` interface, providing consistent API responses with other processing systems (such as automated sermon processing).
+
+#### StandardProcessingResponse Format
+
+All contract-compliant endpoints return a standardized response format:
+
+```json
+{
+  "found": true,
+  "processing_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "processing",
+  "current_step": "segmenting",
+  "progress_percentage": 45,
+  "started_at": "2024-01-15T09:00:00Z",
+  "updated_at": "2024-01-15T09:15:00Z",
+  "created_at": "2024-01-15T09:00:00Z",
+  "estimated_completion": "2-3 minutes",
+  "sermon_id": null,
+  "sermon_url": null,
+  "error_message": null,
+  "segments_identified": 5,
+  "sermon_video_path": null,
+  "segments": [
+    {
+      "index": 1,
+      "start_time": 0.0,
+      "end_time": 180.5,
+      "classification": "song",
+      "is_sermon": false
+    }
+  ]
+}
+```
+
+#### Contract Methods
+
+The contract provides three key methods for unified processing management:
+
+1. **`getProcessingStatus(string $processingId): StandardProcessingResponse`**
+   - Returns standardized processing status
+   - Includes livestream-specific additional data
+   - Compatible with other processing systems
+
+2. **`cancelProcessing(string $processingId): array`**
+   - Cancels active processing
+   - Returns consistent response format
+   - Handles validation and error cases
+
+3. **`canHandle(string $processingId): bool`**
+   - Determines if this controller can handle the processing ID
+   - Enables polymorphic processing across different systems
+   - Used for routing status requests to appropriate handlers
+
+#### Benefits
+
+- **Consistent API**: Unified response format across all processing types
+- **Polymorphic Status Checking**: Single endpoint can handle different processing types
+- **Error Standardization**: Consistent error handling and response formats
+- **Enhanced Integration**: Easier integration with client applications and monitoring systems
+
+#### Usage Example
+
+```javascript
+// Check any processing ID - automatically routed to correct handler
+async function checkProcessingStatus(processingId) {
+  const response = await fetch(`/api/processing/${processingId}/status`);
+  const data = await response.json();
+  
+  if (data.found) {
+    console.log(`Status: ${data.status} (${data.progress_percentage}%)`);
+    console.log(`Current step: ${data.current_step}`);
+    
+    // Handle livestream-specific data if present
+    if (data.segments_identified) {
+      console.log(`Segments found: ${data.segments_identified}`);
+    }
+  } else {
+    console.log('Processing not found');
+  }
+}
+```
 
 ## Configuration
 

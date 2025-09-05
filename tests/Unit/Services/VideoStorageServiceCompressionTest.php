@@ -6,7 +6,6 @@ use App\Data\LivestreamSegment;
 use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class VideoStorageServiceCompressionTest extends TestCase
@@ -14,14 +13,16 @@ class VideoStorageServiceCompressionTest extends TestCase
     use RefreshDatabase;
 
     protected VideoStorageService $service;
+
     protected string $testVideoPath;
+
     protected LivestreamSegment $testSegment;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new VideoStorageService();
+        $this->service = new VideoStorageService;
 
         // Create a mock segment for testing
         $this->testSegment = new LivestreamSegment(
@@ -141,7 +142,7 @@ class VideoStorageServiceCompressionTest extends TestCase
 
         // Fallback should have lower bitrate for more aggressive compression
         $this->assertLessThan($optimized['bitrate'], $fallback['bitrate']);
-        
+
         // Both should use same sample rate and channels for consistency
         $this->assertEquals($optimized['sample_rate'], $fallback['sample_rate']);
         $this->assertEquals($optimized['channels'], $fallback['channels']);

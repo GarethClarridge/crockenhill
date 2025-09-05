@@ -49,21 +49,29 @@ This guide covers the deployment requirements and setup for the livestream video
 
 #### PHP Configuration
 
-Update `php.ini` for video processing:
+Update `php.ini` for video processing (production values):
 
 ```ini
-# File upload limits
-upload_max_filesize = 2G
-post_max_size = 2G
-max_input_time = 3600
-max_execution_time = 3600
+# File upload and processing limits
+upload_max_filesize = 5G
+post_max_size = 5G
+max_input_time = 7200
+max_execution_time = 7200
 
-# Memory limits
-memory_limit = 1G
+# Memory limits for video processing
+memory_limit = 2G
+
+# Input variable limits for large form data
+max_input_vars = 3000
 
 # Temporary directory with sufficient space
 upload_tmp_dir = /var/tmp/php_uploads
+
+# Required for video processing
+variables_order = EGPCS
 ```
+
+**For development environments**, you can use the provided Docker configuration which includes these optimized settings.
 
 ## Installation Steps
 
@@ -84,22 +92,74 @@ Add the following environment variables to your `.env` file:
 FFMPEG_PATH=/usr/bin/ffmpeg
 FFPROBE_PATH=/usr/bin/ffprobe
 
-# Processing Configuration
-LIVESTREAM_RMS_THRESHOLD=-30.0
+# RMS Threshold Configuration (Primary)
+LIVESTREAM_RMS_THRESHOLD=-45.0
+
+# Adaptive Threshold Configuration (New Feature)
+LIVESTREAM_ADAPTIVE_THRESHOLDS_ENABLED=true
+LIVESTREAM_SPEECH_PERCENTILE=30
+LIVESTREAM_ADAPTIVE_FALLBACK_ENABLED=true
+LIVESTREAM_MIN_THRESHOLD=-80.0
+LIVESTREAM_MAX_THRESHOLD=-20.0
+LIVESTREAM_MIN_SAMPLE_COUNT=1000
+
+# Section Duration Requirements
 LIVESTREAM_MIN_SECTION_DURATION=60.0
 LIVESTREAM_MIN_SERMON_DURATION=300.0
+
+# File Size and Processing Limits
 LIVESTREAM_MAX_FILE_SIZE=2147483648
+LIVESTREAM_PROCESSING_TIMEOUT=7200
+LIVESTREAM_MAX_CONCURRENT_JOBS=2
+LIVESTREAM_RETRY_ATTEMPTS=3
+LIVESTREAM_RETRY_DELAY=60
 
 # Storage Configuration
 LIVESTREAM_STORAGE_DISK=local
-LIVESTREAM_SERMON_DISK=sermon_disk
+LIVESTREAM_SERMON_DISK=local
+LIVESTREAM_TEMP_DISK=local
+
+# Storage Paths
+LIVESTREAM_VIDEO_PATH=sermons/videos
+LIVESTREAM_AUDIO_PATH=sermons/audio
+LIVESTREAM_TEMP_PATH=temp/livestreams
 
 # Queue Configuration
-LIVESTREAM_QUEUE_NAME=livestream
-LIVESTREAM_QUEUE_CONNECTION=redis
+LIVESTREAM_QUEUE_NAME=livestream-processing
+LIVESTREAM_QUEUE_CONNECTION=database
 
 # Notification Configuration
 LIVESTREAM_ADMIN_EMAIL=admin@your-domain.com
+LIVESTREAM_NOTIFY_SUCCESS=false
+LIVESTREAM_NOTIFY_FAILURE=true
+
+# Cleanup and Retention
+LIVESTREAM_TEMP_RETENTION_HOURS=24
+LIVESTREAM_FAILED_RETENTION_DAYS=7
+LIVESTREAM_AUTO_CLEANUP=true
+
+# Quality and Performance Settings
+LIVESTREAM_AUDIO_SAMPLE_RATE=44100
+LIVESTREAM_VIDEO_PRESET=medium
+LIVESTREAM_PRESERVE_QUALITY=true
+
+# Rate Limiting (API)
+LIVESTREAM_RATE_LIMITING_ENABLED=true
+LIVESTREAM_UPLOAD_RATE_PER_MINUTE=1
+LIVESTREAM_UPLOAD_RATE_PER_HOUR=5
+LIVESTREAM_RETRY_RATE_PER_MINUTE=1
+LIVESTREAM_RETRY_RATE_PER_HOUR=3
+LIVESTREAM_STATUS_RATE_PER_MINUTE=60
+
+# Logging Configuration
+LIVESTREAM_DETAILED_LOGGING=true
+LIVESTREAM_LOG_FFMPEG=false
+LIVESTREAM_PERFORMANCE_MONITORING=true
+
+# Transcription Service (Required for sermon processing)
+TRANSCRIPTION_SERVICE_TYPE=openai
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 ### 3. Database Migration
@@ -184,15 +244,17 @@ REDIS_PORT=6379
 
 #### Queue Worker Setup
 
-Create a systemd service for queue workers:
+Create systemd services for queue workers. You need separate workers for different queue types:
+
+**Livestream Processing Worker:**
 
 ```bash
-sudo nano /etc/systemd/system/laravel-worker.service
+sudo nano /etc/systemd/system/laravel-livestream-worker.service
 ```
 
 ```ini
 [Unit]
-Description=Laravel queue worker
+Description=Laravel livestream queue worker
 After=network.target
 
 [Service]
@@ -200,18 +262,50 @@ Type=simple
 User=www-data
 Group=www-data
 Restart=always
-ExecStart=/usr/bin/php /path/to/your/app/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+ExecStart=/usr/bin/php /path/to/your/app/artisan queue:work --queue=livestream-processing --sleep=3 --tries=3 --max-time=7200 --timeout=3600
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Enable and start the service:
+**General Processing Worker:**
+
+```bash
+sudo nano /etc/systemd/system/laravel-sermon-worker.service
+```
+
+```ini
+[Unit]
+Description=Laravel sermon queue worker
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Restart=always
+ExecStart=/usr/bin/php /path/to/your/app/artisan queue:work --queue=sermon-processing,default --sleep=3 --tries=3 --max-time=3600
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start both services:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable laravel-worker
-sudo systemctl start laravel-worker
+
+# Enable services to start on boot
+sudo systemctl enable laravel-livestream-worker
+sudo systemctl enable laravel-sermon-worker
+
+# Start services
+sudo systemctl start laravel-livestream-worker
+sudo systemctl start laravel-sermon-worker
+
+# Check status
+sudo systemctl status laravel-livestream-worker
+sudo systemctl status laravel-sermon-worker
 ```
 
 ### 6. Web Server Configuration
@@ -721,5 +815,96 @@ crontab -e
    # Update FFmpeg if needed
    sudo apt install --only-upgrade ffmpeg
    ```
+
+## Docker Deployment
+
+### Development with Laravel Sail
+
+The project includes a Docker configuration optimized for video processing:
+
+#### Prerequisites
+
+- Docker and Docker Compose installed
+- Git repository cloned
+
+#### Setup
+
+1. **Copy environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Configure for development:**
+   ```bash
+   # Add to .env
+   TRANSCRIPTION_SERVICE_TYPE=mock  # Use mock service to avoid API costs
+   LIVESTREAM_RATE_LIMITING_ENABLED=false  # Disable rate limiting
+   ```
+
+3. **Start services:**
+   ```bash
+   ./vendor/bin/sail up -d
+   ```
+
+4. **Run migrations:**
+   ```bash
+   ./vendor/bin/sail artisan migrate
+   ```
+
+#### Key Features of Docker Configuration
+
+- **Optimized PHP Settings**: Pre-configured with video processing limits (5GB upload, 2G memory, 7200s timeout)
+- **FFmpeg Integration**: FFmpeg pre-installed and configured in containers
+- **MySQL Database**: Ready-to-use database service
+- **Queue Processing**: Supports background job processing
+- **Development Tools**: Includes Mailpit for email testing
+
+#### Production Docker Deployment
+
+For production deployments using Docker:
+
+1. **Build production image:**
+   ```bash
+   docker build -f docker/8.4/Dockerfile -t your-app:latest .
+   ```
+
+2. **Use environment-specific configuration:**
+   ```bash
+   # Production environment variables
+   APP_ENV=production
+   APP_DEBUG=false
+   TRANSCRIPTION_SERVICE_TYPE=openai  # Use real transcription service
+   LIVESTREAM_RATE_LIMITING_ENABLED=true  # Enable rate limiting
+   ```
+
+3. **Deploy with Docker Compose or orchestration tool of choice**
+
+## CI/CD Integration
+
+### GitHub Actions
+
+The project includes a GitHub Actions workflow for automated testing:
+
+#### Features
+- **FFmpeg Installation**: Automatically installs FFmpeg for video processing tests
+- **Integration Tests**: Runs comprehensive integration tests with video processing
+- **Environment Configuration**: Uses mock services for testing to avoid API costs
+- **Database Setup**: Configures MySQL for testing environment
+
+#### Configuration
+Located at `.github/workflows/integration-tests.yml`, the workflow:
+- Runs on pushes to `master` and `develop` branches
+- Installs PHP 8.2 with required extensions
+- Sets up MySQL service for testing
+- Installs FFmpeg for video processing tests
+- Uses mock transcription service (`TRANSCRIPTION_SERVICE_TYPE=mock`)
+- Runs parallel integration tests
+
+### Adding CI/CD to Your Environment
+
+1. **Fork or adapt the existing workflow**
+2. **Set up required secrets in GitHub:**
+   - `OPENAI_API_KEY` (if using real API in staging/production tests)
+3. **Customize environment variables for your deployment needs**
 
 This deployment guide provides comprehensive instructions for setting up and maintaining the livestream processing feature. Follow the steps carefully and adapt the configuration to your specific environment and requirements.

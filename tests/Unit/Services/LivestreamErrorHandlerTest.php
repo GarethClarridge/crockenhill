@@ -2,29 +2,30 @@
 
 namespace Tests\Unit\Services;
 
-use Tests\TestCase;
+use App\Models\LivestreamProcessingLog;
 use App\Services\LivestreamErrorHandler;
 use App\Services\LivestreamProcessingLogger;
-use App\Models\LivestreamProcessingLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
 use Mockery;
+use Tests\TestCase;
 
 class LivestreamErrorHandlerTest extends TestCase
 {
     use RefreshDatabase;
 
     private LivestreamErrorHandler $errorHandler;
+
     private LivestreamProcessingLogger $mockLogger;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->mockLogger = Mockery::mock(LivestreamProcessingLogger::class);
         $this->errorHandler = new LivestreamErrorHandler($this->mockLogger);
-        
+
         Mail::fake();
         Config::set('livestream-processing.admin_email', 'admin@test.com');
     }
@@ -81,7 +82,7 @@ class LivestreamErrorHandlerTest extends TestCase
     {
         $process = new \Symfony\Component\Process\Process(['echo', 'test']);
         $retryableException = new \Symfony\Component\Process\Exception\ProcessTimedOutException($process, \Symfony\Component\Process\Exception\ProcessTimedOutException::TYPE_GENERAL);
-        
+
         $this->assertTrue($this->errorHandler->shouldRetry($retryableException, 1));
         $this->assertTrue($this->errorHandler->shouldRetry($retryableException, 2));
         $this->assertFalse($this->errorHandler->shouldRetry($retryableException, 3)); // Max retries reached
@@ -90,14 +91,14 @@ class LivestreamErrorHandlerTest extends TestCase
     public function test_should_retry_with_non_retryable_exception()
     {
         $nonRetryableException = new \InvalidArgumentException('Invalid file format');
-        
+
         $this->assertFalse($this->errorHandler->shouldRetry($nonRetryableException, 1));
     }
 
     public function test_should_retry_with_retryable_message()
     {
         $exception = new \Exception('Connection timed out while processing');
-        
+
         $this->assertTrue($this->errorHandler->shouldRetry($exception, 1));
     }
 
@@ -203,7 +204,7 @@ class LivestreamErrorHandlerTest extends TestCase
 
         $this->assertFalse($result); // Should not retry
 
-        $processing->refresh();  
+        $processing->refresh();
         $this->assertEquals('failed', $processing->status);
         $this->assertStringContainsString($operation, $processing->error_message);
 
@@ -219,7 +220,7 @@ class LivestreamErrorHandlerTest extends TestCase
         Config::set('livestream-processing.max_file_size', 1000);
 
         // Create a temporary file
-        $tempFile = tempnam(sys_get_temp_dir(), 'test') . '.mp4';
+        $tempFile = tempnam(sys_get_temp_dir(), 'test').'.mp4';
         file_put_contents($tempFile, str_repeat('x', 500)); // 500 bytes
 
         $errors = $this->errorHandler->validateFileFormat($tempFile);
@@ -243,7 +244,7 @@ class LivestreamErrorHandlerTest extends TestCase
     {
         Config::set('livestream-processing.max_file_size', 100);
 
-        $tempFile = tempnam(sys_get_temp_dir(), 'test') . '.mp4';
+        $tempFile = tempnam(sys_get_temp_dir(), 'test').'.mp4';
         file_put_contents($tempFile, str_repeat('x', 200)); // 200 bytes, over limit
 
         $errors = $this->errorHandler->validateFileFormat($tempFile);

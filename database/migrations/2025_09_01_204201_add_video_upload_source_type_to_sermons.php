@@ -15,11 +15,11 @@ return new class extends Migration
             // Modify the existing source_type enum to include video_upload
             $table->dropColumn('source_type');
         });
-        
+
         Schema::table('sermons', function (Blueprint $table) {
             $table->enum('source_type', ['manual', 'audio_upload', 'livestream', 'video_upload'])
-                  ->default('manual')
-                  ->after('video_file_path');
+                ->default('manual')
+                ->after('video_file_path');
             $table->index('source_type');
         });
     }
@@ -33,11 +33,11 @@ return new class extends Migration
             $table->dropIndex(['source_type']);
             $table->dropColumn('source_type');
         });
-        
+
         Schema::table('sermons', function (Blueprint $table) {
             $table->enum('source_type', ['manual', 'audio_upload', 'livestream'])
-                  ->default('manual')
-                  ->after('video_file_path');
+                ->default('manual')
+                ->after('video_file_path');
             $table->index('source_type');
         });
     }

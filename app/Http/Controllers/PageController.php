@@ -154,7 +154,7 @@ class PageController extends Controller
         $page->slug = Str::slug($validated['heading']);
         $page->area = $validated['area'];
         $page->markdown = $validated['markdown'];
-        $page->body = trim($html);
+        $page->body = trim((string) $html);
         $page->description = $validated['description'] ?? null;
         $page->navigation = $navigation;
         $page->save(); // Save once to ensure $page->slug is set for image path
@@ -218,7 +218,7 @@ class PageController extends Controller
         $page->area = $validated['area'];
         $page->navigation = $navigation;
         $page->markdown = $validated['markdown'];
-        $page->body = trim($html);
+        $page->body = trim((string) $html);
 
         $newSlug = Str::slug($validated['heading']);
         $oldSlug = $page->slug; // Get the original slug

@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Tests\TestCase;
 
 class AdaptiveThresholdRegressionTest extends TestCase
 {
@@ -24,7 +24,7 @@ class AdaptiveThresholdRegressionTest extends TestCase
 
         $this->assertFalse($adaptiveConfig['enabled']);
         $this->assertEquals(-35.0, $fixedThreshold);
-        
+
         // System should still work with fixed thresholds
         $this->assertTrue(true, 'System can be configured to use fixed thresholds');
     }
@@ -55,10 +55,10 @@ class AdaptiveThresholdRegressionTest extends TestCase
     {
         // This test documents that we fixed the hardcoded RMS values issue
         // The old system used -40dB for speech and -20dB for songs regardless of actual audio
-        
+
         $expectedImprovements = [
             'old_speech_rms' => -40.0, // Was hardcoded
-            'old_song_rms' => -20.0,   // Was hardcoded  
+            'old_song_rms' => -20.0,   // Was hardcoded
             'new_speech_examples' => [-65.5, -43.8, -45.1], // Real values from Phase 1
             'new_song_examples' => [-28.5, -24.1, -31.5],   // Real values from Phase 1
         ];
@@ -83,7 +83,7 @@ class AdaptiveThresholdRegressionTest extends TestCase
     public function test_configuration_validation(): void
     {
         $adaptiveConfig = config('livestream-processing.adaptive_thresholds');
-        
+
         // Test required fields exist
         $requiredFields = ['enabled', 'speech_percentile', 'min_sample_count', 'fallback_enabled'];
         foreach ($requiredFields as $field) {
@@ -112,7 +112,7 @@ class AdaptiveThresholdRegressionTest extends TestCase
     {
         // The existing RmsThresholdIntegrationTest should still pass
         // This test documents that we maintained backward compatibility
-        
+
         $originalConfig = [
             'rms_threshold' => config('livestream-processing.rms_threshold'),
             'min_section_duration' => config('livestream-processing.min_section_duration'),
@@ -127,7 +127,7 @@ class AdaptiveThresholdRegressionTest extends TestCase
         // Values should be reasonable
         $this->assertIsFloat($originalConfig['rms_threshold']);
         $this->assertLessThan(0, $originalConfig['rms_threshold'], 'RMS threshold should be negative dB');
-        
+
         $this->assertTrue(true, 'Backward compatibility maintained for existing configuration');
     }
 
@@ -150,7 +150,7 @@ class AdaptiveThresholdRegressionTest extends TestCase
 
         // Test that configuration supports our plan goals
         $adaptiveConfig = config('livestream-processing.adaptive_thresholds');
-        
+
         $this->assertArrayHasKey('enabled', $adaptiveConfig, 'Feature flag implemented');
         $this->assertArrayHasKey('speech_percentile', $adaptiveConfig, 'Percentile configuration implemented');
         $this->assertArrayHasKey('fallback_enabled', $adaptiveConfig, 'Fallback mechanism implemented');

@@ -20,8 +20,10 @@ class LivestreamSegmentFactory extends Factory
                 // If processing_log_id is provided, get the processing_id from that log
                 if (isset($attributes['processing_log_id'])) {
                     $log = \App\Models\LivestreamProcessingLog::find($attributes['processing_log_id']);
+
                     return $log ? $log->processing_id : $this->faker->uuid();
                 }
+
                 return $this->faker->uuid();
             },
             'processing_log_id' => 1, // Will be overridden in tests

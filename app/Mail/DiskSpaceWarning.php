@@ -14,8 +14,7 @@ class DiskSpaceWarning extends Mailable
 
     public function __construct(
         public string $processingId
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {

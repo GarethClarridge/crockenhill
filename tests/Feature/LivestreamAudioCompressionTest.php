@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Data\LivestreamSegment;
 use App\Jobs\ExtractSermon;
 use App\Models\LivestreamProcessingLog;
 use App\Services\VideoStorageService;
@@ -19,13 +18,13 @@ class LivestreamAudioCompressionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Set up test configuration
         Config::set('livestream-processing.audio_extraction.transcription_optimized.max_file_size', 25 * 1024 * 1024);
         Config::set('livestream-processing.audio_extraction.transcription_optimized.bitrate', 48);
         Config::set('livestream-processing.audio_extraction.transcription_optimized.sample_rate', 16000);
         Config::set('livestream-processing.audio_extraction.transcription_optimized.channels', 1);
-        
+
         Config::set('livestream-processing.audio_extraction.fallback_compression.bitrate', 32);
         Config::set('livestream-processing.audio_extraction.fallback_compression.sample_rate', 16000);
         Config::set('livestream-processing.audio_extraction.fallback_compression.channels', 1);
@@ -73,12 +72,12 @@ class LivestreamAudioCompressionTest extends TestCase
                 'final_size_mb' => 12.8,
                 'compression_applied' => true,
                 'compression_ratio' => 2.54,
-                'valid_for_transcription' => true
-            ]
+                'valid_for_transcription' => true,
+            ],
         ];
 
         $processingLog->update([
-            'processing_metadata' => $compressionMetadata
+            'processing_metadata' => $compressionMetadata,
         ]);
 
         $processingLog->refresh();
@@ -93,8 +92,8 @@ class LivestreamAudioCompressionTest extends TestCase
 
     public function test_video_storage_service_extract_optimized_audio_method_exists(): void
     {
-        $service = new VideoStorageService();
-        
+        $service = new VideoStorageService;
+
         $this->assertTrue(method_exists($service, 'extractOptimizedAudioFromSegment'));
         $this->assertTrue(method_exists($service, 'validateAudioFileSize'));
     }
@@ -108,7 +107,7 @@ class LivestreamAudioCompressionTest extends TestCase
         $this->assertIsInt($optimized['bitrate']);
         $this->assertGreaterThan(0, $optimized['bitrate']);
         $this->assertLessThanOrEqual(128, $optimized['bitrate']); // Reasonable upper bound
-        
+
         $this->assertEquals(16000, $optimized['sample_rate']); // Standard for speech
         $this->assertEquals(1, $optimized['channels']); // Mono for speech
         $this->assertEquals(25 * 1024 * 1024, $optimized['max_file_size']); // OpenAI limit
@@ -152,17 +151,17 @@ class LivestreamAudioCompressionTest extends TestCase
         $config = config('livestream-processing.audio_extraction.transcription_optimized');
 
         // Test that configuration is optimized for speech recognition
-        
+
         // Sample rate of 16kHz is standard for speech recognition
         $this->assertEquals(16000, $config['sample_rate']);
-        
+
         // Mono audio is sufficient and reduces file size
         $this->assertEquals(1, $config['channels']);
-        
+
         // Bitrate should be reasonable balance of quality vs size
         $this->assertGreaterThanOrEqual(32, $config['bitrate']); // Minimum for acceptable quality
         $this->assertLessThanOrEqual(64, $config['bitrate']); // Maximum for size efficiency
-        
+
         // File size limit should match OpenAI Whisper API
         $this->assertEquals(25 * 1024 * 1024, $config['max_file_size']);
     }
@@ -177,10 +176,10 @@ class LivestreamAudioCompressionTest extends TestCase
 
         $this->assertIsInt($validation['max_duration_minutes']);
         $this->assertGreaterThan(60, $validation['max_duration_minutes']); // At least 1 hour
-        
+
         $this->assertIsBool($validation['size_check_enabled']);
         $this->assertTrue($validation['size_check_enabled']); // Should be enabled
-        
+
         $this->assertIsBool($validation['quality_check_enabled']);
         $this->assertTrue($validation['quality_check_enabled']); // Should be enabled
     }
@@ -188,27 +187,27 @@ class LivestreamAudioCompressionTest extends TestCase
     public function test_compression_ratio_calculations_are_reasonable(): void
     {
         // Test the math for typical compression scenarios
-        
+
         // Current: 128kbps stereo @ 44.1kHz ≈ 960KB/minute
         $currentBitrate = 128; // kbps
-        
-        // Optimized: 48kbps mono @ 16kHz ≈ 360KB/minute  
+
+        // Optimized: 48kbps mono @ 16kHz ≈ 360KB/minute
         $optimizedBitrate = config('livestream-processing.audio_extraction.transcription_optimized.bitrate');
-        
+
         // Fallback: 32kbps mono @ 16kHz ≈ 240KB/minute
         $fallbackBitrate = config('livestream-processing.audio_extraction.fallback_compression.bitrate');
-        
+
         // Calculate expected compression ratios
         $optimizedRatio = $currentBitrate / $optimizedBitrate;
         $fallbackRatio = $currentBitrate / $fallbackBitrate;
-        
+
         // Verify ratios are reasonable
         $this->assertGreaterThan(2.0, $optimizedRatio); // At least 2:1 compression
         $this->assertLessThan(5.0, $optimizedRatio); // Not more than 5:1 (quality loss)
-        
+
         $this->assertGreaterThan(3.0, $fallbackRatio); // At least 3:1 compression
         $this->assertLessThan(6.0, $fallbackRatio); // Not more than 6:1 (quality loss)
-        
+
         $this->assertGreaterThan($optimizedRatio, $fallbackRatio); // Fallback should compress more
     }
 
@@ -216,7 +215,7 @@ class LivestreamAudioCompressionTest extends TestCase
     {
         // Clean up any test storage
         Storage::fake('local');
-        
+
         parent::tearDown();
     }
 }

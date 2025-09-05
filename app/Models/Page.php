@@ -14,11 +14,16 @@ use Illuminate\Support\Carbon; // Added Enum import
  * @property int $id
  * @property string $slug
  * @property string $heading
+ * @property string $title
+ * @property string $content
  * @property string $description
  * @property PageArea $area
  * @property string $body
  * @property ?string $markdown
  * @property bool $navigation
+ * @property bool $published
+ * @property ?string $image_url
+ * @property ?int $sort_order
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
  * @property-read ?string $route

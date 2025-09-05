@@ -33,7 +33,7 @@ class LivestreamProcessingStatus extends Data
             'processing',
             'segmentation_complete',
             'extraction_complete',
-            'sermon_submitted'
+            'sermon_submitted',
         ]);
     }
 
@@ -87,11 +87,11 @@ class LivestreamProcessingStatus extends Data
 
     public function hasStepDetails(): bool
     {
-        return $this->stepDetails !== null && !empty($this->stepDetails);
+        return $this->stepDetails !== null && ! empty($this->stepDetails);
     }
 
     public function hasProcessingStats(): bool
     {
-        return $this->processingStats !== null && !empty($this->processingStats);
+        return $this->processingStats !== null && ! empty($this->processingStats);
     }
 }

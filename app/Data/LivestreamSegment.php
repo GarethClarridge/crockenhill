@@ -74,6 +74,7 @@ class LivestreamSegment extends Data
         if ($minutes > 60) {
             $hours = floor($minutes / 60);
             $minutes = $minutes % 60;
+
             return sprintf('%dh %dm %ds', $hours, $minutes, $remainingSeconds);
         }
 

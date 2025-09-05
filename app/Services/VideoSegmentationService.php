@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\LivestreamSegment;
 use FFMpeg\FFMpeg;
 use FFMpeg\FFProbe;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -12,11 +13,17 @@ use Illuminate\Support\Str;
 class VideoSegmentationService
 {
     private FFMpeg $ffmpeg;
+
     private FFProbe $ffprobe;
+
     private float $rmsThreshold;
+
     private float $minSectionDuration;
+
     private float $minSermonDuration;
+
     private string $tempDisk;
+
     private array $adaptiveConfig;
 
     public function __construct()
@@ -40,12 +47,12 @@ class VideoSegmentationService
 
     public function generateRmsLog(string $videoPath): string
     {
-        $rmsLogPath = 'temp/rms_' . Str::uuid() . '.log';
+        $rmsLogPath = 'temp/rms_'.Str::uuid().'.log';
         $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
 
         // Ensure the directory exists and is writable
         $directory = dirname($fullRmsLogPath);
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
 
@@ -60,18 +67,18 @@ class VideoSegmentationService
                 '-i', $videoPath,
                 '-af', "astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file={$fullRmsLogPath}",
                 '-f', 'null',
-                '-'
+                '-',
             ];
 
             $process = new \Symfony\Component\Process\Process($command);
             $process->setTimeout(7200); // 2 hour timeout for large files
             $process->run();
 
-            if (!$process->isSuccessful()) {
+            if (! $process->isSuccessful()) {
                 throw new \Symfony\Component\Process\Exception\ProcessFailedException($process);
             }
-            
-            if (!file_exists($fullRmsLogPath) || filesize($fullRmsLogPath) === 0) {
+
+            if (! file_exists($fullRmsLogPath) || filesize($fullRmsLogPath) === 0) {
                 throw new \Exception('Failed to generate RMS log file or file is empty');
             }
 
@@ -83,7 +90,7 @@ class VideoSegmentationService
             Log::error('Failed to generate RMS log', [
                 'error' => $e->getMessage(),
                 'video_path' => $videoPath,
-                'rms_log_path' => $rmsLogPath
+                'rms_log_path' => $rmsLogPath,
             ]);
 
             throw $e;
@@ -91,43 +98,43 @@ class VideoSegmentationService
     }
 
     /**
-     * @return LivestreamSegment[]
+     * @return array{segments: LivestreamSegment[], threshold_metadata: array}
      */
     public function analyzeSegments(string $rmsLogPath): array
     {
         try {
             $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
-            
-            if (!file_exists($fullRmsLogPath)) {
-                throw new \Exception('RMS log file not found: ' . $fullRmsLogPath);
+
+            if (! file_exists($fullRmsLogPath)) {
+                throw new \Exception('RMS log file not found: '.$fullRmsLogPath);
             }
 
             $logContent = file_get_contents($fullRmsLogPath);
-            
+
             $thresholdResult = $this->determineThreshold($logContent);
-            
+
             Log::info('Threshold determination result', $thresholdResult['log_data']);
-            
+
             $segments = $this->parseRmsLog($logContent, $thresholdResult['threshold']);
 
             Log::info('Segments analyzed', [
                 'total_segments' => count($segments),
-                'speech_segments' => count(array_filter($segments, fn($s) => $s->isSpeech())),
-                'song_segments' => count(array_filter($segments, fn($s) => $s->isSong())),
+                'speech_segments' => count(array_filter($segments, fn ($s) => $s->isSpeech())),
+                'song_segments' => count(array_filter($segments, fn ($s) => $s->isSong())),
                 'threshold_used' => $thresholdResult['threshold'],
-                'method_used' => $thresholdResult['method']
+                'method_used' => $thresholdResult['method'],
             ]);
 
             // Return segments with threshold metadata for storage
             return [
                 'segments' => $segments,
-                'threshold_metadata' => $thresholdResult
+                'threshold_metadata' => $thresholdResult,
             ];
 
         } catch (\Exception $e) {
             Log::error('Failed to analyze segments', [
                 'error' => $e->getMessage(),
-                'rms_log_path' => $rmsLogPath
+                'rms_log_path' => $rmsLogPath,
             ]);
 
             throw $e;
@@ -142,7 +149,7 @@ class VideoSegmentationService
         $lines = explode("\n", trim($logContent));
         $threshold = $adaptiveThreshold ?? $this->rmsThreshold;
         $loudSections = $this->parseAudioSections($logContent, $threshold);
-        
+
         // Get total duration from the last timestamp
         $totalDuration = 0.0;
         foreach ($lines as $line) {
@@ -150,37 +157,37 @@ class VideoSegmentationService
                 $totalDuration = max($totalDuration, (float) $matches[1]);
             }
         }
-        
+
         // Parse all RMS data for calculating actual segment averages
         $rmsData = $this->extractRmsData($logContent);
-        
+
         $segments = $this->combineLoudAndQuietSections($loudSections, $totalDuration, $rmsData);
-        
+
         return $this->identifySermonCandidate($segments);
     }
-    
+
     private function parseAudioSections(string $logContent, ?float $threshold = null, ?float $minSectionDuration = null): array
     {
         $threshold = $threshold ?? $this->rmsThreshold;
         $minSectionDuration = $minSectionDuration ?? $this->minSectionDuration;
-        
+
         $lines = explode("\n", trim($logContent));
-        
+
         // Get total duration by using ffprobe (like the Python script)
         $totalDuration = $this->getTotalDuration($logContent, $lines);
-        
+
         // Calculate frame duration dynamically (like Python script)
         $frameDuration = $totalDuration / count($lines);
-        
+
         $sections = [];
         $currentSection = null;
-        
+
         foreach ($lines as $i => $line) {
             // Parse RMS level from lavfi lines
             if (preg_match('/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/', $line, $rmsMatches)) {
                 $rmsLevel = $rmsMatches[1] === '-inf' ? -999.0 : (float) $rmsMatches[1];
                 $time = $i * $frameDuration; // Calculate time like Python script
-                
+
                 if ($rmsLevel > $threshold) {
                     // Start a new loud section if none is active
                     if ($currentSection === null) {
@@ -199,7 +206,7 @@ class VideoSegmentationService
                 }
             }
         }
-        
+
         // Close any open section at end of file
         if ($currentSection !== null) {
             $time = (count($lines) - 1) * $frameDuration;
@@ -208,10 +215,10 @@ class VideoSegmentationService
                 $sections[] = $currentSection;
             }
         }
-        
+
         return $sections;
     }
-    
+
     private function getTotalDuration(string $logContent, array $lines): float
     {
         // Try to get duration from pts_time if available (most accurate)
@@ -221,27 +228,27 @@ class VideoSegmentationService
                 $maxTime = max($maxTime, (float) $matches[1]);
             }
         }
-        
+
         // If we found pts_time, use that
         if ($maxTime > 0) {
             return $maxTime;
         }
-        
+
         // Otherwise estimate based on number of lines and audio sample rate
         // This is a fallback - the Python script uses ffprobe for this
         return count($lines) / 43.0; // Rough estimate based on typical frame rates
     }
-    
+
     private function combineLoudAndQuietSections(array $loudSections, float $totalDuration, array $rmsData): array
     {
         $combinedSections = [];
         $previousEnd = 0.0;
         $segmentOrder = 0;
-        
+
         foreach ($loudSections as $section) {
             $start = $section['start'];
             $end = $section['end'];
-            
+
             // Add quiet section before the current loud section
             if ($start > $previousEnd) {
                 $speechRms = $this->calculateSegmentRms($previousEnd, $start, $rmsData);
@@ -255,7 +262,7 @@ class VideoSegmentationService
                     segmentOrder: $segmentOrder++
                 );
             }
-            
+
             // Add the current loud section
             $songRms = $this->calculateSegmentRms($start, $end, $rmsData);
             $combinedSections[] = new LivestreamSegment(
@@ -267,10 +274,10 @@ class VideoSegmentationService
                 peakRms: $songRms['peak'],
                 segmentOrder: $segmentOrder++
             );
-            
+
             $previousEnd = $end;
         }
-        
+
         // Add the final quiet section if it exists
         if ($previousEnd < $totalDuration) {
             $speechRms = $this->calculateSegmentRms($previousEnd, $totalDuration, $rmsData);
@@ -284,63 +291,28 @@ class VideoSegmentationService
                 segmentOrder: $segmentOrder
             );
         }
-        
+
         return $combinedSections;
     }
 
-    private function finalizeSegment(array $segmentData, int $order): ?LivestreamSegment
-    {
-        $startTime = $segmentData['start_time'];
-        $endTime = end($segmentData['times']);
-        $duration = $endTime - $startTime;
-
-        if ($duration < $this->minSectionDuration) {
-            return null;
-        }
-
-        $rmsValues = $segmentData['rms_values'];
-        $avgRms = array_sum($rmsValues) / count($rmsValues);
-        $peakRms = max($rmsValues);
-
-        $classification = $avgRms > $this->rmsThreshold ? 'song' : 'speech';
-
-        if ($avgRms < -60.0) {
-            $classification = 'silence';
-        }
-
-        return new LivestreamSegment(
-            startTime: $startTime,
-            endTime: $endTime,
-            duration: $duration,
-            classification: $classification,
-            avgRms: $avgRms,
-            peakRms: $peakRms,
-            segmentOrder: $order,
-            metadata: [
-                'rms_sample_count' => count($rmsValues),
-                'rms_variance' => $this->calculateVariance($rmsValues),
-            ]
-        );
-    }
-
     /**
-     * @param LivestreamSegment[] $segments
+     * @param  LivestreamSegment[]  $segments
      * @return LivestreamSegment[]
      */
     private function identifySermonCandidate(array $segments): array
     {
-        $speechSegments = array_filter($segments, fn($s) => $s->isSpeech());
-        
+        $speechSegments = array_filter($segments, fn ($s) => $s->isSpeech());
+
         if (empty($speechSegments)) {
             return $segments;
         }
 
-        usort($speechSegments, fn($a, $b) => $b->duration <=> $a->duration);
+        usort($speechSegments, fn ($a, $b) => $b->duration <=> $a->duration);
         $longestSpeechSegment = $speechSegments[0];
 
         if ($longestSpeechSegment->duration >= $this->minSermonDuration) {
             foreach ($segments as $segment) {
-                if ($segment->startTime === $longestSpeechSegment->startTime && 
+                if ($segment->startTime === $longestSpeechSegment->startTime &&
                     $segment->endTime === $longestSpeechSegment->endTime) {
                     $segment->isSermonCandidate = true;
                     break;
@@ -351,48 +323,36 @@ class VideoSegmentationService
         return $segments;
     }
 
-    private function calculateVariance(array $values): float
-    {
-        if (count($values) < 2) {
-            return 0.0;
-        }
-
-        $mean = array_sum($values) / count($values);
-        $squaredDiffs = array_map(fn($x) => pow($x - $mean, 2), $values);
-        
-        return array_sum($squaredDiffs) / count($values);
-    }
-
     /**
      * Determine which threshold to use based on configuration
      */
     private function determineThreshold(string $logContent): array
     {
         // Check if adaptive thresholds are enabled
-        if (!($this->adaptiveConfig['enabled'] ?? true)) {
+        if (! ($this->adaptiveConfig['enabled'] ?? true)) {
             return [
                 'threshold' => $this->rmsThreshold,
                 'method' => 'fixed',
                 'log_data' => [
                     'method' => 'fixed',
                     'threshold_used' => $this->rmsThreshold,
-                    'reason' => 'adaptive_disabled'
-                ]
+                    'reason' => 'adaptive_disabled',
+                ],
             ];
         }
-        
+
         // Try to calculate adaptive threshold
         $adaptiveResult = $this->calculateAdaptiveThreshold($logContent);
-        
+
         if ($adaptiveResult['success']) {
             return [
                 'threshold' => $adaptiveResult['threshold'],
                 'method' => 'adaptive',
                 'log_data' => $adaptiveResult['log_data'],
-                'rms_stats' => $adaptiveResult['rms_stats']
+                'rms_stats' => $adaptiveResult['rms_stats'],
             ];
         }
-        
+
         // Fallback to fixed threshold
         if ($this->adaptiveConfig['fallback_enabled'] ?? true) {
             return [
@@ -401,13 +361,13 @@ class VideoSegmentationService
                 'log_data' => [
                     'method' => 'fallback',
                     'threshold_used' => $this->rmsThreshold,
-                    'reason' => $adaptiveResult['error'] ?? 'adaptive_calculation_failed'
-                ]
+                    'reason' => $adaptiveResult['error'] ?? 'adaptive_calculation_failed',
+                ],
             ];
         }
-        
+
         // If fallback is disabled and adaptive failed, throw error
-        throw new \Exception('Adaptive threshold calculation failed and fallback is disabled: ' . ($adaptiveResult['error'] ?? 'unknown_error'));
+        throw new \Exception('Adaptive threshold calculation failed and fallback is disabled: '.($adaptiveResult['error'] ?? 'unknown_error'));
     }
 
     /**
@@ -418,7 +378,7 @@ class VideoSegmentationService
         try {
             $rmsValues = [];
             $lines = explode("\n", trim($logContent));
-            
+
             foreach ($lines as $line) {
                 if (preg_match('/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/', $line, $matches)) {
                     $rmsLevel = $matches[1] === '-inf' ? -999.0 : (float) $matches[1];
@@ -427,36 +387,36 @@ class VideoSegmentationService
                     }
                 }
             }
-            
+
             $minSampleCount = $this->adaptiveConfig['min_sample_count'] ?? 1000;
             if (count($rmsValues) < $minSampleCount) {
                 return [
                     'success' => false,
                     'error' => 'insufficient_samples',
                     'sample_count' => count($rmsValues),
-                    'min_required' => $minSampleCount
+                    'min_required' => $minSampleCount,
                 ];
             }
-            
+
             sort($rmsValues);
             $count = count($rmsValues);
-            
+
             // Use configured percentile (default 30th)
             $speechPercentile = ($this->adaptiveConfig['speech_percentile'] ?? 30) / 100.0;
-            $speechThreshold = $rmsValues[floor($count * $speechPercentile)];
-            
+            $speechThreshold = $rmsValues[(int) floor($count * $speechPercentile)];
+
             // Validate threshold is within bounds
             $minThreshold = $this->adaptiveConfig['min_threshold'] ?? -80.0;
             $maxThreshold = $this->adaptiveConfig['max_threshold'] ?? -20.0;
-            
+
             $adaptiveThreshold = max($minThreshold, min($maxThreshold, $speechThreshold));
-            
+
             // Calculate statistics for logging
             $mean = array_sum($rmsValues) / $count;
-            $p25 = $rmsValues[floor($count * 0.25)];
-            $p50 = $rmsValues[floor($count * 0.50)];
-            $p75 = $rmsValues[floor($count * 0.75)];
-            
+            $p25 = $rmsValues[(int) floor($count * 0.25)];
+            $p50 = $rmsValues[(int) floor($count * 0.50)];
+            $p75 = $rmsValues[(int) floor($count * 0.75)];
+
             return [
                 'success' => true,
                 'threshold' => $adaptiveThreshold,
@@ -466,7 +426,7 @@ class VideoSegmentationService
                     'raw_threshold' => $speechThreshold,
                     'sample_count' => $count,
                     'percentile_used' => $speechPercentile * 100,
-                    'bounds_applied' => $speechThreshold !== $adaptiveThreshold
+                    'bounds_applied' => $speechThreshold !== $adaptiveThreshold,
                 ],
                 'rms_stats' => [
                     'sample_count' => $count,
@@ -476,14 +436,14 @@ class VideoSegmentationService
                     'p25' => $p25,
                     'p50' => $p50,
                     'p75' => $p75,
-                    'adaptive_threshold' => $adaptiveThreshold
-                ]
+                    'adaptive_threshold' => $adaptiveThreshold,
+                ],
             ];
-            
+
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -497,19 +457,19 @@ class VideoSegmentationService
         $rmsData = [];
         $totalDuration = $this->getTotalDuration($logContent, $lines);
         $frameDuration = $totalDuration / count($lines);
-        
+
         foreach ($lines as $i => $line) {
             if (preg_match('/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/', $line, $matches)) {
                 $rmsLevel = $matches[1] === '-inf' ? -999.0 : (float) $matches[1];
                 $time = $i * $frameDuration;
-                
+
                 $rmsData[] = [
                     'time' => $time,
-                    'rms' => $rmsLevel
+                    'rms' => $rmsLevel,
                 ];
             }
         }
-        
+
         return $rmsData;
     }
 
@@ -519,24 +479,24 @@ class VideoSegmentationService
     private function calculateSegmentRms(float $startTime, float $endTime, array $rmsData): array
     {
         $segmentRms = [];
-        
+
         foreach ($rmsData as $data) {
             if ($data['time'] >= $startTime && $data['time'] <= $endTime && $data['rms'] > -999.0) {
                 $segmentRms[] = $data['rms'];
             }
         }
-        
+
         if (empty($segmentRms)) {
             // Fallback to reasonable defaults if no data
             return ['avg' => -50.0, 'peak' => -40.0];
         }
-        
+
         $avgRms = array_sum($segmentRms) / count($segmentRms);
         $peakRms = max($segmentRms);
-        
+
         return [
             'avg' => round($avgRms, 1),
-            'peak' => round($peakRms, 1)
+            'peak' => round($peakRms, 1),
         ];
     }
 
@@ -545,7 +505,7 @@ class VideoSegmentationService
         try {
             $format = $this->ffprobe->format($videoPath);
             $video = $this->ffprobe->streams($videoPath)->videos()->first();
-            
+
             return [
                 'duration' => (float) $format->get('duration'),
                 'format_name' => $format->get('format_name'),
@@ -558,7 +518,7 @@ class VideoSegmentationService
         } catch (\Exception $e) {
             Log::error('Failed to extract video metadata', [
                 'error' => $e->getMessage(),
-                'video_path' => $videoPath
+                'video_path' => $videoPath,
             ]);
 
             throw $e;
@@ -571,7 +531,7 @@ class VideoSegmentationService
             $format = $this->ffprobe->format($videoPath);
             $formatName = $format->get('format_name');
             $supportedFormats = config('livestream-processing.supported_formats');
-            
+
             foreach ($supportedFormats as $supportedFormat) {
                 if (str_contains(strtolower($formatName), strtolower($supportedFormat))) {
                     return true;
@@ -582,10 +542,97 @@ class VideoSegmentationService
         } catch (\Exception $e) {
             Log::warning('Video validation failed', [
                 'error' => $e->getMessage(),
-                'video_path' => $videoPath
+                'video_path' => $videoPath,
             ]);
 
             return false;
+        }
+    }
+
+    /**
+     * Extract a specific segment from a video file
+     *
+     * @param  string  $videoPath  Path to the original video file
+     * @param  object  $segment  Segment data with start_time and end_time
+     * @return \Illuminate\Http\UploadedFile The extracted segment as an UploadedFile
+     *
+     * @throws \Exception When segment extraction fails
+     */
+    public function extractSegment(string $videoPath, object $segment): UploadedFile
+    {
+        $startTime = $segment->startTime ?? $segment->start_time ?? 0;
+        $endTime = $segment->endTime ?? $segment->end_time ?? 0;
+
+        if ($startTime >= $endTime) {
+            throw new \Exception('Invalid segment times: start time must be less than end time');
+        }
+
+        $duration = $endTime - $startTime;
+
+        Log::info('Extracting video segment', [
+            'video_path' => $videoPath,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'duration' => $duration,
+        ]);
+
+        // Generate unique filename for extracted segment
+        $segmentFilename = 'sermon_segment_'.Str::uuid().'.mp4';
+        $segmentPath = 'temp/'.$segmentFilename;
+        $fullSegmentPath = Storage::disk($this->tempDisk)->path($segmentPath);
+
+        // Ensure temp directory exists
+        $directory = dirname($fullSegmentPath);
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        try {
+            // Use FFmpeg to extract the segment
+            $video = $this->ffmpeg->open($videoPath);
+
+            // Apply time filters to extract the specific segment
+            $video
+                ->filters()
+                ->clip(\FFMpeg\Coordinate\TimeCode::fromSeconds($startTime), \FFMpeg\Coordinate\TimeCode::fromSeconds($duration));
+
+            // Save the extracted segment
+            $video->save(new \FFMpeg\Format\Video\X264, $fullSegmentPath);
+
+            Log::info('Video segment extracted successfully', [
+                'original_video' => $videoPath,
+                'extracted_segment' => $fullSegmentPath,
+                'segment_size' => filesize($fullSegmentPath),
+                'duration' => $duration,
+            ]);
+
+            // Create UploadedFile from the extracted segment
+            $originalBasename = pathinfo($videoPath, PATHINFO_FILENAME);
+            $uploadedFile = new UploadedFile(
+                $fullSegmentPath,
+                $originalBasename.'_sermon_segment.mp4',
+                'video/mp4',
+                null,
+                true // Mark as test file to skip validation
+            );
+
+            return $uploadedFile;
+
+        } catch (\Exception $e) {
+            // Clean up partial file if extraction failed
+            if (file_exists($fullSegmentPath)) {
+                unlink($fullSegmentPath);
+            }
+
+            Log::error('Failed to extract video segment', [
+                'video_path' => $videoPath,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            throw new \Exception('Failed to extract video segment: '.$e->getMessage());
         }
     }
 }

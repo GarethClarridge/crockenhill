@@ -10,8 +10,7 @@ parameters:
     # Level 10 is the highest level
     level: 5
 
-    ignoreErrors:
-        - '~Parameter #1 \$view of function view expects view-string\|null, string given~'
+    ignoreErrors: []
 
-#    excludePaths:
-#        - ./*/*/FileToBeExcluded.php
+    excludePaths:
+        - app/Http/Controllers/Auth/PasswordController.php

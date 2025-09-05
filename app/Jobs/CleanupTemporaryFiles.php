@@ -12,9 +12,10 @@ use Illuminate\Support\Facades\Log;
 
 class CleanupTemporaryFiles implements ShouldQueue
 {
-    use Queueable, InteractsWithQueue, SerializesModels;
+    use InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
+
     public int $timeout = 300;
 
     public function __construct(
@@ -25,19 +26,19 @@ class CleanupTemporaryFiles implements ShouldQueue
     {
         try {
             Log::info('Starting temporary file cleanup', [
-                'processing_id' => $this->processingLog->processing_id
+                'processing_id' => $this->processingLog->processing_id,
             ]);
 
             $storageService->cleanupTemporaryFiles($this->processingLog->processing_id);
 
             Log::info('Temporary file cleanup completed', [
-                'processing_id' => $this->processingLog->processing_id
+                'processing_id' => $this->processingLog->processing_id,
             ]);
 
         } catch (\Exception $e) {
             Log::warning('Failed to cleanup some temporary files', [
                 'processing_id' => $this->processingLog->processing_id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             // Don't fail the job for cleanup issues

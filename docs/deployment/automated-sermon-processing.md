@@ -43,23 +43,17 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_REQUEST_TIMEOUT=60
 
 # Automated Sermon Processing Configuration
-TRANSCRIPTION_SERVICE=openai
-ANALYSIS_SERVICE=openai
+TRANSCRIPTION_SERVICE_TYPE=openai
 OPENAI_MODEL=gpt-4o-mini
 SERMON_PROCESSING_QUEUE=sermon-processing
-
-# File Storage Configuration
-FILESYSTEM_DISK=s3
-AWS_ACCESS_KEY_ID=your-aws-access-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret-key
-AWS_DEFAULT_REGION=us-east-1
-AWS_BUCKET=your-sermon-storage-bucket
-AWS_USE_PATH_STYLE_ENDPOINT=false
+SERMON_STORAGE_DISK=public
+SERMON_NOTIFICATIONS_ENABLED=true
+SERMON_ADMIN_EMAILS=admin@your-domain.com
 
 # Alternative: Local Storage (if not using S3)
-# SERMON_STORAGE_DISK=local
-# SERMON_AUDIO_PATH=sermons
-# SERMON_TRANSCRIPT_PATH=transcripts
+SERMON_STORAGE_DISK=local
+SERMON_AUDIO_PATH=sermons
+SERMON_TRANSCRIPT_PATH=transcripts
 
 # Notification Configuration
 SERMON_NOTIFICATIONS_ENABLED=true
@@ -109,7 +103,10 @@ APP_ENV=staging
 APP_DEBUG=true
 LOG_LEVEL=debug
 
-# Use smaller/cheaper OpenAI model for testing
+# Use mock transcription service for development (no API costs)
+TRANSCRIPTION_SERVICE_TYPE=mock
+
+# Use smaller/cheaper OpenAI model for testing when using openai service
 OPENAI_MODEL=gpt-3.5-turbo
 
 # Disable notifications in development
@@ -121,6 +118,38 @@ SERMON_STORAGE_DISK=local
 # Use database queue for simpler setup
 QUEUE_CONNECTION=database
 ```
+
+---
+
+## PHP Configuration
+
+### Production PHP Settings
+
+Update `php.ini` for audio processing and API requests:
+
+```ini
+# File upload limits (for audio files up to 2GB)
+upload_max_filesize = 2000M
+post_max_size = 2000M
+max_input_time = 1800
+max_execution_time = 1800
+
+# Memory limits for audio processing
+memory_limit = 2048M
+
+# Input variable limits
+max_input_vars = 1000
+
+# Required for processing
+variables_order = EGPCS
+
+# Temporary directory
+upload_tmp_dir = /var/tmp/php_uploads
+```
+
+### Development PHP Settings
+
+For development environments using Docker/Sail, the optimized settings are already configured. See `docker/php/php.ini` for reference.
 
 ---
 

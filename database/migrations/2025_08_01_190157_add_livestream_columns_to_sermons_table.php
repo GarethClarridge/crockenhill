@@ -13,35 +13,35 @@ return new class extends Migration
     {
         Schema::table('sermons', function (Blueprint $table) {
             // Only add livestream_processing_id if it doesn't exist
-            if (!Schema::hasColumn('sermons', 'livestream_processing_id')) {
+            if (! Schema::hasColumn('sermons', 'livestream_processing_id')) {
                 $table->string('livestream_processing_id', 36)->nullable()->after('id');
             }
-            
+
             // Add video_file_path after filename
-            if (!Schema::hasColumn('sermons', 'video_file_path')) {
+            if (! Schema::hasColumn('sermons', 'video_file_path')) {
                 $table->string('video_file_path', 500)->nullable()->after('filename');
             }
-            
+
             // Add source_type enum
-            if (!Schema::hasColumn('sermons', 'source_type')) {
+            if (! Schema::hasColumn('sermons', 'source_type')) {
                 $table->enum('source_type', ['manual', 'audio_upload', 'livestream'])->default('manual')->after('video_file_path');
             }
-            
+
             // Add segment timing columns
-            if (!Schema::hasColumn('sermons', 'segment_start_time')) {
+            if (! Schema::hasColumn('sermons', 'segment_start_time')) {
                 $table->decimal('segment_start_time', 10, 3)->nullable()->after('source_type');
             }
-            
-            if (!Schema::hasColumn('sermons', 'segment_end_time')) {
+
+            if (! Schema::hasColumn('sermons', 'segment_end_time')) {
                 $table->decimal('segment_end_time', 10, 3)->nullable()->after('segment_start_time');
             }
-            
+
             // Add indexes if they don't exist
-            if (!Schema::hasIndex('sermons', 'sermons_livestream_processing_id_index')) {
+            if (! Schema::hasIndex('sermons', 'sermons_livestream_processing_id_index')) {
                 $table->index('livestream_processing_id');
             }
-            
-            if (!Schema::hasIndex('sermons', 'sermons_source_type_index')) {
+
+            if (! Schema::hasIndex('sermons', 'sermons_source_type_index')) {
                 $table->index('source_type');
             }
         });
@@ -57,11 +57,11 @@ return new class extends Migration
             if (Schema::hasIndex('sermons', 'sermons_livestream_processing_id_index')) {
                 $table->dropIndex(['livestream_processing_id']);
             }
-            
+
             if (Schema::hasIndex('sermons', 'sermons_source_type_index')) {
                 $table->dropIndex(['source_type']);
             }
-            
+
             // Drop columns if they exist
             $columnsToDrop = [
                 'livestream_processing_id',
@@ -70,7 +70,7 @@ return new class extends Migration
                 'segment_start_time',
                 'segment_end_time',
             ];
-            
+
             foreach ($columnsToDrop as $column) {
                 if (Schema::hasColumn('sermons', $column)) {
                     $table->dropColumn($column);

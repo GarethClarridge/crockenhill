@@ -44,9 +44,9 @@ echo "=== Livestream Processing Health Check ==="
 echo "Date: $(date)"
 echo
 
-# Check application health
+# Check application health (via HTTP)
 echo "1. Application Health:"
-php artisan health:check
+curl -f http://localhost/health || echo "Health endpoint not responding"
 
 # Check queue status
 echo "2. Queue Status:"
@@ -54,15 +54,15 @@ php artisan queue:monitor redis:livestream --max=10
 
 # Check disk space
 echo "3. Disk Space:"
-df -h | grep -E "(livestream|sermon)"
+df -h | grep -E "(livestream|sermon|storage)"
 
-# Check recent processing
+# Check recent processing (via database query)
 echo "4. Recent Processing (last 24h):"
-php artisan livestream:stats --hours=24
+echo "SELECT COUNT(*) as total_jobs, status, COUNT(*) FROM livestream_processing_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR) GROUP BY status;" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
 
 # Check for errors
 echo "5. Recent Errors:"
-grep -c "ERROR.*livestream" storage/logs/laravel-$(date +%Y-%m-%d).log
+grep -c "ERROR.*livestream" storage/logs/laravel-$(date +%Y-%m-%d).log 2>/dev/null || echo "0"
 
 echo "=== Health Check Complete ==="
 ```
@@ -79,7 +79,13 @@ echo
 
 # Processing statistics
 echo "1. Weekly Statistics:"
-php artisan livestream:stats --days=7
+echo "SELECT 
+  COUNT(*) as total_processed,
+  SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful,
+  SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+  AVG(TIMESTAMPDIFF(MINUTE, created_at, updated_at)) as avg_processing_minutes
+FROM livestream_processing_logs 
+WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY);" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
 
 # Storage usage
 echo "2. Storage Usage:"
@@ -102,11 +108,13 @@ echo "=== Weekly Review Complete ==="
 #### Check Processing Status
 
 ```bash
-# Check specific processing job
-php artisan livestream:status <processing-id>
+# Check specific processing job (via API or database)
+curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost/api/livestreams/processing/<processing-id>/status
+# Or via database:
+# echo "SELECT * FROM livestream_processing_logs WHERE processing_id = '<processing-id>';" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
 
 # List active processing jobs
-php artisan queue:work --once --queue=livestream
+echo "SELECT processing_id, status, current_step, created_at FROM livestream_processing_logs WHERE status IN ('pending', 'processing') ORDER BY created_at DESC;" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
 
 # Monitor queue in real-time
 watch -n 5 'php artisan queue:monitor redis:livestream'
@@ -144,8 +152,9 @@ du -sh storage/app/temp/livestreams/
 #### Archive Old Sermons
 
 ```bash
-# Archive sermons older than 1 year
-php artisan livestream:archive --days=365
+# Archive sermons older than 1 year (manual process)
+find storage/app/sermons -type f -mtime +365 -exec cp {} /archive/sermons/ \;
+find storage/app/sermons -type f -mtime +365 -delete
 
 # Backup to external storage
 rsync -av storage/app/sermons/ /backup/sermons/$(date +%Y%m%d)/
@@ -215,7 +224,10 @@ rsync -av storage/app/sermons/ /backup/sermons/$(date +%Y%m%d)/
 
 2. Review segment analysis:
    ```bash
-   php artisan livestream:analyze <processing-id>
+   # Check processing results via API
+   curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost/api/livestreams/processing/<processing-id>/result
+   # Or query database directly
+   echo "SELECT * FROM livestream_segments WHERE processing_id = '<processing-id>';" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
    ```
 
 **Resolution Steps:**
@@ -231,11 +243,11 @@ rsync -av storage/app/sermons/ /backup/sermons/$(date +%Y%m%d)/
 
 2. **Manual segment review:**
    ```bash
-   # Review segments manually
-   php artisan livestream:segments <processing-id>
+   # Review segments manually via database
+   echo "SELECT segment_order, start_time, end_time, classification, is_sermon_candidate FROM livestream_segments WHERE processing_id = '<processing-id>' ORDER BY segment_order;" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
    
-   # Mark specific segment as sermon
-   php artisan livestream:mark-sermon <processing-id> <segment-index>
+   # Create sermon manually from specific segment (use existing command)
+   php artisan livestream:create-sermon <processing-id> --segment=<segment-index>
    ```
 
 #### Symptom: FFmpeg Command Failures
@@ -517,13 +529,14 @@ php artisan queue:flush
 
 2. **Recreate processing record:**
    ```bash
-   php artisan livestream:recover <processing-id>
+   # Manual database update to reset processing
+   echo "UPDATE livestream_processing_logs SET status = 'pending', current_step = NULL WHERE processing_id = '<processing-id>';" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
    ```
 
 3. **Manual processing:**
    ```bash
-   # Extract sermon manually
-   php artisan livestream:extract <processing-id> --segment=<segment-index>
+   # Extract sermon manually using existing command
+   php artisan livestream:create-sermon <processing-id> --segment=<segment-index>
    ```
 
 #### Recover Corrupted Videos
@@ -551,8 +564,8 @@ php artisan queue:flush
 
 Create `/etc/cron.d/livestream-daily`:
 ```bash
-# Daily cleanup at 2 AM
-0 2 * * * www-data /usr/bin/php /path/to/app/artisan livestream:cleanup
+# Daily cleanup at 2 AM (manual cleanup script)
+0 2 * * * www-data find /path/to/app/storage/app/temp/livestreams -type f -mtime +1 -delete
 
 # Daily health check at 6 AM
 0 6 * * * www-data /path/to/scripts/daily-health-check.sh >> /var/log/livestream-health.log
@@ -562,7 +575,14 @@ Create `/etc/cron.d/livestream-daily`:
 
 1. **Review processing statistics:**
    ```bash
-   php artisan livestream:stats --days=7
+   # Query database for weekly statistics
+   echo "SELECT 
+     COUNT(*) as total_processed,
+     SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful,
+     SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+     ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, updated_at)), 2) as avg_processing_minutes
+   FROM livestream_processing_logs 
+   WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY);" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
    ```
 
 2. **Check storage usage:**
@@ -587,17 +607,26 @@ Create `/etc/cron.d/livestream-daily`:
 
 1. **Performance review:**
    ```bash
-   # Generate performance report
-   php artisan livestream:performance-report --month
+   # Generate monthly performance report via database
+   echo "SELECT 
+     DATE(created_at) as processing_date,
+     COUNT(*) as jobs_processed,
+     AVG(TIMESTAMPDIFF(MINUTE, created_at, updated_at)) as avg_duration_minutes,
+     SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failures
+   FROM livestream_processing_logs 
+   WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+   GROUP BY DATE(created_at)
+   ORDER BY processing_date DESC;" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE
    ```
 
 2. **Storage optimization:**
    ```bash
-   # Archive old sermons
-   php artisan livestream:archive --days=90
+   # Archive old sermons (manual process)
+   find storage/app/sermons -type f -mtime +90 -exec cp {} /archive/sermons/ \;
+   find storage/app/sermons -type f -mtime +90 -delete
    
-   # Compress old videos
-   php artisan livestream:compress --days=180
+   # Compress old videos (manual process using ffmpeg)
+   find storage/app/sermons -type f -name "*.mp4" -mtime +180 -exec ffmpeg -i {} -c:v libx264 -crf 28 {}_compressed.mp4 \;
    ```
 
 3. **Security updates:**
@@ -619,7 +648,17 @@ echo "Date,Livestreams,Sermons,Total" > storage_growth.csv
 du -sb storage/app/livestreams/ storage/app/sermons/ | awk '{print strftime("%Y-%m-%d")","$1}' >> storage_growth.csv
 
 # Processing volume
-php artisan livestream:stats --format=csv --days=30 >> processing_volume.csv
+echo "date,total_jobs,successful,failed,avg_duration_minutes" > processing_volume.csv
+echo "SELECT 
+  DATE(created_at) as date,
+  COUNT(*) as total_jobs,
+  SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful,
+  SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+  AVG(TIMESTAMPDIFF(MINUTE, created_at, updated_at)) as avg_duration_minutes
+FROM livestream_processing_logs 
+WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+GROUP BY DATE(created_at)
+ORDER BY date;" | mysql -u $DB_USERNAME -p$DB_PASSWORD $DB_DATABASE --batch --raw | tail -n +2 >> processing_volume.csv
 ```
 
 #### Scaling Recommendations

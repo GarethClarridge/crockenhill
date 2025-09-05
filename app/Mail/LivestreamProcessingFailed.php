@@ -17,13 +17,12 @@ class LivestreamProcessingFailed extends Mailable
         public \Throwable|string $exception,
         public string $step = 'unknown',
         public ?array $processingMetadata = null
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Livestream Processing Failed - ' . $this->processingId,
+            subject: 'Livestream Processing Failed - '.$this->processingId,
         );
     }
 

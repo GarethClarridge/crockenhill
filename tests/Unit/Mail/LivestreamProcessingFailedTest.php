@@ -38,7 +38,7 @@ class LivestreamProcessingFailedTest extends TestCase
     {
         $processingId = 'test-processing-id-789';
         $exception = new Exception('Test error');
-        
+
         $mail = new LivestreamProcessingFailed($processingId, $exception);
         $envelope = $mail->envelope();
 
@@ -56,7 +56,7 @@ class LivestreamProcessingFailedTest extends TestCase
         $content = $mail->content();
 
         $this->assertEquals('emails.livestream-processing-failed', $content->markdown);
-        
+
         $data = $content->with;
         $this->assertEquals($processingId, $data['processingId']);
         $this->assertEquals($step, $data['step']);
@@ -78,7 +78,7 @@ class LivestreamProcessingFailedTest extends TestCase
         $content = $mail->content();
 
         $this->assertEquals('emails.livestream-processing-failed', $content->markdown);
-        
+
         $data = $content->with;
         $this->assertEquals($processingId, $data['processingId']);
         $this->assertEquals($step, $data['step']);

@@ -16,13 +16,12 @@ class ManualReviewRequired extends Mailable
         public string $processingId,
         public string $reason,
         public array $segments = []
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Manual Review Required - Livestream Processing ' . $this->processingId,
+            subject: 'Manual Review Required - Livestream Processing '.$this->processingId,
         );
     }
 

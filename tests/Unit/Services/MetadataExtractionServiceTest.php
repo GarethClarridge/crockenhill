@@ -13,352 +13,352 @@ use Tests\TestCase;
 
 class MetadataExtractionServiceTest extends TestCase
 {
-  private MetadataExtractionService $service;
+    private MetadataExtractionService $service;
 
-  protected function setUp(): void
-  {
-    parent::setUp();
-    $this->service = new MetadataExtractionService();
-    Storage::fake('local');
-  }
-
-  #[Test]
-  public function it_extracts_iso_date_format_from_filename(): void
-  {
-    $testCases = [
-      '2024-01-15_sermon.mp3' => '2024-01-15',
-      '2024-12-25-christmas.mp3' => '2024-12-25',
-      '2024.03.10 morning service.mp3' => '2024-03-10',
-      '2024/06/30_evening.mp3' => '2024-06-30',
-      'sermon_2024-07-04.mp3' => '2024-07-04',
-    ];
-
-    foreach ($testCases as $filename => $expectedDate) {
-      $result = $this->service->extractDateFromFilename($filename);
-      $this->assertEquals($expectedDate, $result->format('Y-m-d'), "Failed for filename: {$filename}");
-    }
-  }
-
-  #[Test]
-  public function it_extracts_european_date_format_from_filename(): void
-  {
-    $testCases = [
-      '15-01-2024_sermon.mp3' => '2024-01-15',
-      '25-12-2024-christmas.mp3' => '2024-12-25',
-      '10.03.2024 morning service.mp3' => '2024-03-10',
-      '30/06/2024_evening.mp3' => '2024-06-30',
-      'sermon_04-07-2024.mp3' => '2024-07-04',
-    ];
-
-    foreach ($testCases as $filename => $expectedDate) {
-      $result = $this->service->extractDateFromFilename($filename);
-      $this->assertEquals($expectedDate, $result->format('Y-m-d'), "Failed for filename: {$filename}");
-    }
-  }
-
-  #[Test]
-  public function it_extracts_compact_date_format_from_filename(): void
-  {
-    $testCases = [
-      '20240115_sermon.mp3' => '2024-01-15',
-      '20241225christmas.mp3' => '2024-12-25',
-      'sermon20240310.mp3' => '2024-03-10',
-      '20240630evening.mp3' => '2024-06-30',
-    ];
-
-    foreach ($testCases as $filename => $expectedDate) {
-      $result = $this->service->extractDateFromFilename($filename);
-      $this->assertEquals($expectedDate, $result->format('Y-m-d'), "Failed for filename: {$filename}");
-    }
-  }
-
-  #[Test]
-  public function it_extracts_year_only_when_no_full_date_found(): void
-  {
-    $testCases = [
-      'sermon_2024.mp3',
-      '2024_morning_service.mp3',
-      'christmas_2024.mp3',
-    ];
-
-    foreach ($testCases as $filename) {
-      $result = $this->service->extractDateFromFilename($filename);
-      $this->assertEquals(2024, $result->year, "Failed for filename: {$filename}");
-    }
-  }
-
-  #[Test]
-  public function it_falls_back_to_current_date_when_no_date_found(): void
-  {
-    $testCases = [
-      'sermon.mp3',
-      'morning_service.mp3',
-      'no_date_here.mp3',
-    ];
-
-    $today = Carbon::today();
-
-    foreach ($testCases as $filename) {
-      $result = $this->service->extractDateFromFilename($filename);
-      $this->assertEquals($today->format('Y-m-d'), $result->format('Y-m-d'), "Failed for filename: {$filename}");
-    }
-  }
-
-  #[Test]
-  public function it_validates_dates_correctly(): void
-  {
-    // Valid dates
-    $this->assertTrue($this->service->isValidDate(2024, 2, 29)); // Leap year
-    $this->assertTrue($this->service->isValidDate(2024, 12, 31));
-    $this->assertTrue($this->service->isValidDate(2000, 1, 1));
-
-    // Invalid dates
-    $this->assertFalse($this->service->isValidDate(2023, 2, 29)); // Not leap year
-    $this->assertFalse($this->service->isValidDate(2024, 13, 1)); // Invalid month
-    $this->assertFalse($this->service->isValidDate(2024, 1, 32)); // Invalid day
-    $this->assertFalse($this->service->isValidDate(1800, 1, 1)); // Too old
-    $this->assertFalse($this->service->isValidDate(2030, 1, 1)); // Too far in future
-  }
-
-  #[Test]
-  public function it_handles_invalid_dates_gracefully(): void
-  {
-    $testCases = [
-      '2024-13-01_sermon.mp3', // Invalid month
-      '2024-02-30_sermon.mp3', // Invalid day for February
-      '1800-01-01_sermon.mp3', // Too old
-    ];
-
-    $today = Carbon::today();
-
-    foreach ($testCases as $filename) {
-      $result = $this->service->extractDateFromFilename($filename);
-      $this->assertEquals($today->format('Y-m-d'), $result->format('Y-m-d'), "Failed for filename: {$filename}");
-    }
-  }
-
-  #[Test]
-  public function it_determines_service_from_time_correctly(): void
-  {
-    // Morning times (6 AM - 2 PM)
-    $morningTimes = [
-      Carbon::createFromTime(6, 0),
-      Carbon::createFromTime(10, 30),
-      Carbon::createFromTime(11, 0),
-      Carbon::createFromTime(13, 59),
-    ];
-
-    foreach ($morningTimes as $time) {
-      $result = $this->service->determineServiceFromTime($time);
-      $this->assertEquals(SermonService::MORNING, $result, "Failed for time: {$time->format('H:i')}");
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->service = new MetadataExtractionService;
+        Storage::fake('local');
     }
 
-    // Evening times (2 PM onwards and before 6 AM)
-    $eveningTimes = [
-      Carbon::createFromTime(14, 0),
-      Carbon::createFromTime(18, 30),
-      Carbon::createFromTime(19, 0),
-      Carbon::createFromTime(23, 59),
-      Carbon::createFromTime(0, 0),
-      Carbon::createFromTime(5, 59),
-    ];
+    #[Test]
+    public function it_extracts_iso_date_format_from_filename(): void
+    {
+        $testCases = [
+            '2024-01-15_sermon.mp3' => '2024-01-15',
+            '2024-12-25-christmas.mp3' => '2024-12-25',
+            '2024.03.10 morning service.mp3' => '2024-03-10',
+            '2024/06/30_evening.mp3' => '2024-06-30',
+            'sermon_2024-07-04.mp3' => '2024-07-04',
+        ];
 
-    foreach ($eveningTimes as $time) {
-      $result = $this->service->determineServiceFromTime($time);
-      $this->assertEquals(SermonService::EVENING, $result, "Failed for time: {$time->format('H:i')}");
-    }
-  }
-
-  #[Test]
-  public function it_determines_service_from_filename_patterns(): void
-  {
-    // Morning patterns
-    $morningFilenames = [
-      'morning_sermon.mp3',
-      'sermon_am.mp3',
-      'am_service.mp3',
-      '10:30_service.mp3',
-      '11-00_sermon.mp3',
-      '1030_morning.mp3',
-      '1100service.mp3',
-    ];
-
-    foreach ($morningFilenames as $filename) {
-      $result = $this->service->determineServiceFromFilename($filename);
-      $this->assertEquals(SermonService::MORNING, $result, "Failed for filename: {$filename}");
+        foreach ($testCases as $filename => $expectedDate) {
+            $result = $this->service->extractDateFromFilename($filename);
+            $this->assertEquals($expectedDate, $result->format('Y-m-d'), "Failed for filename: {$filename}");
+        }
     }
 
-    // Evening patterns
-    $eveningFilenames = [
-      'evening_sermon.mp3',
-      'sermon_pm.mp3',
-      'pm_service.mp3',
-      '6:30_service.mp3',
-      '7-00_sermon.mp3',
-      '630_evening.mp3',
-      '1830service.mp3',
-      '1900_sermon.mp3',
-    ];
+    #[Test]
+    public function it_extracts_european_date_format_from_filename(): void
+    {
+        $testCases = [
+            '15-01-2024_sermon.mp3' => '2024-01-15',
+            '25-12-2024-christmas.mp3' => '2024-12-25',
+            '10.03.2024 morning service.mp3' => '2024-03-10',
+            '30/06/2024_evening.mp3' => '2024-06-30',
+            'sermon_04-07-2024.mp3' => '2024-07-04',
+        ];
 
-    foreach ($eveningFilenames as $filename) {
-      $result = $this->service->determineServiceFromFilename($filename);
-      $this->assertEquals(SermonService::EVENING, $result, "Failed for filename: {$filename}");
+        foreach ($testCases as $filename => $expectedDate) {
+            $result = $this->service->extractDateFromFilename($filename);
+            $this->assertEquals($expectedDate, $result->format('Y-m-d'), "Failed for filename: {$filename}");
+        }
     }
-  }
 
-  #[Test]
-  public function it_defaults_to_morning_service_when_no_pattern_found(): void
-  {
-    $neutralFilenames = [
-      'sermon.mp3',
-      'sunday_service.mp3',
-      'message.mp3',
-      'preaching.mp3',
-    ];
+    #[Test]
+    public function it_extracts_compact_date_format_from_filename(): void
+    {
+        $testCases = [
+            '20240115_sermon.mp3' => '2024-01-15',
+            '20241225christmas.mp3' => '2024-12-25',
+            'sermon20240310.mp3' => '2024-03-10',
+            '20240630evening.mp3' => '2024-06-30',
+        ];
 
-    foreach ($neutralFilenames as $filename) {
-      $result = $this->service->determineServiceFromFilename($filename);
-      $this->assertEquals(SermonService::MORNING, $result, "Failed for filename: {$filename}");
+        foreach ($testCases as $filename => $expectedDate) {
+            $result = $this->service->extractDateFromFilename($filename);
+            $this->assertEquals($expectedDate, $result->format('Y-m-d'), "Failed for filename: {$filename}");
+        }
     }
-  }
 
-  #[Test]
-  public function it_avoids_false_matches_in_filename_patterns(): void
-  {
-    // These should not match AM/PM patterns
-    $testCases = [
-      'example.mp3' => SermonService::MORNING, // 'am' in 'example' shouldn't match
-      'spam_filter.mp3' => SermonService::MORNING, // 'am' in 'spam' shouldn't match
-      'team_meeting.mp3' => SermonService::MORNING, // 'am' in 'team' shouldn't match
-    ];
+    #[Test]
+    public function it_extracts_year_only_when_no_full_date_found(): void
+    {
+        $testCases = [
+            'sermon_2024.mp3',
+            '2024_morning_service.mp3',
+            'christmas_2024.mp3',
+        ];
 
-    foreach ($testCases as $filename => $expected) {
-      $result = $this->service->determineServiceFromFilename($filename);
-      $this->assertEquals($expected, $result, "Failed for filename: {$filename}");
+        foreach ($testCases as $filename) {
+            $result = $this->service->extractDateFromFilename($filename);
+            $this->assertEquals(2024, $result->year, "Failed for filename: {$filename}");
+        }
     }
-  }
 
-  #[Test]
-  public function it_extracts_metadata_from_file_path(): void
-  {
-    $filePath = '/path/to/2024-01-15_morning_sermon.mp3';
+    #[Test]
+    public function it_falls_back_to_current_date_when_no_date_found(): void
+    {
+        $testCases = [
+            'sermon.mp3',
+            'morning_service.mp3',
+            'no_date_here.mp3',
+        ];
 
-    $result = $this->service->extractFromFilePath($filePath);
+        $today = Carbon::today();
 
-    $this->assertInstanceOf(SermonMetadata::class, $result);
-    $this->assertEquals('2024-01-15', $result->date->format('Y-m-d'));
-    $this->assertEquals(SermonService::MORNING, $result->service);
-    $this->assertEquals('2024-01-15_morning_sermon.mp3', $result->filename);
-    $this->assertEquals('2024-01-15_morning_sermon.mp3', $result->originalName);
-  }
-
-  #[Test]
-  public function it_validates_audio_file_format(): void
-  {
-    // Create a mock uploaded file
-    $file = UploadedFile::fake()->create('test.mp3', 1024, 'audio/mpeg');
-
-    $result = $this->service->validateAudioFile($file);
-
-    $this->assertIsArray($result);
-    $this->assertArrayHasKey('valid', $result);
-    $this->assertArrayHasKey('errors', $result);
-    $this->assertArrayHasKey('info', $result);
-  }
-
-  #[Test]
-  public function it_rejects_files_that_are_too_large(): void
-  {
-    // Create a file larger than 100MB
-    $file = UploadedFile::fake()->create('large.mp3', 101 * 1024, 'audio/mpeg');
-
-    $result = $this->service->validateAudioFile($file);
-
-    $this->assertFalse($result['valid']);
-    $this->assertNotEmpty($result['errors']);
-    $this->assertStringContainsString('File size too large', $result['errors'][0]);
-  }
-
-  #[Test]
-  public function it_guesses_format_from_extension(): void
-  {
-    $reflection = new \ReflectionClass($this->service);
-    $method = $reflection->getMethod('guessFormatFromExtension');
-    $method->setAccessible(true);
-
-    $testCases = [
-      'mp3' => 'MP3',
-      'wav' => 'WAV',
-      'flac' => 'FLAC',
-      'aac' => 'AAC',
-      'm4a' => 'M4A',
-      'ogg' => 'OGG',
-      'unknown' => 'UNKNOWN',
-      null => null,
-    ];
-
-    foreach ($testCases as $extension => $expected) {
-      $result = $method->invoke($this->service, $extension);
-      $this->assertEquals($expected, $result, "Failed for extension: {$extension}");
+        foreach ($testCases as $filename) {
+            $result = $this->service->extractDateFromFilename($filename);
+            $this->assertEquals($today->format('Y-m-d'), $result->format('Y-m-d'), "Failed for filename: {$filename}");
+        }
     }
-  }
 
-  #[Test]
-  public function it_handles_complex_filename_patterns(): void
-  {
-    $complexFilenames = [
-      'CBC_2024-01-15_10.30am_John_3.16-21.mp3' => [
-        'date' => '2024-01-15',
-        'service' => SermonService::MORNING,
-      ],
-      '15.01.2024_evening_service_Romans_8.mp3' => [
-        'date' => '2024-01-15',
-        'service' => SermonService::EVENING,
-      ],
-      'Sermon_20240630_PM_1_John_2.1-6.mp3' => [
-        'date' => '2024-06-30',
-        'service' => SermonService::EVENING,
-      ],
-    ];
+    #[Test]
+    public function it_validates_dates_correctly(): void
+    {
+        // Valid dates
+        $this->assertTrue($this->service->isValidDate(2024, 2, 29)); // Leap year
+        $this->assertTrue($this->service->isValidDate(2024, 12, 31));
+        $this->assertTrue($this->service->isValidDate(2000, 1, 1));
 
-    foreach ($complexFilenames as $filename => $expected) {
-      $result = $this->service->extractDateFromFilename($filename);
-      $this->assertEquals($expected['date'], $result->format('Y-m-d'), "Date failed for: {$filename}");
-
-      $service = $this->service->determineServiceFromFilename($filename);
-      $this->assertEquals($expected['service'], $service, "Service failed for: {$filename}");
+        // Invalid dates
+        $this->assertFalse($this->service->isValidDate(2023, 2, 29)); // Not leap year
+        $this->assertFalse($this->service->isValidDate(2024, 13, 1)); // Invalid month
+        $this->assertFalse($this->service->isValidDate(2024, 1, 32)); // Invalid day
+        $this->assertFalse($this->service->isValidDate(1800, 1, 1)); // Too old
+        $this->assertFalse($this->service->isValidDate(2030, 1, 1)); // Too far in future
     }
-  }
 
-  #[Test]
-  public function it_preserves_dates_with_dots_in_filenames(): void
-  {
-    // These filenames contain dots in Bible references that should not interfere with date extraction
-    $testCases = [
-      '2024-01-15_John_3.16.mp3' => '2024-01-15',
-      '15.01.2024_1_John_2.1-6.mp3' => '2024-01-15',
-      'Sermon_2024.03.10_Romans_8.28-39.mp3' => '2024-03-10',
-    ];
+    #[Test]
+    public function it_handles_invalid_dates_gracefully(): void
+    {
+        $testCases = [
+            '2024-13-01_sermon.mp3', // Invalid month
+            '2024-02-30_sermon.mp3', // Invalid day for February
+            '1800-01-01_sermon.mp3', // Too old
+        ];
 
-    foreach ($testCases as $filename => $expectedDate) {
-      $result = $this->service->extractDateFromFilename($filename);
-      $this->assertEquals($expectedDate, $result->format('Y-m-d'), "Failed for filename: {$filename}");
+        $today = Carbon::today();
+
+        foreach ($testCases as $filename) {
+            $result = $this->service->extractDateFromFilename($filename);
+            $this->assertEquals($today->format('Y-m-d'), $result->format('Y-m-d'), "Failed for filename: {$filename}");
+        }
     }
-  }
 
-  #[Test]
-  public function it_handles_edge_cases_gracefully(): void
-  {
-    // Empty filename
-    $result = $this->service->extractDateFromFilename('');
-    $this->assertEquals(Carbon::today()->format('Y-m-d'), $result->format('Y-m-d'));
+    #[Test]
+    public function it_determines_service_from_time_correctly(): void
+    {
+        // Morning times (6 AM - 2 PM)
+        $morningTimes = [
+            Carbon::createFromTime(6, 0),
+            Carbon::createFromTime(10, 30),
+            Carbon::createFromTime(11, 0),
+            Carbon::createFromTime(13, 59),
+        ];
 
-    // Filename with only extension
-    $result = $this->service->extractDateFromFilename('.mp3');
-    $this->assertEquals(Carbon::today()->format('Y-m-d'), $result->format('Y-m-d'));
+        foreach ($morningTimes as $time) {
+            $result = $this->service->determineServiceFromTime($time);
+            $this->assertEquals(SermonService::MORNING, $result, "Failed for time: {$time->format('H:i')}");
+        }
 
-    // Filename with multiple extensions
-    $result = $this->service->extractDateFromFilename('2024-01-15.backup.mp3');
-    $this->assertEquals('2024-01-15', $result->format('Y-m-d'));
-  }
+        // Evening times (2 PM onwards and before 6 AM)
+        $eveningTimes = [
+            Carbon::createFromTime(14, 0),
+            Carbon::createFromTime(18, 30),
+            Carbon::createFromTime(19, 0),
+            Carbon::createFromTime(23, 59),
+            Carbon::createFromTime(0, 0),
+            Carbon::createFromTime(5, 59),
+        ];
+
+        foreach ($eveningTimes as $time) {
+            $result = $this->service->determineServiceFromTime($time);
+            $this->assertEquals(SermonService::EVENING, $result, "Failed for time: {$time->format('H:i')}");
+        }
+    }
+
+    #[Test]
+    public function it_determines_service_from_filename_patterns(): void
+    {
+        // Morning patterns
+        $morningFilenames = [
+            'morning_sermon.mp3',
+            'sermon_am.mp3',
+            'am_service.mp3',
+            '10:30_service.mp3',
+            '11-00_sermon.mp3',
+            '1030_morning.mp3',
+            '1100service.mp3',
+        ];
+
+        foreach ($morningFilenames as $filename) {
+            $result = $this->service->determineServiceFromFilename($filename);
+            $this->assertEquals(SermonService::MORNING, $result, "Failed for filename: {$filename}");
+        }
+
+        // Evening patterns
+        $eveningFilenames = [
+            'evening_sermon.mp3',
+            'sermon_pm.mp3',
+            'pm_service.mp3',
+            '6:30_service.mp3',
+            '7-00_sermon.mp3',
+            '630_evening.mp3',
+            '1830service.mp3',
+            '1900_sermon.mp3',
+        ];
+
+        foreach ($eveningFilenames as $filename) {
+            $result = $this->service->determineServiceFromFilename($filename);
+            $this->assertEquals(SermonService::EVENING, $result, "Failed for filename: {$filename}");
+        }
+    }
+
+    #[Test]
+    public function it_defaults_to_morning_service_when_no_pattern_found(): void
+    {
+        $neutralFilenames = [
+            'sermon.mp3',
+            'sunday_service.mp3',
+            'message.mp3',
+            'preaching.mp3',
+        ];
+
+        foreach ($neutralFilenames as $filename) {
+            $result = $this->service->determineServiceFromFilename($filename);
+            $this->assertEquals(SermonService::MORNING, $result, "Failed for filename: {$filename}");
+        }
+    }
+
+    #[Test]
+    public function it_avoids_false_matches_in_filename_patterns(): void
+    {
+        // These should not match AM/PM patterns
+        $testCases = [
+            'example.mp3' => SermonService::MORNING, // 'am' in 'example' shouldn't match
+            'spam_filter.mp3' => SermonService::MORNING, // 'am' in 'spam' shouldn't match
+            'team_meeting.mp3' => SermonService::MORNING, // 'am' in 'team' shouldn't match
+        ];
+
+        foreach ($testCases as $filename => $expected) {
+            $result = $this->service->determineServiceFromFilename($filename);
+            $this->assertEquals($expected, $result, "Failed for filename: {$filename}");
+        }
+    }
+
+    #[Test]
+    public function it_extracts_metadata_from_file_path(): void
+    {
+        $filePath = '/path/to/2024-01-15_morning_sermon.mp3';
+
+        $result = $this->service->extractFromFilePath($filePath);
+
+        $this->assertInstanceOf(SermonMetadata::class, $result);
+        $this->assertEquals('2024-01-15', $result->date->format('Y-m-d'));
+        $this->assertEquals(SermonService::MORNING, $result->service);
+        $this->assertEquals('2024-01-15_morning_sermon.mp3', $result->filename);
+        $this->assertEquals('2024-01-15_morning_sermon.mp3', $result->originalName);
+    }
+
+    #[Test]
+    public function it_validates_audio_file_format(): void
+    {
+        // Create a mock uploaded file
+        $file = UploadedFile::fake()->create('test.mp3', 1024, 'audio/mpeg');
+
+        $result = $this->service->validateAudioFile($file);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('valid', $result);
+        $this->assertArrayHasKey('errors', $result);
+        $this->assertArrayHasKey('info', $result);
+    }
+
+    #[Test]
+    public function it_rejects_files_that_are_too_large(): void
+    {
+        // Create a file larger than 100MB
+        $file = UploadedFile::fake()->create('large.mp3', 101 * 1024, 'audio/mpeg');
+
+        $result = $this->service->validateAudioFile($file);
+
+        $this->assertFalse($result['valid']);
+        $this->assertNotEmpty($result['errors']);
+        $this->assertStringContainsString('File size too large', $result['errors'][0]);
+    }
+
+    #[Test]
+    public function it_guesses_format_from_extension(): void
+    {
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('guessFormatFromExtension');
+        $method->setAccessible(true);
+
+        $testCases = [
+            'mp3' => 'MP3',
+            'wav' => 'WAV',
+            'flac' => 'FLAC',
+            'aac' => 'AAC',
+            'm4a' => 'M4A',
+            'ogg' => 'OGG',
+            'unknown' => 'UNKNOWN',
+            null => null,
+        ];
+
+        foreach ($testCases as $extension => $expected) {
+            $result = $method->invoke($this->service, $extension);
+            $this->assertEquals($expected, $result, "Failed for extension: {$extension}");
+        }
+    }
+
+    #[Test]
+    public function it_handles_complex_filename_patterns(): void
+    {
+        $complexFilenames = [
+            'CBC_2024-01-15_10.30am_John_3.16-21.mp3' => [
+                'date' => '2024-01-15',
+                'service' => SermonService::MORNING,
+            ],
+            '15.01.2024_evening_service_Romans_8.mp3' => [
+                'date' => '2024-01-15',
+                'service' => SermonService::EVENING,
+            ],
+            'Sermon_20240630_PM_1_John_2.1-6.mp3' => [
+                'date' => '2024-06-30',
+                'service' => SermonService::EVENING,
+            ],
+        ];
+
+        foreach ($complexFilenames as $filename => $expected) {
+            $result = $this->service->extractDateFromFilename($filename);
+            $this->assertEquals($expected['date'], $result->format('Y-m-d'), "Date failed for: {$filename}");
+
+            $service = $this->service->determineServiceFromFilename($filename);
+            $this->assertEquals($expected['service'], $service, "Service failed for: {$filename}");
+        }
+    }
+
+    #[Test]
+    public function it_preserves_dates_with_dots_in_filenames(): void
+    {
+        // These filenames contain dots in Bible references that should not interfere with date extraction
+        $testCases = [
+            '2024-01-15_John_3.16.mp3' => '2024-01-15',
+            '15.01.2024_1_John_2.1-6.mp3' => '2024-01-15',
+            'Sermon_2024.03.10_Romans_8.28-39.mp3' => '2024-03-10',
+        ];
+
+        foreach ($testCases as $filename => $expectedDate) {
+            $result = $this->service->extractDateFromFilename($filename);
+            $this->assertEquals($expectedDate, $result->format('Y-m-d'), "Failed for filename: {$filename}");
+        }
+    }
+
+    #[Test]
+    public function it_handles_edge_cases_gracefully(): void
+    {
+        // Empty filename
+        $result = $this->service->extractDateFromFilename('');
+        $this->assertEquals(Carbon::today()->format('Y-m-d'), $result->format('Y-m-d'));
+
+        // Filename with only extension
+        $result = $this->service->extractDateFromFilename('.mp3');
+        $this->assertEquals(Carbon::today()->format('Y-m-d'), $result->format('Y-m-d'));
+
+        // Filename with multiple extensions
+        $result = $this->service->extractDateFromFilename('2024-01-15.backup.mp3');
+        $this->assertEquals('2024-01-15', $result->format('Y-m-d'));
+    }
 }

@@ -5,16 +5,15 @@ namespace App\Services;
 use App\Models\LivestreamProcessingLog;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class LivestreamMonitoringService
 {
     public function getProcessingMetrics(int $hours = 24): array
     {
         $since = now()->subHours($hours);
-        
-        $cacheKey = "livestream_metrics_{$hours}h_" . now()->format('H');
-        
+
+        $cacheKey = "livestream_metrics_{$hours}h_".now()->format('H');
+
         return Cache::remember($cacheKey, 300, function () use ($since) { // Cache for 5 minutes
             $processings = LivestreamProcessingLog::where('created_at', '>=', $since)
                 ->with('segments')
@@ -23,15 +22,15 @@ class LivestreamMonitoringService
             $completed = $processings->where('status', 'completed');
             $failed = $processings->where('status', 'failed');
             $processing = $processings->where('status', 'processing');
-            
+
             return [
                 'summary' => [
                     'total_processed' => $processings->count(),
                     'successful' => $completed->count(),
                     'failed' => $failed->count(),
                     'in_progress' => $processing->count(),
-                    'success_rate' => $processings->count() > 0 
-                        ? round(($completed->count() / $processings->count()) * 100, 2) 
+                    'success_rate' => $processings->count() > 0
+                        ? round(($completed->count() / $processings->count()) * 100, 2)
                         : 0,
                 ],
                 'processing_times' => $this->calculateProcessingTimes($completed),
@@ -58,6 +57,7 @@ class LivestreamMonitoringService
             if ($log->completed_at && $log->created_at) {
                 return $log->completed_at->diffInMinutes($log->created_at);
             }
+
             return 0;
         })->filter();
 
@@ -66,10 +66,10 @@ class LivestreamMonitoringService
 
         return [
             'average_duration_minutes' => round($durations->avg(), 2),
-            'median_duration_minutes' => $count > 0 
-                ? ($count % 2 === 0 
-                    ? ($sorted[$count/2 - 1] + $sorted[$count/2]) / 2 
-                    : $sorted[intval($count/2)])
+            'median_duration_minutes' => $count > 0
+                ? ($count % 2 === 0
+                    ? ($sorted[$count / 2 - 1] + $sorted[$count / 2]) / 2
+                    : $sorted[intval($count / 2)])
                 : 0,
             'min_duration_minutes' => $durations->min() ?? 0,
             'max_duration_minutes' => $durations->max() ?? 0,
@@ -83,7 +83,7 @@ class LivestreamMonitoringService
 
         foreach ($failed as $failure) {
             $errorMessage = strtolower($failure->error_message ?? '');
-            
+
             // Categorize failures
             if (str_contains($errorMessage, 'disk') || str_contains($errorMessage, 'space')) {
                 $failureTypes['storage_issues'] = ($failureTypes['storage_issues'] ?? 0) + 1;
@@ -120,14 +120,14 @@ class LivestreamMonitoringService
         foreach ($completed as $processing) {
             $segments = $processing->segments;
             $totalSegments += $segments->count();
-            
+
             if ($segments->where('is_sermon_segment', true)->isNotEmpty()) {
                 $sermonIdentified++;
             }
 
             $songSegments = $segments->where('classification', 'song')->count();
             $speechSegments = $segments->where('classification', 'speech')->count();
-            
+
             $segmentStats[] = [
                 'total' => $segments->count(),
                 'song' => $songSegments,
@@ -136,8 +136,8 @@ class LivestreamMonitoringService
         }
 
         $avgSegments = $completed->count() > 0 ? $totalSegments / $completed->count() : 0;
-        $sermonIdentificationRate = $completed->count() > 0 
-            ? ($sermonIdentified / $completed->count()) * 100 
+        $sermonIdentificationRate = $completed->count() > 0
+            ? ($sermonIdentified / $completed->count()) * 100
             : 0;
 
         return [
@@ -154,7 +154,7 @@ class LivestreamMonitoringService
 
         foreach ($completed as $processing) {
             $totalSize += $processing->file_size ?? 0;
-            
+
             if ($processing->sermon_id) {
                 $videoFilesStored++;
             }
@@ -163,8 +163,8 @@ class LivestreamMonitoringService
         return [
             'total_input_size_gb' => round($totalSize / (1024 * 1024 * 1024), 2),
             'video_files_stored' => $videoFilesStored,
-            'average_file_size_mb' => $completed->count() > 0 
-                ? round(($totalSize / $completed->count()) / (1024 * 1024), 2) 
+            'average_file_size_mb' => $completed->count() > 0
+                ? round(($totalSize / $completed->count()) / (1024 * 1024), 2)
                 : 0,
         ];
     }
@@ -173,7 +173,7 @@ class LivestreamMonitoringService
     {
         $manualReviewRequired = $processings->where('status', 'manual_review_required')->count();
         $total = $processings->count();
-        
+
         return [
             'manual_review_required' => $manualReviewRequired,
             'manual_review_rate' => $total > 0 ? round(($manualReviewRequired / $total) * 100, 2) : 0,
@@ -194,7 +194,7 @@ class LivestreamMonitoringService
         try {
             $pendingJobs = DB::table('jobs')->count();
             $failedJobs = DB::table('failed_jobs')->count();
-            
+
             $status = 'healthy';
             if ($pendingJobs > 100) {
                 $status = 'warning';
@@ -221,14 +221,14 @@ class LivestreamMonitoringService
         try {
             $livestreamsPath = storage_path('app/livestreams');
             $tempPath = storage_path('app/temp');
-            
+
             $livestreamsSize = $this->getDirectorySize($livestreamsPath);
             $tempSize = $this->getDirectorySize($tempPath);
             $freeSpace = disk_free_space(storage_path());
-            
+
             $status = 'healthy';
             $freeSpaceGB = $freeSpace / (1024 * 1024 * 1024);
-            
+
             if ($freeSpaceGB < 10) {
                 $status = 'critical';
             } elseif ($freeSpaceGB < 50) {
@@ -251,7 +251,7 @@ class LivestreamMonitoringService
 
     private function getDirectorySize(string $path): int
     {
-        if (!is_dir($path)) {
+        if (! is_dir($path)) {
             return 0;
         }
 
@@ -297,17 +297,17 @@ class LivestreamMonitoringService
     public function getPerformanceTrends(int $days = 7): array
     {
         $dailyStats = [];
-        
+
         for ($i = 0; $i < $days; $i++) {
             $date = now()->subDays($i);
             $startOfDay = $date->copy()->startOfDay();
             $endOfDay = $date->copy()->endOfDay();
-            
+
             $processings = LivestreamProcessingLog::whereBetween('created_at', [$startOfDay, $endOfDay])
                 ->get();
 
             $completed = $processings->where('status', 'completed');
-            $avgDuration = $completed->isNotEmpty() 
+            $avgDuration = $completed->isNotEmpty()
                 ? $completed->avg(function ($log) {
                     return $log->completed_at?->diffInMinutes($log->created_at) ?? 0;
                 })
@@ -341,7 +341,7 @@ class LivestreamMonitoringService
 
         if ($health['storage_health']['status'] === 'critical') {
             $alerts[] = [
-                'level' => 'critical',  
+                'level' => 'critical',
                 'type' => 'storage_health',
                 'message' => 'Storage space is critically low',
                 'details' => $health['storage_health'],
@@ -351,7 +351,7 @@ class LivestreamMonitoringService
         if ($health['processing_health']['status'] === 'critical') {
             $alerts[] = [
                 'level' => 'critical',
-                'type' => 'processing_health', 
+                'type' => 'processing_health',
                 'message' => 'Processing pipeline has critical issues',
                 'details' => $health['processing_health'],
             ];

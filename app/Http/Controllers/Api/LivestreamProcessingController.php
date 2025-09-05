@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\ProcessingStatusContract;
+use App\Data\StandardProcessingResponse;
 use App\Http\Controllers\Controller;
+use App\Models\LivestreamProcessingLog;
 use App\Services\LivestreamProcessingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
-class LivestreamProcessingController extends Controller
+class LivestreamProcessingController extends Controller implements ProcessingStatusContract
 {
     public function __construct(
         private LivestreamProcessingService $livestreamProcessingService
@@ -23,7 +26,7 @@ class LivestreamProcessingController extends Controller
                     'required',
                     'file',
                     'mimes:mp4,mov,avi,mkv,webm',
-                    'max:' . (config('livestream-processing.max_file_size') / 1024), // Convert bytes to KB for validation
+                    'max:'.(config('livestream-processing.max_file_size') / 1024), // Convert bytes to KB for validation
                 ],
                 'options' => 'sometimes|array',
                 'options.rms_threshold' => 'sometimes|numeric|between:-60,0',
@@ -32,12 +35,12 @@ class LivestreamProcessingController extends Controller
             ]);
 
             $videoFile = $request->file('video');
-            
-            if (!$videoFile || !$videoFile->isValid()) {
+
+            if (! $videoFile || ! $videoFile->isValid()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid video file uploaded',
-                    'errors' => ['video' => ['The uploaded video file is invalid']]
+                    'errors' => ['video' => ['The uploaded video file is invalid']],
                 ], 422);
             }
 
@@ -46,7 +49,7 @@ class LivestreamProcessingController extends Controller
             Log::info('Livestream processing initiated via API', [
                 'processing_id' => $result->processingId,
                 'original_filename' => $videoFile->getClientOriginalName(),
-                'file_size' => $videoFile->getSize()
+                'file_size' => $videoFile->getSize(),
             ]);
 
             return response()->json([
@@ -61,7 +64,7 @@ class LivestreamProcessingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
 
         } catch (\Exception $e) {
@@ -71,13 +74,13 @@ class LivestreamProcessingController extends Controller
                 'request_data' => [
                     'has_file' => $request->hasFile('video'),
                     'file_size' => $request->hasFile('video') ? $request->file('video')?->getSize() : null,
-                ]
+                ],
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to initiate livestream processing',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
@@ -95,7 +98,7 @@ class LivestreamProcessingController extends Controller
                 'segments_identified' => count($status->stepDetails['segmentation']['segments'] ?? []),
                 'sermon_processing_id' => $status->stepDetails['sermon_processing_id'] ?? null,
                 'sermon_video_path' => $status->stepDetails['sermon_video_path'] ?? null,
-                'segments' => array_map(function($segment) {
+                'segments' => array_map(function ($segment) {
                     return [
                         'index' => $segment['segment_order'] ?? 0,
                         'start_time' => $segment['start_time'],
@@ -103,19 +106,19 @@ class LivestreamProcessingController extends Controller
                         'classification' => $segment['classification'],
                         'is_sermon' => $segment['is_sermon_candidate'] ?? false,
                     ];
-                }, $status->stepDetails['segmentation']['segments'] ?? [])
+                }, $status->stepDetails['segmentation']['segments'] ?? []),
             ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to get livestream processing status', [
                 'processing_id' => $processingId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Processing record not found',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         }
     }
@@ -145,7 +148,7 @@ class LivestreamProcessingController extends Controller
                     'processing_metadata' => $result->processingMetadata,
                     'started_at' => $result->startedAt,
                     'completed_at' => $result->completedAt,
-                    'segments' => array_map(function($segment) {
+                    'segments' => array_map(function ($segment) {
                         return [
                             'start_time' => $segment->startTime,
                             'end_time' => $segment->endTime,
@@ -161,19 +164,19 @@ class LivestreamProcessingController extends Controller
                     'segments_summary' => $result->segmentsSummary,
                     'has_sermon' => $result->hasSermon(),
                     'has_segments' => $result->hasSegments(),
-                ]
+                ],
             ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to get livestream processing result', [
                 'processing_id' => $processingId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Processing record not found',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         }
     }
@@ -184,7 +187,7 @@ class LivestreamProcessingController extends Controller
             $result = $this->livestreamProcessingService->retryProcessing($processingId);
 
             Log::info('Livestream processing retry initiated via API', [
-                'processing_id' => $processingId
+                'processing_id' => $processingId,
             ]);
 
             return response()->json([
@@ -194,47 +197,40 @@ class LivestreamProcessingController extends Controller
                     'processing_id' => $result->processingId,
                     'status' => $result->status,
                     'status_url' => route('api.livestream.status', ['processingId' => $processingId]),
-                ]
+                ],
             ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to retry livestream processing', [
                 'processing_id' => $processingId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retry processing',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 400);
         }
     }
 
-    public function cancelProcessing(string $processingId): JsonResponse
+    public function cancel(string $processingId): JsonResponse
     {
         try {
-            $this->livestreamProcessingService->cancelProcessing($processingId);
+            $result = $this->cancelProcessing($processingId);
 
-            Log::info('Livestream processing cancelled via API', [
-                'processing_id' => $processingId
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Processing cancelled successfully'
-            ]);
+            return response()->json($result, $result['success'] ? 200 : 400);
 
         } catch (\Exception $e) {
-            Log::error('Failed to cancel livestream processing', [
+            Log::error('Failed to cancel livestream processing via API', [
                 'processing_id' => $processingId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to cancel processing',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 400);
         }
     }
@@ -246,18 +242,18 @@ class LivestreamProcessingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $summary
+                'data' => $summary,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to get processing summary', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get processing summary',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -265,7 +261,7 @@ class LivestreamProcessingController extends Controller
     private function estimateProcessingTime(int $fileSizeBytes): int
     {
         $fileSizeMB = $fileSizeBytes / (1024 * 1024);
-        
+
         if ($fileSizeMB < 100) {
             return 5;
         } elseif ($fileSizeMB < 500) {
@@ -275,5 +271,110 @@ class LivestreamProcessingController extends Controller
         } else {
             return 60;
         }
+    }
+
+    /**
+     * Get processing status for a given processing ID (Contract implementation)
+     */
+    public function getProcessingStatus(string $processingId): StandardProcessingResponse
+    {
+        try {
+            $status = $this->livestreamProcessingService->getProcessingStatus($processingId);
+
+            // Convert LivestreamProcessingStatus to StandardProcessingResponse
+            return StandardProcessingResponse::found(
+                processingId: $status->processingId,
+                status: $status->status,
+                currentStep: $status->currentStep,
+                progressPercentage: $status->progressPercentage,
+                errorMessage: $status->errorMessage,
+                sermonId: $status->stepDetails['sermon_processing_id'] ?? null,
+                sermonUrl: isset($status->stepDetails['sermon_processing_id'])
+                    ? "/christ/sermons/{$status->stepDetails['sermon_processing_id']}"
+                    : null,
+                startedAt: null, // Would need to be added to LivestreamProcessingStatus if needed
+                updatedAt: null, // Would need to be added to LivestreamProcessingStatus if needed
+                estimatedCompletion: $status->estimatedCompletionTime,
+                additionalData: [
+                    'segments_identified' => count($status->stepDetails['segmentation']['segments'] ?? []),
+                    'sermon_video_path' => $status->stepDetails['sermon_video_path'] ?? null,
+                    'segments' => array_map(function ($segment) {
+                        return [
+                            'index' => $segment['segment_order'] ?? 0,
+                            'start_time' => $segment['start_time'],
+                            'end_time' => $segment['end_time'],
+                            'classification' => $segment['classification'],
+                            'is_sermon' => $segment['is_sermon_candidate'] ?? false,
+                        ];
+                    }, $status->stepDetails['segmentation']['segments'] ?? []),
+                ]
+            );
+
+        } catch (\Exception $e) {
+            Log::error('Error retrieving livestream processing status', [
+                'processing_id' => $processingId,
+                'error' => $e->getMessage(),
+            ]);
+
+            if (str_contains($e->getMessage(), 'not found')) {
+                return StandardProcessingResponse::notFound();
+            }
+
+            return StandardProcessingResponse::error('Failed to retrieve processing status: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Cancel processing for a given processing ID (Contract implementation)
+     */
+    public function cancelProcessing(string $processingId): array
+    {
+        try {
+            // Validate processing ID format
+            if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $processingId)) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid processing ID format',
+                ];
+            }
+
+            Log::info('Livestream processing cancellation requested', [
+                'processing_id' => $processingId,
+            ]);
+
+            $cancelled = $this->livestreamProcessingService->cancelProcessing($processingId);
+
+            if ($cancelled) {
+                return [
+                    'success' => true,
+                    'message' => 'Livestream processing has been cancelled',
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to cancel livestream processing or processing not found',
+                ];
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error cancelling livestream processing', [
+                'processing_id' => $processingId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Cancellation failed',
+            ];
+        }
+    }
+
+    /**
+     * Determine if this controller can handle the given processing ID
+     */
+    public function canHandle(string $processingId): bool
+    {
+        // Check if processing ID exists in livestream processing logs
+        return LivestreamProcessingLog::where('processing_id', $processingId)->exists();
     }
 }

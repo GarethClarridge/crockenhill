@@ -13,9 +13,10 @@ use Illuminate\Support\Facades\Log;
 
 class AnalyzeSegments implements ShouldQueue
 {
-    use Queueable, InteractsWithQueue, SerializesModels;
+    use InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 1800;
 
     public function __construct(
@@ -25,26 +26,23 @@ class AnalyzeSegments implements ShouldQueue
     public function handle(VideoSegmentationService $segmentationService): void
     {
         try {
+            // Update status to show segmentation is starting
+            $this->processingLog->update(['status' => 'segmentation']);
+
             Log::info('Starting segment analysis', [
                 'processing_id' => $this->processingLog->processing_id,
-                'rms_log_path' => $this->processingLog->rms_log_path
+                'rms_log_path' => $this->processingLog->rms_log_path,
             ]);
 
-            if (!$this->processingLog->rms_log_path) {
+            if (! $this->processingLog->rms_log_path) {
                 throw new \Exception('RMS log path not found in processing log');
             }
 
             $analysisResult = $segmentationService->analyzeSegments($this->processingLog->rms_log_path);
-            
-            // Handle both old format (array of segments) and new format (with metadata)
-            if (isset($analysisResult['segments'])) {
-                $segments = $analysisResult['segments'];
-                $thresholdMetadata = $analysisResult['threshold_metadata'] ?? null;
-            } else {
-                // Backward compatibility: treat as array of segments
-                $segments = $analysisResult;
-                $thresholdMetadata = null;
-            }
+
+            // Extract segments and metadata from the analysis result
+            $segments = $analysisResult['segments'];
+            $thresholdMetadata = $analysisResult['threshold_metadata'];
 
             if (empty($segments)) {
                 throw new \Exception('No segments found in RMS log analysis');
@@ -63,14 +61,14 @@ class AnalyzeSegments implements ShouldQueue
                 $this->processingLog->update([
                     'sermon_start_time' => $sermonCandidate->startTime,
                     'sermon_end_time' => $sermonCandidate->endTime,
-                    'status' => 'segmenting'
+                    'status' => 'segmenting',
                 ]);
 
                 Log::info('Sermon candidate identified', [
                     'processing_id' => $this->processingLog->processing_id,
                     'start_time' => $sermonCandidate->startTime,
                     'end_time' => $sermonCandidate->endTime,
-                    'duration' => $sermonCandidate->duration
+                    'duration' => $sermonCandidate->duration,
                 ]);
 
                 // Job chain will automatically proceed to next job
@@ -78,7 +76,7 @@ class AnalyzeSegments implements ShouldQueue
                 Log::warning('No sermon candidate found', [
                     'processing_id' => $this->processingLog->processing_id,
                     'total_segments' => count($segments),
-                    'speech_segments' => count(array_filter($segments, fn($s) => $s->isSpeech()))
+                    'speech_segments' => count(array_filter($segments, fn ($s) => $s->isSpeech())),
                 ]);
 
                 $this->processingLog->markAsFailed(
@@ -94,10 +92,10 @@ class AnalyzeSegments implements ShouldQueue
             Log::error('Segment analysis failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->processingLog->markAsFailed('Segment analysis failed: ' . $e->getMessage());
+            $this->processingLog->markAsFailed('Segment analysis failed: '.$e->getMessage());
 
             // Cleanup will be handled by the chain failure handler
 
@@ -108,7 +106,7 @@ class AnalyzeSegments implements ShouldQueue
     private function storeThresholdMetadata(array $thresholdMetadata): void
     {
         $updateData = [
-            'threshold_method' => $thresholdMetadata['method'] ?? 'unknown'
+            'threshold_method' => $thresholdMetadata['method'] ?? 'unknown',
         ];
 
         // Add adaptive threshold value if present
@@ -126,7 +124,7 @@ class AnalyzeSegments implements ShouldQueue
         Log::info('Threshold metadata stored', [
             'processing_id' => $this->processingLog->processing_id,
             'threshold_method' => $thresholdMetadata['method'] ?? 'unknown',
-            'threshold_value' => $thresholdMetadata['threshold'] ?? null
+            'threshold_value' => $thresholdMetadata['threshold'] ?? null,
         ]);
     }
 
@@ -151,23 +149,23 @@ class AnalyzeSegments implements ShouldQueue
 
         Log::info('Segments stored in database', [
             'processing_id' => $this->processingLog->processing_id,
-            'segment_count' => count($segments)
+            'segment_count' => count($segments),
         ]);
     }
 
     private function findSermonCandidate(array $segments): ?\App\Data\LivestreamSegment
     {
-        $speechSegments = array_filter($segments, fn($s) => $s->isSpeech());
-        
+        $speechSegments = array_filter($segments, fn ($s) => $s->isSpeech());
+
         if (empty($speechSegments)) {
             return null;
         }
 
-        usort($speechSegments, fn($a, $b) => $b->duration <=> $a->duration);
+        usort($speechSegments, fn ($a, $b) => $b->duration <=> $a->duration);
         $longestSpeechSegment = $speechSegments[0];
 
         $minSermonDuration = config('livestream-processing.min_sermon_duration');
-        
+
         if ($longestSpeechSegment->duration >= $minSermonDuration) {
             return $longestSpeechSegment;
         }
@@ -180,11 +178,11 @@ class AnalyzeSegments implements ShouldQueue
         Log::error('AnalyzeSegments job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),
-            'attempts' => $this->attempts()
+            'attempts' => $this->attempts(),
         ]);
 
         $this->processingLog->markAsFailed(
-            'Segment analysis failed after ' . $this->tries . ' attempts: ' . $exception->getMessage()
+            'Segment analysis failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
 
         // Cleanup will be handled by the chain failure handler

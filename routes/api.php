@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\AutomatedSermonController;
 use App\Http\Controllers\Api\LivestreamProcessingController;
+use App\Http\Controllers\AutomatedSermonController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-  return $request->user();
+    return $request->user();
 });
 
 /*
@@ -31,48 +31,55 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 */
 
 Route::prefix('sermons')->name('api.sermons.')->middleware('cors')->group(function () {
-  // Automated sermon upload endpoint
-  Route::post('automated', [AutomatedSermonController::class, 'upload'])
-    ->middleware(['auth:sanctum', 'throttle:sermon-upload'])
-    ->name('automated.upload');
+    // Unified media processing endpoints - different entry points, same controller
+    Route::post('livestream', [AutomatedSermonController::class, 'uploadLivestream'])
+        ->middleware(['auth:sanctum', 'throttle:sermon-upload'])
+        ->name('livestream.upload');
 
-  // Direct sermon video upload endpoint
-  Route::post('video', [AutomatedSermonController::class, 'uploadVideo'])
-    ->middleware(['auth:sanctum', 'throttle:sermon-video-upload'])
-    ->name('video.upload');
+    Route::post('video', [AutomatedSermonController::class, 'uploadVideo'])
+        ->middleware(['auth:sanctum', 'throttle:sermon-video-upload'])
+        ->name('video.upload');
 
-  // Processing status and management endpoints
-  Route::prefix('processing')->name('processing.')->group(function () {
-    // Get processing status by ID
-    Route::get('{processingId}/status', [AutomatedSermonController::class, 'status'])
-      ->middleware(['auth:sanctum', 'throttle:api'])
-      ->name('status');
+    Route::post('audio', [AutomatedSermonController::class, 'upload'])
+        ->middleware(['auth:sanctum', 'throttle:sermon-upload'])
+        ->name('audio.upload');
 
-    // Retry failed processing
-    Route::post('{processingId}/retry', [AutomatedSermonController::class, 'retry'])
-      ->middleware(['auth:sanctum', 'throttle:sermon-retry'])
-      ->name('retry');
+    // Legacy endpoint for backward compatibility
+    Route::post('automated', [AutomatedSermonController::class, 'upload'])
+        ->middleware(['auth:sanctum', 'throttle:sermon-upload'])
+        ->name('automated.upload');
 
-    // Apply graceful degradation to failed processing
-    Route::post('{processingId}/graceful-degradation', [AutomatedSermonController::class, 'gracefulDegradation'])
-      ->middleware(['auth:sanctum', 'throttle:api'])
-      ->name('graceful-degradation');
+    // Unified status/management (existing endpoints)
+    Route::prefix('processing')->name('processing.')->group(function () {
+        Route::get('{processingId}/status', [AutomatedSermonController::class, 'status'])
+            ->middleware(['auth:sanctum', 'throttle:api'])
+            ->name('status');
 
-    // Get processing statistics
-    Route::get('statistics', [AutomatedSermonController::class, 'statistics'])
-      ->middleware(['auth:sanctum', 'throttle:api'])
-      ->name('statistics');
+        Route::delete('{processingId}', [AutomatedSermonController::class, 'cancel'])
+            ->middleware(['auth:sanctum', 'throttle:api'])
+            ->name('cancel');
 
-    // Get failed processing logs
-    Route::get('failed', [AutomatedSermonController::class, 'failed'])
-      ->middleware(['auth:sanctum', 'throttle:api'])
-      ->name('failed');
+        Route::post('{processingId}/retry', [AutomatedSermonController::class, 'retry'])
+            ->middleware(['auth:sanctum', 'throttle:sermon-retry'])
+            ->name('retry');
 
-    // System health check
-    Route::get('health', [AutomatedSermonController::class, 'health'])
-      ->middleware(['auth:sanctum', 'throttle:api'])
-      ->name('health');
-  });
+        Route::post('{processingId}/graceful-degradation', [AutomatedSermonController::class, 'gracefulDegradation'])
+            ->middleware(['auth:sanctum', 'throttle:api'])
+            ->name('graceful-degradation');
+
+        // Keep existing monitoring endpoints
+        Route::get('statistics', [AutomatedSermonController::class, 'statistics'])
+            ->middleware(['auth:sanctum', 'throttle:api'])
+            ->name('statistics');
+
+        Route::get('failed', [AutomatedSermonController::class, 'failed'])
+            ->middleware(['auth:sanctum', 'throttle:api'])
+            ->name('failed');
+
+        Route::get('health', [AutomatedSermonController::class, 'health'])
+            ->middleware(['auth:sanctum', 'throttle:api'])
+            ->name('health');
+    });
 });
 
 /*
@@ -81,45 +88,34 @@ Route::prefix('sermons')->name('api.sermons.')->middleware('cors')->group(functi
 |--------------------------------------------------------------------------
 |
 | These routes handle livestream video processing functionality including
-| video upload, segmentation, sermon extraction, and status monitoring.
+| file upload, status checking, and processing management.
 |
 */
 
 Route::prefix('livestreams')->name('api.livestream.')->middleware('cors')->group(function () {
-  // Video upload endpoint for livestream processing
-  Route::post('process', [LivestreamProcessingController::class, 'uploadVideo'])
-    ->middleware(['auth:sanctum', 'throttle:livestream-upload'])
-    ->name('process');
+    Route::post('process', [LivestreamProcessingController::class, 'uploadVideo'])
+        ->middleware(['auth:sanctum', 'throttle:livestream-upload'])
+        ->name('upload');
 
-  // Processing status and management endpoints
-  Route::prefix('processing')->name('processing.')->group(function () {
-    // Get processing status by ID
-    Route::get('{processingId}/status', [LivestreamProcessingController::class, 'getStatus'])
-      ->middleware(['auth:sanctum', 'throttle:api'])
-      ->name('status')
-      ->where('processingId', '[0-9a-f-]{36}');
+    Route::prefix('processing')->name('processing.')->group(function () {
+        Route::get('{processingId}/status', [LivestreamProcessingController::class, 'getStatus'])
+            ->middleware(['auth:sanctum', 'throttle:api'])
+            ->name('status');
 
-    // Get full processing result with segments
-    Route::get('{processingId}/result', [LivestreamProcessingController::class, 'getResult'])
-      ->middleware(['auth:sanctum', 'throttle:api'])
-      ->name('result')
-      ->where('processingId', '[0-9a-f-]{36}');
+        Route::get('{processingId}/result', [LivestreamProcessingController::class, 'getResult'])
+            ->middleware(['auth:sanctum', 'throttle:api'])
+            ->name('result');
 
-    // Retry failed processing
-    Route::post('{processingId}/retry', [LivestreamProcessingController::class, 'retryProcessing'])
-      ->middleware(['auth:sanctum', 'throttle:livestream-retry'])
-      ->name('retry')
-      ->where('processingId', '[0-9a-f-]{36}');
+        Route::post('{processingId}/retry', [LivestreamProcessingController::class, 'retryProcessing'])
+            ->middleware(['auth:sanctum', 'throttle:livestream-retry'])
+            ->name('retry');
 
-    // Cancel ongoing processing
-    Route::post('{processingId}/cancel', [LivestreamProcessingController::class, 'cancelProcessing'])
-      ->middleware(['auth:sanctum', 'throttle:api'])
-      ->name('cancel')
-      ->where('processingId', '[0-9a-f-]{36}');
+        Route::delete('{processingId}', [LivestreamProcessingController::class, 'cancel'])
+            ->middleware(['auth:sanctum', 'throttle:api'])
+            ->name('cancel');
+    });
 
-    // Get processing statistics summary
-    Route::get('summary', [LivestreamProcessingController::class, 'getProcessingSummary'])
-      ->middleware(['auth:sanctum', 'throttle:api'])
-      ->name('summary');
-  });
+    Route::get('processing/summary', [LivestreamProcessingController::class, 'getProcessingSummary'])
+        ->middleware(['auth:sanctum', 'throttle:api'])
+        ->name('processing.summary');
 });

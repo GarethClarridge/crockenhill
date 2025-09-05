@@ -6,6 +6,21 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property string|null $google_event_id
+ * @property string $meeting_slug
+ * @property string $title
+ * @property string|null $description
+ * @property string|null $speaker
+ * @property string|null $location
+ * @property \Illuminate\Support\Carbon $start_datetime
+ * @property \Illuminate\Support\Carbon $end_datetime
+ * @property string $status
+ * @property bool $is_categorized_automatically
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class CalendarEvent extends Model
 {
     protected $fillable = [

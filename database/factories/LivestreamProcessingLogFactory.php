@@ -15,7 +15,7 @@ class LivestreamProcessingLogFactory extends Factory
         return [
             'processing_id' => Str::uuid()->toString(),
             'original_filename' => $this->faker->randomElement(['service-2024-01-15.mp4', 'morning-service.mp4', 'evening-service.mp4']),
-            'original_file_path' => 'livestreams/' . Str::uuid() . '.mp4',
+            'original_file_path' => 'livestreams/'.Str::uuid().'.mp4',
             'file_size' => $this->faker->numberBetween(100000000, 2000000000), // 100MB to 2GB
             'file_format' => 'mp4',
             'duration' => $this->faker->numberBetween(1800, 7200), // 30 minutes to 2 hours
@@ -27,8 +27,8 @@ class LivestreamProcessingLogFactory extends Factory
                 return $this->faker->dateTimeBetween($attributes['created_at'], 'now');
             },
             'completed_at' => function (array $attributes) {
-                return $attributes['status'] === 'completed' ? 
-                    $this->faker->dateTimeBetween($attributes['created_at'], 'now') : 
+                return $attributes['status'] === 'completed' ?
+                    $this->faker->dateTimeBetween($attributes['created_at'], 'now') :
                     null;
             },
         ];
@@ -48,9 +48,9 @@ class LivestreamProcessingLogFactory extends Factory
             'status' => 'failed',
             'error_message' => $this->faker->randomElement([
                 'FFmpeg processing failed',
-                'No sermon segments found', 
+                'No sermon segments found',
                 'File corruption detected',
-                'Insufficient storage space'
+                'Insufficient storage space',
             ]),
             'completed_at' => $this->faker->dateTimeBetween($attributes['created_at'] ?? '-1 week', 'now'),
         ]);
