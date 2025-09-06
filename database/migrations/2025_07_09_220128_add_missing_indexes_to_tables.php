@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -11,6 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Fix duplicate slugs in sermons table before adding unique constraint
+        $this->fixDuplicateSlugs('sermons');
+        
         // Sermons table indexes
         Schema::table('sermons', function (Blueprint $table) {
             $table->index(['date', 'service'], 'sermons_date_service_index');
@@ -19,12 +23,18 @@ return new class extends Migration
             $table->unique('slug', 'sermons_slug_unique');
         });
 
+        // Fix duplicate slugs in pages table before adding unique constraint
+        $this->fixDuplicateSlugs('pages');
+        
         // Pages table indexes
         Schema::table('pages', function (Blueprint $table) {
             $table->unique('slug', 'pages_slug_unique');
             $table->index('area', 'pages_area_index');
         });
 
+        // Fix duplicate slugs in meetings table before adding unique constraint
+        $this->fixDuplicateSlugs('meetings');
+        
         // Meetings table indexes
         Schema::table('meetings', function (Blueprint $table) {
             $table->unique('slug', 'meetings_slug_unique');
@@ -56,5 +66,42 @@ return new class extends Migration
             $table->dropUnique('meetings_slug_unique');
             $table->dropIndex('meetings_type_day_index');
         });
+    }
+
+    /**
+     * Fix duplicate slugs by appending a number to duplicates
+     */
+    private function fixDuplicateSlugs(string $table): void
+    {
+        // Find duplicate slugs
+        $duplicates = DB::table($table)
+            ->select('slug')
+            ->groupBy('slug')
+            ->havingRaw('COUNT(*) > 1')
+            ->pluck('slug');
+
+        foreach ($duplicates as $slug) {
+            // Get all records with this slug, ordered by id
+            $records = DB::table($table)
+                ->where('slug', $slug)
+                ->orderBy('id')
+                ->get();
+
+            // Keep the first record as is, update others
+            foreach ($records->skip(1) as $index => $record) {
+                $newSlug = $slug . '-' . ($index + 2);
+                
+                // Ensure the new slug doesn't already exist
+                $counter = 2;
+                while (DB::table($table)->where('slug', $newSlug)->exists()) {
+                    $counter++;
+                    $newSlug = $slug . '-' . $counter;
+                }
+                
+                DB::table($table)
+                    ->where('id', $record->id)
+                    ->update(['slug' => $newSlug]);
+            }
+        }
     }
 };
