@@ -9,6 +9,11 @@ return new class extends Migration
 {
     public function up()
     {
+        // First, update any invalid timestamp values to NULL
+        DB::statement("UPDATE users SET created_at = NULL WHERE created_at < '1970-01-01' OR created_at = '0000-00-00 00:00:00'");
+        DB::statement("UPDATE users SET updated_at = NULL WHERE updated_at < '1970-01-01' OR updated_at = '0000-00-00 00:00:00'");
+        
+        // Now modify the columns
         DB::statement("ALTER TABLE users MODIFY created_at TIMESTAMP NULL DEFAULT NULL");
         DB::statement("ALTER TABLE users MODIFY updated_at TIMESTAMP NULL DEFAULT NULL");
     }
