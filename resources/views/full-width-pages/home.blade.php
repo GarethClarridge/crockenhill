@@ -58,13 +58,6 @@
     </p>
   </x-text>
 
-  <h2 id="sign-up-for-buzz-club" class="bg-yellow-400 bg-cover mt-10 -mb-10 p-16 text-center text-white text-3xl font-display">
-    <div class="flex flex-col md:flex-row items-center justify-center">
-      <a href="/buzz-club">🐝 &nbsp Sign up here for Buzz Club, our free holiday club for primary school children running 4-7th August.</a>
-      <x-heroicon-s-arrow-right-circle class="h-8 w-8 mt-2 ml-2" />
-    </div>
-  </h2>
-
   <x-h2>
     Worshipping God
   </x-h2>

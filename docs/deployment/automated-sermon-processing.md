@@ -37,10 +37,6 @@ QUEUE_FAILED_DRIVER=database
 
 # OpenAI API Configuration
 OPENAI_API_KEY=your-production-openai-api-key
-OPENAI_ORGANIZATION=your-openai-organization-id
-OPENAI_PROJECT=your-openai-project-id
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_REQUEST_TIMEOUT=60
 
 # Automated Sermon Processing Configuration
 TRANSCRIPTION_SERVICE_TYPE=openai
@@ -103,7 +99,7 @@ APP_ENV=staging
 APP_DEBUG=true
 LOG_LEVEL=debug
 
-# Use mock transcription service for development (no API costs)
+# Use mock transcription service for development only (no API costs)
 TRANSCRIPTION_SERVICE_TYPE=mock
 
 # Use smaller/cheaper OpenAI model for testing when using openai service

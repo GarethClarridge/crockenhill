@@ -158,7 +158,7 @@ LIVESTREAM_PERFORMANCE_MONITORING=true
 
 # Transcription Service (Required for sermon processing)
 TRANSCRIPTION_SERVICE_TYPE=openai
-OPENAI_API_KEY=your-openai-api-key
+OPENAI_API_KEY=your-production-openai-api-key
 OPENAI_MODEL=gpt-4o-mini
 ```
 
@@ -836,9 +836,9 @@ The project includes a Docker configuration optimized for video processing:
 
 2. **Configure for development:**
    ```bash
-   # Add to .env
-   TRANSCRIPTION_SERVICE_TYPE=mock  # Use mock service to avoid API costs
-   LIVESTREAM_RATE_LIMITING_ENABLED=false  # Disable rate limiting
+   # Add to .env for development only
+   TRANSCRIPTION_SERVICE_TYPE=mock  # Use mock service to avoid API costs in development
+   LIVESTREAM_RATE_LIMITING_ENABLED=false  # Disable rate limiting in development
    ```
 
 3. **Start services:**
@@ -873,8 +873,9 @@ For production deployments using Docker:
    # Production environment variables
    APP_ENV=production
    APP_DEBUG=false
-   TRANSCRIPTION_SERVICE_TYPE=openai  # Use real transcription service
-   LIVESTREAM_RATE_LIMITING_ENABLED=true  # Enable rate limiting
+   TRANSCRIPTION_SERVICE_TYPE=openai  # Use real transcription service in production
+   OPENAI_API_KEY=your-production-openai-api-key
+   LIVESTREAM_RATE_LIMITING_ENABLED=true  # Enable rate limiting in production
    ```
 
 3. **Deploy with Docker Compose or orchestration tool of choice**

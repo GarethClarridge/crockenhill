@@ -276,7 +276,7 @@ Please provide a JSON response with this exact structure:
     "series": "Name of matching existing series or null if no match",
     "reference": "Primary Bible passage being preached (e.g., 'John 3:16-21')",
     "points": ["Main point 1 in sentence case", "Main point 2 in sentence case", "Main point 3 in sentence case"],
-    "summary": "A concise summary of the sermon in under 200 words using British English"
+    "summary": "A concise summary of the sermon in under 100 words using British English"
 }
 
 ANALYSIS GUIDELINES:
@@ -307,7 +307,7 @@ ANALYSIS GUIDELINES:
    - If no clear structure is evident, create logical divisions based on content flow
    - Use sub-points if they help to structure the message, but don't overcomplicate it
 
-5. SUMMARY: Create a concise summary of the sermon in under 200 words that:
+5. SUMMARY: Create a concise summary of the sermon in under 100 words that:
    - Captures the main message and key themes
    - Stays faithful to the transcript content
    - Never introduces new information or ideas that are not in the transcript
