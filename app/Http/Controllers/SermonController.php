@@ -469,12 +469,32 @@ class SermonController extends Controller
      */
     public function serveAudio(Sermon $sermon)
     {
-        if (! $sermon->filename || ! Storage::exists($sermon->filename)) {
+        if (! $sermon->filename) {
             abort(404, 'Audio file not found.');
         }
 
-        $path = Storage::path($sermon->filename);
-        $name = basename($sermon->filename);
+        // Check if this is a new sermon with storage path or old sermon with filename/filetype
+        $path = null;
+        $name = null;
+
+        // Try new storage system first (for new sermons)
+        if (Storage::disk('public')->exists($sermon->filename)) {
+            $path = Storage::disk('public')->path($sermon->filename);
+            $name = basename($sermon->filename);
+        }
+        // Fall back to old file structure (for existing sermons)
+        // Old sermons have filename without path and a separate filetype
+        elseif ($sermon->filetype && ! str_contains($sermon->filename, '/')) {
+            $oldFilePath = public_path("media/sermons/{$sermon->filename}.{$sermon->filetype}");
+            if (file_exists($oldFilePath)) {
+                $path = $oldFilePath;
+                $name = "{$sermon->filename}.{$sermon->filetype}";
+            }
+        }
+
+        if (! $path || ! file_exists($path)) {
+            abort(404, 'Audio file not found.');
+        }
 
         return response()->file($path, [
             'Content-Type' => 'audio/mpeg',

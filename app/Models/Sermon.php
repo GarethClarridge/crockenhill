@@ -137,16 +137,24 @@ class Sermon extends Model
 
     public function getAudioUrlAttribute(): ?string
     {
-        // Assuming filename already includes 'public/media/sermons/' path part or similar
-        // Or if it's just the filename, Storage::url() should be used.
-        // The original url($this->filename) might be problematic if filename is not a full public path.
-        // For now, keeping original logic, but this is a common point of failure.
-        // If 'filename' stores something like 'sermons/audio.mp3' and 'public' disk is the default for url(),
-        // then Storage::disk('public')->url($this->filename) would be more robust.
-        // Given the `PostSermonRequest` stores to `Storage::disk('public')->putFile('sermons', $file);`
-        // the path stored in `filename` will be like `sermons/generated_name.mp3`.
-        // So, Storage::url() is appropriate.
-        return $this->filename ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->filename) : null;
+        if (! $this->filename) {
+            return null;
+        }
+
+        // Check if this is a new sermon with storage path or old sermon with filename/filetype
+        // For new sermons, use the storage system first
+        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($this->filename)) {
+            return \Illuminate\Support\Facades\Storage::disk('public')->url($this->filename);
+        }
+
+        // For old sermons, the filename should NOT contain a path and should have a separate filetype
+        // Old sermon pattern: filename is just the basename (e.g., "sermon-20230115") and filetype is "mp3"
+        if ($this->filetype && ! str_contains($this->filename, '/')) {
+            return url("media/sermons/{$this->filename}.{$this->filetype}");
+        }
+
+        // Fallback to storage URL (for backward compatibility with new-style paths that don't exist yet)
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->filename);
     }
 
     public function getSeriesUrlAttribute(): ?string

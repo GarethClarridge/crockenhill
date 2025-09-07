@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -14,45 +14,45 @@ return new class extends Migration
     {
         // Fix duplicate slugs in sermons table before adding unique constraint
         $this->fixDuplicateSlugs('sermons');
-        
+
         // Sermons table indexes
         Schema::table('sermons', function (Blueprint $table) {
-            if (!$this->indexExists('sermons', 'sermons_date_service_index')) {
+            if (! $this->indexExists('sermons', 'sermons_date_service_index')) {
                 $table->index(['date', 'service'], 'sermons_date_service_index');
             }
-            if (!$this->indexExists('sermons', 'sermons_preacher_index')) {
+            if (! $this->indexExists('sermons', 'sermons_preacher_index')) {
                 $table->index('preacher', 'sermons_preacher_index');
             }
-            if (!$this->indexExists('sermons', 'sermons_series_index')) {
+            if (! $this->indexExists('sermons', 'sermons_series_index')) {
                 $table->index('series', 'sermons_series_index');
             }
-            if (!$this->indexExists('sermons', 'sermons_slug_unique')) {
+            if (! $this->indexExists('sermons', 'sermons_slug_unique')) {
                 $table->unique('slug', 'sermons_slug_unique');
             }
         });
 
         // Fix duplicate slugs in pages table before adding unique constraint
         $this->fixDuplicateSlugs('pages');
-        
+
         // Pages table indexes
         Schema::table('pages', function (Blueprint $table) {
-            if (!$this->indexExists('pages', 'pages_slug_unique')) {
+            if (! $this->indexExists('pages', 'pages_slug_unique')) {
                 $table->unique('slug', 'pages_slug_unique');
             }
-            if (!$this->indexExists('pages', 'pages_area_index')) {
+            if (! $this->indexExists('pages', 'pages_area_index')) {
                 $table->index('area', 'pages_area_index');
             }
         });
 
         // Fix duplicate slugs in meetings table before adding unique constraint
         $this->fixDuplicateSlugs('meetings');
-        
+
         // Meetings table indexes
         Schema::table('meetings', function (Blueprint $table) {
-            if (!$this->indexExists('meetings', 'meetings_slug_unique')) {
+            if (! $this->indexExists('meetings', 'meetings_slug_unique')) {
                 $table->unique('slug', 'meetings_slug_unique');
             }
-            if (!$this->indexExists('meetings', 'meetings_type_day_index')) {
+            if (! $this->indexExists('meetings', 'meetings_type_day_index')) {
                 $table->index(['type', 'day'], 'meetings_type_day_index');
             }
         });
@@ -90,7 +90,8 @@ return new class extends Migration
     private function indexExists(string $table, string $indexName): bool
     {
         $indexes = DB::select("SHOW INDEX FROM {$table} WHERE Key_name = ?", [$indexName]);
-        return !empty($indexes);
+
+        return ! empty($indexes);
     }
 
     /**
@@ -114,15 +115,15 @@ return new class extends Migration
 
             // Keep the first record as is, update others
             foreach ($records->skip(1) as $index => $record) {
-                $newSlug = $slug . '-' . ($index + 2);
-                
+                $newSlug = $slug.'-'.($index + 2);
+
                 // Ensure the new slug doesn't already exist
                 $counter = 2;
                 while (DB::table($table)->where('slug', $newSlug)->exists()) {
                     $counter++;
-                    $newSlug = $slug . '-' . $counter;
+                    $newSlug = $slug.'-'.$counter;
                 }
-                
+
                 DB::table($table)
                     ->where('id', $record->id)
                     ->update(['slug' => $newSlug]);
