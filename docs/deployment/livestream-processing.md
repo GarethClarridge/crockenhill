@@ -221,25 +221,12 @@ chown -R www-data:www-data storage/app/sermons
 
 ### 5. Queue Configuration
 
-#### Redis Setup (Recommended)
+#### Queue Setup
 
-Install and configure Redis for queue processing:
+Configure database queues in your `.env`:
 
-```bash
-# Ubuntu/Debian
-sudo apt install redis-server
-
-# Start Redis
-sudo systemctl start redis-server
-sudo systemctl enable redis-server
-```
-
-Update `.env`:
 ```env
-QUEUE_CONNECTION=redis
-REDIS_HOST=127.0.0.1
-REDIS_PASSWORD=null
-REDIS_PORT=6379
+QUEUE_CONNECTION=database
 ```
 
 #### Queue Worker Setup
@@ -249,12 +236,12 @@ Create systemd services for queue workers. You need separate workers for differe
 **Livestream Processing Worker:**
 
 ```bash
-sudo nano /etc/systemd/system/laravel-livestream-worker.service
+sudo nano /etc/systemd/system/crockenhill-livestream-worker.service
 ```
 
 ```ini
 [Unit]
-Description=Laravel livestream queue worker
+Description=Crockenhill Livestream Processing Worker
 After=network.target
 
 [Service]
@@ -262,7 +249,11 @@ Type=simple
 User=www-data
 Group=www-data
 Restart=always
-ExecStart=/usr/bin/php /path/to/your/app/artisan queue:work --queue=livestream-processing --sleep=3 --tries=3 --max-time=7200 --timeout=3600
+RestartSec=5s
+ExecStart=/usr/bin/php /var/www/laravel/artisan queue:work database --queue=livestream-processing --sleep=3 --tries=3 --max-time=7200 --timeout=3600
+WorkingDirectory=/var/www/laravel
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -271,12 +262,12 @@ WantedBy=multi-user.target
 **General Processing Worker:**
 
 ```bash
-sudo nano /etc/systemd/system/laravel-sermon-worker.service
+sudo nano /etc/systemd/system/crockenhill-sermon-worker.service
 ```
 
 ```ini
 [Unit]
-Description=Laravel sermon queue worker
+Description=Crockenhill Sermon Processing Worker
 After=network.target
 
 [Service]
@@ -284,7 +275,11 @@ Type=simple
 User=www-data
 Group=www-data
 Restart=always
-ExecStart=/usr/bin/php /path/to/your/app/artisan queue:work --queue=sermon-processing,default --sleep=3 --tries=3 --max-time=3600
+RestartSec=5s
+ExecStart=/usr/bin/php /var/www/laravel/artisan queue:work database --queue=sermon-processing,default --sleep=3 --tries=3 --max-time=3600
+WorkingDirectory=/var/www/laravel
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -296,16 +291,16 @@ Enable and start both services:
 sudo systemctl daemon-reload
 
 # Enable services to start on boot
-sudo systemctl enable laravel-livestream-worker
-sudo systemctl enable laravel-sermon-worker
+sudo systemctl enable crockenhill-livestream-worker
+sudo systemctl enable crockenhill-sermon-worker
 
 # Start services
-sudo systemctl start laravel-livestream-worker
-sudo systemctl start laravel-sermon-worker
+sudo systemctl start crockenhill-livestream-worker
+sudo systemctl start crockenhill-sermon-worker
 
 # Check status
-sudo systemctl status laravel-livestream-worker
-sudo systemctl status laravel-sermon-worker
+sudo systemctl status crockenhill-livestream-worker
+sudo systemctl status crockenhill-sermon-worker
 ```
 
 ### 6. Web Server Configuration
@@ -329,31 +324,11 @@ server {
     # Private sermon video access
     location /storage/sermons {
         internal;
-        alias /path/to/your/app/storage/app/sermons;
+        alias /var/www/laravel/storage/app/sermons;
     }
 }
 ```
 
-#### Apache Configuration
-
-Add to your Apache virtual host:
-
-```apache
-<VirtualHost *:80>
-    # ... existing configuration
-    
-    # Increase upload limits
-    LimitRequestBody 2147483648
-    
-    # Increase timeouts
-    TimeOut 3600
-    
-    # Private sermon video access
-    <Directory "/path/to/your/app/storage/app/sermons">
-        Require all denied
-    </Directory>
-</VirtualHost>
-```
 
 ## Configuration Options
 
@@ -404,34 +379,6 @@ LIVESTREAM_STORAGE_DISK=local
 LIVESTREAM_SERMON_DISK=sermon_disk
 ```
 
-#### S3 Storage (Optional)
-
-For cloud storage, configure S3:
-
-```env
-LIVESTREAM_STORAGE_DISK=s3
-LIVESTREAM_SERMON_DISK=s3
-
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_DEFAULT_REGION=us-east-1
-AWS_BUCKET=your-bucket-name
-```
-
-Add S3 disk to `config/filesystems.php`:
-
-```php
-'s3' => [
-    'driver' => 's3',
-    'key' => env('AWS_ACCESS_KEY_ID'),
-    'secret' => env('AWS_SECRET_ACCESS_KEY'),
-    'region' => env('AWS_DEFAULT_REGION'),
-    'bucket' => env('AWS_BUCKET'),
-    'url' => env('AWS_URL'),
-    'endpoint' => env('AWS_ENDPOINT'),
-    'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-],
-```
 
 ### Queue Configuration
 
@@ -441,8 +388,8 @@ Add S3 disk to `config/filesystems.php`:
 # Separate queue for livestream processing
 LIVESTREAM_QUEUE_NAME=livestream
 
-# Use different queue connection if needed
-LIVESTREAM_QUEUE_CONNECTION=redis
+# Use database queue connection
+LIVESTREAM_QUEUE_CONNECTION=database
 ```
 
 #### Worker Configuration
@@ -451,10 +398,10 @@ Run dedicated workers for livestream processing:
 
 ```bash
 # Dedicated livestream worker
-php artisan queue:work redis --queue=livestream --sleep=3 --tries=3 --max-time=7200
+php artisan queue:work database --queue=livestream --sleep=3 --tries=3 --max-time=7200
 
 # General worker for other jobs
-php artisan queue:work redis --queue=default --sleep=3 --tries=3 --max-time=3600
+php artisan queue:work database --queue=default --sleep=3 --tries=3 --max-time=3600
 ```
 
 ## Health Checks and Monitoring
@@ -481,7 +428,7 @@ Monitor queue status:
 
 ```bash
 # Check queue size
-php artisan queue:monitor redis:livestream --max=10
+php artisan queue:monitor database:livestream --max=10
 
 # Check failed jobs
 php artisan queue:failed
@@ -626,8 +573,6 @@ CREATE INDEX idx_sermons_livestream ON sermons(livestream_processing_id);
    # Backup sermon videos
    rsync -av storage/app/sermons/ /backup/sermons/
    
-   # Backup to S3
-   aws s3 sync storage/app/sermons/ s3://backup-bucket/sermons/
    ```
 
 3. **Configuration Backups**
@@ -692,10 +637,12 @@ sudo setsebool -P httpd_can_network_connect 1
 ps aux | grep "queue:work"
 
 # Restart workers
-sudo systemctl restart laravel-worker
+sudo systemctl restart crockenhill-livestream-worker
+sudo systemctl restart crockenhill-sermon-worker
 
-# Check Redis connection
-redis-cli ping
+# Check database connection
+php artisan tinker
+>>> \DB::connection()->getPdo();
 ```
 
 #### Out of Disk Space
@@ -764,13 +711,13 @@ Create cron jobs for automated maintenance:
 crontab -e
 
 # Daily cleanup at 2 AM
-0 2 * * * /usr/bin/php /path/to/app/artisan livestream:cleanup
+0 2 * * * /usr/bin/php /var/www/laravel/artisan livestream:cleanup
 
 # Weekly log rotation
-0 0 * * 0 /usr/bin/php /path/to/app/artisan log:clear --days=30
+0 0 * * 0 /usr/bin/php /var/www/laravel/artisan log:clear --days=30
 
 # Monthly storage report
-0 9 1 * * /usr/bin/php /path/to/app/artisan livestream:storage-report
+0 9 1 * * /usr/bin/php /var/www/laravel/artisan livestream:storage-report
 ```
 
 ## Support and Updates

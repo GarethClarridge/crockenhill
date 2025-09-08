@@ -85,8 +85,44 @@ class MediaUpload extends Component
 
     public function updatedMediaFile(): void
     {
-        // Validate file immediately when uploaded with dynamic rules
-        $this->validateOnly('mediaFile', $this->getDynamicRules(), $this->getDynamicMessages());
+        Log::info('MediaUpload: File uploaded', [
+            'media_type' => $this->mediaType,
+            'file_exists' => $this->mediaFile !== null,
+            'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
+            'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
+            'mime_type' => $this->mediaFile ? $this->mediaFile->getMimeType() : null,
+        ]);
+
+        try {
+            // Get dynamic rules for debugging
+            $rules = $this->getDynamicRules();
+            $messages = $this->getDynamicMessages();
+            
+            Log::info('MediaUpload: Validation rules', [
+                'rules' => $rules,
+                'messages' => $messages,
+            ]);
+
+            // Validate file immediately when uploaded with dynamic rules
+            $this->validateOnly('mediaFile', $rules, $messages);
+            
+            Log::info('MediaUpload: File validation passed');
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('MediaUpload: Validation failed', [
+                'errors' => $e->errors(),
+                'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
+                'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
+                'rules' => $this->getDynamicRules(),
+            ]);
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('MediaUpload: Unexpected error during validation', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
     }
 
     protected function getDynamicRules(): array
@@ -96,9 +132,16 @@ class MediaUpload extends Component
         // Set file size limits based on media type
         $maxSizeKB = match ($this->mediaType) {
             'audio' => (config('sermon-processing.processing.max_file_size', 100 * 1024 * 1024) / 1024), // 100MB default
-            'video', 'livestream' => 2 * 1024 * 1024, // 2GB for video files
+            'video', 'livestream' => 5 * 1024 * 1024, // 5GB for video files (5GB in KB)
             default => 100 * 1024 // 100MB default
         };
+
+        Log::info('MediaUpload: Dynamic rules calculation', [
+            'media_type' => $this->mediaType,
+            'max_size_kb' => $maxSizeKB,
+            'max_size_mb' => $maxSizeKB / 1024,
+            'max_size_gb' => $maxSizeKB / 1024 / 1024,
+        ]);
 
         $rules['mediaFile'] .= '|max:'.(int) $maxSizeKB;
 
