@@ -74,31 +74,53 @@ class VideoStorageService
     public function extractVideoSegmentWithOriginalQuality(string $inputPath, float $startTime, float $endTime): string
     {
         try {
-            // Use php-ffmpeg package for cleaner FFmpeg integration
-            $ffmpeg = FFMpeg::create([
-                'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
-                'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
+            // Use direct FFmpeg command for true stream copy (fastest, no quality loss)
+            $tempPath = storage_path('app/temp/'.Str::uuid().'.mp4');
+            
+            // Ensure temp directory exists
+            $tempDir = dirname($tempPath);
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            $ffmpegPath = config('livestream-processing.ffmpeg_path');
+            $duration = $endTime - $startTime;
+
+            // Use stream copy for maximum speed and quality preservation
+            $command = [
+                $ffmpegPath,
+                '-i', escapeshellarg($inputPath),
+                '-ss', (string)$startTime,
+                '-t', (string)$duration,
+                '-c', 'copy',  // Stream copy - no re-encoding
+                '-avoid_negative_ts', 'make_zero',  // Handle timestamp issues
+                escapeshellarg($tempPath)
+            ];
+
+            $commandString = implode(' ', $command);
+            Log::info('Executing FFmpeg stream copy command', [
+                'command' => $commandString,
+                'start_time' => $startTime,
+                'duration' => $duration,
             ]);
 
-            $video = $ffmpeg->open($inputPath);
+            exec($commandString . ' 2>&1', $output, $returnCode);
 
-            // Extract segment preserving original quality (stream copy)
-            $tempPath = storage_path('app/temp/'.Str::uuid().'.mp4');
+            if ($returnCode !== 0) {
+                throw new \Exception('FFmpeg command failed with return code ' . $returnCode . '. Output: ' . implode("\n", $output));
+            }
 
-            $format = new X264;
-            // Add the critical '-c copy' parameter for true stream copy
-            $format->setAdditionalParameters(['-c', 'copy']);
+            if (!file_exists($tempPath)) {
+                throw new \Exception('Output file was not created: ' . $tempPath);
+            }
 
-            // @phpstan-ignore-next-line
-            $video
-                ->clip(TimeCode::fromSeconds($startTime), TimeCode::fromSeconds($endTime - $startTime))
-                ->save($format, $tempPath);
-
-            Log::info('Video segment extracted with original quality', [
+            Log::info('Video segment extracted with stream copy (original quality)', [
                 'input_path' => $inputPath,
                 'output_path' => $tempPath,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
+                'duration' => $duration,
+                'output_size' => filesize($tempPath),
             ]);
 
             return $tempPath;
