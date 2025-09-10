@@ -588,16 +588,26 @@ class VideoSegmentationService
         }
 
         try {
-            // Use FFmpeg to extract the segment
-            $video = $this->ffmpeg->open($videoPath);
+            // Use FFmpeg to extract the segment with proper timeout handling
+            $ffmpeg = FFMpeg::create([
+                'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
+                'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
+                'timeout' => config('livestream-processing.processing_timeout', 7200),
+            ]);
+            
+            $video = $ffmpeg->open($videoPath);
 
             // Apply time filters to extract the specific segment
             $video
                 ->filters()
                 ->clip(\FFMpeg\Coordinate\TimeCode::fromSeconds($startTime), \FFMpeg\Coordinate\TimeCode::fromSeconds($duration));
 
+            // Configure video format
+            $format = new \FFMpeg\Format\Video\X264();
+            $format->setAudioCodec('aac');
+
             // Save the extracted segment
-            $video->save(new \FFMpeg\Format\Video\X264, $fullSegmentPath);
+            $video->save($format, $fullSegmentPath);
 
             Log::info('Video segment extracted successfully', [
                 'original_video' => $videoPath,
@@ -618,6 +628,22 @@ class VideoSegmentationService
 
             return $uploadedFile;
 
+        } catch (\Symfony\Component\Process\Exception\ProcessTimedOutException $e) {
+            // Clean up partial file if extraction failed
+            if (file_exists($fullSegmentPath)) {
+                unlink($fullSegmentPath);
+            }
+
+            Log::error('Video segment extraction timed out', [
+                'video_path' => $videoPath,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'duration' => $duration,
+                'timeout' => config('livestream-processing.processing_timeout', 7200),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new \Exception('Video segment extraction timed out after '.config('livestream-processing.processing_timeout', 7200).' seconds');
         } catch (\Exception $e) {
             // Clean up partial file if extraction failed
             if (file_exists($fullSegmentPath)) {
@@ -628,7 +654,9 @@ class VideoSegmentationService
                 'video_path' => $videoPath,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
+                'duration' => $duration,
                 'error' => $e->getMessage(),
+                'error_class' => get_class($e),
                 'trace' => $e->getTraceAsString(),
             ]);
 

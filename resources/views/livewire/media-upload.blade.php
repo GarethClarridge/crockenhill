@@ -77,7 +77,7 @@
                                 <p class="text-sm text-gray-500">Size: {{ number_format($mediaFile->getSize() / 1024 / 1024, 2) }} MB</p>
                             @else
                                 <p class="text-lg text-gray-600 mb-2">Drop your file here or click to browse</p>
-                                <p class="text-sm text-gray-500">Maximum file size: 2GB</p>
+                                <p class="text-sm text-gray-500">Maximum file size: 5GB</p>
                             @endif
                         </div>
 
@@ -95,6 +95,7 @@
                             id="media-file"
                             class="sr-only" 
                             accept="{{ $mediaType === 'audio' ? '.mp3,.wav,.m4a' : '.mp4,.mov,.avi,.mkv' }}"
+                            onchange="console.log('File selected:', this.files[0]?.name, 'Size:', this.files[0]?.size); if(this.files[0] && this.files[0].size > 5*1024*1024*1024) { alert('File too large! Max 5GB allowed.'); return false; }"
                         />
                         <label for="media-file" class="cursor-pointer">
                             <span class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200">

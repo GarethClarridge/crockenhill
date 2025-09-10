@@ -70,10 +70,22 @@ class MediaUpload extends Component
 
     public function mount(): void
     {
+        Log::info('MediaUpload: Component mounting', [
+            'user_id' => Auth::id(),
+            'timestamp' => now()->toDateTimeString(),
+        ]);
+        
         // Ensure user has permission to upload sermons
         if (! Gate::allows('create', \App\Models\Sermon::class)) {
+            Log::error('MediaUpload: Unauthorized access attempt', [
+                'user_id' => Auth::id(),
+            ]);
             abort(403, 'Unauthorized to upload sermons.');
         }
+        
+        Log::info('MediaUpload: Component mounted successfully', [
+            'user_id' => Auth::id(),
+        ]);
     }
 
     public function updatedMediaType(): void
