@@ -76,26 +76,26 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
         $fullPath = Storage::path($audioFilePath);
 
-        // Validate file size against transcription limits
-        $this->validateFileSize($fullPath);
+        // Validate file size and compress if needed
+        $processedFilePath = $this->validateAndCompressIfNeeded($fullPath, $processingId);
 
-        $fileSize = filesize($fullPath);
+        $fileSize = filesize($processedFilePath);
 
         $this->logger->logFileOperation(
             $processingId,
             'file_validation',
-            $audioFilePath,
+            $processedFilePath,
             $fileSize
         );
 
         // Check if file needs chunking based on duration
-        $duration = $this->getAudioDuration($fullPath);
+        $duration = $this->getAudioDuration($processedFilePath);
 
         if ($duration > self::MIN_DURATION_FOR_CHUNKING) {
-            return $this->transcribeWithChunking($fullPath, $processingId, $duration);
+            return $this->transcribeWithChunking($processedFilePath, $processingId, $duration);
         }
 
-        return $this->transcribeFile($fullPath, $processingId);
+        return $this->transcribeFile($processedFilePath, $processingId);
     }
 
     /**
@@ -240,24 +240,72 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     }
 
     /**
-     * Validate audio file size against transcription service limits
+     * Validate audio file size and compress if needed for transcription service
      *
      * @param  string  $filePath  Full path to the audio file
+     * @param  string  $processingId  Processing ID for logging
+     * @return string Path to the processed file (original or compressed)
      *
-     * @throws Exception When file is too large for transcription
+     * @throws Exception When compression fails or file is still too large after compression
      */
-    private function validateFileSize(string $filePath): void
+    private function validateAndCompressIfNeeded(string $filePath, string $processingId): string
     {
         $fileSize = filesize($filePath);
         $maxSize = config('livestream-processing.audio_extraction.transcription_optimized.max_file_size');
 
-        if ($fileSize > $maxSize && $fileSize > 0) {
-            $sizeMB = round($fileSize / 1024 / 1024, 1);
-            $maxSizeMB = round($maxSize / 1024 / 1024, 1);
+        // If file is within limits, return original path
+        if ($fileSize <= $maxSize) {
+            return $filePath;
+        }
+
+        $sizeMB = round($fileSize / 1024 / 1024, 1);
+        $maxSizeMB = round($maxSize / 1024 / 1024, 1);
+
+        Log::info('Audio file exceeds transcription limit, attempting compression', [
+            'processing_id' => $processingId,
+            'original_size_mb' => $sizeMB,
+            'max_size_mb' => $maxSizeMB,
+            'file_path' => $filePath,
+        ]);
+
+        try {
+            // Attempt to compress the file
+            $compressedPath = $this->compressAudioForTranscription($filePath, $processingId);
+            
+            $compressedSize = filesize($compressedPath);
+            $compressedSizeMB = round($compressedSize / 1024 / 1024, 1);
+
+            // Check if compressed file is now within limits
+            if ($compressedSize > $maxSize) {
+                // Clean up failed compression attempt
+                if (file_exists($compressedPath)) {
+                    unlink($compressedPath);
+                }
+                
+                throw new Exception(
+                    "Audio file still too large after compression: {$compressedSizeMB}MB (limit: {$maxSizeMB}MB). ".
+                    'Consider using a shorter audio segment or manual compression.'
+                );
+            }
+
+            Log::info('Audio compression successful', [
+                'processing_id' => $processingId,
+                'original_size_mb' => $sizeMB,
+                'compressed_size_mb' => $compressedSizeMB,
+                'compression_ratio' => round(($fileSize - $compressedSize) / $fileSize * 100, 1),
+            ]);
+
+            return $compressedPath;
+
+        } catch (Exception $e) {
+            Log::error('Audio compression failed', [
+                'processing_id' => $processingId,
+                'original_size_mb' => $sizeMB,
+                'error' => $e->getMessage(),
+            ]);
 
             throw new Exception(
-                "Audio file too large: {$sizeMB}MB (limit: {$maxSizeMB}MB). ".
-                'Please ensure audio is compressed for transcription before processing.'
+                "Audio file too large ({$sizeMB}MB) and compression failed: {$e->getMessage()}"
             );
         }
     }
@@ -1054,5 +1102,63 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             'completed',
             ['cleaned_chunks' => count($chunkPaths)]
         );
+    }
+
+    /**
+     * Compress audio file for transcription service using fallback compression settings
+     *
+     * @param  string  $inputPath  Path to the input audio file
+     * @param  string  $processingId  Processing ID for logging
+     * @return string Path to the compressed audio file
+     *
+     * @throws Exception When compression fails
+     */
+    private function compressAudioForTranscription(string $inputPath, string $processingId): string
+    {
+        $fallbackConfig = config('livestream-processing.audio_extraction.fallback_compression');
+        $compressedPath = storage_path('app/temp/' . basename($inputPath, '.mp3') . '_compressed_' . time() . '.mp3');
+
+        // Ensure temp directory exists
+        $tempDir = dirname($compressedPath);
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        try {
+            $ffmpeg = FFMpeg::create([
+                'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
+                'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
+            ]);
+
+            $audio = $ffmpeg->open($inputPath);
+            
+            $format = new Mp3();
+            $format->setAudioKiloBitrate($fallbackConfig['bitrate'] ?? 32);
+            $format->setAudioChannels($fallbackConfig['channels'] ?? 1);
+            $format->setAudioSampleRate($fallbackConfig['sample_rate'] ?? 16000);
+
+            $audio->save($format, $compressedPath);
+
+            if (!file_exists($compressedPath) || filesize($compressedPath) === 0) {
+                throw new Exception('Compressed audio file was not created or is empty');
+            }
+
+            $this->logger->logFileOperation(
+                $processingId,
+                'audio_compression',
+                $compressedPath,
+                filesize($compressedPath)
+            );
+
+            return $compressedPath;
+
+        } catch (\Exception $e) {
+            // Clean up failed compression attempt
+            if (file_exists($compressedPath)) {
+                unlink($compressedPath);
+            }
+
+            throw new Exception("Failed to compress audio for transcription: {$e->getMessage()}");
+        }
     }
 }

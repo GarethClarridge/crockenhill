@@ -275,8 +275,11 @@ class MediaProcessingService
             $video = $ffmpeg->open($videoFile->getRealPath());
 
             $format = new Mp3;
-            $format->setAudioKiloBitrate(128);
-            $format->setAudioChannels(2);
+            // Use optimized settings for transcription to keep file size under 25MB
+            $transcriptionConfig = config('livestream-processing.audio_extraction.transcription_optimized');
+            $format->setAudioKiloBitrate($transcriptionConfig['bitrate'] ?? 48);
+            $format->setAudioChannels($transcriptionConfig['channels'] ?? 1);
+            $format->setAudioSampleRate($transcriptionConfig['sample_rate'] ?? 16000);
 
             $video->save($format, $tempPath);
 
