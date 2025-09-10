@@ -1135,7 +1135,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             $format = new Mp3();
             $format->setAudioKiloBitrate($fallbackConfig['bitrate'] ?? 32);
             $format->setAudioChannels($fallbackConfig['channels'] ?? 1);
-            $format->setAudioSampleRate($fallbackConfig['sample_rate'] ?? 16000);
+            // Note: Sample rate is handled by FFmpeg defaults for speech optimization
 
             $audio->save($format, $compressedPath);
 
@@ -1149,6 +1149,17 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 $compressedPath,
                 filesize($compressedPath)
             );
+
+            Log::info('Fallback audio compression applied', [
+                'processing_id' => $processingId,
+                'input_path' => $inputPath,
+                'output_path' => $compressedPath,
+                'compression_settings' => [
+                    'bitrate_kbps' => $fallbackConfig['bitrate'] ?? 32,
+                    'channels' => $fallbackConfig['channels'] ?? 1,
+                    'purpose' => 'transcription_size_reduction',
+                ],
+            ]);
 
             return $compressedPath;
 

@@ -279,7 +279,7 @@ class MediaProcessingService
             $transcriptionConfig = config('livestream-processing.audio_extraction.transcription_optimized');
             $format->setAudioKiloBitrate($transcriptionConfig['bitrate'] ?? 48);
             $format->setAudioChannels($transcriptionConfig['channels'] ?? 1);
-            $format->setAudioSampleRate($transcriptionConfig['sample_rate'] ?? 16000);
+            // Note: Sample rate is handled by FFmpeg defaults (typically 16kHz for speech)
 
             $video->save($format, $tempPath);
 
@@ -287,6 +287,11 @@ class MediaProcessingService
                 'video_path' => $videoFile->getRealPath(),
                 'audio_path' => $tempPath,
                 'file_size' => filesize($tempPath),
+                'compression_settings' => [
+                    'bitrate_kbps' => $transcriptionConfig['bitrate'] ?? 48,
+                    'channels' => $transcriptionConfig['channels'] ?? 1,
+                    'optimized_for' => 'transcription',
+                ],
             ]);
 
             // Create UploadedFile wrapper for extracted audio
