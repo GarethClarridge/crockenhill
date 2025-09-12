@@ -11,22 +11,8 @@ class UpdateSermonRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $year = $this->route('year');
-        $month = $this->route('month');
-        $slug = $this->route('slug');
-
-        // Attempt to find the sermon model instance
-        // This replicates the logic from SermonController::findSermonOrFail without aborting directly
-        $sermon = Sermon::where('slug', $slug)
-            ->whereYear('date', $year)
-            ->whereMonth('date', $month)
-            ->first();
-
-        if (! $sermon) {
-            return false; // If sermon not found, deny access
-        }
-
-        return $this->user()->can('update', $sermon);
+        $sermon = $this->route('sermon'); // Get the bound Sermon model
+        return $sermon && $this->user()->can('update', $sermon);
     }
 
     public function rules(): array
