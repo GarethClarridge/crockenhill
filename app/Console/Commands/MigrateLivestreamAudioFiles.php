@@ -48,7 +48,7 @@ class MigrateLivestreamAudioFiles extends Command
             $this->line("Checking: {$sermonTitle}");
             $this->line("  Filename: {$filename}");
             $this->line("  Source Type: " . ($sermon->source_type ?: 'NULL'));
-            $this->line("  Created: " . ($sermon->created_at ? $sermon->created_at->format('Y-m-d H:i:s') : 'NULL'));
+            $this->line("  Created: " . ($sermon->created_at ?: 'NULL'));
             
             // Check if file already exists in public storage (already accessible)
             $publicExists = Storage::disk('public')->exists($filename);
