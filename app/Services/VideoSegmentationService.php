@@ -61,11 +61,14 @@ class VideoSegmentationService
         chmod($fullRmsLogPath, 0644);
 
         try {
-            // Include pts_time for accurate timestamps as specified in design
+            // Optimized command with 8kHz downsampling for faster RMS analysis
             $command = [
                 config('livestream-processing.ffmpeg_path'),
+                '-threads', 'auto',
+                '-probesize', '32M',
+                '-analyzeduration', '10M',
                 '-i', $videoPath,
-                '-af', "astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file={$fullRmsLogPath}",
+                '-af', "aresample=8000,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file={$fullRmsLogPath}",
                 '-f', 'null',
                 '-',
             ];
