@@ -12,7 +12,7 @@ class MigrateLivestreamAudioFiles extends Command
                            {--dry-run : Show what would be migrated without making changes}
                            {--cleanup : Remove files from local storage after successful migration}';
 
-    protected $description = 'Migrate livestream audio files from local to public storage';
+    protected $description = 'Migrate sermon audio files from local to public storage (finds by filename pattern)';
 
     public function handle(): int
     {
@@ -20,8 +20,10 @@ class MigrateLivestreamAudioFiles extends Command
         $this->info('Expected pattern: sermons/YYYY/MM/uuid.mp3');
         $this->newLine();
 
-        $livestreamSermons = Sermon::where('source_type', 'livestream')
-            ->whereNotNull('filename')
+        // Find sermons with the livestream filename pattern: sermons/YYYY/MM/uuid.mp3
+        // We use LIKE pattern matching since source_type might not be set correctly
+        $livestreamSermons = Sermon::whereNotNull('filename')
+            ->where('filename', 'LIKE', 'sermons/____/__/%.mp3') // Pattern: sermons/YYYY/MM/uuid.mp3
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -45,6 +47,8 @@ class MigrateLivestreamAudioFiles extends Command
             // Debug info
             $this->line("Checking: {$sermonTitle}");
             $this->line("  Filename: {$filename}");
+            $this->line("  Source Type: " . ($sermon->source_type ?: 'NULL'));
+            $this->line("  Created: " . ($sermon->created_at ? $sermon->created_at->format('Y-m-d H:i:s') : 'NULL'));
             
             // Check if file already exists in public storage (already accessible)
             $publicExists = Storage::disk('public')->exists($filename);
