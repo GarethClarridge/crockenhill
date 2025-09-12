@@ -92,10 +92,11 @@ class LivestreamAudioCompressionTest extends TestCase
 
     public function test_video_storage_service_extract_optimized_audio_method_exists(): void
     {
-        $service = new VideoStorageService;
+        $service = app(VideoStorageService::class);
 
         $this->assertTrue(method_exists($service, 'extractOptimizedAudioFromSegment'));
-        $this->assertTrue(method_exists($service, 'validateAudioFileSize'));
+        // validateAudioFileSize method moved to VideoExtractionService
+        $this->assertFalse(method_exists($service, 'validateAudioFileSize'));
     }
 
     public function test_audio_extraction_config_values_are_reasonable(): void

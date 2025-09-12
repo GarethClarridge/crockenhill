@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Services\MediaProcessingService;
 use App\Services\ProcessingResult;
 use App\Services\SermonProcessingService;
+use App\Services\VideoExtractionService;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -32,9 +33,13 @@ class MediaProcessingServiceTest extends TestCase
         $this->mock(VideoSegmentationService::class, function ($mock) {
             $mock->shouldReceive('generateRmsLog')->andReturn('fake/rms/log/path.txt');
             $mock->shouldReceive('analyzeSegments')->andReturn([
-                (object) ['start_time' => 300, 'end_time' => 2100, 'isSermonCandidate' => true],
+                'segments' => [(object) ['start_time' => 300, 'end_time' => 2100, 'isSermonCandidate' => true]],
+                'threshold_metadata' => []
             ]);
-            $mock->shouldReceive('extractSegment')->andReturn(
+        });
+
+        $this->mock(VideoExtractionService::class, function ($mock) {
+            $mock->shouldReceive('extractSegmentAsUpload')->andReturn(
                 UploadedFile::fake()->create('extracted.mp4', 25000, 'video/mp4')
             );
         });
@@ -61,10 +66,11 @@ class MediaProcessingServiceTest extends TestCase
         $constructor = $reflection->getConstructor();
         $parameters = $constructor->getParameters();
 
-        // Should have VideoSegmentationService and SermonProcessingService dependencies
-        $this->assertCount(2, $parameters);
+        // Should have VideoSegmentationService, SermonProcessingService, and VideoExtractionService dependencies
+        $this->assertCount(3, $parameters);
         $this->assertEquals('segmentationService', $parameters[0]->getName());
         $this->assertEquals('sermonProcessor', $parameters[1]->getName());
+        $this->assertEquals('videoExtractor', $parameters[2]->getName());
     }
 
     #[Test]

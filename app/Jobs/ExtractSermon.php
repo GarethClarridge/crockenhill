@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
 use App\Models\LivestreamProcessingLog;
+use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -24,7 +25,7 @@ class ExtractSermon implements ShouldQueue
         private LivestreamProcessingLog $processingLog
     ) {}
 
-    public function handle(VideoStorageService $storageService): void
+    public function handle(VideoExtractionService $videoExtractor, VideoStorageService $storageService): void
     {
         try {
             // Update status to show sermon extraction is starting
@@ -48,13 +49,13 @@ class ExtractSermon implements ShouldQueue
                 throw new \Exception('Original video file not found: '.$videoPath);
             }
 
-            $sermonVideoPath = $storageService->extractVideoSegment(
+            $sermonVideoPath = $videoExtractor->extractSegmentAsFile(
                 $videoPath,
                 $sermonSegment,
                 $this->processingLog->processing_id.'_sermon.mp4'
             );
 
-            $audioExtractionResult = $storageService->extractOptimizedAudioFromSegment(
+            $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
                 $videoPath,
                 $sermonSegment,
                 $this->processingLog->processing_id.'_sermon.mp3'

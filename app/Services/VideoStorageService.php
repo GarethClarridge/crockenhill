@@ -6,7 +6,6 @@ use App\Data\LivestreamSegment;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
-use FFMpeg\Format\Video\X264;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -24,7 +23,9 @@ class VideoStorageService
 
     private string $audioPath;
 
-    public function __construct()
+    private VideoExtractionService $videoExtractor;
+
+    public function __construct(VideoExtractionService $videoExtractor)
     {
         $this->ffmpeg = FFMpeg::create([
             'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
@@ -36,6 +37,7 @@ class VideoStorageService
         $this->permanentDisk = config('livestream-processing.sermon_disk', 'local');
         $this->videoPath = config('livestream-processing.storage.video_path', 'sermons/videos');
         $this->audioPath = config('livestream-processing.storage.audio_path', 'sermons/audio');
+        $this->videoExtractor = $videoExtractor;
     }
 
     public function storeUploadedVideo(UploadedFile $file): array
@@ -71,82 +73,13 @@ class VideoStorageService
         }
     }
 
-    public function extractVideoSegmentWithOriginalQuality(string $inputPath, float $startTime, float $endTime): string
-    {
-        try {
-            // Use direct FFmpeg command for true stream copy (fastest, no quality loss)
-            $tempPath = storage_path('app/temp/'.Str::uuid().'.mp4');
-            
-            // Ensure temp directory exists
-            $tempDir = dirname($tempPath);
-            if (!is_dir($tempDir)) {
-                mkdir($tempDir, 0755, true);
-            }
-
-            $ffmpegPath = config('livestream-processing.ffmpeg_path');
-            $duration = $endTime - $startTime;
-
-            // Use stream copy for maximum speed and quality preservation
-            $command = [
-                $ffmpegPath,
-                '-i', escapeshellarg($inputPath),
-                '-ss', (string)$startTime,
-                '-t', (string)$duration,
-                '-c', 'copy',  // Stream copy - no re-encoding
-                '-avoid_negative_ts', 'make_zero',  // Handle timestamp issues
-                escapeshellarg($tempPath)
-            ];
-
-            $commandString = implode(' ', $command);
-            Log::info('Executing FFmpeg stream copy command', [
-                'command' => $commandString,
-                'start_time' => $startTime,
-                'duration' => $duration,
-            ]);
-
-            exec($commandString . ' 2>&1', $output, $returnCode);
-
-            if ($returnCode !== 0) {
-                throw new \Exception('FFmpeg command failed with return code ' . $returnCode . '. Output: ' . implode("\n", $output));
-            }
-
-            if (!file_exists($tempPath)) {
-                throw new \Exception('Output file was not created: ' . $tempPath);
-            }
-
-            Log::info('Video segment extracted with stream copy (original quality)', [
-                'input_path' => $inputPath,
-                'output_path' => $tempPath,
-                'start_time' => $startTime,
-                'end_time' => $endTime,
-                'duration' => $duration,
-                'output_size' => filesize($tempPath),
-            ]);
-
-            return $tempPath;
-
-        } catch (\Exception $e) {
-            Log::error('Failed to extract video segment', [
-                'error' => $e->getMessage(),
-                'input_path' => $inputPath,
-                'start_time' => $startTime,
-                'end_time' => $endTime,
-            ]);
-
-            throw $e;
-        }
-    }
 
     public function extractVideoSegment(
         string $inputVideoPath,
         LivestreamSegment $segment,
         ?string $outputFilename = null
     ): string {
-        return $this->extractVideoSegmentWithOriginalQuality(
-            $inputVideoPath,
-            $segment->startTime,
-            $segment->endTime
-        );
+        return $this->videoExtractor->extractSegmentAsFile($inputVideoPath, $segment, $outputFilename);
     }
 
     public function extractAudioFromSegment(
@@ -154,44 +87,7 @@ class VideoStorageService
         LivestreamSegment $segment,
         ?string $outputFilename = null
     ): string {
-        try {
-            $outputFilename = $outputFilename ?: Str::uuid().'_sermon.mp3';
-            $outputPath = $this->audioPath.'/'.$outputFilename;
-            $fullOutputPath = Storage::disk($this->permanentDisk)->path($outputPath);
-
-            $this->ensureDirectoryExists(dirname($fullOutputPath));
-
-            $video = $this->ffmpeg->open($inputVideoPath);
-
-            $format = new Mp3;
-            $format->setAudioKiloBitrate(128);
-
-            $startTime = TimeCode::fromSeconds($segment->startTime);
-            $duration = TimeCode::fromSeconds($segment->duration);
-
-            // @phpstan-ignore-next-line
-            $video->clip($startTime, $duration)
-                ->save($format, $fullOutputPath);
-
-            Log::info('Audio extracted from segment', [
-                'input_path' => $inputVideoPath,
-                'output_path' => $outputPath,
-                'start_time' => $segment->startTime,
-                'duration' => $segment->duration,
-            ]);
-
-            return $outputPath;
-
-        } catch (\Exception $e) {
-            Log::error('Failed to extract audio from segment', [
-                'error' => $e->getMessage(),
-                'input_path' => $inputVideoPath,
-                'segment_start' => $segment->startTime,
-                'segment_duration' => $segment->duration,
-            ]);
-
-            throw $e;
-        }
+        return $this->videoExtractor->extractAudio($inputVideoPath, $segment, [], $outputFilename);
     }
 
     public function extractOptimizedAudioFromSegment(
@@ -199,129 +95,9 @@ class VideoStorageService
         LivestreamSegment $segment,
         ?string $outputFilename = null
     ): array {
-        try {
-            $outputFilename = $outputFilename ?: Str::uuid().'_sermon_optimized.mp3';
-            $outputPath = $this->audioPath.'/'.$outputFilename;
-            $fullOutputPath = Storage::disk($this->permanentDisk)->path($outputPath);
-
-            $this->ensureDirectoryExists(dirname($fullOutputPath));
-
-            $config = config('livestream-processing.audio_extraction.transcription_optimized');
-            $fallbackConfig = config('livestream-processing.audio_extraction.fallback_compression');
-
-            $video = $this->ffmpeg->open($inputVideoPath);
-
-            $format = new Mp3;
-            $format->setAudioKiloBitrate($config['bitrate']);
-            $format->setAudioChannels($config['channels']);
-
-            $startTime = TimeCode::fromSeconds($segment->startTime);
-            $duration = TimeCode::fromSeconds($segment->duration);
-
-            // @phpstan-ignore-next-line
-            $video->clip($startTime, $duration)
-                ->save($format, $fullOutputPath);
-
-            $validation = $this->validateAudioFileSize($fullOutputPath);
-
-            if (! $validation['valid']) {
-                Log::info('Audio file too large, applying fallback compression', [
-                    'original_size' => $validation['file_size'],
-                    'max_size' => $validation['max_size'],
-                ]);
-
-                $fallbackPath = $this->compressAudioForTranscription($fullOutputPath, $fallbackConfig);
-                $finalValidation = $this->validateAudioFileSize($fallbackPath);
-
-                return [
-                    'audio_path' => $outputPath,
-                    'full_path' => $fallbackPath,
-                    'original_size' => $validation['file_size'],
-                    'final_size' => $finalValidation['file_size'],
-                    'compression_applied' => true,
-                    'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
-                    'valid_for_transcription' => $finalValidation['valid'],
-                ];
-            }
-
-            Log::info('Optimized audio extracted from segment', [
-                'input_path' => $inputVideoPath,
-                'output_path' => $outputPath,
-                'file_size' => $validation['file_size'],
-                'start_time' => $segment->startTime,
-                'duration' => $segment->duration,
-            ]);
-
-            return [
-                'audio_path' => $outputPath,
-                'full_path' => $fullOutputPath,
-                'original_size' => $validation['file_size'],
-                'final_size' => $validation['file_size'],
-                'compression_applied' => false,
-                'compression_ratio' => 1.0,
-                'valid_for_transcription' => $validation['valid'],
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Failed to extract optimized audio from segment', [
-                'error' => $e->getMessage(),
-                'input_path' => $inputVideoPath,
-                'segment_start' => $segment->startTime,
-                'segment_duration' => $segment->duration,
-            ]);
-
-            throw $e;
-        }
+        return $this->videoExtractor->extractOptimizedAudio($inputVideoPath, $segment, $outputFilename);
     }
 
-    public function validateAudioFileSize(string $audioPath): array
-    {
-        $fileSize = file_exists($audioPath) ? filesize($audioPath) : 0;
-        $maxSize = config('livestream-processing.audio_extraction.transcription_optimized.max_file_size');
-
-        return [
-            'valid' => $fileSize <= $maxSize && $fileSize > 0,
-            'file_size' => $fileSize,
-            'max_size' => $maxSize,
-            'size_mb' => round($fileSize / 1024 / 1024, 1),
-            'max_size_mb' => round($maxSize / 1024 / 1024, 1),
-        ];
-    }
-
-    private function compressAudioForTranscription(string $inputPath, array $compressionSettings): string
-    {
-        $compressedPath = str_replace('.mp3', '_compressed.mp3', $inputPath);
-
-        try {
-            $video = $this->ffmpeg->open($inputPath);
-
-            $format = new Mp3;
-            $format->setAudioKiloBitrate($compressionSettings['bitrate']);
-            // @phpstan-ignore-next-line
-            $format->setAudioSampleRate($compressionSettings['sample_rate']);
-            $format->setAudioChannels($compressionSettings['channels']);
-
-            $video->save($format, $compressedPath);
-
-            unlink($inputPath);
-
-            Log::info('Applied fallback compression to audio file', [
-                'original_path' => $inputPath,
-                'compressed_path' => $compressedPath,
-                'bitrate' => $compressionSettings['bitrate'],
-            ]);
-
-            return $compressedPath;
-
-        } catch (\Exception $e) {
-            Log::error('Failed to apply fallback compression', [
-                'error' => $e->getMessage(),
-                'input_path' => $inputPath,
-            ]);
-
-            throw $e;
-        }
-    }
 
     public function moveToSermonStorage(string $tempVideoPath, string $sermonSlug): array
     {

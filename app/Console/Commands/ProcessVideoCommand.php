@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Data\LivestreamSegment;
 use App\Models\LivestreamProcessingLog;
 use App\Models\Sermon;
+use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
@@ -16,7 +17,7 @@ class ProcessVideoCommand extends Command
 
     protected $description = 'Manually create a sermon from processed livestream segments';
 
-    public function handle(VideoStorageService $videoStorage): int
+    public function handle(VideoExtractionService $videoExtractor, VideoStorageService $videoStorage): int
     {
         $processingId = $this->argument('processing_id');
 
@@ -77,7 +78,7 @@ class ProcessVideoCommand extends Command
                 );
 
                 // Extract video segment
-                $tempVideoPath = $videoStorage->extractVideoSegment($inputPath, $segmentData);
+                $tempVideoPath = $videoExtractor->extractSegmentAsFile($inputPath, $segmentData);
 
                 // Move to permanent storage
                 $videoFilename = $sermon->slug.'.mp4';
@@ -87,7 +88,7 @@ class ProcessVideoCommand extends Command
                     ->put($videoPath, file_get_contents($tempVideoPath));
 
                 // Extract audio
-                $audioPath = $videoStorage->extractAudioFromSegment($inputPath, $segmentData, $sermon->slug.'.mp3');
+                $audioPath = $videoExtractor->extractAudio($inputPath, $segmentData, [], $sermon->slug.'.mp3');
 
                 // Update sermon with file paths
                 $sermon->update([

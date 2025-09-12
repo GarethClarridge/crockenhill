@@ -301,8 +301,8 @@ ANALYSIS GUIDELINES:
 4. POINTS: Extract 2-7 main sermon points/headings that structure the message:
    - Focus on the preacher's main divisions or arguments
    - Use the preacher's own words where possible
+   - Use sentence case - don't capitalise every word
    - If creating points yourself, use clear, concise British English, matching the preacher's tone of voice
-   - Use sentence case
    - Stick to below 12 words per point
    - If no clear structure is evident, create logical divisions based on content flow
    - Use sub-points if they help to structure the message, but don't overcomplicate it

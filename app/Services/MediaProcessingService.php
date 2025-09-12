@@ -15,6 +15,7 @@ class MediaProcessingService
     public function __construct(
         private VideoSegmentationService $segmentationService,
         private SermonProcessingService $sermonProcessor,
+        private VideoExtractionService $videoExtractor,
     ) {}
 
     /**
@@ -88,7 +89,7 @@ class MediaProcessingService
             $log->refresh(); // Force database commit
 
             // Step 4: Extract the sermon segment from the full video
-            $extractedSegment = $this->segmentationService->extractSegment($fullVideoPath, $sermonSegment);
+            $extractedSegment = $this->videoExtractor->extractSegmentAsUpload($fullVideoPath, $sermonSegment);
 
             // Update metadata with segment information
             $log->source_metadata = array_merge($log->source_metadata ?? [], [
