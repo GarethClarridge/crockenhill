@@ -42,11 +42,18 @@ class SubmitToProcessing implements ShouldQueue
                 throw new \Exception('Sermon audio path not found in processing log');
             }
 
-            $audioPath = Storage::disk(config('livestream-processing.sermon_disk'))
+            // Get sermon disk configuration - should use 'public' for web accessibility
+            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
+            $audioPath = Storage::disk($sermonDisk)
                 ->path($this->processingLog->sermon_audio_path);
 
             if (! file_exists($audioPath)) {
                 throw new \Exception('Sermon audio file not found: '.$audioPath);
+            }
+
+            // Validate that the file is accessible via the public disk for web serving
+            if ($sermonDisk === 'public' && ! Storage::disk('public')->exists($this->processingLog->sermon_audio_path)) {
+                throw new \Exception('Sermon audio file not accessible via public disk: '.$this->processingLog->sermon_audio_path);
             }
 
             $uploadedFile = new UploadedFile(
@@ -81,6 +88,21 @@ class SubmitToProcessing implements ShouldQueue
                 $result['sermon_id']
             );
 
+            // Validate that the sermon record has a valid audio file path
+            if ($result['sermon_id']) {
+                $sermon = \App\Models\Sermon::find($result['sermon_id']);
+                if ($sermon && $sermon->filename) {
+                    // Verify the audio file is accessible for web serving
+                    if (! Storage::disk('public')->exists($sermon->filename)) {
+                        Log::warning('Sermon audio file may not be web-accessible', [
+                            'sermon_id' => $result['sermon_id'],
+                            'filename' => $sermon->filename,
+                            'processing_id' => $this->processingLog->processing_id,
+                        ]);
+                    }
+                }
+            }
+
             $this->processingLog->update([
                 'sermon_id' => $result['sermon_id'],
                 'status' => 'completed',
@@ -92,6 +114,7 @@ class SubmitToProcessing implements ShouldQueue
                         'submitted_at' => now()->toISOString(),
                         'sermon_metadata' => $result['metadata'] ?? null,
                         'final_video_path' => $finalVideoPath,
+                        'audio_disk_validated' => $sermonDisk,
                     ]
                 ),
             ]);

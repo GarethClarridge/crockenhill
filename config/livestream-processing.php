@@ -76,10 +76,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | Storage disks for different types of files during processing.
+    | sermon_disk should use 'public' to ensure audio files are web-accessible.
     |
     */
     'storage_disk' => env('LIVESTREAM_STORAGE_DISK', 'local'),
-    'sermon_disk' => env('LIVESTREAM_SERMON_DISK', 'local'),
+    'sermon_disk' => env('LIVESTREAM_SERMON_DISK', 'public'),
     'temp_disk' => env('LIVESTREAM_TEMP_DISK', 'local'),
 
     /*
@@ -150,11 +151,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | Directory paths for organizing stored files.
+    | audio_path should match sermon-processing config for consistency.
     |
     */
     'storage' => [
         'video_path' => env('LIVESTREAM_VIDEO_PATH', 'sermons/videos'),
-        'audio_path' => env('LIVESTREAM_AUDIO_PATH', 'sermons/audio'),
+        'audio_path' => env('LIVESTREAM_AUDIO_PATH', 'sermons'),
         'temp_path' => env('LIVESTREAM_TEMP_PATH', 'temp/livestreams'),
     ],
 

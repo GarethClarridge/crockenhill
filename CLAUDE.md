@@ -176,7 +176,7 @@ sail up
 # Run migrations
 sail artisan migrate
 
-# Seed database with sample data
+# Seed database with sample data (includes transcript files for mock transcription service)
 sail artisan db:seed
 
 # Clear application cache
@@ -352,10 +352,14 @@ Ensure storage directories exist and are writable:
 mkdir -p storage/app/livestreams
 mkdir -p storage/app/temp
 mkdir -p storage/app/sermons
+mkdir -p storage/app/transcripts
 chmod -R 755 storage/app/livestreams
 chmod -R 755 storage/app/temp
 chmod -R 755 storage/app/sermons
+chmod -R 755 storage/app/transcripts
 ```
+
+**Note**: The `TranscriptSeeder` will automatically create the transcripts directory and mock sermon transcript file when running `db:seed`. This ensures the mock transcription service has valid content for local development and testing.
 
 #### Queue Worker Setup
 Configure supervisord or systemd to run queue workers:
