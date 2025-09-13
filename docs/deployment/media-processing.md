@@ -1,8 +1,8 @@
-# Livestream Processing Deployment Guide
+# Unified Media Processing Deployment Guide
 
 ## Overview
 
-This guide covers the deployment requirements and setup for the livestream video processing feature. The system extends the existing automated sermon processing with video analysis capabilities.
+This guide covers the deployment requirements and setup for the unified media processing system. The system handles audio files, sermon videos, and full livestream recordings through a single pipeline with intelligent routing and processing capabilities.
 
 ## System Requirements
 

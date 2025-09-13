@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
-class LivestreamProcessingService
+class VideoProcessingService
 {
     private VideoStorageService $storageService;
 
@@ -33,7 +33,96 @@ class LivestreamProcessingService
 
     public function processLivestream(UploadedFile $videoFile): ProcessingResult
     {
+        return $this->processWithSegmentation($videoFile);
+    }
+
+    /**
+     * Process video with segmentation (for livestream videos)
+     */
+    public function processWithSegmentation(UploadedFile $videoFile): ProcessingResult
+    {
         return $this->startProcessing($videoFile);
+    }
+
+    /**
+     * Process video directly without segmentation (for sermon videos)
+     */
+    public function processDirectly(UploadedFile $videoFile): ProcessingResult
+    {
+        try {
+            Log::info('Starting direct sermon video processing', [
+                'original_filename' => $videoFile->getClientOriginalName(),
+                'file_size' => $videoFile->getSize(),
+                'mime_type' => $videoFile->getMimeType(),
+            ]);
+
+            // 1. Store video using existing VideoStorageService
+            $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
+
+            // 2. Get video metadata
+            $metadata = $this->segmentationService->getVideoMetadata($uploadResult['full_path']);
+
+            // 3. Extract full audio track (optimized for transcription)
+            $audioPath = $this->extractFullAudioFromVideo(
+                $uploadResult['full_path'],
+                $metadata['duration']
+            );
+
+            // 4. Create UploadedFile wrapper for extracted audio
+            $audioFile = new UploadedFile(
+                $audioPath,
+                pathinfo($uploadResult['original_filename'], PATHINFO_FILENAME).'.mp3',
+                'audio/mpeg',
+                null,
+                true // Mark as test file to skip is_uploaded_file check
+            );
+
+            // 5. Process through existing synchronous sermon pipeline
+            $sermonProcessor = app(SermonProcessingService::class);
+            $videoMetadata = [
+                'source_type' => 'video_upload',
+                'original_filename' => $uploadResult['original_filename'],
+                'segment_start_time' => 0,
+                'segment_end_time' => $metadata['duration'],
+                'video_file_path' => $this->moveVideoToPermanentStorage($uploadResult),
+            ];
+
+            $result = $sermonProcessor->processSermonAudio($audioFile, $videoMetadata);
+
+            // Update sermon record with video information
+            if ($result['success'] && $result['sermon_id']) {
+                $this->updateSermonWithVideoMetadata($result['sermon_id'], $videoMetadata);
+            }
+
+            Log::info('Direct sermon video processing completed successfully', [
+                'processing_id' => $result['processing_id'],
+                'sermon_id' => $result['sermon_id'],
+                'video_duration' => $metadata['duration'],
+                'audio_path' => $audioPath,
+            ]);
+
+            return ProcessingResult::success(
+                processingId: $result['processing_id'],
+                message: $result['message'],
+                statusUrl: route('api.sermons.processing.status', ['processingId' => $result['processing_id']])
+            );
+
+        } catch (\Exception $e) {
+            Log::error('Failed to initiate direct sermon video processing', [
+                'original_filename' => $videoFile->getClientOriginalName(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Cleanup temporary files
+            $this->cleanupTemporaryFiles($uploadResult ?? null, $audioPath ?? null);
+
+            return ProcessingResult::failure(
+                processingId: 'failed-'.Str::uuid(),
+                message: 'Failed to initiate sermon video processing: '.$e->getMessage(),
+                errorCode: 'VIDEO_PROCESSING_INITIATION_FAILED'
+            );
+        }
     }
 
     public function startProcessing(UploadedFile $videoFile): ProcessingResult
@@ -404,5 +493,198 @@ class LivestreamProcessingService
             'failed' => $failed,
             'success_rate' => $total > 0 ? round(($completed / $total) * 100, 2) : 0,
         ];
+    }
+
+    /**
+     * Extract full audio track from video optimized for transcription
+     */
+    private function extractFullAudioFromVideo(string $videoPath, float $duration): string
+    {
+        $audioConfig = config('livestream-processing.audio_extraction.transcription_optimized');
+
+        $outputPath = storage_path('app/temp/'.Str::uuid().'.mp3');
+        $this->ensureDirectoryExists(dirname($outputPath));
+
+        try {
+            $ffmpeg = \FFMpeg\FFMpeg::create([
+                'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
+                'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
+            ]);
+
+            $video = $ffmpeg->open($videoPath);
+
+            $format = new \FFMpeg\Format\Audio\Mp3;
+            $format->setAudioKiloBitrate($audioConfig['bitrate'] ?? 48);
+            $format->setAudioChannels($audioConfig['channels'] ?? 1);
+
+            $video->save($format, $outputPath);
+
+            // Check file size and compress if needed
+            $fileSize = filesize($outputPath);
+            $maxSize = $audioConfig['max_file_size'] ?? (25 * 1024 * 1024);
+
+            if ($fileSize > $maxSize) {
+                Log::info('Audio file too large, applying fallback compression', [
+                    'original_size' => $fileSize,
+                    'max_size' => $maxSize,
+                ]);
+
+                $outputPath = $this->compressAudioForTranscription($outputPath);
+            }
+
+            Log::info('Audio extracted from full video', [
+                'video_path' => $videoPath,
+                'audio_path' => $outputPath,
+                'duration' => $duration,
+                'file_size' => filesize($outputPath),
+            ]);
+
+            return $outputPath;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to extract audio from video', [
+                'video_path' => $videoPath,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Compress audio file for transcription service
+     */
+    private function compressAudioForTranscription(string $inputPath): string
+    {
+        $fallbackConfig = config('livestream-processing.audio_extraction.fallback_compression');
+        $compressedPath = storage_path('app/temp/'.Str::uuid().'_compressed.mp3');
+
+        try {
+            $ffmpeg = \FFMpeg\FFMpeg::create([
+                'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
+                'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
+            ]);
+
+            $audio = $ffmpeg->open($inputPath);
+
+            $format = new \FFMpeg\Format\Audio\Mp3;
+            $format->setAudioKiloBitrate($fallbackConfig['bitrate'] ?? 32);
+            $format->setAudioChannels($fallbackConfig['channels'] ?? 1);
+
+            $audio->save($format, $compressedPath);
+
+            // Remove original file
+            if (file_exists($inputPath)) {
+                unlink($inputPath);
+            }
+
+            return $compressedPath;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to compress audio file', [
+                'input_path' => $inputPath,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Update sermon record with video metadata
+     */
+    private function updateSermonWithVideoMetadata(string $sermonId, array $videoData): void
+    {
+        try {
+            $sermon = \App\Models\Sermon::find($sermonId);
+
+            if ($sermon) {
+                $sermon->update($videoData);
+
+                Log::info('Sermon updated with video metadata', [
+                    'sermon_id' => $sermon->id,
+                    'video_data' => $videoData,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to update sermon with video metadata', [
+                'sermon_id' => $sermonId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Move video from temporary storage to permanent location
+     */
+    private function moveVideoToPermanentStorage(array $uploadResult): string
+    {
+        $tempDisk = config('livestream-processing.temp_disk', 'local');
+        $permanentDisk = config('livestream-processing.sermon_disk', 'local');
+        $videoPath = config('livestream-processing.storage.video_path', 'sermons/videos');
+
+        $filename = Str::uuid().'_'.basename($uploadResult['original_filename']);
+        $permanentPath = $videoPath.'/'.$filename;
+
+        try {
+            // Copy from temp to permanent storage
+            $tempPath = $uploadResult['temp_path'];
+            $fileContent = \Illuminate\Support\Facades\Storage::disk($tempDisk)->get($tempPath);
+            \Illuminate\Support\Facades\Storage::disk($permanentDisk)->put($permanentPath, $fileContent);
+
+            // Clean up temporary file
+            \Illuminate\Support\Facades\Storage::disk($tempDisk)->delete($tempPath);
+
+            Log::info('Video moved to permanent storage', [
+                'temp_path' => $tempPath,
+                'permanent_path' => $permanentPath,
+            ]);
+
+            return $permanentPath;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to move video to permanent storage', [
+                'temp_path' => $uploadResult['temp_path'],
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Clean up temporary files
+     */
+    private function cleanupTemporaryFiles(?array $uploadResult, ?string $audioPath): void
+    {
+        try {
+            if ($uploadResult && isset($uploadResult['temp_path'])) {
+                $tempDisk = config('livestream-processing.temp_disk', 'local');
+                if (\Illuminate\Support\Facades\Storage::disk($tempDisk)->exists($uploadResult['temp_path'])) {
+                    \Illuminate\Support\Facades\Storage::disk($tempDisk)->delete($uploadResult['temp_path']);
+                }
+            }
+
+            if ($audioPath && file_exists($audioPath)) {
+                unlink($audioPath);
+            }
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to cleanup temporary files', [
+                'error' => $e->getMessage(),
+                'upload_result' => $uploadResult,
+                'audio_path' => $audioPath,
+            ]);
+        }
+    }
+
+    /**
+     * Ensure directory exists
+     */
+    private function ensureDirectoryExists(string $directory): void
+    {
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
     }
 }

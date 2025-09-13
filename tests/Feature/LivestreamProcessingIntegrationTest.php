@@ -6,7 +6,7 @@ use App\Models\LivestreamProcessingLog;
 use App\Models\LivestreamSegment;
 use App\Models\Sermon;
 use App\Services\LivestreamProcessingLogger;
-use App\Services\LivestreamProcessingService;
+use App\Services\VideoProcessingService;
 use App\Services\VideoSegmentationService;
 use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -78,10 +78,10 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->app->instance(VideoStorageService::class, $mockStorageService);
 
         // Create the service
-        $service = app(LivestreamProcessingService::class);
+        $service = app(VideoProcessingService::class);
 
         // Process the livestream
-        $result = $service->processLivestream($videoFile);
+        $result = $service->processWithSegmentation($videoFile);
 
         // Verify processing record was created
         $this->assertDatabaseHas('livestream_processing_logs', [

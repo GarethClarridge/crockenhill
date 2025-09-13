@@ -1,8 +1,8 @@
-# Livestream Processing Operations Runbook
+# Unified Media Processing Operations Runbook
 
 ## Overview
 
-This runbook provides step-by-step procedures for operating, troubleshooting, and maintaining the livestream video processing system. It's designed for system administrators and operations teams.
+This runbook provides step-by-step procedures for operating, troubleshooting, and maintaining the unified media processing system. It covers audio processing, video processing, and livestream segmentation operations. It's designed for system administrators and operations teams.
 
 ## Quick Reference
 
@@ -15,7 +15,7 @@ This runbook provides step-by-step procedures for operating, troubleshooting, an
 ### Critical System Information
 
 - **Application:** Crockenhill Baptist Church Website
-- **Feature:** Livestream Video Processing
+- **Feature:** Unified Media Processing (Audio, Video, Livestream)
 - **Environment:** [Production/Staging]
 - **Server:** [Server details]
 - **Database:** [Database details]
@@ -40,7 +40,7 @@ This runbook provides step-by-step procedures for operating, troubleshooting, an
 #!/bin/bash
 # Daily health check script
 
-echo "=== Livestream Processing Health Check ==="
+echo "=== Media Processing System Health Check ==="
 echo "Date: $(date)"
 echo
 

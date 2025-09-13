@@ -241,25 +241,56 @@ sail composer phpstan
 - Page images and other media in `public/images/`
 - Uses Laravel's storage disk system for file management
 
-### Video Processing Architecture
-- **MediaProcessingService**: Unified entry point for all media processing (audio, video, livestream)
-- **VideoSegmentationService**: FFmpeg-based video analysis and segment extraction
-- **SermonProcessingService**: Orchestrates AI-powered sermon analysis and metadata extraction
+### Unified Media Processing Architecture
+- **ProcessingRouter**: Intelligent routing service that directs media uploads to appropriate processors based on user choice
+- **VideoProcessingService**: Handles all video processing with dual modes (segmentation for livestreams, direct processing for sermon videos)
+- **SermonProcessingService**: Focused on audio processing, transcription, and AI-powered sermon analysis
+- **VideoSegmentationService**: FFmpeg-based video analysis and segment extraction (used by VideoProcessingService)
 - **ProcessingStatusContract**: Interface ensuring consistent API responses across processing types
 - **StandardProcessingResponse**: Unified response format for all processing status endpoints
 
-#### Video Segmentation Pipeline
+#### Processing Pipelines
+
+**Livestream Processing (with segmentation):**
 1. **RMS Analysis**: Audio level analysis to identify music vs speech segments
 2. **Segment Classification**: Automatic categorization of video segments (song/speech)
 3. **Sermon Extraction**: FFmpeg-based extraction of sermon segments from full videos
-4. **Audio Optimization**: Compression and format conversion for transcription services
-5. **Metadata Enrichment**: AI analysis of extracted content for title, preacher, series identification
+4. **Video Preservation**: Both original and extracted videos are stored permanently
+5. **Audio Processing**: Transcription and AI analysis of extracted sermon content
+6. **Sermon Record Creation**: Complete sermon record with preserved video files
+
+**Direct Video Processing (sermon-only videos):**
+1. **Audio Extraction**: Full audio track extraction optimized for transcription
+2. **Video Preservation**: Original video file stored permanently and linked to sermon
+3. **Audio Processing**: Transcription and AI analysis of full audio content
+4. **Sermon Record Creation**: Complete sermon record with video file preservation
+
+**Audio Processing:**
+1. **Audio Processing**: Direct transcription and AI analysis
+2. **Metadata Enrichment**: AI analysis for title, preacher, series identification
+3. **Sermon Record Creation**: Standard sermon record with audio file
 
 #### Processing Status Tracking
 - **Real-time Status Updates**: Granular progress tracking through processing steps
 - **Enhanced Error Handling**: Detailed error messages and recovery options
 - **Polymorphic Status Checking**: Unified status interface across different processing types
 - **Graceful Degradation**: Fallback options for failed processing steps
+
+#### API Endpoints
+
+**Unified Upload Endpoints:**
+- `POST /api/sermons/audio` - Audio sermon files (ProcessingRouter → SermonProcessingService)
+- `POST /api/sermons/video` - Direct sermon videos (ProcessingRouter → VideoProcessingService direct processing)
+- `POST /api/sermons/livestream` - Full livestream recordings (ProcessingRouter → VideoProcessingService segmentation)
+
+**Status Management:**
+- `GET /api/sermons/processing/{processingId}/status` - Unified status checking across all processing types
+- `DELETE /api/sermons/processing/{processingId}` - Cancel processing operation
+- `POST /api/sermons/processing/{processingId}/retry` - Retry failed processing
+
+**Legacy Endpoints (Backwards Compatibility):**
+- `POST /api/sermons/automated` - Legacy audio upload (redirects to `/audio`)
+- `POST /api/livestreams/process` - Direct livestream processing (bypasses ProcessingRouter)
 
 ### Database
 - Uses standard Laravel migrations in `database/migrations/`

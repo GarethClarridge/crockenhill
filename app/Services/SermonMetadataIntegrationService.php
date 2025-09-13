@@ -18,41 +18,21 @@ class SermonMetadataIntegrationService
      *
      * @param  string  $processingId  The livestream processing ID
      * @param  int  $sermonId  The sermon ID from automated processing
+     * @param  string  $finalVideoPath  The path to the organized video file
      */
-    public function linkVideoToSermon(string $processingId, int $sermonId): void
+    public function linkVideoToSermon(string $processingId, int $sermonId, string $finalVideoPath): void
     {
         /** @var \App\Models\LivestreamProcessingLog $processing */
         $processing = LivestreamProcessingLog::where('processing_id', $processingId)->firstOrFail();
         $sermon = Sermon::findOrFail($sermonId);
 
-        // Get the sermon segment information
-        /** @var \App\Models\LivestreamSegment|null $sermonSegment */
-        $sermonSegment = $processing->segments()
-            ->where('is_sermon_segment', true)
-            ->first();
-
-        if (! $sermonSegment) {
-            Log::warning('No sermon segment found for processing', [
-                'processing_id' => $processingId,
-                'sermon_id' => $sermonId,
-            ]);
-
-            return;
-        }
-
-        // Update sermon record with livestream information
+        // Update sermon record with livestream information using data from processing log
         $sermon->update([
             'livestream_processing_id' => $processingId,
-            'video_file_path' => $this->getSermonVideoPath($processingId),
+            'video_file_path' => $finalVideoPath,
             'source_type' => 'livestream',
-            'segment_start_time' => $sermonSegment->start_time,
-            'segment_end_time' => $sermonSegment->end_time,
-            'livestream_metadata' => [
-                'original_filename' => $processing->original_filename,
-                'processing_date' => $processing->created_at->toISOString(),
-                'total_segments' => $processing->segments()->count(),
-                'segment_index' => $sermonSegment->segment_index,
-            ],
+            'segment_start_time' => $processing->sermon_start_time,
+            'segment_end_time' => $processing->sermon_end_time,
         ]);
 
         // Update processing log with sermon link
@@ -61,60 +41,31 @@ class SermonMetadataIntegrationService
         Log::info('Successfully linked video to sermon', [
             'processing_id' => $processingId,
             'sermon_id' => $sermonId,
-            'video_path' => $sermon->video_file_path,
+            'video_path' => $finalVideoPath,
         ]);
     }
 
     /**
-     * Store video with extracted sermon metadata
+     * Store video from processing to permanent location
      *
      * @param  string  $processingId  The livestream processing ID
-     * @param  array  $sermonMetadata  Metadata extracted from sermon processing
+     * @param  int  $sermonId  The sermon ID from processing
      * @return string The final video path
      */
-    public function storeVideoWithMetadata(string $processingId, array $sermonMetadata): string
+    public function storeVideoForSermon(string $processingId, int $sermonId): string
     {
-        $sermonId = $sermonMetadata['sermon_id'];
         $videoPath = $this->extractSermonVideo($processingId);
 
         if (! $videoPath) {
             throw new \Exception("No sermon video found for processing ID: {$processingId}");
         }
 
-        // Use metadata from automated sermon processing for organization
-        $finalVideoPath = $this->organizeVideoFile($videoPath, [
-            'sermon_id' => $sermonId,
-            'title' => $sermonMetadata['title'] ?? 'Untitled Sermon',
-            'preacher' => $sermonMetadata['preacher'] ?? 'Unknown',
-            'date' => $sermonMetadata['date'] ?? now(),
-            'series' => $sermonMetadata['series'] ?? null,
-            'processing_id' => $processingId,
-        ]);
+        // Simple organization by sermon ID
+        $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId);
 
         return $finalVideoPath;
     }
 
-    /**
-     * Get the path to the sermon video for a processing ID
-     *
-     * @param  string  $processingId  The processing ID
-     * @return string|null The video path or null if not found
-     */
-    private function getSermonVideoPath(string $processingId): ?string
-    {
-        $tempPath = "temp/livestreams/{$processingId}/segments";
-
-        // Look for the sermon video segment
-        $files = Storage::files($tempPath);
-
-        foreach ($files as $file) {
-            if (str_contains($file, 'sermon.mp4')) {
-                return $file;
-            }
-        }
-
-        return null;
-    }
 
     /**
      * Extract the sermon video from temporary storage
@@ -128,50 +79,87 @@ class SermonMetadataIntegrationService
         $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
 
         if ($processing && $processing->sermon_video_path) {
-            if (file_exists($processing->sermon_video_path)) {
-                return $processing->sermon_video_path;
+            // The path from ExtractSermon job is now a relative path, check temp disk first
+            $tempDisk = config('livestream-processing.temp_disk', 'local');
+            if (Storage::disk($tempDisk)->exists($processing->sermon_video_path)) {
+                $absolutePath = Storage::disk($tempDisk)->path($processing->sermon_video_path);
+                Log::debug('Found sermon video on temp disk', [
+                    'processing_id' => $processingId,
+                    'relative_path' => $processing->sermon_video_path,
+                    'absolute_path' => $absolutePath,
+                ]);
+                return $absolutePath;
+            }
+
+            // Fallback: check if it's already been moved to sermon disk
+            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
+            if (Storage::disk($sermonDisk)->exists($processing->sermon_video_path)) {
+                $absolutePath = Storage::disk($sermonDisk)->path($processing->sermon_video_path);
+                Log::debug('Found sermon video on sermon disk', [
+                    'processing_id' => $processingId,
+                    'relative_path' => $processing->sermon_video_path,
+                    'absolute_path' => $absolutePath,
+                ]);
+                return $absolutePath;
             }
 
             Log::warning('Sermon video path in processing log does not exist', [
                 'processing_id' => $processingId,
-                'expected_path' => $processing->sermon_video_path,
+                'relative_path' => $processing->sermon_video_path,
+                'checked_temp_disk' => $tempDisk,
+                'checked_sermon_disk' => $sermonDisk,
             ]);
         }
 
-        // Fallback: Look for sermon video in the old expected location
+        // Fallback: Look for sermon video in temp storage
+        $tempDisk = config('livestream-processing.temp_disk', 'local');
         $tempPath = "temp/livestreams/{$processingId}/segments";
-        $files = Storage::files($tempPath);
+        
+        try {
+            $files = Storage::disk($tempDisk)->files($tempPath);
 
-        foreach ($files as $file) {
-            if (str_contains($file, 'sermon.mp4')) {
-                return Storage::path($file);
+            foreach ($files as $file) {
+                if (str_contains($file, 'sermon.mp4')) {
+                    $absolutePath = Storage::disk($tempDisk)->path($file);
+                    Log::debug('Found sermon video in temp storage', [
+                        'processing_id' => $processingId,
+                        'relative_path' => $file,
+                        'absolute_path' => $absolutePath,
+                    ]);
+                    return $absolutePath;
+                }
             }
+        } catch (\Exception $e) {
+            Log::debug('Could not search temp storage for sermon video', [
+                'processing_id' => $processingId,
+                'temp_path' => $tempPath,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         Log::warning('No sermon video found in any location', [
             'processing_id' => $processingId,
             'processing_log_path' => $processing?->sermon_video_path,
-            'temp_path' => $tempPath,
-            'available_files' => $files,
+            'fallback_temp_path' => $tempPath,
         ]);
 
         return null;
     }
 
     /**
-     * Organize video file with metadata-based naming and storage
+     * Organize video file to permanent storage location
      *
      * @param  string  $videoPath  The source video path
-     * @param  array  $metadata  The sermon metadata
+     * @param  int  $sermonId  The sermon ID
      * @return string The final organized path
      */
-    private function organizeVideoFile(string $videoPath, array $metadata): string
+    private function organizeVideoFile(string $videoPath, int $sermonId): string
     {
         // Get the sermon storage disk
         $sermonDisk = Storage::disk(config('livestream-processing.sermon_disk', 'local'));
 
         // Create directory structure based on sermon ID
-        $directory = "sermons/{$metadata['sermon_id']}";
+        $directory = "sermons/{$sermonId}";
         $filename = 'video.mp4';
         $finalPath = "{$directory}/{$filename}";
 
@@ -185,17 +173,10 @@ class SermonMetadataIntegrationService
             $filename
         );
 
-        // Store metadata alongside video
-        $sermonDisk->put(
-            "{$directory}/metadata.json",
-            json_encode($metadata, JSON_PRETTY_PRINT)
-        );
-
-        Log::info('Video file organized with metadata', [
+        Log::info('Video file organized', [
             'source_path' => $videoPath,
             'final_path' => $finalPath,
-            'sermon_id' => $metadata['sermon_id'],
-            'title' => $metadata['title'],
+            'sermon_id' => $sermonId,
         ]);
 
         return $finalPath;

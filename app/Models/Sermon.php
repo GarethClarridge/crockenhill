@@ -95,7 +95,6 @@ class Sermon extends Model
         'source_type', // Source type: manual, livestream, upload
         'segment_start_time', // Start time of sermon segment in livestream
         'segment_end_time', // End time of sermon segment in livestream
-        'livestream_metadata', // Additional livestream metadata
     ];
 
     /**
@@ -107,7 +106,6 @@ class Sermon extends Model
         'date' => 'date',
         'points' => 'array', // Let Eloquent handle the casting to array for `points`
         'service' => SermonService::class,
-        'livestream_metadata' => 'array',
         'segment_start_time' => 'float',
         'segment_end_time' => 'float',
     ];
@@ -480,7 +478,6 @@ class Sermon extends Model
             'segment_duration_formatted' => $this->getSegmentDurationFormatted(),
             'has_video' => $this->hasVideo(),
             'video_url' => $this->getVideoUrlAttribute(),
-            'metadata' => $this->livestream_metadata ?? [],
         ];
     }
 

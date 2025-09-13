@@ -8,7 +8,7 @@ use App\Contracts\ProcessingStatusContract;
 use App\Data\StandardProcessingResponse;
 use App\Http\Requests\AutomatedSermonUploadRequest;
 use App\Http\Requests\SermonVideoUploadRequest;
-use App\Services\MediaProcessingService;
+use App\Services\ProcessingRouter;
 use App\Services\SermonProcessingLogger;
 use App\Services\SermonProcessingService;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
 class AutomatedSermonController extends Controller implements ProcessingStatusContract
 {
     public function __construct(
-        private readonly MediaProcessingService $mediaProcessingService,
+        private readonly ProcessingRouter $processingRouter,
         private readonly SermonProcessingService $sermonProcessingService
     ) {}
 
@@ -45,8 +45,8 @@ class AutomatedSermonController extends Controller implements ProcessingStatusCo
                 ], 400);
             }
 
-            // Process the sermon through the unified media processing pipeline
-            $result = $this->mediaProcessingService->processAudio($file);
+            // Process the sermon through the processing router
+            $result = $this->processingRouter->routeAudio($file);
 
             if ($result->success) {
                 Log::info('Automated sermon processing initiated successfully', [
@@ -103,8 +103,8 @@ class AutomatedSermonController extends Controller implements ProcessingStatusCo
                 ], 400);
             }
 
-            // Process the video through the unified media processing pipeline
-            $result = $this->mediaProcessingService->processVideo($file);
+            // Process the video through the processing router
+            $result = $this->processingRouter->routeSermonVideo($file);
 
             if ($result->success) {
                 Log::info('Direct sermon video processing initiated successfully', [
@@ -166,8 +166,8 @@ class AutomatedSermonController extends Controller implements ProcessingStatusCo
                 ], 400);
             }
 
-            // Process the livestream through the unified media processing pipeline
-            $result = $this->mediaProcessingService->processLivestream($file);
+            // Process the livestream through the processing router
+            $result = $this->processingRouter->routeLivestreamVideo($file);
 
             if ($result->success) {
                 Log::info('Livestream processing initiated successfully', [

@@ -6,7 +6,7 @@ use App\Contracts\ProcessingStatusContract;
 use App\Data\StandardProcessingResponse;
 use App\Http\Controllers\Controller;
 use App\Models\LivestreamProcessingLog;
-use App\Services\LivestreamProcessingService;
+use App\Services\VideoProcessingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 class LivestreamProcessingController extends Controller implements ProcessingStatusContract
 {
     public function __construct(
-        private LivestreamProcessingService $livestreamProcessingService
+        private VideoProcessingService $videoProcessingService
     ) {}
 
     public function uploadVideo(Request $request): JsonResponse
@@ -44,7 +44,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
                 ], 422);
             }
 
-            $result = $this->livestreamProcessingService->startProcessing($videoFile);
+            $result = $this->videoProcessingService->processWithSegmentation($videoFile);
 
             Log::info('Livestream processing initiated via API', [
                 'processing_id' => $result->processingId,
@@ -88,7 +88,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
     public function getStatus(string $processingId): JsonResponse
     {
         try {
-            $status = $this->livestreamProcessingService->getProcessingStatus($processingId);
+            $status = $this->videoProcessingService->getProcessingStatus($processingId);
 
             return response()->json([
                 'processing_id' => $status->processingId,
@@ -126,7 +126,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
     public function getResult(string $processingId): JsonResponse
     {
         try {
-            $result = $this->livestreamProcessingService->getProcessingResult($processingId);
+            $result = $this->videoProcessingService->getProcessingResult($processingId);
 
             return response()->json([
                 'success' => true,
@@ -184,7 +184,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
     public function retryProcessing(string $processingId): JsonResponse
     {
         try {
-            $result = $this->livestreamProcessingService->retryProcessing($processingId);
+            $result = $this->videoProcessingService->retryProcessing($processingId);
 
             Log::info('Livestream processing retry initiated via API', [
                 'processing_id' => $processingId,
@@ -238,7 +238,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
     public function getProcessingSummary(): JsonResponse
     {
         try {
-            $summary = $this->livestreamProcessingService->getProcessingSummary();
+            $summary = $this->videoProcessingService->getProcessingSummary();
 
             return response()->json([
                 'success' => true,
@@ -279,7 +279,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
     public function getProcessingStatus(string $processingId): StandardProcessingResponse
     {
         try {
-            $status = $this->livestreamProcessingService->getProcessingStatus($processingId);
+            $status = $this->videoProcessingService->getProcessingStatus($processingId);
 
             // Convert LivestreamProcessingStatus to StandardProcessingResponse
             return StandardProcessingResponse::found(
@@ -342,7 +342,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
                 'processing_id' => $processingId,
             ]);
 
-            $cancelled = $this->livestreamProcessingService->cancelProcessing($processingId);
+            $cancelled = $this->videoProcessingService->cancelProcessing($processingId);
 
             if ($cancelled) {
                 return [

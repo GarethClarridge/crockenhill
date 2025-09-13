@@ -331,13 +331,13 @@ class SermonController extends Controller
             $file = $request->file('file');
             $type = $request->input('type');
 
-            // Use same unified service as API
-            $service = app(\App\Services\MediaProcessingService::class);
+            // Use processing router like API
+            $router = app(\App\Services\ProcessingRouter::class);
 
             $result = match ($type) {
-                'audio' => $service->processAudio($file),
-                'video' => $service->processVideo($file),
-                'livestream' => $service->processLivestream($file),
+                'audio' => $router->routeAudio($file),
+                'video' => $router->routeSermonVideo($file),
+                'livestream' => $router->routeLivestreamVideo($file),
                 default => throw new \InvalidArgumentException("Unsupported file type: {$type}")
             };
 

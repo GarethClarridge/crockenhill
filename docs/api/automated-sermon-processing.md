@@ -1,8 +1,10 @@
-# Automated sermon processing API documentation
+# Automated Sermon Processing API Documentation
 
 ## Overview
 
-The Automated Sermon Processing API provides endpoints for uploading sermon audio files and automatically processing them using AI services. The system extracts metadata, transcribes audio content, and generates structured sermon information including titles, series identification, Bible passage references, and sermon points.
+The Automated Sermon Processing API is part of the Unified Media Processing system and provides endpoints for uploading sermon audio files and automatically processing them using AI services. The system extracts metadata, transcribes audio content, and generates structured sermon information including titles, series identification, Bible passage references, and sermon points.
+
+> **Note**: This documentation covers audio processing specifically. For video and livestream processing, see the [Unified Media Processing API](unified-media-processing.md) documentation.
 
 ## Base URL
 
@@ -44,7 +46,9 @@ Rate limit headers are included in responses:
 
 Upload an audio file for automated sermon processing.
 
-**Endpoint**: `POST /api/sermons/automated`
+**Endpoint**: `POST /api/sermons/audio`
+
+**Legacy Endpoint**: `POST /api/sermons/automated` (still supported for backwards compatibility)
 
 **Authentication**: Required
 
@@ -63,7 +67,7 @@ Upload an audio file for automated sermon processing.
 
 **Example Request**:
 ```bash
-curl -X POST https://your-domain.com/api/sermons/automated \
+curl -X POST https://your-domain.com/api/sermons/audio \
   -H "Authorization: Bearer your-api-token" \
   -F "file=@sermon-2024-01-15-am.mp3"
 ```

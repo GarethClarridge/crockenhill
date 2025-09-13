@@ -64,14 +64,13 @@ class VideoExtractionService
         $endTime = $segment->endTime ?? $segment->end_time ?? 0;
 
         try {
-            // Use direct FFmpeg command for stream copy (fastest, no quality loss)
-            $tempPath = storage_path('app/temp/'.Str::uuid().'.mp4');
+            // Use Laravel storage disk for consistency with other file operations
+            $tempDisk = config('livestream-processing.temp_disk', 'local');
+            $relativePath = 'temp/'.Str::uuid().'.mp4';
+            $tempPath = \Illuminate\Support\Facades\Storage::disk($tempDisk)->path($relativePath);
             
-            // Ensure temp directory exists
-            $tempDir = dirname($tempPath);
-            if (!is_dir($tempDir)) {
-                mkdir($tempDir, 0755, true);
-            }
+            // Ensure temp directory exists using storage disk
+            \Illuminate\Support\Facades\Storage::disk($tempDisk)->makeDirectory(dirname($relativePath));
 
             $ffmpegPath = config('livestream-processing.ffmpeg_path');
             $duration = $endTime - $startTime;
@@ -112,13 +111,14 @@ class VideoExtractionService
             Log::info('Video segment extracted with stream copy (original quality)', [
                 'input_path' => $inputPath,
                 'output_path' => $tempPath,
+                'relative_path' => $relativePath,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'duration' => $duration,
                 'output_size' => filesize($tempPath),
             ]);
 
-            return $tempPath;
+            return $relativePath;
 
         } catch (\Exception $e) {
             Log::error('Failed to extract video segment', [

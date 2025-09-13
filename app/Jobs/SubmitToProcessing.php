@@ -75,17 +75,17 @@ class SubmitToProcessing implements ShouldQueue
 
             $result = $sermonProcessingService->processSermonAudio($uploadedFile, $metadata);
 
-            // Store video with extracted metadata using the integration service
-            $metadataWithSermonId = array_merge($result['metadata'] ?? [], ['sermon_id' => $result['sermon_id']]);
-            $finalVideoPath = $metadataIntegrationService->storeVideoWithMetadata(
+            // Store video in permanent location
+            $finalVideoPath = $metadataIntegrationService->storeVideoForSermon(
                 $this->processingLog->processing_id,
-                $metadataWithSermonId
+                $result['sermon_id']
             );
 
             // Link video to sermon record
             $metadataIntegrationService->linkVideoToSermon(
                 $this->processingLog->processing_id,
-                $result['sermon_id']
+                $result['sermon_id'],
+                $finalVideoPath
             );
 
             // Validate that the sermon record has a valid audio file path
@@ -111,10 +111,7 @@ class SubmitToProcessing implements ShouldQueue
                     $this->processingLog->processing_metadata ?? [],
                     [
                         'sermon_processing_id' => $result['processing_id'],
-                        'submitted_at' => now()->toISOString(),
-                        'sermon_metadata' => $result['metadata'] ?? null,
                         'final_video_path' => $finalVideoPath,
-                        'audio_disk_validated' => $sermonDisk,
                     ]
                 ),
             ]);
@@ -141,13 +138,6 @@ class SubmitToProcessing implements ShouldQueue
                 'status' => 'failed',
                 'error_message' => $errorMessage,
                 'completed_at' => now(),
-                'processing_metadata' => array_merge(
-                    $this->processingLog->processing_metadata ?? [],
-                    [
-                        'submission_failed_at' => now()->toISOString(),
-                        'submission_error' => $e->getMessage(),
-                    ]
-                ),
             ]);
 
             // Cleanup will be handled by the chain failure handler

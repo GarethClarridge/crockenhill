@@ -72,30 +72,10 @@ use Illuminate\Support\Str;
       </audio>
 
       @if (!empty($sermon->video_file_path))
-      <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-        <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-          <x-heroicon-o-video-camera class="h-5 w-5 mr-2" />
-          Video Recording
-          @if ($sermon->source_type === 'livestream')
-          <span class="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-            <x-heroicon-s-signal class="h-3 w-3 mr-1" />
-            From Livestream
-          </span>
-          @endif
-        </h3>
         <video src="{{ Storage::disk(config('livestream-processing.sermon_disk', 'local'))->url($sermon->video_file_path) }}" class="w-full max-h-96" controls>
           Your browser does not support the <code>video</code> element.
         </video>
-        
-        @if ($sermon->source_type === 'livestream' && $sermon->segment_start_time && $sermon->segment_end_time)
-        <div class="mt-2 text-sm text-gray-600">
-          <span class="font-medium">Sermon segment:</span> 
-          {{ gmdate('H:i:s', $sermon->segment_start_time) }} - {{ gmdate('H:i:s', $sermon->segment_end_time) }}
-          ({{ round(($sermon->segment_end_time - $sermon->segment_start_time) / 60, 1) }} minutes)
-        </div>
         @endif
-      </div>
-      @endif
 
     </dl>
 

@@ -6,7 +6,7 @@ namespace App\Livewire;
 
 use App\Enums\ProcessingStatus;
 use App\Models\SermonProcessingLog;
-use App\Services\MediaProcessingService;
+use App\Services\ProcessingRouter;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -246,12 +246,12 @@ class MediaUpload extends Component
             $log = SermonProcessingLog::where('processing_id', $this->processingId)->first();
 
             // Start the actual processing
-            $mediaProcessingService = app(MediaProcessingService::class);
+            $processingRouter = app(ProcessingRouter::class);
 
             $result = match ($this->mediaType) {
-                'audio' => $mediaProcessingService->processAudio($originalFile, $log),
-                'video' => $mediaProcessingService->processVideo($originalFile, $log),
-                'livestream' => $mediaProcessingService->processLivestream($originalFile, $log),
+                'audio' => $processingRouter->routeAudio($originalFile),
+                'video' => $processingRouter->routeSermonVideo($originalFile),
+                'livestream' => $processingRouter->routeLivestreamVideo($originalFile),
                 default => throw new \InvalidArgumentException('Invalid media type')
             };
 

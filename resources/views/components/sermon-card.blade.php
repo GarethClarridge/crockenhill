@@ -8,16 +8,6 @@
   <a class="font-display text-4xl my-auto underline" href="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">
     <h4 class="p-6 mx-6 mt-6">
       {{$sermon->title}}
-      @if (!empty($sermon->video_file_path))
-        <span class="ml-2 inline-flex items-center">
-          <x-heroicon-s-video-camera class="h-4 w-4 text-green-600" title="Video Available" />
-        </span>
-      @endif
-      @if ($sermon->source_type === 'livestream')
-        <span class="ml-1 inline-flex items-center">
-          <x-heroicon-s-signal class="h-4 w-4 text-blue-600" title="From Livestream" />
-        </span>
-      @endif
     </h4>
   </a>
   @endif
