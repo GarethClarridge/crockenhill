@@ -1225,6 +1225,9 @@ class SermonProcessingService
         if (! empty($analysis->points)) {
             $updateData['points'] = $analysis->points;
         }
+        if (! empty($analysis->summary)) {
+            $updateData['summary'] = $analysis->summary;
+        }
 
         if (! empty($updateData)) {
             $sermon->update($updateData);

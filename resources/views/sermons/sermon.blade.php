@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 {{-- Existing content of @section('dynamic_content') follows --}}
 
 <section class="space-y-8">
-  <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+  <div class="bg-white border border-gray-200 rounded-t-lg mb-0 p-6 shadow-sm">
     <dl class="space-y-6">
       @if ($sermon->date != null)
       <div class="flex items-center">
@@ -85,10 +85,6 @@ use Illuminate\Support\Str;
       <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
         <x-heroicon-o-document-text class="h-5 w-5 mr-2" />
         Summary
-        <span class="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-          <x-heroicon-s-sparkles class="h-3 w-3 mr-1" />
-          AI Generated
-        </span>
       </h2>
       <div class="prose prose-gray max-w-none text-gray-700">
         {{ $sermon->summary }}
@@ -101,10 +97,6 @@ use Illuminate\Support\Str;
     <h2 class="text-xl font-semibold text-gray-900 mt-12 mb-4 flex items-center">
       <x-heroicon-o-list-bullet class="h-5 w-5 mr-2" />
       Sermon Outline
-      <span class="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-        <x-heroicon-s-sparkles class="h-3 w-3 mr-1" />
-        AI Generated
-      </span>
     </h2>
     <div class="prose prose-gray max-w-none">
       <ol class="space-y-3">
@@ -153,11 +145,7 @@ use Illuminate\Support\Str;
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-gray-900 flex items-center">
           <x-heroicon-o-document-text class="h-5 w-5 mr-2" />
-          Transcript
-          <span class="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-            <x-heroicon-s-sparkles class="h-3 w-3 mr-1" />
-            AI Generated
-          </span>
+          Automated transcript (may contain errors)
         </h2>
         <button
           class="text-sm text-gray-600 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1"
@@ -174,7 +162,65 @@ use Illuminate\Support\Str;
         {!! Str::markdown($sermon->transcript) !!}
       </div>
     </div>
+    
   </div>
+  {{-- Admin Actions --}}
+  @can ('edit-sermons')
+  <div class="">
+
+    @if ($sermon->source_type === 'livestream' && $sermon->livestreamProcessing)
+    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+      <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
+        <x-heroicon-o-signal class="h-4 w-4 mr-2" />
+        Livestream Processing Information
+      </h4>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <span class="font-medium text-gray-700">Original File:</span>
+          <span class="text-gray-600">{{ $sermon->livestreamProcessing->original_filename }}</span>
+        </div>
+        <div>
+          <span class="font-medium text-gray-700">Processing Date:</span>
+          <span class="text-gray-600">{{ $sermon->livestreamProcessing->created_at->format('Y-m-d H:i:s') }}</span>
+        </div>
+        <div>
+          <span class="font-medium text-gray-700">Status:</span>
+          <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full 
+            @if($sermon->livestreamProcessing->status === 'completed') bg-green-100 text-green-800
+            @elseif($sermon->livestreamProcessing->status === 'failed') bg-red-100 text-red-800
+            @elseif($sermon->livestreamProcessing->status === 'processing') bg-yellow-100 text-yellow-800
+            @else bg-gray-100 text-gray-800 @endif">
+            {{ ucfirst($sermon->livestreamProcessing->status) }}
+          </span>
+        </div>
+        <div>
+          <span class="font-medium text-gray-700">Total Segments:</span>
+          <span class="text-gray-600">{{ $sermon->livestreamProcessing->segments->count() }}</span>
+        </div>
+        @if ($sermon->livestreamProcessing->duration_seconds)
+        <div>
+          <span class="font-medium text-gray-700">Total Duration:</span>
+          <span class="text-gray-600">{{ gmdate('H:i:s', $sermon->livestreamProcessing->duration_seconds) }}</span>
+        </div>
+        @endif
+        @if ($sermon->livestreamProcessing->processing_id)
+        <div>
+          <span class="font-medium text-gray-700">Processing ID:</span>
+          <span class="text-gray-600 font-mono text-xs">{{ $sermon->livestreamProcessing->processing_id }}</span>
+        </div>
+        @endif
+      </div>
+    </div>
+    @endif
+
+    <x-admin-actions 
+      :editRoute="'/christ/sermons/' . date('Y', strtotime($sermon->date)) . '/' . date('m', strtotime($sermon->date)) . '/' . $sermon->slug . '/edit'"
+      :deleteRoute="'/christ/sermons/' . date('Y', strtotime($sermon->date)) . '/' . date('m', strtotime($sermon->date)) . '/' . $sermon->slug . '/delete'"
+      deleteConfirmMessage="Are you sure you want to delete this sermon? This action cannot be undone."
+      layout="grid"
+      :withIcons="true" />
+  </div>
+  @endcan
 
   <script>
     function toggleTranscript() {
@@ -195,79 +241,7 @@ use Illuminate\Support\Str;
   </script>
   @endif
 
-  </div>
 </section>
 
-{{-- Admin Actions --}}
-@can ('edit-sermons')
-<div class="mt-8 bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-  <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-    <x-heroicon-o-cog-6-tooth class="h-5 w-5 mr-2" />
-    Admin Actions
-  </h3>
-
-  @if ($sermon->source_type === 'livestream' && $sermon->livestreamProcessing)
-  <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-    <h4 class="text-md font-semibold text-gray-900 mb-3 flex items-center">
-      <x-heroicon-o-signal class="h-4 w-4 mr-2" />
-      Livestream Processing Information
-    </h4>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-      <div>
-        <span class="font-medium text-gray-700">Original File:</span>
-        <span class="text-gray-600">{{ $sermon->livestreamProcessing->original_filename }}</span>
-      </div>
-      <div>
-        <span class="font-medium text-gray-700">Processing Date:</span>
-        <span class="text-gray-600">{{ $sermon->livestreamProcessing->created_at->format('Y-m-d H:i:s') }}</span>
-      </div>
-      <div>
-        <span class="font-medium text-gray-700">Status:</span>
-        <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full 
-          @if($sermon->livestreamProcessing->status === 'completed') bg-green-100 text-green-800
-          @elseif($sermon->livestreamProcessing->status === 'failed') bg-red-100 text-red-800
-          @elseif($sermon->livestreamProcessing->status === 'processing') bg-yellow-100 text-yellow-800
-          @else bg-gray-100 text-gray-800 @endif">
-          {{ ucfirst($sermon->livestreamProcessing->status) }}
-        </span>
-      </div>
-      <div>
-        <span class="font-medium text-gray-700">Total Segments:</span>
-        <span class="text-gray-600">{{ $sermon->livestreamProcessing->segments->count() }}</span>
-      </div>
-      @if ($sermon->livestreamProcessing->duration_seconds)
-      <div>
-        <span class="font-medium text-gray-700">Total Duration:</span>
-        <span class="text-gray-600">{{ gmdate('H:i:s', $sermon->livestreamProcessing->duration_seconds) }}</span>
-      </div>
-      @endif
-      @if ($sermon->livestreamProcessing->processing_id)
-      <div>
-        <span class="font-medium text-gray-700">Processing ID:</span>
-        <span class="text-gray-600 font-mono text-xs">{{ $sermon->livestreamProcessing->processing_id }}</span>
-      </div>
-      @endif
-    </div>
-  </div>
-  @endif
-
-  <form method="POST" action="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/delete" accept-charset="UTF-8" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <input type="hidden" name="_token" value="{{ csrf_token() }}">
-
-    <a href="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}/edit"
-      class="inline-flex items-center justify-center px-4 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all no-underline">
-      <x-heroicon-s-pencil-square class="h-5 w-5 mr-2" />
-      Edit Sermon
-    </a>
-
-    <button type="submit"
-      onclick="return confirm('Are you sure you want to delete this sermon? This action cannot be undone.')"
-      class="inline-flex items-center justify-center px-4 py-3 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all">
-      <x-heroicon-s-trash class="h-5 w-5 mr-2" />
-      Delete Sermon
-    </button>
-  </form>
-</div>
-@endcan
 
 @stop
