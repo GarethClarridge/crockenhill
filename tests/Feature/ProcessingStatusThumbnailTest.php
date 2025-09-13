@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
 use App\Models\SermonProcessingLog;
-use App\Enums\ProcessingStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -16,7 +16,7 @@ class ProcessingStatusThumbnailTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Mock the storage disk
         Storage::fake('public');
     }

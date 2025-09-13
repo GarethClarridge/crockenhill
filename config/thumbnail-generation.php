@@ -52,10 +52,10 @@ return [
     |
     */
     'extraction' => [
-        'start_offset' => env('THUMBNAIL_START_OFFSET', 60), // seconds into video
-        'end_buffer' => env('THUMBNAIL_END_BUFFER', 60),     // seconds from end to avoid
+        'start_offset' => env('THUMBNAIL_START_OFFSET', 300), // seconds into video (5 minutes)
+        'end_buffer' => env('THUMBNAIL_END_BUFFER', 60),      // seconds from end to avoid
         'fallback_position' => env('THUMBNAIL_FALLBACK_POSITION', 0.5), // midpoint for short videos
-        'min_video_duration' => env('THUMBNAIL_MIN_DURATION', 120), // minimum video length in seconds
+        'min_video_duration' => env('THUMBNAIL_MIN_DURATION', 420), // minimum video length in seconds (7 minutes)
     ],
 
     /*
@@ -93,29 +93,31 @@ return [
         'brand_image' => env('THUMBNAIL_BRAND_IMAGE', 'images/BrandOverlay.png'),
         'brand_position' => env('THUMBNAIL_BRAND_POSITION', 'bottom-right'),
         'brand_margin' => env('THUMBNAIL_BRAND_MARGIN', 20), // pixels from edge
-        
+
         'font' => [
             'family' => env('THUMBNAIL_FONT_FAMILY', 'Oswald'),
-            'title_size' => env('THUMBNAIL_TITLE_SIZE', 48),
+            'title_size' => env('THUMBNAIL_TITLE_SIZE', 96), // Doubled from 48 to 96
             'date_size' => env('THUMBNAIL_DATE_SIZE', 32),
             'color' => env('THUMBNAIL_FONT_COLOR', '#000000'),
             'stroke_color' => env('THUMBNAIL_STROKE_COLOR', '#FFFFFF'),
             'stroke_width' => env('THUMBNAIL_STROKE_WIDTH', 2),
         ],
-        
+
         'background' => [
             'color' => env('THUMBNAIL_BG_COLOR', '#FFFFFF'),
-            'opacity' => env('THUMBNAIL_BG_OPACITY', 0.8),
+            'opacity' => env('THUMBNAIL_BG_OPACITY', 1.0), // Solid white background
             'padding' => env('THUMBNAIL_BG_PADDING', 15), // pixels
             'border_radius' => env('THUMBNAIL_BG_RADIUS', 8), // pixels
         ],
-        
+
         'positioning' => [
-            'title_x' => env('THUMBNAIL_TITLE_X', 50), // pixels from left
-            'title_y' => env('THUMBNAIL_TITLE_Y', 100), // pixels from top
-            'date_x' => env('THUMBNAIL_DATE_X', 50), // pixels from left
-            'date_y' => env('THUMBNAIL_DATE_Y', 160), // pixels from top
-            'max_title_width' => env('THUMBNAIL_MAX_TITLE_WIDTH', 800), // pixels
+            // Center horizontally, position at 40% down vertically for title
+            'title_x_percent' => env('THUMBNAIL_TITLE_X_PERCENT', 0.5), // 50% from left (centered)
+            'title_y_percent' => env('THUMBNAIL_TITLE_Y_PERCENT', 0.40), // 40% from top
+            // Center horizontally, position at 60% down vertically for date
+            'date_x_percent' => env('THUMBNAIL_DATE_X_PERCENT', 0.5), // 50% from left (centered)
+            'date_y_percent' => env('THUMBNAIL_DATE_Y_PERCENT', 0.60), // 60% from top
+            'max_title_width' => env('THUMBNAIL_MAX_TITLE_WIDTH', 1000), // pixels (increased for larger font)
         ],
     ],
 

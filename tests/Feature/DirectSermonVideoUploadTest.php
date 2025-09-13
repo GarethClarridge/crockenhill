@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Services\MediaProcessingService;
 use App\Services\ProcessingResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -34,8 +33,8 @@ class DirectSermonVideoUploadTest extends TestCase
 
     protected function mockVideoServices(): void
     {
-        // Mock MediaProcessingService for successful video processing
-        $mockMediaProcessing = $this->createMock(MediaProcessingService::class);
+        // Mock VideoProcessingService for successful video processing
+        $mockVideoProcessing = $this->createMock(\App\Services\VideoProcessingService::class);
 
         $successResult = ProcessingResult::success(
             processingId: 'test-processing-id-123',
@@ -43,18 +42,20 @@ class DirectSermonVideoUploadTest extends TestCase
             statusUrl: '/api/sermons/processing/test-processing-id-123/status'
         );
 
-        $mockMediaProcessing->method('processVideo')
+        $mockVideoProcessing->method('processDirectly')
             ->willReturn($successResult);
 
-        // Also mock other methods that might be called
-        $mockMediaProcessing->method('processAudio')
-            ->willReturn($successResult);
-
-        $mockMediaProcessing->method('processLivestream')
+        $mockVideoProcessing->method('processWithSegmentation')
             ->willReturn($successResult);
 
         // Bind mock to the container
-        $this->app->instance(MediaProcessingService::class, $mockMediaProcessing);
+        $this->app->instance(\App\Services\VideoProcessingService::class, $mockVideoProcessing);
+
+        // Also mock ProcessingRouter
+        $mockRouter = $this->createMock(\App\Services\ProcessingRouter::class);
+        $mockRouter->method('routeSermonVideo')
+            ->willReturn($successResult);
+        $this->app->instance(\App\Services\ProcessingRouter::class, $mockRouter);
     }
 
     /**

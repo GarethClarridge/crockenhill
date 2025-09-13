@@ -14,7 +14,7 @@ class SermonThumbnailServingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Mock the storage disk
         Storage::fake('public');
     }
@@ -23,7 +23,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
 
         // Create a fake thumbnail file
@@ -33,7 +33,7 @@ class SermonThumbnailServingTest extends TestCase
 
         $response->assertStatus(200)
             ->assertHeader('Content-Type', 'image/jpeg');
-            
+
         // Check that Cache-Control header contains both values (order may vary)
         $cacheControl = $response->headers->get('Cache-Control');
         $this->assertStringContainsString('public', $cacheControl);
@@ -44,7 +44,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => null
+            'thumbnail_path' => null,
         ]);
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
@@ -56,7 +56,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/nonexistent.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/nonexistent.jpg',
         ]);
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
@@ -68,7 +68,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.png'
+            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.png',
         ]);
 
         // Create a fake PNG thumbnail file
@@ -84,7 +84,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.webp'
+            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.webp',
         ]);
 
         // Create a fake WebP thumbnail file
@@ -100,7 +100,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
 
         // Create a fake thumbnail file
@@ -109,12 +109,12 @@ class SermonThumbnailServingTest extends TestCase
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(200);
-            
+
         // Check that Cache-Control header contains both values (order may vary)
         $cacheControl = $response->headers->get('Cache-Control');
         $this->assertStringContainsString('public', $cacheControl);
         $this->assertStringContainsString('max-age=86400', $cacheControl);
-        
+
         // Check that caching headers are present
         $this->assertNotNull($response->headers->get('ETag'));
         $this->assertNotNull($response->headers->get('Last-Modified'));

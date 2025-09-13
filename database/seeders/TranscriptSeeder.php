@@ -23,7 +23,7 @@ class TranscriptSeeder extends Seeder
      */
     private function createTranscriptDirectory(): void
     {
-        if (!Storage::exists('transcripts')) {
+        if (! Storage::exists('transcripts')) {
             Storage::makeDirectory('transcripts');
             $this->command->info('Created transcripts directory');
         }
@@ -35,7 +35,7 @@ class TranscriptSeeder extends Seeder
     private function createMockSermonTranscript(): void
     {
         $transcriptPath = 'transcripts/sermon_7.md';
-        
+
         $transcriptContent = <<<'TRANSCRIPT'
 Good morning, everyone. Today we're going to be looking at Romans chapter 8, verse 28. This is a passage that many of us know well, but I want us to examine it afresh this morning and see what God has to teach us through his word.
 
@@ -71,7 +71,7 @@ Heavenly Father, we thank you for your sovereign care over our lives. Help us to
 TRANSCRIPT;
 
         Storage::put($transcriptPath, $transcriptContent);
-        
-        $this->command->info('Created mock sermon transcript: ' . $transcriptPath);
+
+        $this->command->info('Created mock sermon transcript: '.$transcriptPath);
     }
 }

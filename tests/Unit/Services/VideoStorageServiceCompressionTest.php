@@ -6,7 +6,6 @@ use App\Data\LivestreamSegment;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class VideoStorageServiceCompressionTest extends TestCase
@@ -14,6 +13,7 @@ class VideoStorageServiceCompressionTest extends TestCase
     use RefreshDatabase;
 
     protected VideoStorageService $service;
+
     protected VideoExtractionService $extractionService;
 
     protected string $testVideoPath;
@@ -92,7 +92,7 @@ class VideoStorageServiceCompressionTest extends TestCase
 
     public function test_audio_extraction_delegates_to_extraction_service(): void
     {
-        // Mock the extraction service to return expected result  
+        // Mock the extraction service to return expected result
         $this->extractionService->expects($this->once())
             ->method('extractAudio')
             ->with($this->testVideoPath, $this->testSegment, [], 'test_audio.mp3')

@@ -50,19 +50,21 @@ class GenerateThumbnail implements ShouldQueue
 
             // Get the sermon record
             $sermon = Sermon::find($this->sermonId);
-            if (!$sermon) {
+            if (! $sermon) {
                 Log::warning('Sermon not found for thumbnail generation', [
                     'sermon_id' => $this->sermonId,
                 ]);
+
                 return;
             }
 
             // Verify video file exists
-            if (!file_exists($this->videoPath)) {
+            if (! file_exists($this->videoPath)) {
                 Log::warning('Video file not found for thumbnail generation', [
                     'sermon_id' => $this->sermonId,
                     'video_path' => $this->videoPath,
                 ]);
+
                 return;
             }
 
@@ -105,7 +107,7 @@ class GenerateThumbnail implements ShouldQueue
 
     /**
      * Handle a job failure.
-     * 
+     *
      * This method is called when the job fails permanently.
      * Since thumbnails are non-critical, we log the failure but don't
      * mark any processing as failed.
@@ -125,14 +127,14 @@ class GenerateThumbnail implements ShouldQueue
 
     /**
      * Get the tags that should be assigned to the job.
-     * 
+     *
      * @return array<int, string>
      */
     public function tags(): array
     {
         return [
             'thumbnail-generation',
-            'sermon:' . $this->sermonId,
+            'sermon:'.$this->sermonId,
             'non-critical',
         ];
     }

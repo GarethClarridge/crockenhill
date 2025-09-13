@@ -74,7 +74,7 @@ class MediaUpload extends Component
             'user_id' => Auth::id(),
             'timestamp' => now()->toDateTimeString(),
         ]);
-        
+
         // Ensure user has permission to upload sermons
         if (! Gate::allows('create', \App\Models\Sermon::class)) {
             Log::error('MediaUpload: Unauthorized access attempt', [
@@ -82,7 +82,7 @@ class MediaUpload extends Component
             ]);
             abort(403, 'Unauthorized to upload sermons.');
         }
-        
+
         Log::info('MediaUpload: Component mounted successfully', [
             'user_id' => Auth::id(),
         ]);
@@ -109,7 +109,7 @@ class MediaUpload extends Component
             // Get dynamic rules for debugging
             $rules = $this->getDynamicRules();
             $messages = $this->getDynamicMessages();
-            
+
             Log::info('MediaUpload: Validation rules', [
                 'rules' => $rules,
                 'messages' => $messages,
@@ -117,9 +117,9 @@ class MediaUpload extends Component
 
             // Validate file immediately when uploaded with dynamic rules
             $this->validateOnly('mediaFile', $rules, $messages);
-            
+
             Log::info('MediaUpload: File validation passed');
-            
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('MediaUpload: Validation failed', [
                 'errors' => $e->errors(),

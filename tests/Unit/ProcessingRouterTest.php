@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Services\VideoProcessingService;
 use App\Services\ProcessingResult;
 use App\Services\ProcessingRouter;
 use App\Services\SermonProcessingService;
+use App\Services\VideoProcessingService;
 use Illuminate\Http\Testing\File;
-use Illuminate\Http\UploadedFile;
 use Mockery;
 use Tests\TestCase;
 
 class ProcessingRouterTest extends TestCase
 {
     private ProcessingRouter $router;
+
     private VideoProcessingService $mockVideoProcessor;
+
     private SermonProcessingService $mockSermonProcessor;
 
     protected function setUp(): void
@@ -25,7 +26,7 @@ class ProcessingRouterTest extends TestCase
 
         $this->mockVideoProcessor = Mockery::mock(VideoProcessingService::class);
         $this->mockSermonProcessor = Mockery::mock(SermonProcessingService::class);
-        
+
         $this->router = new ProcessingRouter(
             $this->mockVideoProcessor,
             $this->mockSermonProcessor
@@ -118,7 +119,7 @@ class ProcessingRouterTest extends TestCase
     {
         // Create a large file (simulate by setting a very small max size in config)
         config(['livestream-processing.max_file_size' => 100]); // 100 bytes
-        
+
         $oversizedFile = File::create('test.mp4', 1024); // 1KB file
         $result = $this->router->validateFileForType($oversizedFile, 'livestream');
 

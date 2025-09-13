@@ -8,6 +8,7 @@ use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ThumbnailOverlayTest extends TestCase
@@ -19,7 +20,7 @@ class ThumbnailOverlayTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Mock the VideoSegmentationService dependency
         $videoService = $this->createMock(VideoSegmentationService::class);
         $videoService->method('getVideoMetadata')->willReturn([
@@ -31,21 +32,21 @@ class ThumbnailOverlayTest extends TestCase
             'bit_rate' => 5000000,
             'codec' => 'h264',
         ]);
-        
+
         $this->service = new ThumbnailGenerationService($videoService);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_create_text_overlays_on_image()
     {
         // Skip if Intervention Image is not properly configured
-        if (!class_exists(\Intervention\Image\ImageManager::class)) {
+        if (! class_exists(\Intervention\Image\ImageManager::class)) {
             $this->markTestSkipped('Intervention Image not available');
         }
 
         // Create a test image
         $testImage = Image::canvas(1280, 720, '#333333');
-        
+
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon Title That Should Wrap',
             'date' => now(),
@@ -59,24 +60,24 @@ class ThumbnailOverlayTest extends TestCase
 
         // This should not throw an exception
         $method->invoke($this->service, $testImage, $sermon);
-        
+
         // Verify the image is still valid
         $this->assertInstanceOf(\Intervention\Image\Image::class, $testImage);
         $this->assertEquals(1280, $testImage->width());
         $this->assertEquals(720, $testImage->height());
     }
 
-    /** @test */
+    #[Test]
     public function it_can_add_brand_overlay_when_image_exists()
     {
         // Skip if brand image doesn't exist
-        if (!Storage::disk('public_images')->exists('images/BrandOverlay.png')) {
+        if (! Storage::disk('public_images')->exists('images/BrandOverlay.png')) {
             $this->markTestSkipped('Brand overlay image not found');
         }
 
         // Create a test image
         $testImage = Image::canvas(1280, 720, '#333333');
-        
+
         // Use reflection to test the private addBrandOverlay method
         $reflection = new \ReflectionClass($this->service);
         $method = $reflection->getMethod('addBrandOverlay');
@@ -84,26 +85,26 @@ class ThumbnailOverlayTest extends TestCase
 
         // This should not throw an exception
         $method->invoke($this->service, $testImage);
-        
+
         // Verify the image is still valid
         $this->assertInstanceOf(\Intervention\Image\Image::class, $testImage);
         $this->assertEquals(1280, $testImage->width());
         $this->assertEquals(720, $testImage->height());
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_missing_brand_overlay_gracefully()
     {
         // Temporarily change brand image path to non-existent file
         config(['thumbnail-generation.overlay.brand_image' => 'images/nonexistent.png']);
-        
+
         // Recreate service with new config
         $videoService = $this->createMock(VideoSegmentationService::class);
         $service = new ThumbnailGenerationService($videoService);
-        
+
         // Create a test image
         $testImage = Image::canvas(1280, 720, '#333333');
-        
+
         // Use reflection to test the private addBrandOverlay method
         $reflection = new \ReflectionClass($service);
         $method = $reflection->getMethod('addBrandOverlay');
@@ -111,14 +112,14 @@ class ThumbnailOverlayTest extends TestCase
 
         // This should not throw an exception even with missing brand image
         $method->invoke($service, $testImage);
-        
+
         // Verify the image is still valid
         $this->assertInstanceOf(\Intervention\Image\Image::class, $testImage);
         $this->assertEquals(1280, $testImage->width());
         $this->assertEquals(720, $testImage->height());
     }
 
-    /** @test */
+    #[Test]
     public function it_can_calculate_text_bounds()
     {
         $reflection = new \ReflectionClass($this->service);
@@ -126,7 +127,7 @@ class ThumbnailOverlayTest extends TestCase
         $method->setAccessible(true);
 
         $bounds = $method->invoke($this->service, 'Test Text', 48, null);
-        
+
         $this->assertIsArray($bounds);
         $this->assertArrayHasKey('width', $bounds);
         $this->assertArrayHasKey('height', $bounds);
@@ -134,7 +135,7 @@ class ThumbnailOverlayTest extends TestCase
         $this->assertGreaterThan(0, $bounds['height']);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_get_oswald_font_path()
     {
         $reflection = new \ReflectionClass($this->service);
@@ -142,7 +143,7 @@ class ThumbnailOverlayTest extends TestCase
         $method->setAccessible(true);
 
         $fontPath = $method->invoke($this->service);
-        
+
         // Should return either a valid path or null
         if ($fontPath !== null) {
             $this->assertIsString($fontPath);

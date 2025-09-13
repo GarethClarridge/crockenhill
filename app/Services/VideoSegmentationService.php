@@ -5,15 +5,12 @@ namespace App\Services;
 use App\Data\LivestreamSegment;
 use FFMpeg\FFMpeg;
 use FFMpeg\FFProbe;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class VideoSegmentationService
 {
-    private FFMpeg $ffmpeg;
-
     private FFProbe $ffprobe;
 
     private float $rmsThreshold;
@@ -28,12 +25,6 @@ class VideoSegmentationService
 
     public function __construct()
     {
-        $this->ffmpeg = FFMpeg::create([
-            'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
-            'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
-            'timeout' => config('livestream-processing.processing_timeout'),
-        ]);
-
         $this->ffprobe = FFProbe::create([
             'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
         ]);
@@ -551,5 +542,4 @@ class VideoSegmentationService
             return false;
         }
     }
-
 }

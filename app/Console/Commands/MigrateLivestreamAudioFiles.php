@@ -29,6 +29,7 @@ class MigrateLivestreamAudioFiles extends Command
 
         if ($livestreamSermons->isEmpty()) {
             $this->warn('No livestream sermons found in database.');
+
             return 0;
         }
 
@@ -43,32 +44,34 @@ class MigrateLivestreamAudioFiles extends Command
         foreach ($livestreamSermons as $sermon) {
             $filename = $sermon->filename; // e.g., "sermons/2025/09/uuid.mp3"
             $sermonTitle = $sermon->title ?: "Sermon ID {$sermon->id}";
-            
+
             // Debug info
             $this->line("Checking: {$sermonTitle}");
             $this->line("  Filename: {$filename}");
-            $this->line("  Source Type: " . ($sermon->source_type ?: 'NULL'));
-            $this->line("  Created: " . ($sermon->created_at ?: 'NULL'));
-            
+            $this->line('  Source Type: '.($sermon->source_type ?: 'NULL'));
+            $this->line('  Created: '.($sermon->created_at ?: 'NULL'));
+
             // Check if file already exists in public storage (already accessible)
             $publicExists = Storage::disk('public')->exists($filename);
             $localExists = Storage::disk('local')->exists($filename);
-            
-            $this->line("  Public storage: " . ($publicExists ? "EXISTS" : "MISSING"));
-            $this->line("  Local storage: " . ($localExists ? "EXISTS" : "MISSING"));
+
+            $this->line('  Public storage: '.($publicExists ? 'EXISTS' : 'MISSING'));
+            $this->line('  Local storage: '.($localExists ? 'EXISTS' : 'MISSING'));
 
             if ($publicExists) {
                 $this->line("✓ {$sermonTitle} - Already accessible via public storage");
                 $alreadyAccessibleCount++;
                 $this->newLine();
+
                 continue;
             }
 
-            if (!$localExists) {
+            if (! $localExists) {
                 $this->error("✗ {$sermonTitle} - File not found in local storage");
                 $this->error("  Expected at: storage/app/{$filename}");
                 $errors[] = "Sermon ID {$sermon->id}: File not found at {$filename}";
                 $this->newLine();
+
                 continue;
             }
 
@@ -79,13 +82,14 @@ class MigrateLivestreamAudioFiles extends Command
                 $this->warn("  To: storage/app/public/{$filename}");
                 $migratedCount++;
                 $this->newLine();
+
                 continue;
             }
 
             try {
                 // Ensure directory exists in public storage
                 $directory = dirname($filename);
-                if (!Storage::disk('public')->exists($directory)) {
+                if (! Storage::disk('public')->exists($directory)) {
                     $this->line("  Creating directory: {$directory}");
                     Storage::disk('public')->makeDirectory($directory);
                 }
@@ -93,51 +97,51 @@ class MigrateLivestreamAudioFiles extends Command
                 // Copy file from local to public storage
                 $content = Storage::disk('local')->get($filename);
                 $success = Storage::disk('public')->put($filename, $content);
-                
-                if (!$success) {
+
+                if (! $success) {
                     throw new \Exception('Failed to write file to public storage');
                 }
-                
+
                 // Verify the file was copied correctly
-                if (!Storage::disk('public')->exists($filename)) {
+                if (! Storage::disk('public')->exists($filename)) {
                     throw new \Exception('File not found after copy operation');
                 }
-                
+
                 $originalSize = Storage::disk('local')->size($filename);
                 $newSize = Storage::disk('public')->size($filename);
-                
+
                 if ($originalSize !== $newSize) {
                     throw new \Exception("Size mismatch: original {$originalSize} bytes, copied {$newSize} bytes");
                 }
-                
+
                 $this->info("✓ Migrated: {$sermonTitle}");
-                $this->info("  Size: " . number_format($originalSize) . " bytes");
+                $this->info('  Size: '.number_format($originalSize).' bytes');
                 $migratedCount++;
-                
+
                 // Cleanup original file if requested
                 if ($this->option('cleanup')) {
                     Storage::disk('local')->delete($filename);
-                    $this->line("  Cleaned up original file from local storage");
+                    $this->line('  Cleaned up original file from local storage');
                 }
-                
+
             } catch (\Exception $e) {
-                $this->error("✗ Failed to migrate {$sermonTitle}: " . $e->getMessage());
-                $errors[] = "Sermon ID {$sermon->id}: " . $e->getMessage();
+                $this->error("✗ Failed to migrate {$sermonTitle}: ".$e->getMessage());
+                $errors[] = "Sermon ID {$sermon->id}: ".$e->getMessage();
             }
-            
+
             $this->newLine();
         }
 
         // Summary
-        $this->info("Migration Summary:");
-        $this->info("=================");
+        $this->info('Migration Summary:');
+        $this->info('=================');
         $this->info("- Already accessible: {$alreadyAccessibleCount} files");
         $this->info("- Migrated: {$migratedCount} files");
-        $this->info("- Errors: " . count($errors) . " files");
+        $this->info('- Errors: '.count($errors).' files');
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             $this->newLine();
-            $this->error("Errors encountered:");
+            $this->error('Errors encountered:');
             foreach ($errors as $error) {
                 $this->error("  - {$error}");
             }

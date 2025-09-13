@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * ProcessingRouter - Smart routing for different types of media uploads
- * 
+ *
  * This service routes uploads to the appropriate processing service based on the explicit
  * choice made by the user in the upload form. No auto-detection is needed since the UI
  * already makes the user specify the type.
@@ -93,8 +93,8 @@ class ProcessingRouter
     public function validateFileForType(UploadedFile $file, string $type): array
     {
         $supportedTypes = $this->getSupportedTypes();
-        
-        if (!isset($supportedTypes[$type])) {
+
+        if (! isset($supportedTypes[$type])) {
             return [
                 'valid' => false,
                 'errors' => ["Unsupported processing type: {$type}"],
@@ -112,13 +112,13 @@ class ProcessingRouter
 
         // Check file extension
         $extension = strtolower($file->getClientOriginalExtension());
-        if (!in_array($extension, $config['allowed_extensions'])) {
+        if (! in_array($extension, $config['allowed_extensions'])) {
             $allowed = implode(', ', $config['allowed_extensions']);
             $errors[] = "File extension '{$extension}' not allowed for {$type}. Allowed: {$allowed}";
         }
 
         // Check file validity
-        if (!$file->isValid()) {
+        if (! $file->isValid()) {
             $errors[] = 'Uploaded file is corrupted or invalid';
         }
 

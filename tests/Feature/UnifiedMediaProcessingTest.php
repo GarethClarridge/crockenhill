@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Services\MediaProcessingService;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -36,16 +35,26 @@ class UnifiedMediaProcessingTest extends TestCase
             );
         });
 
-        // Mock the entire MediaProcessingService to avoid FFmpeg and actual processing
-        $this->mock(MediaProcessingService::class, function ($mock) {
-            $mock->shouldReceive('processLivestream')->andReturn(
+        // Mock the ProcessingRouter to avoid FFmpeg and actual processing
+        $this->mock(\App\Services\ProcessingRouter::class, function ($mock) {
+            $mock->shouldReceive('routeLivestreamVideo')->andReturn(
                 \App\Services\ProcessingResult::success('livestream-id', 'Livestream processing started')
             );
-            $mock->shouldReceive('processVideo')->andReturn(
+            $mock->shouldReceive('routeSermonVideo')->andReturn(
                 \App\Services\ProcessingResult::success('video-id', 'Video processing started')
             );
-            $mock->shouldReceive('processAudio')->andReturn(
+            $mock->shouldReceive('routeAudio')->andReturn(
                 \App\Services\ProcessingResult::success('audio-id', 'Audio processing started')
+            );
+        });
+
+        // Mock VideoProcessingService for direct service calls
+        $this->mock(\App\Services\VideoProcessingService::class, function ($mock) {
+            $mock->shouldReceive('processWithSegmentation')->andReturn(
+                \App\Services\ProcessingResult::success('livestream-id', 'Livestream processing started')
+            );
+            $mock->shouldReceive('processDirectly')->andReturn(
+                \App\Services\ProcessingResult::success('video-id', 'Video processing started')
             );
         });
     }

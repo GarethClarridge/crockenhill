@@ -172,7 +172,7 @@ class Sermon extends Model
         }
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
-        
+
         return \Illuminate\Support\Facades\Storage::disk($disk)->url($this->thumbnail_path);
     }
 
@@ -324,7 +324,7 @@ class Sermon extends Model
         }
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
-        
+
         return \Illuminate\Support\Facades\Storage::disk($disk)->exists($this->thumbnail_path);
     }
 

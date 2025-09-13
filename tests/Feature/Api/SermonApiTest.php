@@ -14,7 +14,7 @@ class SermonApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Mock the storage disk
         Storage::fake('public');
     }
@@ -44,10 +44,10 @@ class SermonApiTest extends TestCase
                         'thumbnail_url',
                         'series_url',
                         'preacher_url',
-                    ]
+                    ],
                 ],
                 'links',
-                'meta'
+                'meta',
             ]);
 
         $this->assertCount(3, $response->json('data'));
@@ -57,7 +57,7 @@ class SermonApiTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
 
         // Create a fake thumbnail file
@@ -71,14 +71,14 @@ class SermonApiTest extends TestCase
                     'id' => $sermon->id,
                     'title' => 'Test Sermon',
                     'thumbnail_url' => Storage::disk('public')->url('sermons/thumbnails/test-thumbnail.jpg'),
-                ]
+                ],
             ]);
     }
 
     public function test_thumbnail_url_is_null_when_no_thumbnail_exists(): void
     {
         $sermon = Sermon::factory()->create([
-            'thumbnail_path' => null
+            'thumbnail_path' => null,
         ]);
 
         $response = $this->getJson("/api/sermons/{$sermon->id}");
@@ -87,7 +87,7 @@ class SermonApiTest extends TestCase
             ->assertJson([
                 'data' => [
                     'thumbnail_url' => null,
-                ]
+                ],
             ]);
     }
 
@@ -95,19 +95,19 @@ class SermonApiTest extends TestCase
     {
         // Create sermons with and without thumbnails
         $sermonWithThumbnail = Sermon::factory()->create([
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
-        
+
         $sermonWithoutThumbnail = Sermon::factory()->create([
-            'thumbnail_path' => null
+            'thumbnail_path' => null,
         ]);
 
         $response = $this->getJson('/api/sermons?with_thumbnail=1');
 
         $response->assertStatus(200);
-        
+
         $sermonIds = collect($response->json('data'))->pluck('id')->toArray();
-        
+
         $this->assertContains($sermonWithThumbnail->id, $sermonIds);
         $this->assertNotContains($sermonWithoutThumbnail->id, $sermonIds);
     }
@@ -120,9 +120,9 @@ class SermonApiTest extends TestCase
         $response = $this->getJson('/api/sermons?service=morning');
 
         $response->assertStatus(200);
-        
+
         $sermonIds = collect($response->json('data'))->pluck('id')->toArray();
-        
+
         $this->assertContains($morningSermon->id, $sermonIds);
         $this->assertNotContains($eveningSermon->id, $sermonIds);
     }
@@ -136,8 +136,8 @@ class SermonApiTest extends TestCase
                 'width' => 1280,
                 'height' => 720,
                 'size' => 'web',
-                'generated_at' => '2024-01-15 10:30:00'
-            ]
+                'generated_at' => '2024-01-15 10:30:00',
+            ],
         ]);
 
         // Create a fake thumbnail file
@@ -153,18 +153,18 @@ class SermonApiTest extends TestCase
                         'width',
                         'height',
                         'size',
-                        'generated_at'
-                    ]
-                ]
+                        'generated_at',
+                    ],
+                ],
             ])
             ->assertJson([
                 'data' => [
                     'thumbnail_metadata' => [
                         'width' => 1280,
                         'height' => 720,
-                        'size' => 'web'
-                    ]
-                ]
+                        'size' => 'web',
+                    ],
+                ],
             ]);
     }
 
@@ -172,7 +172,7 @@ class SermonApiTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'thumbnail_path' => null,
-            'thumbnail_metadata' => null
+            'thumbnail_metadata' => null,
         ]);
 
         $response = $this->getJson("/api/sermons/{$sermon->id}");
@@ -181,8 +181,8 @@ class SermonApiTest extends TestCase
             ->assertJson([
                 'data' => [
                     'thumbnail_url' => null,
-                    'thumbnail_metadata' => null
-                ]
+                    'thumbnail_metadata' => null,
+                ],
             ]);
     }
 
@@ -190,11 +190,11 @@ class SermonApiTest extends TestCase
     {
         // Create sermons with and without thumbnails
         Sermon::factory()->count(5)->create([
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
-        
+
         Sermon::factory()->count(3)->create([
-            'thumbnail_path' => null
+            'thumbnail_path' => null,
         ]);
 
         // Create fake thumbnail files
@@ -206,14 +206,14 @@ class SermonApiTest extends TestCase
             ->assertJsonStructure([
                 'data' => [
                     '*' => [
-                        'thumbnail_url'
-                    ]
+                        'thumbnail_url',
+                    ],
                 ],
                 'meta' => [
                     'current_page',
                     'per_page',
-                    'total'
-                ]
+                    'total',
+                ],
             ]);
 
         $this->assertCount(3, $response->json('data'));
@@ -224,12 +224,12 @@ class SermonApiTest extends TestCase
     {
         $sermonWithThumbnail = Sermon::factory()->create([
             'title' => 'Searchable Sermon Title',
-            'thumbnail_path' => 'sermons/thumbnails/searchable.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/searchable.jpg',
         ]);
-        
+
         $sermonWithoutThumbnail = Sermon::factory()->create([
             'title' => 'Another Searchable Title',
-            'thumbnail_path' => null
+            'thumbnail_path' => null,
         ]);
 
         // Create fake thumbnail file
@@ -238,14 +238,14 @@ class SermonApiTest extends TestCase
         $response = $this->getJson('/api/sermons?search=Searchable');
 
         $response->assertStatus(200);
-        
+
         $data = $response->json('data');
         $this->assertCount(2, $data);
-        
+
         // Find the sermon with thumbnail
         $sermonData = collect($data)->firstWhere('id', $sermonWithThumbnail->id);
         $this->assertNotNull($sermonData['thumbnail_url']);
-        
+
         // Find the sermon without thumbnail
         $sermonData = collect($data)->firstWhere('id', $sermonWithoutThumbnail->id);
         $this->assertNull($sermonData['thumbnail_url']);
@@ -256,13 +256,13 @@ class SermonApiTest extends TestCase
         $oldSermon = Sermon::factory()->create([
             'date' => '2023-01-01',
             'title' => 'Old Sermon',
-            'thumbnail_path' => 'sermons/thumbnails/old.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/old.jpg',
         ]);
-        
+
         $newSermon = Sermon::factory()->create([
             'date' => '2024-01-01',
             'title' => 'New Sermon',
-            'thumbnail_path' => null
+            'thumbnail_path' => null,
         ]);
 
         // Create fake thumbnail file
@@ -271,15 +271,15 @@ class SermonApiTest extends TestCase
         $response = $this->getJson('/api/sermons?sort=date&order=desc');
 
         $response->assertStatus(200);
-        
+
         $data = $response->json('data');
         $this->assertGreaterThanOrEqual(2, count($data));
-        
+
         // First sermon should be the newer one
         $firstSermon = $data[0];
         $this->assertEquals($newSermon->id, $firstSermon['id']);
         $this->assertNull($firstSermon['thumbnail_url']);
-        
+
         // Find the older sermon in results
         $olderSermonData = collect($data)->firstWhere('id', $oldSermon->id);
         $this->assertNotNull($olderSermonData);
@@ -289,7 +289,7 @@ class SermonApiTest extends TestCase
     public function test_api_includes_thumbnail_data_in_response(): void
     {
         $sermon = Sermon::factory()->create([
-            'thumbnail_path' => 'sermons/thumbnails/cache-test.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/cache-test.jpg',
         ]);
 
         // Create a fake thumbnail file
@@ -298,7 +298,7 @@ class SermonApiTest extends TestCase
         $response = $this->getJson("/api/sermons/{$sermon->id}");
 
         $response->assertStatus(200);
-        
+
         // Check that the response includes thumbnail data
         $data = $response->json('data');
         $this->assertNotNull($data['thumbnail_url']);
@@ -309,7 +309,7 @@ class SermonApiTest extends TestCase
     {
         // Create multiple sermons with thumbnails
         $sermons = Sermon::factory()->count(10)->create([
-            'thumbnail_path' => 'sermons/thumbnails/concurrent-test.jpg'
+            'thumbnail_path' => 'sermons/thumbnails/concurrent-test.jpg',
         ]);
 
         // Create fake thumbnail file
@@ -326,8 +326,8 @@ class SermonApiTest extends TestCase
             $response->assertStatus(200)
                 ->assertJsonStructure([
                     'data' => [
-                        'thumbnail_url'
-                    ]
+                        'thumbnail_url',
+                    ],
                 ]);
         }
     }

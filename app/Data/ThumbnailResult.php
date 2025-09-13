@@ -60,7 +60,7 @@ class ThumbnailResult extends Data
      */
     public function isSkipped(): bool
     {
-        return !$this->success && $this->errorMessage !== null;
+        return ! $this->success && $this->errorMessage !== null;
     }
 
     /**
@@ -68,7 +68,7 @@ class ThumbnailResult extends Data
      */
     public function isFailed(): bool
     {
-        return !$this->success;
+        return ! $this->success;
     }
 
     /**

@@ -172,7 +172,6 @@ class SermonProcessingService
         }
     }
 
-
     /**
      * Get the current processing status for a given processing ID
      */
@@ -1248,10 +1247,4 @@ class SermonProcessingService
 
         return $fullPath;
     }
-
-
-
-
-
-
 }

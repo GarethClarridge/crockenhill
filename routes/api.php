@@ -35,7 +35,7 @@ Route::prefix('sermons')->name('api.sermons.')->middleware('cors')->group(functi
     Route::get('/', [\App\Http\Controllers\Api\SermonApiController::class, 'index'])
         ->middleware('throttle:api')
         ->name('index');
-    
+
     Route::get('{sermon}', [\App\Http\Controllers\Api\SermonApiController::class, 'show'])
         ->middleware('throttle:api')
         ->name('show');

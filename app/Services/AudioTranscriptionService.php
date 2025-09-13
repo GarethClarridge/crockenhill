@@ -271,7 +271,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         try {
             // Attempt to compress the file
             $compressedPath = $this->compressAudioForTranscription($filePath, $processingId);
-            
+
             $compressedSize = filesize($compressedPath);
             $compressedSizeMB = round($compressedSize / 1024 / 1024, 1);
 
@@ -281,7 +281,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 if (file_exists($compressedPath)) {
                     unlink($compressedPath);
                 }
-                
+
                 throw new Exception(
                     "Audio file still too large after compression: {$compressedSizeMB}MB (limit: {$maxSizeMB}MB). ".
                     'Consider using a shorter audio segment or manual compression.'
@@ -305,7 +305,8 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             ]);
 
             throw new Exception(
-                "Audio file too large ({$sizeMB}MB) and compression failed: {$e->getMessage()}"
+                "Audio file too large ({$sizeMB}MB) and compression failed: {$e->getMessage()}. ".
+                "File size limit is {$maxSizeMB}MB. Please ensure audio is compressed for transcription before processing."
             );
         }
     }
@@ -1116,11 +1117,11 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     private function compressAudioForTranscription(string $inputPath, string $processingId): string
     {
         $fallbackConfig = config('livestream-processing.audio_extraction.fallback_compression');
-        $compressedPath = storage_path('app/temp/' . basename($inputPath, '.mp3') . '_compressed_' . time() . '.mp3');
+        $compressedPath = storage_path('app/temp/'.basename($inputPath, '.mp3').'_compressed_'.time().'.mp3');
 
         // Ensure temp directory exists
         $tempDir = dirname($compressedPath);
-        if (!is_dir($tempDir)) {
+        if (! is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
         }
 
@@ -1131,15 +1132,15 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             ]);
 
             $audio = $ffmpeg->open($inputPath);
-            
-            $format = new Mp3();
+
+            $format = new Mp3;
             $format->setAudioKiloBitrate($fallbackConfig['bitrate'] ?? 32);
             $format->setAudioChannels($fallbackConfig['channels'] ?? 1);
             // Note: Sample rate is handled by FFmpeg defaults for speech optimization
 
             $audio->save($format, $compressedPath);
 
-            if (!file_exists($compressedPath) || filesize($compressedPath) === 0) {
+            if (! file_exists($compressedPath) || filesize($compressedPath) === 0) {
                 throw new Exception('Compressed audio file was not created or is empty');
             }
 

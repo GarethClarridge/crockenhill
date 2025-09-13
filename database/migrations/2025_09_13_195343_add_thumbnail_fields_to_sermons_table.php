@@ -27,7 +27,7 @@ return new class extends Migration
             $table->dropColumn([
                 'thumbnail_path',
                 'thumbnail_generated_at',
-                'thumbnail_metadata'
+                'thumbnail_metadata',
             ]);
         });
     }

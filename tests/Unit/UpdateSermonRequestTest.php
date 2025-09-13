@@ -33,13 +33,11 @@ class UpdateSermonRequestTest extends TestCase
 
         // Create a partial mock of the request that overrides the route and user methods
         $request = \Mockery::mock(\App\Http\Requests\UpdateSermonRequest::class)->makePartial();
-        $request->shouldReceive('route')->with('year')->andReturn('2024');
-        $request->shouldReceive('route')->with('month')->andReturn('6');
-        $request->shouldReceive('route')->with('slug')->andReturn($uniqueSlug);
+        $request->shouldReceive('route')->with('sermon')->andReturn($sermon);
 
         // Mock the user's can method to return true
         $userMock = \Mockery::mock($user)->makePartial();
-        $userMock->shouldReceive('can')->with('update', \Mockery::type(\App\Models\Sermon::class))->andReturn(true);
+        $userMock->shouldReceive('can')->with('update', $sermon)->andReturn(true);
         $request->shouldReceive('user')->andReturn($userMock);
 
         $this->assertTrue($request->authorize());
@@ -60,13 +58,11 @@ class UpdateSermonRequestTest extends TestCase
 
         // Create a partial mock of the request that overrides the route and user methods
         $request = \Mockery::mock(\App\Http\Requests\UpdateSermonRequest::class)->makePartial();
-        $request->shouldReceive('route')->with('year')->andReturn('2024');
-        $request->shouldReceive('route')->with('month')->andReturn('6');
-        $request->shouldReceive('route')->with('slug')->andReturn($uniqueSlug);
+        $request->shouldReceive('route')->with('sermon')->andReturn($sermon);
 
         // Mock the user's can method to return false
         $userMock = \Mockery::mock($user)->makePartial();
-        $userMock->shouldReceive('can')->with('update', \Mockery::type(\App\Models\Sermon::class))->andReturn(false);
+        $userMock->shouldReceive('can')->with('update', $sermon)->andReturn(false);
         $request->shouldReceive('user')->andReturn($userMock);
 
         $this->assertFalse($request->authorize());

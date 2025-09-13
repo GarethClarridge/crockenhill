@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Data\LivestreamSegment;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
@@ -38,9 +37,9 @@ class VideoExtractionService
     /**
      * Extract video segment with stream copy (no re-encoding) - primary method
      *
-     * @param string $inputPath Path to the original video file
-     * @param object $segment Segment data with start_time and end_time
-     * @param array $options Extraction options
+     * @param  string  $inputPath  Path to the original video file
+     * @param  object  $segment  Segment data with start_time and end_time
+     * @param  array  $options  Extraction options
      * @return string|UploadedFile Based on options['return_type']
      */
     public function extractSegment(string $inputPath, object $segment, array $options = []): string|UploadedFile
@@ -68,7 +67,7 @@ class VideoExtractionService
             $tempDisk = config('livestream-processing.temp_disk', 'local');
             $relativePath = 'temp/'.Str::uuid().'.mp4';
             $tempPath = \Illuminate\Support\Facades\Storage::disk($tempDisk)->path($relativePath);
-            
+
             // Ensure temp directory exists using storage disk
             \Illuminate\Support\Facades\Storage::disk($tempDisk)->makeDirectory(dirname($relativePath));
 
@@ -79,11 +78,11 @@ class VideoExtractionService
             $command = [
                 $ffmpegPath,
                 '-i', escapeshellarg($inputPath),
-                '-ss', (string)$startTime,
-                '-t', (string)$duration,
+                '-ss', (string) $startTime,
+                '-t', (string) $duration,
                 '-c', 'copy',  // Stream copy - no re-encoding
                 '-avoid_negative_ts', 'make_zero',  // Handle timestamp issues
-                escapeshellarg($tempPath)
+                escapeshellarg($tempPath),
             ];
 
             $commandString = implode(' ', $command);
@@ -93,19 +92,19 @@ class VideoExtractionService
                 'duration' => $duration,
             ]);
 
-            exec($commandString . ' 2>&1', $output, $returnCode);
+            exec($commandString.' 2>&1', $output, $returnCode);
 
             if ($returnCode !== 0) {
                 Log::warning('Stream copy failed, attempting fallback to re-encoding', [
                     'return_code' => $returnCode,
-                    'output' => implode("\n", $output)
+                    'output' => implode("\n", $output),
                 ]);
-                
+
                 return $this->extractSegmentWithReencoding($inputPath, $segment, $outputFilename);
             }
 
-            if (!file_exists($tempPath)) {
-                throw new \Exception('Output file was not created: ' . $tempPath);
+            if (! file_exists($tempPath)) {
+                throw new \Exception('Output file was not created: '.$tempPath);
             }
 
             Log::info('Video segment extracted with stream copy (original quality)', [
@@ -160,14 +159,14 @@ class VideoExtractionService
 
         // Ensure temp directory exists
         $directory = dirname($fullSegmentPath);
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
 
         try {
             // Try stream copy first
             $extractedPath = $this->extractSegmentAsFile($inputPath, $segment, $outputFilename);
-            
+
             // Move to expected location if needed
             if ($extractedPath !== $fullSegmentPath) {
                 rename($extractedPath, $fullSegmentPath);
@@ -227,7 +226,7 @@ class VideoExtractionService
         ]);
 
         $tempPath = storage_path('app/temp/'.Str::uuid().'.mp4');
-        
+
         try {
             $video = $this->ffmpeg->open($inputPath);
 
@@ -237,7 +236,7 @@ class VideoExtractionService
                 ->clip(TimeCode::fromSeconds($startTime), TimeCode::fromSeconds($duration));
 
             // Configure video format
-            $format = new X264();
+            $format = new X264;
             $format->setAudioCodec('aac');
 
             // Save the extracted segment
@@ -286,12 +285,13 @@ class VideoExtractionService
 
             $this->ensureDirectoryExists(dirname($fullOutputPath));
 
+            /** @var \FFMpeg\Media\Video $video */
             $video = $this->ffmpeg->open($inputVideoPath);
 
             $format = new Mp3;
-            
+
             // Apply compression options if provided
-            if (!empty($compressionOptions)) {
+            if (! empty($compressionOptions)) {
                 $format->setAudioKiloBitrate($compressionOptions['bitrate'] ?? 128);
                 if (isset($compressionOptions['channels'])) {
                     $format->setAudioChannels($compressionOptions['channels']);
@@ -303,8 +303,8 @@ class VideoExtractionService
             $startTime = TimeCode::fromSeconds($startTime);
             $durationTime = TimeCode::fromSeconds($duration);
 
-            $video->clip($startTime, $durationTime)
-                ->save($format, $fullOutputPath);
+            // @phpstan-ignore-next-line - PHPStan false positive about Audio::clip() method
+            $video->clip($startTime, $durationTime)->save($format, $fullOutputPath);
 
             Log::info('Audio extracted from video segment', [
                 'input_path' => $inputVideoPath,
@@ -350,6 +350,7 @@ class VideoExtractionService
             $config = config('livestream-processing.audio_extraction.transcription_optimized');
             $fallbackConfig = config('livestream-processing.audio_extraction.fallback_compression');
 
+            /** @var \FFMpeg\Media\Video $video */
             $video = $this->ffmpeg->open($inputVideoPath);
 
             $format = new Mp3;
@@ -359,12 +360,12 @@ class VideoExtractionService
             $startTimeCode = TimeCode::fromSeconds($startTime);
             $durationTimeCode = TimeCode::fromSeconds($duration);
 
-            $video->clip($startTimeCode, $durationTimeCode)
-                ->save($format, $fullOutputPath);
+            // @phpstan-ignore-next-line - PHPStan false positive about Audio::clip() method
+            $video->clip($startTimeCode, $durationTimeCode)->save($format, $fullOutputPath);
 
             $validation = $this->validateAudioFileSize($fullOutputPath);
 
-            if (!$validation['valid']) {
+            if (! $validation['valid']) {
                 Log::info('Audio file too large, applying fallback compression', [
                     'original_size' => $validation['file_size'],
                     'max_size' => $validation['max_size'],
@@ -472,7 +473,7 @@ class VideoExtractionService
      */
     private function ensureDirectoryExists(string $directory): void
     {
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
     }

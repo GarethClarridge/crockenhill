@@ -66,7 +66,6 @@ class SermonMetadataIntegrationService
         return $finalVideoPath;
     }
 
-
     /**
      * Extract the sermon video from temporary storage
      *
@@ -88,6 +87,7 @@ class SermonMetadataIntegrationService
                     'relative_path' => $processing->sermon_video_path,
                     'absolute_path' => $absolutePath,
                 ]);
+
                 return $absolutePath;
             }
 
@@ -100,6 +100,7 @@ class SermonMetadataIntegrationService
                     'relative_path' => $processing->sermon_video_path,
                     'absolute_path' => $absolutePath,
                 ]);
+
                 return $absolutePath;
             }
 
@@ -114,7 +115,7 @@ class SermonMetadataIntegrationService
         // Fallback: Look for sermon video in temp storage
         $tempDisk = config('livestream-processing.temp_disk', 'local');
         $tempPath = "temp/livestreams/{$processingId}/segments";
-        
+
         try {
             $files = Storage::disk($tempDisk)->files($tempPath);
 
@@ -126,6 +127,7 @@ class SermonMetadataIntegrationService
                         'relative_path' => $file,
                         'absolute_path' => $absolutePath,
                     ]);
+
                     return $absolutePath;
                 }
             }

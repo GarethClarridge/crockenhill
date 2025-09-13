@@ -194,12 +194,12 @@ class AutomatedSermonApiTest extends TestCase
     #[Test]
     public function it_handles_processing_service_errors(): void
     {
-        // Mock the MediaProcessingService to throw an exception
-        $mockService = $this->createMock(\App\Services\MediaProcessingService::class);
-        $mockService->method('processAudio')
+        // Mock the SermonProcessingService to throw an exception
+        $mockService = $this->createMock(\App\Services\SermonProcessingService::class);
+        $mockService->method('processSermon')
             ->willThrowException(new \Exception('Service unavailable'));
 
-        $this->app->instance(\App\Services\MediaProcessingService::class, $mockService);
+        $this->app->instance(\App\Services\SermonProcessingService::class, $mockService);
 
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 

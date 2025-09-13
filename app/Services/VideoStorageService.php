@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Data\LivestreamSegment;
-use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use Illuminate\Http\UploadedFile;
@@ -73,7 +72,6 @@ class VideoStorageService
         }
     }
 
-
     public function extractVideoSegment(
         string $inputVideoPath,
         LivestreamSegment $segment,
@@ -97,7 +95,6 @@ class VideoStorageService
     ): array {
         return $this->videoExtractor->extractOptimizedAudio($inputVideoPath, $segment, $outputFilename);
     }
-
 
     public function moveToSermonStorage(string $tempVideoPath, string $sermonSlug): array
     {

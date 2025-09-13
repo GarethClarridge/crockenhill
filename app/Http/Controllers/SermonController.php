@@ -513,7 +513,7 @@ class SermonController extends Controller
         }
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
-        
+
         if (! Storage::disk($disk)->exists($sermon->thumbnail_path)) {
             abort(404, 'Thumbnail file not found.');
         }
@@ -535,7 +535,7 @@ class SermonController extends Controller
             'Content-Disposition' => 'inline; filename="'.$name.'"',
             'Cache-Control' => 'public, max-age=86400', // 24 hours cache for images
             'ETag' => md5_file($path),
-            'Last-Modified' => gmdate('D, d M Y H:i:s', filemtime($path)) . ' GMT',
+            'Last-Modified' => gmdate('D, d M Y H:i:s', filemtime($path)).' GMT',
         ]);
     }
 }

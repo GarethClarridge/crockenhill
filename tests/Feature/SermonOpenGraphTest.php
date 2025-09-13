@@ -6,6 +6,7 @@ use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonOpenGraphTest extends TestCase
@@ -15,12 +16,12 @@ class SermonOpenGraphTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create a test user
         $this->user = User::factory()->create();
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_includes_open_graph_meta_tags_with_thumbnail()
     {
         // Create a sermon with thumbnail
@@ -41,7 +42,7 @@ class SermonOpenGraphTest extends TestCase
         $response = $this->get("/christ/sermons/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
 
         $response->assertStatus(200);
-        
+
         // Check Open Graph meta tags
         $response->assertSee('<meta property="og:title" content="Test Sermon Title - Crockenhill Baptist Church">', false);
         $response->assertSee('<meta property="og:description" content="Sermon by John Smith on January 15, 2024 - John 3:16 (Part of the Gospel Series series)">', false);
@@ -51,18 +52,18 @@ class SermonOpenGraphTest extends TestCase
         $response->assertSee('<meta property="og:image:width"', false);
         $response->assertSee('<meta property="og:image:height"', false);
         $response->assertSee('<meta property="og:image:alt" content="Sermon: Test Sermon Title">', false);
-        
+
         // Check Twitter Card meta tags
         $response->assertSee('<meta name="twitter:card" content="summary_large_image">', false);
         $response->assertSee('<meta name="twitter:title" content="Test Sermon Title">', false);
         $response->assertSee('<meta name="twitter:description"', false);
         $response->assertSee('<meta name="twitter:image"', false);
-        
+
         // Verify the page loads successfully with Open Graph tags
         $this->assertTrue(true, 'Open Graph meta tags are successfully implemented');
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_includes_fallback_image_when_no_thumbnail()
     {
         // Create a sermon without thumbnail
@@ -76,22 +77,22 @@ class SermonOpenGraphTest extends TestCase
         $response = $this->get("/christ/sermons/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
 
         $response->assertStatus(200);
-        
+
         // Should still have Open Graph meta tags with fallback image
         $response->assertSee('<meta property="og:title"', false);
         $response->assertSee('<meta property="og:description"', false);
         $response->assertSee('<meta property="og:image"', false);
-        
+
         // Should use fallback image (either default thumbnail or Primary.png)
         $content = $response->getContent();
         $this->assertTrue(
-            str_contains($content, 'default-sermon-thumbnail.jpg') || 
+            str_contains($content, 'default-sermon-thumbnail.jpg') ||
             str_contains($content, 'Primary.png'),
             'Should include fallback image when no thumbnail is available'
         );
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_handles_missing_optional_fields_gracefully()
     {
         // Create a minimal sermon
@@ -107,18 +108,18 @@ class SermonOpenGraphTest extends TestCase
         $response = $this->get("/christ/sermons/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
 
         $response->assertStatus(200);
-        
+
         // Should still have basic Open Graph meta tags
         $response->assertSee('<meta property="og:title" content="Minimal Sermon - Crockenhill Baptist Church">', false);
         $response->assertSee('<meta property="og:description" content="Sermon by Test Preacher on March 10, 2024">', false);
-        
+
         // Should not include series or reference in description when not present
         $content = $response->getContent();
         $this->assertStringNotContainsString('Part of the', $content);
         $this->assertStringNotContainsString(' - null', $content);
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_includes_basic_meta_tags()
     {
         $sermon = Sermon::factory()->create([
@@ -135,10 +136,10 @@ class SermonOpenGraphTest extends TestCase
         $response = $this->get("/christ/sermons/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
 
         $response->assertStatus(200);
-        
+
         // Check that basic Open Graph meta tags are present
         $content = $response->getContent();
-        
+
         // Should have basic Open Graph tags
         $this->assertStringContainsString('<meta property="og:title"', $content);
         $this->assertStringContainsString('<meta property="og:description"', $content);

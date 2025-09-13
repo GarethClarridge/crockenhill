@@ -94,7 +94,7 @@ class VideoProcessingService
             // Update sermon record with video information
             if ($result['success'] && $result['sermon_id']) {
                 $this->updateSermonWithVideoMetadata($result['sermon_id'], $videoMetadata);
-                
+
                 // Dispatch thumbnail generation job after sermon creation
                 // This happens asynchronously and never blocks the main processing pipeline
                 $permanentVideoPath = $videoMetadata['video_file_path'];
@@ -704,10 +704,11 @@ class VideoProcessingService
     {
         try {
             // Check if thumbnail generation is enabled
-            if (!config('thumbnail-generation.enabled', true)) {
+            if (! config('thumbnail-generation.enabled', true)) {
                 Log::info('Thumbnail generation disabled, skipping', [
                     'sermon_id' => $sermonId,
                 ]);
+
                 return;
             }
 
@@ -716,12 +717,13 @@ class VideoProcessingService
             $fullVideoPath = Storage::disk($sermonDisk)->path($videoPath);
 
             // Verify video file exists before dispatching job
-            if (!file_exists($fullVideoPath)) {
+            if (! file_exists($fullVideoPath)) {
                 Log::warning('Video file not found for thumbnail generation', [
                     'sermon_id' => $sermonId,
                     'video_path' => $videoPath,
                     'full_path' => $fullVideoPath,
                 ]);
+
                 return;
             }
 

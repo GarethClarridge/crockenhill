@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Jobs\GenerateThumbnail;
 use App\Models\LivestreamProcessingLog;
 use App\Services\SermonMetadataIntegrationService;
 use App\Services\SermonProcessingService;
@@ -178,10 +177,11 @@ class SubmitToProcessing implements ShouldQueue
     {
         try {
             // Check if thumbnail generation is enabled
-            if (!config('thumbnail-generation.enabled', true)) {
+            if (! config('thumbnail-generation.enabled', true)) {
                 Log::info('Thumbnail generation disabled, skipping', [
                     'sermon_id' => $sermonId,
                 ]);
+
                 return;
             }
 
@@ -190,12 +190,13 @@ class SubmitToProcessing implements ShouldQueue
             $fullVideoPath = Storage::disk($sermonDisk)->path($videoPath);
 
             // Verify video file exists before dispatching job
-            if (!file_exists($fullVideoPath)) {
+            if (! file_exists($fullVideoPath)) {
                 Log::warning('Video file not found for thumbnail generation', [
                     'sermon_id' => $sermonId,
                     'video_path' => $videoPath,
                     'full_path' => $fullVideoPath,
                 ]);
+
                 return;
             }
 
