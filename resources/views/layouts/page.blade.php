@@ -34,7 +34,7 @@
       <div class="inline-flex items-center justify-between w-full flex-wrap">
         <x-breadcrumbs :$area :$heading />
 
-        <x-edit-buttons :$slug />
+        @if(isset($page) || (isset($slug) && isset($area) && isset($content) && !empty($content))) <x-edit-buttons :$slug /> @endif
       </div>
 
       @if (isset ($content))
