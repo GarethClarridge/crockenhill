@@ -114,7 +114,7 @@
     </li>
 
     <li class="">
-      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/christ">
+      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/community">
         <div class="flex items-center">
           <x-heroicon-s-user-group class="h-5 w-5 mr-1" />
           <span class="">Community</span>
