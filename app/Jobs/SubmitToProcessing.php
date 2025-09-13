@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\GenerateThumbnail;
 use App\Models\LivestreamProcessingLog;
 use App\Services\SermonMetadataIntegrationService;
 use App\Services\SermonProcessingService;
@@ -88,6 +89,10 @@ class SubmitToProcessing implements ShouldQueue
                 $finalVideoPath
             );
 
+            // Dispatch thumbnail generation job after sermon creation
+            // Use the final video path for thumbnail generation
+            $this->dispatchThumbnailGeneration($result['sermon_id'], $finalVideoPath);
+
             // Validate that the sermon record has a valid audio file path
             if ($result['sermon_id']) {
                 $sermon = \App\Models\Sermon::find($result['sermon_id']);
@@ -164,5 +169,54 @@ class SubmitToProcessing implements ShouldQueue
     public function retryUntil(): \DateTime
     {
         return now()->addHours(2);
+    }
+
+    /**
+     * Dispatch thumbnail generation job for the created sermon
+     */
+    private function dispatchThumbnailGeneration(int $sermonId, string $videoPath): void
+    {
+        try {
+            // Check if thumbnail generation is enabled
+            if (!config('thumbnail-generation.enabled', true)) {
+                Log::info('Thumbnail generation disabled, skipping', [
+                    'sermon_id' => $sermonId,
+                ]);
+                return;
+            }
+
+            // Get the full path to the video file
+            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
+            $fullVideoPath = Storage::disk($sermonDisk)->path($videoPath);
+
+            // Verify video file exists before dispatching job
+            if (!file_exists($fullVideoPath)) {
+                Log::warning('Video file not found for thumbnail generation', [
+                    'sermon_id' => $sermonId,
+                    'video_path' => $videoPath,
+                    'full_path' => $fullVideoPath,
+                ]);
+                return;
+            }
+
+            // Dispatch thumbnail generation job to dedicated queue
+            GenerateThumbnail::dispatch($sermonId, $fullVideoPath)
+                ->onQueue(config('thumbnail-generation.queue.name', 'thumbnails'));
+
+            Log::info('Thumbnail generation job dispatched', [
+                'sermon_id' => $sermonId,
+                'video_path' => $fullVideoPath,
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error but don't throw - thumbnail generation should never block processing
+            Log::warning('Failed to dispatch thumbnail generation job', [
+                'sermon_id' => $sermonId,
+                'video_path' => $videoPath,
+                'error' => $e->getMessage(),
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+        }
     }
 }

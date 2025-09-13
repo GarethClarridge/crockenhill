@@ -8,6 +8,7 @@ use App\Jobs\AnalyzeSegments;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
+use App\Jobs\GenerateThumbnail;
 use App\Jobs\SubmitToProcessing;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\LivestreamProcessingLog;
@@ -15,6 +16,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class VideoProcessingService
@@ -92,6 +94,11 @@ class VideoProcessingService
             // Update sermon record with video information
             if ($result['success'] && $result['sermon_id']) {
                 $this->updateSermonWithVideoMetadata($result['sermon_id'], $videoMetadata);
+                
+                // Dispatch thumbnail generation job after sermon creation
+                // This happens asynchronously and never blocks the main processing pipeline
+                $permanentVideoPath = $videoMetadata['video_file_path'];
+                $this->dispatchThumbnailGeneration($result['sermon_id'], $permanentVideoPath);
             }
 
             Log::info('Direct sermon video processing completed successfully', [
@@ -287,6 +294,8 @@ class VideoProcessingService
             new AnalyzeSegments($processingLog),
             new ExtractSermon($processingLog),
             new SubmitToProcessing($processingLog),
+            // Add thumbnail generation job to chain - it will be handled by the SubmitToProcessing job
+            // after sermon creation, using the sermon ID and video path from the processing log
             new CleanupTemporaryFiles($processingLog),
         ])->catch(function (\Throwable $e) use ($processingId) {
             $this->handleProcessingFailure($processingId, $e);
@@ -685,6 +694,53 @@ class VideoProcessingService
     {
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
+        }
+    }
+
+    /**
+     * Dispatch thumbnail generation job for the created sermon
+     */
+    private function dispatchThumbnailGeneration(int $sermonId, string $videoPath): void
+    {
+        try {
+            // Check if thumbnail generation is enabled
+            if (!config('thumbnail-generation.enabled', true)) {
+                Log::info('Thumbnail generation disabled, skipping', [
+                    'sermon_id' => $sermonId,
+                ]);
+                return;
+            }
+
+            // Get the full path to the video file
+            $sermonDisk = config('livestream-processing.sermon_disk', 'local');
+            $fullVideoPath = Storage::disk($sermonDisk)->path($videoPath);
+
+            // Verify video file exists before dispatching job
+            if (!file_exists($fullVideoPath)) {
+                Log::warning('Video file not found for thumbnail generation', [
+                    'sermon_id' => $sermonId,
+                    'video_path' => $videoPath,
+                    'full_path' => $fullVideoPath,
+                ]);
+                return;
+            }
+
+            // Dispatch thumbnail generation job to dedicated queue
+            GenerateThumbnail::dispatch($sermonId, $fullVideoPath)
+                ->onQueue(config('thumbnail-generation.queue.name', 'thumbnails'));
+
+            Log::info('Thumbnail generation job dispatched', [
+                'sermon_id' => $sermonId,
+                'video_path' => $fullVideoPath,
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error but don't throw - thumbnail generation should never block processing
+            Log::warning('Failed to dispatch thumbnail generation job', [
+                'sermon_id' => $sermonId,
+                'video_path' => $videoPath,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

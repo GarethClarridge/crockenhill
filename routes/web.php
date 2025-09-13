@@ -77,6 +77,9 @@ Route::group(['prefix' => 'christ/sermons'], function () {
 
     // Audio serving route
     Route::get('/{sermon:slug}/audio', [SermonController::class, 'serveAudio'])->name('serveSermonAudio');
+    
+    // Thumbnail serving route
+    Route::get('/{sermon:slug}/thumbnail', [SermonController::class, 'serveThumbnail'])->name('serveSermonThumbnail');
 
     // Fallback slug-only routes
     Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');

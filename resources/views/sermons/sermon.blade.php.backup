@@ -1,38 +1,110 @@
 @extends('layouts/page')
 
+@section('meta_tags')
 @php
-use Illuminate\Support\Str;
+    // Determine the best image for social media sharing
+    $socialImage = null;
+    $imageWidth = 1200;
+    $imageHeight = 630;
+    $imageAlt = "Sermon: {$sermon->title}";
+    
+    if ($sermon->thumbnail_url && $sermon->hasThumbnail()) {
+        // Use generated thumbnail if available
+        $socialImage = $sermon->thumbnail_url;
+        $imageWidth = config('thumbnail-generation.social_media.og_image_width', 1200);
+        $imageHeight = config('thumbnail-generation.social_media.og_image_height', 630);
+    } else {
+        // Fallback to default church image for social sharing
+        $defaultImage = config('thumbnail-generation.fallback.default_image', 'images/default-sermon-thumbnail.jpg');
+        if (file_exists(public_path($defaultImage))) {
+            $socialImage = asset($defaultImage);
+            $imageWidth = 1200;
+            $imageHeight = 630;
+        } else {
+            // Ultimate fallback to church logo/brand image
+            $socialImage = asset('images/Primary.png');
+            $imageWidth = 800;
+            $imageHeight = 600;
+        }
+    }
+    
+    // Create rich description for social media
+    $description = "Sermon by {$sermon->preacher} on {$sermon->human_date}";
+    if ($sermon->reference) {
+        $description .= " - {$sermon->reference}";
+    }
+    if ($sermon->series) {
+        $description .= " (Part of the {$sermon->series} series)";
+    }
 @endphp
 
-@section('meta_tags')
 {{-- Open Graph meta tags for social media sharing --}}
 <meta property="og:title" content="{{ $sermon->title }} - Crockenhill Baptist Church">
-<meta property="og:description" content="Sermon by {{ $sermon->preacher }} on {{ $sermon->human_date }}{{ $sermon->reference ? ' - ' . $sermon->reference : '' }}{{ $sermon->series ? ' (Part of the ' . $sermon->series . ' series)' : '' }}">
+<meta property="og:description" content="{{ $description }}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{{ request()->url() }}">
 <meta property="og:site_name" content="Crockenhill Baptist Church">
 
-{{-- Include thumbnail image if available, otherwise use fallback --}}
-@if($sermon->thumbnail_url && $sermon->hasThumbnail())
-<meta property="og:image" content="{{ $sermon->thumbnail_url }}">
-<meta property="og:image:width" content="1280">
-<meta property="og:image:height" content="720">
-@else
-<meta property="og:image" content="{{ asset('images/Primary.png') }}">
-<meta property="og:image:width" content="800">
-<meta property="og:image:height" content="600">
+{{-- Always include an image for social sharing --}}
+@if($socialImage)
+<meta property="og:image" content="{{ $socialImage }}">
+<meta property="og:image:width" content="{{ $imageWidth }}">
+<meta property="og:image:height" content="{{ $imageHeight }}">
+<meta property="og:image:alt" content="{{ $imageAlt }}">
+<meta property="og:image:type" content="image/jpeg">
 @endif
-<meta property="og:image:alt" content="Sermon: {{ $sermon->title }}">
+
+{{-- Additional Open Graph properties for better social media display --}}
+<meta property="og:locale" content="en_GB">
+<meta property="article:published_time" content="{{ $sermon->date->toISOString() }}">
+<meta property="article:author" content="{{ $sermon->preacher }}">
+@if($sermon->series)
+<meta property="article:section" content="{{ $sermon->series }}">
+@endif
 
 {{-- Twitter Card meta tags --}}
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="{{ config('thumbnail-generation.social_media.twitter_card_type', 'summary_large_image') }}">
 <meta name="twitter:title" content="{{ $sermon->title }}">
-<meta name="twitter:description" content="Sermon by {{ $sermon->preacher }} on {{ $sermon->human_date }}{{ $sermon->reference ? ' - ' . $sermon->reference : '' }}">
-@if($sermon->thumbnail_url && $sermon->hasThumbnail())
-<meta name="twitter:image" content="{{ $sermon->thumbnail_url }}">
-@else
-<meta name="twitter:image" content="{{ asset('images/Primary.png') }}">
+<meta name="twitter:description" content="{{ $description }}">
+<meta name="twitter:site" content="@CrockenhillBC">
+@if($socialImage)
+<meta name="twitter:image" content="{{ $socialImage }}">
+<meta name="twitter:image:alt" content="{{ $imageAlt }}">
 @endif
+
+{{-- Additional meta tags for better SEO and social sharing --}}
+<meta name="description" content="{{ $description }}">
+<meta name="keywords" content="sermon, {{ $sermon->preacher }}, Crockenhill Baptist Church{{ $sermon->series ? ', ' . $sermon->series : '' }}{{ $sermon->reference ? ', ' . $sermon->reference : '' }}">
+<meta name="author" content="{{ $sermon->preacher }}">
+<meta name="robots" content="index, follow">
+
+{{-- Structured data for rich snippets --}}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "AudioObject",
+  "name": "{{ $sermon->title }}",
+  "description": "{{ $description }}",
+  "creator": {
+    "@type": "Person",
+    "name": "{{ $sermon->preacher }}"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Crockenhill Baptist Church",
+    "url": "{{ url('/') }}"
+  },
+  "datePublished": "{{ $sermon->date->toISOString() }}",
+  "url": "{{ request()->url() }}",
+  "contentUrl": "{{ route('serveSermonAudio', $sermon->slug) }}",
+  @if($socialImage)
+  "thumbnailUrl": "{{ $socialImage }}",
+  @endif
+  "encodingFormat": "audio/mpeg",
+  "genre": "Religious",
+  "inLanguage": "en-GB"
+}
+</script>
 @endsection
 
 @section('dynamic_content')
@@ -99,16 +171,6 @@ use Illuminate\Support\Str;
         </div>
       </div>
       @endif
-
-      <!-- {{-- Thumbnail Display --}}
-      @if($sermon->thumbnail_url && $sermon->hasThumbnail())
-      <div class="mb-6">
-        <img src="{{ $sermon->thumbnail_url }}" 
-             alt="Thumbnail for {{ $sermon->title }}" 
-             class="w-full max-w-2xl mx-auto rounded-lg shadow-md"
-             loading="lazy">
-      </div>
-      @endif -->
 
       <audio src="{{ route('serveSermonAudio', $sermon->slug) }}" class="w-full" controls>
         Your browser does not support the <code>audio</code> element.
@@ -282,7 +344,6 @@ use Illuminate\Support\Str;
       }
     }
   </script>
-  @endif
 
 </section>
 

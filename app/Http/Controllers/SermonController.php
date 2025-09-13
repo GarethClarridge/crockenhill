@@ -502,4 +502,40 @@ class SermonController extends Controller
             'Cache-Control' => 'public, max-age=3600',
         ]);
     }
+
+    /**
+     * Serve thumbnail image for a sermon
+     */
+    public function serveThumbnail(Sermon $sermon)
+    {
+        if (! $sermon->thumbnail_path) {
+            abort(404, 'Thumbnail not found.');
+        }
+
+        $disk = config('thumbnail-generation.storage.disk', 'public');
+        
+        if (! Storage::disk($disk)->exists($sermon->thumbnail_path)) {
+            abort(404, 'Thumbnail file not found.');
+        }
+
+        $path = Storage::disk($disk)->path($sermon->thumbnail_path);
+        $name = basename($sermon->thumbnail_path);
+
+        // Determine content type based on file extension
+        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $contentType = match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            default => 'image/jpeg',
+        };
+
+        return response()->file($path, [
+            'Content-Type' => $contentType,
+            'Content-Disposition' => 'inline; filename="'.$name.'"',
+            'Cache-Control' => 'public, max-age=86400', // 24 hours cache for images
+            'ETag' => md5_file($path),
+            'Last-Modified' => gmdate('D, d M Y H:i:s', filemtime($path)) . ' GMT',
+        ]);
+    }
 }

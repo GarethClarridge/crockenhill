@@ -210,6 +210,9 @@ Check the status of any processing operation using its processing ID.
   "progress_percentage": 100,
   "sermon_id": 123,
   "sermon_url": "/christ/sermons/gods-providence-in-our-lives",
+  "thumbnail_url": "https://example.com/storage/sermons/thumbnails/sermon_123.jpg",
+  "thumbnail_generated": true,
+  "thumbnail_generated_at": "2024-01-15T10:32:00Z",
   "started_at": "2024-01-15T10:00:00Z",
   "updated_at": "2024-01-15T10:30:00Z"
 }
@@ -317,9 +320,96 @@ Attempt to salvage partially processed content from failed processing.
 
 ---
 
+## Thumbnail Endpoints
+
+### 7. Get Sermon Thumbnail
+
+Serve a sermon's thumbnail image directly with proper caching headers.
+
+**Endpoint**: `GET /christ/sermons/{sermon:slug}/thumbnail`
+
+**Authentication**: Not required (public endpoint)
+
+#### Response Format
+
+**Success Response (HTTP 200):**
+- **Content-Type**: `image/jpeg`, `image/png`, or `image/webp`
+- **Cache-Control**: `public, max-age=86400` (24 hours)
+- **ETag**: MD5 hash of file for conditional requests
+- **Last-Modified**: File modification timestamp
+
+**Not Found Response (HTTP 404):**
+```json
+{
+  "error": "Thumbnail not found",
+  "message": "No thumbnail available for this sermon"
+}
+```
+
+#### Usage Examples
+
+```html
+<!-- Direct image usage -->
+<img src="/christ/sermons/gods-providence-in-our-lives/thumbnail" 
+     alt="Sermon Thumbnail" 
+     loading="lazy">
+
+<!-- With fallback -->
+<img src="/christ/sermons/gods-providence-in-our-lives/thumbnail" 
+     alt="Sermon Thumbnail"
+     onerror="this.src='/images/default-sermon-thumbnail.jpg'">
+```
+
+### 8. Sermon Data with Thumbnails
+
+Get sermon data including thumbnail URLs through existing sermon endpoints.
+
+**Endpoint**: `GET /api/sermons`
+
+**Authentication**: Required
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `with_thumbnail` | Boolean | No | Filter to only sermons with thumbnails |
+| `service` | String | No | Filter by service type (morning, evening, other) |
+| `preacher` | String | No | Filter by preacher name |
+
+#### Response Format
+
+```json
+{
+  "data": [
+    {
+      "id": 123,
+      "title": "God's Providence in Our Lives",
+      "slug": "gods-providence-in-our-lives",
+      "preacher": "John Smith",
+      "date": "2024-01-15",
+      "service": "morning",
+      "audio_url": "https://example.com/storage/sermons/audio/sermon_123.mp3",
+      "video_url": "https://example.com/storage/sermons/videos/sermon_123.mp4",
+      "thumbnail_url": "https://example.com/storage/sermons/thumbnails/sermon_123.jpg",
+      "thumbnail_generated": true,
+      "thumbnail_generated_at": "2024-01-15T10:32:00Z",
+      "has_transcript": true,
+      "bible_references": ["Romans 8:28", "Jeremiah 29:11"]
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "total": 1,
+    "per_page": 15
+  }
+}
+```
+
+---
+
 ## Monitoring Endpoints
 
-### 8. Processing Statistics
+### 9. Processing Statistics
 
 Get system-wide processing statistics.
 
@@ -341,7 +431,7 @@ Get system-wide processing statistics.
 }
 ```
 
-### 9. Failed Processing Records
+### 10. Failed Processing Records
 
 Get list of failed processing operations.
 
@@ -366,7 +456,7 @@ Get list of failed processing operations.
 }
 ```
 
-### 10. System Health
+### 11. System Health
 
 Check system health and service availability.
 

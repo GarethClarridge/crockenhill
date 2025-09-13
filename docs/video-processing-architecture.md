@@ -38,17 +38,18 @@ Handles all video processing, preserving video files throughout the pipeline. Re
 **Key Features:**
 - **Video Preservation**: All video files are stored permanently and linked to sermon records
 - **Audio Extraction**: Optimized for transcription services with compression fallbacks
+- **Thumbnail Generation**: Automated thumbnail creation with branded overlays
 - **Job Chain**: Resilient processing using Laravel job chains
 - **Error Handling**: Comprehensive error recovery and cleanup procedures
 
 **Processing Pipeline (Segmentation):**
 ```
-Video Upload → Storage → RMS Analysis → Segmentation → Sermon Extraction → Audio Processing → Permanent Storage
+Video Upload → Storage → RMS Analysis → Segmentation → Sermon Extraction → Audio Processing → Thumbnail Generation → Permanent Storage
 ```
 
 **Processing Pipeline (Direct):**
 ```
-Video Upload → Storage → Audio Extraction → Sermon Processing → Video + Audio Storage
+Video Upload → Storage → Audio Extraction → Sermon Processing → Thumbnail Generation → Video + Audio Storage
 ```
 
 ### 3. SermonProcessingService (Audio & AI)
@@ -61,7 +62,23 @@ Focuses on audio processing, transcription, and AI-powered sermon analysis.
 - AI-powered metadata extraction (title, preacher, series, Bible references)
 - Sermon record creation and updates
 
-### 4. ProcessingStatusContract (Unified API)
+### 4. ThumbnailGenerationService (Visual Content)
+
+Handles automated thumbnail generation for video sermons with branded overlays.
+
+**Key Features:**
+- **Smart Frame Extraction**: Intelligent timestamp selection using FFmpeg
+- **Branded Overlays**: Church branding with sermon metadata (title, date, service)
+- **Responsive Design**: Multiple thumbnail sizes for web and mobile
+- **Accessibility**: High-contrast text with white backgrounds
+- **Non-Critical Processing**: Failures don't affect main processing pipeline
+
+**Processing Pipeline:**
+```
+Video File → Frame Extraction → Overlay Generation → Storage → Database Update
+```
+
+### 5. ProcessingStatusContract (Unified API)
 
 Interface ensuring consistent API responses across all processing types.
 
@@ -117,6 +134,7 @@ Interface ensuring consistent API responses across all processing types.
 2. **Architectural Fragmentation**: Eliminated overlapping services with different behaviors
 3. **API Inconsistency**: Unified response formats across all processing types
 4. **Error Handling**: Improved error recovery and monitoring capabilities
+5. **Visual Content Gap**: Added automated thumbnail generation for better user experience
 
 ### Benefits Achieved
 - ✅ **All video files preserved** across all processing types
@@ -125,6 +143,8 @@ Interface ensuring consistent API responses across all processing types.
 - ✅ **Simplified codebase** - eliminated problematic duplicate code
 - ✅ **Enhanced monitoring** - standardized status tracking
 - ✅ **Better error handling** - comprehensive recovery procedures
+- ✅ **Automated thumbnails** - branded visual content for all video sermons
+- ✅ **Social media optimization** - Open Graph meta tags for sharing
 
 ## Configuration
 

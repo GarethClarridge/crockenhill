@@ -31,6 +31,15 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 */
 
 Route::prefix('sermons')->name('api.sermons.')->middleware('cors')->group(function () {
+    // Sermon data endpoints
+    Route::get('/', [\App\Http\Controllers\Api\SermonApiController::class, 'index'])
+        ->middleware('throttle:api')
+        ->name('index');
+    
+    Route::get('{sermon}', [\App\Http\Controllers\Api\SermonApiController::class, 'show'])
+        ->middleware('throttle:api')
+        ->name('show');
+
     // Unified media processing endpoints - different entry points, same controller
     Route::post('livestream', [AutomatedSermonController::class, 'uploadLivestream'])
         ->middleware(['auth:sanctum', 'throttle:sermon-upload'])

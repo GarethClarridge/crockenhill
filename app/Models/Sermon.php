@@ -28,6 +28,9 @@ use Illuminate\Support\Str; // Added Enum import
  * @property ?array $points
  * @property ?string $summary
  * @property ?string $transcript_path
+ * @property ?string $thumbnail_path
+ * @property ?\Illuminate\Support\Carbon $thumbnail_generated_at
+ * @property ?array $thumbnail_metadata
  * @property ?string $livestream_processing_id
  * @property ?string $video_file_path
  * @property ?string $source_type
@@ -47,6 +50,7 @@ use Illuminate\Support\Str; // Added Enum import
  * @property-read ?string $series_url
  * @property-read ?string $preacher_url
  * @property-read ?string $video_url
+ * @property-read ?string $thumbnail_url
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
  * @method static Builder|Sermon newModelQuery()
@@ -61,6 +65,7 @@ use Illuminate\Support\Str; // Added Enum import
  * @method static Builder|Sermon processingCompleted()
  * @method static Builder|Sermon processingFailed()
  * @method static Builder|Sermon processingInProgress()
+ * @method static Builder|Sermon withThumbnail()
  *
  * @mixin \Eloquent
  */
@@ -90,6 +95,9 @@ class Sermon extends Model
         'points', // Stored as JSON string, handled by accessor/mutator potentially
         'summary', // AI-generated sermon summary
         'transcript_path', // Added for automated sermon processing
+        'thumbnail_path', // Path to generated thumbnail image
+        'thumbnail_generated_at', // Timestamp when thumbnail was generated
+        'thumbnail_metadata', // Metadata about thumbnail generation
         'livestream_processing_id', // Link to livestream processing
         'video_file_path', // Path to sermon video file
         'source_type', // Source type: manual, livestream, upload
@@ -108,6 +116,8 @@ class Sermon extends Model
         'service' => SermonService::class,
         'segment_start_time' => 'float',
         'segment_end_time' => 'float',
+        'thumbnail_generated_at' => 'datetime',
+        'thumbnail_metadata' => 'array',
     ];
 
     // Accessor for points is no longer strictly needed if 'points' => 'array' cast is used.
@@ -153,6 +163,17 @@ class Sermon extends Model
 
         // Fallback to storage URL (for backward compatibility with new-style paths that don't exist yet)
         return \Illuminate\Support\Facades\Storage::disk('public')->url($this->filename);
+    }
+
+    public function getThumbnailUrlAttribute(): ?string
+    {
+        if (! $this->thumbnail_path) {
+            return null;
+        }
+
+        $disk = config('thumbnail-generation.storage.disk', 'public');
+        
+        return \Illuminate\Support\Facades\Storage::disk($disk)->url($this->thumbnail_path);
     }
 
     public function getSeriesUrlAttribute(): ?string
@@ -289,6 +310,22 @@ class Sermon extends Model
         }
 
         return \Illuminate\Support\Facades\Storage::exists($this->transcript_path);
+    }
+
+    /**
+     * Check if this sermon has a thumbnail available
+     *
+     * @return bool True if thumbnail exists and is accessible
+     */
+    public function hasThumbnail(): bool
+    {
+        if (! $this->thumbnail_path) {
+            return false;
+        }
+
+        $disk = config('thumbnail-generation.storage.disk', 'public');
+        
+        return \Illuminate\Support\Facades\Storage::disk($disk)->exists($this->thumbnail_path);
     }
 
     /**
@@ -503,5 +540,13 @@ class Sermon extends Model
     public function scopeBySourceType(Builder $query, string $sourceType): Builder
     {
         return $query->where('source_type', $sourceType);
+    }
+
+    /**
+     * Scope to get sermons with thumbnails
+     */
+    public function scopeWithThumbnail(Builder $query): Builder
+    {
+        return $query->whereNotNull('thumbnail_path');
     }
 }

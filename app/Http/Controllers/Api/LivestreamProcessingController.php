@@ -281,6 +281,22 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
         try {
             $status = $this->videoProcessingService->getProcessingStatus($processingId);
 
+            // Get thumbnail information if sermon exists
+            $thumbnailData = [];
+            $sermonProcessingId = $status->stepDetails['sermon_processing_id'] ?? null;
+            if ($sermonProcessingId) {
+                // Find sermon by processing ID
+                $processingLog = \App\Models\SermonProcessingLog::where('processing_id', $sermonProcessingId)->first();
+                if ($processingLog && $processingLog->sermon) {
+                    $sermon = $processingLog->sermon;
+                    $thumbnailData = [
+                        'thumbnail_url' => $sermon->thumbnail_url,
+                        'thumbnail_generated' => $sermon->hasThumbnail(),
+                        'thumbnail_generated_at' => $sermon->thumbnail_generated_at?->toISOString(),
+                    ];
+                }
+            }
+
             // Convert LivestreamProcessingStatus to StandardProcessingResponse
             return StandardProcessingResponse::found(
                 processingId: $status->processingId,
@@ -295,7 +311,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
                 startedAt: null, // Would need to be added to LivestreamProcessingStatus if needed
                 updatedAt: null, // Would need to be added to LivestreamProcessingStatus if needed
                 estimatedCompletion: $status->estimatedCompletionTime,
-                additionalData: [
+                additionalData: array_merge([
                     'segments_identified' => count($status->stepDetails['segmentation']['segments'] ?? []),
                     'sermon_video_path' => $status->stepDetails['sermon_video_path'] ?? null,
                     'segments' => array_map(function ($segment) {
@@ -307,7 +323,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
                             'is_sermon' => $segment['is_sermon_candidate'] ?? false,
                         ];
                     }, $status->stepDetails['segmentation']['segments'] ?? []),
-                ]
+                ], $thumbnailData)
             );
 
         } catch (\Exception $e) {

@@ -29,6 +29,8 @@ class SermonResource extends JsonResource
             'reference' => $this->reference,
             'points' => $this->points,
             'audio_url' => $this->audio_url,
+            'thumbnail_url' => $this->thumbnail_url,
+            'thumbnail_metadata' => $this->thumbnail_metadata,
             'series_url' => $this->series_url,
             'preacher_url' => $this->preacher_url,
         ];

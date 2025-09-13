@@ -632,6 +632,19 @@ class AutomatedSermonController extends Controller implements ProcessingStatusCo
                 return StandardProcessingResponse::notFound();
             }
 
+            // Get thumbnail information if sermon exists
+            $thumbnailData = [];
+            if ($statusResult->sermonId) {
+                $sermon = \App\Models\Sermon::find($statusResult->sermonId);
+                if ($sermon) {
+                    $thumbnailData = [
+                        'thumbnail_url' => $sermon->thumbnail_url,
+                        'thumbnail_generated' => $sermon->hasThumbnail(),
+                        'thumbnail_generated_at' => $sermon->thumbnail_generated_at?->toISOString(),
+                    ];
+                }
+            }
+
             // Create standardized response with enhanced information
             return StandardProcessingResponse::found(
                 processingId: $statusResult->processingId,
@@ -643,7 +656,8 @@ class AutomatedSermonController extends Controller implements ProcessingStatusCo
                 sermonUrl: $statusResult->sermonSlug ? "/christ/sermons/{$statusResult->sermonSlug}" : null,
                 startedAt: $statusResult->createdAt,
                 updatedAt: $statusResult->updatedAt,
-                estimatedCompletion: $this->getEstimatedCompletion($processingId)
+                estimatedCompletion: $this->getEstimatedCompletion($processingId),
+                additionalData: $thumbnailData
             );
         } catch (\Exception $e) {
             Log::error('Error retrieving processing status', [
