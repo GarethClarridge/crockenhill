@@ -158,7 +158,7 @@ class SermonMetadataIntegrationService
     private function organizeVideoFile(string $videoPath, int $sermonId): string
     {
         // Get the sermon storage disk
-        $sermonDisk = Storage::disk(config('livestream-processing.sermon_disk', 'local'));
+        $sermonDisk = Storage::disk(config('livestream-processing.sermon_disk', 'public'));
 
         // Create directory structure based on sermon ID
         $directory = "sermons/{$sermonId}";
@@ -232,7 +232,7 @@ class SermonMetadataIntegrationService
             return ['has_video' => false];
         }
 
-        $sermonDisk = Storage::disk(config('livestream-processing.sermon_disk', 'local'));
+        $sermonDisk = Storage::disk(config('livestream-processing.sermon_disk', 'public'));
         $videoPath = $sermon->video_file_path;
 
         $previewData = [
@@ -304,19 +304,50 @@ class SermonMetadataIntegrationService
     public function validateVideoFile(string $videoPath): bool
     {
         if (! file_exists($videoPath)) {
+            Log::warning('Video file does not exist for validation', [
+                'video_path' => $videoPath
+            ]);
             return false;
         }
 
         // Basic file size check
         $fileSize = filesize($videoPath);
         if ($fileSize === 0) {
+            Log::warning('Video file has zero size', [
+                'video_path' => $videoPath
+            ]);
             return false;
         }
 
         // Check if it's a valid video file (basic MIME type check)
-        $mimeType = mime_content_type($videoPath);
-        $validMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'];
+        try {
+            $mimeType = mime_content_type($videoPath);
+            if ($mimeType === false) {
+                Log::warning('Could not determine MIME type for video file', [
+                    'video_path' => $videoPath
+                ]);
+                return false;
+            }
 
-        return in_array($mimeType, $validMimeTypes);
+            $validMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'];
+
+            $isValid = in_array($mimeType, $validMimeTypes);
+
+            if (!$isValid) {
+                Log::warning('Video file has invalid MIME type', [
+                    'video_path' => $videoPath,
+                    'mime_type' => $mimeType,
+                    'valid_mime_types' => $validMimeTypes
+                ]);
+            }
+
+            return $isValid;
+        } catch (\Exception $e) {
+            Log::error('Exception during video file validation', [
+                'video_path' => $videoPath,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
     }
 }

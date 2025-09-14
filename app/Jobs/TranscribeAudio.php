@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Models\Sermon;
+use App\Models\SermonProcessingLog;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -28,7 +29,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public readonly int $sermonId
+        public SermonProcessingLog $processingLog
     ) {}
 
     /**
@@ -38,89 +39,84 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
     {
         try {
             Log::info('Starting audio transcription', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            // Get the sermon record
-            $sermon = Sermon::find($this->sermonId);
-            if (! $sermon) {
-                throw new \Exception("Sermon not found with ID: {$this->sermonId}");
-            }
-
-            // Get the processing log and initialize step logging
-            /** @var \App\Models\SermonProcessingLog|null $processingLog */
-            $processingLog = $sermon->processingLogs()->latest()->first();
-            if (! $processingLog) {
-                throw new \Exception("Processing log not found for sermon ID: {$this->sermonId}");
-            }
-
-            $this->initializeStepLogging($processingLog->processing_id);
+            // Initialize step logging
+            $this->initializeStepLogging($this->processingLog->processing_id);
 
             // Check if processing has been cancelled
             if ($this->isCancelled()) {
-                Log::info('Transcription job cancelled', ['sermon_id' => $this->sermonId]);
-
+                Log::info('Transcription job cancelled', ['processing_id' => $this->processingLog->processing_id]);
                 return;
             }
 
             // Log step start and update processing log
             $this->logStepStart('transcribing', 'Starting audio transcription');
-            $processingLog->updateStep('transcribing_audio');
+            $this->processingLog->updateStep('transcribing_audio');
 
-            // Verify audio file exists
-            if (! $sermon->filename) {
-                throw new \Exception("No audio file path found for sermon ID: {$this->sermonId}");
+            // Get audio file path from processing log
+            $audioFilePath = $this->processingLog->stored_file_path;
+            if (! $audioFilePath) {
+                throw new \Exception("No audio file path found in processing log: {$this->processingLog->processing_id}");
             }
 
             Log::info('Transcribing audio file', [
-                'sermon_id' => $this->sermonId,
-                'audio_file' => $sermon->filename,
+                'processing_id' => $this->processingLog->processing_id,
+                'audio_file' => $audioFilePath,
             ]);
 
             // Transcribe the audio file
-            $transcript = $transcriptionService->transcribe($sermon->filename);
+            $transcript = $transcriptionService->transcribe($audioFilePath);
 
             if (empty($transcript)) {
                 throw new \Exception('Transcription returned empty content');
             }
 
-            // Store the transcript file
-            $transcriptPath = $transcriptionService->storeTranscript($this->sermonId, $transcript);
+            // Store the transcript file - use sermon ID for existing interface
+            if (!$this->processingLog->sermon_id) {
+                throw new \Exception("No sermon ID found in processing log: {$this->processingLog->processing_id}");
+            }
+            $transcriptPath = $transcriptionService->storeTranscript($this->processingLog->sermon_id, $transcript);
 
-            // Update sermon record with transcript path
-            $sermon->update([
+            // Store transcript path in processing log
+            $this->processingLog->update([
                 'transcript_path' => $transcriptPath,
             ]);
 
+            // Update sermon record with transcript path
+            if ($this->processingLog->sermon_id) {
+                $sermon = Sermon::find($this->processingLog->sermon_id);
+                if ($sermon) {
+                    $sermon->update(['transcript_path' => $transcriptPath]);
+                }
+            }
+
             // Update processing log and mark step as complete
-            $processingLog->updateStep('transcription_completed');
+            $this->processingLog->updateStep('transcription_completed');
             $this->logStepComplete('transcribing', 'Audio transcription completed successfully');
 
             Log::info('Audio transcription completed successfully', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
                 'transcript_path' => $transcriptPath,
                 'transcript_length' => strlen($transcript),
                 'word_count' => str_word_count($transcript),
             ]);
-
-            // Dispatch the next job in the chain
-            ProcessTranscriptWithAI::dispatch($this->sermonId)
-                ->onQueue(config('sermon-processing.processing.queue', 'default'));
         } catch (\Exception $e) {
             Log::error('Failed to transcribe audio', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             // Clean up any partial transcript files
-            $transcriptionService->cleanupOnFailure($this->sermonId);
+            if ($this->processingLog->sermon_id) {
+                $transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
+            }
 
             // Update processing log with error and log step failure
-            if (isset($processingLog)) {
-                $processingLog->markAsFailed($e->getMessage(), 'transcribing_audio');
-                $this->logStepFailed('transcribing', $e->getMessage());
-            }
+            $this->processingLog->markAsFailed($e->getMessage(), 'transcribing_audio');
+            $this->logStepFailed('transcribing', $e->getMessage());
 
             throw $e;
         }
@@ -132,7 +128,8 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error('TranscribeAudio job failed permanently', [
-            'sermon_id' => $this->sermonId,
+            'processing_id' => $this->processingLog->processing_id,
+            'sermon_id' => $this->processingLog->sermon_id ?? null,
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);
@@ -140,16 +137,24 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
         // Clean up any partial files
         try {
             $transcriptionService = app(TranscriptionServiceInterface::class);
-            $transcriptionService->cleanupOnFailure($this->sermonId);
+            if ($this->processingLog->sermon_id) {
+                $transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
+            }
         } catch (\Exception $e) {
             Log::warning('Failed to cleanup after transcription failure', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
+                'sermon_id' => $this->processingLog->sermon_id ?? null,
                 'cleanup_error' => $e->getMessage(),
             ]);
         }
 
         // Mark processing as failed
-        $sermon = Sermon::find($this->sermonId);
+        if ($this->processingLog->sermon_id) {
+            $sermon = Sermon::find($this->processingLog->sermon_id);
+        } else {
+            $sermon = null;
+        }
+
         if ($sermon) {
             /** @var \App\Models\SermonProcessingLog|null $processingLog */
             $processingLog = $sermon->processingLogs()->latest()->first();

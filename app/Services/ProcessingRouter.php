@@ -4,128 +4,98 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\ProcessingRouterInterface;
+use App\Exceptions\InvalidFileException;
+use App\Exceptions\UnsupportedProcessingTypeException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 
 /**
- * ProcessingRouter - Smart routing for different types of media uploads
+ * ProcessingRouter - Smart routing for different types of media uploads using strategy pattern
  *
- * This service routes uploads to the appropriate processing service based on the explicit
- * choice made by the user in the upload form. No auto-detection is needed since the UI
- * already makes the user specify the type.
+ * Refactored to use strategy pattern as outlined in the media processing refactoring plan.
+ * Routes uploads to appropriate processing strategies based on user selection.
  */
-class ProcessingRouter
+class ProcessingRouter implements ProcessingRouterInterface
 {
     public function __construct(
-        private readonly VideoProcessingService $videoProcessor,
-        private readonly SermonProcessingService $sermonProcessor
+        private readonly ProcessingStrategyRegistry $strategyRegistry
     ) {}
 
     /**
-     * Route livestream video to segmentation pipeline
+     * Route processing based on type using strategy pattern
+     */
+    public function route(string $type, UploadedFile $file, array $options = []): ProcessingResult
+    {
+        Log::info('Routing processing request', [
+            'type' => $type,
+            'filename' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+        ]);
+
+        $strategy = $this->strategyRegistry->getStrategy($type);
+
+        if (!$strategy) {
+            throw new UnsupportedProcessingTypeException($type);
+        }
+
+        $validation = $strategy->validateFile($file);
+        if (!$validation['valid']) {
+            throw new InvalidFileException($validation['errors']);
+        }
+
+        return $strategy->process($file, $options);
+    }
+
+    /**
+     * Route livestream video to segmentation pipeline (legacy method for backward compatibility)
      * This is for full livestream recordings that need segment analysis
      */
     public function routeLivestreamVideo(UploadedFile $file): ProcessingResult
     {
-        Log::info('Routing to livestream video processing', [
-            'filename' => $file->getClientOriginalName(),
-            'size' => $file->getSize(),
-        ]);
-
-        return $this->videoProcessor->processWithSegmentation($file);
+        return $this->route('livestream', $file);
     }
 
     /**
-     * Route sermon video to direct processing pipeline
+     * Route sermon video to direct processing pipeline (legacy method for backward compatibility)
      * This is for sermon-only video files that don't need segmentation
      */
     public function routeSermonVideo(UploadedFile $file): ProcessingResult
     {
-        Log::info('Routing to direct sermon video processing', [
-            'filename' => $file->getClientOriginalName(),
-            'size' => $file->getSize(),
-        ]);
-
-        return $this->videoProcessor->processDirectly($file);
+        return $this->route('sermon_video', $file);
     }
 
     /**
-     * Route audio to sermon processing pipeline
+     * Route audio to sermon processing pipeline (legacy method for backward compatibility)
      * This is for direct audio uploads
      */
     public function routeAudio(UploadedFile $file): ProcessingResult
     {
-        Log::info('Routing to audio processing', [
-            'filename' => $file->getClientOriginalName(),
-            'size' => $file->getSize(),
-        ]);
-
-        return $this->sermonProcessor->processSermon($file);
+        return $this->route('audio', $file);
     }
 
     /**
-     * Get supported processing types
+     * Get supported processing types from strategy registry
      */
     public function getSupportedTypes(): array
     {
-        return [
-            'livestream' => [
-                'description' => 'Full livestream recording requiring segmentation',
-                'allowed_extensions' => ['mp4', 'mov', 'avi', 'mkv', 'webm'],
-                'max_size' => config('livestream-processing.max_file_size', 2147483648), // 2GB
-            ],
-            'sermon_video' => [
-                'description' => 'Direct sermon video file',
-                'allowed_extensions' => ['mp4', 'mov', 'avi', 'mkv', 'webm'],
-                'max_size' => config('sermon-processing.processing.max_file_size', 104857600), // 100MB
-            ],
-            'audio' => [
-                'description' => 'Audio sermon file',
-                'allowed_extensions' => ['mp3', 'wav', 'm4a', 'mp4'],
-                'max_size' => config('sermon-processing.processing.max_file_size', 104857600), // 100MB
-            ],
-        ];
+        return $this->strategyRegistry->getAllConfigurations();
     }
 
     /**
-     * Validate file for specific processing type
+     * Validate file for specific processing type using strategy
      */
     public function validateFileForType(UploadedFile $file, string $type): array
     {
-        $supportedTypes = $this->getSupportedTypes();
-
-        if (! isset($supportedTypes[$type])) {
+        try {
+            $strategy = $this->strategyRegistry->getStrategy($type);
+            return $strategy->validateFile($file);
+        } catch (UnsupportedProcessingTypeException $e) {
             return [
                 'valid' => false,
                 'errors' => ["Unsupported processing type: {$type}"],
             ];
         }
-
-        $config = $supportedTypes[$type];
-        $errors = [];
-
-        // Check file size
-        if ($file->getSize() > $config['max_size']) {
-            $maxSizeMB = round($config['max_size'] / (1024 * 1024));
-            $errors[] = "File size exceeds maximum limit of {$maxSizeMB}MB for {$type} processing";
-        }
-
-        // Check file extension
-        $extension = strtolower($file->getClientOriginalExtension());
-        if (! in_array($extension, $config['allowed_extensions'])) {
-            $allowed = implode(', ', $config['allowed_extensions']);
-            $errors[] = "File extension '{$extension}' not allowed for {$type}. Allowed: {$allowed}";
-        }
-
-        // Check file validity
-        if (! $file->isValid()) {
-            $errors[] = 'Uploaded file is corrupted or invalid';
-        }
-
-        return [
-            'valid' => empty($errors),
-            'errors' => $errors,
-        ];
     }
 
     /**
@@ -133,15 +103,10 @@ class ProcessingRouter
      */
     public function getRoutingStatistics(): array
     {
-        // This could be enhanced with actual metrics collection
         return [
-            'supported_types' => array_keys($this->getSupportedTypes()),
-            'routes_available' => [
-                'livestream' => 'VideoProcessingService::processWithSegmentation',
-                'sermon_video' => 'VideoProcessingService::processDirectly',
-                'audio' => 'SermonProcessingService::processSermon',
-            ],
-            'validation_rules' => $this->getSupportedTypes(),
+            'supported_types' => $this->strategyRegistry->getSupportedTypes(),
+            'strategies_registered' => count($this->strategyRegistry->getSupportedTypes()),
+            'configurations' => $this->strategyRegistry->getAllConfigurations(),
         ];
     }
 }

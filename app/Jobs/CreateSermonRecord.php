@@ -32,12 +32,8 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        string $processingId,
-        public readonly SermonMetadata $metadata,
-        public readonly string $storedFilePath
-    ) {
-        $this->processingId = $processingId;
-    }
+        private SermonProcessingLog $processingLog
+    ) {}
 
     /**
      * Execute the job.
@@ -47,83 +43,89 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
         $startTime = microtime(true);
 
         try {
-            $this->initializeStepLogging($this->processingId);
+            $this->initializeStepLogging($this->processingLog->processing_id);
+
+            // Validate processing log exists in database
+            if (!$this->processingLog->exists()) {
+                throw new \Exception('Processing log not found in database');
+            }
 
             // Check if processing has been cancelled
             if ($this->isCancelled()) {
-                Log::info('CreateSermonRecord job cancelled', ['processing_id' => $this->processingId]);
-
+                Log::info('CreateSermonRecord job cancelled', ['processing_id' => $this->processingLog->processing_id]);
                 return;
             }
 
             $this->logStepStart('creating', 'Creating sermon record');
             $logger->logProcessingStep(
-                $this->processingId,
+                $this->processingLog->processing_id,
                 'creating_sermon_record',
                 'started',
-                ['original_filename' => $this->metadata->originalName]
+                ['original_filename' => $this->processingLog->original_filename]
             );
 
             // Update processing log to indicate we're starting
-            $processingLog = SermonProcessingLog::where('processing_id', $this->processingId)->first();
+            $this->processingLog->markAsProcessing('creating_sermon_record');
 
-            if (! $processingLog) {
-                throw new \Exception("Processing log not found for ID: {$this->processingId}");
+            // Get AI analysis from processing log
+            $aiAnalysis = null;
+            if ($this->processingLog->ai_analysis) {
+                $aiAnalysis = json_decode($this->processingLog->ai_analysis, true);
             }
 
-            $processingLog->markAsProcessing('creating_sermon_record');
-
-            // Generate initial slug from filename
-            $initialTitle = $this->generateInitialTitle();
+            // Generate initial title from AI analysis or filename
+            $initialTitle = $this->generateInitialTitle($aiAnalysis);
             $slug = $this->generateUniqueSlug($initialTitle);
 
             // Check if this is from a livestream
-            $isFromLivestream = str_contains($processingLog->current_step ?? '', 'livestream');
+            $isFromLivestream = str_contains($this->processingLog->current_step ?? '', 'livestream');
             $livestreamProcessingId = null;
 
             if ($isFromLivestream) {
                 // Extract livestream processing ID from current_step
-                $parts = explode(':', $processingLog->current_step);
+                $parts = explode(':', $this->processingLog->current_step);
                 if (count($parts) > 1) {
                     $livestreamProcessingId = $parts[1];
                 }
             }
 
-            // Create the sermon record with 'processing' status
+            // Create the sermon record with data from AI analysis and processing log
             $sermonData = [
                 'title' => $initialTitle,
-                'filename' => $this->storedFilePath,
-                'filetype' => pathinfo($this->metadata->originalName, PATHINFO_EXTENSION),
-                'date' => $this->metadata->date,
-                'service' => $this->metadata->service,
+                'filename' => $this->processingLog->stored_file_path ?? $this->processingLog->original_filename,
+                'filetype' => pathinfo($this->processingLog->original_filename, PATHINFO_EXTENSION),
+                'date' => $this->extractDateFromFilename($this->processingLog->original_filename),
+                'service' => $this->extractServiceFromFilename($this->processingLog->original_filename),
                 'slug' => $slug,
-                'series' => null, // Will be filled by AI analysis
-                'reference' => null, // Will be filled by AI analysis
+                'series' => $aiAnalysis['series'] ?? null,
+                'reference' => $aiAnalysis['reference'] ?? null,
                 'preacher' => 'Mark Drury', // Default preacher as specified
-                'points' => null, // Will be filled by AI analysis
-                'transcript_path' => null, // Will be set after transcription
+                'points' => isset($aiAnalysis['points']) ? json_encode($aiAnalysis['points']) : null,
+                'transcript_path' => $this->processingLog->transcript_path,
             ];
 
             // Add livestream-specific fields if applicable
             if ($isFromLivestream && $livestreamProcessingId) {
                 $sermonData['source_type'] = 'livestream';
                 $sermonData['livestream_processing_id'] = $livestreamProcessingId;
-                // Note: video_file_path, segment times will be set later by SermonMetadataIntegrationService
             }
 
             $sermon = Sermon::create($sermonData);
 
             // Update processing log with sermon ID
-            $processingLog->update([
+            $this->processingLog->update([
                 'sermon_id' => $sermon->id,
                 'current_step' => 'sermon_record_created',
             ]);
+
+            // Note: Job chain will automatically dispatch the next job (TranscribeAudio)
+            // Manual dispatching removed to prevent conflicts with job chain system
 
             $executionTime = microtime(true) - $startTime;
 
             $this->logStepComplete('creating', 'Sermon record created successfully');
             $logger->logProcessingStep(
-                $this->processingId,
+                $this->processingLog->processing_id,
                 'creating_sermon_record',
                 'completed',
                 [
@@ -133,35 +135,36 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
                     'execution_time_ms' => round($executionTime * 1000, 2),
                 ]
             );
-
-            // Dispatch the next job in the chain
-            TranscribeAudio::dispatch($sermon->id)
-                ->onQueue(config('sermon-processing.processing.queue', 'default'));
         } catch (\Exception $e) {
             $executionTime = microtime(true) - $startTime;
 
             $logger->logError(
-                $this->processingId,
+                $this->processingLog->processing_id,
                 'creating_sermon_record',
                 $e,
                 ['execution_time_ms' => round($executionTime * 1000, 2)]
             );
 
             // Update processing log with error
-            if (isset($processingLog)) {
-                $processingLog->markAsFailed($e->getMessage(), 'creating_sermon_record');
-            }
+            $this->processingLog->markAsFailed($e->getMessage(), 'creating_sermon_record');
+            $this->logStepFailed('creating', $e->getMessage());
 
             throw $e;
         }
     }
 
     /**
-     * Generate an initial title from the filename
+     * Generate an initial title from AI analysis or filename
      */
-    private function generateInitialTitle(): string
+    private function generateInitialTitle(?array $aiAnalysis = null): string
     {
-        $filename = pathinfo($this->metadata->originalName, PATHINFO_FILENAME);
+        // Use AI-generated title if available
+        if ($aiAnalysis && !empty($aiAnalysis['title'])) {
+            return Str::limit($aiAnalysis['title'], 100, '');
+        }
+
+        // Fall back to filename processing
+        $filename = pathinfo($this->processingLog->original_filename, PATHINFO_FILENAME);
 
         // Remove common date patterns
         $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename);
@@ -174,13 +177,13 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
 
         // If title is empty or too short, use a default
         if (empty($title) || strlen($title) < 3) {
-            $title = 'Sermon '.$this->metadata->date->format('Y-m-d');
+            $title = 'Sermon ' . $this->processingLog->created_at->format('Y-m-d');
         }
 
         // Capitalize words properly
         $title = Str::title($title);
 
-        // Ensure it's not too long (will be replaced by AI-generated title later)
+        // Ensure it's not too long
         return Str::limit($title, 100, '');
     }
 
@@ -200,6 +203,44 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
         }
 
         return $slug;
+    }
+
+    /**
+     * Extract date from filename
+     */
+    private function extractDateFromFilename(string $filename): string
+    {
+        // Try to extract date in various formats from filename
+        if (preg_match('/(\d{4})[-_](\d{1,2})[-_](\d{1,2})/', $filename, $matches)) {
+            return $matches[1] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+        }
+
+        // Try DD-MM-YYYY format
+        if (preg_match('/(\d{1,2})[-_](\d{1,2})[-_](\d{4})/', $filename, $matches)) {
+            return $matches[3] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+        }
+
+        // Fallback to current date if no date pattern found
+        return now()->format('Y-m-d');
+    }
+
+    /**
+     * Extract service from filename
+     */
+    private function extractServiceFromFilename(string $filename): string
+    {
+        $filename = strtolower($filename);
+
+        if (str_contains($filename, 'evening')) {
+            return 'evening';
+        }
+
+        if (str_contains($filename, 'morning')) {
+            return 'morning';
+        }
+
+        // Default to morning if no service pattern found
+        return 'morning';
     }
 
     /**

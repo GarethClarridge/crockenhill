@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\VideoStorageServiceInterface;
 use App\Data\LivestreamSegment;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class VideoStorageService
+class VideoStorageService implements VideoStorageServiceInterface
 {
     private FFMpeg $ffmpeg;
 
@@ -33,7 +34,7 @@ class VideoStorageService
         ]);
 
         $this->tempDisk = config('livestream-processing.temp_disk', 'local');
-        $this->permanentDisk = config('livestream-processing.sermon_disk', 'local');
+        $this->permanentDisk = config('livestream-processing.sermon_disk', 'public');
         $this->videoPath = config('livestream-processing.storage.video_path', 'sermons/videos');
         $this->audioPath = config('livestream-processing.storage.audio_path', 'sermons/audio');
         $this->videoExtractor = $videoExtractor;
@@ -254,5 +255,37 @@ class VideoStorageService
     public function audioExists(string $audioPath): bool
     {
         return Storage::disk($this->permanentDisk)->exists($audioPath);
+    }
+
+    // Interface implementation methods
+
+    /**
+     * Store uploaded file temporarily for processing
+     */
+    public function storeTemporary(UploadedFile $file): array
+    {
+        return $this->storeUploadedVideo($file);
+    }
+
+    /**
+     * Move processed file to permanent storage
+     */
+    public function moveToPermanent(array $uploadResult): string
+    {
+        // Extract processing ID or create a slug from the uploaded file
+        $processingId = $uploadResult['processing_id'] ?? Str::uuid();
+        $sermonSlug = $uploadResult['sermon_slug'] ?? 'sermon-' . $processingId;
+
+        $result = $this->moveToSermonStorage($uploadResult['temp_path'], $sermonSlug);
+        return $result['video_path'];
+    }
+
+
+    /**
+     * Clean up temporary files and processing artifacts
+     */
+    public function cleanup(string $processingId): void
+    {
+        $this->cleanupTemporaryFiles($processingId);
     }
 }

@@ -31,7 +31,7 @@ class SendCompletionNotification implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public readonly int $sermonId
+        private SermonProcessingLog $processingLog
     ) {}
 
     /**
@@ -41,58 +41,50 @@ class SendCompletionNotification implements ShouldQueue
     {
         try {
             Log::info('Starting completion notification', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            // Get the sermon record
-            $sermon = Sermon::find($this->sermonId);
-            if (! $sermon) {
-                throw new \Exception("Sermon not found with ID: {$this->sermonId}");
-            }
-
-            // Get the processing log
-            /** @var \App\Models\SermonProcessingLog|null $processingLog */
-            $processingLog = $sermon->processingLogs()->latest()->first();
-            if (! $processingLog) {
-                throw new \Exception("Processing log not found for sermon ID: {$this->sermonId}");
-            }
-
             // Update processing log to indicate notification started
-            $processingLog->updateStep('sending_notification');
+            $this->processingLog->updateStep('sending_notification');
+
+            // Get the sermon record if it was created
+            $sermon = null;
+            if ($this->processingLog->sermon_id) {
+                $sermon = Sermon::find($this->processingLog->sermon_id);
+            }
 
             // Prepare notification data
-            $notificationData = $this->prepareNotificationData($sermon, $processingLog);
+            $notificationData = $this->prepareNotificationData($sermon, $this->processingLog);
 
             // Send notifications to administrators
             $this->sendNotifications($notificationData);
 
             // Update final processing log status
-            $processingLog->updateStep('notification_sent');
+            $this->processingLog->updateStep('notification_sent');
 
             Log::info('Completion notification sent successfully', [
-                'sermon_id' => $this->sermonId,
-                'sermon_title' => $sermon->title,
-                'processing_status' => $processingLog->status->value,
+                'processing_id' => $this->processingLog->processing_id,
+                'sermon_id' => $this->processingLog->sermon_id,
+                'sermon_title' => $sermon?->title ?? 'N/A',
+                'processing_status' => $this->processingLog->status->value,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to send completion notification', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             // Don't fail the entire processing chain for notification failures
             // Just log the error and mark as completed
-            if (isset($processingLog)) {
-                $processingLog->update([
-                    'current_step' => 'notification_failed',
-                    'error_message' => 'Notification failed: '.$e->getMessage(),
-                ]);
-            }
+            $this->processingLog->update([
+                'current_step' => 'notification_failed',
+                'error_message' => 'Notification failed: ' . $e->getMessage(),
+            ]);
 
             // Don't re-throw the exception to avoid failing the job chain
             Log::warning('Continuing despite notification failure', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
             ]);
         }
     }
@@ -100,21 +92,24 @@ class SendCompletionNotification implements ShouldQueue
     /**
      * Prepare notification data
      */
-    private function prepareNotificationData(Sermon $sermon, SermonProcessingLog $processingLog): array
+    private function prepareNotificationData(?Sermon $sermon, SermonProcessingLog $processingLog): array
     {
-        $sermonUrl = url("/christ/sermons/{$sermon->slug}");
-        $adminUrl = url("/admin/sermons/{$sermon->id}");
+        $sermonUrl = $sermon ? url("/christ/sermons/{$sermon->slug}") : null;
+        $adminUrl = $sermon ? url("/admin/sermons/{$sermon->id}") : null;
 
-        $processingDuration = $processingLog->created_at->diffForHumans($processingLog->updated_at);
+        $endTime = $processingLog->updated_at ?? now();
+        $startTime = $processingLog->created_at ?? now();
+        $processingDuration = $startTime->diffForHumans($endTime);
 
         $hasErrors = ! empty($processingLog->error_message);
         $requiresReview = $hasErrors ||
-          empty($sermon->series) ||
+          ($sermon && (empty($sermon->series) ||
           empty($sermon->reference) ||
-          str_contains(strtolower($sermon->title), 'untitled');
+          str_contains(strtolower($sermon->title), 'untitled')));
 
-        return [
-            'sermon' => [
+        $sermonData = null;
+        if ($sermon) {
+            $sermonData = [
                 'id' => $sermon->id,
                 'title' => $sermon->title,
                 'date' => $sermon->date->format('F j, Y'),
@@ -126,7 +121,11 @@ class SendCompletionNotification implements ShouldQueue
                 'has_transcript' => $sermon->hasTranscript(),
                 'url' => $sermonUrl,
                 'admin_url' => $adminUrl,
-            ],
+            ];
+        }
+
+        return [
+            'sermon' => $sermonData,
             'processing' => [
                 'id' => $processingLog->processing_id,
                 'status' => $processingLog->status->label(),
@@ -136,7 +135,7 @@ class SendCompletionNotification implements ShouldQueue
                 'error_message' => $processingLog->error_message,
                 'requires_review' => $requiresReview,
             ],
-            'review_items' => $this->getReviewItems($sermon, $processingLog),
+            'review_items' => $sermon ? $this->getReviewItems($sermon, $processingLog) : [],
         ];
     }
 
@@ -187,7 +186,7 @@ class SendCompletionNotification implements ShouldQueue
 
         if (empty($adminUsers)) {
             Log::warning('No admin users found for notification', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
             ]);
 
             return;
@@ -198,12 +197,12 @@ class SendCompletionNotification implements ShouldQueue
                 $this->sendEmailNotification($admin, $data);
 
                 Log::info('Notification sent to admin', [
-                    'sermon_id' => $this->sermonId,
+                    'processing_id' => $this->processingLog->processing_id,
                     'admin_email' => $admin->email,
                 ]);
             } catch (\Exception $e) {
                 Log::error('Failed to send notification to admin', [
-                    'sermon_id' => $this->sermonId,
+                    'processing_id' => $this->processingLog->processing_id,
                     'admin_email' => $admin->email,
                     'error' => $e->getMessage(),
                 ]);

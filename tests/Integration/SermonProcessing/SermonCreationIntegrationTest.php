@@ -33,11 +33,13 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
         $processing = SermonProcessingLog::create([
             'processing_id' => 'test-id',
             'original_filename' => 'test.mp3',
+            'stored_file_path' => $audioFile,
+            'ai_analysis' => json_encode(['title' => 'Test Sermon Title']),
             'status' => ProcessingStatus::PENDING,
         ]);
 
         // Execute job directly (would catch property access errors)
-        $job = new CreateSermonRecord('test-id', $metadata, $audioFile);
+        $job = new CreateSermonRecord($processing);
         $job->handle(app(\App\Services\SermonProcessingLogger::class));
 
         // Verify sermon created without errors
@@ -133,11 +135,13 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
         $processing = SermonProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => $metadata->originalName,
+            'stored_file_path' => $audioFile,
+            'ai_analysis' => json_encode(['title' => 'Integration Test Sermon']),
             'status' => ProcessingStatus::PENDING,
         ]);
 
         // Step 1: Create sermon record
-        $createJob = new CreateSermonRecord($processingId, $metadata, $audioFile);
+        $createJob = new CreateSermonRecord($processing);
         $createJob->handle(app(\App\Services\SermonProcessingLogger::class));
 
         $processing->refresh();
@@ -147,8 +151,8 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
         $this->assertNotNull($sermon);
 
         // Step 2: Process transcript with AI (if transcript exists)
-        if ($sermon->transcript_path) {
-            $aiJob = new ProcessTranscriptWithAI($sermon->id);
+        if ($processing->transcript_path) {
+            $aiJob = new ProcessTranscriptWithAI($processing);
             $aiJob->handle(app(\App\Services\SermonAnalysisService::class));
 
             $processing->refresh();

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Data\SermonAnalysis;
 use App\Models\Sermon;
+use App\Models\SermonProcessingLog;
 use App\Services\SermonAnalysisService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -29,7 +30,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public readonly int $sermonId
+        private SermonProcessingLog $processingLog
     ) {}
 
     /**
@@ -39,43 +40,37 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
     {
         try {
             Log::info('Starting AI transcript processing', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            // Get the sermon record
-            $sermon = Sermon::find($this->sermonId);
-            if (! $sermon) {
-                throw new \Exception("Sermon not found with ID: {$this->sermonId}");
-            }
-
-            // Get the processing log
-            /** @var \App\Models\SermonProcessingLog|null $processingLog */
-            $processingLog = $sermon->processingLogs()->latest()->first();
-            if (! $processingLog) {
-                throw new \Exception("Processing log not found for sermon ID: {$this->sermonId}");
-            }
-
-            $this->initializeStepLogging($processingLog->processing_id);
+            // Initialize step logging
+            $this->initializeStepLogging($this->processingLog->processing_id);
 
             // Check if processing has been cancelled
             if ($this->isCancelled()) {
-                Log::info('AI processing job cancelled', ['sermon_id' => $this->sermonId]);
-
+                Log::info('AI processing job cancelled', ['processing_id' => $this->processingLog->processing_id]);
                 return;
             }
 
             // Log step start and update processing log
             $this->logStepStart('analyzing', 'Starting AI analysis');
-            $processingLog->updateStep('analyzing_transcript');
+            $this->processingLog->updateStep('analyzing_transcript');
 
-            // Get the transcript content
-            $transcript = $sermon->transcript;
+            // Get the transcript content from processing log
+            $transcriptPath = $this->processingLog->transcript_path;
+            if (empty($transcriptPath)) {
+                throw new \Exception("No transcript path available in processing log: {$this->processingLog->processing_id}");
+            }
+
+            // Read transcript content
+            $transcript = \Illuminate\Support\Facades\Storage::get($transcriptPath);
             if (empty($transcript)) {
-                throw new \Exception("No transcript available for sermon ID: {$this->sermonId}");
+                throw new \Exception("Transcript file is empty or unreadable: {$transcriptPath}");
             }
 
             Log::info('Processing transcript with AI', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
+                'transcript_path' => $transcriptPath,
                 'transcript_length' => strlen($transcript),
                 'word_count' => str_word_count($transcript),
             ]);
@@ -91,49 +86,44 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 throw new \Exception('AI analysis produced invalid results');
             }
 
+            // Store analysis results in processing log
+            $this->processingLog->update([
+                'ai_analysis' => json_encode($analysis->toArray()),
+            ]);
+
             // Update processing log and mark step as complete
-            $processingLog->updateStep('ai_analysis_completed');
+            $this->processingLog->updateStep('ai_analysis_completed');
             $this->logStepComplete('analyzing', 'AI analysis completed successfully');
 
             Log::info('AI transcript processing completed successfully', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
                 'analysis_summary' => $analysis->getSummary(),
             ]);
-
-            // Dispatch the next job in the chain
-            UpdateSermonRecord::dispatch($this->sermonId)
-                ->onQueue(config('sermon-processing.processing.queue', 'default'));
         } catch (\Exception $e) {
             Log::error('Failed to process transcript with AI', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             // Handle graceful degradation - create fallback analysis
-            $fallbackAnalysis = $this->createFallbackAnalysis($sermon);
+            $fallbackAnalysis = $this->createFallbackAnalysis();
 
             if ($fallbackAnalysis) {
                 Log::info('Created fallback analysis after AI failure', [
-                    'sermon_id' => $this->sermonId,
-                    'fallback_title' => $fallbackAnalysis->title,
+                    'processing_id' => $this->processingLog->processing_id,
+                    'fallback_title' => $fallbackAnalysis->title ?? 'Untitled Sermon',
                 ]);
 
-                // Update processing log to indicate fallback was used
-                if (isset($processingLog)) {
-                    $processingLog->updateStep('ai_analysis_fallback');
-                }
-
-                // Continue the chain even with fallback analysis
-                UpdateSermonRecord::dispatch($this->sermonId)
-                    ->onQueue(config('sermon-processing.processing.queue', 'default'));
+                // Store fallback analysis and update processing log
+                $this->processingLog->update([
+                    'ai_analysis' => json_encode($fallbackAnalysis->toArray()),
+                ]);
+                $this->processingLog->updateStep('ai_analysis_fallback');
             } else {
                 // Update processing log with error and log step failure
-                if (isset($processingLog)) {
-                    $processingLog->markAsFailed($e->getMessage(), 'analyzing_transcript');
-                    $this->logStepFailed('analyzing', $e->getMessage());
-                }
-
+                $this->processingLog->markAsFailed($e->getMessage(), 'analyzing_transcript');
+                $this->logStepFailed('analyzing', $e->getMessage());
                 throw $e;
             }
         }
@@ -164,20 +154,24 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
     /**
      * Create fallback analysis when AI processing fails
      */
-    private function createFallbackAnalysis(Sermon $sermon): ?SermonAnalysis
+    private function createFallbackAnalysis(): ?SermonAnalysis
     {
         try {
-            Log::info('Creating fallback analysis', ['sermon_id' => $sermon->id]);
+            Log::info('Creating fallback analysis', ['processing_id' => $this->processingLog->processing_id]);
 
-            // Generate basic title from existing sermon title or filename
-            $fallbackTitle = $this->generateFallbackTitle($sermon);
+            // Generate basic title from original filename
+            $fallbackTitle = $this->generateFallbackTitle();
 
-            // Get transcript content
-            $transcript = $sermon->transcript ?? '';
+            // Get transcript content from file
+            $transcriptPath = $this->processingLog->transcript_path;
+            if (empty($transcriptPath)) {
+                Log::warning('No transcript path available for fallback analysis');
+                return null;
+            }
 
+            $transcript = \Illuminate\Support\Facades\Storage::get($transcriptPath);
             if (empty($transcript)) {
-                Log::warning('No transcript available for fallback analysis');
-
+                Log::warning('No transcript content available for fallback analysis');
                 return null;
             }
 
@@ -194,7 +188,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             return $analysis;
         } catch (\Exception $e) {
             Log::error('Failed to create fallback analysis', [
-                'sermon_id' => $sermon->id,
+                'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
             ]);
 
@@ -205,16 +199,12 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
     /**
      * Generate a fallback title when AI processing fails
      */
-    private function generateFallbackTitle(Sermon $sermon): string
+    private function generateFallbackTitle(): string
     {
-        // Try to use existing title if it's not the default
-        if (! empty($sermon->title) && ! str_contains(strtolower($sermon->title), 'sermon')) {
-            return $sermon->title;
-        }
-
-        // Generate from filename
-        if (! empty($sermon->filename)) {
-            $filename = pathinfo($sermon->filename, PATHINFO_FILENAME);
+        // Generate from original filename
+        $originalFilename = $this->processingLog->original_filename;
+        if (! empty($originalFilename)) {
+            $filename = pathinfo($originalFilename, PATHINFO_FILENAME);
             $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename);
             $title = preg_replace('/[-_]+/', ' ', $title);
             $title = trim($title);
@@ -224,8 +214,8 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             }
         }
 
-        // Final fallback using date
-        return 'Sermon - '.$sermon->date->format('F j, Y');
+        // Final fallback using processing date
+        return 'Sermon - ' . $this->processingLog->created_at->format('F j, Y');
     }
 
     /**
@@ -234,48 +224,36 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error('ProcessTranscriptWithAI job failed permanently', [
-            'sermon_id' => $this->sermonId,
+            'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);
 
         // Try to create fallback analysis one more time
         try {
-            $sermon = Sermon::find($this->sermonId);
-            if ($sermon) {
-                $fallbackAnalysis = $this->createFallbackAnalysis($sermon);
+            $fallbackAnalysis = $this->createFallbackAnalysis();
 
-                if ($fallbackAnalysis) {
-                    Log::info('Created fallback analysis in failed() method', [
-                        'sermon_id' => $this->sermonId,
-                    ]);
+            if ($fallbackAnalysis) {
+                Log::info('Created fallback analysis in failed() method', [
+                    'processing_id' => $this->processingLog->processing_id,
+                ]);
 
-                    // Mark as completed with fallback data
-                    /** @var \App\Models\SermonProcessingLog|null $processingLog */
-                    $processingLog = $sermon->processingLogs()->latest()->first();
-                    if ($processingLog) {
-                        $processingLog->updateStep('ai_analysis_fallback_final');
-                    }
-
-                    return;
-                }
+                // Store fallback analysis and mark as completed with fallback data
+                $this->processingLog->update([
+                    'ai_analysis' => json_encode($fallbackAnalysis->toArray()),
+                ]);
+                $this->processingLog->updateStep('ai_analysis_fallback_final');
+                return;
             }
         } catch (\Exception $e) {
             Log::error('Failed to create fallback analysis in failed() method', [
-                'sermon_id' => $this->sermonId,
+                'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
             ]);
         }
 
         // Mark processing as failed if fallback also failed
-        $sermon = Sermon::find($this->sermonId);
-        if ($sermon) {
-            /** @var \App\Models\SermonProcessingLog|null $processingLog */
-            $processingLog = $sermon->processingLogs()->latest()->first();
-            if ($processingLog) {
-                $processingLog->markAsFailed($exception->getMessage(), 'analyzing_transcript_failed');
-            }
-        }
+        $this->processingLog->markAsFailed($exception->getMessage(), 'analyzing_transcript_failed');
     }
 
     /**

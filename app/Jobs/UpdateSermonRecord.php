@@ -90,9 +90,19 @@ class UpdateSermonRecord implements ShouldQueue
                 'points_count' => count($sermon->points ?? []),
             ]);
 
-            // Dispatch the final job in the chain
-            SendCompletionNotification::dispatch($this->sermonId)
-                ->onQueue(config('sermon-processing.processing.queue', 'default'));
+            // Find the processing log for this sermon to dispatch notification
+            $processingLog = \App\Models\SermonProcessingLog::where('sermon_id', $this->sermonId)
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($processingLog) {
+                SendCompletionNotification::dispatch($processingLog)
+                    ->onQueue(config('sermon-processing.processing.queue', 'default'));
+            } else {
+                Log::warning('No processing log found for sermon completion notification', [
+                    'sermon_id' => $this->sermonId
+                ]);
+            }
         } catch (\Exception $e) {
             Log::error('Failed to update sermon record', [
                 'sermon_id' => $this->sermonId,

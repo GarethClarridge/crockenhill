@@ -3,15 +3,15 @@
 namespace App\Jobs;
 
 use App\Models\LivestreamProcessingLog;
+use App\Models\Sermon;
 use App\Services\SermonMetadataIntegrationService;
-use App\Services\SermonProcessingService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SubmitToProcessing implements ShouldQueue
 {
@@ -26,14 +26,13 @@ class SubmitToProcessing implements ShouldQueue
     ) {}
 
     public function handle(
-        SermonProcessingService $sermonProcessingService,
         SermonMetadataIntegrationService $metadataIntegrationService
     ): void {
         try {
-            // Update status to show transcription processing is starting
-            $this->processingLog->update(['status' => 'transcription']);
+            // Update status to show sermon processing is starting
+            $this->processingLog->update(['status' => 'processing']);
 
-            Log::info('Starting sermon processing submission', [
+            Log::info('Starting sermon creation from livestream', [
                 'processing_id' => $this->processingLog->processing_id,
                 'audio_path' => $this->processingLog->sermon_audio_path,
             ]);
@@ -47,22 +46,84 @@ class SubmitToProcessing implements ShouldQueue
             $audioPath = Storage::disk($sermonDisk)
                 ->path($this->processingLog->sermon_audio_path);
 
+            Log::info('Checking for audio file', [
+                'processing_id' => $this->processingLog->processing_id,
+                'sermon_audio_path' => $this->processingLog->sermon_audio_path,
+                'sermon_disk' => $sermonDisk,
+                'resolved_audio_path' => $audioPath,
+                'disk_root_path' => Storage::disk($sermonDisk)->path(''),
+                'livestream_config' => [
+                    'storage_disk' => config('livestream-processing.storage_disk'),
+                    'sermon_disk' => config('livestream-processing.sermon_disk'),
+                    'temp_disk' => config('livestream-processing.temp_disk'),
+                    'audio_path' => config('livestream-processing.storage.audio_path'),
+                ],
+            ]);
+
             if (! file_exists($audioPath)) {
-                throw new \Exception('Sermon audio file not found: '.$audioPath);
+                // Additional diagnostics
+                $diskExists = Storage::disk($sermonDisk)->exists($this->processingLog->sermon_audio_path);
+                $alternativeFiles = [];
+                $parentDirs = [];
+
+                // Look for files in the expected directory
+                $expectedDir = dirname($this->processingLog->sermon_audio_path);
+                try {
+                    if (Storage::disk($sermonDisk)->exists($expectedDir)) {
+                        $alternativeFiles = Storage::disk($sermonDisk)->files($expectedDir);
+                    }
+
+                    // Also check parent directories for diagnostic purposes
+                    $parentDirs = [
+                        'sermons' => Storage::disk($sermonDisk)->exists('sermons') ? Storage::disk($sermonDisk)->files('sermons') : [],
+                        'sermons/audio' => Storage::disk($sermonDisk)->exists('sermons/audio') ? Storage::disk($sermonDisk)->files('sermons/audio') : [],
+                    ];
+                } catch (\Exception $e) {
+                    Log::warning('Could not list files in expected directory', [
+                        'directory' => $expectedDir,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                // Check if there are any similar files with the same processing ID
+                $processingUuid = explode('_', basename($this->processingLog->sermon_audio_path))[0] ?? '';
+                $similarFiles = [];
+                if ($processingUuid) {
+                    try {
+                        $allFiles = Storage::disk($sermonDisk)->allFiles('sermons');
+                        $similarFiles = array_filter($allFiles, fn($file) => str_contains($file, $processingUuid));
+                    } catch (\Exception $e) {
+                        Log::warning('Could not search for similar files', [
+                            'processing_uuid' => $processingUuid,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                Log::error('Sermon audio file not found - detailed diagnostics', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'expected_path' => $audioPath,
+                    'relative_path' => $this->processingLog->sermon_audio_path,
+                    'disk_exists_check' => $diskExists,
+                    'files_in_expected_dir' => $alternativeFiles,
+                    'parent_directory_contents' => $parentDirs,
+                    'similar_files_found' => $similarFiles,
+                    'processing_log_status' => $this->processingLog->status,
+                    'processing_log_error' => $this->processingLog->error_message,
+                    'config_diagnostics' => [
+                        'sermon_processing_disk' => config('sermon-processing.storage.disk'),
+                        'livestream_sermon_disk' => config('livestream-processing.sermon_disk'),
+                        'disk_mismatch' => config('sermon-processing.storage.disk') !== config('livestream-processing.sermon_disk'),
+                    ],
+                ]);
+
+                throw new \Exception('Sermon audio file not found: '.$audioPath.' - Check logs for detailed diagnostics');
             }
 
             // Validate that the file is accessible via the public disk for web serving
             if ($sermonDisk === 'public' && ! Storage::disk('public')->exists($this->processingLog->sermon_audio_path)) {
                 throw new \Exception('Sermon audio file not accessible via public disk: '.$this->processingLog->sermon_audio_path);
             }
-
-            $uploadedFile = new UploadedFile(
-                $audioPath,
-                basename($audioPath),
-                'audio/mp3',
-                null,
-                true
-            );
 
             $metadata = [
                 'source_type' => 'livestream',
@@ -73,33 +134,43 @@ class SubmitToProcessing implements ShouldQueue
                 'video_file_path' => $this->processingLog->sermon_video_path,
             ];
 
-            $result = $sermonProcessingService->processSermonAudio($uploadedFile, $metadata);
+            // Inline sermon creation logic - no longer calling external service
+            $sermon = $this->createSermonFromLivestream($metadata);
+            $sermonId = $sermon->id;
+
+            // Update this processing log with the sermon ID immediately
+            $this->processingLog->update(['sermon_id' => $sermonId]);
+
+            Log::info('Created sermon record directly from livestream', [
+                'processing_id' => $this->processingLog->processing_id,
+                'sermon_id' => $sermonId,
+                'sermon_title' => $sermon->title,
+            ]);
 
             // Store video in permanent location
             $finalVideoPath = $metadataIntegrationService->storeVideoForSermon(
                 $this->processingLog->processing_id,
-                $result['sermon_id']
+                $sermonId
             );
 
             // Link video to sermon record
             $metadataIntegrationService->linkVideoToSermon(
                 $this->processingLog->processing_id,
-                $result['sermon_id'],
+                $sermonId,
                 $finalVideoPath
             );
 
-            // Dispatch thumbnail generation job after sermon creation
-            // Use the final video path for thumbnail generation
-            $this->dispatchThumbnailGeneration($result['sermon_id'], $finalVideoPath);
+            // Note: Thumbnail generation will be handled by the next job in the chain
+            // Store video path in processing metadata for thumbnail generation job
 
             // Validate that the sermon record has a valid audio file path
-            if ($result['sermon_id']) {
-                $sermon = \App\Models\Sermon::find($result['sermon_id']);
+            if ($sermonId) {
+                $sermon = \App\Models\Sermon::find($sermonId);
                 if ($sermon && $sermon->filename) {
                     // Verify the audio file is accessible for web serving
                     if (! Storage::disk('public')->exists($sermon->filename)) {
                         Log::warning('Sermon audio file may not be web-accessible', [
-                            'sermon_id' => $result['sermon_id'],
+                            'sermon_id' => $sermonId,
                             'filename' => $sermon->filename,
                             'processing_id' => $this->processingLog->processing_id,
                         ]);
@@ -108,35 +179,33 @@ class SubmitToProcessing implements ShouldQueue
             }
 
             $this->processingLog->update([
-                'sermon_id' => $result['sermon_id'],
-                'status' => 'completed',
-                'completed_at' => now(),
+                'sermon_id' => $sermonId,
+                'status' => 'transcription',
                 'processing_metadata' => array_merge(
                     $this->processingLog->processing_metadata ?? [],
                     [
-                        'sermon_processing_id' => $result['processing_id'],
                         'final_video_path' => $finalVideoPath,
+                        'sermon_creation_completed_at' => now()->toISOString(),
                     ]
                 ),
             ]);
 
-            Log::info('Sermon processing submission completed', [
+            Log::info('Sermon creation from livestream completed', [
                 'processing_id' => $this->processingLog->processing_id,
-                'sermon_id' => $result['sermon_id'],
-                'sermon_processing_id' => $result['processing_id'],
+                'sermon_id' => $sermonId,
                 'final_video_path' => $finalVideoPath,
             ]);
 
-            // Job chain will automatically proceed to cleanup job
+            // Job chain will automatically proceed to transcription job
 
         } catch (\Exception $e) {
-            Log::error('Sermon processing submission failed', [
+            Log::error('Sermon creation from livestream failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $errorMessage = 'Sermon processing submission failed: '.$e->getMessage();
+            $errorMessage = 'Sermon creation from livestream failed: '.$e->getMessage();
 
             $this->processingLog->update([
                 'status' => 'failed',
@@ -159,10 +228,123 @@ class SubmitToProcessing implements ShouldQueue
         ]);
 
         $this->processingLog->markAsFailed(
-            'Sermon processing submission failed after '.$this->tries.' attempts: '.$exception->getMessage()
+            'Sermon creation from livestream failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
 
         // Cleanup will be handled by the chain failure handler
+    }
+
+    /**
+     * Create sermon record directly from livestream metadata
+     */
+    private function createSermonFromLivestream(array $metadata): Sermon
+    {
+        // Extract metadata from filename and livestream context
+        $originalFilename = $metadata['original_filename'] ?? $this->processingLog->original_filename;
+
+        $sermonData = [
+            'title' => $this->generateTitleFromMetadata($metadata),
+            'filename' => $this->processingLog->sermon_audio_path,
+            'filetype' => pathinfo($originalFilename, PATHINFO_EXTENSION) ?: 'mp3',
+            'date' => $this->extractDateFromFilename($originalFilename),
+            'service' => $this->extractServiceFromFilename($originalFilename),
+            'slug' => $this->generateUniqueSlug($this->generateTitleFromMetadata($metadata)),
+            'preacher' => 'Mark Drury', // Default as per existing logic
+            'source_type' => 'livestream',
+            'livestream_processing_id' => $metadata['livestream_processing_id'],
+        ];
+
+        return Sermon::create($sermonData);
+    }
+
+    /**
+     * Generate title from metadata
+     */
+    private function generateTitleFromMetadata(array $metadata): string
+    {
+        $originalFilename = $metadata['original_filename'] ?? $this->processingLog->original_filename;
+
+        if (empty($originalFilename)) {
+            return 'Sermon - ' . now()->format('F j, Y');
+        }
+
+        $filename = pathinfo($originalFilename, PATHINFO_FILENAME);
+
+        // Remove common date patterns
+        $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename);
+        $title = preg_replace('/\d{1,2}[-_]\d{1,2}[-_]\d{4}/', '', $title);
+
+        // Remove common sermon-related words and clean up
+        $title = preg_replace('/\b(sermon|message|service|am|pm)\b/i', '', $title);
+        $title = preg_replace('/[-_]+/', ' ', $title);
+        $title = trim($title);
+
+        // If title is empty or too short, use a default
+        if (empty($title) || strlen($title) < 3) {
+            $date = $this->extractDateFromFilename($originalFilename);
+            $service = $this->extractServiceFromFilename($originalFilename);
+            $serviceLabel = $service === 'evening' ? 'Evening' : 'Morning';
+            $title = $serviceLabel . ' Sermon - ' . date('F j, Y', strtotime($date));
+        }
+
+        // Capitalize words properly
+        return Str::title($title);
+    }
+
+    /**
+     * Extract date from filename
+     */
+    private function extractDateFromFilename(string $filename): string
+    {
+        // Try to extract date in various formats from filename
+        if (preg_match('/(\d{4})[-_](\d{1,2})[-_](\d{1,2})/', $filename, $matches)) {
+            return $matches[1] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+        }
+
+        // Try DD-MM-YYYY format
+        if (preg_match('/(\d{1,2})[-_](\d{1,2})[-_](\d{4})/', $filename, $matches)) {
+            return $matches[3] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+        }
+
+        // Fallback to current date if no date pattern found
+        return now()->format('Y-m-d');
+    }
+
+    /**
+     * Extract service from filename
+     */
+    private function extractServiceFromFilename(string $filename): string
+    {
+        $filename = strtolower($filename);
+
+        if (str_contains($filename, 'evening')) {
+            return 'evening';
+        }
+
+        if (str_contains($filename, 'morning')) {
+            return 'morning';
+        }
+
+        // Default to morning if no service pattern found
+        return 'morning';
+    }
+
+    /**
+     * Generate a unique slug for the sermon
+     */
+    private function generateUniqueSlug(string $title): string
+    {
+        $baseSlug = Str::slug($title);
+        $slug = $baseSlug;
+        $counter = 1;
+
+        // Ensure slug is unique
+        while (Sermon::where('slug', $slug)->exists()) {
+            $slug = $baseSlug.'-'.$counter;
+            $counter++;
+        }
+
+        return $slug;
     }
 
     public function retryUntil(): \DateTime
@@ -170,54 +352,4 @@ class SubmitToProcessing implements ShouldQueue
         return now()->addHours(2);
     }
 
-    /**
-     * Dispatch thumbnail generation job for the created sermon
-     */
-    private function dispatchThumbnailGeneration(int $sermonId, string $videoPath): void
-    {
-        try {
-            // Check if thumbnail generation is enabled
-            if (! config('thumbnail-generation.enabled', true)) {
-                Log::info('Thumbnail generation disabled, skipping', [
-                    'sermon_id' => $sermonId,
-                ]);
-
-                return;
-            }
-
-            // Get the full path to the video file
-            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
-            $fullVideoPath = Storage::disk($sermonDisk)->path($videoPath);
-
-            // Verify video file exists before dispatching job
-            if (! file_exists($fullVideoPath)) {
-                Log::warning('Video file not found for thumbnail generation', [
-                    'sermon_id' => $sermonId,
-                    'video_path' => $videoPath,
-                    'full_path' => $fullVideoPath,
-                ]);
-
-                return;
-            }
-
-            // Dispatch thumbnail generation job to dedicated queue
-            GenerateThumbnail::dispatch($sermonId, $fullVideoPath)
-                ->onQueue(config('thumbnail-generation.queue.name', 'thumbnails'));
-
-            Log::info('Thumbnail generation job dispatched', [
-                'sermon_id' => $sermonId,
-                'video_path' => $fullVideoPath,
-                'processing_id' => $this->processingLog->processing_id,
-            ]);
-
-        } catch (\Exception $e) {
-            // Log error but don't throw - thumbnail generation should never block processing
-            Log::warning('Failed to dispatch thumbnail generation job', [
-                'sermon_id' => $sermonId,
-                'video_path' => $videoPath,
-                'error' => $e->getMessage(),
-                'processing_id' => $this->processingLog->processing_id,
-            ]);
-        }
-    }
 }

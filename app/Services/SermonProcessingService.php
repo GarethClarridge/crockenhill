@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\SermonProcessingServiceInterface;
 use App\Data\SermonMetadata;
 use App\Enums\ProcessingStatus;
 use App\Jobs\CreateSermonRecord;
@@ -11,12 +12,13 @@ use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\Sermon;
 use App\Models\SermonProcessingLog;
+use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class SermonProcessingService
+class SermonProcessingService implements SermonProcessingServiceInterface
 {
     protected SermonProcessingLogger $logger;
 
@@ -100,10 +102,17 @@ class SermonProcessingService
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
                 'livestream_processing_id' => $livestreamMetadata['livestream_processing_id'] ?? null,
+                'source_type' => $livestreamMetadata['source_type'] ?? 'direct_upload',
             ]);
 
-            // Generate unique processing ID
-            $processingId = $this->generateProcessingId();
+            // Use livestream processing ID if provided, otherwise generate new one
+            $processingId = $livestreamMetadata['livestream_processing_id'] ?? $this->generateProcessingId();
+
+            Log::info('Processing ID resolved', [
+                'processing_id' => $processingId,
+                'from_livestream' => isset($livestreamMetadata['livestream_processing_id']),
+                'livestream_id' => $livestreamMetadata['livestream_processing_id'] ?? null,
+            ]);
 
             // Validate the uploaded file
             $this->validateAudioFile($file);
@@ -116,8 +125,28 @@ class SermonProcessingService
                 $metadata = $metadata->withOriginalName($livestreamMetadata['original_filename']);
             }
 
-            // Store the audio file securely
-            $storedFilePath = $this->storeAudioFile($file, $metadata);
+            // Handle file storage differently for livestream vs direct uploads
+            if ($this->isLivestreamAudio($livestreamMetadata)) {
+                // For livestream audio, the file is already in the correct location
+                // Convert absolute path to relative path for storage
+                $absolutePath = $file->getRealPath();
+                $storedFilePath = $this->convertAbsoluteToRelativePath($absolutePath);
+
+                Log::info('Using existing livestream audio file', [
+                    'processing_id' => $processingId,
+                    'absolute_path' => $absolutePath,
+                    'relative_path' => $storedFilePath,
+                    'livestream_processing_id' => $livestreamMetadata['livestream_processing_id'] ?? null,
+                ]);
+            } else {
+                // Store the audio file securely for direct uploads
+                $storedFilePath = $this->storeAudioFile($file, $metadata);
+
+                Log::info('Stored new audio file', [
+                    'processing_id' => $processingId,
+                    'stored_path' => $storedFilePath,
+                ]);
+            }
 
             // Create initial processing log with livestream context
             $processingLog = $this->createProcessingLogWithLivestreamContext(
@@ -126,20 +155,11 @@ class SermonProcessingService
                 $livestreamMetadata
             );
 
-            // Execute sermon processing synchronously for livestream integration
-            $sermon = $this->processSynchronously($processingId, $metadata, $storedFilePath, $livestreamMetadata);
+            // Execute sermon processing asynchronously using job chains
+            $this->dispatchProcessingJobs($processingLog, $storedFilePath, $metadata, $livestreamMetadata);
 
-            // Update processing log to completed status
-            $processingLog->update([
-                'status' => ProcessingStatus::COMPLETED,
-                'current_step' => 'processing_complete',
-                'sermon_id' => $sermon->id,
-                'completed_at' => now(),
-            ]);
-
-            Log::info('Livestream sermon processing completed successfully', [
+            Log::info('Livestream sermon processing initiated successfully', [
                 'processing_id' => $processingId,
-                'sermon_id' => $sermon->id,
                 'stored_file_path' => $storedFilePath,
                 'livestream_processing_id' => $livestreamMetadata['livestream_processing_id'] ?? null,
             ]);
@@ -147,15 +167,10 @@ class SermonProcessingService
             return [
                 'success' => true,
                 'processing_id' => $processingId,
-                'sermon_id' => $sermon->id,
-                'message' => 'Livestream sermon processing completed successfully',
+                'sermon_id' => null, // Will be available once processing completes
+                'message' => 'Livestream sermon processing initiated successfully',
                 'status_url' => route('api.sermons.processing.status', ['processingId' => $processingId]),
-                'metadata' => array_merge($livestreamMetadata, [
-                    'title' => $sermon->title,
-                    'preacher' => $sermon->preacher,
-                    'series' => $sermon->series,
-                    'reference' => $sermon->reference,
-                ]),
+                'metadata' => $livestreamMetadata,
             ];
         } catch (\Exception $e) {
             Log::error('Failed to initiate livestream sermon processing', [
@@ -1097,140 +1112,41 @@ class SermonProcessingService
     }
 
     /**
-     * Execute sermon processing synchronously for livestream integration
-     *
-     * This method combines the logic from CreateSermonRecord, TranscribeAudio,
-     * and ProcessTranscriptWithAI jobs into a single synchronous flow.
+     * Dispatch processing jobs asynchronously using job chains
      */
-    private function processSynchronously(
-        string $processingId,
-        SermonMetadata $metadata,
+    private function dispatchProcessingJobs(
+        SermonProcessingLog $processingLog,
         string $storedFilePath,
-        array $livestreamMetadata
-    ): Sermon {
-        // Step 1: Create sermon record (from CreateSermonRecord job)
-        $sermon = $this->createSermonRecordSync($processingId, $metadata, $storedFilePath, $livestreamMetadata);
-
-        // Step 2: Transcribe audio (from TranscribeAudio job)
-        $transcript = $this->transcribeAudioSync($sermon);
-
-        // Step 3: Process with AI (from ProcessTranscriptWithAI job)
-        $this->processTranscriptWithAISync($sermon, $transcript);
-
-        return $sermon->fresh(); // Reload to get updated metadata
-    }
-
-    /**
-     * Create sermon record synchronously
-     */
-    private function createSermonRecordSync(
-        string $processingId,
         SermonMetadata $metadata,
-        string $storedFilePath,
         array $livestreamMetadata
-    ): Sermon {
-        Log::info('Creating sermon record synchronously', ['processing_id' => $processingId]);
-
-        $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
-        $livestreamProcessingId = $livestreamMetadata['livestream_processing_id'] ?? null;
-        $isFromLivestream = ! empty($livestreamProcessingId);
-
-        $sermonData = [
-            'title' => 'Untitled Sermon', // Will be filled by AI analysis
-            'slug' => Str::slug('untitled-sermon-'.time()),
-            'filename' => $storedFilePath,
-            /** @phpstan-ignore-next-line */
-            'date' => $metadata->date ?: now(),
-            /** @phpstan-ignore-next-line */
-            'service' => $metadata->service->value ?: 'evening',
-            'series' => null, // Will be filled by AI analysis
-            'reference' => null, // Will be filled by AI analysis
-            'preacher' => 'Mark Drury', // Default preacher
-            'points' => null, // Will be filled by AI analysis
-            'transcript_path' => null, // Will be set after transcription
-        ];
-
-        // Add livestream-specific fields
-        /** @phpstan-ignore-next-line */
-        if ($isFromLivestream && $livestreamProcessingId) {
-            $sermonData['source_type'] = 'livestream';
-            $sermonData['livestream_processing_id'] = $livestreamProcessingId;
-        }
-
-        $sermon = Sermon::create($sermonData);
-
-        // Update processing log with sermon ID
+    ): void {
+        // Update processing log with stored file path
         $processingLog->update([
-            'sermon_id' => $sermon->id,
-            'current_step' => 'sermon_record_created',
+            'stored_file_path' => $storedFilePath,
+            'status' => ProcessingStatus::PROCESSING,
+            'current_step' => 'jobs_dispatched',
         ]);
 
-        return $sermon;
-    }
+        // Get pipeline builder to create job chain
+        $pipelineBuilder = app(ProcessingPipelineBuilder::class);
+        $jobs = $pipelineBuilder->buildAudioPipeline($processingLog);
 
-    /**
-     * Transcribe audio synchronously
-     */
-    private function transcribeAudioSync(Sermon $sermon): string
-    {
-        Log::info('Transcribing audio synchronously', ['sermon_id' => $sermon->id]);
+        // Dispatch job chain
+        \Illuminate\Support\Facades\Bus::chain($jobs)
+            ->catch(function (\Throwable $e) use ($processingLog) {
+                Log::error('Sermon processing job chain failed', [
+                    'processing_id' => $processingLog->processing_id,
+                    'error' => $e->getMessage(),
+                ]);
 
-        $transcriptionService = app(\App\Contracts\TranscriptionServiceInterface::class);
-
-        if (! $sermon->filename) {
-            throw new \Exception("No audio file path found for sermon ID: {$sermon->id}");
-        }
-
-        $transcript = $transcriptionService->transcribe($sermon->filename);
-
-        if (empty($transcript)) {
-            throw new \Exception('Transcription returned empty content');
-        }
-
-        // Store transcript
-        $transcriptPath = $this->storeTranscript($sermon->id, $transcript);
-
-        $sermon->update([
-            'transcript_path' => $transcriptPath,
-        ]);
-
-        return $transcript;
-    }
-
-    /**
-     * Process transcript with AI synchronously
-     */
-    private function processTranscriptWithAISync(Sermon $sermon, string $transcript): void
-    {
-        Log::info('Processing transcript with AI synchronously', ['sermon_id' => $sermon->id]);
-
-        $analysisService = app(\App\Services\SermonAnalysisService::class);
-
-        // Extract metadata using AI
-        $analysis = $analysisService->analyzeSermon($transcript, null, 'livestream-sync');
-
-        // Update sermon with AI-extracted metadata
-        $updateData = [];
-        if (! empty($analysis->title) && $analysis->title !== 'Untitled Sermon') {
-            $updateData['title'] = $analysis->title;
-            $updateData['slug'] = $this->generateUniqueSlug($analysis->title, $sermon->id);
-        }
-        if (! empty($analysis->series)) {
-            $updateData['series'] = $analysis->series;
-        }
-        if (! empty($analysis->reference)) {
-            $updateData['reference'] = $analysis->reference;
-        }
-        if (! empty($analysis->points)) {
-            $updateData['points'] = $analysis->points;
-        }
-        if (! empty($analysis->summary)) {
-            $updateData['summary'] = $analysis->summary;
-        }
-
-        if (! empty($updateData)) {
-            $sermon->update($updateData);
-        }
+                $processingLog->update([
+                    'status' => ProcessingStatus::FAILED,
+                    'error_message' => 'Processing chain failed: ' . $e->getMessage(),
+                    'completed_at' => now(),
+                ]);
+            })
+            ->onQueue(config('sermon-processing.processing.queue', 'default'))
+            ->dispatch();
     }
 
     /**
@@ -1246,5 +1162,132 @@ class SermonProcessingService
         $disk->put($fullPath, $transcript);
 
         return $fullPath;
+    }
+
+    /**
+     * Cancel processing operation
+     */
+    public function cancelProcessing(string $processingId): bool
+    {
+        try {
+            Log::info('Cancelling processing operation', [
+                'processing_id' => $processingId,
+            ]);
+
+            $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
+
+            if (!$processingLog) {
+                Log::warning('Processing log not found for cancellation', [
+                    'processing_id' => $processingId,
+                ]);
+                return false;
+            }
+
+            // Don't cancel already completed processing
+            if ($processingLog->status === ProcessingStatus::COMPLETED) {
+                Log::warning('Cannot cancel completed processing', [
+                    'processing_id' => $processingId,
+                ]);
+                return false;
+            }
+
+            // Update processing log to cancelled status
+            $processingLog->update([
+                'status' => ProcessingStatus::FAILED,
+                'current_step' => 'cancelled_by_user',
+                'error_message' => 'Processing cancelled by user request',
+                'completed_at' => now(),
+            ]);
+
+            Log::info('Processing operation cancelled successfully', [
+                'processing_id' => $processingId,
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to cancel processing operation', [
+                'processing_id' => $processingId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Check if the audio upload is from livestream processing
+     */
+    private function isLivestreamAudio(array $metadata): bool
+    {
+        return isset($metadata['source_type']) && $metadata['source_type'] === 'livestream';
+    }
+
+    /**
+     * Convert absolute file path to relative path for database storage
+     */
+    private function convertAbsoluteToRelativePath(string $absolutePath): string
+    {
+        // Try multiple disk configurations to handle both direct uploads and livestream processing
+        $diskConfigs = [
+            'sermon_processing' => config('sermon-processing.storage.disk', 'public'),
+            'livestream_sermon' => config('livestream-processing.sermon_disk', 'public'),
+        ];
+
+        foreach ($diskConfigs as $configName => $sermonDisk) {
+            try {
+                $diskPath = Storage::disk($sermonDisk)->path('');
+
+                // Remove the disk path prefix to get relative path
+                if (str_starts_with($absolutePath, $diskPath)) {
+                    $relativePath = str_replace($diskPath, '', $absolutePath);
+                    // Remove leading slash if present
+                    $relativePath = ltrim($relativePath, '/');
+
+                    Log::info('Successfully converted absolute path using disk config', [
+                        'absolute_path' => $absolutePath,
+                        'relative_path' => $relativePath,
+                        'config_used' => $configName,
+                        'disk' => $sermonDisk,
+                    ]);
+
+                    return $relativePath;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to check disk path for conversion', [
+                    'config_name' => $configName,
+                    'disk' => $sermonDisk,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // If path doesn't start with disk path, try to extract the relative part
+        // Look for common patterns like 'sermons/' in the path
+        if (preg_match('/.*\/(sermons\/.+)$/', $absolutePath, $matches)) {
+            Log::info('Extracted relative path using regex pattern', [
+                'absolute_path' => $absolutePath,
+                'extracted_path' => $matches[1],
+            ]);
+
+            return $matches[1];
+        }
+
+        // Fallback: return the filename part with appropriate prefix
+        $pathParts = explode('/', $absolutePath);
+        $filename = end($pathParts);
+
+        // Check if this looks like an audio file and use appropriate subdirectory
+        $audioPath = config('livestream-processing.storage.audio_path', 'sermons/audio');
+        $fallbackPath = $audioPath . '/' . $filename;
+
+        Log::warning('Could not convert absolute path to relative path, using fallback', [
+            'absolute_path' => $absolutePath,
+            'extracted_filename' => $filename,
+            'fallback_path' => $fallbackPath,
+            'disk_configs_tried' => array_keys($diskConfigs),
+        ]);
+
+        return $fallbackPath;
     }
 }

@@ -343,6 +343,46 @@ class MediaUpload extends Component
         $this->currentStep = 'Processing failed';
     }
 
+    public function checkProcessingStatus(): void
+    {
+        if (!$this->processingId || $this->status === 'completed' || $this->status === 'failed') {
+            return;
+        }
+
+        try {
+            // Call the controller method directly instead of making HTTP request
+            $controller = app(\App\Http\Controllers\AutomatedSermonController::class);
+            $statusResponse = $controller->getProcessingStatus($this->processingId);
+
+            if ($statusResponse->found) {
+                $this->status = $statusResponse->status;
+                $this->currentStep = $statusResponse->currentStep ?? $this->currentStep;
+                $this->progressPercentage = $statusResponse->progressPercentage ?? $this->progressPercentage;
+
+                if ($statusResponse->status === 'failed') {
+                    $this->errorMessage = $statusResponse->errorMessage ?? 'Processing failed';
+                    $this->currentStep = 'Processing failed';
+                    $this->progressPercentage = 0;
+                } elseif ($statusResponse->status === 'completed') {
+                    $this->successMessage = 'Processing completed successfully!';
+                    $this->currentStep = 'Processing completed!';
+                    $this->progressPercentage = 100;
+                }
+
+                Log::debug('Processing status updated', [
+                    'processing_id' => $this->processingId,
+                    'status' => $statusResponse->status,
+                    'progress' => $statusResponse->progressPercentage
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to check processing status', [
+                'processing_id' => $this->processingId,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
     private function resetProcessingState(): void
     {
         $this->processingId = null;

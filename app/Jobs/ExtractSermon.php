@@ -63,6 +63,20 @@ class ExtractSermon implements ShouldQueue
 
             $sermonAudioPath = $audioExtractionResult['audio_path'];
 
+            // DEFENSIVE: Verify audio file actually exists before storing path in database
+            $audioFullPath = $audioExtractionResult['full_path'];
+            if (! file_exists($audioFullPath)) {
+                throw new \Exception("Audio extraction claimed success but file does not exist: {$audioFullPath}");
+            }
+
+            Log::info('Audio file existence verified before database update', [
+                'processing_id' => $this->processingLog->processing_id,
+                'audio_path' => $sermonAudioPath,
+                'full_path' => $audioFullPath,
+                'file_exists' => file_exists($audioFullPath),
+                'file_size' => filesize($audioFullPath),
+            ]);
+
             $this->processingLog->update([
                 'sermon_video_path' => $sermonVideoPath,
                 'sermon_audio_path' => $sermonAudioPath,
@@ -93,9 +107,13 @@ class ExtractSermon implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
                 'video_path' => $sermonVideoPath,
                 'audio_path' => $sermonAudioPath,
+                'audio_full_path' => $audioExtractionResult['full_path'],
                 'compression_applied' => $audioExtractionResult['compression_applied'],
+                'original_audio_size_mb' => round($audioExtractionResult['original_size'] / 1024 / 1024, 1),
                 'final_audio_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
+                'compression_ratio' => $audioExtractionResult['compression_ratio'],
                 'valid_for_transcription' => $audioExtractionResult['valid_for_transcription'],
+                'file_exists_check' => file_exists($audioExtractionResult['full_path']),
             ]);
 
             // Job chain will automatically proceed to next job

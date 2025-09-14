@@ -80,12 +80,15 @@ class LivestreamProcessingApiTest extends TestCase
             'status' => 'pending',
         ]);
 
-        // Verify job chain was dispatched
+        // Verify job chain was dispatched with new livestream processing jobs
         Bus::assertChained([
             \App\Jobs\GenerateRmsLog::class,
             \App\Jobs\AnalyzeSegments::class,
             \App\Jobs\ExtractSermon::class,
             \App\Jobs\SubmitToProcessing::class,
+            \App\Jobs\TranscribeSermonAudioFromLivestream::class,
+            \App\Jobs\AnalyzeSermonTranscriptFromLivestream::class,
+            \App\Jobs\GenerateThumbnail::class,
             \App\Jobs\CleanupTemporaryFiles::class,
         ]);
     }

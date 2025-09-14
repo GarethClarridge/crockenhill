@@ -138,7 +138,7 @@
 
     {{-- Processing Status --}}
     @if($showProcessingStatus)
-        <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="bg-white rounded-lg shadow-md p-6" wire:poll.2s="checkProcessingStatus">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">Processing Status</h2>
             
             {{-- Processing ID --}}

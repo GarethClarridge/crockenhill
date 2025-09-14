@@ -1,0 +1,96 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Jobs;
+
+use App\Models\SermonProcessingLog;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * ValidateVideoFile - Job to validate video files for processing
+ *
+ * Part of the new job chain pattern for direct video processing pipeline.
+ * Ensures video files meet requirements before processing begins.
+ */
+class ValidateVideoFile implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct(
+        private SermonProcessingLog $processingLog
+    ) {}
+
+    public function handle(): void
+    {
+        Log::info('Validating video file', [
+            'processing_id' => $this->processingLog->processing_id,
+        ]);
+
+        try {
+            $filePath = $this->processingLog->stored_file_path;
+
+            // Basic video file validation
+            if (!file_exists($filePath)) {
+                throw new \Exception('Video file not found at stored path');
+            }
+
+            // Check file size
+            $fileSize = filesize($filePath);
+            $maxSize = config('sermon-processing.processing.max_file_size', 104857600); // 100MB
+
+            if ($fileSize > $maxSize) {
+                throw new \Exception('Video file exceeds maximum size limit');
+            }
+
+            // Check file type using mime type
+            $mimeType = mime_content_type($filePath);
+            if ($mimeType === false) {
+                throw new \Exception('Could not determine video file MIME type');
+            }
+
+            $allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'];
+
+            if (!in_array($mimeType, $allowedTypes)) {
+                throw new \Exception("Unsupported video MIME type: {$mimeType}");
+            }
+
+            $this->processingLog->update([
+                'current_step' => 'video_validation_complete',
+                'status' => 'processing',
+            ]);
+
+            Log::info('Video file validation completed', [
+                'processing_id' => $this->processingLog->processing_id,
+                'file_size' => $fileSize,
+                'mime_type' => $mimeType,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Video file validation failed', [
+                'processing_id' => $this->processingLog->processing_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->processingLog->update([
+                'status' => 'failed',
+                'error_message' => 'Video validation failed: ' . $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        $this->processingLog->update([
+            'status' => 'failed',
+            'error_message' => 'Video validation job failed: ' . $exception->getMessage(),
+        ]);
+    }
+}

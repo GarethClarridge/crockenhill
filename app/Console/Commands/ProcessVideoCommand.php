@@ -84,7 +84,7 @@ class ProcessVideoCommand extends Command
                 $videoFilename = $sermon->slug.'.mp4';
                 $videoPath = 'sermons/videos/'.$videoFilename;
 
-                Storage::disk(config('livestream-processing.sermon_disk', 'local'))
+                Storage::disk(config('livestream-processing.sermon_disk', 'public'))
                     ->put($videoPath, file_get_contents($tempVideoPath));
 
                 // Extract audio

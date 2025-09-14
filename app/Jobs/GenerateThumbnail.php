@@ -2,13 +2,16 @@
 
 namespace App\Jobs;
 
+use App\Models\LivestreamProcessingLog;
 use App\Models\Sermon;
+use App\Models\SermonProcessingLog;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class GenerateThumbnail implements ShouldQueue
 {
@@ -26,13 +29,30 @@ class GenerateThumbnail implements ShouldQueue
      */
     public int $timeout = 300;
 
+    private ?int $sermonId = null;
+    private ?string $videoPath = null;
+    private ?LivestreamProcessingLog $processingLog = null;
+
     /**
      * Create a new job instance.
+     *
+     * Supports two construction patterns:
+     * 1. GenerateThumbnail($sermonId, $videoPath) - Direct parameters (legacy)
+     * 2. GenerateThumbnail($processingLog) - From processing log (job chain)
      */
-    public function __construct(
-        public readonly int $sermonId,
-        public readonly string $videoPath
-    ) {
+    public function __construct(...$args)
+    {
+        if (count($args) === 2 && is_int($args[0]) && is_string($args[1])) {
+            // Legacy constructor: GenerateThumbnail($sermonId, $videoPath)
+            $this->sermonId = $args[0];
+            $this->videoPath = $args[1];
+        } elseif (count($args) === 1 && $args[0] instanceof LivestreamProcessingLog) {
+            // Job chain constructor: GenerateThumbnail($processingLog)
+            $this->processingLog = $args[0];
+        } else {
+            throw new \InvalidArgumentException('GenerateThumbnail expects either ($sermonId, $videoPath) or ($processingLog)');
+        }
+
         // Set job to dedicated thumbnails queue for non-critical work
         $this->onQueue(config('thumbnail-generation.queue.name', 'thumbnails'));
     }
@@ -43,9 +63,24 @@ class GenerateThumbnail implements ShouldQueue
     public function handle(ThumbnailGenerationService $thumbnailService): void
     {
         try {
+            // Resolve sermon ID and video path from processing log if needed
+            if ($this->processingLog) {
+                $this->resolveFromProcessingLog();
+            }
+
+            if (!$this->sermonId || !$this->videoPath) {
+                Log::error('Missing sermon ID or video path for thumbnail generation', [
+                    'sermon_id' => $this->sermonId,
+                    'video_path' => $this->videoPath,
+                    'processing_id' => $this->processingLog?->processing_id,
+                ]);
+                return;
+            }
+
             Log::info('Starting thumbnail generation', [
                 'sermon_id' => $this->sermonId,
                 'video_path' => $this->videoPath,
+                'processing_id' => $this->processingLog?->processing_id ?? 'direct',
             ]);
 
             // Get the sermon record
@@ -106,6 +141,29 @@ class GenerateThumbnail implements ShouldQueue
     }
 
     /**
+     * Resolve sermon ID and video path from processing log
+     */
+    private function resolveFromProcessingLog(): void
+    {
+        if (!$this->processingLog) {
+            return;
+        }
+
+        // Get sermon ID from processing log
+        $this->sermonId = $this->processingLog->sermon_id;
+
+        // Get video path from processing metadata
+        $processingMetadata = $this->processingLog->processing_metadata ?? [];
+        $videoPath = $processingMetadata['final_video_path'] ?? null;
+
+        if ($videoPath) {
+            // Convert relative path to absolute path
+            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
+            $this->videoPath = Storage::disk($sermonDisk)->path($videoPath);
+        }
+    }
+
+    /**
      * Handle a job failure.
      *
      * This method is called when the job fails permanently.
@@ -117,6 +175,7 @@ class GenerateThumbnail implements ShouldQueue
         Log::warning('GenerateThumbnail job failed permanently', [
             'sermon_id' => $this->sermonId,
             'video_path' => $this->videoPath,
+            'processing_id' => $this->processingLog?->processing_id,
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);

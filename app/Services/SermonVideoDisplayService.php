@@ -56,7 +56,7 @@ class SermonVideoDisplayService
 
     public function getVideoUrl(string $videoPath): string
     {
-        $disk = Storage::disk(config('livestream-processing.sermon_disk', 'local'));
+        $disk = Storage::disk(config('livestream-processing.sermon_disk', 'public'));
 
         if ($disk->exists($videoPath)) {
             return $disk->url($videoPath);
@@ -67,7 +67,7 @@ class SermonVideoDisplayService
 
     private function getVideoStoragePath(string $videoPath): string
     {
-        $disk = Storage::disk(config('livestream-processing.sermon_disk', 'local'));
+        $disk = Storage::disk(config('livestream-processing.sermon_disk', 'public'));
 
         return $disk->path($videoPath);
     }

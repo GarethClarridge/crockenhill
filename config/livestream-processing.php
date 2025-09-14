@@ -156,7 +156,7 @@ return [
     */
     'storage' => [
         'video_path' => env('LIVESTREAM_VIDEO_PATH', 'sermons/videos'),
-        'audio_path' => env('LIVESTREAM_AUDIO_PATH', 'sermons'),
+        'audio_path' => env('LIVESTREAM_AUDIO_PATH', 'sermons/audio'),
         'temp_path' => env('LIVESTREAM_TEMP_PATH', 'temp/livestreams'),
     ],
 

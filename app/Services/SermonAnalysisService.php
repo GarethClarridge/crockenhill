@@ -26,8 +26,9 @@ class SermonAnalysisService
     {
         $this->logger = $logger;
 
-        // Verify OpenAI API key is configured
-        if (empty(config('sermon-processing.analysis.openai_api_key') ?? config('openai.api_key'))) {
+        // Only verify OpenAI API key if using the OpenAI service
+        $analysisService = config('sermon-processing.analysis.service', 'openai');
+        if ($analysisService === 'openai' && empty(config('sermon-processing.analysis.openai_api_key') ?? config('openai.api_key'))) {
             throw new Exception('OpenAI API key not configured for analysis service');
         }
     }
@@ -55,6 +56,12 @@ class SermonAnalysisService
                 'existing_series_count' => $existingSeries ? count($existingSeries) : 0,
             ]
         );
+
+        // Check if using mock analysis service
+        $analysisService = config('sermon-processing.analysis.service', 'openai');
+        if ($analysisService === 'mock') {
+            return $this->getMockAnalysis($transcript, $processingId, $startTime);
+        }
 
         // Validate transcript
         if (! $this->validateTranscript($transcript)) {
@@ -120,22 +127,32 @@ class SermonAnalysisService
                 $prompt = $this->buildAnalysisPrompt($transcript, $existingSeries);
                 $model = config('sermon-processing.analysis.model', 'gpt-3.5-turbo');
 
-                $response = OpenAI::chat()->create([
-                    'model' => $model,
-                    'messages' => [
-                        [
-                            'role' => 'system',
-                            'content' => 'You are a theological assistant specialised in analysing Christian sermon transcripts. You provide accurate, structured analysis in JSON format using British English spelling and sentence case formatting (capitalise only the first word and proper nouns, not every word).',
+                try {
+                    $response = OpenAI::chat()->create([
+                        'model' => $model,
+                        'messages' => [
+                            [
+                                'role' => 'system',
+                                'content' => 'You are a theological assistant specialised in analysing Christian sermon transcripts. You provide accurate, structured analysis in JSON format using British English spelling and sentence case formatting (capitalise only the first word and proper nouns, not every word). Always respond with valid JSON.',
+                            ],
+                            [
+                                'role' => 'user',
+                                'content' => $prompt,
+                            ],
                         ],
-                        [
-                            'role' => 'user',
-                            'content' => $prompt,
-                        ],
-                    ],
-                    'temperature' => 0.3, // Lower temperature for more consistent results
-                    'max_tokens' => 1500,
-                    'response_format' => ['type' => 'json_object'],
-                ]);
+                        'temperature' => 0.3, // Lower temperature for more consistent results
+                        'max_tokens' => 1500,
+                        // Removed response_format to avoid compatibility issues
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('OpenAI API call failed', [
+                        'processing_id' => $processingId,
+                        'attempt' => $attempt,
+                        'error' => $e->getMessage(),
+                        'model' => $model,
+                    ]);
+                    throw new \Exception("OpenAI API call failed: " . $e->getMessage());
+                }
 
                 $apiTime = microtime(true) - $apiStartTime;
 
@@ -149,10 +166,20 @@ class SermonAnalysisService
                     ['attempt' => $attempt, 'model' => $model, 'max_tokens' => 1500]
                 );
 
+                // Validate response structure
+                if (!isset($response->choices) || !is_array($response->choices) || empty($response->choices)) {
+                    Log::error('Invalid OpenAI response structure', [
+                        'processing_id' => $processingId,
+                        'response_type' => gettype($response),
+                        'response_content' => is_string($response) ? substr($response, 0, 500) : 'Not a string',
+                    ]);
+                    throw new \Exception('Invalid response structure from OpenAI API');
+                }
+
                 $content = $response->choices[0]->message->content ?? '';
 
                 if (empty($content)) {
-                    throw new Exception('Received empty response from OpenAI API');
+                    throw new \Exception('Received empty response from OpenAI API');
                 }
 
                 // Parse JSON response
@@ -731,5 +758,56 @@ PROMPT;
 
             return ['Main Message'];
         }
+    }
+
+    /**
+     * Generate mock analysis for development/testing
+     */
+    private function getMockAnalysis(string $transcript, string $processingId, float $startTime): SermonAnalysis
+    {
+        // Simulate processing time
+        usleep(200000); // 200ms delay to simulate API call
+
+        // Extract a basic title from the first few words of the transcript
+        $words = explode(' ', strip_tags($transcript));
+        $titleWords = array_slice($words, 0, 4);
+        $mockTitle = implode(' ', $titleWords);
+
+        // Clean up the title
+        $mockTitle = preg_replace('/[^\w\s]/', '', $mockTitle);
+        $mockTitle = trim($mockTitle);
+        if (empty($mockTitle)) {
+            $mockTitle = 'Sample Sermon';
+        }
+
+        $executionTime = microtime(true) - $startTime;
+
+        $this->logger->logProcessingStep(
+            $processingId,
+            'sermon_analysis',
+            'completed',
+            [
+                'service' => 'mock',
+                'title' => $mockTitle,
+                'execution_time_ms' => round($executionTime * 1000, 2),
+            ]
+        );
+
+        Log::info('Mock sermon analysis completed', [
+            'processing_id' => $processingId,
+            'title' => $mockTitle,
+            'execution_time_ms' => round($executionTime * 1000, 2),
+            'transcript_length' => strlen($transcript),
+            'mock' => true,
+        ]);
+
+        return SermonAnalysis::create(
+            title: $mockTitle,
+            series: null,
+            reference: null,
+            points: ['Main Message'],
+            summary: null,
+            transcript: $transcript
+        );
     }
 }

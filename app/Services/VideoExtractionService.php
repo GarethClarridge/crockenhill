@@ -23,14 +23,43 @@ class VideoExtractionService
 
     public function __construct()
     {
-        $this->ffmpeg = FFMpeg::create([
-            'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
-            'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
-            'timeout' => config('livestream-processing.processing_timeout'),
-        ]);
+        $ffmpegPath = config('livestream-processing.ffmpeg_path');
+        $ffprobePath = config('livestream-processing.ffprobe_path');
+
+        // Validate FFmpeg binary exists and is executable (skip in testing environment)
+        if (! app()->environment('testing')) {
+            if (! $ffmpegPath || ! file_exists($ffmpegPath) || ! is_executable($ffmpegPath)) {
+                throw new \Exception("FFmpeg binary not found or not executable at: {$ffmpegPath}");
+            }
+
+            if (! $ffprobePath || ! file_exists($ffprobePath) || ! is_executable($ffprobePath)) {
+                throw new \Exception("FFprobe binary not found or not executable at: {$ffprobePath}");
+            }
+        }
+
+        try {
+            $this->ffmpeg = FFMpeg::create([
+                'ffmpeg.binaries' => $ffmpegPath,
+                'ffprobe.binaries' => $ffprobePath,
+                'timeout' => config('livestream-processing.processing_timeout'),
+            ]);
+
+            Log::info('FFmpeg initialized successfully', [
+                'ffmpeg_path' => $ffmpegPath,
+                'ffprobe_path' => $ffprobePath,
+                'timeout' => config('livestream-processing.processing_timeout'),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to initialize FFmpeg', [
+                'ffmpeg_path' => $ffmpegPath,
+                'ffprobe_path' => $ffprobePath,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \Exception("Failed to initialize FFmpeg: {$e->getMessage()}");
+        }
 
         $this->tempDisk = config('livestream-processing.temp_disk', 'local');
-        $this->permanentDisk = config('livestream-processing.sermon_disk', 'local');
+        $this->permanentDisk = config('livestream-processing.sermon_disk', 'public');
         $this->audioPath = config('livestream-processing.storage.audio_path', 'sermons/audio');
     }
 
@@ -345,6 +374,20 @@ class VideoExtractionService
             $outputPath = $this->audioPath.'/'.$outputFilename;
             $fullOutputPath = Storage::disk($this->permanentDisk)->path($outputPath);
 
+            Log::info('Starting FFmpeg audio extraction', [
+                'input_path' => $inputVideoPath,
+                'output_path' => $fullOutputPath,
+                'start_time' => $startTime,
+                'duration' => $duration,
+                'segment_start' => $segment->startTime ?? 'not_set',
+                'segment_end' => $segment->endTime ?? 'not_set',
+            ]);
+
+            // Validate input video exists
+            if (! file_exists($inputVideoPath)) {
+                throw new \Exception("Input video file not found: {$inputVideoPath}");
+            }
+
             $this->ensureDirectoryExists(dirname($fullOutputPath));
 
             $config = config('livestream-processing.audio_extraction.transcription_optimized');
@@ -363,19 +406,45 @@ class VideoExtractionService
             // @phpstan-ignore-next-line - PHPStan false positive about Audio::clip() method
             $video->clip($startTimeCode, $durationTimeCode)->save($format, $fullOutputPath);
 
+            // CRITICAL: Immediately check if FFmpeg actually created the file
+            if (! file_exists($fullOutputPath)) {
+                throw new \Exception("FFmpeg failed to create audio file at: {$fullOutputPath}. Check FFmpeg installation and permissions.");
+            }
+
             $validation = $this->validateAudioFileSize($fullOutputPath);
+
+            Log::info('FFmpeg audio extraction verification', [
+                'output_path' => $fullOutputPath,
+                'file_exists' => file_exists($fullOutputPath),
+                'file_size' => file_exists($fullOutputPath) ? filesize($fullOutputPath) : 0,
+                'validation_passed' => $validation['valid'],
+                'start_time' => $startTime,
+                'duration' => $duration,
+            ]);
 
             if (! $validation['valid']) {
                 Log::info('Audio file too large, applying fallback compression', [
                     'original_size' => $validation['file_size'],
                     'max_size' => $validation['max_size'],
+                    'original_path' => $outputPath,
                 ]);
 
-                $fallbackPath = $this->compressAudioForTranscription($fullOutputPath, $fallbackConfig);
+                $compressionResult = $this->compressAudioForTranscription($fullOutputPath, $fallbackConfig);
+                $fallbackPath = $compressionResult['compressed_path'];
+                $compressedRelativePath = $compressionResult['relative_path'];
                 $finalValidation = $this->validateAudioFileSize($fallbackPath);
 
+                Log::info('Fallback compression completed', [
+                    'original_path' => $outputPath,
+                    'compressed_path' => $compressedRelativePath,
+                    'original_size' => $validation['file_size'],
+                    'final_size' => $finalValidation['file_size'],
+                    'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
+                    'valid_for_transcription' => $finalValidation['valid'],
+                ]);
+
                 return [
-                    'audio_path' => $outputPath,
+                    'audio_path' => $compressedRelativePath, // Use compressed file's relative path
                     'full_path' => $fallbackPath,
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
@@ -385,12 +454,15 @@ class VideoExtractionService
                 ];
             }
 
-            Log::info('Optimized audio extracted from segment', [
+            Log::info('Optimized audio extracted from segment without compression', [
                 'input_path' => $inputVideoPath,
                 'output_path' => $outputPath,
+                'full_path' => $fullOutputPath,
                 'file_size' => $validation['file_size'],
+                'file_size_mb' => round($validation['file_size'] / 1024 / 1024, 1),
                 'start_time' => $startTime,
                 'duration' => $duration,
+                'valid_for_transcription' => $validation['valid'],
             ]);
 
             return [
@@ -404,11 +476,21 @@ class VideoExtractionService
             ];
 
         } catch (\Exception $e) {
+            // Enhanced error logging with system diagnostics
+            $diagnostics = $this->getSystemDiagnostics();
+
             Log::error('Failed to extract optimized audio from segment', [
                 'error' => $e->getMessage(),
                 'input_path' => $inputVideoPath,
-                'segment_start' => $startTime,
-                'segment_duration' => $duration,
+                'output_path' => $fullOutputPath ?? 'not_set',
+                'segment_start' => $startTime ?? 'not_set',
+                'segment_duration' => $duration ?? 'not_set',
+                'input_file_exists' => file_exists($inputVideoPath),
+                'input_file_size' => file_exists($inputVideoPath) ? filesize($inputVideoPath) : 0,
+                'output_directory_exists' => isset($fullOutputPath) ? is_dir(dirname($fullOutputPath)) : false,
+                'output_directory_writable' => isset($fullOutputPath) ? is_writable(dirname($fullOutputPath)) : false,
+                'system_diagnostics' => $diagnostics,
+                'trace' => $e->getTraceAsString(),
             ]);
 
             throw $e;
@@ -435,7 +517,7 @@ class VideoExtractionService
     /**
      * Apply fallback compression to audio file
      */
-    private function compressAudioForTranscription(string $inputPath, array $compressionSettings): string
+    private function compressAudioForTranscription(string $inputPath, array $compressionSettings): array
     {
         $compressedPath = str_replace('.mp3', '_compressed.mp3', $inputPath);
 
@@ -450,18 +532,33 @@ class VideoExtractionService
 
             unlink($inputPath);
 
+            // Calculate relative path for database storage
+            $diskPath = Storage::disk($this->permanentDisk)->path('');
+            $relativePath = $compressedPath;
+
+            if (str_starts_with($compressedPath, $diskPath)) {
+                $relativePath = str_replace($diskPath, '', $compressedPath);
+                $relativePath = ltrim($relativePath, '/');
+            }
+
             Log::info('Applied fallback compression to audio file', [
                 'original_path' => $inputPath,
                 'compressed_path' => $compressedPath,
+                'relative_path' => $relativePath,
                 'bitrate' => $compressionSettings['bitrate'],
+                'channels' => $compressionSettings['channels'],
             ]);
 
-            return $compressedPath;
+            return [
+                'compressed_path' => $compressedPath,
+                'relative_path' => $relativePath,
+            ];
 
         } catch (\Exception $e) {
             Log::error('Failed to apply fallback compression', [
                 'error' => $e->getMessage(),
                 'input_path' => $inputPath,
+                'trace' => $e->getTraceAsString(),
             ]);
 
             throw $e;
@@ -474,7 +571,36 @@ class VideoExtractionService
     private function ensureDirectoryExists(string $directory): void
     {
         if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
+            if (! mkdir($directory, 0755, true)) {
+                throw new \Exception("Failed to create directory: {$directory}");
+            }
+
+            Log::info('Created directory for audio extraction', [
+                'directory' => $directory,
+                'permissions' => '0755',
+            ]);
         }
+
+        if (! is_writable($directory)) {
+            throw new \Exception("Directory is not writable: {$directory}");
+        }
+    }
+
+    /**
+     * Get system diagnostics for error reporting
+     */
+    private function getSystemDiagnostics(): array
+    {
+        return [
+            'php_version' => PHP_VERSION,
+            'memory_limit' => ini_get('memory_limit'),
+            'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 1) . 'MB',
+            'disk_free_space' => disk_free_space(Storage::disk($this->permanentDisk)->path('')) ?
+                round(disk_free_space(Storage::disk($this->permanentDisk)->path('')) / 1024 / 1024 / 1024, 1) . 'GB' : 'unknown',
+            'ffmpeg_path' => config('livestream-processing.ffmpeg_path'),
+            'ffprobe_path' => config('livestream-processing.ffprobe_path'),
+            'permanent_disk' => $this->permanentDisk,
+            'audio_path' => $this->audioPath,
+        ];
     }
 }

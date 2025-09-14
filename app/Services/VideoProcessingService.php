@@ -2,14 +2,19 @@
 
 namespace App\Services;
 
+use App\Contracts\AudioExtractionServiceInterface;
+use App\Contracts\VideoProcessingServiceInterface;
+use App\Contracts\VideoStorageServiceInterface;
 use App\Data\LivestreamProcessingResult;
 use App\Data\LivestreamProcessingStatus;
 use App\Jobs\AnalyzeSegments;
+use App\Jobs\AnalyzeSermonTranscriptFromLivestream;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\SubmitToProcessing;
+use App\Jobs\TranscribeSermonAudioFromLivestream;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\LivestreamProcessingLog;
 use Illuminate\Http\UploadedFile;
@@ -19,19 +24,13 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class VideoProcessingService
+class VideoProcessingService implements VideoProcessingServiceInterface
 {
-    private VideoStorageService $storageService;
-
-    private VideoSegmentationService $segmentationService;
-
     public function __construct(
-        VideoStorageService $storageService,
-        VideoSegmentationService $segmentationService
-    ) {
-        $this->storageService = $storageService;
-        $this->segmentationService = $segmentationService;
-    }
+        private VideoStorageServiceInterface $storageService,
+        private VideoSegmentationService $segmentationService,
+        private AudioExtractionServiceInterface $audioExtractor
+    ) {}
 
     public function processLivestream(UploadedFile $videoFile): ProcessingResult
     {
@@ -65,7 +64,7 @@ class VideoProcessingService
             $metadata = $this->segmentationService->getVideoMetadata($uploadResult['full_path']);
 
             // 3. Extract full audio track (optimized for transcription)
-            $audioPath = $this->extractFullAudioFromVideo(
+            $audioPath = $this->audioExtractor->extractFromVideo(
                 $uploadResult['full_path'],
                 $metadata['duration']
             );
@@ -288,14 +287,15 @@ class VideoProcessingService
     {
         $processingId = $processingLog->processing_id;
 
-        // Dispatch job chain for resilient processing as specified in design
+        // Dispatch updated job chain for unified livestream processing
         Bus::chain([
             new GenerateRmsLog($processingLog),
             new AnalyzeSegments($processingLog),
             new ExtractSermon($processingLog),
             new SubmitToProcessing($processingLog),
-            // Add thumbnail generation job to chain - it will be handled by the SubmitToProcessing job
-            // after sermon creation, using the sermon ID and video path from the processing log
+            new TranscribeSermonAudioFromLivestream($processingLog),
+            new AnalyzeSermonTranscriptFromLivestream($processingLog),
+            new GenerateThumbnail($processingLog),
             new CleanupTemporaryFiles($processingLog),
         ])->catch(function (\Throwable $e) use ($processingId) {
             $this->handleProcessingFailure($processingId, $e);
@@ -629,7 +629,7 @@ class VideoProcessingService
     private function moveVideoToPermanentStorage(array $uploadResult): string
     {
         $tempDisk = config('livestream-processing.temp_disk', 'local');
-        $permanentDisk = config('livestream-processing.sermon_disk', 'local');
+        $permanentDisk = config('livestream-processing.sermon_disk', 'public');
         $videoPath = config('livestream-processing.storage.video_path', 'sermons/videos');
 
         $filename = Str::uuid().'_'.basename($uploadResult['original_filename']);
@@ -713,7 +713,7 @@ class VideoProcessingService
             }
 
             // Get the full path to the video file
-            $sermonDisk = config('livestream-processing.sermon_disk', 'local');
+            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
             $fullVideoPath = Storage::disk($sermonDisk)->path($videoPath);
 
             // Verify video file exists before dispatching job
