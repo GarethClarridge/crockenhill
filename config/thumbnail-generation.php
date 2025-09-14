@@ -96,9 +96,11 @@ return [
 
         'font' => [
             'family' => env('THUMBNAIL_FONT_FAMILY', 'Oswald'),
-            'title_size' => env('THUMBNAIL_TITLE_SIZE', 96), // Doubled from 48 to 96
+            'title_size' => env('THUMBNAIL_TITLE_SIZE', 144), // Increased to 144px
+            'title_line_height' => env('THUMBNAIL_TITLE_LINE_HEIGHT', 0.9), // Increased line spacing
+            'title_color' => env('THUMBNAIL_TITLE_COLOR', '#FFFFFF'), // White text for title
             'date_size' => env('THUMBNAIL_DATE_SIZE', 32),
-            'color' => env('THUMBNAIL_FONT_COLOR', '#000000'),
+            'date_color' => env('THUMBNAIL_DATE_COLOR', '#000000'), // Black text for date
             'stroke_color' => env('THUMBNAIL_STROKE_COLOR', '#FFFFFF'),
             'stroke_width' => env('THUMBNAIL_STROKE_WIDTH', 2),
         ],
@@ -107,17 +109,22 @@ return [
             'color' => env('THUMBNAIL_BG_COLOR', '#FFFFFF'),
             'opacity' => env('THUMBNAIL_BG_OPACITY', 1.0), // Solid white background
             'padding' => env('THUMBNAIL_BG_PADDING', 15), // pixels
+            'horizontal_padding' => env('THUMBNAIL_BG_HORIZONTAL_PADDING', 0), // no horizontal padding
+            'vertical_padding' => env('THUMBNAIL_BG_VERTICAL_PADDING', 15), // keep vertical padding
             'border_radius' => env('THUMBNAIL_BG_RADIUS', 8), // pixels
         ],
 
         'positioning' => [
-            // Center horizontally, position at 40% down vertically for title
+            // Center horizontally, vertically center at 35% down
             'title_x_percent' => env('THUMBNAIL_TITLE_X_PERCENT', 0.5), // 50% from left (centered)
-            'title_y_percent' => env('THUMBNAIL_TITLE_Y_PERCENT', 0.40), // 40% from top
-            // Center horizontally, position at 60% down vertically for date
+            'title_y_center_percent' => env('THUMBNAIL_TITLE_Y_CENTER_PERCENT', 0.35), // 35% from top (center of text)
+            'title_has_background' => env('THUMBNAIL_TITLE_HAS_BACKGROUND', false), // No background for title
+            'title_width_percent' => env('THUMBNAIL_TITLE_WIDTH_PERCENT', 1.0), // 100% width for title
+            // Center horizontally, position at 85% down vertically for date
             'date_x_percent' => env('THUMBNAIL_DATE_X_PERCENT', 0.5), // 50% from left (centered)
-            'date_y_percent' => env('THUMBNAIL_DATE_Y_PERCENT', 0.60), // 60% from top
-            'max_title_width' => env('THUMBNAIL_MAX_TITLE_WIDTH', 1000), // pixels (increased for larger font)
+            'date_y_percent' => env('THUMBNAIL_DATE_Y_PERCENT', 0.85), // 85% from top
+            'date_has_background' => env('THUMBNAIL_DATE_HAS_BACKGROUND', true), // Keep background for date
+            'max_title_width' => env('THUMBNAIL_MAX_TITLE_WIDTH', 1200), // pixels (increased for larger font)
         ],
     ],
 

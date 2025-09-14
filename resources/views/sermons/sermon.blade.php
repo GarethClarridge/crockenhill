@@ -100,26 +100,6 @@ use Illuminate\Support\Str;
       </div>
       @endif
 
-      <!-- {{-- Thumbnail Display --}}
-      @if($sermon->thumbnail_url && $sermon->hasThumbnail())
-      <div class="mb-6">
-        <img src="{{ $sermon->thumbnail_url }}" 
-             alt="Thumbnail for {{ $sermon->title }}" 
-             class="w-full max-w-2xl mx-auto rounded-lg shadow-md"
-             loading="lazy">
-      </div>
-      @endif -->
-
-      <audio src="{{ route('serveSermonAudio', $sermon->slug) }}" class="w-full" controls>
-        Your browser does not support the <code>audio</code> element.
-      </audio>
-
-      @if (!empty($sermon->video_file_path))
-        <video src="{{ Storage::disk(config('livestream-processing.sermon_disk', 'local'))->url($sermon->video_file_path) }}" class="w-full max-h-96" controls>
-          Your browser does not support the <code>video</code> element.
-        </video>
-        @endif
-
     </dl>
 
     {{-- Sermon Summary --}}
@@ -181,6 +161,19 @@ use Illuminate\Support\Str;
       </ol>
     </div>
     @endif
+
+    <audio src="{{ route('serveSermonAudio', $sermon->slug) }}" class="w-full rounded-lg my-12" controls>
+        Your browser does not support the <code>audio</code> element.
+      </audio>
+
+      @if (!empty($sermon->video_file_path))
+        <video src="{{ Storage::disk(config('livestream-processing.sermon_disk', 'local'))->url($sermon->video_file_path) }}"
+               class="w-full max-h-96 rounded-lg my-12"
+               controls
+               @if($sermon->thumbnail_url && $sermon->hasThumbnail()) poster="{{ $sermon->thumbnail_url }}" @endif>
+          Your browser does not support the <code>video</code> element.
+        </video>
+      @endif
 
     {{-- Transcript Section --}}
     @if ($sermon->hasTranscript())

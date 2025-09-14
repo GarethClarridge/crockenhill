@@ -325,51 +325,76 @@ class ThumbnailGenerationService
         $bgConfig = $this->config['overlay']['background'];
         $posConfig = $this->config['overlay']['positioning'];
 
-        // Prepare sermon title (with word wrapping if needed)
-        $title = $this->wrapText($sermon->title, $posConfig['max_title_width'], $fontConfig['title_size']);
-
-        // Prepare service date
-        $serviceDate = $sermon->date->format('F j, Y');
-        if ($sermon->service) {
-            $serviceDate .= ' - '.ucfirst($sermon->service->value).' Service';
-        }
-
         // Calculate positioning based on image dimensions and percentages
         $imageWidth = $image->width();
         $imageHeight = $image->height();
+
+        // Prepare sermon title (with word wrapping for full width)
+        $titleMaxWidth = $imageWidth * $posConfig['title_width_percent']; // Use full width or percentage
+        $title = $this->wrapText($sermon->title, (int) $titleMaxWidth, $fontConfig['title_size']);
+
+        // Prepare service date in the format "Sunday 14th September 2025"
+        $serviceDate = $sermon->date->format('l jS F Y');
+        if ($sermon->service) {
+            $serviceDate .= ' - '.ucfirst($sermon->service->value).' Service';
+        }
 
         // Calculate responsive font sizes
         $titleFontSize = $this->calculateResponsiveFontSize($fontConfig['title_size'], $imageWidth, 1280);
         $dateFontSize = $this->calculateResponsiveFontSize($fontConfig['date_size'], $imageWidth, 1280);
 
-        // Calculate center positions using percentages (text will be centered around these points)
+        // Calculate positions using percentages
         $titleX = $imageWidth * $posConfig['title_x_percent']; // Center horizontally
-        $titleY = $imageHeight * $posConfig['title_y_percent']; // 40% down vertically
-
+        
+        // For title, calculate center position and adjust for multi-line text
+        $titleCenterY = $imageHeight * $posConfig['title_y_center_percent']; // 35% from top (center of text)
+        
         $dateX = $imageWidth * $posConfig['date_x_percent']; // Center horizontally
-        $dateY = $imageHeight * $posConfig['date_y_percent']; // 60% down vertically
+        $dateY = $imageHeight * $posConfig['date_y_percent']; // 85% down vertically
 
-        // Add title text with background
-        $this->addTextWithBackground(
-            $image,
-            $title,
-            (int) $titleX,
-            (int) $titleY,
-            $titleFontSize,
-            $fontConfig['color'],
-            $bgConfig
-        );
+        // Add title text (with or without background based on config)
+        if ($posConfig['title_has_background']) {
+            $this->addTextWithBackground(
+                $image,
+                $title,
+                (int) $titleX,
+                (int) $titleCenterY,
+                $titleFontSize,
+                $fontConfig['title_color'],
+                $bgConfig
+            );
+        } else {
+            $this->addTextWithoutBackgroundCentered(
+                $image,
+                $title,
+                (int) $titleX,
+                (int) $titleCenterY,
+                $titleFontSize,
+                $fontConfig['title_color']
+            );
+        }
 
-        // Add date text with background
-        $this->addTextWithBackground(
-            $image,
-            $serviceDate,
-            (int) $dateX,
-            (int) $dateY,
-            $dateFontSize,
-            $fontConfig['color'],
-            $bgConfig
-        );
+        // Add date text (with or without background based on config)
+        if ($posConfig['date_has_background']) {
+            $this->addTextWithBackground(
+                $image,
+                $serviceDate,
+                (int) $dateX,
+                (int) $dateY,
+                $dateFontSize,
+                $fontConfig['date_color'],
+                $bgConfig
+            );
+        } else {
+            $this->addTextWithoutBackground(
+                $image,
+                $serviceDate,
+                (int) $dateX,
+                (int) $dateY,
+                $dateFontSize,
+                $fontConfig['date_color']
+            );
+        }
     }
 
     /**
@@ -434,9 +459,11 @@ class ThumbnailGenerationService
             $textBounds = $this->calculateTextBounds($text, $fontSize, $fontPath);
 
             // Calculate background rectangle position (centered around x,y)
-            $padding = $bgConfig['padding'];
-            $bgWidth = $textBounds['width'] + ($padding * 2);
-            $bgHeight = $textBounds['height'] + ($padding * 2);
+            $horizontalPadding = $bgConfig['horizontal_padding'] ?? $bgConfig['padding'];
+            $verticalPadding = $bgConfig['vertical_padding'] ?? $bgConfig['padding'];
+            
+            $bgWidth = $textBounds['width'] + ($horizontalPadding * 2);
+            $bgHeight = $textBounds['height'] + ($verticalPadding * 2);
 
             $bgX = $x - ($bgWidth / 2);
             $bgY = $y - ($bgHeight / 2);
@@ -444,16 +471,12 @@ class ThumbnailGenerationService
             // Create white background rectangle for accessibility
             $this->addTextBackground($image, (int) $bgX, (int) $bgY, $textBounds, $bgConfig);
 
-            // Calculate text position (centered within the background)
-            $textX = $x - ($textBounds['width'] / 2);
-            $textY = $y - ($textBounds['height'] / 2);
-
             // Add main text with Oswald font, centered in the background
-            $image->text($text, (int) $textX, (int) $textY, function ($font) use ($fontSize, $fontColor, $fontPath) {
+            $image->text($text, $x, $y, function ($font) use ($fontSize, $fontColor, $fontPath) {
                 $font->size($fontSize);
                 $font->color($fontColor);
-                $font->align('left');
-                $font->valign('top');
+                $font->align('center');    // Center horizontally
+                $font->valign('center');   // Center vertically
                 if ($fontPath && file_exists($fontPath)) {
                     $font->file($fontPath);
                 }
@@ -466,6 +489,110 @@ class ThumbnailGenerationService
             ]);
 
             // Fallback to simple text without background if overlay fails
+            $this->addFallbackText($image, $text, $x, $y, $fontSize, $fontColor);
+        }
+    }
+
+    /**
+     * Add text without background to image
+     *
+     * @param  \Intervention\Image\Image  $image  The image to modify
+     * @param  string  $text  Text to add
+     * @param  int  $x  X position (center of text)
+     * @param  int  $y  Y position (top of text for title, center for others)
+     * @param  int  $fontSize  Font size
+     * @param  string  $fontColor  Font color
+     */
+    private function addTextWithoutBackground($image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
+    {
+        try {
+            // Get font path for Oswald font
+            $fontPath = $this->getOswaldFontPath();
+
+            // Split text into lines for manual centering
+            $lines = explode("\n", $text);
+            
+            // Use compressed line height for title text (0.8 multiplier)
+            $lineHeightMultiplier = $this->config['overlay']['font']['title_line_height'] ?? 1.2;
+            $lineHeight = $fontSize * $lineHeightMultiplier;
+            
+            // Add each line separately, centered
+            foreach ($lines as $index => $line) {
+                $lineY = $y + ($index * $lineHeight);
+                
+                $image->text(trim($line), $x, (int) $lineY, function ($font) use ($fontSize, $fontColor, $fontPath) {
+                    $font->size($fontSize);
+                    $font->color($fontColor);
+                    $font->align('center');    // Center each line individually
+                    $font->valign('top');      // Top alignment for precise positioning
+                    if ($fontPath && file_exists($fontPath)) {
+                        $font->file($fontPath);
+                    }
+                });
+            }
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to add text overlay without background', [
+                'text' => $text,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Fallback to simple text
+            $this->addFallbackText($image, $text, $x, $y, $fontSize, $fontColor);
+        }
+    }
+
+    /**
+     * Add text without background to image with vertical centering
+     *
+     * @param  \Intervention\Image\Image  $image  The image to modify
+     * @param  string  $text  Text to add
+     * @param  int  $x  X position (center of text)
+     * @param  int  $y  Y position (center of entire text block)
+     * @param  int  $fontSize  Font size
+     * @param  string  $fontColor  Font color
+     */
+    private function addTextWithoutBackgroundCentered($image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
+    {
+        try {
+            // Get font path for Oswald font
+            $fontPath = $this->getOswaldFontPath();
+
+            // Split text into lines for manual centering
+            $lines = explode("\n", $text);
+            
+            // Use line height from config
+            $lineHeightMultiplier = $this->config['overlay']['font']['title_line_height'] ?? 1.2;
+            $lineHeight = $fontSize * $lineHeightMultiplier;
+            
+            // Calculate total height of text block
+            $totalHeight = (count($lines) - 1) * $lineHeight + $fontSize;
+            
+            // Calculate starting Y position to center the entire text block
+            $startY = $y - ($totalHeight / 2);
+            
+            // Add each line separately, centered
+            foreach ($lines as $index => $line) {
+                $lineY = $startY + ($index * $lineHeight);
+                
+                $image->text(trim($line), $x, (int) $lineY, function ($font) use ($fontSize, $fontColor, $fontPath) {
+                    $font->size($fontSize);
+                    $font->color($fontColor);
+                    $font->align('center');    // Center each line individually
+                    $font->valign('top');      // Top alignment for precise positioning
+                    if ($fontPath && file_exists($fontPath)) {
+                        $font->file($fontPath);
+                    }
+                });
+            }
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to add centered text overlay without background', [
+                'text' => $text,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Fallback to simple text
             $this->addFallbackText($image, $text, $x, $y, $fontSize, $fontColor);
         }
     }
@@ -720,9 +847,12 @@ class ThumbnailGenerationService
     private function addTextBackground($image, int $x, int $y, array $textBounds, array $bgConfig): void
     {
         try {
-            $padding = $bgConfig['padding'];
-            $bgWidth = $textBounds['width'] + ($padding * 2);
-            $bgHeight = $textBounds['height'] + ($padding * 2);
+            // Use separate horizontal and vertical padding if available
+            $horizontalPadding = $bgConfig['horizontal_padding'] ?? $bgConfig['padding'];
+            $verticalPadding = $bgConfig['vertical_padding'] ?? $bgConfig['padding'];
+            
+            $bgWidth = $textBounds['width'] + ($horizontalPadding * 2);
+            $bgHeight = $textBounds['height'] + ($verticalPadding * 2);
 
             // Create solid background rectangle (no transparency for better readability)
             $bgColor = $bgConfig['color'];
