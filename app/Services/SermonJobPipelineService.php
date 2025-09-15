@@ -3,13 +3,11 @@
 namespace App\Services;
 
 use App\Enums\ProcessingStatus;
-use App\Jobs\CreateSermonRecord;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\SermonProcessingLog;
-use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 
@@ -105,7 +103,7 @@ class SermonJobPipelineService
             case 'transcribing_audio':
             case 'transcribing_audio_failed':
                 if ($sermonId) {
-                    TranscribeAudio::dispatch($sermonId)
+                    TranscribeAudio::dispatch($processingLog)
                         ->onQueue(config('sermon-processing.processing.queue', 'default'));
                 }
                 break;
@@ -113,7 +111,7 @@ class SermonJobPipelineService
             case 'analyzing_transcript':
             case 'analyzing_transcript_failed':
                 if ($sermonId) {
-                    ProcessTranscriptWithAI::dispatch($sermonId)
+                    ProcessTranscriptWithAI::dispatch($processingLog)
                         ->onQueue(config('sermon-processing.processing.queue', 'default'));
                 }
                 break;
@@ -129,7 +127,7 @@ class SermonJobPipelineService
             case 'sending_notification':
             case 'notification_failed':
                 if ($sermonId) {
-                    SendCompletionNotification::dispatch($sermonId)
+                    SendCompletionNotification::dispatch($processingLog)
                         ->onQueue(config('sermon-processing.processing.queue', 'default'));
                 }
                 break;
@@ -223,6 +221,7 @@ class SermonJobPipelineService
                 Log::warning('Processing log not found for manual review marking', [
                     'processing_id' => $processingId,
                 ]);
+
                 return false;
             }
 
@@ -265,7 +264,7 @@ class SermonJobPipelineService
         string $absolutePath,
         array $livestreamMetadata = []
     ): array {
-        return $this->pipelineBuilder->buildSermonProcessingPipeline($processingLog, $absolutePath, $livestreamMetadata);
+        return $this->pipelineBuilder->buildAudioPipeline($processingLog);
     }
 
     /**

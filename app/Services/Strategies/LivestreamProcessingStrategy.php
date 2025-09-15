@@ -53,13 +53,13 @@ class LivestreamProcessingStrategy implements ProcessingStrategyInterface
 
         // Check file extension
         $extension = strtolower($file->getClientOriginalExtension());
-        if (!in_array($extension, $config['allowed_extensions'])) {
+        if (! in_array($extension, $config['allowed_extensions'])) {
             $allowed = implode(', ', $config['allowed_extensions']);
             $errors[] = "File extension '{$extension}' not allowed for livestream. Allowed: {$allowed}";
         }
 
         // Check file validity
-        if (!$file->isValid()) {
+        if (! $file->isValid()) {
             $errors[] = 'Uploaded livestream file is corrupted or invalid';
         }
 

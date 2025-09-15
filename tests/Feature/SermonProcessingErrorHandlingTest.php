@@ -2,9 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Data\SermonMetadata;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonService;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\TranscribeAudio;
@@ -13,7 +11,6 @@ use App\Models\Sermon;
 use App\Models\SermonProcessingLog;
 use App\Services\AudioTranscriptionService;
 use App\Services\SermonAnalysisService;
-use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;

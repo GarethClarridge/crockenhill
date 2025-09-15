@@ -78,7 +78,7 @@ class SermonAudioProcessingService
      */
     public function processSermonAudio(UploadedFile $file, array $livestreamMetadata = []): array
     {
-        $storedFilePath = null;
+        $storedFilePath = '';
 
         try {
             Log::info('Starting livestream sermon processing', [
@@ -116,12 +116,12 @@ class SermonAudioProcessingService
 
             // Create pipeline and dispatch jobs
             $pipelineBuilder = app(ProcessingPipelineBuilder::class);
-            $jobs = $pipelineBuilder->buildSermonProcessingPipeline($processingLog, $absolutePath, $livestreamMetadata);
+            $jobs = $pipelineBuilder->buildAudioPipeline($processingLog);
 
             Log::info('Sermon processing pipeline created', [
                 'processing_id' => $processingId,
                 'jobs_count' => count($jobs),
-                'job_classes' => array_map(fn($job) => get_class($job), $jobs),
+                'job_classes' => array_map(fn ($job) => get_class($job), $jobs),
             ]);
 
             $this->dispatchProcessingJobs($jobs, $processingLog, $livestreamMetadata);
@@ -146,8 +146,8 @@ class SermonAudioProcessingService
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Clean up any partial files
-            if ($storedFilePath && Storage::disk(config('sermon-processing.storage.disk', 'public'))->exists($storedFilePath)) {
+            // Clean up any partial files if they were created
+            if ($storedFilePath) {
                 Storage::disk(config('sermon-processing.storage.disk', 'public'))->delete($storedFilePath);
             }
 
@@ -310,18 +310,5 @@ class SermonAudioProcessingService
     {
         return isset($metadata['source_type']) &&
                in_array($metadata['source_type'], ['livestream', 'video_upload']);
-    }
-
-    /**
-     * Convert absolute path to relative path for storage
-     */
-    private function convertAbsoluteToRelativePath(string $absolutePath): string
-    {
-        $storagePath = storage_path('app/public/');
-        if (strpos($absolutePath, $storagePath) === 0) {
-            return substr($absolutePath, strlen($storagePath));
-        }
-
-        return $absolutePath;
     }
 }

@@ -49,6 +49,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             // Check if processing has been cancelled
             if ($this->isCancelled()) {
                 Log::info('AI processing job cancelled', ['processing_id' => $this->processingLog->processing_id]);
+
                 return;
             }
 
@@ -166,12 +167,14 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             $transcriptPath = $this->processingLog->transcript_path;
             if (empty($transcriptPath)) {
                 Log::warning('No transcript path available for fallback analysis');
+
                 return null;
             }
 
             $transcript = \Illuminate\Support\Facades\Storage::get($transcriptPath);
             if (empty($transcript)) {
                 Log::warning('No transcript content available for fallback analysis');
+
                 return null;
             }
 
@@ -215,7 +218,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
         }
 
         // Final fallback using processing date
-        return 'Sermon - ' . $this->processingLog->created_at->format('F j, Y');
+        return 'Sermon - '.$this->processingLog->created_at->format('F j, Y');
     }
 
     /**
@@ -243,6 +246,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                     'ai_analysis' => json_encode($fallbackAnalysis->toArray()),
                 ]);
                 $this->processingLog->updateStep('ai_analysis_fallback_final');
+
                 return;
             }
         } catch (\Exception $e) {

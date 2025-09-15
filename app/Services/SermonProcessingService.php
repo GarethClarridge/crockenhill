@@ -157,17 +157,6 @@ class SermonProcessingService implements SermonProcessingServiceInterface
     }
 
     /**
-     * Store the transcript path for later use
-     */
-    private function storeTranscript(int $sermonId, string $transcript): string
-    {
-        $transcriptPath = 'transcripts/sermon_'.$sermonId.'_'.time().'.txt';
-        \Illuminate\Support\Facades\Storage::disk('local')->put($transcriptPath, $transcript);
-
-        return $transcriptPath;
-    }
-
-    /**
      * Cancel processing for a given processing ID
      */
     public function cancelProcessing(string $processingId): bool

@@ -121,7 +121,7 @@ class AudioExtractionService implements AudioExtractionServiceInterface
         $allowedExtensions = ['mp3', 'wav', 'm4a', 'mp4'];
         $maxFileSize = config('sermon-processing.processing.max_file_size', 104857600); // 100MB
 
-        if (!$file->isValid()) {
+        if (! $file->isValid()) {
             throw new \InvalidArgumentException('Invalid audio file uploaded');
         }
 
@@ -131,13 +131,13 @@ class AudioExtractionService implements AudioExtractionServiceInterface
         }
 
         $extension = strtolower($file->getClientOriginalExtension());
-        if (!in_array($extension, $allowedExtensions)) {
+        if (! in_array($extension, $allowedExtensions)) {
             $allowed = implode(', ', $allowedExtensions);
             throw new \InvalidArgumentException("Audio file extension '{$extension}' not allowed. Allowed: {$allowed}");
         }
 
         $mimeType = $file->getMimeType();
-        if (!in_array($mimeType, $allowedMimeTypes)) {
+        if (! in_array($mimeType, $allowedMimeTypes)) {
             throw new \InvalidArgumentException("Audio file MIME type '{$mimeType}' not allowed");
         }
     }
@@ -147,7 +147,7 @@ class AudioExtractionService implements AudioExtractionServiceInterface
      */
     private function ensureDirectoryExists(string $directory): void
     {
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
     }

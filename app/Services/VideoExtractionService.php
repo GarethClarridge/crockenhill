@@ -332,7 +332,6 @@ class VideoExtractionService
             $startTime = TimeCode::fromSeconds($startTime);
             $durationTime = TimeCode::fromSeconds($duration);
 
-            // @phpstan-ignore-next-line - PHPStan false positive about Audio::clip() method
             $video->clip($startTime, $durationTime)->save($format, $fullOutputPath);
 
             Log::info('Audio extracted from video segment', [
@@ -403,7 +402,6 @@ class VideoExtractionService
             $startTimeCode = TimeCode::fromSeconds($startTime);
             $durationTimeCode = TimeCode::fromSeconds($duration);
 
-            // @phpstan-ignore-next-line - PHPStan false positive about Audio::clip() method
             $video->clip($startTimeCode, $durationTimeCode)->save($format, $fullOutputPath);
 
             // CRITICAL: Immediately check if FFmpeg actually created the file
@@ -415,8 +413,8 @@ class VideoExtractionService
 
             Log::info('FFmpeg audio extraction verification', [
                 'output_path' => $fullOutputPath,
-                'file_exists' => file_exists($fullOutputPath),
-                'file_size' => file_exists($fullOutputPath) ? filesize($fullOutputPath) : 0,
+                'file_exists' => true, // File guaranteed to exist by check on line 410
+                'file_size' => filesize($fullOutputPath),
                 'validation_passed' => $validation['valid'],
                 'start_time' => $startTime,
                 'duration' => $duration,
@@ -482,13 +480,13 @@ class VideoExtractionService
             Log::error('Failed to extract optimized audio from segment', [
                 'error' => $e->getMessage(),
                 'input_path' => $inputVideoPath,
-                'output_path' => $fullOutputPath ?? 'not_set',
-                'segment_start' => $startTime ?? 'not_set',
-                'segment_duration' => $duration ?? 'not_set',
+                'output_path' => $fullOutputPath,
+                'segment_start' => $startTime,
+                'segment_duration' => $duration,
                 'input_file_exists' => file_exists($inputVideoPath),
                 'input_file_size' => file_exists($inputVideoPath) ? filesize($inputVideoPath) : 0,
-                'output_directory_exists' => isset($fullOutputPath) ? is_dir(dirname($fullOutputPath)) : false,
-                'output_directory_writable' => isset($fullOutputPath) ? is_writable(dirname($fullOutputPath)) : false,
+                'output_directory_exists' => is_dir(dirname($fullOutputPath)),
+                'output_directory_writable' => is_writable(dirname($fullOutputPath)),
                 'system_diagnostics' => $diagnostics,
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -594,9 +592,9 @@ class VideoExtractionService
         return [
             'php_version' => PHP_VERSION,
             'memory_limit' => ini_get('memory_limit'),
-            'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 1) . 'MB',
+            'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 1).'MB',
             'disk_free_space' => disk_free_space(Storage::disk($this->permanentDisk)->path('')) ?
-                round(disk_free_space(Storage::disk($this->permanentDisk)->path('')) / 1024 / 1024 / 1024, 1) . 'GB' : 'unknown',
+                round(disk_free_space(Storage::disk($this->permanentDisk)->path('')) / 1024 / 1024 / 1024, 1).'GB' : 'unknown',
             'ffmpeg_path' => config('livestream-processing.ffmpeg_path'),
             'ffprobe_path' => config('livestream-processing.ffprobe_path'),
             'permanent_disk' => $this->permanentDisk,

@@ -345,7 +345,7 @@ class MediaUpload extends Component
 
     public function checkProcessingStatus(): void
     {
-        if (!$this->processingId || $this->status === 'completed' || $this->status === 'failed') {
+        if (! $this->processingId || $this->status === 'completed' || $this->status === 'failed') {
             return;
         }
 
@@ -372,13 +372,13 @@ class MediaUpload extends Component
                 Log::debug('Processing status updated', [
                     'processing_id' => $this->processingId,
                     'status' => $statusResponse->status,
-                    'progress' => $statusResponse->progressPercentage
+                    'progress' => $statusResponse->progressPercentage,
                 ]);
             }
         } catch (\Exception $e) {
             Log::error('Failed to check processing status', [
                 'processing_id' => $this->processingId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

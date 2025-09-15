@@ -345,10 +345,10 @@ class ThumbnailGenerationService
 
         // Calculate positions using percentages
         $titleX = $imageWidth * $posConfig['title_x_percent']; // Center horizontally
-        
+
         // For title, calculate center position and adjust for multi-line text
         $titleCenterY = $imageHeight * $posConfig['title_y_center_percent']; // 35% from top (center of text)
-        
+
         $dateX = $imageWidth * $posConfig['date_x_percent']; // Center horizontally
         $dateY = $imageHeight * $posConfig['date_y_percent']; // 85% down vertically
 
@@ -461,7 +461,7 @@ class ThumbnailGenerationService
             // Calculate background rectangle position (centered around x,y)
             $horizontalPadding = $bgConfig['horizontal_padding'] ?? $bgConfig['padding'];
             $verticalPadding = $bgConfig['vertical_padding'] ?? $bgConfig['padding'];
-            
+
             $bgWidth = $textBounds['width'] + ($horizontalPadding * 2);
             $bgHeight = $textBounds['height'] + ($verticalPadding * 2);
 
@@ -511,15 +511,15 @@ class ThumbnailGenerationService
 
             // Split text into lines for manual centering
             $lines = explode("\n", $text);
-            
+
             // Use compressed line height for title text (0.8 multiplier)
             $lineHeightMultiplier = $this->config['overlay']['font']['title_line_height'] ?? 1.2;
             $lineHeight = $fontSize * $lineHeightMultiplier;
-            
+
             // Add each line separately, centered
             foreach ($lines as $index => $line) {
                 $lineY = $y + ($index * $lineHeight);
-                
+
                 $image->text(trim($line), $x, (int) $lineY, function ($font) use ($fontSize, $fontColor, $fontPath) {
                     $font->size($fontSize);
                     $font->color($fontColor);
@@ -560,21 +560,21 @@ class ThumbnailGenerationService
 
             // Split text into lines for manual centering
             $lines = explode("\n", $text);
-            
+
             // Use line height from config
             $lineHeightMultiplier = $this->config['overlay']['font']['title_line_height'] ?? 1.2;
             $lineHeight = $fontSize * $lineHeightMultiplier;
-            
+
             // Calculate total height of text block
             $totalHeight = (count($lines) - 1) * $lineHeight + $fontSize;
-            
+
             // Calculate starting Y position to center the entire text block
             $startY = $y - ($totalHeight / 2);
-            
+
             // Add each line separately, centered
             foreach ($lines as $index => $line) {
                 $lineY = $startY + ($index * $lineHeight);
-                
+
                 $image->text(trim($line), $x, (int) $lineY, function ($font) use ($fontSize, $fontColor, $fontPath) {
                     $font->size($fontSize);
                     $font->color($fontColor);
@@ -850,7 +850,7 @@ class ThumbnailGenerationService
             // Use separate horizontal and vertical padding if available
             $horizontalPadding = $bgConfig['horizontal_padding'] ?? $bgConfig['padding'];
             $verticalPadding = $bgConfig['vertical_padding'] ?? $bgConfig['padding'];
-            
+
             $bgWidth = $textBounds['width'] + ($horizontalPadding * 2);
             $bgHeight = $textBounds['height'] + ($verticalPadding * 2);
 

@@ -65,7 +65,7 @@ class SendCompletionNotification implements ShouldQueue
             Log::info('Completion notification sent successfully', [
                 'processing_id' => $this->processingLog->processing_id,
                 'sermon_id' => $this->processingLog->sermon_id,
-                'sermon_title' => $sermon?->title ?? 'N/A',
+                'sermon_title' => $sermon->title ?? 'N/A',
                 'processing_status' => $this->processingLog->status->value,
             ]);
         } catch (\Exception $e) {
@@ -79,7 +79,7 @@ class SendCompletionNotification implements ShouldQueue
             // Just log the error and mark as completed
             $this->processingLog->update([
                 'current_step' => 'notification_failed',
-                'error_message' => 'Notification failed: ' . $e->getMessage(),
+                'error_message' => 'Notification failed: '.$e->getMessage(),
             ]);
 
             // Don't re-throw the exception to avoid failing the job chain
@@ -319,14 +319,14 @@ class SendCompletionNotification implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error('SendCompletionNotification job failed permanently', [
-            'sermon_id' => $this->sermonId,
+            'sermon_id' => $this->processingLog->sermon_id,
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);
 
         // Don't fail the processing chain for notification failures
         // Just update the processing log
-        $sermon = Sermon::find($this->sermonId);
+        $sermon = Sermon::find($this->processingLog->sermon_id);
         if ($sermon) {
             $processingLog = $sermon->processingLogs()->latest()->first();
             if ($processingLog) {

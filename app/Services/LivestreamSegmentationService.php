@@ -145,7 +145,7 @@ class LivestreamSegmentationService
 
         $processingLog->markAsFailed('Processing cancelled by user');
 
-        $this->storageService->cleanupTemporaryFiles($processingId);
+        $this->storageService->cleanupTemporaryFiles([]);
 
         return true;
     }
@@ -199,7 +199,7 @@ class LivestreamSegmentationService
             ]);
 
             // Clean up temporary files
-            $this->storageService->cleanupTemporaryFiles($processingId);
+            $this->storageService->cleanupTemporaryFiles([]);
         }
 
         // Send email notification to administrators

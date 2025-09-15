@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Models\LivestreamProcessingLog;
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -30,7 +29,9 @@ class GenerateThumbnail implements ShouldQueue
     public int $timeout = 300;
 
     private ?int $sermonId = null;
+
     private ?string $videoPath = null;
+
     private ?LivestreamProcessingLog $processingLog = null;
 
     /**
@@ -68,19 +69,20 @@ class GenerateThumbnail implements ShouldQueue
                 $this->resolveFromProcessingLog();
             }
 
-            if (!$this->sermonId || !$this->videoPath) {
+            if (! $this->sermonId || ! $this->videoPath) {
                 Log::error('Missing sermon ID or video path for thumbnail generation', [
                     'sermon_id' => $this->sermonId,
                     'video_path' => $this->videoPath,
                     'processing_id' => $this->processingLog?->processing_id,
                 ]);
+
                 return;
             }
 
             Log::info('Starting thumbnail generation', [
                 'sermon_id' => $this->sermonId,
                 'video_path' => $this->videoPath,
-                'processing_id' => $this->processingLog?->processing_id ?? 'direct',
+                'processing_id' => $this->processingLog->processing_id ?? 'direct',
             ]);
 
             // Get the sermon record
@@ -145,7 +147,7 @@ class GenerateThumbnail implements ShouldQueue
      */
     private function resolveFromProcessingLog(): void
     {
-        if (!$this->processingLog) {
+        if (! $this->processingLog) {
             return;
         }
 

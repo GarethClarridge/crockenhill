@@ -86,12 +86,12 @@ class SubmitToProcessing implements ShouldQueue
                 }
 
                 // Check if there are any similar files with the same processing ID
-                $processingUuid = explode('_', basename($this->processingLog->sermon_audio_path))[0] ?? '';
+                $processingUuid = explode('_', basename($this->processingLog->sermon_audio_path))[0];
                 $similarFiles = [];
                 if ($processingUuid) {
                     try {
                         $allFiles = Storage::disk($sermonDisk)->allFiles('sermons');
-                        $similarFiles = array_filter($allFiles, fn($file) => str_contains($file, $processingUuid));
+                        $similarFiles = array_filter($allFiles, fn ($file) => str_contains($file, $processingUuid));
                     } catch (\Exception $e) {
                         Log::warning('Could not search for similar files', [
                             'processing_uuid' => $processingUuid,
@@ -265,7 +265,7 @@ class SubmitToProcessing implements ShouldQueue
         $originalFilename = $metadata['original_filename'] ?? $this->processingLog->original_filename;
 
         if (empty($originalFilename)) {
-            return 'Sermon - ' . now()->format('F j, Y');
+            return 'Sermon - '.now()->format('F j, Y');
         }
 
         $filename = pathinfo($originalFilename, PATHINFO_FILENAME);
@@ -284,7 +284,7 @@ class SubmitToProcessing implements ShouldQueue
             $date = $this->extractDateFromFilename($originalFilename);
             $service = $this->extractServiceFromFilename($originalFilename);
             $serviceLabel = $service === 'evening' ? 'Evening' : 'Morning';
-            $title = $serviceLabel . ' Sermon - ' . date('F j, Y', strtotime($date));
+            $title = $serviceLabel.' Sermon - '.date('F j, Y', strtotime($date));
         }
 
         // Capitalize words properly
@@ -298,12 +298,12 @@ class SubmitToProcessing implements ShouldQueue
     {
         // Try to extract date in various formats from filename
         if (preg_match('/(\d{4})[-_](\d{1,2})[-_](\d{1,2})/', $filename, $matches)) {
-            return $matches[1] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return $matches[1].'-'.str_pad($matches[2], 2, '0', STR_PAD_LEFT).'-'.str_pad($matches[3], 2, '0', STR_PAD_LEFT);
         }
 
         // Try DD-MM-YYYY format
         if (preg_match('/(\d{1,2})[-_](\d{1,2})[-_](\d{4})/', $filename, $matches)) {
-            return $matches[3] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            return $matches[3].'-'.str_pad($matches[2], 2, '0', STR_PAD_LEFT).'-'.str_pad($matches[1], 2, '0', STR_PAD_LEFT);
         }
 
         // Fallback to current date if no date pattern found
@@ -351,5 +351,4 @@ class SubmitToProcessing implements ShouldQueue
     {
         return now()->addHours(2);
     }
-
 }

@@ -186,7 +186,7 @@ class ProcessingRouterTest extends TestCase
             ->once()
             ->andReturn([
                 'valid' => false,
-                'errors' => ["File extension 'txt' not allowed for livestream. Allowed: mp4, mov, avi, mkv, webm"]
+                'errors' => ["File extension 'txt' not allowed for livestream. Allowed: mp4, mov, avi, mkv, webm"],
             ]);
 
         $result = $this->router->validateFileForType($invalidFile, 'livestream');
@@ -211,7 +211,7 @@ class ProcessingRouterTest extends TestCase
             ->once()
             ->andReturn([
                 'valid' => false,
-                'errors' => ['File size exceeds maximum limit']
+                'errors' => ['File size exceeds maximum limit'],
             ]);
 
         $result = $this->router->validateFileForType($oversizedFile, 'livestream');

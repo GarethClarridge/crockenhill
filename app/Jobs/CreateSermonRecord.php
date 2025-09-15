@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Data\SermonMetadata;
 use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
 use App\Models\SermonProcessingLog;
@@ -46,13 +45,14 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             $this->initializeStepLogging($this->processingLog->processing_id);
 
             // Validate processing log exists in database
-            if (!$this->processingLog->exists()) {
+            if (! $this->processingLog->exists()) {
                 throw new \Exception('Processing log not found in database');
             }
 
             // Check if processing has been cancelled
             if ($this->isCancelled()) {
                 Log::info('CreateSermonRecord job cancelled', ['processing_id' => $this->processingLog->processing_id]);
+
                 return;
             }
 
@@ -159,7 +159,7 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
     private function generateInitialTitle(?array $aiAnalysis = null): string
     {
         // Use AI-generated title if available
-        if ($aiAnalysis && !empty($aiAnalysis['title'])) {
+        if ($aiAnalysis && ! empty($aiAnalysis['title'])) {
             return Str::limit($aiAnalysis['title'], 100, '');
         }
 
@@ -177,7 +177,7 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
 
         // If title is empty or too short, use a default
         if (empty($title) || strlen($title) < 3) {
-            $title = 'Sermon ' . $this->processingLog->created_at->format('Y-m-d');
+            $title = 'Sermon '.$this->processingLog->created_at->format('Y-m-d');
         }
 
         // Capitalize words properly
@@ -212,12 +212,12 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
     {
         // Try to extract date in various formats from filename
         if (preg_match('/(\d{4})[-_](\d{1,2})[-_](\d{1,2})/', $filename, $matches)) {
-            return $matches[1] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return $matches[1].'-'.str_pad($matches[2], 2, '0', STR_PAD_LEFT).'-'.str_pad($matches[3], 2, '0', STR_PAD_LEFT);
         }
 
         // Try DD-MM-YYYY format
         if (preg_match('/(\d{1,2})[-_](\d{1,2})[-_](\d{4})/', $filename, $matches)) {
-            return $matches[3] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            return $matches[3].'-'.str_pad($matches[2], 2, '0', STR_PAD_LEFT).'-'.str_pad($matches[1], 2, '0', STR_PAD_LEFT);
         }
 
         // Fallback to current date if no date pattern found

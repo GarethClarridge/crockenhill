@@ -47,6 +47,7 @@ class AudioProcessingStrategy implements ProcessingStrategyInterface
     {
         try {
             $this->audioExtractor->validateAudioFile($file);
+
             return ['valid' => true, 'errors' => []];
         } catch (\InvalidArgumentException $e) {
             return ['valid' => false, 'errors' => [$e->getMessage()]];

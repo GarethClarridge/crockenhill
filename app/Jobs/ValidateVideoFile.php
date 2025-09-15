@@ -36,7 +36,7 @@ class ValidateVideoFile implements ShouldQueue
             $filePath = $this->processingLog->stored_file_path;
 
             // Basic video file validation
-            if (!file_exists($filePath)) {
+            if (! file_exists($filePath)) {
                 throw new \Exception('Video file not found at stored path');
             }
 
@@ -56,7 +56,7 @@ class ValidateVideoFile implements ShouldQueue
 
             $allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'];
 
-            if (!in_array($mimeType, $allowedTypes)) {
+            if (! in_array($mimeType, $allowedTypes)) {
                 throw new \Exception("Unsupported video MIME type: {$mimeType}");
             }
 
@@ -79,7 +79,7 @@ class ValidateVideoFile implements ShouldQueue
 
             $this->processingLog->update([
                 'status' => 'failed',
-                'error_message' => 'Video validation failed: ' . $e->getMessage(),
+                'error_message' => 'Video validation failed: '.$e->getMessage(),
             ]);
 
             throw $e;
@@ -90,7 +90,7 @@ class ValidateVideoFile implements ShouldQueue
     {
         $this->processingLog->update([
             'status' => 'failed',
-            'error_message' => 'Video validation job failed: ' . $exception->getMessage(),
+            'error_message' => 'Video validation job failed: '.$exception->getMessage(),
         ]);
     }
 }

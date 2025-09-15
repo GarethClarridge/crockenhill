@@ -33,4 +33,14 @@ interface VideoStorageServiceInterface
      * Clean up temporary files and processing artifacts
      */
     public function cleanup(string $processingId): void;
+
+    /**
+     * Store uploaded video file temporarily
+     */
+    public function storeUploadedVideo(\Illuminate\Http\UploadedFile $file): array;
+
+    /**
+     * Clean up temporary files after processing
+     */
+    public function cleanupTemporaryFiles(array $filePaths): void;
 }

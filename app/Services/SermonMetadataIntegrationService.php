@@ -305,8 +305,9 @@ class SermonMetadataIntegrationService
     {
         if (! file_exists($videoPath)) {
             Log::warning('Video file does not exist for validation', [
-                'video_path' => $videoPath
+                'video_path' => $videoPath,
             ]);
+
             return false;
         }
 
@@ -314,8 +315,9 @@ class SermonMetadataIntegrationService
         $fileSize = filesize($videoPath);
         if ($fileSize === 0) {
             Log::warning('Video file has zero size', [
-                'video_path' => $videoPath
+                'video_path' => $videoPath,
             ]);
+
             return false;
         }
 
@@ -324,8 +326,9 @@ class SermonMetadataIntegrationService
             $mimeType = mime_content_type($videoPath);
             if ($mimeType === false) {
                 Log::warning('Could not determine MIME type for video file', [
-                    'video_path' => $videoPath
+                    'video_path' => $videoPath,
                 ]);
+
                 return false;
             }
 
@@ -333,11 +336,11 @@ class SermonMetadataIntegrationService
 
             $isValid = in_array($mimeType, $validMimeTypes);
 
-            if (!$isValid) {
+            if (! $isValid) {
                 Log::warning('Video file has invalid MIME type', [
                     'video_path' => $videoPath,
                     'mime_type' => $mimeType,
-                    'valid_mime_types' => $validMimeTypes
+                    'valid_mime_types' => $validMimeTypes,
                 ]);
             }
 
@@ -345,8 +348,9 @@ class SermonMetadataIntegrationService
         } catch (\Exception $e) {
             Log::error('Exception during video file validation', [
                 'video_path' => $videoPath,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }

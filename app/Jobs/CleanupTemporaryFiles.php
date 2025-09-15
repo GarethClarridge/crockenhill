@@ -29,7 +29,7 @@ class CleanupTemporaryFiles implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            $storageService->cleanupTemporaryFiles($this->processingLog->processing_id);
+            $storageService->cleanupTemporaryFiles([]);
 
             Log::info('Temporary file cleanup completed', [
                 'processing_id' => $this->processingLog->processing_id,

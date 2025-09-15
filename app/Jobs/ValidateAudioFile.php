@@ -51,7 +51,7 @@ class ValidateAudioFile implements ShouldQueue
             ]);
 
             // Ensure file exists before attempting to get MIME type
-            if (!file_exists($filePath)) {
+            if (! file_exists($filePath)) {
                 throw new \Exception("Audio file not found at path: {$filePath} (relative: {$storedFilePath})");
             }
 
@@ -87,7 +87,7 @@ class ValidateAudioFile implements ShouldQueue
 
             $this->processingLog->update([
                 'status' => 'failed',
-                'error_message' => 'Audio validation failed: ' . $e->getMessage(),
+                'error_message' => 'Audio validation failed: '.$e->getMessage(),
             ]);
 
             throw $e;
@@ -98,7 +98,7 @@ class ValidateAudioFile implements ShouldQueue
     {
         $this->processingLog->update([
             'status' => 'failed',
-            'error_message' => 'Audio validation job failed: ' . $exception->getMessage(),
+            'error_message' => 'Audio validation job failed: '.$exception->getMessage(),
         ]);
     }
 }

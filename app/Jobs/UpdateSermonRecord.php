@@ -100,7 +100,7 @@ class UpdateSermonRecord implements ShouldQueue
                     ->onQueue(config('sermon-processing.processing.queue', 'default'));
             } else {
                 Log::warning('No processing log found for sermon completion notification', [
-                    'sermon_id' => $this->sermonId
+                    'sermon_id' => $this->sermonId,
                 ]);
             }
         } catch (\Exception $e) {

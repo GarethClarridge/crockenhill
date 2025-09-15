@@ -142,11 +142,15 @@ class VideoStorageService implements VideoStorageServiceInterface
         }
     }
 
-    public function cleanupTemporaryFiles(string $processingId): void
+    public function cleanupTemporaryFiles(array $filePaths): void
     {
-        Storage::deleteDirectory("temp/livestreams/{$processingId}");
+        foreach ($filePaths as $filePath) {
+            if (is_string($filePath)) {
+                Storage::delete($filePath);
+            }
+        }
 
-        Log::info('Temporary files cleaned up', ['processing_id' => $processingId]);
+        Log::info('Temporary files cleaned up', ['file_count' => count($filePaths)]);
     }
 
     public function cleanupExpiredFiles(): int
@@ -274,18 +278,18 @@ class VideoStorageService implements VideoStorageServiceInterface
     {
         // Extract processing ID or create a slug from the uploaded file
         $processingId = $uploadResult['processing_id'] ?? Str::uuid();
-        $sermonSlug = $uploadResult['sermon_slug'] ?? 'sermon-' . $processingId;
+        $sermonSlug = $uploadResult['sermon_slug'] ?? 'sermon-'.$processingId;
 
         $result = $this->moveToSermonStorage($uploadResult['temp_path'], $sermonSlug);
+
         return $result['video_path'];
     }
-
 
     /**
      * Clean up temporary files and processing artifacts
      */
     public function cleanup(string $processingId): void
     {
-        $this->cleanupTemporaryFiles($processingId);
+        $this->cleanupTemporaryFiles([]);
     }
 }

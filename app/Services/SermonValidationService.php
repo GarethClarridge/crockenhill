@@ -67,12 +67,12 @@ class SermonValidationService
 
         // Validate source type
         $validSourceTypes = ['audio_upload', 'video_upload', 'livestream'];
-        if (!empty($metadata['source_type']) && !in_array($metadata['source_type'], $validSourceTypes)) {
-            $errors[] = 'Invalid source type. Must be one of: ' . implode(', ', $validSourceTypes);
+        if (! empty($metadata['source_type']) && ! in_array($metadata['source_type'], $validSourceTypes)) {
+            $errors[] = 'Invalid source type. Must be one of: '.implode(', ', $validSourceTypes);
         }
 
         // Validate filename format if provided
-        if (!empty($metadata['original_filename'])) {
+        if (! empty($metadata['original_filename'])) {
             $filename = $metadata['original_filename'];
 
             // Check for potentially dangerous file patterns
@@ -174,42 +174,42 @@ class SermonValidationService
         // Date validation
         if (empty($data['date'])) {
             $errors[] = 'Sermon date is required';
-        } elseif (!strtotime($data['date'])) {
+        } elseif (! strtotime($data['date'])) {
             $errors[] = 'Invalid sermon date format';
         }
 
         // Service validation
-        if (!empty($data['service'])) {
+        if (! empty($data['service'])) {
             $validServices = ['morning', 'evening', 'other'];
-            if (!in_array($data['service'], $validServices)) {
-                $errors[] = 'Invalid service type. Must be one of: ' . implode(', ', $validServices);
+            if (! in_array($data['service'], $validServices)) {
+                $errors[] = 'Invalid service type. Must be one of: '.implode(', ', $validServices);
             }
         }
 
         // Preacher validation
-        if (!empty($data['preacher']) && strlen($data['preacher']) > 100) {
+        if (! empty($data['preacher']) && strlen($data['preacher']) > 100) {
             $errors[] = 'Preacher name too long (maximum 100 characters)';
         }
 
         // Series validation
-        if (!empty($data['series']) && strlen($data['series']) > 100) {
+        if (! empty($data['series']) && strlen($data['series']) > 100) {
             $errors[] = 'Series name too long (maximum 100 characters)';
         }
 
         // Reference validation
-        if (!empty($data['reference']) && strlen($data['reference']) > 255) {
+        if (! empty($data['reference']) && strlen($data['reference']) > 255) {
             $errors[] = 'Bible reference too long (maximum 255 characters)';
         }
 
         // Slug validation and uniqueness
-        if (!empty($data['slug'])) {
-            if (!preg_match('/^[a-z0-9\-]+$/', $data['slug'])) {
+        if (! empty($data['slug'])) {
+            if (! preg_match('/^[a-z0-9\-]+$/', $data['slug'])) {
                 $errors[] = 'Slug can only contain lowercase letters, numbers, and hyphens';
             }
 
             // Check slug uniqueness (if sermon ID provided, exclude it)
             $slugQuery = Sermon::where('slug', $data['slug']);
-            if (!empty($data['sermon_id'])) {
+            if (! empty($data['sermon_id'])) {
                 $slugQuery->where('id', '!=', $data['sermon_id']);
             }
 
@@ -268,18 +268,18 @@ class SermonValidationService
         $errors = [];
 
         // Check required services are configured
-        if (!config('services.openai.key') && config('sermon-processing.transcription.service') === 'openai') {
+        if (! config('services.openai.key') && config('sermon-processing.transcription.service') === 'openai') {
             $errors[] = 'OpenAI API key not configured but required for transcription';
         }
 
         // Check queue configuration
-        if (!config('queue.default')) {
+        if (! config('queue.default')) {
             $errors[] = 'Queue system not configured - required for processing jobs';
         }
 
         // Check storage configuration
         $disk = config('sermon-processing.storage.disk', 'public');
-        if (!config("filesystems.disks.{$disk}")) {
+        if (! config("filesystems.disks.{$disk}")) {
             $errors[] = "Storage disk '{$disk}' not configured";
         }
 

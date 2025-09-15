@@ -12,20 +12,20 @@ use App\Contracts\SermonProcessingServiceInterface;
 use App\Contracts\VideoProcessingServiceInterface;
 use App\Contracts\VideoStorageServiceInterface;
 use App\Services\AudioExtractionService;
+use App\Services\LivestreamSegmentationService;
+use App\Services\LivestreamStatusService;
 use App\Services\ProcessingHealthService;
 use App\Services\ProcessingRouter;
 use App\Services\ProcessingStrategyRegistry;
+use App\Services\SermonAudioProcessingService;
+use App\Services\SermonJobPipelineService;
 use App\Services\SermonMetadataService;
 use App\Services\SermonProcessingService;
+use App\Services\SermonStatusManagementService;
+use App\Services\SermonValidationService;
 use App\Services\Strategies\AudioProcessingStrategy;
 use App\Services\Strategies\DirectVideoProcessingStrategy;
 use App\Services\Strategies\LivestreamProcessingStrategy;
-use App\Services\LivestreamSegmentationService;
-use App\Services\LivestreamStatusService;
-use App\Services\SermonAudioProcessingService;
-use App\Services\SermonJobPipelineService;
-use App\Services\SermonStatusManagementService;
-use App\Services\SermonValidationService;
 use App\Services\VideoProcessingService;
 use App\Services\VideoStorageService;
 use Illuminate\Support\ServiceProvider;
@@ -65,7 +65,7 @@ class MediaProcessingServiceProvider extends ServiceProvider
                 $app->make(SermonJobPipelineService::class),
                 $app->make(SermonStatusManagementService::class),
                 $app->make(SermonValidationService::class),
-                $app->make(SermonProcessingLogger::class)
+                $app->make(\App\Services\SermonProcessingLogger::class)
             );
         });
         $this->app->bind(ProcessingRouterInterface::class, ProcessingRouter::class);

@@ -47,6 +47,7 @@ class TranscribeSermonAudioFromLivestream implements ShouldQueue
             // Check if processing has been cancelled
             if ($this->isProcessingCancelled()) {
                 Log::info('Livestream transcription job cancelled', ['processing_id' => $this->processingLog->processing_id]);
+
                 return;
             }
 
@@ -54,24 +55,24 @@ class TranscribeSermonAudioFromLivestream implements ShouldQueue
             $this->processingLog->update(['status' => 'transcription']);
 
             // Validate sermon exists
-            if (!$this->processingLog->sermon_id) {
+            if (! $this->processingLog->sermon_id) {
                 throw new \Exception("No sermon ID found in processing log: {$this->processingLog->processing_id}");
             }
 
             $sermon = Sermon::find($this->processingLog->sermon_id);
-            if (!$sermon) {
+            if (! $sermon) {
                 throw new \Exception("Sermon not found: {$this->processingLog->sermon_id}");
             }
 
             // Get audio file path from processing log
             $audioFilePath = $this->processingLog->sermon_audio_path;
-            if (!$audioFilePath) {
+            if (! $audioFilePath) {
                 throw new \Exception("No audio file path found in processing log: {$this->processingLog->processing_id}");
             }
 
             // Validate audio file exists
             $sermonDisk = config('livestream-processing.sermon_disk', 'public');
-            if (!Storage::disk($sermonDisk)->exists($audioFilePath)) {
+            if (! Storage::disk($sermonDisk)->exists($audioFilePath)) {
                 throw new \Exception("Audio file not found: {$audioFilePath}");
             }
 
@@ -145,7 +146,7 @@ class TranscribeSermonAudioFromLivestream implements ShouldQueue
             // Update processing log with error
             $this->processingLog->update([
                 'status' => 'failed',
-                'error_message' => 'Livestream transcription failed: ' . $e->getMessage(),
+                'error_message' => 'Livestream transcription failed: '.$e->getMessage(),
                 'completed_at' => now(),
             ]);
 
@@ -181,7 +182,7 @@ class TranscribeSermonAudioFromLivestream implements ShouldQueue
 
         // Mark processing as failed
         $this->processingLog->markAsFailed(
-            'Livestream transcription failed after ' . $this->tries . ' attempts: ' . $exception->getMessage()
+            'Livestream transcription failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
     }
 

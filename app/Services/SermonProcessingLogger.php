@@ -322,4 +322,20 @@ class SermonProcessingLogger
 
         return 'OTHER_ERROR';
     }
+
+    /**
+     * Log processing completion with success status.
+     */
+    public function logProcessingCompletion(string $processingId, bool $success, string $message = ''): void
+    {
+        $level = $success ? 'info' : 'error';
+        $statusMessage = $success ? 'Sermon processing completed successfully' : 'Sermon processing failed';
+
+        Log::log($level, $statusMessage, [
+            'processing_id' => $processingId,
+            'success' => $success,
+            'message' => $message,
+            'timestamp' => now()->toISOString(),
+        ]);
+    }
 }

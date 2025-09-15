@@ -151,7 +151,7 @@ class SermonAnalysisService
                         'error' => $e->getMessage(),
                         'model' => $model,
                     ]);
-                    throw new \Exception("OpenAI API call failed: " . $e->getMessage());
+                    throw new \Exception('OpenAI API call failed: '.$e->getMessage());
                 }
 
                 $apiTime = microtime(true) - $apiStartTime;
@@ -167,11 +167,10 @@ class SermonAnalysisService
                 );
 
                 // Validate response structure
-                if (!isset($response->choices) || !is_array($response->choices) || empty($response->choices)) {
+                if (empty($response->choices)) {
                     Log::error('Invalid OpenAI response structure', [
                         'processing_id' => $processingId,
                         'response_type' => gettype($response),
-                        'response_content' => is_string($response) ? substr($response, 0, 500) : 'Not a string',
                     ]);
                     throw new \Exception('Invalid response structure from OpenAI API');
                 }
@@ -840,7 +839,7 @@ PROMPT;
                 $potential = trim($matches[count($matches) - 1]);
                 if (strlen($potential) > 10 && strlen($potential) < 80) {
                     $title = $this->cleanMockTitle($potential);
-                    if (!empty($title)) {
+                    if (! empty($title)) {
                         return $title;
                     }
                 }
@@ -855,7 +854,7 @@ PROMPT;
                 // Look for sentences with theological keywords
                 if (preg_match('/\b(?:god|jesus|christ|lord|saviour|salvation|gospel|faith|hope|love|grace|mercy)\b/i', $sentence)) {
                     $title = $this->cleanMockTitle($sentence);
-                    if (!empty($title)) {
+                    if (! empty($title)) {
                         return $title;
                     }
                 }
@@ -869,7 +868,7 @@ PROMPT;
 
         foreach ($words as $word) {
             $cleanWord = strtolower(trim($word, '.,!?;:'));
-            if (!in_array($cleanWord, $skipWords) && strlen($cleanWord) > 2) {
+            if (! in_array($cleanWord, $skipWords) && strlen($cleanWord) > 2) {
                 $meaningfulWords[] = $word;
                 if (count($meaningfulWords) >= 8) {
                     break;
@@ -879,6 +878,7 @@ PROMPT;
 
         if (count($meaningfulWords) >= 3) {
             $title = implode(' ', array_slice($meaningfulWords, 0, 8));
+
             return $this->cleanMockTitle($title);
         }
 
@@ -900,7 +900,7 @@ PROMPT;
         // Capitalise proper nouns (God, Jesus, Christ, Bible, etc.)
         $properNouns = ['god', 'jesus', 'christ', 'lord', 'holy spirit', 'father', 'son', 'bible', 'scripture', 'christian', 'christianity'];
         foreach ($properNouns as $noun) {
-            $title = preg_replace('/\b' . preg_quote($noun, '/') . '\b/i', ucfirst($noun), $title);
+            $title = preg_replace('/\b'.preg_quote($noun, '/').'\b/i', ucfirst($noun), $title);
         }
 
         // Limit to 12 words maximum
@@ -928,17 +928,18 @@ PROMPT;
             'matthew', 'mark', 'luke', 'john', 'acts', 'romans', '1 corinthians', '2 corinthians',
             'galatians', 'ephesians', 'philippians', 'colossians', '1 thessalonians', '2 thessalonians',
             '1 timothy', '2 timothy', 'titus', 'philemon', 'hebrews', 'james', '1 peter', '2 peter',
-            '1 john', '2 john', '3 john', 'jude', 'revelation'
+            '1 john', '2 john', '3 john', 'jude', 'revelation',
         ];
 
         foreach ($bibleBooks as $book) {
-            if (preg_match('/\b' . preg_quote($book, '/') . '\b/i', $transcript)) {
+            if (preg_match('/\b'.preg_quote($book, '/').'\b/i', $transcript)) {
                 // Check if this book exists in existing series
                 foreach ($existingSeries as $series) {
                     if (stripos($series, $book) !== false) {
                         return $series;
                     }
                 }
+
                 // Return a standardised book study name
                 return ucfirst($book);
             }
@@ -962,6 +963,7 @@ PROMPT;
                         return $series;
                     }
                 }
+
                 return $seriesName;
             }
         }
@@ -992,7 +994,7 @@ PROMPT;
                 $validBooks = [
                     'genesis', 'exodus', 'matthew', 'mark', 'luke', 'john', 'acts', 'romans',
                     '1 corinthians', '2 corinthians', 'galatians', 'ephesians', 'philippians',
-                    'colossians', 'hebrews', 'james', '1 peter', '2 peter', '1 john', 'revelation'
+                    'colossians', 'hebrews', 'james', '1 peter', '2 peter', '1 john', 'revelation',
                 ];
 
                 $bookLower = strtolower($book);
@@ -1000,6 +1002,7 @@ PROMPT;
                     if (isset($matches[3])) {
                         $verse = $matches[3];
                         $endVerse = isset($matches[4]) ? $matches[4] : null;
+
                         return $endVerse ? "{$book} {$chapter}:{$verse}-{$endVerse}" : "{$book} {$chapter}:{$verse}";
                     } else {
                         return "{$book} {$chapter}";
@@ -1050,7 +1053,7 @@ PROMPT;
             if (preg_match($pattern, $transcript, $matches)) {
                 $point = trim($matches[1]);
                 $point = $this->cleanMockPoint($point);
-                if (!empty($point)) {
+                if (! empty($point)) {
                     $points[] = $point;
                 }
             }
@@ -1068,19 +1071,19 @@ PROMPT;
             $thematicPoints[] = "God's sovereignty over all circumstances";
         }
         if (preg_match('/\bgood|work.*good|good.*work\b/i', $transcript)) {
-            $thematicPoints[] = "God works all things for good";
+            $thematicPoints[] = 'God works all things for good';
         }
         if (preg_match('/\blove.*god|god.*love\b/i', $transcript)) {
-            $thematicPoints[] = "This promise is for those who love God";
+            $thematicPoints[] = 'This promise is for those who love God';
         }
         if (preg_match('/\bpurpose|called.*purpose\b/i', $transcript)) {
-            $thematicPoints[] = "We are called according to His purpose";
+            $thematicPoints[] = 'We are called according to His purpose';
         }
         if (preg_match('/\btrust|trusting\b/i', $transcript)) {
-            $thematicPoints[] = "We can trust God in difficult times";
+            $thematicPoints[] = 'We can trust God in difficult times';
         }
         if (preg_match('/\bfaith|faithful\b/i', $transcript)) {
-            $thematicPoints[] = "God is faithful to His promises";
+            $thematicPoints[] = 'God is faithful to His promises';
         }
 
         if (count($thematicPoints) >= 2) {
@@ -1091,7 +1094,7 @@ PROMPT;
         return [
             'God is in control of all circumstances',
             'We can trust Him even when we don\'t understand',
-            'His plans are always for our ultimate good'
+            'His plans are always for our ultimate good',
         ];
     }
 
@@ -1109,7 +1112,7 @@ PROMPT;
         // Capitalise proper nouns
         $properNouns = ['god', 'jesus', 'christ', 'lord', 'holy spirit', 'father', 'son', 'bible', 'christian'];
         foreach ($properNouns as $noun) {
-            $point = preg_replace('/\b' . preg_quote($noun, '/') . '\b/i', ucfirst($noun), $point);
+            $point = preg_replace('/\b'.preg_quote($noun, '/').'\b/i', ucfirst($noun), $point);
         }
 
         // Limit to reasonable length (max 12 words)
@@ -1166,15 +1169,15 @@ PROMPT;
         $mainTheme = trim($mainTheme);
         $mainTheme = lcfirst($mainTheme);
 
-        $summary .= $mainTheme . '. ';
+        $summary .= $mainTheme.'. ';
 
         // Add application
         if (count($keyThemes) > 1) {
             $application = $keyThemes[1];
             $application = preg_replace('/^(and|but|so|therefore)/i', '', $application);
             $application = trim($application);
-            if (!empty($application)) {
-                $summary .= ucfirst($application) . '. ';
+            if (! empty($application)) {
+                $summary .= ucfirst($application).'. ';
             }
         }
 
@@ -1209,6 +1212,6 @@ PROMPT;
         $converter = app(BritishEnglishConverter::class);
         $summary = $converter->convert($summary);
 
-        return !empty(trim($summary)) ? $summary : null;
+        return ! empty(trim($summary)) ? $summary : null;
     }
 }

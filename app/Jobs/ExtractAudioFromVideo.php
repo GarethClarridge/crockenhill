@@ -62,7 +62,7 @@ class ExtractAudioFromVideo implements ShouldQueue
 
             $this->processingLog->update([
                 'status' => 'failed',
-                'error_message' => 'Audio extraction failed: ' . $e->getMessage(),
+                'error_message' => 'Audio extraction failed: '.$e->getMessage(),
             ]);
 
             throw $e;
@@ -73,7 +73,7 @@ class ExtractAudioFromVideo implements ShouldQueue
     {
         $this->processingLog->update([
             'status' => 'failed',
-            'error_message' => 'Audio extraction job failed: ' . $exception->getMessage(),
+            'error_message' => 'Audio extraction job failed: '.$exception->getMessage(),
         ]);
     }
 }

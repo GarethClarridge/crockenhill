@@ -150,15 +150,10 @@ class SermonMetadataService implements SermonMetadataServiceInterface
      */
     private function generateFallbackTitle(Sermon $sermon, SermonProcessingLog $processingLog): string
     {
-        // Use sermon date and service if available
-        if ($sermon->date) {
-            $dateStr = $sermon->date->format('F j, Y');
-            $service = $sermon->service ? $sermon->service->label() : 'Service';
-            return "{$dateStr} {$service}";
-        }
+        // Use sermon date and service
+        $dateStr = $sermon->date->format('F j, Y');
+        $service = $sermon->service ? $sermon->service->label() : 'Service';
 
-        // Use processing log creation date as fallback
-        $dateStr = $processingLog->created_at->format('F j, Y');
-        return "Sermon - {$dateStr}";
+        return "{$dateStr} {$service}";
     }
 }

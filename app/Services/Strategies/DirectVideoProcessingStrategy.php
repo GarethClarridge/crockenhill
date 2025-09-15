@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Strategies;
 
-use App\Contracts\AudioExtractionServiceInterface;
 use App\Contracts\ProcessingStrategyInterface;
 use App\Services\ProcessingResult;
-use App\Services\SermonProcessingService;
-use App\Services\VideoProcessingService;
 use Illuminate\Http\UploadedFile;
 
 /**
@@ -19,11 +16,7 @@ use Illuminate\Http\UploadedFile;
  */
 class DirectVideoProcessingStrategy implements ProcessingStrategyInterface
 {
-    public function __construct(
-        private VideoProcessingService $videoProcessor,
-        private AudioExtractionServiceInterface $audioExtractor,
-        private SermonProcessingService $sermonProcessor
-    ) {}
+    public function __construct() {}
 
     /**
      * Check if this strategy supports the given processing type
@@ -58,13 +51,13 @@ class DirectVideoProcessingStrategy implements ProcessingStrategyInterface
 
         // Check file extension
         $extension = strtolower($file->getClientOriginalExtension());
-        if (!in_array($extension, $config['allowed_extensions'])) {
+        if (! in_array($extension, $config['allowed_extensions'])) {
             $allowed = implode(', ', $config['allowed_extensions']);
             $errors[] = "File extension '{$extension}' not allowed for sermon video. Allowed: {$allowed}";
         }
 
         // Check file validity
-        if (!$file->isValid()) {
+        if (! $file->isValid()) {
             $errors[] = 'Uploaded video file is corrupted or invalid';
         }
 
@@ -123,7 +116,7 @@ class DirectVideoProcessingStrategy implements ProcessingStrategyInterface
 
                     $processingLog->update([
                         'status' => \App\Enums\ProcessingStatus::FAILED,
-                        'error_message' => 'Video processing chain failed: ' . $e->getMessage(),
+                        'error_message' => 'Video processing chain failed: '.$e->getMessage(),
                         'completed_at' => now(),
                     ]);
                 })
@@ -138,8 +131,8 @@ class DirectVideoProcessingStrategy implements ProcessingStrategyInterface
 
         } catch (\Exception $e) {
             return \App\Services\ProcessingResult::failure(
-                processingId: 'failed-' . \Illuminate\Support\Str::uuid(),
-                message: 'Failed to initiate video processing: ' . $e->getMessage(),
+                processingId: 'failed-'.\Illuminate\Support\Str::uuid(),
+                message: 'Failed to initiate video processing: '.$e->getMessage(),
                 errorCode: 'VIDEO_PROCESSING_INITIATION_FAILED'
             );
         }

@@ -48,6 +48,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             // Check if processing has been cancelled
             if ($this->isCancelled()) {
                 Log::info('Transcription job cancelled', ['processing_id' => $this->processingLog->processing_id]);
+
                 return;
             }
 
@@ -74,7 +75,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             }
 
             // Store the transcript file - use sermon ID for existing interface
-            if (!$this->processingLog->sermon_id) {
+            if (! $this->processingLog->sermon_id) {
                 throw new \Exception("No sermon ID found in processing log: {$this->processingLog->processing_id}");
             }
             $transcriptPath = $transcriptionService->storeTranscript($this->processingLog->sermon_id, $transcript);

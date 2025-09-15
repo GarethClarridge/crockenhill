@@ -21,7 +21,7 @@ class ProcessingStrategyRegistry
     private array $strategies = [];
 
     /**
-     * @param array<string, ProcessingStrategyInterface> $strategies
+     * @param  array<string, ProcessingStrategyInterface>  $strategies
      */
     public function __construct(array $strategies = [])
     {
@@ -41,7 +41,7 @@ class ProcessingStrategyRegistry
      */
     public function getStrategy(string $type): ProcessingStrategyInterface
     {
-        if (!isset($this->strategies[$type])) {
+        if (! isset($this->strategies[$type])) {
             throw new UnsupportedProcessingTypeException("No strategy registered for type: {$type}");
         }
 

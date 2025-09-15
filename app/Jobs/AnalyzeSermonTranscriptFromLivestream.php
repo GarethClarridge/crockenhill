@@ -49,6 +49,7 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
             // Check if processing has been cancelled
             if ($this->isProcessingCancelled()) {
                 Log::info('Livestream AI analysis job cancelled', ['processing_id' => $this->processingLog->processing_id]);
+
                 return;
             }
 
@@ -56,12 +57,12 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
             $this->processingLog->update(['status' => 'processing']);
 
             // Validate sermon exists
-            if (!$this->processingLog->sermon_id) {
+            if (! $this->processingLog->sermon_id) {
                 throw new \Exception("No sermon ID found in processing log: {$this->processingLog->processing_id}");
             }
 
             $sermon = Sermon::find($this->processingLog->sermon_id);
-            if (!$sermon) {
+            if (! $sermon) {
                 throw new \Exception("Sermon not found: {$this->processingLog->sermon_id}");
             }
 
@@ -92,7 +93,7 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
             $analysis = $analysisService->analyzeSermon($transcript, $existingSeries);
 
             // Validate the analysis results
-            if (!$analysis->hasValidTranscript()) {
+            if (! $analysis->hasValidTranscript()) {
                 throw new \Exception('AI analysis produced invalid results');
             }
 
@@ -160,6 +161,7 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
                         'processing_id' => $this->processingLog->processing_id,
                         'sermon_id' => $sermon->id,
                     ]);
+
                     return;
                 }
             }
@@ -167,7 +169,7 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
             // Update processing log with error if fallback failed
             $this->processingLog->update([
                 'status' => 'failed',
-                'error_message' => 'Livestream AI analysis failed: ' . $e->getMessage(),
+                'error_message' => 'Livestream AI analysis failed: '.$e->getMessage(),
                 'completed_at' => now(),
             ]);
 
@@ -216,6 +218,7 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
                         ),
                         'status' => 'completed',
                     ]);
+
                     return;
                 }
             }
@@ -229,7 +232,7 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
 
         // Mark processing as failed if fallback also failed
         $this->processingLog->markAsFailed(
-            'Livestream AI analysis failed after ' . $this->tries . ' attempts: ' . $exception->getMessage()
+            'Livestream AI analysis failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
     }
 
@@ -293,7 +296,7 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
         $updateData = [];
 
         // Update title if AI provided a better one
-        if (!empty($analysis->title) && $analysis->title !== $sermon->title) {
+        if (! empty($analysis->title) && $analysis->title !== $sermon->title) {
             $updateData['title'] = $analysis->title;
 
             // Generate new slug for the updated title
@@ -301,27 +304,27 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
         }
 
         // Update series if identified
-        if (!empty($analysis->series)) {
+        if (! empty($analysis->series)) {
             $updateData['series'] = $analysis->series;
         }
 
         // Update Bible reference if identified
-        if (!empty($analysis->reference)) {
+        if (! empty($analysis->reference)) {
             $updateData['reference'] = $analysis->reference;
         }
 
         // Update sermon points if available
-        if (!empty($analysis->points)) {
+        if (! empty($analysis->points)) {
             $updateData['points'] = json_encode($analysis->points);
         }
 
         // Update summary if available
-        if (!empty($analysis->summary)) {
+        if (! empty($analysis->summary)) {
             $updateData['summary'] = $analysis->summary;
         }
 
         // Only update if we have changes
-        if (!empty($updateData)) {
+        if (! empty($updateData)) {
             $sermon->update($updateData);
 
             Log::info('Updated sermon with AI analysis', [
@@ -389,19 +392,19 @@ class AnalyzeSermonTranscriptFromLivestream implements ShouldQueue
     {
         // Generate from original filename
         $originalFilename = $this->processingLog->original_filename;
-        if (!empty($originalFilename)) {
+        if (! empty($originalFilename)) {
             $filename = pathinfo($originalFilename, PATHINFO_FILENAME);
             $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename);
             $title = preg_replace('/[-_]+/', ' ', $title);
             $title = trim($title);
 
-            if (!empty($title) && strlen($title) > 3) {
+            if (! empty($title) && strlen($title) > 3) {
                 return Str::title($title);
             }
         }
 
         // Final fallback using processing date
-        return 'Sermon - ' . $this->processingLog->created_at->format('F j, Y');
+        return 'Sermon - '.$this->processingLog->created_at->format('F j, Y');
     }
 
     /**

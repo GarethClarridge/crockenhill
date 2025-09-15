@@ -165,7 +165,7 @@ class ProcessingHealthService implements ProcessingHealthServiceInterface
             $issues = [];
 
             // Check if storage is accessible
-            if (!$storage->exists('.')) {
+            if (! $storage->exists('.')) {
                 $status = 'error';
                 $issues[] = 'Storage disk is not accessible';
             }

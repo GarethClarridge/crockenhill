@@ -35,12 +35,8 @@ class ProcessingRouter implements ProcessingRouterInterface
 
         $strategy = $this->strategyRegistry->getStrategy($type);
 
-        if (!$strategy) {
-            throw new UnsupportedProcessingTypeException($type);
-        }
-
         $validation = $strategy->validateFile($file);
-        if (!$validation['valid']) {
+        if (! $validation['valid']) {
             throw new InvalidFileException($validation['errors']);
         }
 
@@ -89,6 +85,7 @@ class ProcessingRouter implements ProcessingRouterInterface
     {
         try {
             $strategy = $this->strategyRegistry->getStrategy($type);
+
             return $strategy->validateFile($file);
         } catch (UnsupportedProcessingTypeException $e) {
             return [

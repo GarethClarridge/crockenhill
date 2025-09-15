@@ -142,6 +142,7 @@ class SermonStatusManagementService
                 Log::warning('Processing log not found for manual review marking', [
                     'processing_id' => $processingId,
                 ]);
+
                 return false;
             }
 
@@ -453,23 +454,16 @@ class SermonStatusManagementService
      */
     private function checkQueueHealth(): array
     {
-        try {
-            // Simplified queue health check
-            // In production, you might want to check queue length, failed jobs, etc.
-            return [
-                'status' => 'healthy',
-                'message' => 'Queue system operational',
-                'details' => [
-                    'note' => 'Detailed queue monitoring not implemented',
-                    'suggestion' => 'Integrate with queue monitoring service',
-                ],
-            ];
-        } catch (\Exception $e) {
-            return [
-                'status' => 'unhealthy',
-                'message' => 'Queue health check failed: '.$e->getMessage(),
-            ];
-        }
+        // Simplified queue health check
+        // In production, you might want to check queue length, failed jobs, etc.
+        return [
+            'status' => 'healthy',
+            'message' => 'Queue system operational',
+            'details' => [
+                'note' => 'Detailed queue monitoring not implemented',
+                'suggestion' => 'Integrate with queue monitoring service',
+            ],
+        ];
     }
 
     /**
