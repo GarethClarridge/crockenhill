@@ -26,7 +26,8 @@ return [
     |
     */
     'analysis' => [
-        'service' => env('ANALYSIS_SERVICE', 'openai'),
+        'service' => env('ANALYSIS_SERVICE', 'openai'), // openai|mock
+        'openai_api_key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-3.5-turbo'),
         'max_title_words' => 12,
         'timeout' => 60,

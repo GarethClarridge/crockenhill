@@ -20,6 +20,12 @@ use App\Services\SermonProcessingService;
 use App\Services\Strategies\AudioProcessingStrategy;
 use App\Services\Strategies\DirectVideoProcessingStrategy;
 use App\Services\Strategies\LivestreamProcessingStrategy;
+use App\Services\LivestreamSegmentationService;
+use App\Services\LivestreamStatusService;
+use App\Services\SermonAudioProcessingService;
+use App\Services\SermonJobPipelineService;
+use App\Services\SermonStatusManagementService;
+use App\Services\SermonValidationService;
 use App\Services\VideoProcessingService;
 use App\Services\VideoStorageService;
 use Illuminate\Support\ServiceProvider;
@@ -43,9 +49,25 @@ class MediaProcessingServiceProvider extends ServiceProvider
         $this->app->bind(ProcessingHealthServiceInterface::class, ProcessingHealthService::class);
         $this->app->bind(SermonMetadataServiceInterface::class, SermonMetadataService::class);
 
+        // Register new broken-down services
+        $this->app->bind(LivestreamSegmentationService::class);
+        $this->app->bind(LivestreamStatusService::class);
+        $this->app->bind(SermonAudioProcessingService::class);
+        $this->app->bind(SermonJobPipelineService::class);
+        $this->app->bind(SermonStatusManagementService::class);
+        $this->app->bind(SermonValidationService::class);
+
         // Register main service interfaces
         $this->app->bind(VideoProcessingServiceInterface::class, VideoProcessingService::class);
-        $this->app->bind(SermonProcessingServiceInterface::class, SermonProcessingService::class);
+        $this->app->bind(SermonProcessingServiceInterface::class, function ($app) {
+            return new SermonProcessingService(
+                $app->make(SermonAudioProcessingService::class),
+                $app->make(SermonJobPipelineService::class),
+                $app->make(SermonStatusManagementService::class),
+                $app->make(SermonValidationService::class),
+                $app->make(SermonProcessingLogger::class)
+            );
+        });
         $this->app->bind(ProcessingRouterInterface::class, ProcessingRouter::class);
 
         // Register processing strategy registry as singleton
@@ -82,6 +104,12 @@ class MediaProcessingServiceProvider extends ServiceProvider
             VideoStorageServiceInterface::class,
             ProcessingHealthServiceInterface::class,
             SermonMetadataServiceInterface::class,
+            LivestreamSegmentationService::class,
+            LivestreamStatusService::class,
+            SermonAudioProcessingService::class,
+            SermonJobPipelineService::class,
+            SermonStatusManagementService::class,
+            SermonValidationService::class,
             VideoProcessingServiceInterface::class,
             SermonProcessingServiceInterface::class,
             ProcessingRouterInterface::class,

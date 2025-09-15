@@ -18,14 +18,14 @@ use Illuminate\Http\UploadedFile;
 interface VideoProcessingServiceInterface
 {
     /**
+     * Process livestream video with segmentation
+     */
+    public function processLivestream(UploadedFile $videoFile): ProcessingResult;
+
+    /**
      * Process video with segmentation (for livestream videos)
      */
     public function processWithSegmentation(UploadedFile $videoFile): ProcessingResult;
-
-    /**
-     * Process video directly without segmentation (for sermon videos)
-     */
-    public function processDirectly(UploadedFile $videoFile): ProcessingResult;
 
     /**
      * Get processing status for a livestream processing operation
