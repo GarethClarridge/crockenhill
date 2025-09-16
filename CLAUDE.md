@@ -208,6 +208,31 @@ sail composer phpstan
 # Run debugbar in development (already included)
 ```
 
+### Storage Migration
+```bash
+# Preview migration scope without executing
+sail artisan sermons:migrate-storage --dry-run
+
+# Preview specific pattern migration
+sail artisan sermons:migrate-storage --dry-run --pattern=legacy
+
+# Migrate all sermon files to DigitalOcean Spaces
+sail artisan sermons:migrate-storage --target=do_spaces
+
+# Migrate specific pattern with custom batch size
+sail artisan sermons:migrate-storage --pattern=storage --batch-size=10
+
+# Verify all files are accessible on target disk
+sail artisan sermons:verify-storage --disk=do_spaces
+
+# Test DigitalOcean Spaces connectivity
+sail artisan tinker
+Storage::disk('do_spaces')->put('test.txt', 'Hello World');
+Storage::disk('do_spaces')->exists('test.txt');
+Storage::disk('do_spaces')->url('test.txt');
+Storage::disk('do_spaces')->delete('test.txt');
+```
+
 ## Architecture
 
 ### Core Models
@@ -352,6 +377,24 @@ Standard Laravel caching is used. Clear caches during development with `sail art
 #### Environment Configuration
 Add to `.env`:
 ```bash
+# DigitalOcean Spaces Configuration
+DO_SPACES_ACCESS_KEY_ID=your_access_key
+DO_SPACES_SECRET_ACCESS_KEY=your_secret_key
+DO_SPACES_DEFAULT_REGION=nyc3
+DO_SPACES_BUCKET=crockenhill
+DO_SPACES_ENDPOINT=https://nyc3.digitaloceanspaces.com
+DO_SPACES_CDN_ENDPOINT=https://crockenhill.nyc3.cdn.digitaloceanspaces.com
+
+# Progressive Migration Configuration
+PROCESSING_PERMANENT_DISK=do_spaces
+PROCESSING_TEMP_DISK=local  # Keep local for temp files
+SERMON_STORAGE_DISK=do_spaces
+LIVESTREAM_STORAGE_DISK=do_spaces
+LIVESTREAM_SERMON_DISK=do_spaces
+
+# Legacy file serving
+LEGACY_SERMON_DISK=do_spaces  # Where to serve legacy files from after migration
+
 # Livestream Processing Configuration
 LIVESTREAM_RMS_THRESHOLD=-30.0
 LIVESTREAM_MIN_SECTION_DURATION=60.0
@@ -360,8 +403,6 @@ LIVESTREAM_MAX_FILE_SIZE=2147483648  # 2GB
 FFMPEG_PATH=/usr/bin/ffmpeg
 FFPROBE_PATH=/usr/bin/ffprobe
 LIVESTREAM_ADMIN_EMAIL=admin@church.com
-LIVESTREAM_STORAGE_DISK=local
-LIVESTREAM_SERMON_DISK=sermon_disk
 
 # Transcription Configuration
 TRANSCRIPTION_SERVICE_TYPE=mock  # Use 'openai' for production, 'mock' for local development

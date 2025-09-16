@@ -145,24 +145,12 @@ class Sermon extends Model
 
     public function getAudioUrlAttribute(): ?string
     {
-        if (! $this->filename) {
+        if (!$this->filename) {
             return null;
         }
 
-        // Check if this is a new sermon with storage path or old sermon with filename/filetype
-        // For new sermons, use the storage system first
-        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($this->filename)) {
-            return \Illuminate\Support\Facades\Storage::disk('public')->url($this->filename);
-        }
-
-        // For old sermons, the filename should NOT contain a path and should have a separate filetype
-        // Old sermon pattern: filename is just the basename (e.g., "sermon-20230115") and filetype is "mp3"
-        if ($this->filetype && ! str_contains($this->filename, '/')) {
-            return url("media/sermons/{$this->filename}.{$this->filetype}");
-        }
-
-        // Fallback to storage URL (for backward compatibility with new-style paths that don't exist yet)
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->filename);
+        $storageService = app(\App\Services\SermonStorageService::class);
+        return $storageService->getPublicUrl($this);
     }
 
     public function getThumbnailUrlAttribute(): ?string
