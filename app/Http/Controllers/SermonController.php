@@ -481,7 +481,7 @@ class SermonController extends Controller
         }
 
         // For cloud storage, redirect to CDN URL for better performance
-        if ($fileInfo['disk'] === 'do_spaces' && config('DO_SPACES_CDN_ENDPOINT')) {
+        if ($fileInfo['disk'] === 'do_spaces' && env('DO_SPACES_CDN_ENDPOINT')) {
             return redirect($storageService->getPublicUrl($sermon));
         }
 

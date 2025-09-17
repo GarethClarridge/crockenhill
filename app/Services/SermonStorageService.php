@@ -20,7 +20,7 @@ class SermonStorageService
             // Legacy pattern
             return [
                 'type' => 'legacy',
-                'disk' => Config::get('filesystems.legacy_sermon_disk', 'do_spaces'),
+                'disk' => env('LEGACY_SERMON_DISK', 'do_spaces'),
                 'path' => "legacy/sermons/{$sermon->filename}.{$sermon->filetype}",
                 'original_path' => "media/sermons/{$sermon->filename}.{$sermon->filetype}"
             ];
@@ -28,7 +28,7 @@ class SermonStorageService
             // Newer Laravel storage pattern
             return [
                 'type' => 'storage',
-                'disk' => Config::get('sermon-processing.storage.disk', 'do_spaces'),
+                'disk' => env('SERMON_STORAGE_DISK', 'do_spaces'),
                 'path' => $sermon->filename,
                 'original_path' => $sermon->filename
             ];
@@ -36,7 +36,7 @@ class SermonStorageService
             // Current media processing pattern
             return [
                 'type' => 'processing',
-                'disk' => Config::get('media-processing.storage.permanent_disk', 'do_spaces'),
+                'disk' => env('PROCESSING_PERMANENT_DISK', 'do_spaces'),
                 'path' => $sermon->filename,
                 'original_path' => $sermon->filename
             ];
@@ -51,8 +51,8 @@ class SermonStorageService
         $info = $this->getSermonFileInfo($sermon);
 
         // Use CDN for public files if available
-        if ($info['disk'] === 'do_spaces' && Config::get('DO_SPACES_CDN_ENDPOINT')) {
-            return Config::get('DO_SPACES_CDN_ENDPOINT') . '/' . $info['path'];
+        if ($info['disk'] === 'do_spaces' && env('DO_SPACES_CDN_ENDPOINT')) {
+            return env('DO_SPACES_CDN_ENDPOINT') . '/' . $info['path'];
         }
 
         return Storage::disk($info['disk'])->url($info['path']);
