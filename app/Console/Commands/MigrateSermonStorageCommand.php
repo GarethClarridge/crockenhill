@@ -97,11 +97,22 @@ class MigrateSermonStorageCommand extends Command
                         $content = file_get_contents($sourcePath);
                         Storage::disk($targetDisk)->put($targetPath, $content);
 
-                        // Verify upload
-                        if (Storage::disk($targetDisk)->exists($targetPath)) {
+                        // Verify upload with retry for eventual consistency
+                        $verified = false;
+                        for ($attempt = 1; $attempt <= 3; $attempt++) {
+                            if (Storage::disk($targetDisk)->exists($targetPath)) {
+                                $verified = true;
+                                break;
+                            }
+                            if ($attempt < 3) {
+                                usleep(500000); // Wait 0.5 seconds before retry
+                            }
+                        }
+
+                        if ($verified) {
                             $progressBar->advance();
                         } else {
-                            $this->error("Failed to verify upload: {$sermon->filename}.{$sermon->filetype}");
+                            $this->error("Failed to verify upload after 3 attempts: {$sermon->filename}.{$sermon->filetype}");
                         }
                     } else {
                         $this->warn("Source file not found: {$sourcePath}");
@@ -143,11 +154,22 @@ class MigrateSermonStorageCommand extends Command
                         $content = Storage::disk($sourceDisk)->get($sermon->filename);
                         Storage::disk($targetDisk)->put($sermon->filename, $content);
 
-                        // Verify upload
-                        if (Storage::disk($targetDisk)->exists($sermon->filename)) {
+                        // Verify upload with retry for eventual consistency
+                        $verified = false;
+                        for ($attempt = 1; $attempt <= 3; $attempt++) {
+                            if (Storage::disk($targetDisk)->exists($sermon->filename)) {
+                                $verified = true;
+                                break;
+                            }
+                            if ($attempt < 3) {
+                                usleep(500000); // Wait 0.5 seconds before retry
+                            }
+                        }
+
+                        if ($verified) {
                             $progressBar->advance();
                         } else {
-                            $this->error("Failed to verify upload: {$sermon->filename}");
+                            $this->error("Failed to verify upload after 3 attempts: {$sermon->filename}");
                         }
                     } else {
                         $this->warn("Source file not found: {$sermon->filename}");
