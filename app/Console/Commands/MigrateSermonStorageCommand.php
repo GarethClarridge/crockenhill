@@ -94,25 +94,41 @@ class MigrateSermonStorageCommand extends Command
                     $targetPath = "legacy/sermons/{$sermon->filename}.{$sermon->filetype}";
 
                     if (file_exists($sourcePath)) {
+                        // Skip if already exists
+                        if (Storage::disk($targetDisk)->exists($targetPath)) {
+                            $progressBar->advance();
+                            continue;
+                        }
+
                         $content = file_get_contents($sourcePath);
-                        Storage::disk($targetDisk)->put($targetPath, $content);
+
+                        // Add small delay between uploads to avoid rate limiting
+                        usleep(100000); // 0.1 second delay
+
+                        $uploadSuccessful = Storage::disk($targetDisk)->put($targetPath, $content);
+
+                        if (!$uploadSuccessful) {
+                            $this->error("Upload failed: {$sermon->filename}.{$sermon->filetype}");
+                            $progressBar->advance();
+                            continue;
+                        }
 
                         // Verify upload with retry for eventual consistency
                         $verified = false;
-                        for ($attempt = 1; $attempt <= 3; $attempt++) {
+                        for ($attempt = 1; $attempt <= 5; $attempt++) {
                             if (Storage::disk($targetDisk)->exists($targetPath)) {
                                 $verified = true;
                                 break;
                             }
-                            if ($attempt < 3) {
-                                usleep(500000); // Wait 0.5 seconds before retry
+                            if ($attempt < 5) {
+                                usleep(1000000); // Wait 1 second before retry (increased)
                             }
                         }
 
                         if ($verified) {
                             $progressBar->advance();
                         } else {
-                            $this->error("Failed to verify upload after 3 attempts: {$sermon->filename}.{$sermon->filetype}");
+                            $this->error("Failed to verify upload after 5 attempts: {$sermon->filename}.{$sermon->filetype}");
                         }
                     } else {
                         $this->warn("Source file not found: {$sourcePath}");
