@@ -76,7 +76,7 @@ class MigrateSermonStorageCommand extends Command
 
         if ($dryRun) {
             foreach ($sermons as $sermon) {
-                $sourcePath = public_path("media/sermons/{$sermon->filename}.{$sermon->filetype}");
+                $sourcePath = "media/sermons/{$sermon->filename}.{$sermon->filetype}";
                 $targetPath = "legacy/sermons/{$sermon->filename}.{$sermon->filetype}";
                 $this->line("Would migrate: {$sourcePath} → {$targetPath}");
             }
@@ -90,17 +90,17 @@ class MigrateSermonStorageCommand extends Command
         foreach ($chunks as $chunk) {
             foreach ($chunk as $sermon) {
                 try {
-                    $sourcePath = public_path("media/sermons/{$sermon->filename}.{$sermon->filetype}");
+                    $sourcePath = "media/sermons/{$sermon->filename}.{$sermon->filetype}";
                     $targetPath = "legacy/sermons/{$sermon->filename}.{$sermon->filetype}";
 
-                    if (file_exists($sourcePath)) {
+                    if (Storage::disk('public_images')->exists($sourcePath)) {
                         // Skip if already exists
                         if (Storage::disk($targetDisk)->exists($targetPath)) {
                             $progressBar->advance();
                             continue;
                         }
 
-                        $content = file_get_contents($sourcePath);
+                        $content = Storage::disk('public_images')->get($sourcePath);
 
                         // Add small delay between uploads to avoid rate limiting
                         usleep(100000); // 0.1 second delay
@@ -131,7 +131,7 @@ class MigrateSermonStorageCommand extends Command
                             $this->error("Failed to verify upload after 5 attempts: {$sermon->filename}.{$sermon->filetype}");
                         }
                     } else {
-                        $this->warn("Source file not found: {$sourcePath}");
+                        $this->warn("Source file not found: {$sourcePath} on public_images disk");
                         $progressBar->advance();
                     }
                 } catch (Exception $e) {
