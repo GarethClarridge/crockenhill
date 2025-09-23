@@ -203,8 +203,16 @@ class LivestreamSegmentationService
         }
 
         // Send email notification to administrators
-        Mail::to(config('livestream-processing.admin_email'))
-            ->send(new LivestreamProcessingFailed($processingId, $e));
+        try {
+            Mail::to(config('livestream-processing.admin_email'))
+                ->send(new LivestreamProcessingFailed($processingId, $e));
+        } catch (\Exception $emailException) {
+            Log::warning('Failed to send livestream processing failure email, continuing', [
+                'processing_id' => $processingId,
+                'original_error' => $e->getMessage(),
+                'email_error' => $emailException->getMessage(),
+            ]);
+        }
     }
 
     private function buildProcessingResult(LivestreamProcessingLog $processingLog): LivestreamProcessingResult

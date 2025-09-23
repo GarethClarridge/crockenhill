@@ -11,7 +11,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Notification;
 
 class SendCompletionNotification implements ShouldQueue
 {
@@ -256,13 +255,19 @@ class SendCompletionNotification implements ShouldQueue
             'message' => $message,
         ]);
 
-        // Uncomment when email is properly configured:
-        /*
+        // Send email notification with error handling
+        try {
             Mail::raw($message, function ($mail) use ($admin, $subject) {
                 $mail->to($admin->email)
                      ->subject($subject);
             });
-            */
+        } catch (\Exception $e) {
+            Log::warning('Failed to send sermon completion email, continuing processing', [
+                'admin_email' => $admin->email,
+                'processing_id' => $this->processingLog->processing_id,
+                'email_error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

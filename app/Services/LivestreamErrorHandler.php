@@ -183,8 +183,15 @@ class LivestreamErrorHandler
             ]);
         }
 
-        Mail::to(config('livestream-processing.admin_email'))
-            ->send(new \App\Mail\DiskSpaceWarning($processingId));
+        try {
+            Mail::to(config('livestream-processing.admin_email'))
+                ->send(new \App\Mail\DiskSpaceWarning($processingId));
+        } catch (Exception $e) {
+            Log::warning('Failed to send disk space warning email, continuing processing', [
+                'processing_id' => $processingId,
+                'email_error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function handlePermissionError(string $processingId, string $operation): void
@@ -198,8 +205,16 @@ class LivestreamErrorHandler
             ]);
         }
 
-        Mail::to(config('livestream-processing.admin_email'))
-            ->send(new \App\Mail\PermissionError($processingId, $operation));
+        try {
+            Mail::to(config('livestream-processing.admin_email'))
+                ->send(new \App\Mail\PermissionError($processingId, $operation));
+        } catch (Exception $e) {
+            Log::warning('Failed to send permission error email, continuing processing', [
+                'processing_id' => $processingId,
+                'operation' => $operation,
+                'email_error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function sendFailureNotification(string $processingId, \Throwable $exception, string $step): void
@@ -208,7 +223,7 @@ class LivestreamErrorHandler
             Mail::to(config('livestream-processing.admin_email'))
                 ->send(new \App\Mail\LivestreamProcessingFailed($processingId, $exception, $step));
         } catch (Exception $e) {
-            Log::error('Failed to send failure notification email', [
+            Log::warning('Failed to send failure notification email, continuing processing', [
                 'processing_id' => $processingId,
                 'original_error' => $exception->getMessage(),
                 'email_error' => $e->getMessage(),
@@ -222,7 +237,7 @@ class LivestreamErrorHandler
             Mail::to(config('livestream-processing.admin_email'))
                 ->send(new \App\Mail\ManualReviewRequired($processingId, $reason, $segments));
         } catch (Exception $e) {
-            Log::error('Failed to send manual review notification email', [
+            Log::warning('Failed to send manual review notification email, continuing processing', [
                 'processing_id' => $processingId,
                 'reason' => $reason,
                 'email_error' => $e->getMessage(),

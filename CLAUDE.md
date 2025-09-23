@@ -469,6 +469,43 @@ Health::checks([
 - Monitor queue worker health and processing times
 - Configure email notifications for processing failures
 
+#### Email Configuration
+The application uses Mailgun for email delivery (replaces SMTP for better reliability):
+
+**Production Configuration (.env):**
+```bash
+# Email Configuration - Mailgun (Free tier: 100 emails/day)
+MAIL_MAILER=mailgun
+MAIL_FROM_ADDRESS=admin@crockenhill.org
+MAIL_FROM_NAME="Crockenhill Baptist Church"
+
+# Mailgun Configuration
+MAILGUN_DOMAIN=your-domain.mailgun.org  # Or sandbox domain for testing
+MAILGUN_SECRET=your-mailgun-api-key
+
+# Admin email for processing notifications
+LIVESTREAM_ADMIN_EMAIL=admin@crockenhill.org
+```
+
+**Setting up Mailgun:**
+1. Create free account at [mailgun.com](https://signup.mailgun.com/new/signup)
+2. Verify your email and get API key from dashboard
+3. Use sandbox domain for initial testing: `sandboxXXXXXXXX.mailgun.org`
+4. For production: Add and verify your custom domain
+5. Copy API key and domain to your `.env` file
+
+**Email Features:**
+- Automated sermon processing completion notifications
+- Processing failure alerts with detailed error information
+- Manual review notifications for segmentation issues
+- Graceful error handling - email failures don't break processing pipeline
+
+**Development/Testing Alternative:**
+```bash
+# For local development (uses log driver)
+MAIL_MAILER=log
+```
+
 #### Backup Considerations
 - Original livestream files should be backed up before cleanup
 - Sermon videos should be included in regular backup procedures
