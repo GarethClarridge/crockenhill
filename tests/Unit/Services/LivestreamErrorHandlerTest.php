@@ -216,7 +216,7 @@ class LivestreamErrorHandlerTest extends TestCase
 
     public function test_validate_file_format_valid_file()
     {
-        Config::set('livestream-processing.supported_formats', ['mp4', 'mov', 'avi']);
+        Config::set('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
         Config::set('livestream-processing.max_file_size', 1000);
 
         // Create a temporary file

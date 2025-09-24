@@ -22,8 +22,8 @@
                 >
                     <option value="">Select media type...</option>
                     <option value="audio">📄 Audio Only (MP3, WAV, M4A)</option>
-                    <option value="video">🎬 Sermon Video (MP4, MOV, AVI)</option>
-                    <option value="livestream">📺 Full Livestream (MP4, MOV, AVI)</option>
+                    <option value="video">🎬 Sermon Video (MP4, MOV, AVI, MKV)</option>
+                    <option value="livestream">📺 Full Livestream (MP4, MOV, AVI, MKV)</option>
                 </select>
                 @error('mediaType')
                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
