@@ -289,6 +289,7 @@ class SermonJobPipelineService
                 Log::warning('Processing log not found for retry', [
                     'processing_id' => $processingId,
                 ]);
+
                 return ProcessingResult::failure(
                     processingId: $processingId,
                     message: 'Processing log not found',
@@ -387,8 +388,8 @@ class SermonJobPipelineService
             // In the future, this could be enhanced to store file paths for restart
             $this->markForManualReview(
                 $processingLog->processing_id,
-                "Early processing failure detected. Source type: {$sourceType}. " .
-                "File may need to be re-uploaded for retry. " .
+                "Early processing failure detected. Source type: {$sourceType}. ".
+                'File may need to be re-uploaded for retry. '.
                 "Original filename: {$processingLog->original_filename}"
             );
 

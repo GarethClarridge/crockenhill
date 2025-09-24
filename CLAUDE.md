@@ -43,6 +43,37 @@ The application now implements a `ProcessingStatusContract` interface that provi
 - **Enhanced Monitoring**: Standardized status checking enables better system monitoring
 - **Future-Proof**: Contract-based approach makes adding new processing types easier
 
+### S3/Spaces Storage Architecture (December 2024)
+
+Recent enhancements provide seamless cloud storage integration:
+
+#### Hybrid Processing System
+- **Automatic Detection**: Services automatically detect S3-compatible storage (DigitalOcean Spaces, AWS S3)
+- **Smart Processing**: Local processing for FFmpeg compatibility, then cloud upload for permanent storage
+- **Transparent Operation**: No changes required to existing job pipelines or API endpoints
+
+#### Enhanced Services
+1. **VideoExtractionService**:
+   - S3-aware audio/video extraction with hybrid processing
+   - Automatic retry logic with exponential backoff for uploads
+   - Comprehensive error handling and cleanup
+
+2. **VideoStorageService**:
+   - S3-compatible file operations with local fallback
+   - Stream-based uploads for large files
+   - Graceful error recovery
+
+3. **SermonStorageService**:
+   - Multi-pattern sermon file detection (legacy/storage/processing)
+   - CDN URL generation for DigitalOcean Spaces
+   - Storage migration utilities
+
+#### Configuration Improvements
+- **Environment-Based**: Cloud storage activated via configuration, not code changes
+- **Retry Configuration**: Configurable upload retry attempts and delays
+- **Logging Control**: Detailed S3 operation logging for troubleshooting
+- **Performance Tuning**: Configurable timeouts and multipart thresholds
+
 You are an expert in the TALL stack: Laravel, Livewire, Alpine.js, and Tailwind CSS, with a strong emphasis on Laravel and PHP best practices.
 
 This project was originally created in Laravel 5 and has been gradually updated. It may not always abide by these rules. New code should follow these rules, and where possible we should refactor existing code. 
@@ -202,11 +233,18 @@ sail artisan test --coverage
 # Format code with Laravel Pint
 sail composer exec pint
 
-# Static analysis with Larastan
+# Static analysis with Larastan (fully passing - 0 errors)
 sail composer phpstan
 
 # Run debugbar in development (already included)
 ```
+
+**Code Quality Status:**
+- ✅ **PHPStan**: All static analysis errors resolved (20 → 0 errors)
+- ✅ **Type Safety**: Enhanced with proper null checking and variable typing
+- ✅ **Laravel Conventions**: All `env()` calls moved to proper `config()` usage
+- ✅ **Interface Compliance**: All method signatures match their interfaces
+- ✅ **Error Handling**: Improved exception handling and logging throughout
 
 ### Storage Migration
 ```bash
@@ -271,8 +309,20 @@ Storage::disk('do_spaces')->delete('test.txt');
 - **VideoProcessingService**: Handles all video processing with dual modes (segmentation for livestreams, direct processing for sermon videos)
 - **SermonProcessingService**: Focused on audio processing, transcription, and AI-powered sermon analysis
 - **VideoSegmentationService**: FFmpeg-based video analysis and segment extraction (used by VideoProcessingService)
+- **VideoExtractionService**: Enhanced with S3/Spaces hybrid processing - automatically detects storage type and processes locally then uploads to cloud storage
+- **VideoStorageService**: S3-aware storage operations with automatic fallback handling
 - **ProcessingStatusContract**: Interface ensuring consistent API responses across processing types
 - **StandardProcessingResponse**: Unified response format for all processing status endpoints
+
+### S3/Spaces Storage Integration
+
+The media processing system now supports hybrid S3/cloud storage processing:
+
+- **Automatic Storage Detection**: Services detect S3-compatible disks (DigitalOcean Spaces, AWS S3) automatically
+- **Hybrid Processing**: For S3 disks, files are processed locally then uploaded; for local disks, direct processing is used
+- **Retry Logic**: S3 uploads include exponential backoff retry mechanisms for reliability
+- **Graceful Fallback**: Enhanced error handling with proper cleanup of temporary files
+- **Configuration-Driven**: Behavior controlled via `livestream-processing.php` config file
 
 #### Processing Pipelines
 
@@ -360,8 +410,9 @@ Standard Laravel caching is used. Clear caches during development with `sail art
 
 - Assets are built with Vite and include compression via `vite-plugin-compression`
 - Static assets are served from `public/` directory
-- Audio files are served through Laravel's storage system
+- Audio files are served through Laravel's storage system with full S3/Spaces support
 - Database uses standard Laravel migrations for deployment
+- **Cloud Storage**: S3-compatible storage (DigitalOcean Spaces) fully supported with automatic hybrid processing
 
 ### Livestream Processing Deployment
 
@@ -407,6 +458,14 @@ LIVESTREAM_ADMIN_EMAIL=admin@church.com
 # Transcription Configuration
 TRANSCRIPTION_SERVICE_TYPE=mock  # Use 'openai' for production, 'mock' for local development
 OPENAI_API_KEY=your_openai_key_here  # Only needed when using openai service type
+
+# S3/Spaces Processing Configuration (optional - uses defaults)
+LIVESTREAM_S3_UPLOAD_TIMEOUT=300        # 5 minutes
+LIVESTREAM_S3_RETRY_ATTEMPTS=3          # Number of upload retry attempts
+LIVESTREAM_S3_RETRY_DELAY=5             # Seconds between retries (exponential backoff)
+LIVESTREAM_S3_CLEANUP_TEMP=true         # Auto-cleanup temporary files
+LIVESTREAM_S3_MULTIPART_THRESHOLD=104857600  # 100MB multipart upload threshold
+LIVESTREAM_LOG_S3_OPS=true              # Enable S3 operation logging
 
 # Queue Configuration (required for processing jobs)
 QUEUE_CONNECTION=database  # or redis

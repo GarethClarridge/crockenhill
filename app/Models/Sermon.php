@@ -145,11 +145,12 @@ class Sermon extends Model
 
     public function getAudioUrlAttribute(): ?string
     {
-        if (!$this->filename) {
+        if (! $this->filename) {
             return null;
         }
 
         $storageService = app(\App\Services\SermonStorageService::class);
+
         return $storageService->getPublicUrl($this);
     }
 

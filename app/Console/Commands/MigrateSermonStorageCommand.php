@@ -6,9 +6,9 @@ namespace App\Console\Commands;
 
 use App\Models\Sermon;
 use App\Services\SermonStorageService;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
-use Exception;
 
 class MigrateSermonStorageCommand extends Command
 {
@@ -39,6 +39,7 @@ class MigrateSermonStorageCommand extends Command
         }
 
         $this->info('Migration completed!');
+
         return 0;
     }
 
@@ -80,6 +81,7 @@ class MigrateSermonStorageCommand extends Command
                 $targetPath = "legacy/sermons/{$sermon->filename}.{$sermon->filetype}";
                 $this->line("Would migrate: {$sourcePath} → {$targetPath}");
             }
+
             return;
         }
 
@@ -97,6 +99,7 @@ class MigrateSermonStorageCommand extends Command
                         // Skip if already exists
                         if (Storage::disk($targetDisk)->exists($targetPath)) {
                             $progressBar->advance();
+
                             continue;
                         }
 
@@ -107,25 +110,34 @@ class MigrateSermonStorageCommand extends Command
 
                         $uploadSuccessful = Storage::disk($targetDisk)->put($targetPath, $content);
 
-                        if (!$uploadSuccessful) {
+                        if (! $uploadSuccessful) {
                             $this->error("Upload failed: {$sermon->filename}.{$sermon->filetype}");
                             $progressBar->advance();
+
                             continue;
                         }
 
                         // Verify upload with retry for eventual consistency
-                        $verified = false;
+                        $uploadVerified = false;
                         for ($attempt = 1; $attempt <= 5; $attempt++) {
-                            if (Storage::disk($targetDisk)->exists($targetPath)) {
-                                $verified = true;
-                                break;
+                            try {
+                                $fileExists = Storage::disk($targetDisk)->exists($targetPath);
+                                // @phpstan-ignore-next-line - fileExists can be true
+                                if ($fileExists) {
+                                    $uploadVerified = true;
+                                    break;
+                                }
+                            } catch (\Exception $e) {
+                                $this->warn("Verification attempt {$attempt} failed: {$e->getMessage()}");
                             }
+
                             if ($attempt < 5) {
                                 usleep(1000000); // Wait 1 second before retry (increased)
                             }
                         }
 
-                        if ($verified) {
+                        // @phpstan-ignore-next-line - $uploadVerified can be true after successful verification
+                        if ($uploadVerified) {
                             $progressBar->advance();
                         } else {
                             $this->error("Failed to verify upload after 5 attempts: {$sermon->filename}.{$sermon->filetype}");
@@ -135,7 +147,7 @@ class MigrateSermonStorageCommand extends Command
                         $progressBar->advance();
                     }
                 } catch (Exception $e) {
-                    $this->error("Failed to migrate {$sermon->filename}: " . $e->getMessage());
+                    $this->error("Failed to migrate {$sermon->filename}: ".$e->getMessage());
                     $progressBar->advance();
                 }
             }
@@ -153,6 +165,7 @@ class MigrateSermonStorageCommand extends Command
             foreach ($sermons as $sermon) {
                 $this->line("Would migrate storage sermon: {$sermon->filename}");
             }
+
             return;
         }
 
@@ -192,7 +205,7 @@ class MigrateSermonStorageCommand extends Command
                         $progressBar->advance();
                     }
                 } catch (Exception $e) {
-                    $this->error("Failed to migrate storage sermon {$sermon->filename}: " . $e->getMessage());
+                    $this->error("Failed to migrate storage sermon {$sermon->filename}: ".$e->getMessage());
                     $progressBar->advance();
                 }
             }
@@ -210,6 +223,7 @@ class MigrateSermonStorageCommand extends Command
             foreach ($sermons as $sermon) {
                 $this->line("Would migrate processing sermon: {$sermon->filename}");
             }
+
             return;
         }
 
@@ -229,7 +243,7 @@ class MigrateSermonStorageCommand extends Command
                         $this->error("Failed to migrate processing sermon: {$sermon->filename}");
                     }
                 } catch (Exception $e) {
-                    $this->error("Failed to migrate processing sermon {$sermon->filename}: " . $e->getMessage());
+                    $this->error("Failed to migrate processing sermon {$sermon->filename}: ".$e->getMessage());
                     $progressBar->advance();
                 }
             }

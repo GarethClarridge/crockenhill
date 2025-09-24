@@ -86,7 +86,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             ]);
 
             // Update sermon record with transcript path
-            if ($this->processingLog->sermon_id) {
+            if ($this->processingLog->sermon_id !== null) {
                 $sermon = Sermon::find($this->processingLog->sermon_id);
                 if ($sermon) {
                     $sermon->update(['transcript_path' => $transcriptPath]);

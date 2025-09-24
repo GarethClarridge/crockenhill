@@ -21,10 +21,10 @@ class SermonApiController extends Controller
         if ($request->has('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', '%' . $search . '%')
-                  ->orWhere('preacher', 'like', '%' . $search . '%')
-                  ->orWhere('series', 'like', '%' . $search . '%')
-                  ->orWhere('reference', 'like', '%' . $search . '%');
+                $q->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('preacher', 'like', '%'.$search.'%')
+                    ->orWhere('series', 'like', '%'.$search.'%')
+                    ->orWhere('reference', 'like', '%'.$search.'%');
             });
         }
 

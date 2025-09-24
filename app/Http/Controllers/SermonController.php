@@ -469,19 +469,19 @@ class SermonController extends Controller
      */
     public function serveAudio(Sermon $sermon)
     {
-        if (!$sermon->filename) {
+        if (! $sermon->filename) {
             abort(404, 'Audio file not found.');
         }
 
         $storageService = app(\App\Services\SermonStorageService::class);
         $fileInfo = $storageService->getSermonFileInfo($sermon);
 
-        if (!Storage::disk($fileInfo['disk'])->exists($fileInfo['path'])) {
+        if (! Storage::disk($fileInfo['disk'])->exists($fileInfo['path'])) {
             abort(404, 'Audio file not found.');
         }
 
         // For cloud storage, redirect to CDN URL for better performance
-        if ($fileInfo['disk'] === 'do_spaces' && env('DO_SPACES_CDN_ENDPOINT')) {
+        if ($fileInfo['disk'] === 'do_spaces' && config('filesystems.disks.do_spaces.cdn_endpoint')) {
             return redirect($storageService->getPublicUrl($sermon));
         }
 

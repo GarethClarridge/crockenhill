@@ -76,7 +76,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | Storage disks for different types of files during processing.
-    | sermon_disk should use 'public' to ensure audio files are web-accessible.
+    | - sermon_disk: Where final audio/video files are permanently stored
+    | - temp_disk: Should always be 'local' for FFmpeg processing
+    | - storage_disk: General storage for livestream files
+    |
+    | S3 Processing:
+    | When sermon_disk is an S3-compatible disk (like do_spaces), the system
+    | automatically uses hybrid processing: extract to local temp, then upload.
     |
     */
     'storage_disk' => env('LIVESTREAM_STORAGE_DISK', 'local'),
@@ -214,6 +220,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | S3/Spaces Processing Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for S3-compatible storage processing.
+    |
+    */
+    's3_processing' => [
+        'upload_timeout' => env('LIVESTREAM_S3_UPLOAD_TIMEOUT', 300), // 5 minutes
+        'retry_attempts' => env('LIVESTREAM_S3_RETRY_ATTEMPTS', 3),
+        'retry_delay' => env('LIVESTREAM_S3_RETRY_DELAY', 5), // seconds
+        'cleanup_temp_files' => env('LIVESTREAM_S3_CLEANUP_TEMP', true),
+        'multipart_threshold' => env('LIVESTREAM_S3_MULTIPART_THRESHOLD', 100 * 1024 * 1024), // 100MB
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Logging Configuration
     |--------------------------------------------------------------------------
     |
@@ -222,5 +244,6 @@ return [
     */
     'detailed_logging' => env('LIVESTREAM_DETAILED_LOGGING', true),
     'log_ffmpeg_output' => env('LIVESTREAM_LOG_FFMPEG', false),
+    'log_s3_operations' => env('LIVESTREAM_LOG_S3_OPS', true),
     'performance_monitoring' => env('LIVESTREAM_PERFORMANCE_MONITORING', true),
 ];

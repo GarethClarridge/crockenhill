@@ -115,7 +115,6 @@ return [
 
     'driver' => env('MAIL_DRIVER', env('MAIL_MAILER', 'smtp')),
 
-
     /*
     |--------------------------------------------------------------------------
     | Global "From" Address
@@ -131,7 +130,6 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'admin@crockenhill.org'),
         'name' => env('MAIL_FROM_NAME', 'Crockenhill Baptist Church'),
     ],
-
 
     /*
     |--------------------------------------------------------------------------

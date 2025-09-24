@@ -106,25 +106,56 @@ class VideoStorageService implements VideoStorageServiceInterface
             $videoPath = $this->videoPath.'/'.$videoFilename;
             $audioPath = $this->audioPath.'/'.$audioFilename;
 
-            $fullVideoPath = Storage::disk($this->permanentDisk)->path($videoPath);
-            $fullAudioPath = Storage::disk($this->permanentDisk)->path($audioPath);
+            $isS3Disk = $this->isS3Disk($this->permanentDisk);
 
-            $this->ensureDirectoryExists(dirname($fullVideoPath));
-            $this->ensureDirectoryExists(dirname($fullAudioPath));
+            if ($isS3Disk) {
+                // For S3 disks, move temp video file to permanent storage via stream
+                $tempVideoStream = Storage::disk($this->tempDisk)->readStream($tempVideoPath);
+                Storage::disk($this->permanentDisk)->put($videoPath, $tempVideoStream);
 
-            Storage::disk($this->tempDisk)->move($tempVideoPath, $videoPath);
+                // Create temporary local file for audio extraction
+                $tempAudioPath = storage_path('app/temp/'.$audioFilename);
+                $this->ensureDirectoryExists(dirname($tempAudioPath));
 
-            $video = $this->ffmpeg->open(Storage::disk($this->permanentDisk)->path($videoPath));
-            $format = new Mp3;
-            $format->setAudioKiloBitrate(128);
+                // Extract audio from temp video file
+                $tempVideoFullPath = Storage::disk($this->tempDisk)->path($tempVideoPath);
+                $video = $this->ffmpeg->open($tempVideoFullPath);
+                $format = new Mp3;
+                $format->setAudioKiloBitrate(128);
+                $video->save($format, $tempAudioPath);
 
-            $video->save($format, $fullAudioPath);
+                // Upload audio to S3 and clean up local temp file
+                $audioStream = fopen($tempAudioPath, 'r');
+                Storage::disk($this->permanentDisk)->put($audioPath, $audioStream);
+                fclose($audioStream);
+                unlink($tempAudioPath);
 
-            Log::info('Files moved to sermon storage', [
-                'video_path' => $videoPath,
-                'audio_path' => $audioPath,
-                'sermon_slug' => $sermonSlug,
-            ]);
+                Log::info('Files moved to S3 sermon storage', [
+                    'video_path' => $videoPath,
+                    'audio_path' => $audioPath,
+                    'sermon_slug' => $sermonSlug,
+                ]);
+            } else {
+                // For local disks, use original logic
+                $fullVideoPath = Storage::disk($this->permanentDisk)->path($videoPath);
+                $fullAudioPath = Storage::disk($this->permanentDisk)->path($audioPath);
+
+                $this->ensureDirectoryExists(dirname($fullVideoPath));
+                $this->ensureDirectoryExists(dirname($fullAudioPath));
+
+                Storage::disk($this->tempDisk)->move($tempVideoPath, $videoPath);
+
+                $video = $this->ffmpeg->open(Storage::disk($this->permanentDisk)->path($videoPath));
+                $format = new Mp3;
+                $format->setAudioKiloBitrate(128);
+                $video->save($format, $fullAudioPath);
+
+                Log::info('Files moved to local sermon storage', [
+                    'video_path' => $videoPath,
+                    'audio_path' => $audioPath,
+                    'sermon_slug' => $sermonSlug,
+                ]);
+            }
 
             return [
                 'video_path' => $videoPath,
@@ -234,10 +265,24 @@ class VideoStorageService implements VideoStorageServiceInterface
         }
     }
 
+    /**
+     * Check if the permanent disk is S3-compatible (DigitalOcean Spaces, AWS S3, etc.)
+     */
+    private function isS3Disk(string $diskName): bool
+    {
+        $diskConfig = config("filesystems.disks.{$diskName}");
+
+        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
+    }
+
     private function ensureDirectoryExists(string $directory): void
     {
+        // Skip directory creation for S3 disks - they don't support local paths
+        // This method should only be called for local storage now
         if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
+            if (! mkdir($directory, 0755, true)) {
+                throw new \Exception("Failed to create directory: {$directory}");
+            }
         }
     }
 

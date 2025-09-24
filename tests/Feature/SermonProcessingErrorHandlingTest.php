@@ -345,7 +345,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $result = $service->processSermon($corruptedFile);
 
         // Corrupted file processing may succeed initially but should be handled gracefully
-        if (!$result->success) {
+        if (! $result->success) {
             // If it fails, verify it's a reasonable failure message
             $this->assertStringContainsString('Failed to', $result->message);
         } else {

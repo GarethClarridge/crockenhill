@@ -78,7 +78,8 @@ class SermonAudioProcessingService
      */
     public function processSermonAudio(UploadedFile $file, array $livestreamMetadata = []): array
     {
-        $storedFilePath = '';
+        /** @var string|null $storedFilePath */
+        $storedFilePath = null;
 
         try {
             Log::info('Starting livestream sermon processing', [
@@ -147,7 +148,7 @@ class SermonAudioProcessingService
             ]);
 
             // Clean up any partial files if they were created
-            if ($storedFilePath) {
+            if ($storedFilePath !== null) {
                 Storage::disk(config('sermon-processing.storage.disk', 'public'))->delete($storedFilePath);
             }
 

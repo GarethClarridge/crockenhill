@@ -126,7 +126,7 @@ class SermonProcessingService implements SermonProcessingServiceInterface
                 details: [
                     'sermon_id' => $sermon->id,
                     'applied_fallbacks' => $fallbackData,
-                    'degradation_applied_at' => now()->toISOString()
+                    'degradation_applied_at' => now()->toISOString(),
                 ]
             );
 

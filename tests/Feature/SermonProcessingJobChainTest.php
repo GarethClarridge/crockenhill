@@ -524,7 +524,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Verify the processing log exists before retry
         $this->assertDatabaseHas('sermon_processing_logs', [
-            'processing_id' => 'failed-test-id'
+            'processing_id' => 'failed-test-id',
         ]);
 
         $result = $service->retryProcessing('failed-test-id');

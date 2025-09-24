@@ -81,6 +81,7 @@ return [
             'throw' => false,
             'visibility' => 'public',
             'bucket_endpoint' => true,
+            'cdn_endpoint' => env('DO_SPACES_CDN_ENDPOINT'),
         ],
 
     ],

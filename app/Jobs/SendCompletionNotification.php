@@ -259,7 +259,7 @@ class SendCompletionNotification implements ShouldQueue
         try {
             Mail::raw($message, function ($mail) use ($admin, $subject) {
                 $mail->to($admin->email)
-                     ->subject($subject);
+                    ->subject($subject);
             });
         } catch (\Exception $e) {
             Log::warning('Failed to send sermon completion email, continuing processing', [

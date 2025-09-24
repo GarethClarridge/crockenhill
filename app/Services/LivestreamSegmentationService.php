@@ -119,7 +119,7 @@ class LivestreamSegmentationService
             }
 
             // Store the video file
-            $storedPath = $this->storageService->storeVideo($videoFile, $processingId);
+            $storedPath = $this->storageService->storeUploadedVideo($videoFile);
 
             // Create processing log
             $processingLog = LivestreamProcessingLog::create([
@@ -158,8 +158,9 @@ class LivestreamSegmentationService
             ]);
 
             return ProcessingResult::failure(
-                processingId: $processingId ?? 'unknown',
-                message: 'Failed to initiate direct video processing: '.$e->getMessage()
+                processingId: $processingId,
+                message: 'Failed to initiate direct video processing: '.$e->getMessage(),
+                errorCode: 'VIDEO_PROCESSING_FAILED'
             );
         }
     }

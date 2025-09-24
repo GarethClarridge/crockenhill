@@ -47,7 +47,7 @@ class VerifySermonStorageCommand extends Command
                     'title' => $sermon->title,
                     'filename' => $sermon->filename,
                     'expected_path' => $fileInfo['path'],
-                    'pattern' => $fileInfo['type']
+                    'pattern' => $fileInfo['type'],
                 ];
             }
 
@@ -61,11 +61,11 @@ class VerifySermonStorageCommand extends Command
         $this->info("✓ Accessible files: {$accessible}");
 
         if ($totalSize > 0) {
-            $this->info("✓ Total size: " . $this->formatBytes($totalSize));
+            $this->info('✓ Total size: '.$this->formatBytes($totalSize));
         }
 
         if (count($missing) > 0) {
-            $this->error("✗ Missing files: " . count($missing));
+            $this->error('✗ Missing files: '.count($missing));
             $this->table(
                 ['ID', 'Title', 'Filename', 'Expected Path', 'Pattern'],
                 $missing
@@ -79,7 +79,7 @@ class VerifySermonStorageCommand extends Command
                 $this->line("  {$pattern}: {$count}");
             }
         } else {
-            $this->info("✓ All sermon files are accessible!");
+            $this->info('✓ All sermon files are accessible!');
         }
 
         // Display storage statistics
@@ -106,7 +106,7 @@ class VerifySermonStorageCommand extends Command
             ]
         );
 
-        if (!empty($stats['disks'])) {
+        if (! empty($stats['disks'])) {
             $this->newLine();
             $this->info('Files by Disk:');
             $diskData = [];
@@ -115,7 +115,7 @@ class VerifySermonStorageCommand extends Command
                     $disk,
                     $data['count'],
                     $this->formatBytes($data['size']),
-                    $data['missing']
+                    $data['missing'],
                 ];
             }
             $this->table(
@@ -138,6 +138,6 @@ class VerifySermonStorageCommand extends Command
         $number = $bytes / pow(1024, $power);
         $unit = $units[$power];
 
-        return round($number, 2) . ' ' . $unit;
+        return round($number, 2).' '.$unit;
     }
 }

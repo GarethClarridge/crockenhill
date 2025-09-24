@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Models\Sermon;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Config;
 
 class SermonStorageService
 {
@@ -16,29 +15,29 @@ class SermonStorageService
     public function getSermonFileInfo(Sermon $sermon): array
     {
         // Determine which storage pattern this sermon uses
-        if ($sermon->filetype && !str_contains($sermon->filename, '/')) {
+        if ($sermon->filetype && ! str_contains($sermon->filename, '/')) {
             // Legacy pattern
             return [
                 'type' => 'legacy',
-                'disk' => env('LEGACY_SERMON_DISK', 'do_spaces'),
+                'disk' => config('sermon-processing.storage.legacy_disk', 'do_spaces'),
                 'path' => "legacy/sermons/{$sermon->filename}.{$sermon->filetype}",
-                'original_path' => "media/sermons/{$sermon->filename}.{$sermon->filetype}"
+                'original_path' => "media/sermons/{$sermon->filename}.{$sermon->filetype}",
             ];
         } elseif (str_contains($sermon->filename, '/')) {
             // Newer Laravel storage pattern
             return [
                 'type' => 'storage',
-                'disk' => env('SERMON_STORAGE_DISK', 'do_spaces'),
+                'disk' => config('sermon-processing.storage.disk', 'do_spaces'),
                 'path' => $sermon->filename,
-                'original_path' => $sermon->filename
+                'original_path' => $sermon->filename,
             ];
         } else {
             // Current media processing pattern
             return [
                 'type' => 'processing',
-                'disk' => env('PROCESSING_PERMANENT_DISK', 'do_spaces'),
+                'disk' => config('livestream-processing.sermon_disk', 'do_spaces'),
                 'path' => $sermon->filename,
-                'original_path' => $sermon->filename
+                'original_path' => $sermon->filename,
             ];
         }
     }
@@ -51,8 +50,9 @@ class SermonStorageService
         $info = $this->getSermonFileInfo($sermon);
 
         // Use CDN for public files if available
-        if ($info['disk'] === 'do_spaces' && env('DO_SPACES_CDN_ENDPOINT')) {
-            return env('DO_SPACES_CDN_ENDPOINT') . '/' . $info['path'];
+        $cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint');
+        if ($info['disk'] === 'do_spaces' && $cdnEndpoint) {
+            return $cdnEndpoint.'/'.$info['path'];
         }
 
         return Storage::disk($info['disk'])->url($info['path']);
@@ -64,6 +64,7 @@ class SermonStorageService
     public function fileExists(Sermon $sermon): bool
     {
         $info = $this->getSermonFileInfo($sermon);
+
         return Storage::disk($info['disk'])->exists($info['path']);
     }
 
@@ -74,7 +75,7 @@ class SermonStorageService
     {
         $info = $this->getSermonFileInfo($sermon);
 
-        if (!Storage::disk($info['disk'])->exists($info['path'])) {
+        if (! Storage::disk($info['disk'])->exists($info['path'])) {
             return null;
         }
 
@@ -88,7 +89,7 @@ class SermonStorageService
     {
         $info = $this->getSermonFileInfo($sermon);
 
-        if (!Storage::disk($info['disk'])->exists($info['path'])) {
+        if (! Storage::disk($info['disk'])->exists($info['path'])) {
             return null;
         }
 
@@ -108,7 +109,7 @@ class SermonStorageService
         }
 
         // Check if source file exists
-        if (!Storage::disk($info['disk'])->exists($info['path'])) {
+        if (! Storage::disk($info['disk'])->exists($info['path'])) {
             return false;
         }
 
@@ -120,7 +121,7 @@ class SermonStorageService
             Storage::disk($targetDisk)->put($info['path'], $content);
 
             // Verify the file was written successfully
-            if (!Storage::disk($targetDisk)->exists($info['path'])) {
+            if (! Storage::disk($targetDisk)->exists($info['path'])) {
                 return false;
             }
 
@@ -134,8 +135,9 @@ class SermonStorageService
                 'from_disk' => $info['disk'],
                 'to_disk' => $targetDisk,
                 'path' => $info['path'],
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -151,11 +153,11 @@ class SermonStorageService
             'patterns' => [
                 'legacy' => 0,
                 'storage' => 0,
-                'processing' => 0
+                'processing' => 0,
             ],
             'disks' => [],
             'total_size' => 0,
-            'missing_files' => 0
+            'missing_files' => 0,
         ];
 
         foreach ($sermons as $sermon) {
@@ -163,11 +165,11 @@ class SermonStorageService
             $stats['patterns'][$info['type']]++;
 
             $disk = $info['disk'];
-            if (!isset($stats['disks'][$disk])) {
+            if (! isset($stats['disks'][$disk])) {
                 $stats['disks'][$disk] = [
                     'count' => 0,
                     'size' => 0,
-                    'missing' => 0
+                    'missing' => 0,
                 ];
             }
 

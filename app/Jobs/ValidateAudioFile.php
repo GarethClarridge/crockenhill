@@ -39,7 +39,7 @@ class ValidateAudioFile implements ShouldQueue
             $storedFilePath = $this->processingLog->stored_file_path;
             $originalName = $this->processingLog->original_filename;
 
-            if (!$storedFilePath) {
+            if (! $storedFilePath) {
                 throw new \Exception('No stored file path found in processing log');
             }
 
