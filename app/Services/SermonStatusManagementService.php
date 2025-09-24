@@ -146,10 +146,12 @@ class SermonStatusManagementService
                 return false;
             }
 
+            $errorMessage = $reviewNote ? "Manual Review Note: {$reviewNote}" : 'Marked for manual review';
+
             $processingLog->update([
                 'status' => ProcessingStatus::FAILED,
                 'current_step' => 'manual_review_required',
-                'error_message' => $reviewNote ?: 'Marked for manual review',
+                'error_message' => $errorMessage,
             ]);
 
             Log::info('Processing marked for manual review', [

@@ -59,6 +59,22 @@ class GenerateThumbnail implements ShouldQueue
     }
 
     /**
+     * Get the sermon ID for testing purposes
+     */
+    public function getSermonId(): ?int
+    {
+        return $this->sermonId;
+    }
+
+    /**
+     * Get the video path for testing purposes
+     */
+    public function getVideoPath(): ?string
+    {
+        return $this->videoPath;
+    }
+
+    /**
      * Execute the job.
      */
     public function handle(ThumbnailGenerationService $thumbnailService): void

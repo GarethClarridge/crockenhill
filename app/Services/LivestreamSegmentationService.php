@@ -28,6 +28,14 @@ class LivestreamSegmentationService
     ) {}
 
     /**
+     * Process video directly without segmentation (for sermon-only videos)
+     */
+    public function processDirectly(UploadedFile $videoFile): ProcessingResult
+    {
+        return $this->startProcessingDirectly($videoFile);
+    }
+
+    /**
      * Process video with segmentation (for livestream videos)
      */
     public function processWithSegmentation(UploadedFile $videoFile): ProcessingResult
@@ -92,6 +100,67 @@ class LivestreamSegmentationService
             ]);
 
             throw $e;
+        }
+    }
+
+    public function startProcessingDirectly(UploadedFile $videoFile): ProcessingResult
+    {
+        try {
+            $processingId = Str::uuid()->toString();
+
+            Log::info('Starting direct video processing', [
+                'processing_id' => $processingId,
+                'original_filename' => $videoFile->getClientOriginalName(),
+                'file_size' => $videoFile->getSize(),
+            ]);
+
+            if (! $this->storageService->validateStorageSpace($videoFile->getSize())) {
+                throw new \Exception('Insufficient storage space for processing');
+            }
+
+            // Store the video file
+            $storedPath = $this->storageService->storeVideo($videoFile, $processingId);
+
+            // Create processing log
+            $processingLog = LivestreamProcessingLog::create([
+                'processing_id' => $processingId,
+                'original_filename' => $videoFile->getClientOriginalName(),
+                'stored_file_path' => $storedPath,
+                'status' => 'processing',
+                'processing_type' => 'direct_sermon', // Mark as direct processing
+                'current_step' => 'initiated',
+            ]);
+
+            // For direct processing, skip segmentation and go straight to sermon processing
+            $jobs = [
+                new SubmitToProcessing($processingLog),
+                new GenerateThumbnail($processingLog),
+                new CleanupTemporaryFiles($processingLog),
+            ];
+
+            // Chain the jobs for direct processing
+            Bus::chain($jobs)->dispatch();
+
+            Log::info('Direct video processing jobs dispatched', [
+                'processing_id' => $processingId,
+                'job_count' => count($jobs),
+            ]);
+
+            return ProcessingResult::success(
+                processingId: $processingId,
+                message: 'Direct video processing initiated successfully'
+            );
+
+        } catch (\Exception $e) {
+            Log::error('Failed to start direct video processing', [
+                'error' => $e->getMessage(),
+                'original_filename' => $videoFile->getClientOriginalName(),
+            ]);
+
+            return ProcessingResult::failure(
+                processingId: $processingId ?? 'unknown',
+                message: 'Failed to initiate direct video processing: '.$e->getMessage()
+            );
         }
     }
 

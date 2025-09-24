@@ -20,6 +20,15 @@ class VideoProcessingService implements VideoProcessingServiceInterface
     }
 
     /**
+     * Process video directly without segmentation (for sermon-only videos)
+     */
+    public function processDirectly(UploadedFile $videoFile): ProcessingResult
+    {
+        // For direct processing, we skip segmentation and process the entire video
+        return $this->segmentationService->processDirectly($videoFile);
+    }
+
+    /**
      * Process video with segmentation (for livestream videos)
      */
     public function processWithSegmentation(UploadedFile $videoFile): ProcessingResult

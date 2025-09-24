@@ -503,9 +503,16 @@ class SermonProcessingJobChainTest extends TestCase
             'filename' => 'test-audio.mp3',
         ]);
 
+        // Create the file in storage so retry can access it
+        Storage::put('sermons/test-audio.mp3', 'fake audio content');
+
+        // Create the default transcript file for the mock transcription service
+        Storage::put('transcripts/sermon_7.md', 'Test sermon transcript content');
+
         $processingLog = SermonProcessingLog::create([
             'processing_id' => 'failed-test-id',
             'original_filename' => 'test-audio.mp3',
+            'stored_file_path' => 'sermons/test-audio.mp3',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'transcribing_audio_failed',
             'sermon_id' => $sermon->id,
@@ -513,17 +520,23 @@ class SermonProcessingJobChainTest extends TestCase
         ]);
 
         // Test recovery by retrying from failed step
-        $logger = app(SermonProcessingLogger::class);
-        $service = new SermonProcessingService($logger);
+        $service = app(SermonProcessingService::class);
+
+        // Verify the processing log exists before retry
+        $this->assertDatabaseHas('sermon_processing_logs', [
+            'processing_id' => 'failed-test-id'
+        ]);
+
         $result = $service->retryProcessing('failed-test-id');
 
         $this->assertTrue($result->success);
         $this->assertEquals('failed-test-id', $result->processingId);
 
-        // Verify processing log was updated with retry status
+        // Verify processing log was updated - retry should progress processing
         $processingLog->refresh();
-        $this->assertEquals('manual_review_required', $processingLog->current_step);
-        $this->assertStringContainsString('Unknown processing step: retry_initiated', $processingLog->error_message);
+        // The step should have progressed from the failed step
+        $this->assertNotEquals('transcribing_audio_failed', $processingLog->current_step);
+        $this->assertEquals(ProcessingStatus::PENDING, $processingLog->status);
     }
 
     #[Test]
@@ -532,9 +545,8 @@ class SermonProcessingJobChainTest extends TestCase
         // Create a test file
         $file = UploadedFile::fake()->create('test-sermon.mp3', 1024, 'audio/mpeg');
 
-        // Mock the SermonProcessingService to avoid complex dependencies
-        $mockLogger = $this->createMock(SermonProcessingLogger::class);
-        $service = new SermonProcessingService($mockLogger);
+        // Get the service from the container to use proper dependencies
+        $service = app(SermonProcessingService::class);
 
         // Create a processing log manually to simulate what the service would do
         $processingId = 'storage-test-id';

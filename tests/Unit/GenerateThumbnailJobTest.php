@@ -21,8 +21,8 @@ class GenerateThumbnailJobTest extends TestCase
         $job = new GenerateThumbnail(123, '/path/to/video.mp4');
 
         $this->assertInstanceOf(GenerateThumbnail::class, $job);
-        $this->assertEquals(123, $job->sermonId);
-        $this->assertEquals('/path/to/video.mp4', $job->videoPath);
+        $this->assertEquals(123, $job->getSermonId());
+        $this->assertEquals('/path/to/video.mp4', $job->getVideoPath());
     }
 
     #[Test]

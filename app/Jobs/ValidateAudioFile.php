@@ -39,6 +39,10 @@ class ValidateAudioFile implements ShouldQueue
             $storedFilePath = $this->processingLog->stored_file_path;
             $originalName = $this->processingLog->original_filename;
 
+            if (!$storedFilePath) {
+                throw new \Exception('No stored file path found in processing log');
+            }
+
             // Convert relative path to absolute path for file operations
             $sermonDisk = config('sermon-processing.storage.disk', 'public');
             $filePath = \Illuminate\Support\Facades\Storage::disk($sermonDisk)->path($storedFilePath);

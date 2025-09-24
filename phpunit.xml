@@ -27,5 +27,24 @@
         <env name="CACHE_DRIVER" value="array"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="QUEUE_DRIVER" value="sync"/>
+
+        <!-- Storage Configuration for Tests -->
+        <env name="DO_SPACES_ACCESS_KEY_ID" value="test_access_key"/>
+        <env name="DO_SPACES_SECRET_ACCESS_KEY" value="test_secret_key"/>
+        <env name="DO_SPACES_DEFAULT_REGION" value="nyc3"/>
+        <env name="DO_SPACES_BUCKET" value="test_bucket"/>
+        <env name="DO_SPACES_ENDPOINT" value="https://nyc3.digitaloceanspaces.com"/>
+        <env name="DO_SPACES_CDN_ENDPOINT" value="https://test.nyc3.cdn.digitaloceanspaces.com"/>
+
+        <!-- Processing Configuration -->
+        <env name="PROCESSING_PERMANENT_DISK" value="local"/>
+        <env name="PROCESSING_TEMP_DISK" value="local"/>
+        <env name="SERMON_STORAGE_DISK" value="public"/>
+        <env name="LIVESTREAM_STORAGE_DISK" value="local"/>
+        <env name="LIVESTREAM_SERMON_DISK" value="public"/>
+        <env name="LEGACY_SERMON_DISK" value="public"/>
+
+        <!-- Transcription Configuration -->
+        <env name="TRANSCRIPTION_SERVICE_TYPE" value="mock"/>
     </php>
 </phpunit>

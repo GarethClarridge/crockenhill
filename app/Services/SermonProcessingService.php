@@ -113,8 +113,8 @@ class SermonProcessingService implements SermonProcessingServiceInterface
             // Mark processing as completed with degradation applied
             $processingLog->update([
                 'status' => \App\Enums\ProcessingStatus::COMPLETED,
-                'current_step' => 'graceful_degradation_applied',
-                'error_message' => null,
+                'current_step' => 'completed_with_degradation',
+                'error_message' => 'Graceful degradation applied',
             ]);
 
             $this->logger->logProcessingCompletion($processingId, true, 'Graceful degradation applied');
@@ -122,7 +122,12 @@ class SermonProcessingService implements SermonProcessingServiceInterface
             return ProcessingResult::success(
                 processingId: $processingId,
                 message: 'Graceful degradation applied successfully',
-                statusUrl: route('api.sermons.processing.status', ['processingId' => $processingId])
+                statusUrl: route('api.sermons.processing.status', ['processingId' => $processingId]),
+                details: [
+                    'sermon_id' => $sermon->id,
+                    'applied_fallbacks' => $fallbackData,
+                    'degradation_applied_at' => now()->toISOString()
+                ]
             );
 
         } catch (\Exception $e) {

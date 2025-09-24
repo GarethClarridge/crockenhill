@@ -15,7 +15,18 @@ class SermonApiController extends Controller
      */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Sermon::query()->orderBy('date', 'desc');
+        $query = Sermon::query();
+
+        // Search functionality
+        if ($request->has('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', '%' . $search . '%')
+                  ->orWhere('preacher', 'like', '%' . $search . '%')
+                  ->orWhere('series', 'like', '%' . $search . '%')
+                  ->orWhere('reference', 'like', '%' . $search . '%');
+            });
+        }
 
         // Filter by service if provided
         if ($request->has('service')) {
@@ -36,6 +47,17 @@ class SermonApiController extends Controller
         if ($request->boolean('with_thumbnail')) {
             $query->withThumbnail();
         }
+
+        // Sorting functionality
+        $sortField = $request->get('sort', 'date');
+        $sortOrder = $request->get('order', 'desc');
+
+        // Validate sort field to prevent SQL injection
+        $allowedSortFields = ['date', 'title', 'preacher', 'series', 'service'];
+        $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'date';
+        $sortOrder = in_array(strtolower($sortOrder), ['asc', 'desc']) ? $sortOrder : 'desc';
+
+        $query->orderBy($sortField, $sortOrder);
 
         $sermons = $query->paginate($request->get('per_page', 15));
 

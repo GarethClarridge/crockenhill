@@ -93,6 +93,12 @@ class SermonJobPipelineService
 
         // Determine which job to restart based on the failed step
         switch ($currentStep) {
+            case 'preparing':
+            case 'retry_initiated': // Legacy fallback for backwards compatibility
+                // Early step failures need to restart from the beginning
+                $this->restartFromBeginning($processingLog);
+                break;
+
             case 'creating_sermon_record':
             case 'creating_sermon_record_failed':
                 // Restart from the beginning - but we need the original metadata
@@ -280,12 +286,27 @@ class SermonJobPipelineService
             $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
 
             if (! $processingLog) {
+                Log::warning('Processing log not found for retry', [
+                    'processing_id' => $processingId,
+                ]);
                 return ProcessingResult::failure(
                     processingId: $processingId,
                     message: 'Processing log not found',
                     errorCode: 'PROCESSING_LOG_NOT_FOUND'
                 );
             }
+
+            // Log processing context for better debugging
+            Log::info('Found processing log for retry', [
+                'processing_id' => $processingId,
+                'current_status' => $processingLog->status,
+                'current_step' => $processingLog->current_step,
+                'source_type' => $processingLog->source_type,
+                'original_filename' => $processingLog->original_filename,
+                'last_error' => $processingLog->error_message,
+                'created_at' => $processingLog->created_at,
+                'updated_at' => $processingLog->updated_at,
+            ]);
 
             if (! $processingLog->isFailed()) {
                 return ProcessingResult::failure(
@@ -295,11 +316,18 @@ class SermonJobPipelineService
                 );
             }
 
-            // Reset processing log to pending state
+            // Store original failed step for proper restart context
+            $originalFailedStep = $processingLog->current_step;
+
+            // Reset processing log to pending state, preserving original step
             $processingLog->update([
                 'status' => ProcessingStatus::PENDING,
-                'current_step' => 'retry_initiated',
                 'error_message' => null,
+            ]);
+
+            Log::info('Processing retry - preserving original failed step', [
+                'processing_id' => $processingId,
+                'original_failed_step' => $originalFailedStep,
             ]);
 
             // Determine where to restart the processing chain based on current step
@@ -325,6 +353,59 @@ class SermonJobPipelineService
                 processingId: $processingId,
                 message: 'Failed to retry processing: '.$e->getMessage(),
                 errorCode: 'RETRY_FAILED'
+            );
+        }
+    }
+
+    /**
+     * Restart processing from the beginning for early step failures
+     *
+     * This method handles cases where processing failed before the main pipeline started,
+     * such as during file preparation or initial routing.
+     */
+    private function restartFromBeginning(SermonProcessingLog $processingLog): void
+    {
+        Log::info('Restarting processing from beginning', [
+            'processing_id' => $processingLog->processing_id,
+            'source_type' => $processingLog->source_type,
+            'original_filename' => $processingLog->original_filename,
+        ]);
+
+        try {
+            // For early failures, we need to check if we have enough context to restart
+            // The key challenge is that the original file may not be available
+
+            $sourceType = $processingLog->source_type;
+
+            // Update step to indicate we're attempting restart
+            $processingLog->update([
+                'current_step' => 'restarting_from_beginning',
+            ]);
+
+            // For now, we'll mark for manual review since full restart requires
+            // the original file which may not be available after early failures
+            // In the future, this could be enhanced to store file paths for restart
+            $this->markForManualReview(
+                $processingLog->processing_id,
+                "Early processing failure detected. Source type: {$sourceType}. " .
+                "File may need to be re-uploaded for retry. " .
+                "Original filename: {$processingLog->original_filename}"
+            );
+
+            Log::info('Marked early failure for manual review', [
+                'processing_id' => $processingLog->processing_id,
+                'reason' => 'Early step failure requires file re-upload',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to restart processing from beginning', [
+                'processing_id' => $processingLog->processing_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->markForManualReview(
+                $processingLog->processing_id,
+                "Failed to restart early processing failure: {$e->getMessage()}"
             );
         }
     }
