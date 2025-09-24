@@ -71,6 +71,9 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     #[Test]
     public function it_gets_existing_series_from_database(): void
     {
+        // Clear any existing sermons to ensure test isolation
+        Sermon::query()->delete();
+
         // Create some test sermons with series
         Sermon::factory()->create(['series' => 'John Study']);
         Sermon::factory()->create(['series' => 'Romans Study']);

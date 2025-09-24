@@ -17,6 +17,9 @@ class SermonApiTest extends TestCase
 
         // Mock the storage disk
         Storage::fake('public');
+
+        // Clear any existing sermons to ensure test isolation
+        Sermon::query()->delete();
     }
 
     public function test_can_list_sermons_via_api(): void

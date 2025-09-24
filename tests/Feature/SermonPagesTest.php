@@ -17,6 +17,10 @@ class SermonPagesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Clear any existing sermons to ensure test isolation
+        Sermon::query()->delete();
+
         // Create test sermons for each service type
         Sermon::factory()->create([
             'title' => 'Morning Test Sermon',

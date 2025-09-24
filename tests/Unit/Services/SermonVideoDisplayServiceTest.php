@@ -21,6 +21,9 @@ class SermonVideoDisplayServiceTest extends TestCase
         parent::setUp();
         $this->service = new SermonVideoDisplayService;
         Storage::fake('local');
+
+        // Clear any existing sermons to ensure test isolation
+        Sermon::query()->delete();
     }
 
     public function test_get_sermon_with_video_returns_correct_data()

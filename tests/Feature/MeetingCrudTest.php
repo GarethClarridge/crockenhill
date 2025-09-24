@@ -22,16 +22,14 @@ class MeetingCrudTest extends TestCase
     {
         parent::setUp();
 
-        // Create admin user
+        // Create admin user with unique email
         $this->adminUser = User::factory()->create([
-            'email' => 'admin@crockenhill.org',
             'is_admin' => true,
             'email_verified_at' => now(),
         ]);
 
-        // Create regular user
+        // Create regular user with unique email
         $this->regularUser = User::factory()->create([
-            'email' => 'user@example.com',
             'is_admin' => false,
             'email_verified_at' => now(),
         ]);
