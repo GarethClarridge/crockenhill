@@ -6,13 +6,13 @@ use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
 use App\Models\Meeting;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MeetingCrudTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private User $adminUser;
 

@@ -3,23 +3,17 @@
 namespace Tests\Unit;
 
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
-// use App\Models\Service;
-// use App\Models\PlayDate; // PlayDate model is removed
-// SermonFactory and ServiceFactory not explicitly used with Model::factory()
-// use Database\Factories\PlayDateFactory; // PlayDateFactory is removed
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str; // Added import
-use PHPUnit\Framework\Attributes\Test; // Added for debugging
-use Tests\TestCase; // Added for Storage::disk in tests
-
-// Assuming Preacher and Series are not models for now, will adjust if needed.
+use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class SermonTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     #[Test] // Replaced @test
     public function test_sermon_relationships()

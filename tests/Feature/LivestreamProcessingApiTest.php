@@ -7,7 +7,7 @@ use App\Models\LivestreamSegment;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\VideoSegmentationService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Config;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class LivestreamProcessingApiTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {

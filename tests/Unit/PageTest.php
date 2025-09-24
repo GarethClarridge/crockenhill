@@ -4,14 +4,13 @@ namespace Tests\Unit;
 
 use App\Enums\PageArea;
 use App\Models\Page;
-use Illuminate\Foundation\Testing\RefreshDatabase; // Correct namespace
-// PageFactory not explicitly used if using Model::factory()
-use PHPUnit\Framework\Attributes\Test; // Added import
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PageTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     #[Test] // Replaced @test
     public function test_page_relationships()

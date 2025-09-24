@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ProcessingStatus;
 use App\Models\SermonProcessingLog;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 class AutomatedSermonApiSecurityTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected User $user;
 

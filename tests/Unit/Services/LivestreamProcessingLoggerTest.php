@@ -6,13 +6,13 @@ use App\Models\LivestreamProcessingLog;
 use App\Models\LivestreamSegment;
 use App\Services\LivestreamProcessingLogger;
 use App\Services\ProcessingReport;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class LivestreamProcessingLoggerTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private LivestreamProcessingLogger $logger;
 

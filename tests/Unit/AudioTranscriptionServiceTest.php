@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Services\AudioTranscriptionService;
 use Exception;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Exceptions\ErrorException;
 use OpenAI\Laravel\Facades\OpenAI;
@@ -13,8 +12,6 @@ use Tests\TestCase;
 
 class AudioTranscriptionServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     private AudioTranscriptionService $service;
 
     protected function setUp(): void

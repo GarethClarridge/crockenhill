@@ -3,15 +3,14 @@
 namespace Tests\Unit;
 
 use App\Models\Meeting;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon; // Assuming Crockenhill namespace
-// MeetingFactory not explicitly used if using Model::factory()
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase; // Added import
+use Tests\TestCase;
 
 class MeetingTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     #[Test] // Replaced @test
     public function test_meeting_relationships()

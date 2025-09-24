@@ -21,24 +21,20 @@ class UpdateSermonRequestTest extends TestCase
     #[Test]
     public function test_authorize_allows_user_with_update_permission()
     {
-        // Create a fake sermon with known date and unique slug
-        $uniqueSlug = 'test-sermon-'.uniqid();
-        $sermon = \App\Models\Sermon::factory()->create([
-            'slug' => $uniqueSlug,
-            'date' => '2024-06-01',
-        ]);
+        // Mock a sermon object
+        $sermon = \Mockery::mock(\App\Models\Sermon::class);
 
-        // Create a real user with permissions
-        $user = \App\Models\User::factory()->create();
+        // Mock a user object
+        $user = \Mockery::mock(\stdClass::class);
+        $user->shouldReceive('can')
+            ->once()
+            ->with('update', $sermon)
+            ->andReturn(true);
 
         // Create a partial mock of the request that overrides the route and user methods
         $request = \Mockery::mock(\App\Http\Requests\UpdateSermonRequest::class)->makePartial();
         $request->shouldReceive('route')->with('sermon')->andReturn($sermon);
-
-        // Mock the user's can method to return true
-        $userMock = \Mockery::mock($user)->makePartial();
-        $userMock->shouldReceive('can')->with('update', $sermon)->andReturn(true);
-        $request->shouldReceive('user')->andReturn($userMock);
+        $request->shouldReceive('user')->andReturn($user);
 
         $this->assertTrue($request->authorize());
     }
@@ -46,24 +42,20 @@ class UpdateSermonRequestTest extends TestCase
     #[Test]
     public function test_authorize_denies_user_without_update_permission()
     {
-        // Create a fake sermon with known date and unique slug
-        $uniqueSlug = 'test-sermon-deny-'.uniqid();
-        $sermon = \App\Models\Sermon::factory()->create([
-            'slug' => $uniqueSlug,
-            'date' => '2024-06-01',
-        ]);
+        // Mock a sermon object
+        $sermon = \Mockery::mock(\App\Models\Sermon::class);
 
-        // Create a real user without permissions
-        $user = \App\Models\User::factory()->create();
+        // Mock a user object
+        $user = \Mockery::mock(\stdClass::class);
+        $user->shouldReceive('can')
+            ->once()
+            ->with('update', $sermon)
+            ->andReturn(false);
 
         // Create a partial mock of the request that overrides the route and user methods
         $request = \Mockery::mock(\App\Http\Requests\UpdateSermonRequest::class)->makePartial();
         $request->shouldReceive('route')->with('sermon')->andReturn($sermon);
-
-        // Mock the user's can method to return false
-        $userMock = \Mockery::mock($user)->makePartial();
-        $userMock->shouldReceive('can')->with('update', $sermon)->andReturn(false);
-        $request->shouldReceive('user')->andReturn($userMock);
+        $request->shouldReceive('user')->andReturn($user);
 
         $this->assertFalse($request->authorize());
     }

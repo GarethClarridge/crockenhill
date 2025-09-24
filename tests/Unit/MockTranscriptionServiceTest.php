@@ -4,16 +4,12 @@ namespace Tests\Unit;
 
 use App\Services\MockTranscriptionService;
 use App\Services\SermonProcessingLogger;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
 
 class MockTranscriptionServiceTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
-
     protected MockTranscriptionService $transcriptionService;
 
     protected $mockLogger;
