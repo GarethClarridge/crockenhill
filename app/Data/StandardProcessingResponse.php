@@ -22,7 +22,10 @@ class StandardProcessingResponse
         public readonly ?Carbon $startedAt = null,
         public readonly ?Carbon $updatedAt = null,
         public readonly ?string $estimatedCompletion = null,
-        public readonly array $additionalData = []
+        public readonly array $additionalData = [],
+        public readonly ?ProcessingLogCollection $recentLogs = null,
+        public readonly ?array $performanceMetrics = null,
+        public readonly ?array $errorHistory = null
     ) {}
 
     /**
@@ -54,6 +57,44 @@ class StandardProcessingResponse
             updatedAt: $updatedAt,
             estimatedCompletion: $estimatedCompletion,
             additionalData: $additionalData
+        );
+    }
+
+    /**
+     * Create a successful found response with logs and metrics
+     */
+    public static function withLogs(
+        string $processingId,
+        string $status,
+        ?string $currentStep = null,
+        int $progressPercentage = 0,
+        ?string $errorMessage = null,
+        ?int $sermonId = null,
+        ?string $sermonUrl = null,
+        ?Carbon $startedAt = null,
+        ?Carbon $updatedAt = null,
+        ?string $estimatedCompletion = null,
+        array $additionalData = [],
+        ?ProcessingLogCollection $logs = null,
+        ?array $metrics = null,
+        ?array $errorHistory = null
+    ): self {
+        return new self(
+            found: true,
+            processingId: $processingId,
+            status: $status,
+            currentStep: $currentStep,
+            progressPercentage: $progressPercentage,
+            errorMessage: $errorMessage,
+            sermonId: $sermonId,
+            sermonUrl: $sermonUrl,
+            startedAt: $startedAt,
+            updatedAt: $updatedAt,
+            estimatedCompletion: $estimatedCompletion,
+            additionalData: $additionalData,
+            recentLogs: $logs,
+            performanceMetrics: $metrics,
+            errorHistory: $errorHistory
         );
     }
 
@@ -137,6 +178,21 @@ class StandardProcessingResponse
 
         if ($this->sermonUrl) {
             $response['sermon_url'] = $this->sermonUrl;
+        }
+
+        // Include logs if present
+        if ($this->recentLogs) {
+            $response['recent_logs'] = $this->recentLogs->toArray();
+        }
+
+        // Include performance metrics if present
+        if ($this->performanceMetrics) {
+            $response['performance_metrics'] = $this->performanceMetrics;
+        }
+
+        // Include error history if present
+        if ($this->errorHistory) {
+            $response['error_history'] = $this->errorHistory;
         }
 
         // Merge any additional data

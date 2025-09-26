@@ -200,14 +200,14 @@
             {{-- Action Buttons --}}
             <div class="flex justify-between items-center">
                 @if($status === 'processing')
-                    <button 
+                    <button
                         wire:click="cancelProcessing"
                         class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
                     >
                         Cancel Processing
                     </button>
                 @else
-                    <button 
+                    <button
                         wire:click="retryUpload"
                         class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
                     >
@@ -223,5 +223,17 @@
             </div>
 
         </div>
+
+        {{-- Processing Logs Viewer --}}
+        @if($processingId)
+            <div class="mt-6">
+                <livewire:processing-logs-viewer
+                    :processing-id="$processingId"
+                    :auto-refresh="$status === 'processing'"
+                    :expanded="false"
+                    :log-limit="20"
+                />
+            </div>
+        @endif
     @endif
 </div>

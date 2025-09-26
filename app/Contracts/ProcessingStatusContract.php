@@ -18,6 +18,20 @@ interface ProcessingStatusContract
     public function getProcessingStatus(string $processingId): StandardProcessingResponse;
 
     /**
+     * Get processing status with optional logs included
+     *
+     * @param  string  $processingId  The processing ID to check status for
+     * @param  bool  $includeLogs  Whether to include recent logs in the response
+     * @param  int  $logLimit  Maximum number of log entries to include
+     * @return StandardProcessingResponse The standardized processing response with optional logs
+     */
+    public function getProcessingStatusWithLogs(
+        string $processingId,
+        bool $includeLogs = false,
+        int $logLimit = 20
+    ): StandardProcessingResponse;
+
+    /**
      * Cancel processing for a given processing ID
      *
      * @param  string  $processingId  The processing ID to cancel

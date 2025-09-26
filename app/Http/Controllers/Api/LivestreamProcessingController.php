@@ -6,6 +6,7 @@ use App\Contracts\ProcessingStatusContract;
 use App\Data\StandardProcessingResponse;
 use App\Http\Controllers\Controller;
 use App\Models\LivestreamProcessingLog;
+use App\Services\ProcessingLogService;
 use App\Services\VideoProcessingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ use Illuminate\Validation\ValidationException;
 class LivestreamProcessingController extends Controller implements ProcessingStatusContract
 {
     public function __construct(
-        private VideoProcessingService $videoProcessingService
+        private VideoProcessingService $videoProcessingService,
+        private ProcessingLogService $processingLogService
     ) {}
 
     public function uploadVideo(Request $request): JsonResponse
@@ -85,29 +87,25 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
         }
     }
 
-    public function getStatus(string $processingId): JsonResponse
+    public function getStatus(Request $request, string $processingId): JsonResponse
     {
         try {
-            $status = $this->videoProcessingService->getProcessingStatus($processingId);
+            // Check if logs should be included
+            $includeLogs = $request->boolean('include_logs');
+            $logLimit = $request->integer('log_limit', 20);
 
-            return response()->json([
-                'processing_id' => $status->processingId,
-                'status' => $status->status,
-                'current_step' => $status->currentStep,
-                'progress_percentage' => $status->progressPercentage,
-                'segments_identified' => count($status->stepDetails['segmentation']['segments'] ?? []),
-                'sermon_processing_id' => $status->stepDetails['sermon_processing_id'] ?? null,
-                'sermon_video_path' => $status->stepDetails['sermon_video_path'] ?? null,
-                'segments' => array_map(function ($segment) {
-                    return [
-                        'index' => $segment['segment_order'] ?? 0,
-                        'start_time' => $segment['start_time'],
-                        'end_time' => $segment['end_time'],
-                        'classification' => $segment['classification'],
-                        'is_sermon' => $segment['is_sermon_candidate'] ?? false,
-                    ];
-                }, $status->stepDetails['segmentation']['segments'] ?? []),
-            ]);
+            $standardResponse = $includeLogs
+                ? $this->getProcessingStatusWithLogs($processingId, true, $logLimit)
+                : $this->getProcessingStatus($processingId);
+
+            if (! $standardResponse->found) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Processing record not found',
+                ], 404);
+            }
+
+            return response()->json($standardResponse->toArray());
 
         } catch (\Exception $e) {
             Log::error('Failed to get livestream processing status', [
@@ -304,7 +302,9 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
                 currentStep: $status->currentStep,
                 progressPercentage: $status->progressPercentage,
                 errorMessage: $status->errorMessage,
-                sermonId: $status->stepDetails['sermon_processing_id'] ?? null,
+                sermonId: isset($status->stepDetails['sermon_processing_id'])
+                    ? (int) $status->stepDetails['sermon_processing_id']
+                    : null,
                 sermonUrl: isset($status->stepDetails['sermon_processing_id'])
                     ? "/christ/sermons/{$status->stepDetails['sermon_processing_id']}"
                     : null,
@@ -313,6 +313,7 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
                 estimatedCompletion: $status->estimatedCompletionTime,
                 additionalData: array_merge([
                     'segments_identified' => count($status->stepDetails['segmentation']['segments'] ?? []),
+                    'sermon_processing_id' => $status->stepDetails['sermon_processing_id'] ?? null,
                     'sermon_video_path' => $status->stepDetails['sermon_video_path'] ?? null,
                     'segments' => array_map(function ($segment) {
                         return [
@@ -382,6 +383,49 @@ class LivestreamProcessingController extends Controller implements ProcessingSta
                 'success' => false,
                 'message' => 'Cancellation failed',
             ];
+        }
+    }
+
+    /**
+     * Get processing status with optional logs included (Contract implementation)
+     */
+    public function getProcessingStatusWithLogs(
+        string $processingId,
+        bool $includeLogs = false,
+        int $logLimit = 20
+    ): StandardProcessingResponse {
+        try {
+            $baseStatus = $this->getProcessingStatus($processingId);
+
+            if (! $baseStatus->found || ! $includeLogs) {
+                return $baseStatus;
+            }
+
+            $logs = $this->processingLogService->getProcessingLogs($processingId, $logLimit);
+            $metrics = $this->processingLogService->getPerformanceMetrics($processingId);
+
+            return StandardProcessingResponse::withLogs(
+                processingId: $baseStatus->processingId,
+                status: $baseStatus->status,
+                currentStep: $baseStatus->currentStep,
+                progressPercentage: $baseStatus->progressPercentage,
+                errorMessage: $baseStatus->errorMessage,
+                sermonId: $baseStatus->sermonId,
+                sermonUrl: $baseStatus->sermonUrl,
+                startedAt: $baseStatus->startedAt,
+                updatedAt: $baseStatus->updatedAt,
+                estimatedCompletion: $baseStatus->estimatedCompletion,
+                additionalData: $baseStatus->additionalData,
+                logs: $logs,
+                metrics: $metrics
+            );
+        } catch (\Exception $e) {
+            Log::error('Error retrieving livestream processing status with logs', [
+                'processing_id' => $processingId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return StandardProcessingResponse::error('Failed to retrieve processing status with logs: '.$e->getMessage());
         }
     }
 

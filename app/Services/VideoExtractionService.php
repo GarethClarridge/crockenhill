@@ -44,11 +44,13 @@ class VideoExtractionService
                 'timeout' => config('livestream-processing.processing_timeout'),
             ]);
 
-            Log::info('FFmpeg initialized successfully', [
-                'ffmpeg_path' => $ffmpegPath,
-                'ffprobe_path' => $ffprobePath,
-                'timeout' => config('livestream-processing.processing_timeout'),
-            ]);
+            if (! app()->runningUnitTests()) {
+                Log::info('FFmpeg initialized successfully', [
+                    'ffmpeg_path' => $ffmpegPath,
+                    'ffprobe_path' => $ffprobePath,
+                    'timeout' => config('livestream-processing.processing_timeout'),
+                ]);
+            }
         } catch (\Exception $e) {
             Log::error('Failed to initialize FFmpeg', [
                 'ffmpeg_path' => $ffmpegPath,

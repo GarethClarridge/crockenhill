@@ -8,6 +8,7 @@ use App\Contracts\ProcessingStatusContract;
 use App\Data\StandardProcessingResponse;
 use App\Http\Requests\AutomatedSermonUploadRequest;
 use App\Http\Requests\SermonVideoUploadRequest;
+use App\Services\ProcessingLogService;
 use App\Services\ProcessingRouter;
 use App\Services\SermonProcessingLogger;
 use App\Services\SermonProcessingService;
@@ -19,7 +20,8 @@ class AutomatedSermonController extends Controller implements ProcessingStatusCo
 {
     public function __construct(
         private readonly ProcessingRouter $processingRouter,
-        private readonly SermonProcessingService $sermonProcessingService
+        private readonly SermonProcessingService $sermonProcessingService,
+        private readonly ProcessingLogService $processingLogService
     ) {}
 
     /**
@@ -215,13 +217,23 @@ class AutomatedSermonController extends Controller implements ProcessingStatusCo
                 ], 400);
             }
 
-            Log::debug('Processing status requested', [
-                'processing_id' => $processingId,
-                'user_id' => $request->user()?->id,
-                'ip_address' => $request->ip(),
-            ]);
+            if (! app()->runningUnitTests()) {
+                Log::debug('Processing status requested', [
+                    'processing_id' => $processingId,
+                    'user_id' => $request->user()?->id,
+                    'ip_address' => $request->ip(),
+                    'include_logs' => $request->boolean('include_logs'),
+                    'log_limit' => $request->integer('log_limit', 20),
+                ]);
+            }
 
-            $standardResponse = $this->getProcessingStatus($processingId);
+            // Check if logs should be included
+            $includeLogs = $request->boolean('include_logs');
+            $logLimit = $request->integer('log_limit', 20);
+
+            $standardResponse = $includeLogs
+                ? $this->getProcessingStatusWithLogs($processingId, true, $logLimit)
+                : $this->getProcessingStatus($processingId);
 
             if (! $standardResponse->found) {
                 return response()->json($standardResponse->toArray(), 404);
@@ -719,6 +731,49 @@ class AutomatedSermonController extends Controller implements ProcessingStatusCo
                 'success' => false,
                 'message' => 'Cancellation failed',
             ];
+        }
+    }
+
+    /**
+     * Get processing status with optional logs included (Contract implementation)
+     */
+    public function getProcessingStatusWithLogs(
+        string $processingId,
+        bool $includeLogs = false,
+        int $logLimit = 20
+    ): StandardProcessingResponse {
+        try {
+            $baseStatus = $this->getProcessingStatus($processingId);
+
+            if (! $baseStatus->found || ! $includeLogs) {
+                return $baseStatus;
+            }
+
+            $logs = $this->processingLogService->getProcessingLogs($processingId, $logLimit);
+            $metrics = $this->processingLogService->getPerformanceMetrics($processingId);
+
+            return StandardProcessingResponse::withLogs(
+                processingId: $baseStatus->processingId,
+                status: $baseStatus->status,
+                currentStep: $baseStatus->currentStep,
+                progressPercentage: $baseStatus->progressPercentage,
+                errorMessage: $baseStatus->errorMessage,
+                sermonId: $baseStatus->sermonId,
+                sermonUrl: $baseStatus->sermonUrl,
+                startedAt: $baseStatus->startedAt,
+                updatedAt: $baseStatus->updatedAt,
+                estimatedCompletion: $baseStatus->estimatedCompletion,
+                additionalData: $baseStatus->additionalData,
+                logs: $logs,
+                metrics: $metrics
+            );
+        } catch (\Exception $e) {
+            Log::error('Error retrieving processing status with logs', [
+                'processing_id' => $processingId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return StandardProcessingResponse::error('Failed to retrieve processing status with logs: '.$e->getMessage());
         }
     }
 

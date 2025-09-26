@@ -1,0 +1,45 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Data;
+
+use Illuminate\Support\Collection;
+
+class ProcessingLogCollection
+{
+    public function __construct(
+        public readonly Collection $entries,
+        public readonly int $totalCount,
+        public readonly ?string $nextCursor = null,
+        public readonly ?array $summary = null
+    ) {}
+
+    public function toArray(): array
+    {
+        return [
+            'entries' => $this->entries->map(fn (ProcessingLogEntry $entry) => $entry->toArray())->toArray(),
+            'total_count' => $this->totalCount,
+            'next_cursor' => $this->nextCursor,
+            'summary' => $this->summary,
+        ];
+    }
+
+    public function isEmpty(): bool
+    {
+        return $this->entries->isEmpty();
+    }
+
+    public function count(): int
+    {
+        return $this->entries->count();
+    }
+
+    public static function empty(): self
+    {
+        return new self(
+            entries: collect(),
+            totalCount: 0
+        );
+    }
+}

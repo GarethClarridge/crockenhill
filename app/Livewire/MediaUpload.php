@@ -18,6 +18,36 @@ class MediaUpload extends Component
 {
     use WithFileUploads;
 
+    /**
+     * Log helper that respects test environment
+     */
+    private function logInfo(string $message, array $context = []): void
+    {
+        if (! app()->runningUnitTests()) {
+            Log::info($message, $context);
+        }
+    }
+
+    /**
+     * Log error helper that respects test environment
+     */
+    private function logError(string $message, array $context = []): void
+    {
+        if (! app()->runningUnitTests()) {
+            Log::error($message, $context);
+        }
+    }
+
+    /**
+     * Log debug helper that respects test environment
+     */
+    private function logDebug(string $message, array $context = []): void
+    {
+        if (! app()->runningUnitTests()) {
+            Log::debug($message, $context);
+        }
+    }
+
     // Form properties
     public string $mediaType = '';
 
@@ -70,20 +100,20 @@ class MediaUpload extends Component
 
     public function mount(): void
     {
-        Log::info('MediaUpload: Component mounting', [
+        $this->logInfo('MediaUpload: Component mounting', [
             'user_id' => Auth::id(),
             'timestamp' => now()->toDateTimeString(),
         ]);
 
         // Ensure user has permission to upload sermons
         if (! Gate::allows('create', \App\Models\Sermon::class)) {
-            Log::error('MediaUpload: Unauthorized access attempt', [
+            $this->logError('MediaUpload: Unauthorized access attempt', [
                 'user_id' => Auth::id(),
             ]);
             abort(403, 'Unauthorized to upload sermons.');
         }
 
-        Log::info('MediaUpload: Component mounted successfully', [
+        $this->logInfo('MediaUpload: Component mounted successfully', [
             'user_id' => Auth::id(),
         ]);
     }
@@ -97,7 +127,7 @@ class MediaUpload extends Component
 
     public function updatedMediaFile(): void
     {
-        Log::info('MediaUpload: File uploaded', [
+        $this->logInfo('MediaUpload: File uploaded', [
             'media_type' => $this->mediaType,
             'file_exists' => $this->mediaFile !== null,
             'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
@@ -110,7 +140,7 @@ class MediaUpload extends Component
             $rules = $this->getDynamicRules();
             $messages = $this->getDynamicMessages();
 
-            Log::info('MediaUpload: Validation rules', [
+            $this->logInfo('MediaUpload: Validation rules', [
                 'rules' => $rules,
                 'messages' => $messages,
             ]);
@@ -118,10 +148,10 @@ class MediaUpload extends Component
             // Validate file immediately when uploaded with dynamic rules
             $this->validateOnly('mediaFile', $rules, $messages);
 
-            Log::info('MediaUpload: File validation passed');
+            $this->logInfo('MediaUpload: File validation passed');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('MediaUpload: Validation failed', [
+            $this->logError('MediaUpload: Validation failed', [
                 'errors' => $e->errors(),
                 'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
                 'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
@@ -129,7 +159,7 @@ class MediaUpload extends Component
             ]);
             throw $e;
         } catch (\Exception $e) {
-            Log::error('MediaUpload: Unexpected error during validation', [
+            $this->logError('MediaUpload: Unexpected error during validation', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -148,7 +178,7 @@ class MediaUpload extends Component
             default => 100 * 1024 // 100MB default
         };
 
-        Log::info('MediaUpload: Dynamic rules calculation', [
+        $this->logInfo('MediaUpload: Dynamic rules calculation', [
             'media_type' => $this->mediaType,
             'max_size_kb' => $maxSizeKB,
             'max_size_mb' => $maxSizeKB / 1024,
@@ -196,14 +226,14 @@ class MediaUpload extends Component
             // Call processing directly - simple and reliable
             $this->startProcessing();
 
-            Log::info('Media upload prepared for processing', [
+            $this->logInfo('Media upload prepared for processing', [
                 'processing_id' => $processingId,
                 'media_type' => $this->mediaType,
                 'user_id' => Auth::id(),
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Media upload preparation failed', [
+            $this->logError('Media upload preparation failed', [
                 'error' => $e->getMessage(),
                 'media_type' => $this->mediaType,
                 'user_id' => Auth::id(),
@@ -215,14 +245,14 @@ class MediaUpload extends Component
 
     public function startProcessing(): void
     {
-        Log::info('startProcessing method called', [
+        $this->logInfo('startProcessing method called', [
             'processing_id' => $this->processingId,
             'temp_file_path' => $this->tempFilePath,
             'media_type' => $this->mediaType,
         ]);
 
         if (! $this->processingId || ! $this->tempFilePath) {
-            Log::error('Missing processing data', [
+            $this->logError('Missing processing data', [
                 'processing_id' => $this->processingId,
                 'temp_file_path' => $this->tempFilePath,
             ]);
@@ -271,7 +301,7 @@ class MediaUpload extends Component
                 $this->errorMessage = $result->message;
             }
 
-            Log::info('Media processing completed', [
+            $this->logInfo('Media processing completed', [
                 'processing_id' => $this->processingId,
                 'media_type' => $this->mediaType,
                 'user_id' => Auth::id(),
@@ -279,14 +309,13 @@ class MediaUpload extends Component
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Media processing failed', [
+            $this->logError('Media processing failed', [
                 'processing_id' => $this->processingId,
                 'error' => $e->getMessage(),
                 'media_type' => $this->mediaType,
                 'user_id' => Auth::id(),
             ]);
 
-            /** @phpstan-ignore-next-line */
             if ($this->processingId) {
                 $log = SermonProcessingLog::where('processing_id', $this->processingId)->first();
                 $log?->markAsFailed('Processing failed: '.$e->getMessage());
@@ -321,7 +350,7 @@ class MediaUpload extends Component
             }
 
         } catch (\Exception $e) {
-            Log::error('Failed to cancel processing', [
+            $this->logError('Failed to cancel processing', [
                 'processing_id' => $this->processingId,
                 'error' => $e->getMessage(),
             ]);
@@ -369,14 +398,14 @@ class MediaUpload extends Component
                     $this->progressPercentage = 100;
                 }
 
-                Log::debug('Processing status updated', [
+                $this->logDebug('Processing status updated', [
                     'processing_id' => $this->processingId,
                     'status' => $statusResponse->status,
                     'progress' => $statusResponse->progressPercentage,
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('Failed to check processing status', [
+            $this->logError('Failed to check processing status', [
                 'processing_id' => $this->processingId,
                 'error' => $e->getMessage(),
             ]);

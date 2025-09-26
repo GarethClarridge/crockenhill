@@ -525,10 +525,22 @@ class VideoSegmentationService
             $format = $this->ffprobe->format($videoPath);
             $formatName = $format->get('format_name');
             $supportedFormats = config('livestream-processing.supported_formats');
+            $formatAliases = config('livestream-processing.format_aliases', []);
 
             foreach ($supportedFormats as $supportedFormat) {
+                // Check direct format name match
                 if (str_contains(strtolower($formatName), strtolower($supportedFormat))) {
                     return true;
+                }
+
+                // Check format aliases (e.g., mkv -> matroska)
+                if (isset($formatAliases[$supportedFormat])) {
+                    $aliases = (array) $formatAliases[$supportedFormat];
+                    foreach ($aliases as $alias) {
+                        if (str_contains(strtolower($formatName), strtolower($alias))) {
+                            return true;
+                        }
+                    }
                 }
             }
 

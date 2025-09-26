@@ -72,6 +72,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Format Aliases
+    |--------------------------------------------------------------------------
+    |
+    | Maps file extensions to FFmpeg/FFprobe format names for validation.
+    | This handles cases where FFmpeg reports different internal format names
+    | than the file extension (e.g., MKV files are reported as "matroska").
+    |
+    */
+    'format_aliases' => [
+        'mkv' => ['matroska'],
+        'webm' => ['matroska', 'webm'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Storage Configuration
     |--------------------------------------------------------------------------
     |

@@ -51,7 +51,7 @@ class TestServiceProvider extends ServiceProvider
         usleep(rand(10000, 100000)); // 10-100ms random delay
 
         // Check if seeding already completed
-        if (file_exists($lockFile . '.completed')) {
+        if (file_exists($lockFile.'.completed')) {
             return;
         }
 
@@ -61,7 +61,7 @@ class TestServiceProvider extends ServiceProvider
         if (flock($lockHandle, LOCK_EX | LOCK_NB)) {
             try {
                 // Double-check completion marker after acquiring lock
-                if (file_exists($lockFile . '.completed')) {
+                if (file_exists($lockFile.'.completed')) {
                     return;
                 }
 
@@ -79,11 +79,11 @@ class TestServiceProvider extends ServiceProvider
                 Artisan::call('db:seed');
 
                 // Mark seeding as completed
-                file_put_contents($lockFile . '.completed', "Seeded by process: {$token}");
+                file_put_contents($lockFile.'.completed', "Seeded by process: {$token}");
 
             } catch (\Exception $e) {
                 // Log any seeding errors but don't break test completion
-                error_log("Parallel test seeding failed: " . $e->getMessage());
+                error_log('Parallel test seeding failed: '.$e->getMessage());
             } finally {
                 // Release the lock and clean up
                 flock($lockHandle, LOCK_UN);
@@ -93,7 +93,7 @@ class TestServiceProvider extends ServiceProvider
                 // Clean up completion marker after a delay
                 register_shutdown_function(function () use ($lockFile) {
                     sleep(1);
-                    @unlink($lockFile . '.completed');
+                    @unlink($lockFile.'.completed');
                 });
             }
         } else {
