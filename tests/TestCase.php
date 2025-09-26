@@ -10,8 +10,9 @@ abstract class TestCase extends BaseTestCase
 
     /**
      * Indicates whether the default seeder should run before each test.
-     * Disabled for better parallel testing performance.
-     * Use explicit seeding in individual tests where needed.
+     *
+     * Disabled for parallel testing performance. Database seeding happens
+     * automatically after parallel tests complete via TestServiceProvider.
      *
      * @var bool
      */

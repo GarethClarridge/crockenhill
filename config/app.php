@@ -153,6 +153,7 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\MediaProcessingServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
+        App\Providers\TestServiceProvider::class,
         App\Providers\ViewServiceProvider::class,
         Intervention\Image\ImageServiceProvider::class,
     ],
