@@ -69,14 +69,26 @@ class SermonVideoDisplayService
     {
         $disk = Storage::disk(config('livestream-processing.sermon_disk', 'public'));
 
+        // For S3-compatible disks, we need to download temporarily or use different approach
+        if ($this->isS3CompatibleDisk($disk)) {
+            // For S3, we can't return a local path. Return the relative path for reference.
+            return $videoPath;
+        }
+
         return $disk->path($videoPath);
     }
 
     private function getVideoDuration(string $videoPath): ?float
     {
-        if (! file_exists($videoPath)) {
+        $disk = config('livestream-processing.sermon_disk', 'public');
+
+        // Check if file exists using storage-aware method
+        if (! $this->videoFileExists($videoPath, $disk)) {
             return null;
         }
+
+        // Get local path for FFprobe (download from S3 if needed)
+        $localPath = $this->ensureLocalVideoPath($videoPath, $disk);
 
         try {
             $ffprobe = config('livestream-processing.ffprobe_path', '/usr/bin/ffprobe');
@@ -85,22 +97,29 @@ class SermonVideoDisplayService
                 '-v', 'quiet',
                 '-show_entries', 'format=duration',
                 '-of', 'csv=p=0',
-                $videoPath,
+                $localPath,
             ];
 
             $process = new \Symfony\Component\Process\Process($command);
             $process->run();
 
+            $duration = null;
             if ($process->isSuccessful()) {
-                return (float) trim($process->getOutput());
+                $duration = (float) trim($process->getOutput());
             }
 
-            return null;
+            // Clean up temporary file if it was downloaded from S3
+            $this->cleanupTempFile($localPath, $disk);
+
+            return $duration;
         } catch (\Exception $e) {
             \Log::warning('Failed to get video duration', [
                 'video_path' => $videoPath,
+                'disk' => $disk,
                 'error' => $e->getMessage(),
             ]);
+
+            $this->cleanupTempFile($localPath, $disk);
 
             return null;
         }
@@ -108,11 +127,26 @@ class SermonVideoDisplayService
 
     private function getVideoFileSize(string $videoPath): ?int
     {
-        if (! file_exists($videoPath)) {
+        $disk = config('livestream-processing.sermon_disk', 'public');
+
+        // Check if file exists and get size using storage-aware method
+        if (! $this->videoFileExists($videoPath, $disk)) {
             return null;
         }
 
-        return filesize($videoPath);
+        $diskInstance = Storage::disk($disk);
+
+        try {
+            return $diskInstance->size($videoPath);
+        } catch (\Exception $e) {
+            \Log::warning('Failed to get video file size', [
+                'video_path' => $videoPath,
+                'disk' => $disk,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     public function getSermonsBySourceType(?string $sourceType = null): array
@@ -152,5 +186,94 @@ class SermonVideoDisplayService
             'segment_count' => $livestreamProcessing->segments->count(),
             'processing_date' => $livestreamProcessing->created_at->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Check if video file exists using storage-aware method
+     *
+     * @param  string  $videoPath  Path to video file
+     * @param  string  $disk  Storage disk name
+     * @return bool True if file exists
+     */
+    private function videoFileExists(string $videoPath, string $disk): bool
+    {
+        return Storage::disk($disk)->exists($videoPath);
+    }
+
+    /**
+     * Ensure we have a local path for FFprobe processing
+     * Downloads S3 files temporarily if needed
+     *
+     * @param  string  $videoPath  Original video path
+     * @param  string  $disk  Storage disk name
+     * @return string Local file path for FFprobe
+     */
+    private function ensureLocalVideoPath(string $videoPath, string $disk): string
+    {
+        $diskInstance = Storage::disk($disk);
+
+        // Check if this is an S3-compatible disk
+        if ($this->isS3CompatibleDisk($diskInstance)) {
+            // Download the file temporarily for FFprobe processing
+            $tempDir = 'temp/ffprobe';
+            $tempFilename = 'temp_ffprobe_'.uniqid().'.'.pathinfo($videoPath, PATHINFO_EXTENSION);
+            $tempPath = $tempDir.'/'.$tempFilename;
+
+            Storage::disk('local')->makeDirectory($tempDir);
+
+            $localTempPath = Storage::disk('local')->path($tempPath);
+
+            // Download S3 file to local temp
+            $videoContent = $diskInstance->get($videoPath);
+            Storage::disk('local')->put($tempPath, $videoContent);
+
+            return $localTempPath;
+        }
+
+        // For local disks, get the full path
+        return $diskInstance->path($videoPath);
+    }
+
+    /**
+     * Clean up temporary file if it was created for S3 processing
+     *
+     * @param  string  $localPath  Local file path
+     * @param  string  $disk  Original storage disk name
+     */
+    private function cleanupTempFile(string $localPath, string $disk): void
+    {
+        $diskInstance = Storage::disk($disk);
+
+        if ($this->isS3CompatibleDisk($diskInstance)) {
+            // This was a temporary file downloaded from S3, clean it up
+            if (str_contains($localPath, 'temp/ffprobe/')) {
+                try {
+                    $relativePath = str_replace(Storage::disk('local')->path(''), '', $localPath);
+                    Storage::disk('local')->delete($relativePath);
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to cleanup temp ffprobe file', [
+                        'temp_path' => $localPath,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a disk uses S3-compatible storage
+     *
+     * @param  \Illuminate\Contracts\Filesystem\Filesystem  $disk
+     */
+    private function isS3CompatibleDisk($disk): bool
+    {
+        try {
+            $adapter = $disk->getAdapter();
+
+            return $adapter instanceof \League\Flysystem\AwsS3V3\AwsS3V3Adapter;
+        } catch (\Exception $e) {
+            // If we can't determine the adapter type, assume it's not S3
+            return false;
+        }
     }
 }

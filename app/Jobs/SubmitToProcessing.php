@@ -41,17 +41,14 @@ class SubmitToProcessing implements ShouldQueue
                 throw new \Exception('Sermon audio path not found in processing log');
             }
 
-            // Get sermon disk configuration - should use 'public' for web accessibility
+            // Get sermon disk configuration
             $sermonDisk = config('livestream-processing.sermon_disk', 'public');
-            $audioPath = Storage::disk($sermonDisk)
-                ->path($this->processingLog->sermon_audio_path);
+            $diskInstance = Storage::disk($sermonDisk);
 
             Log::info('Checking for audio file', [
                 'processing_id' => $this->processingLog->processing_id,
                 'sermon_audio_path' => $this->processingLog->sermon_audio_path,
                 'sermon_disk' => $sermonDisk,
-                'resolved_audio_path' => $audioPath,
-                'disk_root_path' => Storage::disk($sermonDisk)->path(''),
                 'livestream_config' => [
                     'storage_disk' => config('livestream-processing.storage_disk'),
                     'sermon_disk' => config('livestream-processing.sermon_disk'),
@@ -60,7 +57,8 @@ class SubmitToProcessing implements ShouldQueue
                 ],
             ]);
 
-            if (! file_exists($audioPath)) {
+            // Use Storage::exists() for all disk types (works for both local and S3)
+            if (! $diskInstance->exists($this->processingLog->sermon_audio_path)) {
                 // Additional diagnostics
                 $diskExists = Storage::disk($sermonDisk)->exists($this->processingLog->sermon_audio_path);
                 $alternativeFiles = [];
@@ -102,7 +100,7 @@ class SubmitToProcessing implements ShouldQueue
 
                 Log::error('Sermon audio file not found - detailed diagnostics', [
                     'processing_id' => $this->processingLog->processing_id,
-                    'expected_path' => $audioPath,
+                    'expected_path' => $this->processingLog->sermon_audio_path,
                     'relative_path' => $this->processingLog->sermon_audio_path,
                     'disk_exists_check' => $diskExists,
                     'files_in_expected_dir' => $alternativeFiles,
@@ -117,7 +115,7 @@ class SubmitToProcessing implements ShouldQueue
                     ],
                 ]);
 
-                throw new \Exception('Sermon audio file not found: '.$audioPath.' - Check logs for detailed diagnostics');
+                throw new \Exception('Sermon audio file not found: '.$this->processingLog->sermon_audio_path.' - Check logs for detailed diagnostics');
             }
 
             // Validate that the file is accessible via the public disk for web serving

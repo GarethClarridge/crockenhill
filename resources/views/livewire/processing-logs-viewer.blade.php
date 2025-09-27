@@ -245,11 +245,13 @@
         @endif
     </div>
 
+    @script
     <script>
-        function logsViewer() {
+        // Ensure the function is available globally for Alpine.js
+        window.logsViewer = function() {
             return {
-                expanded: @entangle('expanded'),
-                autoRefresh: @entangle('autoRefresh'),
+                expanded: $wire.entangle('expanded'),
+                autoRefresh: $wire.entangle('autoRefresh'),
                 refreshInterval: null,
 
                 init() {
@@ -259,7 +261,7 @@
                 toggleExpanded() {
                     this.expanded = !this.expanded;
                     if (this.expanded) {
-                        this.$wire.fetchLogs();
+                        $wire.fetchLogs();
                     }
                 },
 
@@ -281,7 +283,7 @@
                     this.stopAutoRefresh(); // Clear any existing interval
                     this.refreshInterval = setInterval(() => {
                         if (this.expanded && this.autoRefresh) {
-                            this.$wire.fetchLogs();
+                            $wire.fetchLogs();
                         }
                     }, @json($refreshInterval));
                 },
@@ -295,4 +297,5 @@
             }
         }
     </script>
+    @endscript
 </div>

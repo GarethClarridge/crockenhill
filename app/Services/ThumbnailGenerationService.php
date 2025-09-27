@@ -40,10 +40,11 @@ class ThumbnailGenerationService
      * Generate thumbnail for a sermon video
      *
      * @param  Sermon  $sermon  The sermon model
-     * @param  string  $videoPath  Full path to the video file
+     * @param  string  $videoPath  Full path to the video file (local) or relative path (S3)
+     * @param  string|null  $disk  Storage disk name for S3-compatible storage
      * @return ThumbnailResult Result of thumbnail generation
      */
-    public function generateThumbnail(Sermon $sermon, string $videoPath): ThumbnailResult
+    public function generateThumbnail(Sermon $sermon, string $videoPath, ?string $disk = null): ThumbnailResult
     {
         try {
             // Check if thumbnail generation is enabled
@@ -51,13 +52,16 @@ class ThumbnailGenerationService
                 return ThumbnailResult::skipped('Thumbnail generation is disabled');
             }
 
-            // Validate video file exists
-            if (! file_exists($videoPath)) {
+            // Validate video file exists using storage-aware method
+            if (! $this->videoFileExists($videoPath, $disk)) {
                 return ThumbnailResult::skipped('Video file not found: '.$videoPath);
             }
 
+            // For S3 storage, we need to download the file temporarily for FFmpeg processing
+            $localVideoPath = $this->ensureLocalVideoPath($videoPath, $disk);
+
             // Get video metadata
-            $metadata = $this->getVideoMetadata($videoPath);
+            $metadata = $this->getVideoMetadata($localVideoPath);
 
             // Check minimum duration requirement
             if ($metadata['duration'] < $this->config['extraction']['min_video_duration']) {
@@ -68,7 +72,7 @@ class ThumbnailGenerationService
             $timestamp = $this->calculateOptimalTimestamp($metadata['duration']);
 
             // Extract base frame from video
-            $baseFramePath = $this->extractBaseFrame($videoPath, $timestamp);
+            $baseFramePath = $this->extractBaseFrame($localVideoPath, $timestamp);
 
             if (! $baseFramePath) {
                 return ThumbnailResult::failed('Failed to extract frame from video');
@@ -745,7 +749,9 @@ class ThumbnailGenerationService
             return ThumbnailResult::skipped('Sermon has no video file for thumbnail generation');
         }
 
-        $videoPath = Storage::disk(config('livestream-processing.sermon_disk'))->path($sermon->video_file_path);
+        // Get video path and disk information
+        $sermonDisk = config('livestream-processing.sermon_disk');
+        $videoPath = $sermon->video_file_path;
 
         // Delete existing thumbnail if it exists
         if ($sermon->thumbnail_path) {
@@ -760,7 +766,7 @@ class ThumbnailGenerationService
             }
         }
 
-        return $this->generateThumbnail($sermon, $videoPath);
+        return $this->generateThumbnail($sermon, $videoPath, $sermonDisk);
     }
 
     /**
@@ -932,5 +938,78 @@ class ThumbnailGenerationService
         $scale = max(0.5, min(2.0, $scale));
 
         return (int) ($baseFontSize * $scale);
+    }
+
+    /**
+     * Check if video file exists using storage-aware method
+     *
+     * @param  string  $videoPath  Path to video file
+     * @param  string|null  $disk  Storage disk name
+     * @return bool True if file exists
+     */
+    private function videoFileExists(string $videoPath, ?string $disk = null): bool
+    {
+        if ($disk) {
+            // For named disks (including S3), use Storage::exists()
+            return Storage::disk($disk)->exists($videoPath);
+        }
+
+        // For absolute local paths, use file_exists()
+        return file_exists($videoPath);
+    }
+
+    /**
+     * Ensure we have a local path for FFmpeg processing
+     * Downloads S3 files temporarily if needed
+     *
+     * @param  string  $videoPath  Original video path
+     * @param  string|null  $disk  Storage disk name
+     * @return string Local file path for FFmpeg
+     */
+    private function ensureLocalVideoPath(string $videoPath, ?string $disk = null): string
+    {
+        if (! $disk) {
+            // Already a local absolute path
+            return $videoPath;
+        }
+
+        $diskInstance = Storage::disk($disk);
+
+        // Check if this is an S3-compatible disk
+        if ($this->isS3CompatibleDisk($diskInstance)) {
+            // Download the file temporarily for FFmpeg processing
+            $tempVideoFilename = 'temp_video_'.Str::uuid().'.'.pathinfo($videoPath, PATHINFO_EXTENSION);
+            $tempVideoPath = $this->tempPath.'/'.$tempVideoFilename;
+
+            Storage::disk($this->tempDisk)->makeDirectory($this->tempPath);
+
+            $localTempPath = Storage::disk($this->tempDisk)->path($tempVideoPath);
+
+            // Download S3 file to local temp
+            $videoContent = $diskInstance->get($videoPath);
+            Storage::disk($this->tempDisk)->put($tempVideoPath, $videoContent);
+
+            return $localTempPath;
+        }
+
+        // For local disks, get the full path
+        return $diskInstance->path($videoPath);
+    }
+
+    /**
+     * Check if a disk uses S3-compatible storage
+     *
+     * @param  \Illuminate\Contracts\Filesystem\Filesystem  $disk
+     */
+    private function isS3CompatibleDisk($disk): bool
+    {
+        try {
+            $adapter = $disk->getAdapter();
+
+            return $adapter instanceof \League\Flysystem\AwsS3V3\AwsS3V3Adapter;
+        } catch (\Exception $e) {
+            // If we can't determine the adapter type, assume it's not S3
+            return false;
+        }
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Sermon;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Service for integrating livestream video processing with sermon metadata
@@ -298,36 +299,46 @@ class SermonMetadataIntegrationService
     /**
      * Validate video file integrity
      *
-     * @param  string  $videoPath  The video file path
+     * @param  string  $videoPath  The video file path (local) or relative path (S3)
+     * @param  string|null  $disk  Storage disk name for S3-compatible storage
      * @return bool True if video is valid
      */
-    public function validateVideoFile(string $videoPath): bool
+    public function validateVideoFile(string $videoPath, ?string $disk = null): bool
     {
-        if (! file_exists($videoPath)) {
+        // Check if file exists using storage-aware method
+        if (! $this->videoFileExists($videoPath, $disk)) {
             Log::warning('Video file does not exist for validation', [
                 'video_path' => $videoPath,
+                'disk' => $disk,
             ]);
 
             return false;
         }
 
-        // Basic file size check
-        $fileSize = filesize($videoPath);
+        // Basic file size check using storage-aware method
+        $fileSize = $this->getVideoFileSize($videoPath, $disk);
         if ($fileSize === 0) {
             Log::warning('Video file has zero size', [
                 'video_path' => $videoPath,
+                'disk' => $disk,
             ]);
 
             return false;
         }
 
+        // For S3 files, we need to download temporarily for MIME type checking
+        $localPath = $this->ensureLocalPath($videoPath, $disk);
+
         // Check if it's a valid video file (basic MIME type check)
         try {
-            $mimeType = mime_content_type($videoPath);
+            $mimeType = mime_content_type($localPath);
             if ($mimeType === false) {
                 Log::warning('Could not determine MIME type for video file', [
                     'video_path' => $videoPath,
+                    'disk' => $disk,
                 ]);
+
+                $this->cleanupTempFile($localPath, $disk);
 
                 return false;
             }
@@ -339,18 +350,140 @@ class SermonMetadataIntegrationService
             if (! $isValid) {
                 Log::warning('Video file has invalid MIME type', [
                     'video_path' => $videoPath,
+                    'disk' => $disk,
                     'mime_type' => $mimeType,
                     'valid_mime_types' => $validMimeTypes,
                 ]);
             }
 
+            $this->cleanupTempFile($localPath, $disk);
+
             return $isValid;
         } catch (\Exception $e) {
             Log::error('Exception during video file validation', [
                 'video_path' => $videoPath,
+                'disk' => $disk,
                 'error' => $e->getMessage(),
             ]);
 
+            $this->cleanupTempFile($localPath, $disk);
+
+            return false;
+        }
+    }
+
+    /**
+     * Check if video file exists using storage-aware method
+     *
+     * @param  string  $videoPath  Path to video file
+     * @param  string|null  $disk  Storage disk name
+     * @return bool True if file exists
+     */
+    private function videoFileExists(string $videoPath, ?string $disk = null): bool
+    {
+        if ($disk) {
+            // For named disks (including S3), use Storage::exists()
+            return Storage::disk($disk)->exists($videoPath);
+        }
+
+        // For absolute local paths, use file_exists()
+        return file_exists($videoPath);
+    }
+
+    /**
+     * Get video file size using storage-aware method
+     *
+     * @param  string  $videoPath  Path to video file
+     * @param  string|null  $disk  Storage disk name
+     * @return int File size in bytes
+     */
+    private function getVideoFileSize(string $videoPath, ?string $disk = null): int
+    {
+        if ($disk) {
+            // For named disks (including S3), use Storage::size()
+            return Storage::disk($disk)->size($videoPath);
+        }
+
+        // For absolute local paths, use filesize()
+        return filesize($videoPath);
+    }
+
+    /**
+     * Ensure we have a local path for MIME type checking
+     * Downloads S3 files temporarily if needed
+     *
+     * @param  string  $videoPath  Original video path
+     * @param  string|null  $disk  Storage disk name
+     * @return string Local file path
+     */
+    private function ensureLocalPath(string $videoPath, ?string $disk = null): string
+    {
+        if (! $disk) {
+            // Already a local absolute path
+            return $videoPath;
+        }
+
+        $diskInstance = Storage::disk($disk);
+
+        // Check if this is an S3-compatible disk
+        if ($this->isS3CompatibleDisk($diskInstance)) {
+            // Download the file temporarily for MIME type checking
+            $tempDir = 'temp/validation';
+            $tempFilename = 'temp_validation_'.Str::uuid().'.'.pathinfo($videoPath, PATHINFO_EXTENSION);
+            $tempPath = $tempDir.'/'.$tempFilename;
+
+            Storage::disk('local')->makeDirectory($tempDir);
+
+            $localTempPath = Storage::disk('local')->path($tempPath);
+
+            // Download S3 file to local temp
+            $videoContent = $diskInstance->get($videoPath);
+            Storage::disk('local')->put($tempPath, $videoContent);
+
+            return $localTempPath;
+        }
+
+        // For local disks, get the full path
+        return $diskInstance->path($videoPath);
+    }
+
+    /**
+     * Clean up temporary file if it was created for S3 validation
+     *
+     * @param  string  $localPath  Local file path
+     * @param  string|null  $disk  Original storage disk name
+     */
+    private function cleanupTempFile(string $localPath, ?string $disk = null): void
+    {
+        if ($disk && $this->isS3CompatibleDisk(Storage::disk($disk))) {
+            // This was a temporary file downloaded from S3, clean it up
+            if (str_contains($localPath, 'temp/validation/')) {
+                try {
+                    $relativePath = str_replace(Storage::disk('local')->path(''), '', $localPath);
+                    Storage::disk('local')->delete($relativePath);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to cleanup temp validation file', [
+                        'temp_path' => $localPath,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a disk uses S3-compatible storage
+     *
+     * @param  \Illuminate\Contracts\Filesystem\Filesystem  $disk
+     */
+    private function isS3CompatibleDisk($disk): bool
+    {
+        try {
+            $adapter = $disk->getAdapter();
+
+            return $adapter instanceof \League\Flysystem\AwsS3V3\AwsS3V3Adapter;
+        } catch (\Exception $e) {
+            // If we can't determine the adapter type, assume it's not S3
             return false;
         }
     }

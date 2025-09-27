@@ -172,6 +172,7 @@ class GenerateThumbnailJobTest extends TestCase
             [
                 'sermon_id' => $sermon->id,
                 'video_path' => '/nonexistent/video.mp4',
+                'disk' => null, // Added disk parameter in the new implementation
             ]
         );
 

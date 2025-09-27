@@ -32,6 +32,8 @@ class GenerateThumbnail implements ShouldQueue
 
     private ?string $videoPath = null;
 
+    private ?string $disk = null;
+
     private ?LivestreamProcessingLog $processingLog = null;
 
     /**
@@ -47,11 +49,17 @@ class GenerateThumbnail implements ShouldQueue
             // Legacy constructor: GenerateThumbnail($sermonId, $videoPath)
             $this->sermonId = $args[0];
             $this->videoPath = $args[1];
+            $this->disk = null; // Assume local path for legacy usage
+        } elseif (count($args) === 3 && is_int($args[0]) && is_string($args[1]) && is_string($args[2])) {
+            // Extended constructor: GenerateThumbnail($sermonId, $videoPath, $disk)
+            $this->sermonId = $args[0];
+            $this->videoPath = $args[1];
+            $this->disk = $args[2];
         } elseif (count($args) === 1 && $args[0] instanceof LivestreamProcessingLog) {
             // Job chain constructor: GenerateThumbnail($processingLog)
             $this->processingLog = $args[0];
         } else {
-            throw new \InvalidArgumentException('GenerateThumbnail expects either ($sermonId, $videoPath) or ($processingLog)');
+            throw new \InvalidArgumentException('GenerateThumbnail expects ($sermonId, $videoPath), ($sermonId, $videoPath, $disk), or ($processingLog)');
         }
 
         // Set job to dedicated thumbnails queue for non-critical work
@@ -111,18 +119,19 @@ class GenerateThumbnail implements ShouldQueue
                 return;
             }
 
-            // Verify video file exists
-            if (! file_exists($this->videoPath)) {
+            // Verify video file exists using storage-aware method
+            if (! $this->videoFileExists()) {
                 Log::warning('Video file not found for thumbnail generation', [
                     'sermon_id' => $this->sermonId,
                     'video_path' => $this->videoPath,
+                    'disk' => $this->disk,
                 ]);
 
                 return;
             }
 
             // Generate thumbnail using the service
-            $result = $thumbnailService->generateThumbnail($sermon, $this->videoPath);
+            $result = $thumbnailService->generateThumbnail($sermon, $this->videoPath, $this->disk);
 
             if ($result->success) {
                 // Update sermon record with thumbnail information
@@ -170,15 +179,30 @@ class GenerateThumbnail implements ShouldQueue
         // Get sermon ID from processing log
         $this->sermonId = $this->processingLog->sermon_id;
 
-        // Get video path from processing metadata
+        // Get video path from processing metadata (keep as relative path for S3 compatibility)
         $processingMetadata = $this->processingLog->processing_metadata ?? [];
-        $videoPath = $processingMetadata['final_video_path'] ?? null;
+        $this->videoPath = $processingMetadata['final_video_path'] ?? null;
+        $this->disk = config('livestream-processing.sermon_disk', 'public');
+    }
 
-        if ($videoPath) {
-            // Convert relative path to absolute path
-            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
-            $this->videoPath = Storage::disk($sermonDisk)->path($videoPath);
+    /**
+     * Check if video file exists using storage-aware method
+     *
+     * @return bool True if video file exists
+     */
+    private function videoFileExists(): bool
+    {
+        if (! $this->videoPath) {
+            return false;
         }
+
+        if ($this->disk) {
+            // For named disks (including S3), use Storage::exists()
+            return Storage::disk($this->disk)->exists($this->videoPath);
+        }
+
+        // For absolute local paths, use file_exists()
+        return file_exists($this->videoPath);
     }
 
     /**
