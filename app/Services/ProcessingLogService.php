@@ -97,23 +97,40 @@ class ProcessingLogService implements ProcessingLogContract
         }
 
         $entries = collect();
-        $lines = $this->readLogFileLines($logPath);
 
-        foreach ($lines as $line) {
-            if (! str_contains($line, $processingId)) {
-                continue;
+        // Stream file reading to avoid memory exhaustion on large log files
+        $handle = fopen($logPath, 'r');
+        if (! $handle) {
+            return collect();
+        }
+
+        try {
+            while (($line = fgets($handle)) !== false) {
+                $line = trim($line);
+
+                // Skip empty lines
+                if (empty($line)) {
+                    continue;
+                }
+
+                // Quick filter: skip lines that don't contain our processing ID
+                if (! str_contains($line, $processingId)) {
+                    continue;
+                }
+
+                $entry = $this->parseLogLine($line, $processingId);
+                if (! $entry) {
+                    continue;
+                }
+
+                if ($since && $entry->timestamp->lt($since)) {
+                    continue;
+                }
+
+                $entries->push($entry);
             }
-
-            $entry = $this->parseLogLine($line, $processingId);
-            if (! $entry) {
-                continue;
-            }
-
-            if ($since && $entry->timestamp->lt($since)) {
-                continue;
-            }
-
-            $entries->push($entry);
+        } finally {
+            fclose($handle);
         }
 
         // Sort by timestamp descending (newest first)
@@ -124,11 +141,6 @@ class ProcessingLogService implements ProcessingLogContract
         }
 
         return $entries->values();
-    }
-
-    private function readLogFileLines(string $logPath): array
-    {
-        return file($logPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
     }
 
     private function parseLogLine(string $line, string $processingId): ?ProcessingLogEntry

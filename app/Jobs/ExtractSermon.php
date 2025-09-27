@@ -65,7 +65,9 @@ class ExtractSermon implements ShouldQueue
 
             // DEFENSIVE: Verify audio file actually exists before storing path in database
             $audioFullPath = $audioExtractionResult['full_path'];
-            if (! file_exists($audioFullPath)) {
+            $fileExists = $this->verifyAudioFileExists($storageService, $sermonAudioPath, $audioFullPath);
+
+            if (! $fileExists) {
                 throw new \Exception("Audio extraction claimed success but file does not exist: {$audioFullPath}");
             }
 
@@ -73,8 +75,8 @@ class ExtractSermon implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
                 'audio_path' => $sermonAudioPath,
                 'full_path' => $audioFullPath,
-                'file_exists' => file_exists($audioFullPath),
-                'file_size' => filesize($audioFullPath),
+                'file_exists' => $fileExists,
+                'verification_method' => $this->isS3Path($audioFullPath) ? 's3_storage' : 'local_filesystem',
             ]);
 
             $this->processingLog->update([
@@ -113,7 +115,7 @@ class ExtractSermon implements ShouldQueue
                 'final_audio_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
                 'compression_ratio' => $audioExtractionResult['compression_ratio'],
                 'valid_for_transcription' => $audioExtractionResult['valid_for_transcription'],
-                'file_exists_check' => file_exists($audioExtractionResult['full_path']),
+                'file_exists_check' => $this->verifyAudioFileExists($storageService, $sermonAudioPath, $audioExtractionResult['full_path']),
             ]);
 
             // Job chain will automatically proceed to next job
@@ -165,5 +167,29 @@ class ExtractSermon implements ShouldQueue
     public function retryUntil(): \DateTime
     {
         return now()->addHours(1);
+    }
+
+    /**
+     * Verify audio file exists using appropriate method for storage type
+     */
+    private function verifyAudioFileExists(VideoStorageService $storageService, string $audioPath, string $fullPath): bool
+    {
+        // For S3 URLs, use Storage disk to verify existence
+        if ($this->isS3Path($fullPath)) {
+            $diskName = config('livestream-processing.sermon_disk', 'public');
+
+            return Storage::disk($diskName)->exists($audioPath);
+        }
+
+        // For local paths, use file_exists
+        return file_exists($fullPath);
+    }
+
+    /**
+     * Check if a path is an S3 URL
+     */
+    private function isS3Path(string $path): bool
+    {
+        return str_starts_with($path, 'http://') || str_starts_with($path, 'https://');
     }
 }
