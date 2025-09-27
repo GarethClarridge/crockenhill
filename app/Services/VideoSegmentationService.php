@@ -72,11 +72,11 @@ class VideoSegmentationService
                 throw new \Symfony\Component\Process\Exception\ProcessFailedException($process);
             }
 
-            if (! file_exists($fullRmsLogPath) || filesize($fullRmsLogPath) === 0) {
+            if (! $this->fileExists($fullRmsLogPath, $rmsLogPath) || $this->getFileSize($fullRmsLogPath, $rmsLogPath) === 0) {
                 throw new \Exception('Failed to generate RMS log file or file is empty');
             }
 
-            Log::info('RMS log generated successfully', ['path' => $rmsLogPath, 'size' => filesize($fullRmsLogPath)]);
+            Log::info('RMS log generated successfully', ['path' => $rmsLogPath, 'size' => $this->getFileSize($fullRmsLogPath, $rmsLogPath)]);
 
             return $rmsLogPath;
 
@@ -99,11 +99,11 @@ class VideoSegmentationService
         try {
             $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
 
-            if (! file_exists($fullRmsLogPath)) {
+            if (! $this->fileExists($fullRmsLogPath, $rmsLogPath)) {
                 throw new \Exception('RMS log file not found: '.$fullRmsLogPath);
             }
 
-            $logContent = file_get_contents($fullRmsLogPath);
+            $logContent = $this->getFileContents($fullRmsLogPath, $rmsLogPath);
 
             $thresholdResult = $this->determineThreshold($logContent);
 
@@ -553,5 +553,55 @@ class VideoSegmentationService
 
             return false;
         }
+    }
+
+    /**
+     * Check if file exists on specified disk (S3-aware)
+     */
+    private function fileExists(string $fullPath, string $storagePath): bool
+    {
+        if ($this->isS3Disk($this->tempDisk)) {
+            return Storage::disk($this->tempDisk)->exists($storagePath);
+        }
+
+        return file_exists($fullPath);
+    }
+
+    /**
+     * Get file size on specified disk (S3-aware)
+     */
+    private function getFileSize(string $fullPath, string $storagePath): int
+    {
+        if ($this->isS3Disk($this->tempDisk)) {
+            try {
+                return Storage::disk($this->tempDisk)->size($storagePath);
+            } catch (\Exception $e) {
+                return 0;
+            }
+        }
+
+        return file_exists($fullPath) ? filesize($fullPath) : 0;
+    }
+
+    /**
+     * Get file contents (S3-aware)
+     */
+    private function getFileContents(string $fullPath, string $storagePath): string
+    {
+        if ($this->isS3Disk($this->tempDisk)) {
+            return Storage::disk($this->tempDisk)->get($storagePath);
+        }
+
+        return file_get_contents($fullPath);
+    }
+
+    /**
+     * Check if the disk is S3-compatible (DigitalOcean Spaces, AWS S3, etc.)
+     */
+    private function isS3Disk(string $diskName): bool
+    {
+        $diskConfig = config("filesystems.disks.{$diskName}");
+
+        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
     }
 }

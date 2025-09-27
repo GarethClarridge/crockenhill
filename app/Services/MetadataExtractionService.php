@@ -326,9 +326,9 @@ class MetadataExtractionService
             return (int) $info['filesize'];
         }
 
-        // Fall back to file system
+        // Fall back to file system (S3-aware)
         try {
-            return file_exists($filePath) ? filesize($filePath) : null;
+            return $this->getFileSize($filePath);
         } catch (\Exception $e) {
             return null;
         }
@@ -353,7 +353,7 @@ class MetadataExtractionService
     private function getDefaultAudioInfoFromPath(string $filePath): array
     {
         $extension = pathinfo($filePath, PATHINFO_EXTENSION);
-        $filesize = file_exists($filePath) ? filesize($filePath) : null;
+        $filesize = $this->getFileSize($filePath);
 
         return [
             'duration' => null,
@@ -413,5 +413,43 @@ class MetadataExtractionService
             'errors' => $errors,
             'info' => $audioInfo,
         ];
+    }
+
+    /**
+     * Get file size (S3-aware) - handles both local paths and storage paths
+     */
+    private function getFileSize(string $filePath): ?int
+    {
+        // For local file paths, use filesize
+        if (str_starts_with($filePath, '/') || str_contains($filePath, ':\\')) {
+            return file_exists($filePath) ? filesize($filePath) : null;
+        }
+
+        // For storage paths, check if it's a storage-based path
+        try {
+            // Try to determine which disk this might be on
+            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
+            if (\Illuminate\Support\Facades\Storage::disk($sermonDisk)->exists($filePath)) {
+                return \Illuminate\Support\Facades\Storage::disk($sermonDisk)->size($filePath);
+            }
+
+            $tempDisk = config('livestream-processing.temp_disk', 'local');
+            if (\Illuminate\Support\Facades\Storage::disk($tempDisk)->exists($filePath)) {
+                return \Illuminate\Support\Facades\Storage::disk($tempDisk)->size($filePath);
+            }
+
+            // Try public disk as fallback
+            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($filePath)) {
+                return \Illuminate\Support\Facades\Storage::disk('public')->size($filePath);
+            }
+        } catch (\Exception $e) {
+            Log::debug('Failed to get file size from storage', [
+                'file_path' => $filePath,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Final fallback - might be a local path without leading slash
+        return file_exists($filePath) ? filesize($filePath) : null;
     }
 }

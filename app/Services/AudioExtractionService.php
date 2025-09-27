@@ -42,7 +42,7 @@ class AudioExtractionService implements AudioExtractionServiceInterface
             $video->save($format, $outputPath);
 
             // Check file size and compress if needed
-            $fileSize = filesize($outputPath);
+            $fileSize = $this->getLocalFileSize($outputPath);
             $maxSize = $audioConfig['max_file_size'] ?? (25 * 1024 * 1024);
 
             if ($fileSize > $maxSize) {
@@ -58,7 +58,7 @@ class AudioExtractionService implements AudioExtractionServiceInterface
                 'video_path' => $videoPath,
                 'audio_path' => $outputPath,
                 'duration' => $duration,
-                'file_size' => filesize($outputPath),
+                'file_size' => $this->getLocalFileSize($outputPath),
             ]);
 
             return $outputPath;
@@ -150,5 +150,13 @@ class AudioExtractionService implements AudioExtractionServiceInterface
         if (! is_dir($directory)) {
             mkdir($directory, 0755, true);
         }
+    }
+
+    /**
+     * Get local file size (for files that are expected to be local)
+     */
+    private function getLocalFileSize(string $filePath): int
+    {
+        return file_exists($filePath) ? filesize($filePath) : 0;
     }
 }

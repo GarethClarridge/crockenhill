@@ -24,6 +24,9 @@ class AudioTranscriptionServiceTest extends TestCase
         // Set up a mock OpenAI API key for testing
         config(['sermon-processing.transcription.openai_api_key' => 'test-key']);
 
+        // Configure the service to use the same disk as our faked storage
+        config(['livestream-processing.sermon_disk' => 'local']);
+
         $logger = app(\App\Services\SermonProcessingLogger::class);
         $this->service = new AudioTranscriptionService($logger);
     }

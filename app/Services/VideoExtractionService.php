@@ -134,7 +134,8 @@ class VideoExtractionService
                 return $this->extractSegmentWithReencoding($inputPath, $segment, $outputFilename);
             }
 
-            if (! file_exists($tempPath)) {
+            // Check if file was created - use appropriate method for temp disk
+            if (! $this->fileExists($tempPath, $tempDisk)) {
                 throw new \Exception('Output file was not created: '.$tempPath);
             }
 
@@ -145,7 +146,7 @@ class VideoExtractionService
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'duration' => $duration,
-                'output_size' => filesize($tempPath),
+                'output_size' => $this->getFileSize($tempPath, $tempDisk),
             ]);
 
             return $relativePath;
@@ -540,8 +541,8 @@ class VideoExtractionService
                 'permanent_path' => $permanentPath ?? 'not_set',
                 'segment_start' => $startTime,
                 'segment_duration' => $duration,
-                'input_file_exists' => file_exists($inputVideoPath),
-                'input_file_size' => file_exists($inputVideoPath) ? filesize($inputVideoPath) : 0,
+                'input_file_exists' => $this->inputFileExists($inputVideoPath),
+                'input_file_size' => $this->getInputFileSize($inputVideoPath),
                 'output_directory_exists' => isset($processingPath) ? is_dir(dirname($processingPath)) : false,
                 'output_directory_writable' => isset($processingPath) ? is_writable(dirname($processingPath)) : false,
                 'system_diagnostics' => $diagnostics,
@@ -557,7 +558,7 @@ class VideoExtractionService
      */
     private function validateAudioFileSize(string $audioPath): array
     {
-        $fileSize = file_exists($audioPath) ? filesize($audioPath) : 0;
+        $fileSize = $this->getLocalFileSize($audioPath);
         $maxSize = config('livestream-processing.audio_extraction.transcription_optimized.max_file_size');
 
         return [
@@ -699,7 +700,7 @@ class VideoExtractionService
                         'local_path' => $localFilePath,
                         'permanent_path' => $permanentPath,
                         'permanent_disk' => $this->permanentDisk,
-                        'file_size' => filesize($localFilePath),
+                        'file_size' => $this->getLocalFileSize($localFilePath),
                         'upload_time_seconds' => round($uploadTime, 2),
                         'attempt' => $attempt,
                     ]);
@@ -828,5 +829,97 @@ class VideoExtractionService
         }
 
         return $diagnostics;
+    }
+
+    /**
+     * Check if file exists on specified disk (S3-aware)
+     */
+    private function fileExists(string $filePath, string $disk): bool
+    {
+        if ($this->isS3Disk($disk)) {
+            return Storage::disk($disk)->exists($filePath);
+        }
+
+        return file_exists($filePath);
+    }
+
+    /**
+     * Get file size on specified disk (S3-aware)
+     */
+    private function getFileSize(string $filePath, string $disk): int
+    {
+        if ($this->isS3Disk($disk)) {
+            try {
+                return Storage::disk($disk)->size($filePath);
+            } catch (\Exception $e) {
+                return 0;
+            }
+        }
+
+        return file_exists($filePath) ? filesize($filePath) : 0;
+    }
+
+    /**
+     * Check if input file exists (handles both local paths and storage paths)
+     */
+    private function inputFileExists(string $inputPath): bool
+    {
+        // For local file paths, use file_exists
+        if (str_starts_with($inputPath, '/') || str_contains($inputPath, ':\\')) {
+            return file_exists($inputPath);
+        }
+
+        // For storage paths, check all relevant disks
+        $tempDisk = config('livestream-processing.temp_disk');
+        if (Storage::disk($tempDisk)->exists($inputPath)) {
+            return true;
+        }
+
+        $sermonDisk = config('livestream-processing.sermon_disk');
+        if (Storage::disk($sermonDisk)->exists($inputPath)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Get input file size (handles both local paths and storage paths)
+     */
+    private function getInputFileSize(string $inputPath): int
+    {
+        // For local file paths, use filesize
+        if (str_starts_with($inputPath, '/') || str_contains($inputPath, ':\\')) {
+            return file_exists($inputPath) ? filesize($inputPath) : 0;
+        }
+
+        // For storage paths, check all relevant disks
+        $tempDisk = config('livestream-processing.temp_disk');
+        if (Storage::disk($tempDisk)->exists($inputPath)) {
+            try {
+                return Storage::disk($tempDisk)->size($inputPath);
+            } catch (\Exception $e) {
+                // Fallback to other disk if first fails
+            }
+        }
+
+        $sermonDisk = config('livestream-processing.sermon_disk');
+        if (Storage::disk($sermonDisk)->exists($inputPath)) {
+            try {
+                return Storage::disk($sermonDisk)->size($inputPath);
+            } catch (\Exception $e) {
+                return 0;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get local file size (for files that are expected to be local)
+     */
+    private function getLocalFileSize(string $filePath): int
+    {
+        return file_exists($filePath) ? filesize($filePath) : 0;
     }
 }

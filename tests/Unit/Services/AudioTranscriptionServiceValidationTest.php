@@ -22,6 +22,9 @@ class AudioTranscriptionServiceValidationTest extends TestCase
     {
         parent::setUp();
 
+        // Mock the storage for testing
+        Storage::fake('local');
+
         // Mock the logger dependency
         $this->mockLogger = $this->createMock(SermonProcessingLogger::class);
 
@@ -30,6 +33,9 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
         // Mock OpenAI configuration for Laravel OpenAI package
         Config::set('openai.api_key', 'test-api-key');
+
+        // Configure the service to use the same disk as our faked storage
+        Config::set('livestream-processing.sermon_disk', 'local');
 
         $this->service = new AudioTranscriptionService($this->mockLogger);
     }

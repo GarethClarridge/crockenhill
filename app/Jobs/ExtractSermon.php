@@ -42,26 +42,54 @@ class ExtractSermon implements ShouldQueue
             }
 
             $sermonSegment = $this->createSermonSegment();
-            $videoPath = Storage::disk(config('livestream-processing.temp_disk'))
-                ->path($this->processingLog->original_file_path);
 
-            if (! file_exists($videoPath)) {
-                throw new \Exception('Original video file not found: '.$videoPath);
+            // Get temp disk and check if it's S3-compatible
+            $tempDisk = config('livestream-processing.temp_disk');
+            $isS3TempDisk = $this->isS3Disk($tempDisk);
+            $localTempPath = null;
+
+            if ($isS3TempDisk) {
+                // For S3 temp disks, verify file exists using Storage disk
+                if (! Storage::disk($tempDisk)->exists($this->processingLog->original_file_path)) {
+                    throw new \Exception('Original video file not found on S3: '.$this->processingLog->original_file_path);
+                }
+
+                // Download to local temp for processing
+                $localTempPath = storage_path('app/temp/'.basename($this->processingLog->original_file_path).'_'.time());
+                $this->ensureDirectoryExists(dirname($localTempPath));
+
+                $videoStream = Storage::disk($tempDisk)->readStream($this->processingLog->original_file_path);
+                file_put_contents($localTempPath, $videoStream);
+                $videoPath = $localTempPath;
+            } else {
+                // For local temp disks, use direct path
+                $videoPath = Storage::disk($tempDisk)->path($this->processingLog->original_file_path);
+
+                if (! file_exists($videoPath)) {
+                    throw new \Exception('Original video file not found: '.$videoPath);
+                }
             }
 
-            $sermonVideoPath = $videoExtractor->extractSegmentAsFile(
-                $videoPath,
-                $sermonSegment,
-                $this->processingLog->processing_id.'_sermon.mp4'
-            );
+            try {
+                $sermonVideoPath = $videoExtractor->extractSegmentAsFile(
+                    $videoPath,
+                    $sermonSegment,
+                    $this->processingLog->processing_id.'_sermon.mp4'
+                );
 
-            $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
-                $videoPath,
-                $sermonSegment,
-                $this->processingLog->processing_id.'_sermon.mp3'
-            );
+                $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
+                    $videoPath,
+                    $sermonSegment,
+                    $this->processingLog->processing_id.'_sermon.mp3'
+                );
 
-            $sermonAudioPath = $audioExtractionResult['audio_path'];
+                $sermonAudioPath = $audioExtractionResult['audio_path'];
+            } finally {
+                // Clean up temporary S3 download file if we created one
+                if ($isS3TempDisk && $localTempPath && file_exists($localTempPath)) {
+                    unlink($localTempPath);
+                }
+            }
 
             // DEFENSIVE: Verify audio file actually exists before storing path in database
             $audioFullPath = $audioExtractionResult['full_path'];
@@ -191,5 +219,27 @@ class ExtractSermon implements ShouldQueue
     private function isS3Path(string $path): bool
     {
         return str_starts_with($path, 'http://') || str_starts_with($path, 'https://');
+    }
+
+    /**
+     * Check if the disk is S3-compatible (DigitalOcean Spaces, AWS S3, etc.)
+     */
+    private function isS3Disk(string $diskName): bool
+    {
+        $diskConfig = config("filesystems.disks.{$diskName}");
+
+        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
+    }
+
+    /**
+     * Ensure directory exists (for local operations only)
+     */
+    private function ensureDirectoryExists(string $directory): void
+    {
+        if (! is_dir($directory)) {
+            if (! mkdir($directory, 0755, true)) {
+                throw new \Exception("Failed to create directory: {$directory}");
+            }
+        }
     }
 }

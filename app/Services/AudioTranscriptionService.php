@@ -47,18 +47,44 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     }
 
     /**
+     * Check if the disk is S3-compatible (DigitalOcean Spaces, AWS S3, etc.)
+     */
+    private function isS3Disk(string $diskName): bool
+    {
+        $diskConfig = config("filesystems.disks.{$diskName}");
+
+        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
+    }
+
+    /**
+     * Ensure directory exists (for local operations only)
+     */
+    private function ensureDirectoryExists(string $directory): void
+    {
+        if (! is_dir($directory)) {
+            if (! mkdir($directory, 0755, true)) {
+                throw new \Exception("Failed to create directory: {$directory}");
+            }
+        }
+    }
+
+    /**
      * Transcribe audio file to text using OpenAI Whisper API
      *
      * @param  string  $audioFilePath  Path to the audio file
      * @param  string  $processingId  Processing ID for logging
+     * @param  string|null  $disk  Disk to use for file operations (defaults to sermon disk)
      * @return string The transcribed text
      *
      * @throws Exception When transcription fails
      */
-    public function transcribe(string $audioFilePath, string $processingId = 'unknown'): string
+    public function transcribe(string $audioFilePath, string $processingId = 'unknown', ?string $disk = null): string
     {
         // Verify API key is configured before proceeding
         $this->ensureApiKeyConfigured();
+
+        // Use provided disk or default to sermon disk
+        $diskName = $disk ?? config('livestream-processing.sermon_disk', 'public');
 
         $startTime = microtime(true);
 
@@ -66,15 +92,30 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             $processingId,
             'audio_transcription',
             'started',
-            ['file_path' => $audioFilePath]
+            ['file_path' => $audioFilePath, 'disk' => $diskName]
         );
 
-        // Validate file exists and is readable
-        if (! Storage::exists($audioFilePath)) {
-            throw new Exception("Audio file not found: {$audioFilePath}");
+        // Validate file exists using the correct disk
+        if (! Storage::disk($diskName)->exists($audioFilePath)) {
+            throw new Exception("Audio file not found: {$audioFilePath} on disk: {$diskName}");
         }
 
-        $fullPath = Storage::path($audioFilePath);
+        // Check if this is an S3 disk and handle accordingly
+        $videoStorageService = app(VideoStorageService::class);
+        $isS3Disk = $this->isS3Disk($diskName);
+
+        if ($isS3Disk) {
+            // For S3 disks, download file to local temp for processing
+            $tempPath = storage_path('app/temp/'.basename($audioFilePath).'_'.time().'.mp3');
+            $this->ensureDirectoryExists(dirname($tempPath));
+
+            $audioStream = Storage::disk($diskName)->readStream($audioFilePath);
+            file_put_contents($tempPath, $audioStream);
+            $fullPath = $tempPath;
+        } else {
+            // For local disks, use direct path
+            $fullPath = Storage::disk($diskName)->path($audioFilePath);
+        }
 
         // Validate file size and compress if needed
         $processedFilePath = $this->validateAndCompressIfNeeded($fullPath, $processingId);
@@ -88,14 +129,28 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             $fileSize
         );
 
-        // Check if file needs chunking based on duration
-        $duration = $this->getAudioDuration($processedFilePath);
+        try {
+            // Check if file needs chunking based on duration
+            $duration = $this->getAudioDuration($processedFilePath);
 
-        if ($duration > self::MIN_DURATION_FOR_CHUNKING) {
-            return $this->transcribeWithChunking($processedFilePath, $processingId, $duration);
+            if ($duration > self::MIN_DURATION_FOR_CHUNKING) {
+                $result = $this->transcribeWithChunking($processedFilePath, $processingId, $duration);
+            } else {
+                $result = $this->transcribeFile($processedFilePath, $processingId);
+            }
+
+            return $result;
+        } finally {
+            // Clean up temporary S3 download file if we created one
+            if ($isS3Disk && file_exists($fullPath) && $fullPath !== $processedFilePath) {
+                unlink($fullPath);
+            }
+
+            // Clean up compressed file if different from original
+            if ($processedFilePath !== $fullPath && file_exists($processedFilePath)) {
+                unlink($processedFilePath);
+            }
         }
-
-        return $this->transcribeFile($processedFilePath, $processingId);
     }
 
     /**
