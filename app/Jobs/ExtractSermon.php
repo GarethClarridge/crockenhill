@@ -44,7 +44,7 @@ class ExtractSermon implements ShouldQueue
             $sermonSegment = $this->createSermonSegment();
 
             // Get temp disk and check if it's S3-compatible
-            $tempDisk = config('livestream-processing.temp_disk');
+            $tempDisk = config('media-processing.storage.temp_disk');
             $isS3TempDisk = $this->isS3Disk($tempDisk);
             $localTempPath = null;
 
@@ -204,7 +204,7 @@ class ExtractSermon implements ShouldQueue
     {
         // For S3 URLs, use Storage disk to verify existence
         if ($this->isS3Path($fullPath)) {
-            $diskName = config('livestream-processing.sermon_disk', 'public');
+            $diskName = config('media-processing.storage.sermon_disk', 'public');
 
             return Storage::disk($diskName)->exists($audioPath);
         }

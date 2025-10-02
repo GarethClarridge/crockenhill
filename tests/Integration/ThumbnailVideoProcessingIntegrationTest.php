@@ -30,7 +30,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         // Enable thumbnail generation for tests
         Config::set('thumbnail-generation.enabled', true);
         Config::set('thumbnail-generation.queue.name', 'thumbnails');
-        Config::set('livestream-processing.sermon_disk', 'sermon_disk');
+        Config::set('media-processing.storage.sermon_disk', 'sermon_disk');
     }
 
     /** @test */
@@ -264,7 +264,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         $diskConfigs = ['sermon_disk', 'local', 'public'];
 
         foreach ($diskConfigs as $diskName) {
-            Config::set('livestream-processing.sermon_disk', $diskName);
+            Config::set('media-processing.storage.sermon_disk', $diskName);
 
             // Create a fake video file on the configured disk
             $videoPath = 'sermons/videos/storage-test.mp4';

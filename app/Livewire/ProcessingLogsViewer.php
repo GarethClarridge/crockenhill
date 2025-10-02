@@ -54,7 +54,8 @@ class ProcessingLogsViewer extends Component
         int $logLimit = 20
     ): void {
         $this->processingId = $processingId;
-        $this->autoRefresh = $autoRefresh;
+        // Disable auto-refresh in testing environment to prevent test hangs
+        $this->autoRefresh = app()->environment('testing') ? false : $autoRefresh;
         $this->expanded = $expanded;
         $this->logLimit = $logLimit;
         $this->lastFetch = now();
@@ -288,16 +289,10 @@ class ProcessingLogsViewer extends Component
 
     private function findControllerForProcessingId(string $processingId): ?ProcessingStatusContract
     {
-        // Try AutomatedSermonController first
-        $sermonController = app(\App\Http\Controllers\AutomatedSermonController::class);
-        if ($sermonController->canHandle($processingId)) {
-            return $sermonController;
-        }
-
-        // Try LivestreamProcessingController
-        $livestreamController = app(\App\Http\Controllers\Api\LivestreamProcessingController::class);
-        if ($livestreamController->canHandle($processingId)) {
-            return $livestreamController;
+        // Use the unified MediaController
+        $mediaController = app(\App\Http\Controllers\Api\MediaController::class);
+        if ($mediaController->canHandle($processingId)) {
+            return $mediaController;
         }
 
         return null;

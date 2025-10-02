@@ -13,7 +13,8 @@ use Illuminate\Support\Str;
 
 class VideoStorageService implements VideoStorageServiceInterface
 {
-    private FFMpeg $ffmpeg;
+    /** @phpstan-ignore-next-line property.unusedType (nullable for testing environment) */
+    private ?FFMpeg $ffmpeg;
 
     private string $tempDisk;
 
@@ -27,16 +28,19 @@ class VideoStorageService implements VideoStorageServiceInterface
 
     public function __construct(VideoExtractionService $videoExtractor)
     {
-        $this->ffmpeg = FFMpeg::create([
-            'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
-            'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
-            'timeout' => config('livestream-processing.processing_timeout'),
-        ]);
+        // Skip FFmpeg initialization in testing environment to prevent hangs
+        if (! app()->environment('testing')) {
+            $this->ffmpeg = FFMpeg::create([
+                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
+                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
+                'timeout' => config('media-processing.processing.timeout'),
+            ]);
+        }
 
-        $this->tempDisk = config('livestream-processing.temp_disk', 'local');
-        $this->permanentDisk = config('livestream-processing.sermon_disk', 'public');
-        $this->videoPath = config('livestream-processing.storage.video_path', 'sermons/videos');
-        $this->audioPath = config('livestream-processing.storage.audio_path', 'sermons/audio');
+        $this->tempDisk = config('media-processing.storage.temp_disk', 'local');
+        $this->permanentDisk = config('media-processing.storage.sermon_disk', 'public');
+        $this->videoPath = config('media-processing.storage.paths.video', 'sermons/videos');
+        $this->audioPath = config('media-processing.storage.paths.audio', 'sermons/audio');
         $this->videoExtractor = $videoExtractor;
     }
 
@@ -187,7 +191,7 @@ class VideoStorageService implements VideoStorageServiceInterface
     public function cleanupExpiredFiles(): int
     {
         $deletedCount = 0;
-        $retentionHours = config('livestream-processing.temp_file_retention_hours');
+        $retentionHours = config('media-processing.temp_file_retention_hours');
         $cutoffTime = now()->subHours($retentionHours);
 
         try {

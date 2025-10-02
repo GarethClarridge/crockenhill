@@ -21,10 +21,11 @@ class SermonVideoUploadRequest extends FormRequest
      */
     public function rules(): array
     {
-        $maxFileSize = config('livestream-processing.max_file_size', 2147483648);
+        // Use video-specific configuration (for direct sermon video uploads)
+        $maxFileSize = config('media-processing.types.video.max_file_size', 1073741824); // 1GB
         $maxFileSizeKB = $maxFileSize / 1024;
 
-        $supportedFormats = config('livestream-processing.supported_formats', [
+        $supportedFormats = config('media-processing.types.video.allowed_extensions', [
             'mp4', 'mov', 'avi', 'mkv',
         ]);
 
@@ -45,8 +46,8 @@ class SermonVideoUploadRequest extends FormRequest
      */
     public function messages(): array
     {
-        $maxFileSizeMB = config('livestream-processing.max_file_size', 2147483648) / (1024 * 1024);
-        $supportedFormats = config('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
+        $maxFileSizeMB = config('media-processing.types.video.max_file_size', 1073741824) / (1024 * 1024);
+        $supportedFormats = config('media-processing.types.video.allowed_extensions', ['mp4', 'mov', 'avi', 'mkv']);
 
         return [
             'file.required' => 'Please select a video file to upload.',

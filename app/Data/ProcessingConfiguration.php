@@ -29,7 +29,7 @@ class ProcessingConfiguration
     {
         return new self(
             allowedExtensions: ['mp3', 'wav', 'm4a', 'mp4'],
-            maxFileSize: config('sermon-processing.processing.max_file_size', 104857600), // 100MB
+            maxFileSize: config('media-processing.types.audio.max_file_size', 104857600), // 100MB
             description: 'Audio sermon file processing',
             validationRules: [
                 'file_required' => true,
@@ -54,7 +54,7 @@ class ProcessingConfiguration
     {
         return new self(
             allowedExtensions: ['mp4', 'mov', 'avi', 'mkv', 'webm'],
-            maxFileSize: config('sermon-processing.processing.max_file_size', 104857600), // 100MB
+            maxFileSize: config('media-processing.types.video.max_file_size', 1073741824), // 1GB
             description: 'Direct sermon video file processing',
             validationRules: [
                 'file_required' => true,
@@ -81,7 +81,7 @@ class ProcessingConfiguration
     {
         return new self(
             allowedExtensions: ['mp4', 'mov', 'avi', 'mkv', 'webm'],
-            maxFileSize: config('livestream-processing.max_file_size', 2147483648), // 2GB
+            maxFileSize: config('media-processing.types.livestream.max_file_size', 2147483648), // 2GB
             description: 'Full livestream recording requiring segmentation',
             validationRules: [
                 'file_required' => true,

@@ -17,8 +17,8 @@ class FFmpegHealthCheck implements Arrayable
     public function run(): array
     {
         try {
-            $ffmpegPath = config('livestream-processing.ffmpeg_path');
-            $ffprobePath = config('livestream-processing.ffprobe_path');
+            $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
+            $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
 
             // Check if FFmpeg binary exists and is executable
             if (! file_exists($ffmpegPath) || ! is_executable($ffmpegPath)) {

@@ -24,7 +24,7 @@ class AdaptiveThresholdBasicTest extends TestCase
      */
     public function test_adaptive_threshold_config_loaded(): void
     {
-        $config = config('livestream-processing.adaptive_thresholds');
+        $config = config('media-processing.segmentation.adaptive_thresholds');
 
         $this->assertIsArray($config);
         $this->assertArrayHasKey('enabled', $config);
@@ -95,12 +95,16 @@ class AdaptiveThresholdBasicTest extends TestCase
     public function test_video_segmentation_service_instantiation(): void
     {
         // Configure adaptive thresholds
-        Config::set('livestream-processing.adaptive_thresholds', [
+        Config::set('media-processing.segmentation.adaptive_thresholds', [
             'enabled' => true,
             'speech_percentile' => 30,
             'min_sample_count' => 100,
             'fallback_enabled' => true,
         ]);
+
+        // Set required ffmpeg paths
+        Config::set('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe');
+        Config::set('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
 
         // Should not throw exception
         $service = new VideoSegmentationService;
@@ -161,7 +165,7 @@ class AdaptiveThresholdBasicTest extends TestCase
      */
     public function test_configuration_defaults(): void
     {
-        $adaptiveConfig = config('livestream-processing.adaptive_thresholds');
+        $adaptiveConfig = config('media-processing.segmentation.adaptive_thresholds');
 
         // Test that sensible defaults are set
         $this->assertTrue($adaptiveConfig['enabled'] ?? false, 'Adaptive should be enabled by default');
@@ -199,9 +203,11 @@ class AdaptiveThresholdBasicTest extends TestCase
         ]);
 
         // 2. Configuration exists
-        $this->assertTrue(config('livestream-processing.adaptive_thresholds.enabled'));
+        $this->assertTrue(config('media-processing.segmentation.adaptive_thresholds.enabled'));
 
-        // 3. Service can be instantiated
+        // 3. Service can be instantiated with proper config
+        Config::set('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe');
+        Config::set('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
         $service = app(VideoSegmentationService::class);
         $this->assertInstanceOf(VideoSegmentationService::class, $service);
 

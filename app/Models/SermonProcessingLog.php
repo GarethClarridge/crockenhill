@@ -53,6 +53,7 @@ class SermonProcessingLog extends Model
         'source_type',
         'original_filename',
         'stored_file_path',
+        'audio_file_path',
         'transcript_path',
         'ai_analysis',
         'status',

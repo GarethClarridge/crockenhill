@@ -43,7 +43,7 @@ class VideoSegmentationServiceTest extends TestCase
             ->with('/path/to/video.mp4')
             ->andReturn($mockFormat);
 
-        Config::set('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
+        Config::set('media-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
 
         $result = $this->service->validateVideoFile('/path/to/video.mp4');
 
@@ -61,8 +61,8 @@ class VideoSegmentationServiceTest extends TestCase
             ->with('/path/to/video.mkv')
             ->andReturn($mockFormat);
 
-        Config::set('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
-        Config::set('livestream-processing.format_aliases', [
+        Config::set('media-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
+        Config::set('media-processing.format_aliases', [
             'mkv' => ['matroska'],
             'webm' => ['matroska', 'webm'],
         ]);
@@ -83,7 +83,7 @@ class VideoSegmentationServiceTest extends TestCase
             ->with('/path/to/video.mov')
             ->andReturn($mockFormat);
 
-        Config::set('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
+        Config::set('media-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
 
         $result = $this->service->validateVideoFile('/path/to/video.mov');
 
@@ -101,8 +101,8 @@ class VideoSegmentationServiceTest extends TestCase
             ->with('/path/to/video.flv')
             ->andReturn($mockFormat);
 
-        Config::set('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
-        Config::set('livestream-processing.format_aliases', [
+        Config::set('media-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
+        Config::set('media-processing.format_aliases', [
             'mkv' => ['matroska'],
         ]);
 
@@ -117,7 +117,7 @@ class VideoSegmentationServiceTest extends TestCase
             ->with('/path/to/invalid.video')
             ->andThrow(new \Exception('FFprobe failed'));
 
-        Config::set('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
+        Config::set('media-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
 
         $result = $this->service->validateVideoFile('/path/to/invalid.video');
 
@@ -135,7 +135,7 @@ class VideoSegmentationServiceTest extends TestCase
             ->with('/path/to/video.mp4')
             ->andReturn($mockFormat);
 
-        Config::set('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
+        Config::set('media-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
         // Don't set format_aliases config to test fallback
 
         $result = $this->service->validateVideoFile('/path/to/video.mp4');

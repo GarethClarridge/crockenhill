@@ -224,4 +224,35 @@ class StandardProcessingResponse
             updatedAt: $result->updatedAt
         );
     }
+
+    /**
+     * Create response from processing status with flexible input
+     */
+    public static function fromProcessingStatus(
+        string $processingId,
+        string $status,
+        ?string $currentStep = null,
+        int $progressPercentage = 0,
+        ?string $errorMessage = null,
+        ?int $sermonId = null,
+        ?string $sermonUrl = null,
+        ?Carbon $startedAt = null,
+        ?Carbon $updatedAt = null,
+        ?string $estimatedCompletion = null,
+        array $additionalData = []
+    ): self {
+        return self::found(
+            processingId: $processingId,
+            status: $status,
+            currentStep: $currentStep,
+            progressPercentage: $progressPercentage,
+            errorMessage: $errorMessage,
+            sermonId: $sermonId,
+            sermonUrl: $sermonUrl,
+            startedAt: $startedAt,
+            updatedAt: $updatedAt,
+            estimatedCompletion: $estimatedCompletion,
+            additionalData: $additionalData
+        );
+    }
 }

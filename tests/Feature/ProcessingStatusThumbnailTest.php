@@ -44,7 +44,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         $user = \App\Models\User::factory()->create();
 
         $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/sermons/processing/{$processingId}/status");
+            ->getJson("/api/media/processing/{$processingId}/status");
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -84,7 +84,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         $user = \App\Models\User::factory()->create();
 
         $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/sermons/processing/{$processingId}/status");
+            ->getJson("/api/media/processing/{$processingId}/status");
 
         $response->assertStatus(200)
             ->assertJson([
@@ -110,7 +110,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         $user = \App\Models\User::factory()->create();
 
         $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/sermons/processing/{$processingId}/status");
+            ->getJson("/api/media/processing/{$processingId}/status");
 
         $response->assertStatus(200)
             ->assertJson([

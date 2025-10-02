@@ -17,17 +17,23 @@ class SermonStorageService
         // Determine which storage pattern this sermon uses
         if ($sermon->filetype && ! str_contains($sermon->filename, '/')) {
             // Legacy pattern
+            // Check if filename already has extension to avoid double extensions
+            $filename = $sermon->filename;
+            if (! str_ends_with($filename, ".{$sermon->filetype}")) {
+                $filename .= ".{$sermon->filetype}";
+            }
+
             return [
                 'type' => 'legacy',
-                'disk' => config('sermon-processing.storage.legacy_disk', 'do_spaces'),
-                'path' => "legacy/sermons/{$sermon->filename}.{$sermon->filetype}",
-                'original_path' => "media/sermons/{$sermon->filename}.{$sermon->filetype}",
+                'disk' => config('media-processing.storage.legacy_disk', 'do_spaces'),
+                'path' => "legacy/sermons/{$filename}",
+                'original_path' => "media/sermons/{$filename}",
             ];
         } elseif (str_contains($sermon->filename, '/')) {
             // Newer Laravel storage pattern
             return [
                 'type' => 'storage',
-                'disk' => config('sermon-processing.storage.disk', 'do_spaces'),
+                'disk' => config('media-processing.storage.sermon_disk', 'do_spaces'),
                 'path' => $sermon->filename,
                 'original_path' => $sermon->filename,
             ];
@@ -35,7 +41,7 @@ class SermonStorageService
             // Current media processing pattern
             return [
                 'type' => 'processing',
-                'disk' => config('livestream-processing.sermon_disk', 'do_spaces'),
+                'disk' => config('media-processing.storage.sermon_disk', 'do_spaces'),
                 'path' => $sermon->filename,
                 'original_path' => $sermon->filename,
             ];

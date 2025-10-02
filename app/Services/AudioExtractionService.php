@@ -22,15 +22,15 @@ class AudioExtractionService implements AudioExtractionServiceInterface
      */
     public function extractFromVideo(string $videoPath, float $duration): string
     {
-        $audioConfig = config('livestream-processing.audio_extraction.transcription_optimized');
+        $audioConfig = config('media-processing.audio_extraction.transcription_optimized');
 
         $outputPath = storage_path('app/temp/'.Str::uuid().'.mp3');
         $this->ensureDirectoryExists(dirname($outputPath));
 
         try {
             $ffmpeg = \FFMpeg\FFMpeg::create([
-                'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
-                'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
+                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
+                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
             ]);
 
             $video = $ffmpeg->open($videoPath);
@@ -78,13 +78,13 @@ class AudioExtractionService implements AudioExtractionServiceInterface
      */
     public function compressForTranscription(string $inputPath): string
     {
-        $fallbackConfig = config('livestream-processing.audio_extraction.fallback_compression');
+        $fallbackConfig = config('media-processing.audio_extraction.fallback_compression');
         $compressedPath = storage_path('app/temp/'.Str::uuid().'_compressed.mp3');
 
         try {
             $ffmpeg = \FFMpeg\FFMpeg::create([
-                'ffmpeg.binaries' => config('livestream-processing.ffmpeg_path'),
-                'ffprobe.binaries' => config('livestream-processing.ffprobe_path'),
+                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
+                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
             ]);
 
             $audio = $ffmpeg->open($inputPath);
@@ -119,7 +119,7 @@ class AudioExtractionService implements AudioExtractionServiceInterface
     {
         $allowedMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a', 'audio/m4a'];
         $allowedExtensions = ['mp3', 'wav', 'm4a', 'mp4'];
-        $maxFileSize = config('sermon-processing.processing.max_file_size', 104857600); // 100MB
+        $maxFileSize = config('media-processing.processing.max_file_size', 104857600); // 100MB
 
         if (! $file->isValid()) {
             throw new \InvalidArgumentException('Invalid audio file uploaded');

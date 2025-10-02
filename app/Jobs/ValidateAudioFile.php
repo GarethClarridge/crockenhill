@@ -44,7 +44,7 @@ class ValidateAudioFile implements ShouldQueue
             }
 
             // Convert relative path to absolute path for file operations
-            $sermonDisk = config('sermon-processing.storage.disk', 'public');
+            $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
             $filePath = \Illuminate\Support\Facades\Storage::disk($sermonDisk)->path($storedFilePath);
 
             Log::info('ValidateAudioFile path resolution', [

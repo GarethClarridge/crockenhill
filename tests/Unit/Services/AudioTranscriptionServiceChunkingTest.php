@@ -26,10 +26,10 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
-        config(['sermon-processing.transcription.openai_api_key' => 'test-key']);
+        config(['media-processing.transcription.openai_api_key' => 'test-key']);
         config(['openai.api_key' => 'test-key']); // Add OpenAI Laravel package config
-        config(['livestream-processing.ffmpeg_path' => '/usr/bin/ffmpeg']);
-        config(['livestream-processing.ffprobe_path' => '/usr/bin/ffprobe']);
+        config(['media-processing.ffmpeg_path' => '/usr/bin/ffmpeg']);
+        config(['media-processing.ffprobe_path' => '/usr/bin/ffprobe']);
 
         $this->logger = Mockery::mock(SermonProcessingLogger::class);
         $this->logger->shouldReceive('logProcessingStep')->andReturn(true);
@@ -264,9 +264,9 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
         $expectedChannels = 1; // Mono
 
         // These should match the settings in livestream-processing config
-        $this->assertEquals(48, config('livestream-processing.audio_extraction.transcription_optimized.bitrate'));
-        $this->assertEquals(16000, config('livestream-processing.audio_extraction.transcription_optimized.sample_rate'));
-        $this->assertEquals(1, config('livestream-processing.audio_extraction.transcription_optimized.channels'));
+        $this->assertEquals(48, config('media-processing.audio_extraction.transcription_optimized.bitrate'));
+        $this->assertEquals(16000, config('media-processing.audio_extraction.transcription_optimized.sample_rate'));
+        $this->assertEquals(1, config('media-processing.audio_extraction.transcription_optimized.channels'));
     }
 
     #[Test]

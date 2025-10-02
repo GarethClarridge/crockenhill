@@ -110,7 +110,7 @@ class SermonJobPipelineService
             case 'transcribing_audio_failed':
                 if ($sermonId) {
                     TranscribeAudio::dispatch($processingLog)
-                        ->onQueue(config('sermon-processing.processing.queue', 'default'));
+                        ->onQueue(config('media-processing.processing.queue', 'default'));
                 }
                 break;
 
@@ -118,7 +118,7 @@ class SermonJobPipelineService
             case 'analyzing_transcript_failed':
                 if ($sermonId) {
                     ProcessTranscriptWithAI::dispatch($processingLog)
-                        ->onQueue(config('sermon-processing.processing.queue', 'default'));
+                        ->onQueue(config('media-processing.processing.queue', 'default'));
                 }
                 break;
 
@@ -126,7 +126,7 @@ class SermonJobPipelineService
             case 'updating_sermon_record_failed':
                 if ($sermonId) {
                     UpdateSermonRecord::dispatch($sermonId)
-                        ->onQueue(config('sermon-processing.processing.queue', 'default'));
+                        ->onQueue(config('media-processing.processing.queue', 'default'));
                 }
                 break;
 
@@ -134,7 +134,7 @@ class SermonJobPipelineService
             case 'notification_failed':
                 if ($sermonId) {
                     SendCompletionNotification::dispatch($processingLog)
-                        ->onQueue(config('sermon-processing.processing.queue', 'default'));
+                        ->onQueue(config('media-processing.processing.queue', 'default'));
                 }
                 break;
 
@@ -341,7 +341,7 @@ class SermonJobPipelineService
             return ProcessingResult::success(
                 processingId: $processingId,
                 message: 'Processing retry initiated successfully',
-                statusUrl: route('api.sermons.processing.status', ['processingId' => $processingId])
+                statusUrl: route('api.media.processing.status', ['processingId' => $processingId])
             );
         } catch (\Exception $e) {
             Log::error('Failed to retry processing', [

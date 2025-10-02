@@ -162,12 +162,14 @@ use Illuminate\Support\Str;
     </div>
     @endif
 
-    <audio src="{{ route('serveSermonAudio', $sermon->slug) }}" class="w-full rounded-lg my-12" controls>
+    @if ($sermon->filename)
+      <audio src="{{ $sermon->audio_url }}" class="w-full rounded-lg my-12" controls>
         Your browser does not support the <code>audio</code> element.
       </audio>
+    @endif
 
       @if (!empty($sermon->video_file_path))
-        <video src="{{ Storage::disk(config('livestream-processing.sermon_disk', 'public'))->url($sermon->video_file_path) }}"
+        <video src="{{ Storage::disk(config('media-processing.storage.sermon_disk', 'do_spaces'))->url($sermon->video_file_path) }}"
                class="w-full max-h-96 rounded-lg my-12"
                controls
                @if($sermon->thumbnail_url && $sermon->hasThumbnail()) poster="{{ $sermon->thumbnail_url }}" @endif>

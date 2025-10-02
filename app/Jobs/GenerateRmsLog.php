@@ -35,14 +35,15 @@ class GenerateRmsLog implements ShouldQueue
             $this->processingLog->update(['status' => 'rms_generation']);
             $this->processingLog->markAsProcessing();
 
-            $videoPath = Storage::disk(config('livestream-processing.temp_disk'))
+            $videoPath = Storage::disk(config('media-processing.storage.temp_disk'))
                 ->path($this->processingLog->original_file_path);
 
             if (! file_exists($videoPath)) {
                 throw new \Exception('Video file not found: '.$videoPath);
             }
 
-            $maxFileSize = config('livestream-processing.max_file_size');
+            // Use livestream-specific file size limit since this job is only used for livestream processing
+            $maxFileSize = config('media-processing.types.livestream.max_file_size', 2147483648); // 2GB
             if ($this->processingLog->file_size > $maxFileSize) {
                 throw new \Exception('File size exceeds maximum allowed size');
             }

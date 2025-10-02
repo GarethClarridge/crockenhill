@@ -42,7 +42,7 @@ class SubmitToProcessing implements ShouldQueue
             }
 
             // Get sermon disk configuration
-            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
+            $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
             $diskInstance = Storage::disk($sermonDisk);
 
             Log::info('Checking for audio file', [
@@ -50,10 +50,10 @@ class SubmitToProcessing implements ShouldQueue
                 'sermon_audio_path' => $this->processingLog->sermon_audio_path,
                 'sermon_disk' => $sermonDisk,
                 'livestream_config' => [
-                    'storage_disk' => config('livestream-processing.storage_disk'),
-                    'sermon_disk' => config('livestream-processing.sermon_disk'),
-                    'temp_disk' => config('livestream-processing.temp_disk'),
-                    'audio_path' => config('livestream-processing.storage.audio_path'),
+                    'storage_disk' => config('media-processing.storage_disk'),
+                    'sermon_disk' => config('media-processing.storage.sermon_disk'),
+                    'temp_disk' => config('media-processing.storage.temp_disk'),
+                    'audio_path' => config('media-processing.storage.paths.audio'),
                 ],
             ]);
 
@@ -109,9 +109,9 @@ class SubmitToProcessing implements ShouldQueue
                     'processing_log_status' => $this->processingLog->status,
                     'processing_log_error' => $this->processingLog->error_message,
                     'config_diagnostics' => [
-                        'sermon_processing_disk' => config('sermon-processing.storage.disk'),
-                        'livestream_sermon_disk' => config('livestream-processing.sermon_disk'),
-                        'disk_mismatch' => config('sermon-processing.storage.disk') !== config('livestream-processing.sermon_disk'),
+                        'sermon_processing_disk' => config('media-processing.storage.sermon_disk'),
+                        'livestream_sermon_disk' => config('media-processing.storage.sermon_disk'),
+                        'disk_mismatch' => config('media-processing.storage.sermon_disk') !== config('media-processing.storage.sermon_disk'),
                     ],
                 ]);
 

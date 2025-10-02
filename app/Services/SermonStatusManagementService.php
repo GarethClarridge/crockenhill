@@ -474,7 +474,7 @@ class SermonStatusManagementService
     private function checkStorageHealth(): array
     {
         try {
-            $disk = config('sermon-processing.storage.disk', 'public');
+            $disk = config('media-processing.storage.sermon_disk', 'public');
             $testFile = 'health-check-'.time().'.txt';
 
             // Try to write and read a test file

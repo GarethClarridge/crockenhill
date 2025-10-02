@@ -52,7 +52,7 @@ class StorageSpaceHealthCheck implements Arrayable
 
             // Check sermon disk if configured
             $metadata = ['total_used' => $this->formatBytes($totalUsed)];
-            $sermonDisk = config('livestream-processing.sermon_disk');
+            $sermonDisk = config('media-processing.storage.sermon_disk');
             if ($sermonDisk && $sermonDisk !== 'local') {
                 $sermonDiskUsage = $this->checkDiskUsage($sermonDisk);
                 $metadata['sermon_disk_status'] = $sermonDiskUsage;

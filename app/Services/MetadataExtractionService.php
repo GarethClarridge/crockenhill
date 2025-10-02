@@ -428,12 +428,12 @@ class MetadataExtractionService
         // For storage paths, check if it's a storage-based path
         try {
             // Try to determine which disk this might be on
-            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
+            $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
             if (\Illuminate\Support\Facades\Storage::disk($sermonDisk)->exists($filePath)) {
                 return \Illuminate\Support\Facades\Storage::disk($sermonDisk)->size($filePath);
             }
 
-            $tempDisk = config('livestream-processing.temp_disk', 'local');
+            $tempDisk = config('media-processing.storage.temp_disk', 'local');
             if (\Illuminate\Support\Facades\Storage::disk($tempDisk)->exists($filePath)) {
                 return \Illuminate\Support\Facades\Storage::disk($tempDisk)->size($filePath);
             }

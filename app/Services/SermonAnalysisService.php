@@ -27,8 +27,8 @@ class SermonAnalysisService
         $this->logger = $logger;
 
         // Only verify OpenAI API key if using the OpenAI service
-        $analysisService = config('sermon-processing.analysis.service', 'openai');
-        if ($analysisService === 'openai' && empty(config('sermon-processing.analysis.openai_api_key') ?? config('openai.api_key'))) {
+        $analysisService = config('media-processing.analysis.service', 'openai');
+        if ($analysisService === 'openai' && empty(config('media-processing.analysis.openai_api_key') ?? config('openai.api_key'))) {
             throw new Exception('OpenAI API key not configured for analysis service');
         }
     }
@@ -58,7 +58,7 @@ class SermonAnalysisService
         );
 
         // Check if using mock analysis service
-        $analysisService = config('sermon-processing.analysis.service', 'openai');
+        $analysisService = config('media-processing.analysis.service', 'openai');
         if ($analysisService === 'mock') {
             return $this->getMockAnalysis($transcript, $processingId, $startTime);
         }
@@ -121,11 +121,11 @@ class SermonAnalysisService
                     $processingId,
                     'ai_analysis_attempt',
                     'started',
-                    ['attempt' => $attempt, 'model' => config('sermon-processing.analysis.model', 'gpt-3.5-turbo')]
+                    ['attempt' => $attempt, 'model' => config('media-processing.analysis.model', 'gpt-3.5-turbo')]
                 );
 
                 $prompt = $this->buildAnalysisPrompt($transcript, $existingSeries);
-                $model = config('sermon-processing.analysis.model', 'gpt-3.5-turbo');
+                $model = config('media-processing.analysis.model', 'gpt-3.5-turbo');
 
                 try {
                     $response = OpenAI::chat()->create([

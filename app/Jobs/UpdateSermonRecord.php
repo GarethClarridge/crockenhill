@@ -97,7 +97,7 @@ class UpdateSermonRecord implements ShouldQueue
 
             if ($processingLog) {
                 SendCompletionNotification::dispatch($processingLog)
-                    ->onQueue(config('sermon-processing.processing.queue', 'default'));
+                    ->onQueue(config('media-processing.processing.queue', 'default'));
             } else {
                 Log::warning('No processing log found for sermon completion notification', [
                     'sermon_id' => $this->sermonId,

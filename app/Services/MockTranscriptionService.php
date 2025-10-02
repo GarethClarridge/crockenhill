@@ -29,7 +29,7 @@ class MockTranscriptionService implements TranscriptionServiceInterface
      *
      * @throws Exception When mock transcript cannot be loaded
      */
-    public function transcribe(string $audioFilePath, string $processingId = 'unknown'): string
+    public function transcribe(string $audioFilePath, string $processingId = 'unknown', ?string $disk = null): string
     {
         $startTime = microtime(true);
 

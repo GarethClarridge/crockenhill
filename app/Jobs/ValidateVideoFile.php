@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * ValidateVideoFile - Job to validate video files for processing
@@ -33,19 +34,36 @@ class ValidateVideoFile implements ShouldQueue
         ]);
 
         try {
-            $filePath = $this->processingLog->stored_file_path;
+            $storedFilePath = $this->processingLog->stored_file_path;
+
+            if (! $storedFilePath) {
+                throw new \Exception('No stored file path found in processing log');
+            }
+
+            // Convert relative storage path to absolute filesystem path
+            $disk = config('filesystems.default', 'local');
+            $filePath = Storage::disk($disk)->path($storedFilePath);
+
+            Log::info('ValidateVideoFile path resolution', [
+                'processing_id' => $this->processingLog->processing_id,
+                'stored_file_path' => $storedFilePath,
+                'resolved_absolute_path' => $filePath,
+                'disk' => $disk,
+            ]);
 
             // Basic video file validation
             if (! file_exists($filePath)) {
-                throw new \Exception('Video file not found at stored path');
+                throw new \Exception("Video file not found at path: {$filePath} (relative: {$storedFilePath})");
             }
 
             // Check file size
             $fileSize = filesize($filePath);
-            $maxSize = config('sermon-processing.processing.max_file_size', 104857600); // 100MB
+            $maxSize = config('media-processing.types.video.max_file_size', 1073741824); // 1GB
 
             if ($fileSize > $maxSize) {
-                throw new \Exception('Video file exceeds maximum size limit');
+                $maxSizeMB = round($maxSize / (1024 * 1024));
+                $fileSizeMB = round($fileSize / (1024 * 1024), 2);
+                throw new \Exception("Video file exceeds maximum size limit ({$fileSizeMB}MB > {$maxSizeMB}MB)");
             }
 
             // Check file type using mime type

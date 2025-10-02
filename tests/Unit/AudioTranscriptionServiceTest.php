@@ -20,12 +20,13 @@ class AudioTranscriptionServiceTest extends TestCase
 
         // Mock the storage for testing
         Storage::fake('local');
+        Storage::fake('public');
 
         // Set up a mock OpenAI API key for testing
-        config(['sermon-processing.transcription.openai_api_key' => 'test-key']);
+        config(['media-processing.transcription.openai_api_key' => 'test-key']);
 
         // Configure the service to use the same disk as our faked storage
-        config(['livestream-processing.sermon_disk' => 'local']);
+        config(['media-processing.storage.sermon_disk' => 'local']);
 
         $logger = app(\App\Services\SermonProcessingLogger::class);
         $this->service = new AudioTranscriptionService($logger);
@@ -34,7 +35,7 @@ class AudioTranscriptionServiceTest extends TestCase
     #[Test]
     public function it_throws_exception_when_openai_api_key_not_configured(): void
     {
-        config(['sermon-processing.transcription.openai_api_key' => '']);
+        config(['media-processing.transcription.openai_api_key' => '']);
 
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('OpenAI API key not configured');
@@ -174,7 +175,7 @@ class AudioTranscriptionServiceTest extends TestCase
     {
         // Create a large file
         $largeFilePath = 'large_audio.mp3';
-        Storage::put($largeFilePath, str_repeat('x', 26 * 1024 * 1024)); // 26MB
+        Storage::disk('public')->put($largeFilePath, str_repeat('x', 26 * 1024 * 1024)); // 26MB
 
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Audio file too large');

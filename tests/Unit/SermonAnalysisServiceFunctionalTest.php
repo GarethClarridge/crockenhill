@@ -22,8 +22,8 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
 
         // Set up configuration
         config([
-            'sermon-processing.analysis.openai_api_key' => 'test-api-key',
-            'sermon-processing.analysis.model' => 'gpt-3.5-turbo',
+            'media-processing.analysis.openai_api_key' => 'test-api-key',
+            'media-processing.analysis.model' => 'gpt-3.5-turbo',
             'openai.api_key' => 'test-api-key',
         ]);
 
@@ -35,7 +35,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     public function it_throws_exception_when_openai_api_key_not_configured(): void
     {
         config([
-            'sermon-processing.analysis.openai_api_key' => '',
+            'media-processing.analysis.openai_api_key' => '',
             'openai.api_key' => '',
         ]);
 

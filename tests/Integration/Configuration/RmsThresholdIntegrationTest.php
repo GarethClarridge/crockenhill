@@ -22,7 +22,7 @@ class RmsThresholdIntegrationTest extends BaseIntegrationTest
         $segmentationService = app(VideoSegmentationService::class);
 
         // Test with broken threshold (-100.0) - should find few segments
-        Config::set('livestream-processing.rms_threshold', -100.0);
+        Config::set('media-processing.segmentation.rms_threshold', -100.0);
 
         $rmsLogPath1 = $segmentationService->generateRmsLog($videoPath);
         $segments1 = $segmentationService->analyzeSegments($rmsLogPath1);
@@ -30,7 +30,7 @@ class RmsThresholdIntegrationTest extends BaseIntegrationTest
         $this->assertIsArray($segments1, 'Should return array of segments');
 
         // Test with working threshold (-30.0) - should find more segments
-        Config::set('livestream-processing.rms_threshold', -30.0);
+        Config::set('media-processing.segmentation.rms_threshold', -30.0);
 
         $rmsLogPath2 = $segmentationService->generateRmsLog($videoPath);
         $segments2 = $segmentationService->analyzeSegments($rmsLogPath2);
@@ -76,12 +76,12 @@ class RmsThresholdIntegrationTest extends BaseIntegrationTest
         $segmentationService = app(VideoSegmentationService::class);
 
         // Test with very short minimum duration
-        Config::set('livestream-processing.min_section_duration', 1.0);
+        Config::set('media-processing.segmentation.min_section_duration', 1.0);
         $rmsLogPath1 = $segmentationService->generateRmsLog($videoPath);
         $shortDurationSegments = $segmentationService->analyzeSegments($rmsLogPath1);
 
         // Test with longer minimum duration
-        Config::set('livestream-processing.min_section_duration', 60.0);
+        Config::set('media-processing.segmentation.min_section_duration', 60.0);
         $rmsLogPath2 = $segmentationService->generateRmsLog($videoPath);
         $longDurationSegments = $segmentationService->analyzeSegments($rmsLogPath2);
 

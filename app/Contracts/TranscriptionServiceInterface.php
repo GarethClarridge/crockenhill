@@ -9,11 +9,12 @@ interface TranscriptionServiceInterface
      *
      * @param  string  $audioFilePath  Path to the audio file
      * @param  string  $processingId  Processing ID for logging
+     * @param  string|null  $disk  Optional disk name for file storage
      * @return string The transcribed text
      *
      * @throws \Exception When transcription fails
      */
-    public function transcribe(string $audioFilePath, string $processingId = 'unknown'): string;
+    public function transcribe(string $audioFilePath, string $processingId = 'unknown', ?string $disk = null): string;
 
     /**
      * Store transcript to file using sermon ID

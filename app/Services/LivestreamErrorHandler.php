@@ -48,7 +48,7 @@ class LivestreamErrorHandler
 
     public function shouldRetry(\Throwable $exception, int $attemptNumber = 1): bool
     {
-        $maxRetries = config('livestream-processing.max_retries', 3);
+        $maxRetries = config('media-processing.max_retries', 3);
 
         if ($attemptNumber >= $maxRetries) {
             return false;
@@ -59,8 +59,8 @@ class LivestreamErrorHandler
 
     public function getRetryDelay(int $attemptNumber): int
     {
-        $baseDelay = config('livestream-processing.retry_base_delay', 60);
-        $maxDelay = config('livestream-processing.retry_max_delay', 3600);
+        $baseDelay = config('media-processing.retry_base_delay', 60);
+        $maxDelay = config('media-processing.retry_max_delay', 3600);
 
         $delay = $baseDelay * pow(2, $attemptNumber - 1);
 
@@ -184,7 +184,7 @@ class LivestreamErrorHandler
         }
 
         try {
-            Mail::to(config('livestream-processing.admin_email'))
+            Mail::to(config('media-processing.admin_email'))
                 ->send(new \App\Mail\DiskSpaceWarning($processingId));
         } catch (Exception $e) {
             Log::warning('Failed to send disk space warning email, continuing processing', [
@@ -206,7 +206,7 @@ class LivestreamErrorHandler
         }
 
         try {
-            Mail::to(config('livestream-processing.admin_email'))
+            Mail::to(config('media-processing.admin_email'))
                 ->send(new \App\Mail\PermissionError($processingId, $operation));
         } catch (Exception $e) {
             Log::warning('Failed to send permission error email, continuing processing', [
@@ -220,7 +220,7 @@ class LivestreamErrorHandler
     private function sendFailureNotification(string $processingId, \Throwable $exception, string $step): void
     {
         try {
-            Mail::to(config('livestream-processing.admin_email'))
+            Mail::to(config('media-processing.admin_email'))
                 ->send(new \App\Mail\LivestreamProcessingFailed($processingId, $exception, $step));
         } catch (Exception $e) {
             Log::warning('Failed to send failure notification email, continuing processing', [
@@ -234,7 +234,7 @@ class LivestreamErrorHandler
     private function sendManualReviewNotification(string $processingId, string $reason, array $segments): void
     {
         try {
-            Mail::to(config('livestream-processing.admin_email'))
+            Mail::to(config('media-processing.admin_email'))
                 ->send(new \App\Mail\ManualReviewRequired($processingId, $reason, $segments));
         } catch (Exception $e) {
             Log::warning('Failed to send manual review notification email, continuing processing', [
@@ -247,9 +247,21 @@ class LivestreamErrorHandler
 
     public function validateFileFormat(string $filePath): array
     {
-        $supportedFormats = config('livestream-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        // Get supported formats from the unified media-processing config
+        $livestreamExtensions = config('media-processing.types.livestream.allowed_extensions', []);
+        $videoExtensions = config('media-processing.types.video.allowed_extensions', []);
+        $supportedFormats = array_merge($livestreamExtensions, $videoExtensions);
 
+        // Fallback if config is missing
+        if (empty($supportedFormats)) {
+            $supportedFormats = ['mp4', 'mov', 'avi', 'mkv', 'webm'];
+            Log::warning('LivestreamErrorHandler using fallback supported formats', [
+                'fallback_formats' => $supportedFormats,
+                'file_path' => $filePath,
+            ]);
+        }
+
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         $errors = [];
 
         if (! in_array($extension, $supportedFormats)) {
@@ -260,7 +272,8 @@ class LivestreamErrorHandler
             $errors[] = "File does not exist: {$filePath}";
         }
 
-        $maxSize = config('livestream-processing.max_file_size', 2147483648); // 2GB
+        // Use livestream-specific file size limit (2GB)
+        $maxSize = config('media-processing.types.livestream.max_file_size', 2147483648); // 2GB default
         if (file_exists($filePath) && filesize($filePath) > $maxSize) {
             $errors[] = 'File size exceeds maximum allowed size of '.$this->formatBytes($maxSize);
         }
@@ -284,12 +297,12 @@ class LivestreamErrorHandler
     {
         $errors = [];
 
-        $ffmpegPath = config('livestream-processing.ffmpeg_path', '/usr/bin/ffmpeg');
+        $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
         if (! file_exists($ffmpegPath) || ! is_executable($ffmpegPath)) {
             $errors[] = "FFmpeg not found or not executable at: {$ffmpegPath}";
         }
 
-        $ffprobePath = config('livestream-processing.ffprobe_path', '/usr/bin/ffprobe');
+        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe');
         if (! file_exists($ffprobePath) || ! is_executable($ffprobePath)) {
             $errors[] = "FFprobe not found or not executable at: {$ffprobePath}";
         }

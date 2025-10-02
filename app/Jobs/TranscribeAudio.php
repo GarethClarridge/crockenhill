@@ -57,7 +57,10 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             $this->processingLog->updateStep('transcribing_audio');
 
             // Get audio file path from processing log
-            $audioFilePath = $this->processingLog->stored_file_path;
+            // For video uploads, use the extracted audio_file_path
+            // For direct audio uploads, use the stored_file_path
+            $audioFilePath = $this->processingLog->audio_file_path ?? $this->processingLog->stored_file_path;
+
             if (! $audioFilePath) {
                 throw new \Exception("No audio file path found in processing log: {$this->processingLog->processing_id}");
             }
@@ -65,6 +68,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             Log::info('Transcribing audio file', [
                 'processing_id' => $this->processingLog->processing_id,
                 'audio_file' => $audioFilePath,
+                'source' => $this->processingLog->audio_file_path ? 'extracted_audio' : 'direct_audio',
             ]);
 
             // Transcribe the audio file

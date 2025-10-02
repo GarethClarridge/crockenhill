@@ -92,6 +92,29 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 'ai_analysis' => json_encode($analysis->toArray()),
             ]);
 
+            // Update sermon record with AI analysis if sermon exists
+            if ($this->processingLog->sermon_id) {
+                $sermon = Sermon::find($this->processingLog->sermon_id);
+                if ($sermon) {
+                    $sermon->update([
+                        'title' => $analysis->title,
+                        'summary' => $analysis->summary,
+                        'points' => $analysis->points,
+                        'reference' => $analysis->reference,
+                        'series' => $analysis->series,
+                    ]);
+
+                    Log::info('Updated sermon with AI analysis', [
+                        'processing_id' => $this->processingLog->processing_id,
+                        'sermon_id' => $sermon->id,
+                        'title' => $sermon->title,
+                        'series' => $sermon->series ?? 'None',
+                        'reference' => $sermon->reference ?? 'None',
+                        'points_count' => count($sermon->points ?? []),
+                    ]);
+                }
+            }
+
             // Update processing log and mark step as complete
             $this->processingLog->updateStep('ai_analysis_completed');
             $this->logStepComplete('analyzing', 'AI analysis completed successfully');
@@ -120,6 +143,27 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 $this->processingLog->update([
                     'ai_analysis' => json_encode($fallbackAnalysis->toArray()),
                 ]);
+
+                // Update sermon record with fallback analysis if sermon exists
+                if ($this->processingLog->sermon_id) {
+                    $sermon = Sermon::find($this->processingLog->sermon_id);
+                    if ($sermon) {
+                        $sermon->update([
+                            'title' => $fallbackAnalysis->title,
+                            'summary' => $fallbackAnalysis->summary,
+                            'points' => $fallbackAnalysis->points,
+                            'reference' => $fallbackAnalysis->reference,
+                            'series' => $fallbackAnalysis->series,
+                        ]);
+
+                        Log::info('Updated sermon with fallback analysis', [
+                            'processing_id' => $this->processingLog->processing_id,
+                            'sermon_id' => $sermon->id,
+                            'title' => $sermon->title,
+                        ]);
+                    }
+                }
+
                 $this->processingLog->updateStep('ai_analysis_fallback');
             } else {
                 // Update processing log with error and log step failure
@@ -245,6 +289,27 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 $this->processingLog->update([
                     'ai_analysis' => json_encode($fallbackAnalysis->toArray()),
                 ]);
+
+                // Update sermon record with fallback analysis if sermon exists
+                if ($this->processingLog->sermon_id) {
+                    $sermon = Sermon::find($this->processingLog->sermon_id);
+                    if ($sermon) {
+                        $sermon->update([
+                            'title' => $fallbackAnalysis->title,
+                            'summary' => $fallbackAnalysis->summary,
+                            'points' => $fallbackAnalysis->points,
+                            'reference' => $fallbackAnalysis->reference,
+                            'series' => $fallbackAnalysis->series,
+                        ]);
+
+                        Log::info('Updated sermon with fallback analysis in failed() method', [
+                            'processing_id' => $this->processingLog->processing_id,
+                            'sermon_id' => $sermon->id,
+                            'title' => $sermon->title,
+                        ]);
+                    }
+                }
+
                 $this->processingLog->updateStep('ai_analysis_fallback_final');
 
                 return;

@@ -27,13 +27,13 @@ abstract class BaseIntegrationTest extends TestCase
         Config::set([
             'queue.default' => 'sync', // Execute jobs synchronously
             'transcription.service_type' => 'mock', // Use mock transcription
-            'sermon-processing.transcription.service_type' => 'mock',
-            'sermon-processing.transcription.openai_api_key' => 'test-key',
-            'sermon-processing.analysis.openai_api_key' => 'test-key',
+            'media-processing.transcription.service_type' => 'mock',
+            'media-processing.transcription.openai_api_key' => 'test-key',
+            'media-processing.analysis.openai_api_key' => 'test-key',
             'openai.api_key' => 'test-key', // Fallback key
-            'livestream-processing.rms_threshold' => -30.0,
-            'livestream-processing.min_sermon_duration' => 60.0,
-            'livestream-processing.min_section_duration' => 30.0,
+            'media-processing.rms_threshold' => -30.0,
+            'media-processing.min_sermon_duration' => 60.0,
+            'media-processing.min_section_duration' => 30.0,
         ]);
 
         // Create test user

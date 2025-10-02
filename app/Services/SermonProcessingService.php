@@ -122,7 +122,7 @@ class SermonProcessingService implements SermonProcessingServiceInterface
             return ProcessingResult::success(
                 processingId: $processingId,
                 message: 'Graceful degradation applied successfully',
-                statusUrl: route('api.sermons.processing.status', ['processingId' => $processingId]),
+                statusUrl: route('api.media.processing.status', ['processingId' => $processingId]),
                 details: [
                     'sermon_id' => $sermon->id,
                     'applied_fallbacks' => $fallbackData,

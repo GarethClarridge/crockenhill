@@ -750,7 +750,7 @@ class ThumbnailGenerationService
         }
 
         // Get video path and disk information
-        $sermonDisk = config('livestream-processing.sermon_disk');
+        $sermonDisk = config('media-processing.storage.sermon_disk');
         $videoPath = $sermon->video_file_path;
 
         // Delete existing thumbnail if it exists

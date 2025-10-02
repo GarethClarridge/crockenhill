@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\LivestreamProcessingLog;
+use App\Models\SermonProcessingLog;
 use App\Models\Sermon;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,14 +35,15 @@ class GenerateThumbnail implements ShouldQueue
 
     private ?string $disk = null;
 
-    private ?LivestreamProcessingLog $processingLog = null;
+    private LivestreamProcessingLog|SermonProcessingLog|null $processingLog = null;
 
     /**
      * Create a new job instance.
      *
-     * Supports two construction patterns:
+     * Supports multiple construction patterns:
      * 1. GenerateThumbnail($sermonId, $videoPath) - Direct parameters (legacy)
-     * 2. GenerateThumbnail($processingLog) - From processing log (job chain)
+     * 2. GenerateThumbnail($sermonId, $videoPath, $disk) - With disk parameter
+     * 3. GenerateThumbnail($processingLog) - From processing log (job chain, supports both LivestreamProcessingLog and SermonProcessingLog)
      */
     public function __construct(...$args)
     {
@@ -55,8 +57,9 @@ class GenerateThumbnail implements ShouldQueue
             $this->sermonId = $args[0];
             $this->videoPath = $args[1];
             $this->disk = $args[2];
-        } elseif (count($args) === 1 && $args[0] instanceof LivestreamProcessingLog) {
+        } elseif (count($args) === 1 && ($args[0] instanceof LivestreamProcessingLog || $args[0] instanceof SermonProcessingLog)) {
             // Job chain constructor: GenerateThumbnail($processingLog)
+            // Supports both LivestreamProcessingLog (livestream uploads) and SermonProcessingLog (direct video uploads)
             $this->processingLog = $args[0];
         } else {
             throw new \InvalidArgumentException('GenerateThumbnail expects ($sermonId, $videoPath), ($sermonId, $videoPath, $disk), or ($processingLog)');
@@ -179,10 +182,26 @@ class GenerateThumbnail implements ShouldQueue
         // Get sermon ID from processing log
         $this->sermonId = $this->processingLog->sermon_id;
 
-        // Get video path from processing metadata (keep as relative path for S3 compatibility)
-        $processingMetadata = $this->processingLog->processing_metadata ?? [];
-        $this->videoPath = $processingMetadata['final_video_path'] ?? null;
-        $this->disk = config('livestream-processing.sermon_disk', 'public');
+        // Handle different processing log types
+        if ($this->processingLog instanceof LivestreamProcessingLog) {
+            // Livestream: Get video path from processing metadata
+            $processingMetadata = $this->processingLog->processing_metadata ?? [];
+            $this->videoPath = $processingMetadata['final_video_path'] ?? null;
+            $this->disk = config('media-processing.storage.sermon_disk', 'public');
+        } elseif ($this->processingLog instanceof SermonProcessingLog) {
+            // Direct video: Get video path from sermon record (after it's been moved to permanent storage)
+            if ($this->sermonId) {
+                $sermon = Sermon::find($this->sermonId);
+                $this->videoPath = $sermon?->video_file_path;
+            }
+
+            // Fallback to stored file path if sermon not found or no video path
+            if (! $this->videoPath) {
+                $this->videoPath = $this->processingLog->stored_file_path;
+            }
+
+            $this->disk = config('media-processing.storage.sermon_disk', 'public');
+        }
     }
 
     /**

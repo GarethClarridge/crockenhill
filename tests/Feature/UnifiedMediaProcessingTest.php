@@ -18,6 +18,9 @@ class UnifiedMediaProcessingTest extends TestCase
     {
         parent::setUp();
 
+        // Disable CSRF protection for these form tests
+        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+
         // Mock the services to avoid actual video/audio processing in tests
         $this->mock(VideoSegmentationService::class, function ($mock) {
             $mock->shouldReceive('analyzeSegments')->andReturn([
@@ -35,15 +38,15 @@ class UnifiedMediaProcessingTest extends TestCase
             );
         });
 
-        // Mock the ProcessingRouter to avoid FFmpeg and actual processing
-        $this->mock(\App\Services\ProcessingRouter::class, function ($mock) {
-            $mock->shouldReceive('routeLivestreamVideo')->andReturn(
+        // Mock the UnifiedMediaProcessor to avoid FFmpeg and actual processing
+        $this->mock(\App\Services\UnifiedMediaProcessor::class, function ($mock) {
+            $mock->shouldReceive('process')->with('livestream', \Mockery::any())->andReturn(
                 \App\Services\ProcessingResult::success('livestream-id', 'Livestream processing started')
             );
-            $mock->shouldReceive('routeSermonVideo')->andReturn(
+            $mock->shouldReceive('process')->with('video', \Mockery::any())->andReturn(
                 \App\Services\ProcessingResult::success('video-id', 'Video processing started')
             );
-            $mock->shouldReceive('routeAudio')->andReturn(
+            $mock->shouldReceive('process')->with('audio', \Mockery::any())->andReturn(
                 \App\Services\ProcessingResult::success('audio-id', 'Audio processing started')
             );
         });
@@ -72,7 +75,7 @@ class UnifiedMediaProcessingTest extends TestCase
         // Test: Livestream → Video Segment → Audio → Sermon
         $livestreamFile = UploadedFile::fake()->create('service.mp4', 50000, 'video/mp4');
 
-        $response = $this->postJson('/api/sermons/livestream', [
+        $response = $this->postJson('/api/media/livestream', [
             'file' => $livestreamFile,
         ]);
 
@@ -94,7 +97,7 @@ class UnifiedMediaProcessingTest extends TestCase
         // Test: Sermon Video → Audio → Sermon (skip livestream segmentation)
         $videoFile = UploadedFile::fake()->create('sermon.mp4', 25000, 'video/mp4');
 
-        $response = $this->postJson('/api/sermons/video', [
+        $response = $this->postJson('/api/media/video', [
             'file' => $videoFile,
         ]);
 
@@ -116,7 +119,7 @@ class UnifiedMediaProcessingTest extends TestCase
         // Test: Audio → Sermon (skip video processing steps)
         $audioFile = UploadedFile::fake()->create('sermon.mp3', 5000, 'audio/mpeg');
 
-        $response = $this->postJson('/api/sermons/audio', [
+        $response = $this->postJson('/api/media/audio', [
             'file' => $audioFile,
         ]);
 

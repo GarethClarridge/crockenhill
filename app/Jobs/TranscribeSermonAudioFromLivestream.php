@@ -71,7 +71,7 @@ class TranscribeSermonAudioFromLivestream implements ShouldQueue
             }
 
             // Validate audio file exists
-            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
+            $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
             if (! Storage::disk($sermonDisk)->exists($audioFilePath)) {
                 throw new \Exception("Audio file not found: {$audioFilePath}");
             }
@@ -83,11 +83,8 @@ class TranscribeSermonAudioFromLivestream implements ShouldQueue
                 'disk' => $sermonDisk,
             ]);
 
-            // Get absolute path for transcription service
-            $absoluteAudioPath = Storage::disk($sermonDisk)->path($audioFilePath);
-
-            // Transcribe the audio file
-            $transcript = $transcriptionService->transcribe($absoluteAudioPath);
+            // Transcribe the audio file using relative path
+            $transcript = $transcriptionService->transcribe($audioFilePath, $this->processingLog->processing_id, $sermonDisk);
 
             if (empty($transcript)) {
                 throw new \Exception('Transcription returned empty content');

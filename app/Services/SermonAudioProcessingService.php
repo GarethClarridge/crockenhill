@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Data\SermonMetadata;
+use App\Enums\ProcessingStatus;
 use App\Models\SermonProcessingLog;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -13,13 +15,12 @@ class SermonAudioProcessingService
 {
     /**
      * Process a sermon audio file through the complete automation pipeline
+     * Uses ProcessingPipelineBuilder for consistent job chain pattern (same as video processing)
      */
     public function processSermon(UploadedFile $file): ProcessingResult
     {
-        $storedFilePath = null;
-
         try {
-            Log::info('Starting sermon processing', [
+            Log::info('Starting audio processing', [
                 'original_filename' => $file->getClientOriginalName(),
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
@@ -31,44 +32,65 @@ class SermonAudioProcessingService
             // Validate the uploaded file
             $this->validateAudioFile($file);
 
-            // Extract metadata from the file
+            // Extract metadata and store the audio file
             $metadata = SermonMetadata::fromUploadedFile($file);
-
-            // Store the audio file securely
             $storedFilePath = $this->storeAudioFile($file, $metadata);
 
-            // Process synchronously using the same method as livestream processing
-            $audioMetadata = [
-                'source_type' => 'audio_upload',
+            Log::info('Audio file stored, creating processing log', [
+                'processing_id' => $processingId,
+                'stored_path' => $storedFilePath,
+            ]);
+
+            // Create sermon processing log
+            $processingLog = SermonProcessingLog::create([
+                'processing_id' => $processingId,
                 'original_filename' => $file->getClientOriginalName(),
-            ];
+                'stored_file_path' => $storedFilePath,
+                'status' => ProcessingStatus::PENDING,
+                'current_step' => 'audio_processing_initiated',
+            ]);
 
-            $result = $this->processSermonAudio($file, $audioMetadata);
+            // Build and dispatch job chain using ProcessingPipelineBuilder (same as video processing)
+            $pipelineBuilder = app(ProcessingPipelineBuilder::class);
+            $jobs = $pipelineBuilder->buildAudioPipeline($processingLog);
 
-            Log::info('Sermon processing completed successfully', [
-                'processing_id' => $result['processing_id'],
-                'sermon_id' => $result['sermon_id'],
+            Log::info('Audio processing pipeline created', [
+                'processing_id' => $processingId,
+                'jobs_count' => count($jobs),
+                'job_classes' => array_map(fn ($job) => get_class($job), $jobs),
+            ]);
+
+            Bus::chain($jobs)
+                ->catch(function (\Throwable $e) use ($processingLog) {
+                    $processingLog->update([
+                        'status' => ProcessingStatus::FAILED,
+                        'error_message' => 'Audio processing failed: '.$e->getMessage(),
+                    ]);
+                })
+                ->onQueue('sermon-processing')
+                ->dispatch();
+
+            Log::info('Audio processing jobs dispatched', [
+                'processing_id' => $processingId,
             ]);
 
             return ProcessingResult::success(
-                processingId: $result['processing_id'],
-                message: $result['message'],
-                statusUrl: route('api.sermons.processing.status', ['processingId' => $result['processing_id']])
+                processingId: $processingId,
+                message: 'Audio processing initiated successfully',
+                statusUrl: route('api.media.processing.status', ['processingId' => $processingId])
             );
+
         } catch (\Exception $e) {
-            Log::error('Failed to initiate sermon processing', [
+            Log::error('Failed to initiate audio processing', [
                 'original_filename' => $file->getClientOriginalName(),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Clean up any partial files if they exist
-            // Note: $storedFilePath would only be set if file storage succeeded
-
             return ProcessingResult::failure(
                 processingId: 'failed-'.Str::uuid(),
-                message: 'Failed to initiate sermon processing: '.$e->getMessage(),
-                errorCode: 'PROCESSING_INITIATION_FAILED'
+                message: 'Failed to initiate audio processing: '.$e->getMessage(),
+                errorCode: 'AUDIO_PROCESSING_INITIATION_FAILED'
             );
         }
     }
@@ -107,7 +129,7 @@ class SermonAudioProcessingService
             );
 
             // Determine absolute path for the stored file for job processing
-            $absolutePath = Storage::disk(config('sermon-processing.storage.disk', 'public'))->path($storedFilePath);
+            $absolutePath = Storage::disk(config('media-processing.storage.sermon_disk', 'public'))->path($storedFilePath);
 
             Log::info('Audio file stored, dispatching processing jobs', [
                 'processing_id' => $processingId,
@@ -135,7 +157,7 @@ class SermonAudioProcessingService
                 'processing_id' => $processingId,
                 'sermon_id' => null, // Will be set by CreateSermonRecord job
                 'message' => 'Sermon processing initiated successfully',
-                'status_url' => route('api.sermons.processing.status', ['processingId' => $processingId]),
+                'status_url' => route('api.media.processing.status', ['processingId' => $processingId]),
                 'transcript_path' => $transcriptPath,
                 'stored_file_path' => $storedFilePath,
             ];
@@ -149,7 +171,7 @@ class SermonAudioProcessingService
 
             // Clean up any partial files if they were created
             if ($storedFilePath !== null) {
-                Storage::disk(config('sermon-processing.storage.disk', 'public'))->delete($storedFilePath);
+                Storage::disk(config('media-processing.storage.sermon_disk', 'public'))->delete($storedFilePath);
             }
 
             return [
@@ -176,14 +198,14 @@ class SermonAudioProcessingService
     public function validateAudioFile(UploadedFile $file): void
     {
         // Check file size
-        $maxSize = config('sermon-processing.processing.max_file_size', 100 * 1024 * 1024);
+        $maxSize = config('media-processing.processing.max_file_size', 100 * 1024 * 1024);
         if ($file->getSize() > $maxSize) {
             $maxSizeMB = round($maxSize / (1024 * 1024));
             throw new \InvalidArgumentException("File size exceeds maximum limit of {$maxSizeMB}MB");
         }
 
         // Check MIME type
-        $allowedMimeTypes = config('sermon-processing.processing.allowed_mime_types', [
+        $allowedMimeTypes = config('media-processing.processing.allowed_mime_types', [
             'audio/mpeg',
             'audio/mp3',
             'audio/wav',
@@ -197,7 +219,7 @@ class SermonAudioProcessingService
         }
 
         // Check file extension
-        $allowedExtensions = config('sermon-processing.processing.allowed_extensions', ['mp3', 'wav', 'm4a', 'mp4']);
+        $allowedExtensions = config('media-processing.processing.allowed_extensions', ['mp3', 'wav', 'm4a', 'mp4']);
         $extension = strtolower($file->getClientOriginalExtension());
 
         if (! in_array($extension, $allowedExtensions)) {
@@ -216,8 +238,8 @@ class SermonAudioProcessingService
     public function storeAudioFile(UploadedFile $file, SermonMetadata $metadata): string
     {
         // Get storage configuration
-        $disk = config('sermon-processing.storage.disk', 'public');
-        $basePath = config('sermon-processing.storage.audio_path', 'sermons');
+        $disk = config('media-processing.storage.sermon_disk', 'public');
+        $basePath = config('media-processing.storage.paths.audio', 'sermons');
 
         // Create directory structure: sermons/YYYY/MM/
         $directory = $basePath.'/'.$metadata->date->format('Y/m');

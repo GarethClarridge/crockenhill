@@ -30,17 +30,16 @@ class LivestreamProcessingIntegrationTest extends TestCase
         Queue::fake();
         Bus::fake();
 
-        Config::set('livestream-processing', [
-            'rms_threshold' => -30.0,
-            'min_section_duration' => 60.0,
-            'min_sermon_duration' => 300.0,
-            'ffmpeg_path' => '/usr/bin/ffmpeg',
-            'ffprobe_path' => '/usr/bin/ffprobe',
-            'max_file_size' => 2147483648,
-            'supported_formats' => ['mp4', 'mov', 'avi', 'mkv'],
-            'sermon_disk' => 'sermon_disk',
-            'temp_disk' => 'local',
-        ]);
+        // Use new unified media-processing config
+        Config::set('media-processing.segmentation.rms_threshold', -30.0);
+        Config::set('media-processing.segmentation.min_section_duration', 60.0);
+        Config::set('media-processing.segmentation.min_sermon_duration', 300.0);
+        Config::set('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
+        Config::set('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe');
+        Config::set('media-processing.types.livestream.max_file_size', 2147483648);
+        Config::set('media-processing.types.livestream.allowed_extensions', ['mp4', 'mov', 'avi', 'mkv']);
+        Config::set('media-processing.storage.sermon_disk', 'sermon_disk');
+        Config::set('media-processing.storage.temp_disk', 'local');
 
         // Create temp directory for tests
         Storage::disk('local')->makeDirectory('temp');

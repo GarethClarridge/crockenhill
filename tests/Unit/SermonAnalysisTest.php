@@ -10,7 +10,7 @@ class SermonAnalysisTest extends TestCase
 {
     public function test_service_can_be_instantiated_with_api_key(): void
     {
-        config(['sermon-processing.analysis.openai_api_key' => 'test-api-key']);
+        config(['media-processing.analysis.openai_api_key' => 'test-api-key']);
 
         $logger = app(\App\Services\SermonProcessingLogger::class);
         $service = new SermonAnalysisService($logger);
@@ -19,7 +19,7 @@ class SermonAnalysisTest extends TestCase
 
     public function test_service_throws_exception_without_api_key(): void
     {
-        config(['sermon-processing.analysis.openai_api_key' => null]);
+        config(['media-processing.analysis.openai_api_key' => null]);
         config(['openai.api_key' => null]);
 
         $this->expectException(Exception::class);

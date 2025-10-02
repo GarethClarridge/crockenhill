@@ -18,7 +18,7 @@ class LivestreamQueueHealthCheck implements Arrayable
     public function run(): array
     {
         try {
-            $queueName = config('livestream-processing.queue.name');
+            $queueName = config('media-processing.queue.name');
 
             // Check if there are any stuck processing jobs
             $stuckJobs = LivestreamProcessingLog::where('status', 'processing')

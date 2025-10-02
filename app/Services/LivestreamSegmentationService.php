@@ -236,7 +236,7 @@ class LivestreamSegmentationService
             new CleanupTemporaryFiles($processingLog),
         ])->catch(function (\Throwable $e) use ($processingId) {
             $this->handleProcessingFailure($processingId, $e);
-        })->onQueue(config('livestream-processing.queue.name', 'default'))
+        })->onQueue(config('media-processing.queue.name', 'default'))
             ->dispatch();
     }
 
@@ -274,7 +274,7 @@ class LivestreamSegmentationService
 
         // Send email notification to administrators
         try {
-            Mail::to(config('livestream-processing.admin_email'))
+            Mail::to(config('media-processing.admin_email'))
                 ->send(new LivestreamProcessingFailed($processingId, $e));
         } catch (\Exception $emailException) {
             Log::warning('Failed to send livestream processing failure email, continuing', [

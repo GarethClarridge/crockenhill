@@ -17,4 +17,18 @@ abstract class TestCase extends BaseTestCase
      * @var bool
      */
     protected $seed = false;
+
+    /**
+     * Setup the test environment.
+     *
+     * @return void
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Disable throttling middleware during testing to prevent
+        // race conditions in parallel test execution
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+    }
 }

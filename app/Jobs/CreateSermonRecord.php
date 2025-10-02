@@ -8,9 +8,11 @@ use App\Models\SermonProcessingLog;
 use App\Services\SermonProcessingLogger;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\File;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class CreateSermonRecord extends ProcessingJob implements ShouldQueue
@@ -89,10 +91,23 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
                 }
             }
 
+            // Check if this is a direct video upload by presence of audio_file_path
+            // (audio_file_path only exists when audio was extracted from video)
+            $isVideoUpload = !$isFromLivestream && !empty($this->processingLog->audio_file_path);
+
+            // For video uploads, use extracted audio for filename, store video path separately
+            // For audio uploads, use stored_file_path as filename
+            $filename = $this->processingLog->stored_file_path ?? $this->processingLog->original_filename;
+
+            if ($isVideoUpload) {
+                // Use extracted audio file for audio playback
+                $filename = $this->processingLog->audio_file_path;
+            }
+
             // Create the sermon record with data from AI analysis and processing log
             $sermonData = [
                 'title' => $initialTitle,
-                'filename' => $this->processingLog->stored_file_path ?? $this->processingLog->original_filename,
+                'filename' => $filename,
                 'filetype' => pathinfo($this->processingLog->original_filename, PATHINFO_EXTENSION),
                 'date' => $this->extractDateFromFilename($this->processingLog->original_filename),
                 'service' => $this->extractServiceFromFilename($this->processingLog->original_filename),
@@ -104,6 +119,18 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
                 'transcript_path' => $this->processingLog->transcript_path,
             ];
 
+            // Add video file path for direct video uploads
+            if ($isVideoUpload) {
+                $sermonData['video_file_path'] = $this->processingLog->stored_file_path;
+                $sermonData['source_type'] = 'video_upload';
+
+                Log::info('Setting video file path for direct video upload', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'video_file_path' => $sermonData['video_file_path'],
+                    'audio_file_path' => $sermonData['filename'],
+                ]);
+            }
+
             // Add livestream-specific fields if applicable
             if ($isFromLivestream && $livestreamProcessingId) {
                 $sermonData['source_type'] = 'livestream';
@@ -111,6 +138,21 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             }
 
             $sermon = Sermon::create($sermonData);
+
+            // For direct video uploads, move video to permanent storage (similar to livestream processing)
+            if ($isVideoUpload) {
+                $finalVideoPath = $this->storeVideoForSermon($sermon->id, $this->processingLog->stored_file_path);
+
+                // Update sermon with permanent video path
+                $sermon->update(['video_file_path' => $finalVideoPath]);
+
+                Log::info('Moved video to permanent storage for direct video upload', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'sermon_id' => $sermon->id,
+                    'original_path' => $this->processingLog->stored_file_path,
+                    'final_path' => $finalVideoPath,
+                ]);
+            }
 
             // Update processing log with sermon ID
             $this->processingLog->update([
@@ -241,6 +283,44 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
 
         // Default to morning if no service pattern found
         return 'morning';
+    }
+
+    /**
+     * Store video file to permanent sermon storage
+     * Similar to SermonMetadataIntegrationService::organizeVideoFile
+     */
+    private function storeVideoForSermon(int $sermonId, string $tempVideoPath): string
+    {
+        $sermonDisk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
+
+        // Get the temp disk and resolve absolute path
+        $tempDisk = config('filesystems.default', 'local');
+        $absoluteTempPath = Storage::disk($tempDisk)->path($tempVideoPath);
+
+        // Create directory structure based on sermon ID
+        $directory = "sermons/{$sermonId}";
+        $extension = pathinfo($tempVideoPath, PATHINFO_EXTENSION);
+        $filename = "video.{$extension}"; // Preserve original extension (mkv, mp4, etc)
+        $finalPath = "{$directory}/{$filename}";
+
+        // Ensure the directory exists
+        $sermonDisk->makeDirectory($directory);
+
+        // Copy the video file to the final location
+        $sermonDisk->putFileAs(
+            $directory,
+            new File($absoluteTempPath),
+            $filename
+        );
+
+        Log::info('Video file moved to permanent storage', [
+            'source_path' => $tempVideoPath,
+            'absolute_path' => $absoluteTempPath,
+            'final_path' => $finalPath,
+            'sermon_id' => $sermonId,
+        ]);
+
+        return $finalPath;
     }
 
     /**

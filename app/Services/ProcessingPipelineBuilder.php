@@ -47,17 +47,18 @@ class ProcessingPipelineBuilder
     /**
      * Build job pipeline for direct video processing
      *
-     * TODO: Create ValidateVideoFile and ExtractAudioFromVideo jobs in Phase 3
+     * CRITICAL: CreateSermonRecord MUST run before TranscribeAudio because
+     * transcription needs sermon_id to store the transcript
      */
     public function buildDirectVideoPipeline(SermonProcessingLog $log): array
     {
         return [
             new ValidateVideoFile($log),
             new ExtractAudioFromVideo($log),
-            new TranscribeAudio($log),
-            new ProcessTranscriptWithAI($log),
-            new CreateSermonRecord($log),
-            new GenerateThumbnail($log),
+            new CreateSermonRecord($log),      // Create sermon record FIRST (creates sermon_id)
+            new TranscribeAudio($log),          // Then transcribe (needs sermon_id)
+            new ProcessTranscriptWithAI($log),  // AI analysis updates the sermon
+            new GenerateThumbnail($log),        // Generate thumbnail from video
             new SendCompletionNotification($log),
         ];
     }

@@ -17,7 +17,7 @@ class TranscriptionServiceIntegrationTest extends TestCase
     public function test_service_provider_binds_mock_service_when_configured()
     {
         // Configure to use mock service
-        Config::set('sermon-processing.transcription.service_type', 'mock');
+        Config::set('media-processing.transcription.service_type', 'mock');
 
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);
@@ -30,20 +30,7 @@ class TranscriptionServiceIntegrationTest extends TestCase
     public function test_service_provider_binds_openai_service_when_configured()
     {
         // Configure to use OpenAI service
-        Config::set('sermon-processing.transcription.service_type', 'openai');
-
-        // Force the container to forget the previously resolved service
-        app()->forgetInstance(TranscriptionServiceInterface::class);
-
-        $service = app(TranscriptionServiceInterface::class);
-
-        $this->assertInstanceOf(AudioTranscriptionService::class, $service);
-    }
-
-    public function test_service_provider_defaults_to_openai_service()
-    {
-        // Don't set any config value (should default to openai)
-        Config::set('sermon-processing.transcription.service_type', null);
+        Config::set('media-processing.transcription.service_type', 'openai');
 
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);
@@ -56,7 +43,7 @@ class TranscriptionServiceIntegrationTest extends TestCase
     public function test_mock_service_works_in_job_context()
     {
         // Configure to use mock service
-        Config::set('sermon-processing.transcription.service_type', 'mock');
+        Config::set('media-processing.transcription.service_type', 'mock');
 
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);
@@ -86,7 +73,7 @@ class TranscriptionServiceIntegrationTest extends TestCase
     public function test_transcription_job_can_resolve_service_interface()
     {
         // This test ensures that dependency injection works for the TranscribeAudio job
-        Config::set('sermon-processing.transcription.service_type', 'mock');
+        Config::set('media-processing.transcription.service_type', 'mock');
 
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);

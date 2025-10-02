@@ -15,14 +15,14 @@ class SermonValidationService
     public function validateAudioFile(UploadedFile $file): void
     {
         // Check file size
-        $maxSize = config('sermon-processing.processing.max_file_size', 100 * 1024 * 1024);
+        $maxSize = config('media-processing.processing.max_file_size', 100 * 1024 * 1024);
         if ($file->getSize() > $maxSize) {
             $maxSizeMB = round($maxSize / (1024 * 1024));
             throw new \InvalidArgumentException("File size exceeds maximum limit of {$maxSizeMB}MB");
         }
 
         // Check MIME type
-        $allowedMimeTypes = config('sermon-processing.processing.allowed_mime_types', [
+        $allowedMimeTypes = config('media-processing.processing.allowed_mime_types', [
             'audio/mpeg',
             'audio/mp3',
             'audio/wav',
@@ -36,7 +36,7 @@ class SermonValidationService
         }
 
         // Check file extension
-        $allowedExtensions = config('sermon-processing.processing.allowed_extensions', ['mp3', 'wav', 'm4a', 'mp4']);
+        $allowedExtensions = config('media-processing.processing.allowed_extensions', ['mp3', 'wav', 'm4a', 'mp4']);
         $extension = strtolower($file->getClientOriginalExtension());
 
         if (! in_array($extension, $allowedExtensions)) {
@@ -229,7 +229,7 @@ class SermonValidationService
         $errors = [];
 
         // Check available disk space
-        $disk = config('sermon-processing.storage.disk', 'public');
+        $disk = config('media-processing.storage.sermon_disk', 'public');
         $requiredSpace = $file->getSize() * 2; // File + processing overhead
 
         try {
@@ -268,7 +268,7 @@ class SermonValidationService
         $errors = [];
 
         // Check required services are configured
-        if (! config('services.openai.key') && config('sermon-processing.transcription.service') === 'openai') {
+        if (! config('services.openai.key') && config('media-processing.transcription.service') === 'openai') {
             $errors[] = 'OpenAI API key not configured but required for transcription';
         }
 
@@ -278,7 +278,7 @@ class SermonValidationService
         }
 
         // Check storage configuration
-        $disk = config('sermon-processing.storage.disk', 'public');
+        $disk = config('media-processing.storage.sermon_disk', 'public');
         if (! config("filesystems.disks.{$disk}")) {
             $errors[] = "Storage disk '{$disk}' not configured";
         }

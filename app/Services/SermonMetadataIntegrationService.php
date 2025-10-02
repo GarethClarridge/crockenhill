@@ -80,7 +80,7 @@ class SermonMetadataIntegrationService
 
         if ($processing && $processing->sermon_video_path) {
             // The path from ExtractSermon job is now a relative path, check temp disk first
-            $tempDisk = config('livestream-processing.temp_disk', 'local');
+            $tempDisk = config('media-processing.storage.temp_disk', 'local');
             if (Storage::disk($tempDisk)->exists($processing->sermon_video_path)) {
                 $absolutePath = Storage::disk($tempDisk)->path($processing->sermon_video_path);
                 Log::debug('Found sermon video on temp disk', [
@@ -93,7 +93,7 @@ class SermonMetadataIntegrationService
             }
 
             // Fallback: check if it's already been moved to sermon disk
-            $sermonDisk = config('livestream-processing.sermon_disk', 'public');
+            $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
             if (Storage::disk($sermonDisk)->exists($processing->sermon_video_path)) {
                 $absolutePath = Storage::disk($sermonDisk)->path($processing->sermon_video_path);
                 Log::debug('Found sermon video on sermon disk', [
@@ -114,7 +114,7 @@ class SermonMetadataIntegrationService
         }
 
         // Fallback: Look for sermon video in temp storage
-        $tempDisk = config('livestream-processing.temp_disk', 'local');
+        $tempDisk = config('media-processing.storage.temp_disk', 'local');
         $tempPath = "temp/livestreams/{$processingId}/segments";
 
         try {
@@ -159,7 +159,7 @@ class SermonMetadataIntegrationService
     private function organizeVideoFile(string $videoPath, int $sermonId): string
     {
         // Get the sermon storage disk
-        $sermonDisk = Storage::disk(config('livestream-processing.sermon_disk', 'public'));
+        $sermonDisk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
 
         // Create directory structure based on sermon ID
         $directory = "sermons/{$sermonId}";
@@ -233,7 +233,7 @@ class SermonMetadataIntegrationService
             return ['has_video' => false];
         }
 
-        $sermonDisk = Storage::disk(config('livestream-processing.sermon_disk', 'public'));
+        $sermonDisk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
         $videoPath = $sermon->video_file_path;
 
         $previewData = [

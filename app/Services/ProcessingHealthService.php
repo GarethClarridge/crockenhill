@@ -158,7 +158,7 @@ class ProcessingHealthService implements ProcessingHealthServiceInterface
     public function checkStorageHealth(): array
     {
         try {
-            $disk = config('sermon-processing.storage.disk', 'public');
+            $disk = config('media-processing.storage.sermon_disk', 'public');
             $storage = Storage::disk($disk);
 
             $status = 'healthy';

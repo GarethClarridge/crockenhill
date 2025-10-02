@@ -86,7 +86,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Bind transcription service based on environment configuration
         $this->app->bind(TranscriptionServiceInterface::class, function ($app) {
-            $serviceType = config('sermon-processing.transcription.service_type', 'openai');
+            // Check both 'service' and 'service_type' for backward compatibility
+            $serviceType = config('media-processing.transcription.service_type')
+                ?? config('media-processing.transcription.service', 'openai');
 
             switch ($serviceType) {
                 case 'mock':

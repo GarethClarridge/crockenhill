@@ -32,7 +32,7 @@ class CompleteProcessingPipelineTest extends BaseIntegrationTest
 
         // Upload via API (this should complete synchronously)
         $response = $this->actingAs($this->testUser)
-            ->postJson('/api/livestreams/process', [
+            ->postJson('/api/media/livestream', [
                 'video' => $uploadedFile,
             ]);
 

@@ -20,14 +20,14 @@ class LivestreamAudioCompressionTest extends TestCase
         parent::setUp();
 
         // Set up test configuration
-        Config::set('livestream-processing.audio_extraction.transcription_optimized.max_file_size', 25 * 1024 * 1024);
-        Config::set('livestream-processing.audio_extraction.transcription_optimized.bitrate', 48);
-        Config::set('livestream-processing.audio_extraction.transcription_optimized.sample_rate', 16000);
-        Config::set('livestream-processing.audio_extraction.transcription_optimized.channels', 1);
+        Config::set('media-processing.audio_extraction.transcription_optimized.max_file_size', 25 * 1024 * 1024);
+        Config::set('media-processing.audio_extraction.transcription_optimized.bitrate', 48);
+        Config::set('media-processing.audio_extraction.transcription_optimized.sample_rate', 16000);
+        Config::set('media-processing.audio_extraction.transcription_optimized.channels', 1);
 
-        Config::set('livestream-processing.audio_extraction.fallback_compression.bitrate', 32);
-        Config::set('livestream-processing.audio_extraction.fallback_compression.sample_rate', 16000);
-        Config::set('livestream-processing.audio_extraction.fallback_compression.channels', 1);
+        Config::set('media-processing.audio_extraction.fallback_compression.bitrate', 32);
+        Config::set('media-processing.audio_extraction.fallback_compression.sample_rate', 16000);
+        Config::set('media-processing.audio_extraction.fallback_compression.channels', 1);
     }
 
     public function test_extract_sermon_job_uses_optimized_audio_extraction(): void
@@ -43,7 +43,7 @@ class LivestreamAudioCompressionTest extends TestCase
         ]);
 
         // Create a mock video file in storage
-        $tempDisk = config('livestream-processing.temp_disk', 'local');
+        $tempDisk = config('media-processing.temp_disk', 'local');
         Storage::fake($tempDisk);
         Storage::disk($tempDisk)->put('test-video.mp4', 'mock video content');
 
@@ -92,17 +92,17 @@ class LivestreamAudioCompressionTest extends TestCase
 
     public function test_video_storage_service_extract_optimized_audio_method_exists(): void
     {
-        $service = app(VideoStorageService::class);
+        // The extractOptimizedAudioFromSegment method was moved to VideoExtractionService
+        // as part of the architectural cleanup
+        $extractionService = app(\App\Services\VideoExtractionService::class);
 
-        $this->assertTrue(method_exists($service, 'extractOptimizedAudioFromSegment'));
-        // validateAudioFileSize method moved to VideoExtractionService
-        $this->assertFalse(method_exists($service, 'validateAudioFileSize'));
+        $this->assertTrue(method_exists($extractionService, 'extractOptimizedAudioFromSegment'));
     }
 
     public function test_audio_extraction_config_values_are_reasonable(): void
     {
-        $optimized = config('livestream-processing.audio_extraction.transcription_optimized');
-        $fallback = config('livestream-processing.audio_extraction.fallback_compression');
+        $optimized = config('media-processing.audio_extraction.transcription_optimized');
+        $fallback = config('media-processing.audio_extraction.fallback_compression');
 
         // Test optimized settings
         $this->assertIsInt($optimized['bitrate']);
@@ -123,8 +123,8 @@ class LivestreamAudioCompressionTest extends TestCase
     public function test_compression_expected_file_sizes(): void
     {
         // Test expected compression calculations based on config
-        $optimizedBitrate = config('livestream-processing.audio_extraction.transcription_optimized.bitrate'); // 48 kbps
-        $fallbackBitrate = config('livestream-processing.audio_extraction.fallback_compression.bitrate'); // 32 kbps
+        $optimizedBitrate = config('media-processing.audio_extraction.transcription_optimized.bitrate'); // 48 kbps
+        $fallbackBitrate = config('media-processing.audio_extraction.fallback_compression.bitrate'); // 32 kbps
 
         // For a 72-minute sermon (4320 seconds):
         $durationMinutes = 72;
@@ -149,7 +149,7 @@ class LivestreamAudioCompressionTest extends TestCase
 
     public function test_configuration_provides_speech_optimization(): void
     {
-        $config = config('livestream-processing.audio_extraction.transcription_optimized');
+        $config = config('media-processing.audio_extraction.transcription_optimized');
 
         // Test that configuration is optimized for speech recognition
 
@@ -169,7 +169,7 @@ class LivestreamAudioCompressionTest extends TestCase
 
     public function test_validation_config_includes_quality_settings(): void
     {
-        $validation = config('livestream-processing.audio_extraction.validation');
+        $validation = config('media-processing.audio_extraction.validation');
 
         $this->assertArrayHasKey('max_duration_minutes', $validation);
         $this->assertArrayHasKey('size_check_enabled', $validation);
@@ -193,10 +193,10 @@ class LivestreamAudioCompressionTest extends TestCase
         $currentBitrate = 128; // kbps
 
         // Optimized: 48kbps mono @ 16kHz ≈ 360KB/minute
-        $optimizedBitrate = config('livestream-processing.audio_extraction.transcription_optimized.bitrate');
+        $optimizedBitrate = config('media-processing.audio_extraction.transcription_optimized.bitrate');
 
         // Fallback: 32kbps mono @ 16kHz ≈ 240KB/minute
-        $fallbackBitrate = config('livestream-processing.audio_extraction.fallback_compression.bitrate');
+        $fallbackBitrate = config('media-processing.audio_extraction.fallback_compression.bitrate');
 
         // Calculate expected compression ratios
         $optimizedRatio = $currentBitrate / $optimizedBitrate;

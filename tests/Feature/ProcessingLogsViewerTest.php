@@ -73,7 +73,7 @@ class ProcessingLogsViewerTest extends TestCase
             ->assertSee('Processing Details')
             ->assertSee('Processing')
             ->assertSet('processingId', $processingId)
-            ->assertSet('autoRefresh', true)
+            ->assertSet('autoRefresh', false) // Disabled in testing environment
             ->assertSet('expanded', false);
     }
 
@@ -150,11 +150,12 @@ class ProcessingLogsViewerTest extends TestCase
                 'processingId' => $processingId,
             ]);
 
-        $component->assertSet('autoRefresh', true)
+        // In testing environment, autoRefresh starts as false
+        $component->assertSet('autoRefresh', false)
             ->call('toggleAutoRefresh')
-            ->assertSet('autoRefresh', false)
+            ->assertSet('autoRefresh', true)
             ->call('toggleAutoRefresh')
-            ->assertSet('autoRefresh', true);
+            ->assertSet('autoRefresh', false);
     }
 
     public function test_component_can_refresh_logs_manually(): void

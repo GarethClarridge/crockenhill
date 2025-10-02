@@ -84,7 +84,7 @@ class AnalyzeSegments implements ShouldQueue
                 );
 
                 CleanupTemporaryFiles::dispatch($this->processingLog)
-                    ->onQueue(config('livestream-processing.queue.name'))
+                    ->onQueue(config('media-processing.queue.name'))
                     ->delay(now()->addMinutes(5));
             }
 
@@ -164,7 +164,7 @@ class AnalyzeSegments implements ShouldQueue
         usort($speechSegments, fn ($a, $b) => $b->duration <=> $a->duration);
         $longestSpeechSegment = $speechSegments[0];
 
-        $minSermonDuration = config('livestream-processing.min_sermon_duration');
+        $minSermonDuration = config('media-processing.segmentation.min_sermon_duration');
 
         if ($longestSpeechSegment->duration >= $minSermonDuration) {
             return $longestSpeechSegment;

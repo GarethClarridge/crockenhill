@@ -21,10 +21,10 @@ class AutomatedSermonUploadRequest extends FormRequest
      */
     public function rules(): array
     {
-        $maxFileSize = config('sermon-processing.processing.max_file_size', 100 * 1024 * 1024);
+        $maxFileSize = config('media-processing.processing.max_file_size', 100 * 1024 * 1024);
         $maxFileSizeKB = $maxFileSize / 1024;
 
-        $allowedMimeTypes = config('sermon-processing.processing.allowed_mime_types', [
+        $allowedMimeTypes = config('media-processing.processing.allowed_mime_types', [
             'audio/mpeg',
             'audio/mp3',
             'audio/wav',
@@ -33,7 +33,7 @@ class AutomatedSermonUploadRequest extends FormRequest
             'audio/m4a',
         ]);
 
-        $allowedExtensions = config('sermon-processing.processing.allowed_extensions', [
+        $allowedExtensions = config('media-processing.processing.allowed_extensions', [
             'mp3',
             'wav',
             'm4a',
@@ -57,8 +57,8 @@ class AutomatedSermonUploadRequest extends FormRequest
      */
     public function messages(): array
     {
-        $maxFileSizeMB = config('sermon-processing.processing.max_file_size', 100 * 1024 * 1024) / (1024 * 1024);
-        $allowedExtensions = config('sermon-processing.processing.allowed_extensions', ['mp3', 'wav', 'm4a', 'mp4']);
+        $maxFileSizeMB = config('media-processing.processing.max_file_size', 100 * 1024 * 1024) / (1024 * 1024);
+        $allowedExtensions = config('media-processing.processing.allowed_extensions', ['mp3', 'wav', 'm4a', 'mp4']);
 
         return [
             'file.required' => 'Please select an audio file to upload.',

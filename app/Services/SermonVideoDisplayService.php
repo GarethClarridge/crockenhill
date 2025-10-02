@@ -56,7 +56,7 @@ class SermonVideoDisplayService
 
     public function getVideoUrl(string $videoPath): string
     {
-        $disk = Storage::disk(config('livestream-processing.sermon_disk', 'public'));
+        $disk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
 
         if ($disk->exists($videoPath)) {
             return $disk->url($videoPath);
@@ -67,7 +67,7 @@ class SermonVideoDisplayService
 
     private function getVideoStoragePath(string $videoPath): string
     {
-        $disk = Storage::disk(config('livestream-processing.sermon_disk', 'public'));
+        $disk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
 
         // For S3-compatible disks, we need to download temporarily or use different approach
         if ($this->isS3CompatibleDisk($disk)) {
@@ -80,7 +80,7 @@ class SermonVideoDisplayService
 
     private function getVideoDuration(string $videoPath): ?float
     {
-        $disk = config('livestream-processing.sermon_disk', 'public');
+        $disk = config('media-processing.storage.sermon_disk', 'public');
 
         // Check if file exists using storage-aware method
         if (! $this->videoFileExists($videoPath, $disk)) {
@@ -91,7 +91,7 @@ class SermonVideoDisplayService
         $localPath = $this->ensureLocalVideoPath($videoPath, $disk);
 
         try {
-            $ffprobe = config('livestream-processing.ffprobe_path', '/usr/bin/ffprobe');
+            $ffprobe = config('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe');
             $command = [
                 $ffprobe,
                 '-v', 'quiet',
@@ -127,7 +127,7 @@ class SermonVideoDisplayService
 
     private function getVideoFileSize(string $videoPath): ?int
     {
-        $disk = config('livestream-processing.sermon_disk', 'public');
+        $disk = config('media-processing.storage.sermon_disk', 'public');
 
         // Check if file exists and get size using storage-aware method
         if (! $this->videoFileExists($videoPath, $disk)) {

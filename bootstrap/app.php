@@ -34,7 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->group('api', [
-            'throttle:60,1', // Uses 'throttle' alias with parameters
+            'throttle:60,1',
             'bindings',      // Uses 'bindings' alias
         ]);
 

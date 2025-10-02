@@ -1,186 +1,144 @@
 <?php
 
-declare(strict_types=1);
-
 return [
-    /*
-    |--------------------------------------------------------------------------
-    | Media Processing Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configuration for the refactored media processing architecture.
-    | This replaces scattered configuration across multiple files with
-    | a unified configuration system using the strategy pattern.
-    |
-    */
-
-    'strategies' => [
+    'types' => [
         'audio' => [
-            'class' => \App\Services\Strategies\AudioProcessingStrategy::class,
             'max_file_size' => 100 * 1024 * 1024, // 100MB
             'allowed_extensions' => ['mp3', 'wav', 'm4a', 'mp4'],
-            'mime_types' => ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a'],
+            'allowed_mimes' => ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/m4a'],
             'queue' => 'audio-processing',
-            'timeout' => 1800, // 30 minutes
-            'validation' => [
-                'min_duration' => 60, // 1 minute
-                'max_duration' => 7200, // 2 hours
-            ],
+            'description' => 'Audio sermon files',
         ],
-
-        'sermon_video' => [
-            'class' => \App\Services\Strategies\DirectVideoProcessingStrategy::class,
-            'max_file_size' => 100 * 1024 * 1024, // 100MB
-            'allowed_extensions' => ['mp4', 'mov', 'avi', 'mkv', 'webm'],
-            'mime_types' => ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'],
+        'video' => [
+            'max_file_size' => 1024 * 1024 * 1024, // 1GB (reasonable middle ground)
+            'allowed_extensions' => ['mp4', 'mov', 'avi', 'mkv'],
+            'allowed_mimes' => ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'],
             'queue' => 'video-processing',
-            'timeout' => 3600, // 1 hour
-            'validation' => [
-                'min_duration' => 300, // 5 minutes
-                'max_duration' => 7200, // 2 hours
-                'max_resolution' => '1920x1080',
-            ],
-            'features' => [
-                'generates_thumbnail' => true,
-                'extracts_audio' => true,
-            ],
+            'description' => 'Direct sermon video files',
         ],
-
         'livestream' => [
-            'class' => \App\Services\Strategies\LivestreamProcessingStrategy::class,
             'max_file_size' => 2 * 1024 * 1024 * 1024, // 2GB
             'allowed_extensions' => ['mp4', 'mov', 'avi', 'mkv', 'webm'],
-            'mime_types' => ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'],
+            'allowed_mimes' => ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'],
             'queue' => 'livestream-processing',
-            'timeout' => 7200, // 2 hours
-            'validation' => [
-                'min_duration' => 1800, // 30 minutes
-                'max_duration' => 14400, // 4 hours
-            ],
-            'features' => [
-                'requires_segmentation' => true,
-                'generates_thumbnail' => true,
-                'extracts_sermon' => true,
-                'supports_streaming' => true,
-            ],
+            'description' => 'Full livestream recordings requiring segmentation',
         ],
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Processing Pipeline Configuration
+    | S3/DigitalOcean Spaces Storage Configuration
     |--------------------------------------------------------------------------
     |
-    | Configuration for job chains and processing pipelines.
-    | Defines the steps and order for different processing types.
+    | CRITICAL: This system uses sophisticated hybrid processing for S3-compatible
+    | storage (DigitalOcean Spaces). The system automatically detects S3-compatible
+    | disks and uses hybrid processing: local temp processing → cloud upload.
+    |
+    | - sermon_disk: Final storage (can be do_spaces, s3, or local)
+    | - temp_disk: MUST be 'local' for FFmpeg processing
+    | - storage_disk: General file storage
     |
     */
-
-    'pipelines' => [
-        'audio' => [
-            'jobs' => [
-                \App\Jobs\ValidateAudioFile::class,
-                \App\Jobs\TranscribeAudio::class,
-                \App\Jobs\ProcessTranscriptWithAI::class,
-                \App\Jobs\CreateSermonRecord::class,
-                \App\Jobs\SendCompletionNotification::class,
-            ],
-            'retry_attempts' => 3,
-            'retry_delay' => 60, // seconds
-        ],
-
-        'sermon_video' => [
-            'jobs' => [
-                \App\Jobs\ValidateVideoFile::class,
-                \App\Jobs\ExtractAudioFromVideo::class,
-                \App\Jobs\TranscribeAudio::class,
-                \App\Jobs\ProcessTranscriptWithAI::class,
-                \App\Jobs\CreateSermonRecord::class,
-                \App\Jobs\GenerateThumbnail::class,
-                \App\Jobs\SendCompletionNotification::class,
-            ],
-            'retry_attempts' => 3,
-            'retry_delay' => 120, // seconds
-        ],
-
-        'livestream' => [
-            'jobs' => [
-                \App\Jobs\GenerateRmsLog::class,
-                \App\Jobs\AnalyzeSegments::class,
-                \App\Jobs\ExtractSermon::class,
-                \App\Jobs\SubmitToProcessing::class,
-                \App\Jobs\GenerateThumbnail::class,
-                \App\Jobs\CleanupTemporaryFiles::class,
-            ],
-            'retry_attempts' => 2,
-            'retry_delay' => 300, // seconds
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Error Handling Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configuration for the ProcessingExceptionHandler and error recovery.
-    |
-    */
-
-    'error_handling' => [
-        'max_retries' => 3,
-        'retry_delay' => 60, // seconds
-        'enable_notifications' => true,
-        'notification_email' => env('PROCESSING_ADMIN_EMAIL', 'admin@example.com'),
-        'log_level' => 'error',
-        'graceful_degradation' => true,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Health Monitoring Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configuration for processing health checks and monitoring.
-    |
-    */
-
-    'health_monitoring' => [
-        'enabled' => true,
-        'check_interval' => 300, // 5 minutes
-        'thresholds' => [
-            'success_rate' => 80, // percentage
-            'max_stuck_jobs' => 5,
-            'max_pending_jobs' => 20,
-            'max_failed_jobs_per_day' => 10,
-        ],
-        'alerts' => [
-            'email' => env('PROCESSING_ADMIN_EMAIL', 'admin@example.com'),
-            'slack_webhook' => env('PROCESSING_SLACK_WEBHOOK'),
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Storage Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configuration for file storage and cleanup policies.
-    |
-    */
-
     'storage' => [
-        'temp_disk' => env('PROCESSING_TEMP_DISK', 'local'),
-        'permanent_disk' => env('PROCESSING_PERMANENT_DISK', 'public'),
-        'cleanup_policy' => [
-            'temp_files_retention' => 24, // hours
-            'failed_processing_retention' => 168, // hours (7 days)
-            'auto_cleanup_enabled' => true,
-        ],
+        // Main storage disk - can be S3-compatible (do_spaces) or local
+        'disk' => env('MEDIA_STORAGE_DISK', 'do_spaces'),
+        'sermon_disk' => env('SERMON_STORAGE_DISK', 'do_spaces'),
+
+        // Temporary processing - MUST be local for FFmpeg
+        'temp_disk' => 'local',
+
+        // Storage paths
         'paths' => [
-            'audio' => 'sermons/audio',
-            'video' => 'sermons/video',
-            'thumbnails' => 'sermons/thumbnails',
-            'temp' => 'temp/processing',
+            'audio' => env('MEDIA_AUDIO_PATH', 'sermons/audio'),
+            'video' => env('MEDIA_VIDEO_PATH', 'sermons/video'),
+            'temp' => env('MEDIA_TEMP_PATH', 'temp/media-processing'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | S3 Hybrid Processing Configuration
+    |--------------------------------------------------------------------------
+    |
+    | The system auto-detects S3-compatible disks and uses hybrid processing:
+    | 1. Process files locally in temp directory
+    | 2. Upload final results to S3-compatible storage
+    | 3. Clean up local temp files
+    |
+    */
+    's3_processing' => [
+        'upload_timeout' => env('S3_UPLOAD_TIMEOUT', 300), // 5 minutes
+        'retry_attempts' => env('S3_RETRY_ATTEMPTS', 3),
+        'retry_delay' => env('S3_RETRY_DELAY', 5), // seconds
+        'cleanup_temp_files' => env('S3_CLEANUP_TEMP', true),
+        'multipart_threshold' => env('S3_MULTIPART_THRESHOLD', 100 * 1024 * 1024), // 100MB
+    ],
+
+    'processing' => [
+        'timeout' => 7200, // 2 hours
+        'retry_attempts' => 3,
+        'retry_delay' => 60,
+        'max_concurrent_jobs' => 2,
+    ],
+
+    'transcription' => [
+        'service' => env('TRANSCRIPTION_SERVICE_TYPE', 'openai'),
+        'openai_api_key' => env('OPENAI_API_KEY'),
+        'max_file_size' => 25 * 1024 * 1024, // 25MB
+        'timeout' => 300,
+    ],
+
+    'ffmpeg' => [
+        'ffmpeg_path' => env('FFMPEG_PATH', '/usr/local/bin/ffmpeg'),
+        'ffprobe_path' => env('FFPROBE_PATH', '/usr/local/bin/ffprobe'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Livestream Segmentation Configuration
+    |--------------------------------------------------------------------------
+    |
+    | RMS analysis and segmentation settings for livestream processing
+    |
+    */
+    'segmentation' => [
+        'rms_threshold' => (float) env('RMS_THRESHOLD', -45.0),
+        'min_section_duration' => (float) env('MIN_SECTION_DURATION', 60.0),
+        'min_sermon_duration' => (float) env('MIN_SERMON_DURATION', 300.0),
+        'adaptive_thresholds' => [
+            'enabled' => env('ADAPTIVE_THRESHOLDS_ENABLED', true),
+            'speech_percentile' => env('SPEECH_PERCENTILE', 30),
+            'fallback_enabled' => env('ADAPTIVE_FALLBACK_ENABLED', true),
+            'min_threshold' => (float) env('MIN_THRESHOLD', -80.0),
+            'max_threshold' => (float) env('MAX_THRESHOLD', -20.0),
+            'min_sample_count' => env('MIN_SAMPLE_COUNT', 1000),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Audio Extraction for Transcription
+    |--------------------------------------------------------------------------
+    |
+    | Optimized audio extraction settings for transcription services
+    |
+    */
+    'audio_extraction' => [
+        'transcription_optimized' => [
+            'bitrate' => 48, // kbps
+            'sample_rate' => 16000, // Hz
+            'channels' => 1, // mono
+            'max_file_size' => 25 * 1024 * 1024, // 25MB OpenAI Whisper limit
+        ],
+        'fallback_compression' => [
+            'bitrate' => 32, // kbps
+            'sample_rate' => 16000, // Hz
+            'channels' => 1, // mono
+        ],
+        'validation' => [
+            'max_duration_minutes' => 150,
+            'size_check_enabled' => true,
+            'quality_check_enabled' => true,
         ],
     ],
 ];

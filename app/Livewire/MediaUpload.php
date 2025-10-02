@@ -83,7 +83,7 @@ class MediaUpload extends Component
     protected function getDynamicMessages(): array
     {
         $maxSizeMB = match ($this->mediaType) {
-            'audio' => config('sermon-processing.processing.max_file_size', 100 * 1024 * 1024) / (1024 * 1024),
+            'audio' => config('media-processing.processing.max_file_size', 100 * 1024 * 1024) / (1024 * 1024),
             'video', 'livestream' => 2048, // 2GB in MB
             default => 100
         };
@@ -173,7 +173,7 @@ class MediaUpload extends Component
 
         // Set file size limits based on media type
         $maxSizeKB = match ($this->mediaType) {
-            'audio' => (config('sermon-processing.processing.max_file_size', 100 * 1024 * 1024) / 1024), // 100MB default
+            'audio' => (config('media-processing.processing.max_file_size', 100 * 1024 * 1024) / 1024), // 100MB default
             'video', 'livestream' => 5 * 1024 * 1024, // 5GB for video files (5GB in KB)
             default => 100 * 1024 // 100MB default
         };
@@ -276,14 +276,9 @@ class MediaUpload extends Component
             $log = SermonProcessingLog::where('processing_id', $this->processingId)->first();
 
             // Start the actual processing
-            $processingRouter = app(ProcessingRouter::class);
+            $processor = app(\App\Services\UnifiedMediaProcessor::class);
 
-            $result = match ($this->mediaType) {
-                'audio' => $processingRouter->routeAudio($originalFile),
-                'video' => $processingRouter->routeSermonVideo($originalFile),
-                'livestream' => $processingRouter->routeLivestreamVideo($originalFile),
-                default => throw new \InvalidArgumentException('Invalid media type')
-            };
+            $result = $processor->process($this->mediaType, $originalFile);
 
             // Clean up temp file
             if (file_exists($fullTempPath)) {
@@ -317,8 +312,20 @@ class MediaUpload extends Component
             ]);
 
             if ($this->processingId) {
-                $log = SermonProcessingLog::where('processing_id', $this->processingId)->first();
-                $log?->markAsFailed('Processing failed: '.$e->getMessage());
+                // Check both processing log types based on media type
+                if ($this->mediaType === 'livestream') {
+                    $log = \App\Models\LivestreamProcessingLog::where('processing_id', $this->processingId)->first();
+                    if ($log) {
+                        $log->update([
+                            'status' => 'failed',
+                            'error_message' => 'Processing failed: ' . $e->getMessage(),
+                        ]);
+                    }
+                } else {
+                    // For audio and video types, use SermonProcessingLog
+                    $log = SermonProcessingLog::where('processing_id', $this->processingId)->first();
+                    $log?->markAsFailed('Processing failed: '.$e->getMessage());
+                }
             }
         }
     }
@@ -337,9 +344,9 @@ class MediaUpload extends Component
         }
 
         try {
-            // Use the controller directly instead of HTTP to avoid token issues
-            $controller = app(\App\Http\Controllers\AutomatedSermonController::class);
-            $result = $controller->cancelProcessing($this->processingId);
+            // Use the unified media processor to cancel processing
+            $processor = app(\App\Services\UnifiedMediaProcessor::class);
+            $result = $processor->cancel($this->processingId);
 
             if ($result['success']) {
                 $this->status = 'cancelled';
@@ -379,9 +386,9 @@ class MediaUpload extends Component
         }
 
         try {
-            // Call the controller method directly instead of making HTTP request
-            $controller = app(\App\Http\Controllers\AutomatedSermonController::class);
-            $statusResponse = $controller->getProcessingStatus($this->processingId);
+            // Use the unified media processor to get status
+            $processor = app(\App\Services\UnifiedMediaProcessor::class);
+            $statusResponse = $processor->getStatus($this->processingId);
 
             if ($statusResponse->found) {
                 $this->status = $statusResponse->status;

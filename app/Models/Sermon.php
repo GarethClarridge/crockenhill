@@ -448,7 +448,7 @@ class Sermon extends Model
             return null;
         }
 
-        return \Illuminate\Support\Facades\Storage::disk(config('livestream-processing.sermon_disk'))->url($this->video_file_path);
+        return \Illuminate\Support\Facades\Storage::disk(config('media-processing.storage.sermon_disk'))->url($this->video_file_path);
     }
 
     /**

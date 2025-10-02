@@ -16,11 +16,11 @@ class AdaptiveThresholdRegressionTest extends TestCase
     public function test_can_disable_adaptive_thresholds(): void
     {
         // Disable adaptive thresholds
-        Config::set('livestream-processing.adaptive_thresholds.enabled', false);
-        Config::set('livestream-processing.rms_threshold', -35.0);
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+        Config::set('media-processing.segmentation.rms_threshold', -35.0);
 
-        $adaptiveConfig = config('livestream-processing.adaptive_thresholds');
-        $fixedThreshold = config('livestream-processing.rms_threshold');
+        $adaptiveConfig = config('media-processing.segmentation.adaptive_thresholds');
+        $fixedThreshold = config('media-processing.segmentation.rms_threshold');
 
         $this->assertFalse($adaptiveConfig['enabled']);
         $this->assertEquals(-35.0, $fixedThreshold);
@@ -35,13 +35,13 @@ class AdaptiveThresholdRegressionTest extends TestCase
     public function test_fixed_threshold_functionality_preserved(): void
     {
         // Test the original RMS threshold configuration
-        Config::set('livestream-processing.rms_threshold', -30.0);
-        Config::set('livestream-processing.min_section_duration', 60.0);
-        Config::set('livestream-processing.min_sermon_duration', 300.0);
+        Config::set('media-processing.segmentation.rms_threshold', -30.0);
+        Config::set('media-processing.segmentation.min_section_duration', 60.0);
+        Config::set('media-processing.segmentation.min_sermon_duration', 300.0);
 
-        $rmsThreshold = config('livestream-processing.rms_threshold');
-        $minSection = config('livestream-processing.min_section_duration');
-        $minSermon = config('livestream-processing.min_sermon_duration');
+        $rmsThreshold = config('media-processing.segmentation.rms_threshold');
+        $minSection = config('media-processing.segmentation.min_section_duration');
+        $minSermon = config('media-processing.segmentation.min_sermon_duration');
 
         $this->assertEquals(-30.0, $rmsThreshold);
         $this->assertEquals(60.0, $minSection);
@@ -82,7 +82,7 @@ class AdaptiveThresholdRegressionTest extends TestCase
      */
     public function test_configuration_validation(): void
     {
-        $adaptiveConfig = config('livestream-processing.adaptive_thresholds');
+        $adaptiveConfig = config('media-processing.segmentation.adaptive_thresholds');
 
         // Test required fields exist
         $requiredFields = ['enabled', 'speech_percentile', 'min_sample_count', 'fallback_enabled'];
@@ -114,9 +114,9 @@ class AdaptiveThresholdRegressionTest extends TestCase
         // This test documents that we maintained backward compatibility
 
         $originalConfig = [
-            'rms_threshold' => config('livestream-processing.rms_threshold'),
-            'min_section_duration' => config('livestream-processing.min_section_duration'),
-            'min_sermon_duration' => config('livestream-processing.min_sermon_duration'),
+            'rms_threshold' => config('media-processing.segmentation.rms_threshold'),
+            'min_section_duration' => config('media-processing.segmentation.min_section_duration'),
+            'min_sermon_duration' => config('media-processing.segmentation.min_sermon_duration'),
         ];
 
         // All original config keys should still exist
@@ -149,7 +149,7 @@ class AdaptiveThresholdRegressionTest extends TestCase
         ];
 
         // Test that configuration supports our plan goals
-        $adaptiveConfig = config('livestream-processing.adaptive_thresholds');
+        $adaptiveConfig = config('media-processing.segmentation.adaptive_thresholds');
 
         $this->assertArrayHasKey('enabled', $adaptiveConfig, 'Feature flag implemented');
         $this->assertArrayHasKey('speech_percentile', $adaptiveConfig, 'Percentile configuration implemented');

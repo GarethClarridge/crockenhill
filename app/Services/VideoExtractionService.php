@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 class VideoExtractionService
 {
-    private FFMpeg $ffmpeg;
+    private ?FFMpeg $ffmpeg;
 
     private string $tempDisk;
 
@@ -23,8 +23,8 @@ class VideoExtractionService
 
     public function __construct()
     {
-        $ffmpegPath = config('livestream-processing.ffmpeg_path');
-        $ffprobePath = config('livestream-processing.ffprobe_path');
+        $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
+        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
 
         // Validate FFmpeg binary exists and is executable (skip in testing environment)
         if (! app()->environment('testing')) {
@@ -37,32 +37,36 @@ class VideoExtractionService
             }
         }
 
-        try {
-            $this->ffmpeg = FFMpeg::create([
-                'ffmpeg.binaries' => $ffmpegPath,
-                'ffprobe.binaries' => $ffprobePath,
-                'timeout' => config('livestream-processing.processing_timeout'),
-            ]);
+        // Skip FFmpeg initialization in testing environment to prevent hangs
+        if (app()->environment('testing')) {
+            Log::debug('Skipping FFmpeg initialization in test environment');
+            $this->ffmpeg = null;
+        } else {
+            try {
+                $this->ffmpeg = FFMpeg::create([
+                    'ffmpeg.binaries' => $ffmpegPath,
+                    'ffprobe.binaries' => $ffprobePath,
+                    'timeout' => config('media-processing.processing.timeout'),
+                ]);
 
-            if (! app()->runningUnitTests()) {
                 Log::info('FFmpeg initialized successfully', [
                     'ffmpeg_path' => $ffmpegPath,
                     'ffprobe_path' => $ffprobePath,
-                    'timeout' => config('livestream-processing.processing_timeout'),
+                    'timeout' => config('media-processing.processing.timeout'),
                 ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to initialize FFmpeg', [
+                    'ffmpeg_path' => $ffmpegPath,
+                    'ffprobe_path' => $ffprobePath,
+                    'error' => $e->getMessage(),
+                ]);
+                throw new \Exception("Failed to initialize FFmpeg: {$e->getMessage()}");
             }
-        } catch (\Exception $e) {
-            Log::error('Failed to initialize FFmpeg', [
-                'ffmpeg_path' => $ffmpegPath,
-                'ffprobe_path' => $ffprobePath,
-                'error' => $e->getMessage(),
-            ]);
-            throw new \Exception("Failed to initialize FFmpeg: {$e->getMessage()}");
         }
 
-        $this->tempDisk = config('livestream-processing.temp_disk', 'local');
-        $this->permanentDisk = config('livestream-processing.sermon_disk', 'public');
-        $this->audioPath = config('livestream-processing.storage.audio_path', 'sermons/audio');
+        $this->tempDisk = config('media-processing.storage.temp_disk', 'local');
+        $this->permanentDisk = config('media-processing.storage.sermon_disk', 'public');
+        $this->audioPath = config('media-processing.storage.paths.audio', 'sermons/audio');
     }
 
     /**
@@ -95,14 +99,14 @@ class VideoExtractionService
 
         try {
             // Use Laravel storage disk for consistency with other file operations
-            $tempDisk = config('livestream-processing.temp_disk', 'local');
+            $tempDisk = config('media-processing.storage.temp_disk', 'local');
             $relativePath = 'temp/'.Str::uuid().'.mp4';
             $tempPath = \Illuminate\Support\Facades\Storage::disk($tempDisk)->path($relativePath);
 
             // Ensure temp directory exists using storage disk
             \Illuminate\Support\Facades\Storage::disk($tempDisk)->makeDirectory(dirname($relativePath));
 
-            $ffmpegPath = config('livestream-processing.ffmpeg_path');
+            $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
             $duration = $endTime - $startTime;
 
             // Use stream copy for maximum speed and quality preservation
@@ -413,8 +417,8 @@ class VideoExtractionService
                 throw new \Exception("Input video file not found: {$inputVideoPath}");
             }
 
-            $config = config('livestream-processing.audio_extraction.transcription_optimized');
-            $fallbackConfig = config('livestream-processing.audio_extraction.fallback_compression');
+            $config = config('media-processing.audio_extraction.transcription_optimized');
+            $fallbackConfig = config('media-processing.audio_extraction.fallback_compression');
 
             /** @var \FFMpeg\Media\Video $video */
             $video = $this->ffmpeg->open($inputVideoPath);
@@ -559,7 +563,7 @@ class VideoExtractionService
     private function validateAudioFileSize(string $audioPath): array
     {
         $fileSize = $this->getLocalFileSize($audioPath);
-        $maxSize = config('livestream-processing.audio_extraction.transcription_optimized.max_file_size');
+        $maxSize = config('media-processing.audio_extraction.transcription_optimized.max_file_size');
 
         return [
             'valid' => $fileSize <= $maxSize && $fileSize > 0,
@@ -669,7 +673,7 @@ class VideoExtractionService
      */
     private function uploadToPermanentStorage(string $localFilePath, string $permanentPath): string
     {
-        $s3Config = config('livestream-processing.s3_processing');
+        $s3Config = config('media-processing.s3_processing');
         $maxRetries = $s3Config['retry_attempts'] ?? 3;
         $retryDelay = $s3Config['retry_delay'] ?? 5;
         $uploadTimeout = $s3Config['upload_timeout'] ?? 300;
@@ -695,7 +699,7 @@ class VideoExtractionService
                     throw new \Exception("File upload appeared successful but file not found in storage: {$permanentPath}");
                 }
 
-                if (config('livestream-processing.log_s3_operations', true)) {
+                if (config('media-processing.log_s3_operations', true)) {
                     Log::info('File uploaded to permanent S3 storage', [
                         'local_path' => $localFilePath,
                         'permanent_path' => $permanentPath,
@@ -760,7 +764,7 @@ class VideoExtractionService
         try {
             if (file_exists($filePath)) {
                 unlink($filePath);
-                if (config('livestream-processing.log_s3_operations', true)) {
+                if (config('media-processing.log_s3_operations', true)) {
                     Log::debug('Temporary file cleaned up', ['file_path' => $filePath]);
                 }
             }
@@ -808,8 +812,8 @@ class VideoExtractionService
             'php_version' => PHP_VERSION,
             'memory_limit' => ini_get('memory_limit'),
             'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 1).'MB',
-            'ffmpeg_path' => config('livestream-processing.ffmpeg_path'),
-            'ffprobe_path' => config('livestream-processing.ffprobe_path'),
+            'ffmpeg_path' => config('media-processing.ffmpeg.ffmpeg_path'),
+            'ffprobe_path' => config('media-processing.ffmpeg.ffprobe_path'),
             'permanent_disk' => $this->permanentDisk,
             'permanent_disk_type' => $this->isS3Disk($this->permanentDisk) ? 's3' : 'local',
             'audio_path' => $this->audioPath,
@@ -870,12 +874,12 @@ class VideoExtractionService
         }
 
         // For storage paths, check all relevant disks
-        $tempDisk = config('livestream-processing.temp_disk');
+        $tempDisk = config('media-processing.storage.temp_disk');
         if (Storage::disk($tempDisk)->exists($inputPath)) {
             return true;
         }
 
-        $sermonDisk = config('livestream-processing.sermon_disk');
+        $sermonDisk = config('media-processing.storage.sermon_disk');
         if (Storage::disk($sermonDisk)->exists($inputPath)) {
             return true;
         }
@@ -894,7 +898,7 @@ class VideoExtractionService
         }
 
         // For storage paths, check all relevant disks
-        $tempDisk = config('livestream-processing.temp_disk');
+        $tempDisk = config('media-processing.storage.temp_disk');
         if (Storage::disk($tempDisk)->exists($inputPath)) {
             try {
                 return Storage::disk($tempDisk)->size($inputPath);
@@ -903,7 +907,7 @@ class VideoExtractionService
             }
         }
 
-        $sermonDisk = config('livestream-processing.sermon_disk');
+        $sermonDisk = config('media-processing.storage.sermon_disk');
         if (Storage::disk($sermonDisk)->exists($inputPath)) {
             try {
                 return Storage::disk($sermonDisk)->size($inputPath);
@@ -921,5 +925,17 @@ class VideoExtractionService
     private function getLocalFileSize(string $filePath): int
     {
         return file_exists($filePath) ? filesize($filePath) : 0;
+    }
+
+    /**
+     * Alias for extractOptimizedAudio for backward compatibility
+     * @deprecated Use extractOptimizedAudio instead
+     */
+    public function extractOptimizedAudioFromSegment(
+        string $inputVideoPath,
+        object $segment,
+        ?string $outputFilename = null
+    ): array {
+        return $this->extractOptimizedAudio($inputVideoPath, $segment, $outputFilename);
     }
 }
