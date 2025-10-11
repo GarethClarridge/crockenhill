@@ -127,6 +127,8 @@ class MediaUpload extends Component
 
     public function updatedMediaFile(): void
     {
+        // Just log that file was selected - don't validate yet
+        // Validation will happen in uploadMedia() where we have the actual file, not Livewire's broken temp reference
         if (!$this->mediaFile) {
             return;
         }
@@ -136,37 +138,6 @@ class MediaUpload extends Component
             'file_exists' => true,
             'file_name' => $this->mediaFile->getClientOriginalName(),
         ]);
-
-        try {
-            // Get dynamic rules for debugging
-            $rules = $this->getDynamicRules();
-            $messages = $this->getDynamicMessages();
-
-            $this->logInfo('MediaUpload: Validation rules', [
-                'rules' => $rules,
-                'messages' => $messages,
-            ]);
-
-            // Validate file immediately when uploaded with dynamic rules
-            $this->validateOnly('mediaFile', $rules, $messages);
-
-            $this->logInfo('MediaUpload: File validation passed');
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            $this->logError('MediaUpload: Validation failed', [
-                'errors' => $e->errors(),
-                'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
-                'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
-                'rules' => $this->getDynamicRules(),
-            ]);
-            throw $e;
-        } catch (\Exception $e) {
-            $this->logError('MediaUpload: Unexpected error during validation', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw $e;
-        }
     }
 
     protected function getDynamicRules(): array
