@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -11,6 +12,17 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Clean up orphaned segments that reference non-existent processing logs
+        DB::statement('
+            DELETE FROM livestream_segments
+            WHERE processing_id NOT IN (SELECT processing_id FROM media_processing_logs)
+        ');
+
+        DB::statement('
+            DELETE FROM livestream_segments
+            WHERE media_processing_log_id NOT IN (SELECT id FROM media_processing_logs)
+        ');
+
         Schema::table('livestream_segments', function (Blueprint $table) {
             // Drop old foreign keys that reference livestream_processing_logs
             $table->dropForeign(['processing_id']);
