@@ -197,6 +197,12 @@ class MediaUpload extends Component
             $tempFilePath = $this->mediaFile->store('temp/livewire-upload', 'local');
             $this->tempFilePath = $tempFilePath;
 
+            $this->logInfo('File stored to temp directory', [
+                'temp_file_path' => $tempFilePath,
+                'full_path' => storage_path('app/'.$tempFilePath),
+                'file_exists' => file_exists(storage_path('app/'.$tempFilePath)),
+            ]);
+
             // Call processing directly - simple and reliable
             $this->startProcessing();
 

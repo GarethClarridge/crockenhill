@@ -171,30 +171,33 @@ class VideoSegmentationService
 
         $lines = explode("\n", trim($logContent));
 
-        // Get total duration by using ffprobe (like the Python script)
+        // Get total duration from pts_time values
         $totalDuration = $this->getTotalDuration($logContent, $lines);
-
-        // Calculate frame duration dynamically (like Python script)
-        $frameDuration = $totalDuration / count($lines);
 
         $sections = [];
         $currentSection = null;
+        $currentTime = 0.0;
 
-        foreach ($lines as $i => $line) {
+        foreach ($lines as $line) {
+            // Extract pts_time from frame lines (format: "pts_time:1234.56")
+            if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $timeMatches)) {
+                $currentTime = (float) $timeMatches[1];
+                continue;
+            }
+
             // Parse RMS level from lavfi lines
             if (preg_match('/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/', $line, $rmsMatches)) {
                 $rmsLevel = $rmsMatches[1] === '-inf' ? -999.0 : (float) $rmsMatches[1];
-                $time = $i * $frameDuration; // Calculate time like Python script
 
                 if ($rmsLevel > $threshold) {
                     // Start a new loud section if none is active
                     if ($currentSection === null) {
-                        $currentSection = ['start' => $time, 'end' => null];
+                        $currentSection = ['start' => $currentTime, 'end' => null];
                     }
                 } else {
                     // End the current loud section if active
                     if ($currentSection !== null) {
-                        $currentSection['end'] = $time;
+                        $currentSection['end'] = $currentTime;
                         // Only add the section if it meets the minimum duration
                         if (($currentSection['end'] - $currentSection['start']) >= $minSectionDuration) {
                             $sections[] = $currentSection;
@@ -207,8 +210,7 @@ class VideoSegmentationService
 
         // Close any open section at end of file
         if ($currentSection !== null) {
-            $time = (count($lines) - 1) * $frameDuration;
-            $currentSection['end'] = $time;
+            $currentSection['end'] = $totalDuration;
             if (($currentSection['end'] - $currentSection['start']) >= $minSectionDuration) {
                 $sections[] = $currentSection;
             }
@@ -453,16 +455,20 @@ class VideoSegmentationService
     {
         $lines = explode("\n", trim($logContent));
         $rmsData = [];
-        $totalDuration = $this->getTotalDuration($logContent, $lines);
-        $frameDuration = $totalDuration / count($lines);
+        $currentTime = 0.0;
 
-        foreach ($lines as $i => $line) {
+        foreach ($lines as $line) {
+            // Extract pts_time from frame lines (format: "pts_time:1234.56")
+            if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $timeMatches)) {
+                $currentTime = (float) $timeMatches[1];
+                continue;
+            }
+
             if (preg_match('/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/', $line, $matches)) {
                 $rmsLevel = $matches[1] === '-inf' ? -999.0 : (float) $matches[1];
-                $time = $i * $frameDuration;
 
                 $rmsData[] = [
-                    'time' => $time,
+                    'time' => $currentTime,
                     'rms' => $rmsLevel,
                 ];
             }
