@@ -127,28 +127,43 @@ class MediaUpload extends Component
 
     public function updatedMediaFile(): void
     {
-        // File selected - just log it
-        // Server-side validation will happen on submit in uploadMedia()
-        // Client-side JS already validated file type and size for better UX
-
-        if (!$this->mediaFile) {
-            return;
-        }
+        $this->logInfo('MediaUpload: File uploaded', [
+            'media_type' => $this->mediaType,
+            'file_exists' => $this->mediaFile !== null,
+            'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
+            'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
+            'mime_type' => $this->mediaFile ? $this->mediaFile->getMimeType() : null,
+        ]);
 
         try {
-            $this->logInfo('MediaUpload: File selected', [
-                'media_type' => $this->mediaType,
-                'file_exists' => true,
-                'file_name' => $this->mediaFile->getClientOriginalName(),
-                'temp_path' => $this->mediaFile->path(),
-                'is_valid' => $this->mediaFile->isValid(),
+            // Get dynamic rules for debugging
+            $rules = $this->getDynamicRules();
+            $messages = $this->getDynamicMessages();
+
+            $this->logInfo('MediaUpload: Validation rules', [
+                'rules' => $rules,
+                'messages' => $messages,
             ]);
+
+            // Validate file immediately when uploaded with dynamic rules
+            $this->validateOnly('mediaFile', $rules, $messages);
+
+            $this->logInfo('MediaUpload: File validation passed');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->logError('MediaUpload: Validation failed', [
+                'errors' => $e->errors(),
+                'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
+                'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
+                'rules' => $this->getDynamicRules(),
+            ]);
+            throw $e;
         } catch (\Exception $e) {
-            // Silently catch errors during logging - don't break the upload
-            $this->logError('MediaUpload: Error logging file info', [
+            $this->logError('MediaUpload: Unexpected error during validation', [
                 'error' => $e->getMessage(),
-                'file_name' => $this->mediaFile->getClientOriginalName(),
+                'trace' => $e->getTraceAsString(),
             ]);
+            throw $e;
         }
     }
 
@@ -333,28 +348,12 @@ class MediaUpload extends Component
         }
     }
 
-    /**
-     * Public method to handle upload errors (called from JavaScript)
-     */
-    public function handleUploadError(string $message): void
+    private function handleUploadError(string $message): void
     {
-        $this->logError('Upload error received from client', [
-            'message' => $message,
-            'processing_id' => $this->processingId,
-            'media_type' => $this->mediaType,
-            'user_id' => Auth::id(),
-        ]);
-
         $this->status = 'failed';
         $this->errorMessage = $message;
         $this->showUploadForm = true;
         $this->showProcessingStatus = true;
-
-        // Also update the processing log if we have a processing ID
-        if ($this->processingId) {
-            $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
-            $log?->markAsFailed($message);
-        }
     }
 
     private function handleProcessingError(string $message): void

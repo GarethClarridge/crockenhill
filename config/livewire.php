@@ -65,7 +65,7 @@ return [
 
     'temporary_file_upload' => [
         'disk' => null,        // Example: 'local', 's3'              | Default: 'default'
-        'rules' => ['required', 'file', 'max:5242880'], // 5GB limit for video/livestream uploads (5GB = 5*1024*1024 KB)
+        'rules' => ['required', 'file', 'max:5368709120'], // 5GB limit for video/livestream uploads (5*1024*1024*1024)
         'directory' => null,   // Example: 'tmp'                      | Default: 'livewire-tmp'
         'middleware' => null,  // Example: 'throttle:5,1'             | Default: 'throttle:60,1'
         'preview_mimes' => [   // Supported file types for temporary pre-signed file URLs...

@@ -89,93 +89,14 @@
                             <p class="text-sm">Validating file...</p>
                         </div>
 
-                        <input
-                            wire:model.defer="mediaFile"
-                            type="file"
+                        <input 
+                            wire:model="mediaFile" 
+                            type="file" 
                             id="media-file"
-                            class="sr-only"
+                            class="sr-only" 
                             accept="{{ $mediaType === 'audio' ? '.mp3,.wav,.m4a' : '.mp4,.mov,.avi,.mkv' }}"
-                            onchange="
-                                const file = this.files[0];
-                                if (!file) return;
-
-                                console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
-
-                                // Check file size (5GB max)
-                                if (file.size > 5 * 1024 * 1024 * 1024) {
-                                    alert('File too large! Maximum size is 5GB.');
-                                    this.value = '';
-                                    return false;
-                                }
-
-                                // Check file extension (more reliable than MIME type for video files)
-                                const fileName = file.name.toLowerCase();
-                                const audioExtensions = ['.mp3', '.wav', '.m4a'];
-                                const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv'];
-                                const mediaType = '{{ $mediaType }}';
-
-                                if (mediaType === 'audio') {
-                                    if (!audioExtensions.some(ext => fileName.endsWith(ext))) {
-                                        alert('Invalid audio file type. Please select MP3, WAV, or M4A.');
-                                        this.value = '';
-                                        return false;
-                                    }
-                                }
-
-                                if (mediaType === 'video' || mediaType === 'livestream') {
-                                    if (!videoExtensions.some(ext => fileName.endsWith(ext))) {
-                                        alert('Invalid video file type. Please select MP4, MOV, AVI, or MKV.');
-                                        this.value = '';
-                                        return false;
-                                    }
-                                }
-                            "
+                            onchange="console.log('File selected:', this.files[0]?.name, 'Size:', this.files[0]?.size); if(this.files[0] && this.files[0].size > 5*1024*1024*1024) { alert('File too large! Max 5GB allowed.'); return false; }"
                         />
-
-                        {{-- Enhanced error handling for Livewire upload failures --}}
-                        <script>
-                            document.addEventListener('livewire:init', () => {
-                                // Capture upload errors and display them clearly
-                                Livewire.hook('request', ({ fail }) => {
-                                    fail(({ status, content, preventDefault }) => {
-                                        if (status === 422) {
-                                            preventDefault();
-
-                                            let errorMessage = 'Upload failed: ';
-
-                                            try {
-                                                const response = JSON.parse(content);
-                                                if (response.message) {
-                                                    errorMessage += response.message;
-                                                } else if (response.errors) {
-                                                    errorMessage += Object.values(response.errors).flat().join(', ');
-                                                } else {
-                                                    errorMessage += 'Validation failed (422). Check file size and format.';
-                                                }
-                                            } catch (e) {
-                                                errorMessage += 'Validation failed (422). This may be due to file size limits, server timeout, or invalid file format.';
-                                            }
-
-                                            console.error('Upload error details:', { status, content });
-                                            @this.call('handleUploadError', errorMessage);
-                                        }
-                                    });
-                                });
-
-                                // Log upload progress for debugging
-                                Livewire.hook('request', ({ options }) => {
-                                    if (options.url && options.url.includes('livewire/upload-file')) {
-                                        console.log('Livewire file upload started at', new Date().toISOString());
-                                        const startTime = Date.now();
-
-                                        options.onFinish = () => {
-                                            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-                                            console.log(`Livewire file upload completed in ${duration}s`);
-                                        };
-                                    }
-                                });
-                            });
-                        </script>
                         <label for="media-file" class="cursor-pointer">
                             <span class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200">
                                 Choose File
