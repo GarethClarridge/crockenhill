@@ -148,13 +148,8 @@ class VideoSegmentationService
         $threshold = $adaptiveThreshold ?? $this->rmsThreshold;
         $loudSections = $this->parseAudioSections($logContent, $threshold);
 
-        // Get total duration from the last timestamp
-        $totalDuration = 0.0;
-        foreach ($lines as $line) {
-            if (preg_match('/frame\.pts_time=(\d+\.\d+)/', $line, $matches)) {
-                $totalDuration = max($totalDuration, (float) $matches[1]);
-            }
-        }
+        // Get total duration from pts_time values (most accurate)
+        $totalDuration = $this->getTotalDuration($logContent, $lines);
 
         // Parse all RMS data for calculating actual segment averages
         $rmsData = $this->extractRmsData($logContent);
