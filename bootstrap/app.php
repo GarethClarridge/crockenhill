@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
             \App\Http\Middleware\TrimStrings::class, // Ensure this class exists and is correct
             \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+            \App\Http\Middleware\LogLivewireUploads::class, // Log Livewire upload requests/responses
         ]);
 
         // Middleware groups (replicated from old Kernel)

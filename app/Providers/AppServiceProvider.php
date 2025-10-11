@@ -12,11 +12,9 @@ use App\Services\MockTranscriptionService;
 use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 // use Laravel\Dusk\DuskServiceProvider;
 use Illuminate\Support\ServiceProvider;
-use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,40 +25,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        // Add detailed logging for Livewire file uploads
-        FileUploadConfiguration::hook('before-validation', function ($file, $rules) {
-            Log::info('Livewire upload: Before validation', [
-                'filename' => $file->getClientOriginalName(),
-                'size' => $file->getSize(),
-                'mime_type' => $file->getMimeType(),
-                'rules' => $rules,
-                'temp_path' => $file->getRealPath(),
-            ]);
-        });
-
-        FileUploadConfiguration::hook('after-validation', function ($file, $uploadedFilePath) {
-            Log::info('Livewire upload: After validation (SUCCESS)', [
-                'filename' => $file->getClientOriginalName(),
-                'uploaded_path' => $uploadedFilePath,
-            ]);
-        });
-
-        FileUploadConfiguration::hook('validation-failed', function ($file, $errors) {
-            Log::error('Livewire upload: Validation failed', [
-                'filename' => $file->getClientOriginalName(),
-                'size' => $file->getSize(),
-                'errors' => $errors,
-            ]);
-        });
-
-        FileUploadConfiguration::hook('upload-failed', function ($file, $exception) {
-            Log::error('Livewire upload: Upload failed', [
-                'filename' => $file ? $file->getClientOriginalName() : 'unknown',
-                'exception' => $exception->getMessage(),
-                'trace' => $exception->getTraceAsString(),
-            ]);
-        });
-
         // Register custom health checks for Laravel 12
         Event::listen(DiagnosingHealth::class, function () {
             // Run OpenAI health check
