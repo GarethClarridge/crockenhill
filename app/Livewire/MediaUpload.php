@@ -58,6 +58,8 @@ class MediaUpload extends Component
 
     public ?string $tempFilePath = null;
 
+    public ?string $originalFileName = null;
+
     public string $status = 'idle'; // idle, uploading, processing, completed, failed
 
     public string $currentStep = '';
@@ -168,6 +170,9 @@ class MediaUpload extends Component
         $this->validate($this->getDynamicRules(), $this->getDynamicMessages());
 
         try {
+            // Save original filename before we lose access to the file object
+            $this->originalFileName = $this->mediaFile->getClientOriginalName();
+
             // Hide upload form and show processing status section immediately
             $this->showUploadForm = false;
             $this->showProcessingStatus = true;
@@ -182,7 +187,7 @@ class MediaUpload extends Component
                 'processing_id' => $processingId,
                 'processing_type' => $this->mediaType,
                 'status' => ProcessingStatus::PENDING,
-                'original_filename' => $this->mediaFile->getClientOriginalName(),
+                'original_filename' => $this->originalFileName,
                 'current_step' => 'preparing',
             ]);
 
@@ -233,10 +238,24 @@ class MediaUpload extends Component
         try {
             // Reconstruct the uploaded file from stored temp file
             $fullTempPath = storage_path('app/'.$this->tempFilePath);
+
+            // Detect mime type from file extension since we can't rely on Livewire's temp file
+            $extension = pathinfo($this->originalFileName, PATHINFO_EXTENSION);
+            $mimeType = match(strtolower($extension)) {
+                'mp3' => 'audio/mpeg',
+                'wav' => 'audio/wav',
+                'm4a' => 'audio/mp4',
+                'mp4' => 'video/mp4',
+                'mov' => 'video/quicktime',
+                'avi' => 'video/x-msvideo',
+                'mkv' => 'video/x-matroska',
+                default => 'application/octet-stream',
+            };
+
             $originalFile = new \Illuminate\Http\UploadedFile(
                 $fullTempPath,
-                $this->mediaFile->getClientOriginalName(),
-                $this->mediaFile->getMimeType(),
+                $this->originalFileName,
+                $mimeType,
                 null,
                 true // Mark as test to avoid validation errors
             );
