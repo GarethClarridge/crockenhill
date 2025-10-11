@@ -127,12 +127,14 @@ class MediaUpload extends Component
 
     public function updatedMediaFile(): void
     {
+        if (!$this->mediaFile) {
+            return;
+        }
+
         $this->logInfo('MediaUpload: File uploaded', [
             'media_type' => $this->mediaType,
-            'file_exists' => $this->mediaFile !== null,
-            'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
-            'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
-            'mime_type' => $this->mediaFile ? $this->mediaFile->getMimeType() : null,
+            'file_exists' => true,
+            'file_name' => $this->mediaFile->getClientOriginalName(),
         ]);
 
         try {

@@ -74,7 +74,7 @@
                             
                             @if($mediaFile)
                                 <p class="text-sm text-gray-600 mb-2">File selected: <strong>{{ $mediaFile->getClientOriginalName() }}</strong></p>
-                                <p class="text-sm text-gray-500">Size: {{ number_format($mediaFile->getSize() / 1024 / 1024, 2) }} MB</p>
+                                <p class="text-sm text-gray-500">Ready to upload</p>
                             @else
                                 <p class="text-lg text-gray-600 mb-2">Drop your file here or click to browse</p>
                                 <p class="text-sm text-gray-500">Maximum file size: 5GB</p>
