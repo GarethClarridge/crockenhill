@@ -320,12 +320,28 @@ class MediaUpload extends Component
         }
     }
 
-    private function handleUploadError(string $message): void
+    /**
+     * Public method to handle upload errors (called from JavaScript)
+     */
+    public function handleUploadError(string $message): void
     {
+        $this->logError('Upload error received from client', [
+            'message' => $message,
+            'processing_id' => $this->processingId,
+            'media_type' => $this->mediaType,
+            'user_id' => Auth::id(),
+        ]);
+
         $this->status = 'failed';
         $this->errorMessage = $message;
         $this->showUploadForm = true;
         $this->showProcessingStatus = true;
+
+        // Also update the processing log if we have a processing ID
+        if ($this->processingId) {
+            $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
+            $log?->markAsFailed($message);
+        }
     }
 
     private function handleProcessingError(string $message): void

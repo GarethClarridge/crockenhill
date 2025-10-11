@@ -131,6 +131,51 @@
                                 }
                             "
                         />
+
+                        {{-- Enhanced error handling for Livewire upload failures --}}
+                        <script>
+                            document.addEventListener('livewire:init', () => {
+                                // Capture upload errors and display them clearly
+                                Livewire.hook('request', ({ fail }) => {
+                                    fail(({ status, content, preventDefault }) => {
+                                        if (status === 422) {
+                                            preventDefault();
+
+                                            let errorMessage = 'Upload failed: ';
+
+                                            try {
+                                                const response = JSON.parse(content);
+                                                if (response.message) {
+                                                    errorMessage += response.message;
+                                                } else if (response.errors) {
+                                                    errorMessage += Object.values(response.errors).flat().join(', ');
+                                                } else {
+                                                    errorMessage += 'Validation failed (422). Check file size and format.';
+                                                }
+                                            } catch (e) {
+                                                errorMessage += 'Validation failed (422). This may be due to file size limits, server timeout, or invalid file format.';
+                                            }
+
+                                            console.error('Upload error details:', { status, content });
+                                            @this.call('handleUploadError', errorMessage);
+                                        }
+                                    });
+                                });
+
+                                // Log upload progress for debugging
+                                Livewire.hook('request', ({ options }) => {
+                                    if (options.url && options.url.includes('livewire/upload-file')) {
+                                        console.log('Livewire file upload started at', new Date().toISOString());
+                                        const startTime = Date.now();
+
+                                        options.onFinish = () => {
+                                            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                                            console.log(`Livewire file upload completed in ${duration}s`);
+                                        };
+                                    }
+                                });
+                            });
+                        </script>
                         <label for="media-file" class="cursor-pointer">
                             <span class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200">
                                 Choose File
