@@ -130,13 +130,26 @@ class MediaUpload extends Component
         // File selected - just log it
         // Server-side validation will happen on submit in uploadMedia()
         // Client-side JS already validated file type and size for better UX
-        $this->logInfo('MediaUpload: File selected', [
-            'media_type' => $this->mediaType,
-            'file_exists' => $this->mediaFile !== null,
-            'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
-            'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
-            'mime_type' => $this->mediaFile ? $this->mediaFile->getMimeType() : null,
-        ]);
+
+        if (!$this->mediaFile) {
+            return;
+        }
+
+        try {
+            $this->logInfo('MediaUpload: File selected', [
+                'media_type' => $this->mediaType,
+                'file_exists' => true,
+                'file_name' => $this->mediaFile->getClientOriginalName(),
+                'temp_path' => $this->mediaFile->path(),
+                'is_valid' => $this->mediaFile->isValid(),
+            ]);
+        } catch (\Exception $e) {
+            // Silently catch errors during logging - don't break the upload
+            $this->logError('MediaUpload: Error logging file info', [
+                'error' => $e->getMessage(),
+                'file_name' => $this->mediaFile->getClientOriginalName(),
+            ]);
+        }
     }
 
     protected function getDynamicRules(): array
