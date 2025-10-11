@@ -6,12 +6,44 @@ $app = require_once __DIR__.'/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use App\Services\VideoSegmentationService;
+use Illuminate\Support\Facades\Storage;
 
 // Path to the existing RMS log
 $rmsLogPath = 'temp/rms_1308d893-2dfb-41e5-a9b6-0e1206f8980c.log';
 
 echo "Testing segmentation fix with existing RMS log...\n";
-echo "RMS Log: {$rmsLogPath}\n\n";
+echo "RMS Log: {$rmsLogPath}\n";
+
+// Debug: Check file stats
+$fullPath = Storage::disk('local')->path($rmsLogPath);
+if (file_exists($fullPath)) {
+    $lines = file($fullPath);
+    $totalLines = count($lines);
+    $frameLines = 0;
+    $rmsLines = 0;
+    $lastPtsTime = 0;
+
+    foreach ($lines as $line) {
+        if (preg_match('/^frame:/', $line)) {
+            $frameLines++;
+        }
+        if (preg_match('/RMS_level=/', $line)) {
+            $rmsLines++;
+        }
+        if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $matches)) {
+            $lastPtsTime = max($lastPtsTime, (float)$matches[1]);
+        }
+    }
+
+    echo "Debug Info:\n";
+    echo "  Total lines: {$totalLines}\n";
+    echo "  Frame lines: {$frameLines}\n";
+    echo "  RMS lines: {$rmsLines}\n";
+    echo "  Last pts_time found: {$lastPtsTime}s (" . round($lastPtsTime/60, 1) . "m)\n\n";
+} else {
+    echo "ERROR: File not found at {$fullPath}\n";
+    exit(1);
+}
 
 $segmentationService = new VideoSegmentationService();
 
