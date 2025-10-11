@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Contracts;
 
+use App\Data\StandardProcessingResponse;
 use App\Services\ProcessingResult;
-use App\Services\ProcessingStatusResult;
 use Illuminate\Http\UploadedFile;
 
 /**
@@ -29,7 +29,7 @@ interface SermonProcessingServiceInterface
     /**
      * Get the current processing status for a given processing ID
      */
-    public function getProcessingStatus(string $processingId): ProcessingStatusResult;
+    public function getProcessingStatus(string $processingId): StandardProcessingResponse;
 
     /**
      * Cancel processing operation

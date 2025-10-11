@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\ProcessingStatus;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\SermonProcessingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -238,7 +238,7 @@ class AutomatedSermonApiTest extends TestCase
     {
         // Create processing log
         $processingId = (string) Str::uuid();
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => 'test-sermon.mp3',
             'status' => ProcessingStatus::PROCESSING,
@@ -316,7 +316,7 @@ class AutomatedSermonApiTest extends TestCase
 
         // Create failed processing log with required fields
         $processingId = (string) Str::uuid();
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => 'failed-sermon.mp3',
             'status' => ProcessingStatus::FAILED,
@@ -345,7 +345,7 @@ class AutomatedSermonApiTest extends TestCase
             ]);
 
             // Verify processing log was reset to retry transcription
-            $this->assertDatabaseHas('sermon_processing_logs', [
+            $this->assertDatabaseHas('media_processing_logs', [
                 'processing_id' => $processingId,
                 'status' => ProcessingStatus::PENDING->value,
                 'current_step' => 'transcribing_audio_failed',
@@ -358,7 +358,7 @@ class AutomatedSermonApiTest extends TestCase
     {
         // Create processing log that's not failed
         $processingId = (string) Str::uuid();
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => 'active-sermon.mp3',
             'status' => ProcessingStatus::PROCESSING,

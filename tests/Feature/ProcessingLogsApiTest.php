@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\ProcessingStatus;
-use App\Models\LivestreamProcessingLog;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -73,7 +72,7 @@ class ProcessingLogsApiTest extends TestCase
         $processingId = Str::uuid()->toString();
 
         // Create a sermon processing log
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -158,7 +157,7 @@ class ProcessingLogsApiTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -214,7 +213,7 @@ class ProcessingLogsApiTest extends TestCase
         $processingId = Str::uuid()->toString();
 
         // Create a livestream processing log
-        LivestreamProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => 'livestream.mp4',
             'original_file_path' => '/tmp/livestream.mp4',
@@ -280,7 +279,7 @@ class ProcessingLogsApiTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -305,7 +304,7 @@ class ProcessingLogsApiTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -341,14 +340,14 @@ class ProcessingLogsApiTest extends TestCase
         $processingId1 = Str::uuid()->toString();
         $processingId2 = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId1,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
             'original_filename' => 'test1.mp3',
         ]);
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId2,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -381,7 +380,7 @@ class ProcessingLogsApiTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -430,7 +429,7 @@ class ProcessingLogsApiTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,

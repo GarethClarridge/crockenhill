@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire;
 
 use App\Enums\ProcessingStatus;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\ProcessingRouter;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -205,16 +205,12 @@ class MediaUpload extends Component
 
             // Create a processing record first to get the ID for polling
             $processingId = Str::uuid()->toString();
-            $log = SermonProcessingLog::create([
+            $log = MediaProcessingLog::create([
                 'processing_id' => $processingId,
-                'source_type' => $this->mediaType,
+                'processing_type' => $this->mediaType,
                 'status' => ProcessingStatus::PENDING,
                 'original_filename' => $this->mediaFile->getClientOriginalName(),
                 'current_step' => 'preparing',
-                'source_metadata' => [
-                    'file_size' => $this->mediaFile->getSize(),
-                    'mime_type' => $this->mediaFile->getMimeType(),
-                ],
             ]);
 
             $this->processingId = $processingId;
@@ -273,7 +269,7 @@ class MediaUpload extends Component
             );
 
             // Get the log record
-            $log = SermonProcessingLog::where('processing_id', $this->processingId)->first();
+            $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
 
             // Start the actual processing
             $processor = app(\App\Services\UnifiedMediaProcessor::class);
@@ -312,20 +308,8 @@ class MediaUpload extends Component
             ]);
 
             if ($this->processingId) {
-                // Check both processing log types based on media type
-                if ($this->mediaType === 'livestream') {
-                    $log = \App\Models\LivestreamProcessingLog::where('processing_id', $this->processingId)->first();
-                    if ($log) {
-                        $log->update([
-                            'status' => 'failed',
-                            'error_message' => 'Processing failed: ' . $e->getMessage(),
-                        ]);
-                    }
-                } else {
-                    // For audio and video types, use SermonProcessingLog
-                    $log = SermonProcessingLog::where('processing_id', $this->processingId)->first();
-                    $log?->markAsFailed('Processing failed: '.$e->getMessage());
-                }
+                $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
+                $log?->markAsFailed('Processing failed: '.$e->getMessage());
             }
         }
     }

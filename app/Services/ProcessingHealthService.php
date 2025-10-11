@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Contracts\ProcessingHealthServiceInterface;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -24,12 +24,12 @@ class ProcessingHealthService implements ProcessingHealthServiceInterface
     {
         try {
             $stats = [
-                'total_processed' => SermonProcessingLog::count(),
-                'completed' => SermonProcessingLog::completed()->count(),
-                'failed' => SermonProcessingLog::failed()->count(),
-                'in_progress' => SermonProcessingLog::processing()->count(),
-                'pending' => SermonProcessingLog::pending()->count(),
-                'recent_activity' => SermonProcessingLog::recent()
+                'total_processed' => MediaProcessingLog::count(),
+                'completed' => MediaProcessingLog::completed()->count(),
+                'failed' => MediaProcessingLog::failed()->count(),
+                'in_progress' => MediaProcessingLog::processing()->count(),
+                'pending' => MediaProcessingLog::pending()->count(),
+                'recent_activity' => MediaProcessingLog::recent()
                     ->with('sermon')
                     ->orderBy('created_at', 'desc')
                     ->limit(10)
@@ -114,11 +114,11 @@ class ProcessingHealthService implements ProcessingHealthServiceInterface
     {
         try {
             // Check if there are jobs stuck in processing for too long
-            $stuckJobs = SermonProcessingLog::processing()
+            $stuckJobs = MediaProcessingLog::processing()
                 ->where('updated_at', '<', now()->subHours(2))
                 ->count();
 
-            $pendingJobs = SermonProcessingLog::pending()->count();
+            $pendingJobs = MediaProcessingLog::pending()->count();
 
             $status = 'healthy';
             $issues = [];
@@ -205,10 +205,9 @@ class ProcessingHealthService implements ProcessingHealthServiceInterface
     {
         try {
             // Check success rate over last 24 hours
-            $recentLogs = SermonProcessingLog::where('created_at', '>=', now()->subDay());
-            $totalRecent = $recentLogs->count();
-            $completedRecent = $recentLogs->completed()->count();
-            $failedRecent = $recentLogs->failed()->count();
+            $totalRecent = MediaProcessingLog::where('created_at', '>=', now()->subDay())->count();
+            $completedRecent = MediaProcessingLog::where('created_at', '>=', now()->subDay())->completed()->count();
+            $failedRecent = MediaProcessingLog::where('created_at', '>=', now()->subDay())->failed()->count();
 
             $successRate = $totalRecent > 0 ? ($completedRecent / $totalRecent) * 100 : 100;
 

@@ -149,7 +149,7 @@ abstract class ProcessingJob
             return null;
         }
 
-        /** @var \App\Models\SermonProcessingLog|null $processingLog */
+        /** @var \App\Models\MediaProcessingLog|null $processingLog */
         $processingLog = $sermon->processingLogs()->latest()->first();
 
         return $processingLog?->processing_id;

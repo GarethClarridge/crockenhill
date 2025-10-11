@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -30,7 +30,7 @@ class SendCompletionNotification implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        private SermonProcessingLog $processingLog
+        private MediaProcessingLog $processingLog
     ) {}
 
     /**
@@ -91,7 +91,7 @@ class SendCompletionNotification implements ShouldQueue
     /**
      * Prepare notification data
      */
-    private function prepareNotificationData(?Sermon $sermon, SermonProcessingLog $processingLog): array
+    private function prepareNotificationData(?Sermon $sermon, MediaProcessingLog $processingLog): array
     {
         $sermonUrl = $sermon ? url("/christ/sermons/{$sermon->slug}") : null;
         $adminUrl = $sermon ? url("/admin/sermons/{$sermon->id}") : null;
@@ -141,7 +141,7 @@ class SendCompletionNotification implements ShouldQueue
     /**
      * Get items that may require manual review
      */
-    private function getReviewItems(Sermon $sermon, SermonProcessingLog $processingLog): array
+    private function getReviewItems(Sermon $sermon, MediaProcessingLog $processingLog): array
     {
         $reviewItems = [];
 

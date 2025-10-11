@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
@@ -23,8 +23,8 @@ class SermonMetadataIntegrationService
      */
     public function linkVideoToSermon(string $processingId, int $sermonId, string $finalVideoPath): void
     {
-        /** @var \App\Models\LivestreamProcessingLog $processing */
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->firstOrFail();
+        /** @var \App\Models\MediaProcessingLog $processing */
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->firstOrFail();
         $sermon = Sermon::findOrFail($sermonId);
 
         // Update sermon record with livestream information using data from processing log
@@ -36,8 +36,11 @@ class SermonMetadataIntegrationService
             'segment_end_time' => $processing->sermon_end_time,
         ]);
 
-        // Update processing log with sermon link
-        $processing->update(['sermon_id' => $sermonId]);
+        // Update processing log with sermon link AND final video path for thumbnail generation
+        $processing->update([
+            'sermon_id' => $sermonId,
+            'video_file_path' => $finalVideoPath,  // Update to permanent path for thumbnail job
+        ]);
 
         Log::info('Successfully linked video to sermon', [
             'processing_id' => $processingId,
@@ -76,16 +79,16 @@ class SermonMetadataIntegrationService
     private function extractSermonVideo(string $processingId): ?string
     {
         // First check if the processing log already has the sermon video path
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
 
-        if ($processing && $processing->sermon_video_path) {
+        if ($processing && $processing->video_file_path) {
             // The path from ExtractSermon job is now a relative path, check temp disk first
             $tempDisk = config('media-processing.storage.temp_disk', 'local');
-            if (Storage::disk($tempDisk)->exists($processing->sermon_video_path)) {
-                $absolutePath = Storage::disk($tempDisk)->path($processing->sermon_video_path);
+            if (Storage::disk($tempDisk)->exists($processing->video_file_path)) {
+                $absolutePath = Storage::disk($tempDisk)->path($processing->video_file_path);
                 Log::debug('Found sermon video on temp disk', [
                     'processing_id' => $processingId,
-                    'relative_path' => $processing->sermon_video_path,
+                    'relative_path' => $processing->video_file_path,
                     'absolute_path' => $absolutePath,
                 ]);
 
@@ -94,11 +97,11 @@ class SermonMetadataIntegrationService
 
             // Fallback: check if it's already been moved to sermon disk
             $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
-            if (Storage::disk($sermonDisk)->exists($processing->sermon_video_path)) {
-                $absolutePath = Storage::disk($sermonDisk)->path($processing->sermon_video_path);
+            if (Storage::disk($sermonDisk)->exists($processing->video_file_path)) {
+                $absolutePath = Storage::disk($sermonDisk)->path($processing->video_file_path);
                 Log::debug('Found sermon video on sermon disk', [
                     'processing_id' => $processingId,
-                    'relative_path' => $processing->sermon_video_path,
+                    'relative_path' => $processing->video_file_path,
                     'absolute_path' => $absolutePath,
                 ]);
 
@@ -107,7 +110,7 @@ class SermonMetadataIntegrationService
 
             Log::warning('Sermon video path in processing log does not exist', [
                 'processing_id' => $processingId,
-                'relative_path' => $processing->sermon_video_path,
+                'relative_path' => $processing->video_file_path,
                 'checked_temp_disk' => $tempDisk,
                 'checked_sermon_disk' => $sermonDisk,
             ]);
@@ -142,7 +145,7 @@ class SermonMetadataIntegrationService
 
         Log::warning('No sermon video found in any location', [
             'processing_id' => $processingId,
-            'processing_log_path' => $processing?->sermon_video_path,
+            'processing_log_path' => $processing?->video_file_path,
             'fallback_temp_path' => $tempPath,
         ]);
 

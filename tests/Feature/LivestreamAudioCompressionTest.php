@@ -2,8 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractSermon;
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -35,11 +36,11 @@ class LivestreamAudioCompressionTest extends TestCase
         Queue::fake();
 
         // Create a processing log with sermon segment times
-        $processingLog = LivestreamProcessingLog::factory()->create([
+        $processingLog = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-123',
             'sermon_start_time' => 300.0, // 5 minutes
             'sermon_end_time' => 3600.0,   // 1 hour
-            'original_file_path' => 'test-video.mp4',
+            'video_file_path' => 'test-video.mp4',
         ]);
 
         // Create a mock video file in storage
@@ -60,9 +61,9 @@ class LivestreamAudioCompressionTest extends TestCase
     public function test_processing_log_stores_compression_metadata(): void
     {
         // Create a processing log
-        $processingLog = LivestreamProcessingLog::factory()->create([
+        $processingLog = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-compression-metadata',
-            'status' => 'extraction_complete',
+            'status' => ProcessingStatus::PROCESSING,
         ]);
 
         // Simulate updating with compression metadata

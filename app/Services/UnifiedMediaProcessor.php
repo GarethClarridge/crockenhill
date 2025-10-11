@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Data\StandardProcessingResponse;
-use App\Services\ProcessingStatusResult;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 
@@ -45,17 +44,13 @@ class UnifiedMediaProcessor
 
     public function getStatus(string $processingId): StandardProcessingResponse
     {
-        // Try sermon processing first
-        if (\App\Models\SermonProcessingLog::where('processing_id', $processingId)->exists()) {
-            return $this->convertToStandardResponse($this->sermonService->getProcessingStatus($processingId));
+        $log = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
+
+        if (!$log) {
+            return StandardProcessingResponse::notFound();
         }
 
-        // Then try livestream processing
-        if (\App\Models\LivestreamProcessingLog::where('processing_id', $processingId)->exists()) {
-            return $this->convertLivestreamToStandardResponse($this->videoService->getProcessingStatus($processingId));
-        }
-
-        return StandardProcessingResponse::notFound();
+        return StandardProcessingResponse::fromProcessingLog($log);
     }
 
     public function getStatusWithLogs(string $processingId, bool $includeLogs = false, int $logLimit = 20): StandardProcessingResponse
@@ -90,61 +85,66 @@ class UnifiedMediaProcessor
 
     public function cancel(string $processingId): array
     {
-        // Try both processing types
-        if (\App\Models\SermonProcessingLog::where('processing_id', $processingId)->exists()) {
-            $result = $this->sermonService->cancelProcessing($processingId);
-            return [
-                'success' => $result,
-                'message' => $result ? 'Sermon processing cancelled successfully' : 'Failed to cancel sermon processing',
-            ];
+        $log = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
+
+        if (!$log) {
+            return ['success' => false, 'message' => 'Processing ID not found'];
         }
 
-        if (\App\Models\LivestreamProcessingLog::where('processing_id', $processingId)->exists()) {
-            $result = $this->videoService->cancelProcessing($processingId);
-            return [
-                'success' => $result,
-                'message' => $result ? 'Livestream processing cancelled successfully' : 'Failed to cancel livestream processing',
-            ];
-        }
+        $result = match($log->processing_type) {
+            'audio', 'video' => $this->sermonService->cancelProcessing($processingId),
+            'livestream' => $this->videoService->cancelProcessing($processingId),
+            default => false,
+        };
 
-        return ['success' => false, 'message' => 'Processing ID not found'];
+        return [
+            'success' => $result,
+            'message' => $result ? 'Processing cancelled successfully' : 'Failed to cancel processing',
+        ];
     }
 
     public function retry(string $processingId): ProcessingResult
     {
-        if (\App\Models\SermonProcessingLog::where('processing_id', $processingId)->exists()) {
-            return $this->sermonService->retryProcessing($processingId);
-        }
+        $log = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
 
-        if (\App\Models\LivestreamProcessingLog::where('processing_id', $processingId)->exists()) {
-            $livestreamResult = $this->videoService->retryProcessing($processingId);
-
-            // Convert LivestreamProcessingResult to ProcessingResult for compatibility
-            if ($livestreamResult->errorMessage) {
-                return ProcessingResult::failure(
-                    processingId: $livestreamResult->processingId,
-                    message: $livestreamResult->errorMessage,
-                    errorCode: 'RETRY_FAILED'
-                );
-            }
-
-            return ProcessingResult::success(
-                processingId: $livestreamResult->processingId,
-                message: 'Livestream processing retry initiated successfully'
+        if (!$log) {
+            return ProcessingResult::failure(
+                processingId: $processingId,
+                message: 'Processing ID not found for retry',
+                errorCode: 'NOT_FOUND'
             );
         }
 
-        return ProcessingResult::failure(
-            processingId: $processingId,
-            message: 'Processing ID not found for retry',
-            errorCode: 'NOT_FOUND'
+        return match($log->processing_type) {
+            'audio', 'video' => $this->sermonService->retryProcessing($processingId),
+            'livestream' => $this->convertLivestreamRetryResult($this->videoService->retryProcessing($processingId)),
+            default => ProcessingResult::failure(
+                processingId: $processingId,
+                message: "Unknown processing type: {$log->processing_type}",
+                errorCode: 'UNKNOWN_TYPE'
+            ),
+        };
+    }
+
+    private function convertLivestreamRetryResult(\App\Data\LivestreamProcessingResult $livestreamResult): ProcessingResult
+    {
+        if ($livestreamResult->errorMessage) {
+            return ProcessingResult::failure(
+                processingId: $livestreamResult->processingId,
+                message: $livestreamResult->errorMessage,
+                errorCode: 'RETRY_FAILED'
+            );
+        }
+
+        return ProcessingResult::success(
+            processingId: $livestreamResult->processingId,
+            message: 'Livestream processing retry initiated successfully'
         );
     }
 
     public function canHandle(string $processingId): bool
     {
-        return \App\Models\SermonProcessingLog::where('processing_id', $processingId)->exists() ||
-               \App\Models\LivestreamProcessingLog::where('processing_id', $processingId)->exists();
+        return \App\Models\MediaProcessingLog::where('processing_id', $processingId)->exists();
     }
 
     /**
@@ -159,11 +159,12 @@ class UnifiedMediaProcessor
             // Store video file temporarily
             $tempPath = $file->store('temp/video-processing');
 
-            // Create sermon processing log (NOT livestream processing log)
-            $processingLog = \App\Models\SermonProcessingLog::create([
+            // Create media processing log
+            $processingLog = \App\Models\MediaProcessingLog::create([
                 'processing_id' => $processingId,
+                'processing_type' => 'video',
                 'original_filename' => $file->getClientOriginalName(),
-                'stored_file_path' => $tempPath,
+                'source_file_path' => $tempPath,
                 'status' => \App\Enums\ProcessingStatus::PENDING,
                 'current_step' => 'video_processing_initiated',
             ]);
@@ -196,57 +197,4 @@ class UnifiedMediaProcessor
         }
     }
 
-    /**
-     * Convert sermon processing status to StandardProcessingResponse
-     */
-    private function convertToStandardResponse(ProcessingStatusResult $sermonStatus): StandardProcessingResponse
-    {
-        if (!$sermonStatus->found) {
-            return StandardProcessingResponse::notFound();
-        }
-
-        $additionalData = [];
-
-        // Include thumbnail information if sermon exists
-        if ($sermonStatus->sermonId) {
-            $sermon = \App\Models\Sermon::find($sermonStatus->sermonId);
-            if ($sermon) {
-                $additionalData['thumbnail_generated'] = !empty($sermon->thumbnail_path);
-                $additionalData['thumbnail_url'] = $sermon->thumbnail_url;
-                $additionalData['thumbnail_generated_at'] = $sermon->thumbnail_generated_at?->toISOString();
-            }
-        }
-
-        return StandardProcessingResponse::fromProcessingStatus(
-            processingId: $sermonStatus->processingId,
-            status: $sermonStatus->status->value,
-            currentStep: $sermonStatus->currentStep,
-            progressPercentage: 0, // ProcessingStatusResult doesn't include progress
-            errorMessage: $sermonStatus->errorMessage,
-            sermonId: $sermonStatus->sermonId,
-            sermonUrl: $sermonStatus->sermonSlug ? "/christ/sermons/{$sermonStatus->sermonSlug}" : null,
-            startedAt: $sermonStatus->createdAt,
-            updatedAt: $sermonStatus->updatedAt,
-            additionalData: $additionalData
-        );
-    }
-
-    /**
-     * Convert livestream processing status to StandardProcessingResponse
-     */
-    private function convertLivestreamToStandardResponse(\App\Data\LivestreamProcessingStatus $livestreamStatus): StandardProcessingResponse
-    {
-        return StandardProcessingResponse::fromProcessingStatus(
-            processingId: $livestreamStatus->processingId,
-            status: $livestreamStatus->status,
-            currentStep: $livestreamStatus->currentStep,
-            progressPercentage: $livestreamStatus->progressPercentage,
-            errorMessage: $livestreamStatus->errorMessage,
-            estimatedCompletion: $livestreamStatus->estimatedCompletionTime,
-            additionalData: [
-                'step_details' => $livestreamStatus->stepDetails,
-                'processing_stats' => $livestreamStatus->processingStats,
-            ]
-        );
-    }
 }

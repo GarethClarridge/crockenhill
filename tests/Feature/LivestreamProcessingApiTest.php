@@ -2,7 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\LivestreamProcessingLog;
+use App\Enums\ProcessingStatus;
+use App\Models\MediaProcessingLog;
 use App\Models\LivestreamSegment;
 use App\Models\Sermon;
 use App\Models\User;
@@ -57,35 +58,33 @@ class LivestreamProcessingApiTest extends TestCase
             if ($processingId === '12345678-1234-1234-1234-123456789abc') {
                 return \App\Data\StandardProcessingResponse::found(
                     processingId: $processingId,
-                    status: 'segmenting',
+                    status: 'processing',
                     currentStep: 'video_analysis',
                     progressPercentage: 50
                 );
             }
 
             // For dynamic test IDs, check the database
-            $livestreamLog = \App\Models\LivestreamProcessingLog::where('processing_id', $processingId)->first();
+            $livestreamLog = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
             if ($livestreamLog) {
                 $progressMap = [
                     'pending' => 0,
-                    'processing' => 25,
-                    'segmenting' => 50,
-                    'extraction_complete' => 75,
+                    'processing' => 50,
                     'completed' => 100,
                     'failed' => 0,
                 ];
 
                 $additionalData = [];
-                // Include sermon_video_path if it exists
-                if ($livestreamLog->sermon_video_path) {
-                    $additionalData['sermon_video_path'] = $livestreamLog->sermon_video_path;
+                // Include video_file_path if it exists
+                if ($livestreamLog->video_file_path) {
+                    $additionalData['video_file_path'] = $livestreamLog->video_file_path;
                 }
 
                 return \App\Data\StandardProcessingResponse::found(
                     processingId: $processingId,
-                    status: $livestreamLog->status,
+                    status: $livestreamLog->status->value,
                     currentStep: $livestreamLog->current_step ?? 'processing',
-                    progressPercentage: $progressMap[$livestreamLog->status] ?? 0,
+                    progressPercentage: $progressMap[$livestreamLog->status->value] ?? 0,
                     sermonId: $livestreamLog->sermon_id,
                     additionalData: $additionalData
                 );
@@ -229,9 +228,10 @@ class LivestreamProcessingApiTest extends TestCase
         $user = User::factory()->create();
 
         // Create a simple processing record for testing
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => '12345678-1234-1234-1234-123456789abc',
-            'status' => 'segmenting',
+            'status' => ProcessingStatus::PROCESSING,
+            'current_step' => 'video_analysis',
             'original_filename' => 'test-video.mp4',
         ]);
 
@@ -249,7 +249,7 @@ class LivestreamProcessingApiTest extends TestCase
             ->assertJson([
                 'found' => true,
                 'processing_id' => '12345678-1234-1234-1234-123456789abc',
-                'status' => 'segmenting',
+                'status' => 'processing',
             ]);
     }
 
@@ -265,7 +265,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_get_processing_status_requires_authentication()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => '12345678-1234-1234-1234-123456789abc',
         ]);
 
@@ -280,19 +280,17 @@ class LivestreamProcessingApiTest extends TestCase
 
         // Test different statuses and their expected progress
         $testCases = [
-            'pending' => 0,
-            'processing' => 25,
-            'segmenting' => 50,
-            'extraction_complete' => 75,
-            'completed' => 100,
-            'failed' => 0,
+            ['status' => ProcessingStatus::PENDING, 'progress' => 0],
+            ['status' => ProcessingStatus::PROCESSING, 'progress' => 50],
+            ['status' => ProcessingStatus::COMPLETED, 'progress' => 100],
+            ['status' => ProcessingStatus::FAILED, 'progress' => 0],
         ];
 
-        foreach ($testCases as $status => $expectedProgress) {
+        foreach ($testCases as $testCase) {
             $processingId = \Illuminate\Support\Str::uuid();
-            $processing = LivestreamProcessingLog::factory()->create([
+            $processing = MediaProcessingLog::factory()->create([
                 'processing_id' => $processingId,
-                'status' => $status,
+                'status' => $testCase['status'],
             ]);
 
             $response = $this->actingAs($user)
@@ -301,8 +299,8 @@ class LivestreamProcessingApiTest extends TestCase
             $response->assertStatus(200)
                 ->assertJson([
                     'processing_id' => $processingId,
-                    'status' => $status,
-                    'progress_percentage' => $expectedProgress,
+                    'status' => $testCase['status']->value,
+                    'progress_percentage' => $testCase['progress'],
                 ]);
         }
     }
@@ -312,11 +310,11 @@ class LivestreamProcessingApiTest extends TestCase
         $user = User::factory()->create();
 
         $sermon = Sermon::factory()->create();
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => '12345678-1234-1234-1234-123456789def',
-            'status' => 'completed',
+            'status' => ProcessingStatus::COMPLETED,
             'sermon_id' => $sermon->id,
-            'sermon_video_path' => 'sermons/1/video.mp4',
+            'video_file_path' => 'sermons/1/video.mp4',
         ]);
 
         // Mock that a video file exists
@@ -329,14 +327,14 @@ class LivestreamProcessingApiTest extends TestCase
             ->assertJsonStructure([
                 'processing_id',
                 'status',
-                'sermon_video_path',
+                'video_file_path',
             ])
             ->assertJson([
                 'processing_id' => '12345678-1234-1234-1234-123456789def',
                 'status' => 'completed',
             ]);
 
-        $this->assertNotNull($response->json('sermon_video_path'));
+        $this->assertNotNull($response->json('video_file_path'));
     }
 
     public function test_processing_status_current_step_detection()
@@ -344,7 +342,7 @@ class LivestreamProcessingApiTest extends TestCase
         $user = User::factory()->create();
 
         $processingId = \Illuminate\Support\Str::uuid();
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => $processingId,
             'status' => 'processing',
         ]);

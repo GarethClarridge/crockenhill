@@ -43,7 +43,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         // Create a sermon
         $sermon = Sermon::factory()->create([
             'title' => 'Integration Test Sermon',
-            'filename' => 'test-sermon.mp4',
+            'audio_file_path' => 'test-sermon.mp4',
             'filetype' => 'mp4',
         ]);
 
@@ -157,7 +157,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
 
         // Create a sermon
         $sermon = Sermon::factory()->create([
-            'filename' => 'specific-test-sermon.mp4',
+            'audio_file_path' => 'specific-test-sermon.mp4',
         ]);
 
         // Get the video processing service
@@ -189,7 +189,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
 
             // Create a sermon
             $sermon = Sermon::factory()->create([
-                'filename' => "test-sermon.{$format}",
+                'audio_file_path' => "test-sermon.{$format}",
                 'filetype' => $format,
             ]);
 
@@ -225,7 +225,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
 
             $sermon = Sermon::factory()->create([
                 'title' => "Concurrent Test Sermon {$i}",
-                'filename' => "concurrent-test-{$i}.mp4",
+                'audio_file_path' => "concurrent-test-{$i}.mp4",
             ]);
 
             $sermons[] = $sermon;
@@ -272,7 +272,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
 
             // Create a sermon
             $sermon = Sermon::factory()->create([
-                'filename' => 'storage-test.mp4',
+                'audio_file_path' => 'storage-test.mp4',
             ]);
 
             // Get the video processing service

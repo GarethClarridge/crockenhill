@@ -15,10 +15,10 @@ class SermonStorageService
     public function getSermonFileInfo(Sermon $sermon): array
     {
         // Determine which storage pattern this sermon uses
-        if ($sermon->filetype && ! str_contains($sermon->filename, '/')) {
+        if ($sermon->filetype && ! str_contains($sermon->audio_file_path, '/')) {
             // Legacy pattern
             // Check if filename already has extension to avoid double extensions
-            $filename = $sermon->filename;
+            $filename = $sermon->audio_file_path;
             if (! str_ends_with($filename, ".{$sermon->filetype}")) {
                 $filename .= ".{$sermon->filetype}";
             }
@@ -29,21 +29,21 @@ class SermonStorageService
                 'path' => "legacy/sermons/{$filename}",
                 'original_path' => "media/sermons/{$filename}",
             ];
-        } elseif (str_contains($sermon->filename, '/')) {
+        } elseif (str_contains($sermon->audio_file_path, '/')) {
             // Newer Laravel storage pattern
             return [
                 'type' => 'storage',
                 'disk' => config('media-processing.storage.sermon_disk', 'do_spaces'),
-                'path' => $sermon->filename,
-                'original_path' => $sermon->filename,
+                'path' => $sermon->audio_file_path,
+                'original_path' => $sermon->audio_file_path,
             ];
         } else {
             // Current media processing pattern
             return [
                 'type' => 'processing',
                 'disk' => config('media-processing.storage.sermon_disk', 'do_spaces'),
-                'path' => $sermon->filename,
-                'original_path' => $sermon->filename,
+                'path' => $sermon->audio_file_path,
+                'original_path' => $sermon->audio_file_path,
             ];
         }
     }

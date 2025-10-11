@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int $id
  * @property string $processing_id
- * @property int $processing_log_id
+ * @property int $media_processing_log_id
  * @property int $segment_index
  * @property float $start_time
  * @property float $end_time
@@ -32,7 +32,7 @@ class LivestreamSegment extends Model
 
     protected $fillable = [
         'processing_id',
-        'processing_log_id',
+        'media_processing_log_id',
         'segment_index',
         'start_time',
         'end_time',
@@ -59,7 +59,7 @@ class LivestreamSegment extends Model
 
     public function processingLog(): BelongsTo
     {
-        return $this->belongsTo(LivestreamProcessingLog::class, 'processing_log_id');
+        return $this->belongsTo(MediaProcessingLog::class, 'media_processing_log_id');
     }
 
     public function scopeClassifiedAs(Builder $query, string $classification): Builder
@@ -192,7 +192,7 @@ class LivestreamSegment extends Model
 
     public static function getLongestSpeechSegment(int $processingLogId): ?self
     {
-        return static::where('processing_log_id', $processingLogId)
+        return static::where('media_processing_log_id', $processingLogId)
             ->speech()
             ->orderByRaw('(end_time - start_time) DESC')
             ->first();
@@ -200,7 +200,7 @@ class LivestreamSegment extends Model
 
     public static function getSegmentsSummary(int $processingLogId): array
     {
-        $segments = static::where('processing_log_id', $processingLogId)->get();
+        $segments = static::where('media_processing_log_id', $processingLogId)->get();
 
         return [
             'total_segments' => $segments->count(),

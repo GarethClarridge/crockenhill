@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -25,7 +25,7 @@ class ProcessingStatusThumbnailTest extends TestCase
     {
         // Create a sermon with thumbnail
         $sermon = Sermon::factory()->create([
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
             'thumbnail_generated_at' => now(),
         ]);
 
@@ -34,7 +34,7 @@ class ProcessingStatusThumbnailTest extends TestCase
 
         // Create processing log with UUID format
         $processingId = '12345678-1234-1234-1234-123456789012';
-        $processingLog = SermonProcessingLog::factory()->create([
+        $processingLog = MediaProcessingLog::factory()->create([
             'sermon_id' => $sermon->id,
             'processing_id' => $processingId,
             'status' => ProcessingStatus::COMPLETED,
@@ -69,12 +69,12 @@ class ProcessingStatusThumbnailTest extends TestCase
     {
         // Create a sermon without thumbnail
         $sermon = Sermon::factory()->create([
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         // Create processing log with UUID format
         $processingId = '87654321-4321-4321-4321-210987654321';
-        $processingLog = SermonProcessingLog::factory()->create([
+        $processingLog = MediaProcessingLog::factory()->create([
             'sermon_id' => $sermon->id,
             'processing_id' => $processingId,
             'status' => ProcessingStatus::COMPLETED,
@@ -100,7 +100,7 @@ class ProcessingStatusThumbnailTest extends TestCase
     {
         // Create processing log with null sermon_id (allowed by foreign key constraint)
         $processingId = '11111111-2222-3333-4444-555555555555';
-        $processingLog = SermonProcessingLog::factory()->create([
+        $processingLog = MediaProcessingLog::factory()->create([
             'sermon_id' => null,
             'processing_id' => $processingId,
             'status' => ProcessingStatus::COMPLETED,

@@ -31,7 +31,7 @@ class SermonOpenGraphTest extends TestCase
             'date' => '2024-01-15',
             'reference' => 'John 3:16',
             'series' => 'Gospel Series',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
             'thumbnail_generated_at' => now(),
         ]);
 
@@ -71,7 +71,7 @@ class SermonOpenGraphTest extends TestCase
             'title' => 'Test Sermon Without Thumbnail',
             'preacher' => 'Jane Doe',
             'date' => '2024-02-20',
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         $response = $this->get("/christ/sermons/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
@@ -102,7 +102,7 @@ class SermonOpenGraphTest extends TestCase
             'date' => '2024-03-10',
             'reference' => null,
             'series' => null,
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         $response = $this->get("/christ/sermons/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
@@ -126,7 +126,7 @@ class SermonOpenGraphTest extends TestCase
             'title' => 'Basic Meta Test',
             'preacher' => 'Test Preacher',
             'date' => '2024-04-01',
-            'thumbnail_path' => 'sermons/thumbnails/basic-test.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/basic-test.jpg',
         ]);
 
         // Mock the thumbnail file existence

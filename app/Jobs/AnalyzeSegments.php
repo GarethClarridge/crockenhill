@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\LivestreamProcessingLog;
 use App\Models\LivestreamSegment;
+use App\Models\MediaProcessingLog;
 use App\Services\VideoSegmentationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -20,14 +20,14 @@ class AnalyzeSegments implements ShouldQueue
     public int $timeout = 1800;
 
     public function __construct(
-        private LivestreamProcessingLog $processingLog
+        private MediaProcessingLog $processingLog
     ) {}
 
     public function handle(VideoSegmentationService $segmentationService): void
     {
         try {
             // Update status to show segmentation is starting
-            $this->processingLog->update(['status' => 'segmentation']);
+            $this->processingLog->markAsProcessing('segmentation');
 
             Log::info('Starting segment analysis', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -61,7 +61,7 @@ class AnalyzeSegments implements ShouldQueue
                 $this->processingLog->update([
                     'sermon_start_time' => $sermonCandidate->startTime,
                     'sermon_end_time' => $sermonCandidate->endTime,
-                    'status' => 'segmenting',
+                    'current_step' => 'segmenting',
                 ]);
 
                 Log::info('Sermon candidate identified', [
@@ -133,7 +133,7 @@ class AnalyzeSegments implements ShouldQueue
         foreach ($segments as $segmentData) {
             LivestreamSegment::create([
                 'processing_id' => $this->processingLog->processing_id,
-                'processing_log_id' => $this->processingLog->id,
+                'media_processing_log_id' => $this->processingLog->id,
                 'segment_index' => $segmentData->segmentOrder,
                 'start_time' => $segmentData->startTime,
                 'end_time' => $segmentData->endTime,

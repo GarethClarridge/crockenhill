@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\VideoSegmentationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -20,7 +20,7 @@ class GenerateRmsLog implements ShouldQueue
     public int $timeout = 3600;
 
     public function __construct(
-        private LivestreamProcessingLog $processingLog
+        private MediaProcessingLog $processingLog
     ) {}
 
     public function handle(VideoSegmentationService $segmentationService): void
@@ -32,11 +32,10 @@ class GenerateRmsLog implements ShouldQueue
             ]);
 
             // Update status to show RMS generation is starting
-            $this->processingLog->update(['status' => 'rms_generation']);
-            $this->processingLog->markAsProcessing();
+            $this->processingLog->markAsProcessing('rms_generation');
 
             $videoPath = Storage::disk(config('media-processing.storage.temp_disk'))
-                ->path($this->processingLog->original_file_path);
+                ->path($this->processingLog->source_file_path);
 
             if (! file_exists($videoPath)) {
                 throw new \Exception('Video file not found: '.$videoPath);
@@ -52,7 +51,6 @@ class GenerateRmsLog implements ShouldQueue
 
             $this->processingLog->update([
                 'rms_log_path' => $rmsLogPath,
-                'status' => 'processing',
             ]);
 
             Log::info('RMS log generation completed', [

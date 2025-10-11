@@ -8,7 +8,7 @@ use App\Contracts\SermonMetadataServiceInterface;
 use App\Data\SermonMetadata;
 use App\Enums\SermonService;
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -45,7 +45,7 @@ class SermonMetadataService implements SermonMetadataServiceInterface
     /**
      * Generate fallback metadata when AI processing fails
      */
-    public function generateFallbackData(Sermon $sermon, SermonProcessingLog $processingLog): array
+    public function generateFallbackData(Sermon $sermon, MediaProcessingLog $processingLog): array
     {
         // Generate basic title if current title is generic
         $title = $sermon->title;
@@ -148,7 +148,7 @@ class SermonMetadataService implements SermonMetadataServiceInterface
     /**
      * Generate fallback title when existing title is inadequate
      */
-    private function generateFallbackTitle(Sermon $sermon, SermonProcessingLog $processingLog): string
+    private function generateFallbackTitle(Sermon $sermon, MediaProcessingLog $processingLog): string
     {
         // Use sermon date and service
         $dateStr = $sermon->date->format('F j, Y');

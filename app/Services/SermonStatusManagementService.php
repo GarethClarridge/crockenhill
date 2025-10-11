@@ -2,8 +2,9 @@
 
 namespace App\Services;
 
+use App\Data\StandardProcessingResponse;
 use App\Enums\ProcessingStatus;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Log;
 
 class SermonStatusManagementService
@@ -11,36 +12,24 @@ class SermonStatusManagementService
     /**
      * Get the current processing status for a given processing ID
      */
-    public function getProcessingStatus(string $processingId): ProcessingStatusResult
+    public function getProcessingStatus(string $processingId): StandardProcessingResponse
     {
         try {
-            $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
+            $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
 
             if (! $processingLog) {
-                return ProcessingStatusResult::notFound();
+                return StandardProcessingResponse::notFound();
             }
 
-            $sermon = $processingLog->sermon;
-
-            return ProcessingStatusResult::found(
-                processingId: $processingId,
-                status: $processingLog->status,
-                currentStep: $processingLog->current_step,
-                errorMessage: $processingLog->error_message,
-                sermonId: $processingLog->sermon_id,
-                sermonTitle: $sermon?->title,
-                sermonSlug: $sermon?->slug,
-                createdAt: $processingLog->created_at,
-                updatedAt: $processingLog->updated_at
-            );
+            return StandardProcessingResponse::fromProcessingLog($processingLog);
         } catch (\Exception $e) {
             Log::error('Failed to retrieve processing status', [
                 'processing_id' => $processingId,
                 'error' => $e->getMessage(),
             ]);
 
-            return ProcessingStatusResult::error(
-                message: 'Failed to retrieve processing status: '.$e->getMessage()
+            return StandardProcessingResponse::error(
+                errorMessage: 'Failed to retrieve processing status: '.$e->getMessage()
             );
         }
     }
@@ -52,12 +41,12 @@ class SermonStatusManagementService
     {
         try {
             $stats = [
-                'total_processed' => SermonProcessingLog::count(),
-                'completed' => SermonProcessingLog::completed()->count(),
-                'failed' => SermonProcessingLog::failed()->count(),
-                'in_progress' => SermonProcessingLog::processing()->count(),
-                'pending' => SermonProcessingLog::pending()->count(),
-                'recent_activity' => SermonProcessingLog::recent()
+                'total_processed' => MediaProcessingLog::count(),
+                'completed' => MediaProcessingLog::completed()->count(),
+                'failed' => MediaProcessingLog::failed()->count(),
+                'in_progress' => MediaProcessingLog::processing()->count(),
+                'pending' => MediaProcessingLog::pending()->count(),
+                'recent_activity' => MediaProcessingLog::recent()
                     ->with('sermon')
                     ->orderBy('created_at', 'desc')
                     ->limit(10)
@@ -98,7 +87,7 @@ class SermonStatusManagementService
     public function getFailedProcessingLogs(int $limit = 50): array
     {
         try {
-            $failedLogs = SermonProcessingLog::failed()
+            $failedLogs = MediaProcessingLog::failed()
                 ->with('sermon')
                 ->orderBy('created_at', 'desc')
                 ->limit($limit)
@@ -136,7 +125,7 @@ class SermonStatusManagementService
     public function markForManualReview(string $processingId, string $reviewNote = ''): bool
     {
         try {
-            $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
+            $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
 
             if (! $processingLog) {
                 Log::warning('Processing log not found for manual review marking', [
@@ -176,7 +165,7 @@ class SermonStatusManagementService
     public function getDetailedProcessingLogs(string $processingId): array
     {
         try {
-            $processingLog = SermonProcessingLog::where('processing_id', $processingId)
+            $processingLog = MediaProcessingLog::where('processing_id', $processingId)
                 ->with('sermon')
                 ->first();
 
@@ -203,7 +192,7 @@ class SermonStatusManagementService
                     'updated_at' => $processingLog->updated_at->toISOString(),
                     'duration' => $processingLog->created_at->diffForHumans($processingLog->updated_at),
                 ],
-                'sermon' => $processingLog->sermon ? [
+                'sermon' => $processingLog->sermon instanceof \App\Models\Sermon ? [
                     'id' => $processingLog->sermon->id,
                     'title' => $processingLog->sermon->title,
                     'slug' => $processingLog->sermon->slug,
@@ -276,7 +265,7 @@ class SermonStatusManagementService
     /**
      * Check if processing can be retried automatically
      */
-    private function canRetryProcessing(SermonProcessingLog $processingLog): bool
+    private function canRetryProcessing(MediaProcessingLog $processingLog): bool
     {
         // Don't retry if it's been marked for manual review
         if (str_contains($processingLog->current_step ?? '', 'manual_review')) {
@@ -307,7 +296,7 @@ class SermonStatusManagementService
     /**
      * Check if processing requires manual review
      */
-    private function requiresManualReview(SermonProcessingLog $processingLog): bool
+    private function requiresManualReview(MediaProcessingLog $processingLog): bool
     {
         // Already marked for manual review
         if (str_contains($processingLog->current_step ?? '', 'manual_review')) {
@@ -363,7 +352,7 @@ class SermonStatusManagementService
     /**
      * Generate troubleshooting information
      */
-    private function generateTroubleshootingInfo(SermonProcessingLog $processingLog): array
+    private function generateTroubleshootingInfo(MediaProcessingLog $processingLog): array
     {
         $troubleshooting = [
             'common_issues' => [],
@@ -508,8 +497,7 @@ class SermonStatusManagementService
     {
         try {
             // Check recent success rate (last 24 hours)
-            $recent = SermonProcessingLog::where('created_at', '>=', now()->subDay());
-            $total = $recent->count();
+            $total = MediaProcessingLog::where('created_at', '>=', now()->subDay())->count();
 
             if ($total === 0) {
                 return [
@@ -518,7 +506,7 @@ class SermonStatusManagementService
                 ];
             }
 
-            $successful = $recent->completed()->count();
+            $successful = MediaProcessingLog::where('created_at', '>=', now()->subDay())->completed()->count();
             $successRate = ($successful / $total) * 100;
 
             if ($successRate >= 80) {

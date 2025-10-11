@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Services;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\LivestreamSegment;
 use App\Models\Sermon;
 use App\Services\SermonVideoDisplayService;
@@ -28,13 +28,13 @@ class SermonVideoDisplayServiceTest extends TestCase
 
     public function test_get_sermon_with_video_returns_correct_data()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'original_filename' => 'test-livestream.mp4',
             'status' => 'completed',
         ]);
 
         $segments = LivestreamSegment::factory()->count(3)->create([
-            'processing_log_id' => $processing->id,
+            'media_processing_log_id' => $processing->id,
         ]);
 
         $sermon = Sermon::factory()->create([
@@ -121,7 +121,7 @@ class SermonVideoDisplayServiceTest extends TestCase
 
     public function test_get_sermons_by_source_type()
     {
-        $processing = LivestreamProcessingLog::factory()->create();
+        $processing = MediaProcessingLog::factory()->create();
 
         $livestreamSermon = Sermon::factory()->create([
             'livestream_processing_id' => $processing->id,
@@ -157,13 +157,13 @@ class SermonVideoDisplayServiceTest extends TestCase
 
     public function test_get_livestream_source_indicator()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'original_filename' => 'service-2024-01-15.mp4',
             'status' => 'completed',
         ]);
 
         $segments = LivestreamSegment::factory()->count(5)->create([
-            'processing_log_id' => $processing->id,
+            'media_processing_log_id' => $processing->id,
         ]);
 
         $livestreamSermon = Sermon::factory()->create([

@@ -2,7 +2,7 @@
 
 namespace App\HealthChecks;
 
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Facades\Log;
 
@@ -23,12 +23,12 @@ class SermonProcessingQueueHealthCheck implements Arrayable
     {
         try {
             // Check if there are jobs stuck in processing for too long
-            $stuckJobs = SermonProcessingLog::processing()
+            $stuckJobs = MediaProcessingLog::processing()
                 ->where('updated_at', '<', now()->subHours(2))
                 ->count();
 
-            $pendingJobs = SermonProcessingLog::pending()->count();
-            $processingJobs = SermonProcessingLog::processing()->count();
+            $pendingJobs = MediaProcessingLog::pending()->count();
+            $processingJobs = MediaProcessingLog::processing()->count();
 
             $status = 'healthy';
             $issues = [];

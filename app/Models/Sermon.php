@@ -18,7 +18,7 @@ use Illuminate\Support\Str; // Added Enum import
  * @property int $id
  * @property Carbon $date
  * @property ?SermonService $service
- * @property string $filename
+ * @property string $audio_file_path
  * @property string $filetype
  * @property string $title
  * @property string $slug
@@ -27,8 +27,8 @@ use Illuminate\Support\Str; // Added Enum import
  * @property ?string $series
  * @property ?array $points
  * @property ?string $summary
- * @property ?string $transcript_path
- * @property ?string $thumbnail_path
+ * @property ?string $transcript_file_path
+ * @property ?string $thumbnail_file_path
  * @property ?\Illuminate\Support\Carbon $thumbnail_generated_at
  * @property ?array $thumbnail_metadata
  * @property ?string $livestream_processing_id
@@ -51,6 +51,9 @@ use Illuminate\Support\Str; // Added Enum import
  * @property-read ?string $preacher_url
  * @property-read ?string $video_url
  * @property-read ?string $thumbnail_url
+ * @property-read string $filename (deprecated, use audio_file_path)
+ * @property-read ?string $transcript_path (deprecated, use transcript_file_path)
+ * @property-read ?string $thumbnail_path (deprecated, use thumbnail_file_path)
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
  * @method static Builder|Sermon newModelQuery()
@@ -84,8 +87,8 @@ class Sermon extends Model
      */
     protected $fillable = [
         'title',
-        'filename',
-        'filetype', // Added filetype as it's in the migration
+        'audio_file_path', // Renamed from 'filename' for consistency
+        'filetype',
         'date',
         'service',
         'slug',
@@ -94,8 +97,8 @@ class Sermon extends Model
         'preacher',
         'points', // Stored as JSON string, handled by accessor/mutator potentially
         'summary', // AI-generated sermon summary
-        'transcript_path', // Added for automated sermon processing
-        'thumbnail_path', // Path to generated thumbnail image
+        'transcript_file_path', // Renamed from 'transcript_path' for consistency
+        'thumbnail_file_path', // Renamed from 'thumbnail_path' for consistency
         'thumbnail_generated_at', // Timestamp when thumbnail was generated
         'thumbnail_metadata', // Metadata about thumbnail generation
         'livestream_processing_id', // Link to livestream processing
@@ -145,7 +148,7 @@ class Sermon extends Model
 
     public function getAudioUrlAttribute(): ?string
     {
-        if (! $this->filename) {
+        if (! $this->audio_file_path) {
             return null;
         }
 
@@ -156,13 +159,13 @@ class Sermon extends Model
 
     public function getThumbnailUrlAttribute(): ?string
     {
-        if (! $this->thumbnail_path) {
+        if (! $this->thumbnail_file_path) {
             return null;
         }
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
 
-        return \Illuminate\Support\Facades\Storage::disk($disk)->url($this->thumbnail_path);
+        return \Illuminate\Support\Facades\Storage::disk($disk)->url($this->thumbnail_file_path);
     }
 
     public function getSeriesUrlAttribute(): ?string
@@ -201,7 +204,7 @@ class Sermon extends Model
     public function scopeAutomated(Builder $query): Builder
     {
         return $query->where(function ($q) {
-            $q->whereNotNull('transcript_path')
+            $q->whereNotNull('transcript_file_path')
                 ->orWhereHas('processingLogs');
         });
     }
@@ -212,7 +215,7 @@ class Sermon extends Model
     public function scopeManual(Builder $query): Builder
     {
         return $query->where(function ($q) {
-            $q->whereNull('transcript_path')
+            $q->whereNull('transcript_file_path')
                 ->whereDoesntHave('processingLogs');
         });
     }
@@ -252,7 +255,7 @@ class Sermon extends Model
      */
     public function processingLogs(): HasMany
     {
-        return $this->hasMany(SermonProcessingLog::class);
+        return $this->hasMany(MediaProcessingLog::class);
     }
 
     /**
@@ -260,7 +263,7 @@ class Sermon extends Model
      */
     public function livestreamProcessing(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(LivestreamProcessingLog::class, 'livestream_processing_id');
+        return $this->belongsTo(MediaProcessingLog::class, 'livestream_processing_id');
     }
 
     /**
@@ -270,16 +273,16 @@ class Sermon extends Model
      */
     public function getTranscriptAttribute(): ?string
     {
-        if (! $this->transcript_path) {
+        if (! $this->transcript_file_path) {
             return null;
         }
 
         try {
-            return \Illuminate\Support\Facades\Storage::get($this->transcript_path);
+            return \Illuminate\Support\Facades\Storage::get($this->transcript_file_path);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to read transcript file', [
                 'sermon_id' => $this->id,
-                'transcript_path' => $this->transcript_path,
+                'transcript_file_path' => $this->transcript_file_path,
                 'error' => $e->getMessage(),
             ]);
 
@@ -294,11 +297,11 @@ class Sermon extends Model
      */
     public function hasTranscript(): bool
     {
-        if (! $this->transcript_path) {
+        if (! $this->transcript_file_path) {
             return false;
         }
 
-        return \Illuminate\Support\Facades\Storage::exists($this->transcript_path);
+        return \Illuminate\Support\Facades\Storage::exists($this->transcript_file_path);
     }
 
     /**
@@ -308,13 +311,13 @@ class Sermon extends Model
      */
     public function hasThumbnail(): bool
     {
-        if (! $this->thumbnail_path) {
+        if (! $this->thumbnail_file_path) {
             return false;
         }
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
 
-        return \Illuminate\Support\Facades\Storage::disk($disk)->exists($this->thumbnail_path);
+        return \Illuminate\Support\Facades\Storage::disk($disk)->exists($this->thumbnail_file_path);
     }
 
     /**
@@ -324,7 +327,7 @@ class Sermon extends Model
      */
     public function getTranscriptPath(): ?string
     {
-        return $this->transcript_path;
+        return $this->transcript_file_path;
     }
 
     /**
@@ -334,7 +337,7 @@ class Sermon extends Model
      */
     public function setTranscriptPath(?string $path): void
     {
-        $this->transcript_path = $path;
+        $this->transcript_file_path = $path;
     }
 
     /**
@@ -344,7 +347,7 @@ class Sermon extends Model
      */
     public function isAutomated(): bool
     {
-        return ! empty($this->transcript_path) || $this->processingLogs()->exists();
+        return ! empty($this->transcript_file_path) || $this->processingLogs()->exists();
     }
 
     /**
@@ -364,7 +367,7 @@ class Sermon extends Model
      */
     public function getProcessingStatus(): ?\App\Enums\ProcessingStatus
     {
-        /** @var \App\Models\SermonProcessingLog|null $latestLog */
+        /** @var \App\Models\MediaProcessingLog|null $latestLog */
         $latestLog = $this->processingLogs()->latest()->first();
 
         return $latestLog?->status;
@@ -409,11 +412,11 @@ class Sermon extends Model
     /**
      * Get the latest processing log for this sermon
      *
-     * @return SermonProcessingLog|null The latest processing log or null
+     * @return MediaProcessingLog|null The latest processing log or null
      */
-    public function getLatestProcessingLog(): ?SermonProcessingLog
+    public function getLatestProcessingLog(): ?MediaProcessingLog
     {
-        /** @var \App\Models\SermonProcessingLog|null */
+        /** @var \App\Models\MediaProcessingLog|null */
         return $this->processingLogs()->latest()->first();
     }
 
@@ -536,6 +539,64 @@ class Sermon extends Model
      */
     public function scopeWithThumbnail(Builder $query): Builder
     {
-        return $query->whereNotNull('thumbnail_path');
+        return $query->whereNotNull('thumbnail_file_path');
+    }
+
+    // ========================================================================
+    // Backward Compatibility Accessors (Deprecated - will be removed in future)
+    // ========================================================================
+
+    /**
+     * Backward compatibility accessor for 'filename' (deprecated)
+     * @deprecated Use audio_file_path instead
+     */
+    public function getFilenameAttribute(): ?string
+    {
+        return $this->attributes['audio_file_path'] ?? null;
+    }
+
+    /**
+     * Backward compatibility mutator for 'filename' (deprecated)
+     * @deprecated Use audio_file_path instead
+     */
+    public function setFilenameAttribute(?string $value): void
+    {
+        $this->attributes['audio_file_path'] = $value;
+    }
+
+    /**
+     * Backward compatibility accessor for 'transcript_path' (deprecated)
+     * @deprecated Use transcript_file_path instead
+     */
+    public function getTranscriptPathAttribute(): ?string
+    {
+        return $this->attributes['transcript_file_path'] ?? null;
+    }
+
+    /**
+     * Backward compatibility mutator for 'transcript_path' (deprecated)
+     * @deprecated Use transcript_file_path instead
+     */
+    public function setTranscriptPathAttribute(?string $value): void
+    {
+        $this->attributes['transcript_file_path'] = $value;
+    }
+
+    /**
+     * Backward compatibility accessor for 'thumbnail_path' (deprecated)
+     * @deprecated Use thumbnail_file_path instead
+     */
+    public function getThumbnailPathAttribute(): ?string
+    {
+        return $this->attributes['thumbnail_file_path'] ?? null;
+    }
+
+    /**
+     * Backward compatibility mutator for 'thumbnail_path' (deprecated)
+     * @deprecated Use thumbnail_file_path instead
+     */
+    public function setThumbnailPathAttribute(?string $value): void
+    {
+        $this->attributes['thumbnail_file_path'] = $value;
     }
 }

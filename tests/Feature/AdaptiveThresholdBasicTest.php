@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -38,7 +38,7 @@ class AdaptiveThresholdBasicTest extends TestCase
      */
     public function test_database_supports_adaptive_fields(): void
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-adaptive-fields',
             'threshold_method' => 'adaptive',
             'adaptive_threshold' => -42.5,
@@ -53,14 +53,14 @@ class AdaptiveThresholdBasicTest extends TestCase
         ]);
 
         // Test that data was stored correctly
-        $this->assertDatabaseHas('livestream_processing_logs', [
+        $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => 'test-adaptive-fields',
             'threshold_method' => 'adaptive',
             'adaptive_threshold' => -42.5,
         ]);
 
         // Test that JSON data can be retrieved
-        $retrieved = LivestreamProcessingLog::find($processing->id);
+        $retrieved = MediaProcessingLog::find($processing->id);
         $rmsStats = json_decode($retrieved->rms_stats, true);
 
         $this->assertEquals(5000, $rmsStats['sample_count']);
@@ -76,13 +76,13 @@ class AdaptiveThresholdBasicTest extends TestCase
         $methods = ['fixed', 'adaptive', 'fallback'];
 
         foreach ($methods as $method) {
-            $processing = LivestreamProcessingLog::factory()->create([
+            $processing = MediaProcessingLog::factory()->create([
                 'processing_id' => "test-{$method}",
                 'threshold_method' => $method,
                 'adaptive_threshold' => -40.0,
             ]);
 
-            $this->assertDatabaseHas('livestream_processing_logs', [
+            $this->assertDatabaseHas('media_processing_logs', [
                 'processing_id' => "test-{$method}",
                 'threshold_method' => $method,
             ]);
@@ -145,7 +145,7 @@ class AdaptiveThresholdBasicTest extends TestCase
     public function test_migration_applied(): void
     {
         // Check that the new columns exist by trying to use them
-        $processing = LivestreamProcessingLog::factory()->create();
+        $processing = MediaProcessingLog::factory()->create();
 
         // These should not throw database errors
         $processing->threshold_method = 'adaptive';
@@ -153,7 +153,7 @@ class AdaptiveThresholdBasicTest extends TestCase
         $processing->rms_stats = json_encode(['test' => true]);
         $processing->save();
 
-        $this->assertDatabaseHas('livestream_processing_logs', [
+        $this->assertDatabaseHas('media_processing_logs', [
             'id' => $processing->id,
             'threshold_method' => 'adaptive',
             'adaptive_threshold' => -43.2,
@@ -184,7 +184,7 @@ class AdaptiveThresholdBasicTest extends TestCase
         // Test that our Phase 1 implementation left the system in a testable state
 
         // 1. Database schema updated
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'threshold_method' => 'adaptive',
             'adaptive_threshold' => -44.2,
             'rms_stats' => json_encode([
@@ -197,7 +197,7 @@ class AdaptiveThresholdBasicTest extends TestCase
             ]),
         ]);
 
-        $this->assertDatabaseHas('livestream_processing_logs', [
+        $this->assertDatabaseHas('media_processing_logs', [
             'threshold_method' => 'adaptive',
             'adaptive_threshold' => -44.2,
         ]);

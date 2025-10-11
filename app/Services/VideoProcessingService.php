@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Contracts\VideoProcessingServiceInterface;
 use App\Data\LivestreamProcessingResult;
-use App\Data\LivestreamProcessingStatus;
+use App\Data\StandardProcessingResponse;
 use Illuminate\Http\UploadedFile;
 
 class VideoProcessingService implements VideoProcessingServiceInterface
@@ -36,7 +36,7 @@ class VideoProcessingService implements VideoProcessingServiceInterface
         return $this->segmentationService->processWithSegmentation($videoFile);
     }
 
-    public function getProcessingStatus(string $processingId): LivestreamProcessingStatus
+    public function getProcessingStatus(string $processingId): StandardProcessingResponse
     {
         return $this->statusService->getProcessingStatus($processingId);
     }

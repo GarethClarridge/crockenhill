@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Data\SermonMetadata;
 use App\Enums\ProcessingStatus;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -41,11 +41,12 @@ class SermonAudioProcessingService
                 'stored_path' => $storedFilePath,
             ]);
 
-            // Create sermon processing log
-            $processingLog = SermonProcessingLog::create([
+            // Create media processing log
+            $processingLog = MediaProcessingLog::create([
                 'processing_id' => $processingId,
+                'processing_type' => 'audio',
                 'original_filename' => $file->getClientOriginalName(),
-                'stored_file_path' => $storedFilePath,
+                'source_file_path' => $storedFilePath,
                 'status' => ProcessingStatus::PENDING,
                 'current_step' => 'audio_processing_initiated',
             ]);
@@ -265,21 +266,22 @@ class SermonAudioProcessingService
         string $processingId,
         string $originalFilename,
         array $livestreamMetadata
-    ): SermonProcessingLog {
+    ): MediaProcessingLog {
         $logData = [
             'processing_id' => $processingId,
+            'processing_type' => 'audio',
             'original_filename' => $originalFilename,
             'status' => \App\Enums\ProcessingStatus::PENDING,
             'current_step' => 'initiated_from_livestream',
         ];
 
-        // For now, we'll store livestream context in the current_step field
-        // In the future, a processing_metadata JSON field could be added to the migration
+        // Store livestream context in processing_metadata JSON field
         if (! empty($livestreamMetadata['livestream_processing_id'])) {
+            $logData['processing_metadata'] = $livestreamMetadata;
             $logData['current_step'] = 'initiated_from_livestream:'.$livestreamMetadata['livestream_processing_id'];
         }
 
-        return SermonProcessingLog::create($logData);
+        return MediaProcessingLog::create($logData);
     }
 
     /**
@@ -296,7 +298,7 @@ class SermonAudioProcessingService
     /**
      * Dispatch processing jobs for the sermon
      */
-    private function dispatchProcessingJobs(array $jobs, SermonProcessingLog $processingLog, array $livestreamMetadata): void
+    private function dispatchProcessingJobs(array $jobs, MediaProcessingLog $processingLog, array $livestreamMetadata): void
     {
         Log::info('Dispatching sermon processing jobs', [
             'processing_id' => $processingLog->processing_id,

@@ -3,14 +3,14 @@
 namespace App\Services;
 
 use App\Data\LivestreamProcessingResult;
-use App\Data\LivestreamProcessingStatus;
-use App\Models\LivestreamProcessingLog;
+use App\Data\StandardProcessingResponse;
+use App\Models\MediaProcessingLog;
 
 class LivestreamStatusService
 {
-    public function getProcessingStatus(string $processingId): LivestreamProcessingStatus
+    public function getProcessingStatus(string $processingId): StandardProcessingResponse
     {
-        $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)
+        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
             ->with(['segments', 'sermon'])
             ->first();
 
@@ -18,23 +18,12 @@ class LivestreamStatusService
             throw new \Exception('Processing record not found');
         }
 
-        $currentStep = $this->getCurrentStep($processingLog->status);
-        $progressPercentage = $this->getProgressPercentage($processingLog->status);
-
-        return new LivestreamProcessingStatus(
-            processingId: $processingId,
-            status: $processingLog->status,
-            currentStep: $currentStep,
-            progressPercentage: $progressPercentage,
-            errorMessage: $processingLog->error_message,
-            stepDetails: $this->getStepDetails($processingLog),
-            processingStats: $this->getProcessingStats($processingLog),
-        );
+        return StandardProcessingResponse::fromProcessingLog($processingLog);
     }
 
     public function getProcessingResult(string $processingId): LivestreamProcessingResult
     {
-        $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)
+        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
             ->with(['segments', 'sermon'])
             ->first();
 
@@ -47,14 +36,11 @@ class LivestreamStatusService
 
     public function getProcessingSummary(): array
     {
-        $total = LivestreamProcessingLog::count();
-        $pending = LivestreamProcessingLog::pending()->count();
-        $processing = LivestreamProcessingLog::where('status', 'LIKE', '%processing%')
-            ->orWhere('status', 'LIKE', '%complete%')
-            ->where('status', '!=', 'completed')
-            ->count();
-        $completed = LivestreamProcessingLog::completed()->count();
-        $failed = LivestreamProcessingLog::failed()->count();
+        $total = MediaProcessingLog::livestream()->count();
+        $pending = MediaProcessingLog::livestream()->where('status', 'pending')->count();
+        $processing = MediaProcessingLog::livestream()->where('status', 'processing')->count();
+        $completed = MediaProcessingLog::livestream()->where('status', 'completed')->count();
+        $failed = MediaProcessingLog::livestream()->where('status', 'failed')->count();
 
         return [
             'total_processing_requests' => $total,
@@ -66,6 +52,7 @@ class LivestreamStatusService
         ];
     }
 
+    /** @phpstan-ignore-next-line */
     private function getCurrentStep(string $status): string
     {
         return match ($status) {
@@ -85,6 +72,7 @@ class LivestreamStatusService
         };
     }
 
+    /** @phpstan-ignore-next-line */
     private function getProgressPercentage(string $status): int
     {
         return match ($status) {
@@ -104,25 +92,28 @@ class LivestreamStatusService
         };
     }
 
-    private function getStepDetails(LivestreamProcessingLog $processingLog): array
+    /** @phpstan-ignore-next-line */
+    private function getStepDetails(MediaProcessingLog $processingLog): array
     {
         $details = [
             'processing_id' => $processingLog->processing_id,
-            'sermon_processing_id' => $processingLog->sermon_processing_id,
             'file_info' => [
                 'filename' => $processingLog->original_filename,
                 'size' => $processingLog->file_size,
-                'format' => $processingLog->file_format,
                 'duration' => $processingLog->duration,
             ],
         ];
 
         if ($processingLog->segments->isNotEmpty()) {
+            $speechSegments = $processingLog->segments->where('classification', 'speech');
+            $songSegments = $processingLog->segments->where('classification', 'song');
+            $sermonCandidates = $processingLog->segments->where('is_sermon_candidate', true);
+
             $details['segmentation'] = [
                 'total_segments' => $processingLog->segments->count(),
-                'speech_segments' => $processingLog->speechSegments->count(),
-                'song_segments' => $processingLog->songSegments->count(),
-                'sermon_candidate_found' => $processingLog->sermonCandidateSegment !== null,
+                'speech_segments' => $speechSegments->count(),
+                'song_segments' => $songSegments->count(),
+                'sermon_candidate_found' => $sermonCandidates->isNotEmpty(),
                 'segments' => $processingLog->segments->map(function ($segment) {
                     return [
                         'segment_order' => $segment->segment_order,
@@ -144,14 +135,15 @@ class LivestreamStatusService
         }
 
         // Add sermon video path if processing is completed and has sermon
-        if ($processingLog->status === 'completed' && $processingLog->sermon_video_path) {
-            $details['sermon_video_path'] = $processingLog->sermon_video_path;
+        if ($processingLog->status->value === 'completed' && $processingLog->video_file_path) {
+            $details['sermon_video_path'] = $processingLog->video_file_path;
         }
 
         return $details;
     }
 
-    private function getProcessingStats(LivestreamProcessingLog $processingLog): array
+    /** @phpstan-ignore-next-line */
+    private function getProcessingStats(MediaProcessingLog $processingLog): array
     {
         $stats = [];
 
@@ -169,7 +161,7 @@ class LivestreamStatusService
         return $stats;
     }
 
-    private function buildProcessingResult(LivestreamProcessingLog $processingLog): LivestreamProcessingResult
+    private function buildProcessingResult(MediaProcessingLog $processingLog): LivestreamProcessingResult
     {
         $segments = $processingLog->segments->map(function ($segment) {
             return new \App\Data\LivestreamSegment(
@@ -192,10 +184,10 @@ class LivestreamStatusService
 
         return new LivestreamProcessingResult(
             processingId: $processingLog->processing_id,
-            status: $processingLog->status,
+            status: $processingLog->status->value,
             originalFilename: $processingLog->original_filename,
             fileSize: $processingLog->file_size,
-            fileFormat: $processingLog->file_format,
+            fileFormat: $processingLog->processing_metadata['format'] ?? 'unknown',
             duration: $processingLog->duration,
             sermonStartTime: $processingLog->sermon_start_time,
             sermonEndTime: $processingLog->sermon_end_time,

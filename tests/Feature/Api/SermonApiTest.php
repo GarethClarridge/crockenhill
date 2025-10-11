@@ -60,7 +60,7 @@ class SermonApiTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
 
         // Create a fake thumbnail file
@@ -81,7 +81,7 @@ class SermonApiTest extends TestCase
     public function test_thumbnail_url_is_null_when_no_thumbnail_exists(): void
     {
         $sermon = Sermon::factory()->create([
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         $response = $this->getJson("/api/sermons/{$sermon->id}");
@@ -98,11 +98,11 @@ class SermonApiTest extends TestCase
     {
         // Create sermons with and without thumbnails
         $sermonWithThumbnail = Sermon::factory()->create([
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
 
         $sermonWithoutThumbnail = Sermon::factory()->create([
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         $response = $this->getJson('/api/sermons?with_thumbnail=1');
@@ -134,7 +134,7 @@ class SermonApiTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon with Metadata',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
             'thumbnail_metadata' => [
                 'width' => 1280,
                 'height' => 720,
@@ -174,7 +174,7 @@ class SermonApiTest extends TestCase
     public function test_api_handles_missing_thumbnail_metadata_gracefully(): void
     {
         $sermon = Sermon::factory()->create([
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
             'thumbnail_metadata' => null,
         ]);
 
@@ -193,11 +193,11 @@ class SermonApiTest extends TestCase
     {
         // Create sermons with and without thumbnails
         Sermon::factory()->count(5)->create([
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
 
         Sermon::factory()->count(3)->create([
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         // Create fake thumbnail files
@@ -227,12 +227,12 @@ class SermonApiTest extends TestCase
     {
         $sermonWithThumbnail = Sermon::factory()->create([
             'title' => 'Searchable Sermon Title',
-            'thumbnail_path' => 'sermons/thumbnails/searchable.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/searchable.jpg',
         ]);
 
         $sermonWithoutThumbnail = Sermon::factory()->create([
             'title' => 'Another Searchable Title',
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         // Create fake thumbnail file
@@ -259,13 +259,13 @@ class SermonApiTest extends TestCase
         $oldSermon = Sermon::factory()->create([
             'date' => '2023-01-01',
             'title' => 'Old Sermon',
-            'thumbnail_path' => 'sermons/thumbnails/old.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/old.jpg',
         ]);
 
         $newSermon = Sermon::factory()->create([
             'date' => '2024-01-01',
             'title' => 'New Sermon',
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         // Create fake thumbnail file
@@ -292,7 +292,7 @@ class SermonApiTest extends TestCase
     public function test_api_includes_thumbnail_data_in_response(): void
     {
         $sermon = Sermon::factory()->create([
-            'thumbnail_path' => 'sermons/thumbnails/cache-test.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/cache-test.jpg',
         ]);
 
         // Create a fake thumbnail file
@@ -312,7 +312,7 @@ class SermonApiTest extends TestCase
     {
         // Create multiple sermons with thumbnails
         $sermons = Sermon::factory()->count(10)->create([
-            'thumbnail_path' => 'sermons/thumbnails/concurrent-test.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/concurrent-test.jpg',
         ]);
 
         // Create fake thumbnail file

@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Services;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\LivestreamErrorHandler;
 use App\Services\LivestreamProcessingLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,7 +32,7 @@ class LivestreamErrorHandlerTest extends TestCase
 
     public function test_handle_processing_failure()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
             'status' => 'processing',
         ]);
@@ -47,7 +47,7 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->errorHandler->handleProcessingFailure('test-processing-id', $exception, $step);
 
         $processing->refresh();
-        $this->assertEquals('failed', $processing->status);
+        $this->assertEquals('failed', $processing->status->value);
         $this->assertEquals('Test error message', $processing->error_message);
 
         Mail::assertSent(\App\Mail\LivestreamProcessingFailed::class, function ($mail) {
@@ -58,7 +58,7 @@ class LivestreamErrorHandlerTest extends TestCase
 
     public function test_handle_partial_failure()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
             'status' => 'processing',
         ]);
@@ -74,7 +74,7 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->errorHandler->handlePartialFailure('test-processing-id', $step, $message, $context);
 
         $processing->refresh();
-        $this->assertEquals('completed', $processing->status);
+        $this->assertEquals('completed', $processing->status->value);
         $this->assertEquals($message, $processing->error_message);
     }
 
@@ -115,7 +115,7 @@ class LivestreamErrorHandlerTest extends TestCase
 
     public function test_handle_segmentation_failure()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
             'status' => 'processing',
         ]);
@@ -133,7 +133,7 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->errorHandler->handleSegmentationFailure('test-processing-id', $reason, $segments);
 
         $processing->refresh();
-        $this->assertEquals('failed', $processing->status);
+        $this->assertEquals('failed', $processing->status->value);
         $this->assertStringContainsString($reason, $processing->error_message);
 
         Mail::assertSent(\App\Mail\ManualReviewRequired::class, function ($mail) use ($reason, $segments) {
@@ -145,7 +145,7 @@ class LivestreamErrorHandlerTest extends TestCase
 
     public function test_handle_video_extraction_failure()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
             'status' => 'processing',
         ]);
@@ -164,7 +164,7 @@ class LivestreamErrorHandlerTest extends TestCase
 
     public function test_handle_storage_error_disk_space()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
             'status' => 'processing',
         ]);
@@ -180,7 +180,7 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertFalse($result); // Should not retry
 
         $processing->refresh();
-        $this->assertEquals('failed', $processing->status);
+        $this->assertEquals('failed', $processing->status->value);
         $this->assertEquals('Insufficient disk space for processing', $processing->error_message);
 
         Mail::assertSent(\App\Mail\DiskSpaceWarning::class);
@@ -188,7 +188,7 @@ class LivestreamErrorHandlerTest extends TestCase
 
     public function test_handle_storage_error_permission()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
             'status' => 'processing',
         ]);
@@ -205,7 +205,7 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertFalse($result); // Should not retry
 
         $processing->refresh();
-        $this->assertEquals('failed', $processing->status);
+        $this->assertEquals('failed', $processing->status->value);
         $this->assertStringContainsString($operation, $processing->error_message);
 
         Mail::assertSent(\App\Mail\PermissionError::class, function ($mail) use ($operation) {

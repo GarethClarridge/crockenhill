@@ -22,7 +22,7 @@ class SermonAnalysisService
 
     protected SermonProcessingLogger $logger;
 
-    public function __construct(SermonProcessingLogger $logger)
+    public function __construct(MediaProcessingLogger $logger)
     {
         $this->logger = $logger;
 

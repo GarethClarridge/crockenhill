@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -22,14 +22,14 @@ class ExtractSermon implements ShouldQueue
     public int $timeout = 3600;
 
     public function __construct(
-        private LivestreamProcessingLog $processingLog
+        private MediaProcessingLog $processingLog
     ) {}
 
     public function handle(VideoExtractionService $videoExtractor, VideoStorageService $storageService): void
     {
         try {
             // Update status to show sermon extraction is starting
-            $this->processingLog->update(['status' => 'extraction']);
+            $this->processingLog->markAsProcessing('extraction');
 
             Log::info('Starting sermon extraction', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -50,20 +50,20 @@ class ExtractSermon implements ShouldQueue
 
             if ($isS3TempDisk) {
                 // For S3 temp disks, verify file exists using Storage disk
-                if (! Storage::disk($tempDisk)->exists($this->processingLog->original_file_path)) {
-                    throw new \Exception('Original video file not found on S3: '.$this->processingLog->original_file_path);
+                if (! Storage::disk($tempDisk)->exists($this->processingLog->source_file_path)) {
+                    throw new \Exception('Original video file not found on S3: '.$this->processingLog->source_file_path);
                 }
 
                 // Download to local temp for processing
-                $localTempPath = storage_path('app/temp/'.basename($this->processingLog->original_file_path).'_'.time());
+                $localTempPath = storage_path('app/temp/'.basename($this->processingLog->source_file_path).'_'.time());
                 $this->ensureDirectoryExists(dirname($localTempPath));
 
-                $videoStream = Storage::disk($tempDisk)->readStream($this->processingLog->original_file_path);
+                $videoStream = Storage::disk($tempDisk)->readStream($this->processingLog->source_file_path);
                 file_put_contents($localTempPath, $videoStream);
                 $videoPath = $localTempPath;
             } else {
                 // For local temp disks, use direct path
-                $videoPath = Storage::disk($tempDisk)->path($this->processingLog->original_file_path);
+                $videoPath = Storage::disk($tempDisk)->path($this->processingLog->source_file_path);
 
                 if (! file_exists($videoPath)) {
                     throw new \Exception('Original video file not found: '.$videoPath);
@@ -108,9 +108,9 @@ class ExtractSermon implements ShouldQueue
             ]);
 
             $this->processingLog->update([
-                'sermon_video_path' => $sermonVideoPath,
-                'sermon_audio_path' => $sermonAudioPath,
-                'status' => 'extraction_complete',
+                'video_file_path' => $sermonVideoPath,
+                'audio_file_path' => $sermonAudioPath,
+                'current_step' => 'extraction_complete',
                 'processing_metadata' => array_merge(
                     $this->processingLog->processing_metadata ?? [],
                     [

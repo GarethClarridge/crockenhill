@@ -51,7 +51,7 @@ class UpdateSermonRecord implements ShouldQueue
             }
 
             // Get the processing log
-            /** @var \App\Models\SermonProcessingLog|null $processingLog */
+            /** @var \App\Models\MediaProcessingLog|null $processingLog */
             $processingLog = $sermon->processingLogs()->latest()->first();
             if (! $processingLog) {
                 throw new \Exception("Processing log not found for sermon ID: {$this->sermonId}");
@@ -79,7 +79,7 @@ class UpdateSermonRecord implements ShouldQueue
             $sermon->update($updateData);
 
             // Mark processing as completed
-            $processingLog->markAsCompleted($sermon->id);
+            $processingLog->markAsCompleted();
 
             Log::info('Sermon record updated successfully', [
                 'sermon_id' => $this->sermonId,
@@ -91,7 +91,7 @@ class UpdateSermonRecord implements ShouldQueue
             ]);
 
             // Find the processing log for this sermon to dispatch notification
-            $processingLog = \App\Models\SermonProcessingLog::where('sermon_id', $this->sermonId)
+            $processingLog = \App\Models\MediaProcessingLog::where('sermon_id', $this->sermonId)
                 ->orderBy('created_at', 'desc')
                 ->first();
 
@@ -298,7 +298,7 @@ class UpdateSermonRecord implements ShouldQueue
         // Mark processing as failed if basic update also failed
         $sermon = Sermon::find($this->sermonId);
         if ($sermon) {
-            /** @var \App\Models\SermonProcessingLog|null $processingLog */
+            /** @var \App\Models\MediaProcessingLog|null $processingLog */
             $processingLog = $sermon->processingLogs()->latest()->first();
             if ($processingLog) {
                 $processingLog->markAsFailed($exception->getMessage(), 'updating_sermon_record_failed');

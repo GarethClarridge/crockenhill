@@ -2,7 +2,7 @@
 
 namespace App\HealthChecks;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Contracts\Support\Arrayable;
 
 class LivestreamQueueHealthCheck implements Arrayable
@@ -21,7 +21,7 @@ class LivestreamQueueHealthCheck implements Arrayable
             $queueName = config('media-processing.queue.name');
 
             // Check if there are any stuck processing jobs
-            $stuckJobs = LivestreamProcessingLog::where('status', 'processing')
+            $stuckJobs = MediaProcessingLog::where('status', 'processing')
                 ->where('started_at', '<', now()->subHours(4))
                 ->count();
 
@@ -34,7 +34,7 @@ class LivestreamQueueHealthCheck implements Arrayable
             }
 
             // Check for failed jobs in the last hour
-            $recentFailures = LivestreamProcessingLog::where('status', 'failed')
+            $recentFailures = MediaProcessingLog::where('status', 'failed')
                 ->where('created_at', '>', now()->subHour())
                 ->count();
 
@@ -47,7 +47,7 @@ class LivestreamQueueHealthCheck implements Arrayable
             }
 
             // Check pending jobs count
-            $pendingJobs = LivestreamProcessingLog::where('status', 'pending')->count();
+            $pendingJobs = MediaProcessingLog::where('status', 'pending')->count();
 
             if ($pendingJobs > 10) {
                 return [

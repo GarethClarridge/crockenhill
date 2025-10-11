@@ -4,8 +4,9 @@ namespace App\Jobs;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -29,7 +30,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public SermonProcessingLog $processingLog
+        public MediaProcessingLog $processingLog
     ) {}
 
     /**
@@ -56,19 +57,13 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             $this->logStepStart('transcribing', 'Starting audio transcription');
             $this->processingLog->updateStep('transcribing_audio');
 
-            // Get audio file path from processing log
-            // For video uploads, use the extracted audio_file_path
-            // For direct audio uploads, use the stored_file_path
-            $audioFilePath = $this->processingLog->audio_file_path ?? $this->processingLog->stored_file_path;
-
-            if (! $audioFilePath) {
-                throw new \Exception("No audio file path found in processing log: {$this->processingLog->processing_id}");
-            }
+            // Resolve audio path based on processing type
+            $audioFilePath = $this->resolveAudioPath();
 
             Log::info('Transcribing audio file', [
                 'processing_id' => $this->processingLog->processing_id,
+                'processing_type' => $this->processingLog->processing_type,
                 'audio_file' => $audioFilePath,
-                'source' => $this->processingLog->audio_file_path ? 'extracted_audio' : 'direct_audio',
             ]);
 
             // Transcribe the audio file
@@ -78,24 +73,21 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
                 throw new \Exception('Transcription returned empty content');
             }
 
-            // Store the transcript file - use sermon ID for existing interface
+            // Store the transcript file
             if (! $this->processingLog->sermon_id) {
                 throw new \Exception("No sermon ID found in processing log: {$this->processingLog->processing_id}");
             }
-            $transcriptPath = $transcriptionService->storeTranscript($this->processingLog->sermon_id, $transcript);
 
-            // Store transcript path in processing log
-            $this->processingLog->update([
-                'transcript_path' => $transcriptPath,
-            ]);
+            $transcriptPath = $transcriptionService->storeTranscript(
+                $this->processingLog->sermon_id,
+                $transcript
+            );
 
-            // Update sermon record with transcript path
-            if ($this->processingLog->sermon_id !== null) {
-                $sermon = Sermon::find($this->processingLog->sermon_id);
-                if ($sermon) {
-                    $sermon->update(['transcript_path' => $transcriptPath]);
-                }
-            }
+            // Update processing log
+            $this->processingLog->update(['transcript_file_path' => $transcriptPath]);
+
+            // Update sermon
+            $this->processingLog->sermon->update(['transcript_file_path' => $transcriptPath]);
 
             // Update processing log and mark step as complete
             $this->processingLog->updateStep('transcription_completed');
@@ -103,7 +95,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
 
             Log::info('Audio transcription completed successfully', [
                 'processing_id' => $this->processingLog->processing_id,
-                'transcript_path' => $transcriptPath,
+                'transcript_file_path' => $transcriptPath,
                 'transcript_length' => strlen($transcript),
                 'word_count' => str_word_count($transcript),
             ]);
@@ -154,19 +146,25 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
         }
 
         // Mark processing as failed
-        if ($this->processingLog->sermon_id) {
-            $sermon = Sermon::find($this->processingLog->sermon_id);
-        } else {
-            $sermon = null;
+        $this->processingLog->markAsFailed($exception->getMessage(), 'transcribing_audio_failed');
+    }
+
+    /**
+     * Resolve the audio file path based on processing type
+     */
+    private function resolveAudioPath(): string
+    {
+        $path = match($this->processingLog->processing_type) {
+            'audio' => $this->processingLog->source_file_path,
+            'video', 'livestream' => $this->processingLog->audio_file_path,
+            default => throw new \Exception("Unknown processing type: {$this->processingLog->processing_type}"),
+        };
+
+        if (empty($path)) {
+            throw new \Exception('No audio file path found');
         }
 
-        if ($sermon) {
-            /** @var \App\Models\SermonProcessingLog|null $processingLog */
-            $processingLog = $sermon->processingLogs()->latest()->first();
-            if ($processingLog) {
-                $processingLog->markAsFailed($exception->getMessage(), 'transcribing_audio_failed');
-            }
-        }
+        return $path;
     }
 
     /**

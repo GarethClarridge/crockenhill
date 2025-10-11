@@ -6,7 +6,7 @@ namespace App\Contracts;
 
 use App\Data\SermonMetadata;
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 
 /**
  * SermonMetadataServiceInterface - Handles sermon metadata extraction and generation
@@ -24,7 +24,7 @@ interface SermonMetadataServiceInterface
     /**
      * Generate fallback metadata when AI processing fails
      */
-    public function generateFallbackData(Sermon $sermon, SermonProcessingLog $log): array;
+    public function generateFallbackData(Sermon $sermon, MediaProcessingLog $log): array;
 
     /**
      * Generate unique slug for sermon avoiding conflicts

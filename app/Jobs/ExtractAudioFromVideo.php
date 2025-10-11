@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\VideoExtractionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -27,7 +27,7 @@ class ExtractAudioFromVideo implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
-        private SermonProcessingLog $processingLog
+        private MediaProcessingLog $processingLog
     ) {}
 
     public function handle(VideoExtractionService $videoExtractor): void

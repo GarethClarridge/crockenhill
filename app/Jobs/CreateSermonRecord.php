@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\SermonProcessingLogger;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -33,7 +33,7 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        private SermonProcessingLog $processingLog
+        private MediaProcessingLog $processingLog
     ) {}
 
     /**
@@ -69,89 +69,52 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             // Update processing log to indicate we're starting
             $this->processingLog->markAsProcessing('creating_sermon_record');
 
-            // Get AI analysis from processing log
-            $aiAnalysis = null;
-            if ($this->processingLog->ai_analysis) {
-                $aiAnalysis = json_decode($this->processingLog->ai_analysis, true);
+            // Get AI analysis - handle both array and JSON string formats
+            $aiAnalysis = $this->processingLog->ai_analysis;
+            // @phpstan-ignore-next-line (defensive code for potential legacy data)
+            if (is_string($aiAnalysis)) {
+                $aiAnalysis = json_decode($aiAnalysis, true);
             }
 
-            // Generate initial title from AI analysis or filename
+            // Generate title and slug
             $initialTitle = $this->generateInitialTitle($aiAnalysis);
             $slug = $this->generateUniqueSlug($initialTitle);
 
-            // Check if this is from a livestream
-            $isFromLivestream = str_contains($this->processingLog->current_step ?? '', 'livestream');
-            $livestreamProcessingId = null;
+            // Determine filename based on processing type
+            $filename = match($this->processingLog->processing_type) {
+                'audio' => $this->processingLog->source_file_path,
+                'video', 'livestream' => $this->processingLog->audio_file_path,
+                default => throw new \Exception("Unknown processing type: {$this->processingLog->processing_type}"),
+            };
 
-            if ($isFromLivestream) {
-                // Extract livestream processing ID from current_step
-                $parts = explode(':', $this->processingLog->current_step);
-                if (count($parts) > 1) {
-                    $livestreamProcessingId = $parts[1];
-                }
-            }
-
-            // Check if this is a direct video upload by presence of audio_file_path
-            // (audio_file_path only exists when audio was extracted from video)
-            $isVideoUpload = !$isFromLivestream && !empty($this->processingLog->audio_file_path);
-
-            // For video uploads, use extracted audio for filename, store video path separately
-            // For audio uploads, use stored_file_path as filename
-            $filename = $this->processingLog->stored_file_path ?? $this->processingLog->original_filename;
-
-            if ($isVideoUpload) {
-                // Use extracted audio file for audio playback
-                $filename = $this->processingLog->audio_file_path;
-            }
-
-            // Create the sermon record with data from AI analysis and processing log
+            // Create sermon record
             $sermonData = [
                 'title' => $initialTitle,
-                'filename' => $filename,
+                'audio_file_path' => $filename,
                 'filetype' => pathinfo($this->processingLog->original_filename, PATHINFO_EXTENSION),
                 'date' => $this->extractDateFromFilename($this->processingLog->original_filename),
                 'service' => $this->extractServiceFromFilename($this->processingLog->original_filename),
                 'slug' => $slug,
                 'series' => $aiAnalysis['series'] ?? null,
                 'reference' => $aiAnalysis['reference'] ?? null,
-                'preacher' => 'Mark Drury', // Default preacher as specified
+                'preacher' => 'Mark Drury',
                 'points' => isset($aiAnalysis['points']) ? json_encode($aiAnalysis['points']) : null,
-                'transcript_path' => $this->processingLog->transcript_path,
+                'transcript_file_path' => $this->processingLog->transcript_file_path,
+                'source_type' => $this->mapProcessingTypeToSourceType($this->processingLog->processing_type),
             ];
 
-            // Add video file path for direct video uploads
-            if ($isVideoUpload) {
-                $sermonData['video_file_path'] = $this->processingLog->stored_file_path;
-                $sermonData['source_type'] = 'video_upload';
-
-                Log::info('Setting video file path for direct video upload', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'video_file_path' => $sermonData['video_file_path'],
-                    'audio_file_path' => $sermonData['filename'],
-                ]);
-            }
-
-            // Add livestream-specific fields if applicable
-            if ($isFromLivestream && $livestreamProcessingId) {
-                $sermonData['source_type'] = 'livestream';
-                $sermonData['livestream_processing_id'] = $livestreamProcessingId;
+            // Add video path for video/livestream types
+            if (in_array($this->processingLog->processing_type, ['video', 'livestream'])) {
+                $sermonData['video_file_path'] = $this->processingLog->video_file_path;
             }
 
             $sermon = Sermon::create($sermonData);
 
-            // For direct video uploads, move video to permanent storage (similar to livestream processing)
-            if ($isVideoUpload) {
-                $finalVideoPath = $this->storeVideoForSermon($sermon->id, $this->processingLog->stored_file_path);
-
-                // Update sermon with permanent video path
+            // Store video permanently if needed
+            if ($this->processingLog->processing_type === 'video' && $this->processingLog->source_file_path) {
+                $finalVideoPath = $this->storeVideoForSermon($sermon->id, $this->processingLog->source_file_path);
                 $sermon->update(['video_file_path' => $finalVideoPath]);
-
-                Log::info('Moved video to permanent storage for direct video upload', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'sermon_id' => $sermon->id,
-                    'original_path' => $this->processingLog->stored_file_path,
-                    'final_path' => $finalVideoPath,
-                ]);
+                $this->processingLog->update(['video_file_path' => $finalVideoPath]);
             }
 
             // Update processing log with sermon ID
@@ -286,6 +249,19 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
     }
 
     /**
+     * Map processing_type to source_type enum values for sermons table
+     */
+    private function mapProcessingTypeToSourceType(string $processingType): string
+    {
+        return match($processingType) {
+            'audio' => 'audio_upload',
+            'video' => 'video_upload',
+            'livestream' => 'livestream',
+            default => 'manual',
+        };
+    }
+
+    /**
      * Store video file to permanent sermon storage
      * Similar to SermonMetadataIntegrationService::organizeVideoFile
      */
@@ -329,17 +305,10 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error('CreateSermonRecord job failed permanently', [
-            'processing_id' => $this->processingId,
+            'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
         ]);
 
-        // Mark processing as failed
-        SermonProcessingLog::where('processing_id', $this->processingId)
-            ->update([
-                'status' => ProcessingStatus::FAILED,
-                'error_message' => $exception->getMessage(),
-                'current_step' => 'creating_sermon_record_failed',
-            ]);
+        $this->processingLog->markAsFailed($exception->getMessage(), 'creating_sermon_record_failed');
     }
 }

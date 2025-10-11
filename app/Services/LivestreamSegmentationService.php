@@ -5,15 +5,15 @@ namespace App\Services;
 use App\Contracts\VideoStorageServiceInterface;
 use App\Data\LivestreamProcessingResult;
 use App\Jobs\AnalyzeSegments;
-use App\Jobs\AnalyzeSermonTranscriptFromLivestream;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\SubmitToProcessing;
-use App\Jobs\TranscribeSermonAudioFromLivestream;
+use App\Jobs\TranscribeAudio;
+use App\Jobs\ProcessTranscriptWithAI;
 use App\Mail\LivestreamProcessingFailed;
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -66,18 +66,19 @@ class LivestreamSegmentationService
 
             $metadata = $this->segmentationService->getVideoMetadata($uploadResult['full_path']);
 
-            $processingLog = LivestreamProcessingLog::create([
+            $processingLog = MediaProcessingLog::create([
                 'processing_id' => $processingId,
+                'processing_type' => 'livestream',
                 'status' => 'pending',
                 'original_filename' => $uploadResult['original_filename'],
-                'original_file_path' => $uploadResult['temp_path'],
+                'source_file_path' => $uploadResult['temp_path'],
                 'file_size' => $uploadResult['file_size'],
-                'file_format' => pathinfo($uploadResult['original_filename'], PATHINFO_EXTENSION),
                 'duration' => $metadata['duration'],
                 'processing_metadata' => [
                     'upload_time' => now()->toISOString(),
                     'format_details' => $metadata,
                     'mime_type' => $uploadResult['mime_type'],
+                    'file_format' => pathinfo($uploadResult['original_filename'], PATHINFO_EXTENSION),
                 ],
             ]);
 
@@ -122,13 +123,16 @@ class LivestreamSegmentationService
             $storedPath = $this->storageService->storeUploadedVideo($videoFile);
 
             // Create processing log
-            $processingLog = LivestreamProcessingLog::create([
+            $processingLog = MediaProcessingLog::create([
                 'processing_id' => $processingId,
+                'processing_type' => 'livestream',
                 'original_filename' => $videoFile->getClientOriginalName(),
-                'stored_file_path' => $storedPath,
+                'source_file_path' => $storedPath,
                 'status' => 'processing',
-                'processing_type' => 'direct_sermon', // Mark as direct processing
                 'current_step' => 'initiated',
+                'processing_metadata' => [
+                    'processing_mode' => 'direct_sermon',
+                ],
             ]);
 
             // For direct processing, skip segmentation and go straight to sermon processing
@@ -167,7 +171,9 @@ class LivestreamSegmentationService
 
     public function retryProcessing(string $processingId): LivestreamProcessingResult
     {
-        $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
+            ->where('processing_type', 'livestream')
+            ->first();
 
         if (! $processingLog) {
             throw new \Exception('Processing record not found');
@@ -177,11 +183,6 @@ class LivestreamSegmentationService
             throw new \Exception('Only failed processing can be retried');
         }
 
-        Log::info('Retrying livestream processing', [
-            'processing_id' => $processingId,
-            'previous_status' => $processingLog->status,
-        ]);
-
         $processingLog->update([
             'status' => 'pending',
             'error_message' => null,
@@ -190,7 +191,6 @@ class LivestreamSegmentationService
         ]);
 
         $processingLog->segments()->delete();
-
         $this->dispatchProcessingJobs($processingLog);
 
         return $this->buildProcessingResult($processingLog->fresh());
@@ -198,68 +198,48 @@ class LivestreamSegmentationService
 
     public function cancelProcessing(string $processingId): bool
     {
-        $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
+            ->where('processing_type', 'livestream')
+            ->first();
 
         if (! $processingLog) {
             throw new \Exception('Processing record not found');
         }
 
-        if ($processingLog->isCompleted()) {
+        if ($processingLog->isComplete()) {
             throw new \Exception('Cannot cancel completed processing');
         }
 
-        Log::info('Cancelling livestream processing', [
-            'processing_id' => $processingId,
-            'current_status' => $processingLog->status,
-        ]);
-
         $processingLog->markAsFailed('Processing cancelled by user');
-
         $this->storageService->cleanupTemporaryFiles([]);
 
         return true;
     }
 
-    private function dispatchProcessingJobs(LivestreamProcessingLog $processingLog): void
+    private function dispatchProcessingJobs(MediaProcessingLog $processingLog): void
     {
         $processingId = $processingLog->processing_id;
+        $pipelineBuilder = app(ProcessingPipelineBuilder::class);
+        $jobs = $pipelineBuilder->buildLivestreamPipeline($processingLog);
 
-        // Dispatch updated job chain for unified livestream processing
-        Bus::chain([
-            new GenerateRmsLog($processingLog),
-            new AnalyzeSegments($processingLog),
-            new ExtractSermon($processingLog),
-            new SubmitToProcessing($processingLog),
-            new TranscribeSermonAudioFromLivestream($processingLog),
-            new AnalyzeSermonTranscriptFromLivestream($processingLog),
-            new GenerateThumbnail($processingLog),
-            new CleanupTemporaryFiles($processingLog),
-        ])->catch(function (\Throwable $e) use ($processingId) {
-            $this->handleProcessingFailure($processingId, $e);
-        })->onQueue(config('media-processing.queue.name', 'default'))
+        Bus::chain($jobs)
+            ->catch(fn (\Throwable $e) => $this->handleProcessingFailure($processingId, $e))
+            ->onQueue(config('media-processing.queue.name', 'default'))
             ->dispatch();
     }
 
-    /**
-     * Update the processing status for real-time progress tracking
-     */
     public function updateProcessingStatus(string $processingId, string $status): void
     {
-        $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
 
         if ($processingLog) {
             $processingLog->update(['status' => $status]);
-
-            Log::info('Processing status updated', [
-                'processing_id' => $processingId,
-                'status' => $status,
-            ]);
         }
     }
 
     private function handleProcessingFailure(string $processingId, \Throwable $e): void
     {
-        $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
 
         if ($processingLog) {
             $processingLog->update([
@@ -285,9 +265,9 @@ class LivestreamSegmentationService
         }
     }
 
-    private function buildProcessingResult(LivestreamProcessingLog $processingLog): LivestreamProcessingResult
+    private function buildProcessingResult(MediaProcessingLog $processingLog): LivestreamProcessingResult
     {
-        $segments = $processingLog->segments->map(function ($segment) {
+        $segments = $processingLog->segments->map(function (\App\Models\LivestreamSegment $segment) {
             return new \App\Data\LivestreamSegment(
                 startTime: $segment->start_time,
                 endTime: $segment->end_time,
@@ -308,10 +288,10 @@ class LivestreamSegmentationService
 
         return new LivestreamProcessingResult(
             processingId: $processingLog->processing_id,
-            status: $processingLog->status,
+            status: $processingLog->status->value,
             originalFilename: $processingLog->original_filename,
             fileSize: $processingLog->file_size,
-            fileFormat: $processingLog->file_format,
+            fileFormat: $processingLog->processing_metadata['file_format'] ?? null,
             duration: $processingLog->duration,
             sermonStartTime: $processingLog->sermon_start_time,
             sermonEndTime: $processingLog->sermon_end_time,

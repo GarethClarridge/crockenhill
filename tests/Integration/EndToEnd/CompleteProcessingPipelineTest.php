@@ -2,7 +2,7 @@
 
 namespace Tests\Integration\EndToEnd;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonProcessingService;
 use Illuminate\Http\UploadedFile;
@@ -40,7 +40,7 @@ class CompleteProcessingPipelineTest extends BaseIntegrationTest
         $processingId = $response->json('processing_id');
 
         // Verify processing completed
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
         $this->assertNotNull($processing);
         $this->assertEquals('completed', $processing->status);
 

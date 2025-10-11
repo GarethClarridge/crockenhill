@@ -223,12 +223,12 @@ use Illuminate\Support\Str;
         </div>
         <div>
           <span class="font-medium text-gray-700">Status:</span>
-          <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full 
-            @if($sermon->livestreamProcessing->status === 'completed') bg-green-100 text-green-800
-            @elseif($sermon->livestreamProcessing->status === 'failed') bg-red-100 text-red-800
-            @elseif($sermon->livestreamProcessing->status === 'processing') bg-yellow-100 text-yellow-800
+          <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full
+            @if($sermon->livestreamProcessing->status->value === 'completed') bg-green-100 text-green-800
+            @elseif($sermon->livestreamProcessing->status->value === 'failed') bg-red-100 text-red-800
+            @elseif($sermon->livestreamProcessing->status->value === 'processing') bg-yellow-100 text-yellow-800
             @else bg-gray-100 text-gray-800 @endif">
-            {{ ucfirst($sermon->livestreamProcessing->status) }}
+            {{ $sermon->livestreamProcessing->status->label() }}
           </span>
         </div>
         <div>

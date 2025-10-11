@@ -23,7 +23,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
 
         // Create a fake thumbnail file
@@ -50,7 +50,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
@@ -62,7 +62,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/nonexistent.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/nonexistent.jpg',
         ]);
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
@@ -74,7 +74,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.png',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.png',
         ]);
 
         // Create a fake PNG thumbnail file
@@ -90,7 +90,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.webp',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.webp',
         ]);
 
         // Create a fake WebP thumbnail file
@@ -106,7 +106,7 @@ class SermonThumbnailServingTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
         ]);
 
         // Create a fake thumbnail file

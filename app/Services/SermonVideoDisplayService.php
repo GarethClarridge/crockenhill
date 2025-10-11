@@ -16,7 +16,7 @@ class SermonVideoDisplayService
             throw new \Exception("Sermon with ID {$sermonId} not found");
         }
 
-        /** @var \App\Models\LivestreamProcessingLog|null $livestreamProcessing */
+        /** @var \App\Models\MediaProcessingLog|null $livestreamProcessing */
         $livestreamProcessing = $sermon->livestreamProcessing;
 
         return [
@@ -176,13 +176,13 @@ class SermonVideoDisplayService
             return ['is_livestream' => false];
         }
 
-        /** @var \App\Models\LivestreamProcessingLog $livestreamProcessing */
+        /** @var \App\Models\MediaProcessingLog $livestreamProcessing */
         $livestreamProcessing = $sermon->livestreamProcessing;
 
         return [
             'is_livestream' => true,
             'original_filename' => $livestreamProcessing->original_filename,
-            'processing_status' => $livestreamProcessing->status,
+            'processing_status' => $livestreamProcessing->status->value,
             'segment_count' => $livestreamProcessing->segments->count(),
             'processing_date' => $livestreamProcessing->created_at->format('Y-m-d H:i:s'),
         ];

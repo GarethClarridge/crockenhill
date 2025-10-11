@@ -7,9 +7,9 @@ use App\Models\Sermon;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SermonProcessingLog>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\MediaProcessingLog>
  */
-class SermonProcessingLogFactory extends Factory
+class MediaProcessingLogFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -18,8 +18,11 @@ class SermonProcessingLogFactory extends Factory
      */
     public function definition(): array
     {
+        $processingType = $this->faker->randomElement(['audio', 'video', 'livestream']);
+
         return [
             'processing_id' => $this->faker->uuid(),
+            'processing_type' => $processingType,
             'original_filename' => $this->faker->regexify('[0-9]{4}-[0-9]{2}-[0-9]{2}').'_sermon.mp3',
             'status' => $this->faker->randomElement(ProcessingStatus::cases()),
             'current_step' => $this->faker->optional()->randomElement([
@@ -30,11 +33,46 @@ class SermonProcessingLogFactory extends Factory
                 'completed',
             ]),
             'error_message' => $this->faker->optional(0.2)->sentence(),
-            'sermon_id' => $this->faker->optional(0.7)->randomElement([
-                null,
-                fn () => Sermon::factory()->create()->id,
-            ]),
+            'sermon_id' => null,
+            // Add source_file_path for audio type to prevent null issues
+            'source_file_path' => $processingType === 'audio'
+                ? 'sermons/test/'.uniqid().'.mp3'
+                : null,
+            // Add audio_file_path for video/livestream types
+            'audio_file_path' => in_array($processingType, ['video', 'livestream'])
+                ? 'sermons/test/'.uniqid().'.mp3'
+                : null,
         ];
+    }
+
+    /**
+     * Indicate that the processing is for audio type.
+     */
+    public function audio(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'processing_type' => 'audio',
+        ]);
+    }
+
+    /**
+     * Indicate that the processing is for video type.
+     */
+    public function video(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'processing_type' => 'video',
+        ]);
+    }
+
+    /**
+     * Indicate that the processing is for livestream type.
+     */
+    public function livestream(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'processing_type' => 'livestream',
+        ]);
     }
 
     /**

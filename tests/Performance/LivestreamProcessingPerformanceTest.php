@@ -2,7 +2,7 @@
 
 namespace Tests\Performance;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\LivestreamSegment;
 use App\Services\LivestreamMonitoringService;
 use App\Services\LivestreamProcessingLogger;
@@ -54,12 +54,12 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $initDuration = $initEndTime - $initStartTime;
 
         // Verify processing record was created efficiently
-        $this->assertDatabaseHas('livestream_processing_logs', [
+        $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => $result->processingId,
             'status' => 'pending',
         ]);
 
-        $processing = LivestreamProcessingLog::where('processing_id', $result->processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $result->processingId)->first();
         $this->assertNotNull($processing);
 
         $endTime = microtime(true);
@@ -110,7 +110,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
 
         // Verify all processing records were created
         foreach ($processingIds as $processingId) {
-            $this->assertDatabaseHas('livestream_processing_logs', [
+            $this->assertDatabaseHas('media_processing_logs', [
                 'processing_id' => $processingId,
                 'status' => 'pending',
             ]);
@@ -132,7 +132,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $startMemory = memory_get_usage(true);
 
         // Create a processing record
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'perf-test-segmentation',
             'status' => 'processing',
             'duration_seconds' => 7200, // 2 hours
@@ -218,7 +218,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
             $createdAt = now()->subHours(rand(1, 168)); // Random time in past week
             $completedAt = $status === 'completed' ? $createdAt->copy()->addMinutes(rand(30, 180)) : null;
 
-            $processing = LivestreamProcessingLog::create([
+            $processing = MediaProcessingLog::create([
                 'processing_id' => "perf-test-{$i}",
                 'original_filename' => "test-video-{$i}.mp4",
                 'file_path' => "livestreams/test-{$i}.mp4",
@@ -370,7 +370,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
         // Perform various operations while monitoring memory
         for ($i = 0; $i < 10; $i++) {
             // Create processing record
-            $processing = LivestreamProcessingLog::factory()->create([
+            $processing = MediaProcessingLog::factory()->create([
                 'processing_id' => "memory-test-{$i}",
             ]);
 

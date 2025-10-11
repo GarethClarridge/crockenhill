@@ -2,7 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\LivestreamProcessingLog;
+use App\Enums\ProcessingStatus;
+use App\Models\MediaProcessingLog;
 use App\Models\LivestreamSegment;
 use App\Models\Sermon;
 use App\Services\LivestreamProcessingLogger;
@@ -83,24 +84,24 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $result = $service->processWithSegmentation($videoFile);
 
         // Verify processing record was created
-        $this->assertDatabaseHas('livestream_processing_logs', [
+        $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => $result->processingId,
             'original_filename' => 'livestream.mp4',
             'status' => 'pending',
         ]);
 
         // Verify file was stored
-        $processing = LivestreamProcessingLog::where('processing_id', $result->processingId)->first();
-        $this->assertTrue(Storage::exists($processing->original_file_path));
+        $processing = MediaProcessingLog::where('processing_id', $result->processingId)->first();
+        $this->assertTrue(Storage::exists($processing->source_file_path));
 
-        // Verify job chain was dispatched with new livestream processing jobs
+        // Verify job chain was dispatched with unified processing jobs
         Bus::assertChained([
             \App\Jobs\GenerateRmsLog::class,
             \App\Jobs\AnalyzeSegments::class,
             \App\Jobs\ExtractSermon::class,
             \App\Jobs\SubmitToProcessing::class,
-            \App\Jobs\TranscribeSermonAudioFromLivestream::class,
-            \App\Jobs\AnalyzeSermonTranscriptFromLivestream::class,
+            \App\Jobs\TranscribeAudio::class,              // UNIFIED JOB
+            \App\Jobs\ProcessTranscriptWithAI::class,      // UNIFIED JOB
             \App\Jobs\GenerateThumbnail::class,
             \App\Jobs\CleanupTemporaryFiles::class,
         ]);
@@ -109,7 +110,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
     public function test_segmentation_analysis_integration()
     {
         // Create processing record with sample RMS data
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-segmentation',
             'status' => 'processing',
             'duration' => 3600.0,
@@ -133,7 +134,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         foreach ($segments as $index => $segment) {
             LivestreamSegment::create([
                 'processing_id' => $processing->processing_id,
-                'processing_log_id' => $processing->id,
+                'media_processing_log_id' => $processing->id,
                 'segment_index' => $index + 1,
                 'segment_order' => $index + 1,
                 'start_time' => $segment['start'],
@@ -151,7 +152,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         // Verify segments were created correctly
         $this->assertDatabaseCount('livestream_segments', 4);
 
-        $sermonSegment = LivestreamSegment::where('processing_log_id', $processing->id)
+        $sermonSegment = LivestreamSegment::where('media_processing_log_id', $processing->id)
             ->where('is_sermon_candidate', true)
             ->first();
 
@@ -186,7 +187,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
     public function test_sermon_integration_with_livestream_processing()
     {
         // Create a complete processing record
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-sermon-integration',
             'status' => 'completed',
             'original_filename' => 'sunday-service.mp4',
@@ -195,7 +196,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         // Create segments
         LivestreamSegment::factory()->create([
             'processing_id' => $processing->processing_id,
-            'processing_log_id' => $processing->id,
+            'media_processing_log_id' => $processing->id,
             'segment_index' => 1,
             'start_time' => 300,
             'end_time' => 2100,
@@ -234,7 +235,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
 
     public function test_error_handling_integration()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-error-handling',
             'status' => 'processing',
         ]);
@@ -247,13 +248,13 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $errorHandler->handleProcessingFailure('test-error-handling', $exception, 'video_analysis');
 
         $processing->refresh();
-        $this->assertEquals('failed', $processing->status);
+        $this->assertEquals(ProcessingStatus::FAILED, $processing->status);
         $this->assertEquals('Test processing failure', $processing->error_message);
 
         // Test segmentation failure requiring manual review
-        $processing2 = LivestreamProcessingLog::factory()->create([
+        $processing2 = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-manual-review',
-            'status' => 'processing',
+            'status' => ProcessingStatus::PROCESSING,
         ]);
 
         $errorHandler->handleSegmentationFailure(
@@ -263,28 +264,28 @@ class LivestreamProcessingIntegrationTest extends TestCase
         );
 
         $processing2->refresh();
-        $this->assertEquals('failed', $processing2->status);
+        $this->assertEquals(ProcessingStatus::FAILED, $processing2->status);
         $this->assertStringContainsString('manual review', $processing2->error_message);
     }
 
     public function test_monitoring_integration()
     {
-        // Create test processing records
-        LivestreamProcessingLog::factory()->create([
-            'status' => 'completed',
+        // Create test processing records - all livestream type
+        MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::COMPLETED,
             'created_at' => now()->subHours(2),
             'completed_at' => now()->subHours(1),
             'file_size' => 1073741824, // 1GB
         ]);
 
-        LivestreamProcessingLog::factory()->create([
-            'status' => 'failed',
+        MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::FAILED,
             'created_at' => now()->subHour(),
             'error_message' => 'FFmpeg processing failed',
         ]);
 
-        LivestreamProcessingLog::factory()->create([
-            'status' => 'processing',
+        MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::PROCESSING,
             'created_at' => now()->subMinutes(30),
         ]);
 
@@ -314,7 +315,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $processingId = 'test-logging-integration';
 
         // Create a processing record with segments
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => $processingId,
             'status' => 'completed',
             'original_filename' => 'test-video.mp4',
@@ -324,10 +325,10 @@ class LivestreamProcessingIntegrationTest extends TestCase
             'completed_at' => now(),
         ]);
 
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
         LivestreamSegment::factory()->count(3)->create([
             'processing_id' => $processing->processing_id,
-            'processing_log_id' => $processing->id,
+            'media_processing_log_id' => $processing->id,
             'segment_index' => 1,
         ]);
 

@@ -8,7 +8,7 @@ use App\Enums\SermonService;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\SermonAnalysisService;
 use Illuminate\Support\Facades\Storage;
 use Tests\Integration\BaseIntegrationTest;
@@ -30,7 +30,7 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
         $audioFile = $this->copyTestFixture('test_audio_short.mp3', 'test-integration/test.mp3');
 
         // Create processing log
-        $processing = SermonProcessingLog::create([
+        $processing = MediaProcessingLog::create([
             'processing_id' => 'test-id',
             'original_filename' => 'test.mp3',
             'stored_file_path' => $audioFile,
@@ -40,7 +40,7 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
 
         // Execute job directly (would catch property access errors)
         $job = new CreateSermonRecord($processing);
-        $job->handle(app(\App\Services\SermonProcessingLogger::class));
+        $job->handle(app(\App\Services\MediaProcessingLogger::class));
 
         // Verify sermon created without errors
         $processing->refresh();
@@ -89,14 +89,14 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
     public function test_process_transcript_with_ai_job_executes(): void
     {
         $sermon = Sermon::factory()->create([
-            'transcript_path' => 'test-transcript.md',
+            'transcript_file_path' => 'test-transcript.md',
         ]);
 
         // Store a test transcript
         Storage::put('test-transcript.md', 'This is a comprehensive test sermon transcript about faith, hope, and love. The speaker discusses the importance of community and spiritual growth.');
 
         // Create processing log
-        $processing = SermonProcessingLog::create([
+        $processing = MediaProcessingLog::create([
             'processing_id' => 'test-ai-id',
             'original_filename' => 'test-transcript.md',
             'sermon_id' => $sermon->id,
@@ -132,7 +132,7 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
 
         // Create processing log
         $processingId = 'integration-test-'.uniqid();
-        $processing = SermonProcessingLog::create([
+        $processing = MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => $metadata->originalName,
             'stored_file_path' => $audioFile,
@@ -142,7 +142,7 @@ class SermonCreationIntegrationTest extends BaseIntegrationTest
 
         // Step 1: Create sermon record
         $createJob = new CreateSermonRecord($processing);
-        $createJob->handle(app(\App\Services\SermonProcessingLogger::class));
+        $createJob->handle(app(\App\Services\MediaProcessingLogger::class));
 
         $processing->refresh();
         $this->assertNotNull($processing->sermon_id, 'Sermon should be created');

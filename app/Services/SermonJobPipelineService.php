@@ -7,7 +7,7 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 
@@ -22,7 +22,7 @@ class SermonJobPipelineService
      */
     public function dispatchProcessingJobs(
         array $jobs,
-        SermonProcessingLog $processingLog,
+        MediaProcessingLog $processingLog,
         array $livestreamMetadata = []
     ): void {
         Log::info('Dispatching sermon processing jobs', [
@@ -60,7 +60,7 @@ class SermonJobPipelineService
         string $processingId,
         string $originalFilename,
         array $livestreamMetadata
-    ): SermonProcessingLog {
+    ): MediaProcessingLog {
         $logData = [
             'processing_id' => $processingId,
             'original_filename' => $originalFilename,
@@ -74,13 +74,13 @@ class SermonJobPipelineService
             $logData['current_step'] = 'initiated_from_livestream:'.$livestreamMetadata['livestream_processing_id'];
         }
 
-        return SermonProcessingLog::create($logData);
+        return MediaProcessingLog::create($logData);
     }
 
     /**
      * Restart processing chain from the appropriate point
      */
-    public function restartProcessingChain(SermonProcessingLog $processingLog): void
+    public function restartProcessingChain(MediaProcessingLog $processingLog): void
     {
         $currentStep = $processingLog->current_step;
         $sermonId = $processingLog->sermon_id;
@@ -148,7 +148,7 @@ class SermonJobPipelineService
     /**
      * Check if processing can be retried automatically
      */
-    public function canRetryProcessing(SermonProcessingLog $processingLog): bool
+    public function canRetryProcessing(MediaProcessingLog $processingLog): bool
     {
         // Don't retry if it's been marked for manual review
         if (str_contains($processingLog->current_step ?? '', 'manual_review')) {
@@ -179,7 +179,7 @@ class SermonJobPipelineService
     /**
      * Check if processing requires manual review
      */
-    public function requiresManualReview(SermonProcessingLog $processingLog): bool
+    public function requiresManualReview(MediaProcessingLog $processingLog): bool
     {
         // Already marked for manual review
         if (str_contains($processingLog->current_step ?? '', 'manual_review')) {
@@ -221,7 +221,7 @@ class SermonJobPipelineService
     private function markForManualReview(string $processingId, string $reviewNote = ''): bool
     {
         try {
-            $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
+            $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
 
             if (! $processingLog) {
                 Log::warning('Processing log not found for manual review marking', [
@@ -266,7 +266,7 @@ class SermonJobPipelineService
      * Build sermon processing pipeline using the builder
      */
     public function buildSermonProcessingPipeline(
-        SermonProcessingLog $processingLog,
+        MediaProcessingLog $processingLog,
         string $absolutePath,
         array $livestreamMetadata = []
     ): array {
@@ -283,7 +283,7 @@ class SermonJobPipelineService
                 'processing_id' => $processingId,
             ]);
 
-            $processingLog = SermonProcessingLog::where('processing_id', $processingId)->first();
+            $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
 
             if (! $processingLog) {
                 Log::warning('Processing log not found for retry', [
@@ -302,7 +302,7 @@ class SermonJobPipelineService
                 'processing_id' => $processingId,
                 'current_status' => $processingLog->status,
                 'current_step' => $processingLog->current_step,
-                'source_type' => $processingLog->source_type,
+                'processing_type' => $processingLog->processing_type,
                 'original_filename' => $processingLog->original_filename,
                 'last_error' => $processingLog->error_message,
                 'created_at' => $processingLog->created_at,
@@ -364,11 +364,11 @@ class SermonJobPipelineService
      * This method handles cases where processing failed before the main pipeline started,
      * such as during file preparation or initial routing.
      */
-    private function restartFromBeginning(SermonProcessingLog $processingLog): void
+    private function restartFromBeginning(MediaProcessingLog $processingLog): void
     {
         Log::info('Restarting processing from beginning', [
             'processing_id' => $processingLog->processing_id,
-            'source_type' => $processingLog->source_type,
+            'processing_type' => $processingLog->processing_type,
             'original_filename' => $processingLog->original_filename,
         ]);
 
@@ -376,7 +376,7 @@ class SermonJobPipelineService
             // For early failures, we need to check if we have enough context to restart
             // The key challenge is that the original file may not be available
 
-            $sourceType = $processingLog->source_type;
+            $sourceType = $processingLog->processing_type;
 
             // Update step to indicate we're attempting restart
             $processingLog->update([

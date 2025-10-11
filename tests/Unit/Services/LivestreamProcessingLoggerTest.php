@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Services;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\LivestreamSegment;
 use App\Services\LivestreamProcessingLogger;
 use App\Services\ProcessingReport;
@@ -120,7 +120,7 @@ class LivestreamProcessingLoggerTest extends TestCase
 
     public function test_generate_processing_report()
     {
-        $processing = LivestreamProcessingLog::factory()->create([
+        $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
             'status' => 'completed',
             'original_filename' => 'test-video.mp4',
@@ -131,17 +131,17 @@ class LivestreamProcessingLoggerTest extends TestCase
         ]);
 
         $segments = LivestreamSegment::factory()->count(5)->create([
-            'processing_log_id' => $processing->id,
+            'media_processing_log_id' => $processing->id,
         ]);
 
         LivestreamSegment::factory()->create([
-            'processing_log_id' => $processing->id,
+            'media_processing_log_id' => $processing->id,
             'classification' => 'song',
             'duration' => 180.0,
         ]);
 
         LivestreamSegment::factory()->create([
-            'processing_log_id' => $processing->id,
+            'media_processing_log_id' => $processing->id,
             'classification' => 'speech',
             'duration' => 1800.0,
             'is_sermon_candidate' => true,
@@ -216,25 +216,25 @@ class LivestreamProcessingLoggerTest extends TestCase
 
     public function test_get_recent_processing_activity()
     {
-        // Create test data
-        LivestreamProcessingLog::factory()->create([
+        // Create test data - must be livestream type since getRecentProcessingActivity filters by livestream
+        MediaProcessingLog::factory()->livestream()->create([
             'status' => 'completed',
             'created_at' => now()->subHours(2),
             'completed_at' => now()->subHours(1),
         ]);
 
-        LivestreamProcessingLog::factory()->create([
+        MediaProcessingLog::factory()->livestream()->create([
             'status' => 'failed',
             'created_at' => now()->subHours(1),
         ]);
 
-        LivestreamProcessingLog::factory()->create([
+        MediaProcessingLog::factory()->livestream()->create([
             'status' => 'processing',
             'created_at' => now()->subMinutes(30),
         ]);
 
         // Create old data that should be excluded
-        LivestreamProcessingLog::factory()->create([
+        MediaProcessingLog::factory()->livestream()->create([
             'status' => 'completed',
             'created_at' => now()->subDays(2),
         ]);

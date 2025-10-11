@@ -45,7 +45,7 @@ class SermonTest extends TestCase
         $sermon = \App\Models\Sermon::factory()->withDate($date)->create([ // Explicitly use App\Models
             'series' => 'My Sermon Series',
             'preacher' => 'John Doe',
-            'filename' => $testFilename, // Changed audio_url to filename
+            'audio_file_path' => $testFilename, // Changed audio_url to filename
         ]);
 
         // Test getHumanDateAttribute

@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\VideoStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -19,7 +19,7 @@ class CleanupTemporaryFiles implements ShouldQueue
     public int $timeout = 300;
 
     public function __construct(
-        private LivestreamProcessingLog $processingLog
+        private MediaProcessingLog $processingLog
     ) {}
 
     public function handle(VideoStorageService $storageService): void
@@ -31,6 +31,9 @@ class CleanupTemporaryFiles implements ShouldQueue
 
             $storageService->cleanupTemporaryFiles([]);
 
+            // Mark processing as completed
+            $this->processingLog->markAsCompleted();
+
             Log::info('Temporary file cleanup completed', [
                 'processing_id' => $this->processingLog->processing_id,
             ]);
@@ -41,7 +44,8 @@ class CleanupTemporaryFiles implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            // Don't fail the job for cleanup issues
+            // Still mark as complete even if cleanup had issues
+            $this->processingLog->markAsCompleted();
         }
     }
 }

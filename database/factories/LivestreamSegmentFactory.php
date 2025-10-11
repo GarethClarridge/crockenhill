@@ -17,16 +17,16 @@ class LivestreamSegmentFactory extends Factory
 
         return [
             'processing_id' => function (array $attributes) {
-                // If processing_log_id is provided, get the processing_id from that log
-                if (isset($attributes['processing_log_id'])) {
-                    $log = \App\Models\LivestreamProcessingLog::find($attributes['processing_log_id']);
+                // If media_processing_log_id is provided, get the processing_id from that log
+                if (isset($attributes['media_processing_log_id'])) {
+                    $log = \App\Models\MediaProcessingLog::find($attributes['media_processing_log_id']);
 
                     return $log ? $log->processing_id : $this->faker->uuid();
                 }
 
                 return $this->faker->uuid();
             },
-            'processing_log_id' => 1, // Will be overridden in tests
+            'media_processing_log_id' => 1, // Will be overridden in tests
             'segment_index' => $this->faker->numberBetween(1, 10),
             'start_time' => $startTime,
             'end_time' => $endTime,
@@ -68,7 +68,7 @@ class LivestreamSegmentFactory extends Factory
     public function forProcessingLog(int $processingLogId): static
     {
         return $this->state(fn (array $attributes) => [
-            'processing_log_id' => $processingLogId,
+            'media_processing_log_id' => $processingLogId,
         ]);
     }
 

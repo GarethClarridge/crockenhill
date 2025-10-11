@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -60,7 +60,7 @@ class LivestreamProcessingLogger
 
     public function generateProcessingReport(string $processingId): ProcessingReport
     {
-        $processing = LivestreamProcessingLog::with('segments')->where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::with('segments')->where('processing_id', $processingId)->first();
 
         if (! $processing) {
             throw new \Exception("Processing record not found for ID: {$processingId}");
@@ -70,7 +70,7 @@ class LivestreamProcessingLogger
 
         return new ProcessingReport([
             'processing_id' => $processingId,
-            'status' => $processing->status,
+            'status' => $processing->status->value,
             'original_filename' => $processing->original_filename,
             'file_size_mb' => round($processing->file_size / 1024 / 1024, 2),
             'duration_seconds' => $processing->duration,
@@ -190,7 +190,8 @@ class LivestreamProcessingLogger
     {
         $since = now()->subHours($hours);
 
-        $recentProcessing = LivestreamProcessingLog::where('created_at', '>=', $since)
+        $recentProcessing = MediaProcessingLog::livestream()
+            ->where('created_at', '>=', $since)
             ->orderBy('created_at', 'desc')
             ->get();
 

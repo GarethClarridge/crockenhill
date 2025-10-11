@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\ProcessingStatus;
 use App\Livewire\ProcessingLogsViewer;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -56,7 +56,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -81,7 +81,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -114,7 +114,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -138,7 +138,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -162,7 +162,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -196,7 +196,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -229,7 +229,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -261,7 +261,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -312,7 +312,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -366,7 +366,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -401,7 +401,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -429,7 +429,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -478,7 +478,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,
@@ -498,7 +498,7 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'source_type' => 'audio',
             'status' => ProcessingStatus::PROCESSING,

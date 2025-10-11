@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +15,8 @@ class LivestreamMonitoringService
         $cacheKey = "livestream_metrics_{$hours}h_".now()->format('H');
 
         return Cache::remember($cacheKey, 300, function () use ($since) { // Cache for 5 minutes
-            $processings = LivestreamProcessingLog::where('created_at', '>=', $since)
+            $processings = MediaProcessingLog::livestream()
+                ->where('created_at', '>=', $since)
                 ->with('segments')
                 ->get();
 
@@ -271,11 +272,13 @@ class LivestreamMonitoringService
 
     private function getProcessingHealth(): array
     {
-        $stuckJobs = LivestreamProcessingLog::where('status', 'processing')
+        $stuckJobs = MediaProcessingLog::livestream()
+            ->where('status', 'processing')
             ->where('updated_at', '<', now()->subHours(2))
             ->count();
 
-        $recentFailures = LivestreamProcessingLog::where('status', 'failed')
+        $recentFailures = MediaProcessingLog::livestream()
+            ->where('status', 'failed')
             ->where('created_at', '>=', now()->subHour())
             ->count();
 
@@ -303,7 +306,8 @@ class LivestreamMonitoringService
             $startOfDay = $date->copy()->startOfDay();
             $endOfDay = $date->copy()->endOfDay();
 
-            $processings = LivestreamProcessingLog::whereBetween('created_at', [$startOfDay, $endOfDay])
+            $processings = MediaProcessingLog::livestream()
+                ->whereBetween('created_at', [$startOfDay, $endOfDay])
                 ->get();
 
             $completed = $processings->where('status', 'completed');

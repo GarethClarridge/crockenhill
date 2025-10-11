@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Contracts;
 
 use App\Data\LivestreamProcessingResult;
-use App\Data\LivestreamProcessingStatus;
+use App\Data\StandardProcessingResponse;
 use App\Services\ProcessingResult;
 use Illuminate\Http\UploadedFile;
 
@@ -30,7 +30,7 @@ interface VideoProcessingServiceInterface
     /**
      * Get processing status for a livestream processing operation
      */
-    public function getProcessingStatus(string $processingId): LivestreamProcessingStatus;
+    public function getProcessingStatus(string $processingId): StandardProcessingResponse;
 
     /**
      * Get processing result for completed operation

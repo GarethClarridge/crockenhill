@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\ProcessingStatus;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
@@ -126,7 +126,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
 
         if ($response->status() === 202) {
             // If upload succeeds, verify the file was stored safely with sanitized filename
-            $this->assertDatabaseHas('sermon_processing_logs', [
+            $this->assertDatabaseHas('media_processing_logs', [
                 'original_filename' => 'passwd.mp3', // Path traversal components should be removed
             ]);
         }
@@ -173,7 +173,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
 
         if ($response->status() === 202) {
             // If successful, verify filename is stored safely with XSS payload sanitized
-            $this->assertDatabaseHas('sermon_processing_logs', [
+            $this->assertDatabaseHas('media_processing_logs', [
                 'original_filename' => 'script>.mp3', // XSS tags should be removed/sanitized
             ]);
         }
@@ -243,8 +243,8 @@ class AutomatedSermonApiSecurityTest extends TestCase
             \Illuminate\Support\Facades\Log::shouldHaveReceived('info')
                 ->with('Media upload initiated', \Mockery::on(function ($context) use ($maliciousFilename) {
                     // Verify the filename is logged but doesn't break log structure
-                    return isset($context['filename']) &&
-                      $context['filename'] === $maliciousFilename;
+                    return isset($context['audio_file_path']) &&
+                      $context['audio_file_path'] === $maliciousFilename;
                 }));
         }
         // If status is 500, the system rejected the malicious content early, which is also good
@@ -277,7 +277,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
     {
         // Create one real processing log
         $realId = (string) Str::uuid();
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $realId,
             'original_filename' => 'test.mp3',
             'status' => ProcessingStatus::COMPLETED,
@@ -320,7 +320,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
 
         // Test for race conditions by making concurrent requests
         $processingId = (string) Str::uuid();
-        SermonProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => 'test.mp3',
             'status' => ProcessingStatus::FAILED,

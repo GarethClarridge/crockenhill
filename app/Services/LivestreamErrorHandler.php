@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -20,7 +20,7 @@ class LivestreamErrorHandler
     {
         $this->logger->logError($processingId, $step, $exception);
 
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
 
         if ($processing) {
             $processing->update([
@@ -36,11 +36,11 @@ class LivestreamErrorHandler
     {
         $this->logger->logWarning($processingId, $step, $message, $context);
 
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
 
-        if ($processing && $processing->status !== 'failed') {
+        if ($processing && ! $processing->isFailed()) {
             $processing->update([
-                'status' => 'completed',
+                'status' => \App\Enums\ProcessingStatus::COMPLETED,
                 'error_message' => $message,
             ]);
         }
@@ -108,7 +108,7 @@ class LivestreamErrorHandler
             'reason' => $reason,
         ]);
 
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
 
         if ($processing) {
             $processing->update([
@@ -126,7 +126,7 @@ class LivestreamErrorHandler
             'error' => $exception->getMessage(),
         ]);
 
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
 
         if ($processing) {
             $processing->update([
@@ -174,7 +174,7 @@ class LivestreamErrorHandler
 
     private function handleDiskSpaceError(string $processingId): void
     {
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
 
         if ($processing) {
             $processing->update([
@@ -196,7 +196,7 @@ class LivestreamErrorHandler
 
     private function handlePermissionError(string $processingId, string $operation): void
     {
-        $processing = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
 
         if ($processing) {
             $processing->update([

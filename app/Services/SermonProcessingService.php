@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\SermonProcessingServiceInterface;
+use App\Data\StandardProcessingResponse;
 use Illuminate\Http\UploadedFile;
 
 class SermonProcessingService implements SermonProcessingServiceInterface
@@ -34,7 +35,7 @@ class SermonProcessingService implements SermonProcessingServiceInterface
     /**
      * Get the current processing status for a given processing ID
      */
-    public function getProcessingStatus(string $processingId): ProcessingStatusResult
+    public function getProcessingStatus(string $processingId): StandardProcessingResponse
     {
         return $this->statusManagementService->getProcessingStatus($processingId);
     }
@@ -77,7 +78,7 @@ class SermonProcessingService implements SermonProcessingServiceInterface
     public function applyGracefulDegradation(string $processingId): ProcessingResult
     {
         try {
-            $processingLog = \App\Models\SermonProcessingLog::where('processing_id', $processingId)->first();
+            $processingLog = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
 
             if (! $processingLog) {
                 return ProcessingResult::failure(
@@ -167,7 +168,7 @@ class SermonProcessingService implements SermonProcessingServiceInterface
     public function cancelProcessing(string $processingId): bool
     {
         try {
-            $processingLog = \App\Models\SermonProcessingLog::where('processing_id', $processingId)->first();
+            $processingLog = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
 
             if (! $processingLog) {
                 return false;

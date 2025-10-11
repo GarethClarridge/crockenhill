@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -219,7 +219,7 @@ class SermonProcessingLogger
     {
         $startDate = now()->subDays($days);
 
-        $logs = SermonProcessingLog::where('created_at', '>=', $startDate)->get();
+        $logs = MediaProcessingLog::where('created_at', '>=', $startDate)->get();
 
         $statistics = [
             'period' => [

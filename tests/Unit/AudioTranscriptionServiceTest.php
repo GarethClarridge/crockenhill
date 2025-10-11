@@ -28,7 +28,7 @@ class AudioTranscriptionServiceTest extends TestCase
         // Configure the service to use the same disk as our faked storage
         config(['media-processing.storage.sermon_disk' => 'local']);
 
-        $logger = app(\App\Services\SermonProcessingLogger::class);
+        $logger = app(\App\Services\MediaProcessingLogger::class);
         $this->service = new AudioTranscriptionService($logger);
     }
 
@@ -40,7 +40,7 @@ class AudioTranscriptionServiceTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('OpenAI API key not configured');
 
-        $logger = app(\App\Services\SermonProcessingLogger::class);
+        $logger = app(\App\Services\MediaProcessingLogger::class);
         $service = new AudioTranscriptionService($logger);
 
         // The exception should be thrown when trying to transcribe, not during construction

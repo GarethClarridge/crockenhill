@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
@@ -92,7 +92,7 @@ class SermonValidationService
     /**
      * Generate fallback data for graceful degradation
      */
-    public function generateFallbackData(Sermon $sermon, SermonProcessingLog $processingLog): array
+    public function generateFallbackData(Sermon $sermon, MediaProcessingLog $processingLog): array
     {
         // Generate basic title if current title is generic
         $title = $sermon->title;
@@ -119,7 +119,7 @@ class SermonValidationService
     /**
      * Generate a fallback title for graceful degradation
      */
-    public function generateFallbackTitle(Sermon $sermon, SermonProcessingLog $processingLog): string
+    public function generateFallbackTitle(Sermon $sermon, MediaProcessingLog $processingLog): string
     {
         // Try to extract from original filename
         if (! empty($processingLog->original_filename)) {
@@ -289,7 +289,7 @@ class SermonValidationService
     /**
      * Check if processing can be retried automatically
      */
-    public function canRetryProcessing(SermonProcessingLog $processingLog): bool
+    public function canRetryProcessing(MediaProcessingLog $processingLog): bool
     {
         // Don't retry if it's been marked for manual review
         if (str_contains($processingLog->current_step ?? '', 'manual_review')) {
@@ -320,7 +320,7 @@ class SermonValidationService
     /**
      * Check if processing requires manual review
      */
-    public function requiresManualReview(SermonProcessingLog $processingLog): bool
+    public function requiresManualReview(MediaProcessingLog $processingLog): bool
     {
         // Already marked for manual review
         if (str_contains($processingLog->current_step ?? '', 'manual_review')) {

@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Data\LivestreamSegment;
-use App\Models\LivestreamProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
@@ -21,7 +21,7 @@ class ProcessVideoCommand extends Command
     {
         $processingId = $this->argument('processing_id');
 
-        $processingLog = LivestreamProcessingLog::where('processing_id', $processingId)->first();
+        $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
         if (! $processingLog) {
             $this->error("Processing log not found for ID: {$processingId}");
 
@@ -55,16 +55,16 @@ class ProcessVideoCommand extends Command
             'livestream_processing_id' => $processingId,
             'segment_start_time' => $sermonSegment->start_time,
             'segment_end_time' => $sermonSegment->end_time,
-            'filename' => 'sermons/'.$slug.'.mp3', // Temporary filename
+            'audio_file_path' => 'sermons/'.$slug.'.mp3', // Temporary filename
             'video_file_path' => 'sermons/videos/'.$slug.'.mp4', // Temporary video path
         ]);
 
         $this->info("Created sermon record with ID: {$sermon->id}");
 
         // Try to extract video segment
-        if ($processingLog->original_file_path && Storage::exists($processingLog->original_file_path)) {
+        if ($processingLog->source_file_path && Storage::exists($processingLog->source_file_path)) {
             try {
-                $inputPath = Storage::path($processingLog->original_file_path);
+                $inputPath = Storage::path($processingLog->source_file_path);
 
                 $segmentData = new LivestreamSegment(
                     startTime: $sermonSegment->start_time,
@@ -93,7 +93,7 @@ class ProcessVideoCommand extends Command
                 // Update sermon with file paths
                 $sermon->update([
                     'video_file_path' => $videoPath,
-                    'filename' => $audioPath,
+                    'audio_file_path' => $audioPath,
                 ]);
 
                 // Clean up temp file

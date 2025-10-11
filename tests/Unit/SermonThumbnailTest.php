@@ -13,7 +13,7 @@ class SermonThumbnailTest extends TestCase
 
     public function test_get_thumbnail_url_attribute_returns_null_when_no_thumbnail_path(): void
     {
-        $sermon = Sermon::factory()->create(['thumbnail_path' => null]);
+        $sermon = Sermon::factory()->create(['thumbnail_file_path' => null]);
 
         $this->assertNull($sermon->thumbnail_url);
     }
@@ -21,7 +21,7 @@ class SermonThumbnailTest extends TestCase
     public function test_get_thumbnail_url_attribute_returns_storage_url_when_thumbnail_path_exists(): void
     {
         $thumbnailPath = 'sermons/thumbnails/test-thumbnail.jpg';
-        $sermon = Sermon::factory()->create(['thumbnail_path' => $thumbnailPath]);
+        $sermon = Sermon::factory()->create(['thumbnail_file_path' => $thumbnailPath]);
 
         // Mock the storage disk
         Storage::fake('public');
@@ -33,14 +33,14 @@ class SermonThumbnailTest extends TestCase
 
     public function test_has_thumbnail_returns_false_when_no_thumbnail_path(): void
     {
-        $sermon = Sermon::factory()->create(['thumbnail_path' => null]);
+        $sermon = Sermon::factory()->create(['thumbnail_file_path' => null]);
 
         $this->assertFalse($sermon->hasThumbnail());
     }
 
     public function test_has_thumbnail_returns_false_when_thumbnail_file_does_not_exist(): void
     {
-        $sermon = Sermon::factory()->create(['thumbnail_path' => 'sermons/thumbnails/nonexistent.jpg']);
+        $sermon = Sermon::factory()->create(['thumbnail_file_path' => 'sermons/thumbnails/nonexistent.jpg']);
 
         Storage::fake('public');
 
@@ -50,7 +50,7 @@ class SermonThumbnailTest extends TestCase
     public function test_has_thumbnail_returns_true_when_thumbnail_file_exists(): void
     {
         $thumbnailPath = 'sermons/thumbnails/test-thumbnail.jpg';
-        $sermon = Sermon::factory()->create(['thumbnail_path' => $thumbnailPath]);
+        $sermon = Sermon::factory()->create(['thumbnail_file_path' => $thumbnailPath]);
 
         Storage::fake('public');
         Storage::disk('public')->put($thumbnailPath, 'fake image content');
@@ -62,10 +62,10 @@ class SermonThumbnailTest extends TestCase
     {
         // Create sermons with and without thumbnails
         $sermonWithThumbnail = Sermon::factory()->create([
-            'thumbnail_path' => 'sermons/thumbnails/test.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test.jpg',
         ]);
         $sermonWithoutThumbnail = Sermon::factory()->create([
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         $sermonsWithThumbnails = Sermon::withThumbnail()->get();
@@ -103,17 +103,17 @@ class SermonThumbnailTest extends TestCase
             'slug' => 'test-sermon',
             'date' => '2023-01-15',
             'service' => 'morning',
-            'filename' => 'test-sermon.mp3',
+            'audio_file_path' => 'test-sermon.mp3',
             'filetype' => 'mp3',
             'preacher' => 'Test Preacher',
-            'thumbnail_path' => 'sermons/thumbnails/test.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/test.jpg',
             'thumbnail_generated_at' => now(),
             'thumbnail_metadata' => ['width' => 1280, 'height' => 720],
         ];
 
         $sermon = Sermon::create($data);
 
-        $this->assertEquals($data['thumbnail_path'], $sermon->thumbnail_path);
+        $this->assertEquals($data['thumbnail_file_path'], $sermon->thumbnail_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
         $this->assertEquals($data['thumbnail_metadata'], $sermon->thumbnail_metadata);
     }
@@ -124,7 +124,7 @@ class SermonThumbnailTest extends TestCase
 
         foreach ($extensions as $ext) {
             $thumbnailPath = "sermons/thumbnails/test-thumbnail.{$ext}";
-            $sermon = Sermon::factory()->create(['thumbnail_path' => $thumbnailPath]);
+            $sermon = Sermon::factory()->create(['thumbnail_file_path' => $thumbnailPath]);
 
             Storage::fake('public');
             Storage::disk('public')->put($thumbnailPath, 'fake image content');
@@ -137,14 +137,14 @@ class SermonThumbnailTest extends TestCase
 
     public function test_has_thumbnail_handles_empty_string_path(): void
     {
-        $sermon = Sermon::factory()->create(['thumbnail_path' => '']);
+        $sermon = Sermon::factory()->create(['thumbnail_file_path' => '']);
 
         $this->assertFalse($sermon->hasThumbnail());
     }
 
     public function test_has_thumbnail_handles_whitespace_path(): void
     {
-        $sermon = Sermon::factory()->create(['thumbnail_path' => '   ']);
+        $sermon = Sermon::factory()->create(['thumbnail_file_path' => '   ']);
 
         Storage::fake('public');
 
@@ -155,13 +155,13 @@ class SermonThumbnailTest extends TestCase
     {
         // Create sermons with various thumbnail path states
         $sermonWithThumbnail = Sermon::factory()->create([
-            'thumbnail_path' => 'sermons/thumbnails/valid.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/valid.jpg',
         ]);
         $sermonWithNullThumbnail = Sermon::factory()->create([
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
         $sermonWithEmptyThumbnail = Sermon::factory()->create([
-            'thumbnail_path' => '',
+            'thumbnail_file_path' => '',
         ]);
 
         $sermonsWithThumbnails = Sermon::withThumbnail()->get();
@@ -239,7 +239,7 @@ class SermonThumbnailTest extends TestCase
         config(['thumbnail-generation.storage.disk' => 'custom_disk']);
 
         $thumbnailPath = 'sermons/thumbnails/custom-test.jpg';
-        $sermon = Sermon::factory()->create(['thumbnail_path' => $thumbnailPath]);
+        $sermon = Sermon::factory()->create(['thumbnail_file_path' => $thumbnailPath]);
 
         // Mock custom storage disk
         Storage::fake('custom_disk');
@@ -253,14 +253,14 @@ class SermonThumbnailTest extends TestCase
     public function test_sermon_can_be_updated_with_thumbnail_data(): void
     {
         $sermon = Sermon::factory()->create([
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
             'thumbnail_generated_at' => null,
             'thumbnail_metadata' => null,
         ]);
 
         // Update with thumbnail data
         $sermon->update([
-            'thumbnail_path' => 'sermons/thumbnails/updated.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/updated.jpg',
             'thumbnail_generated_at' => now(),
             'thumbnail_metadata' => ['width' => 1920, 'height' => 1080],
         ]);
@@ -273,14 +273,14 @@ class SermonThumbnailTest extends TestCase
     public function test_sermon_thumbnail_data_can_be_cleared(): void
     {
         $sermon = Sermon::factory()->create([
-            'thumbnail_path' => 'sermons/thumbnails/to-be-cleared.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/to-be-cleared.jpg',
             'thumbnail_generated_at' => now(),
             'thumbnail_metadata' => ['width' => 1280, 'height' => 720],
         ]);
 
         // Clear thumbnail data
         $sermon->update([
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
             'thumbnail_generated_at' => null,
             'thumbnail_metadata' => null,
         ]);
@@ -297,17 +297,17 @@ class SermonThumbnailTest extends TestCase
         // Create sermons with different combinations
         $morningWithThumbnail = Sermon::factory()->create([
             'service' => 'morning',
-            'thumbnail_path' => 'sermons/thumbnails/morning.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/morning.jpg',
         ]);
 
         $eveningWithThumbnail = Sermon::factory()->create([
             'service' => 'evening',
-            'thumbnail_path' => 'sermons/thumbnails/evening.jpg',
+            'thumbnail_file_path' => 'sermons/thumbnails/evening.jpg',
         ]);
 
         $morningWithoutThumbnail = Sermon::factory()->create([
             'service' => 'morning',
-            'thumbnail_path' => null,
+            'thumbnail_file_path' => null,
         ]);
 
         // Chain scopes

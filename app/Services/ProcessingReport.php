@@ -18,7 +18,14 @@ class ProcessingReport
 
     public function getStatus(): string
     {
-        return $this->data['status'] ?? 'unknown';
+        $status = $this->data['status'] ?? 'unknown';
+
+        // Handle ProcessingStatus enum
+        if ($status instanceof \App\Enums\ProcessingStatus) {
+            return $status->value;
+        }
+
+        return $status;
     }
 
     public function hasErrors(): bool

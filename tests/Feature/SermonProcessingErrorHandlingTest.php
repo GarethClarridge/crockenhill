@@ -8,7 +8,7 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\Sermon;
-use App\Models\SermonProcessingLog;
+use App\Models\MediaProcessingLog;
 use App\Services\AudioTranscriptionService;
 use App\Services\SermonAnalysisService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,10 +38,11 @@ class SermonProcessingErrorHandlingTest extends TestCase
     public function it_handles_missing_processing_log_gracefully(): void
     {
         // Create a processing log that doesn't exist in database (simulate missing record)
-        $processingLog = new SermonProcessingLog([
+        $processingLog = new MediaProcessingLog([
             'processing_id' => 'nonexistent-id',
+            'processing_type' => 'audio',
             'original_filename' => '2024-01-15_morning_sermon.mp3',
-            'stored_file_path' => 'sermons/2024/01/test-file.mp3',
+            'source_file_path' => 'sermons/2024/01/test-file.mp3',
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'ai_analysis_completed',
             'ai_analysis' => json_encode(['title' => 'Test Sermon']),
@@ -60,10 +61,11 @@ class SermonProcessingErrorHandlingTest extends TestCase
     public function it_handles_missing_sermon_record_in_transcription(): void
     {
         // Create processing log without stored file path to trigger error
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'test-missing-file',
+            'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'stored_file_path' => null, // Missing file path
+            'source_file_path' => null, // Missing file path
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'sermon_record_created',
         ]);
@@ -81,8 +83,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_missing_audio_file_in_transcription(): void
     {
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'test-missing-audio',
+            'processing_type' => 'audio',
             'original_filename' => 'nonexistent-audio.mp3',
             'stored_file_path' => 'path/to/nonexistent-audio.mp3',
             'status' => ProcessingStatus::PROCESSING,
@@ -120,11 +123,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_empty_transcript_in_ai_processing(): void
     {
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'test-empty-transcript',
+            'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'stored_file_path' => 'path/to/audio.mp3',
-            'transcript_path' => null, // No transcript path
+            'source_file_path' => 'path/to/audio.mp3',
+            'transcript_file_path' => null, // No transcript path
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'transcription_completed',
         ]);
@@ -133,10 +137,14 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         $job = new ProcessTranscriptWithAI($processingLog);
 
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('No transcript path available');
-
+        // Should not throw exception - applies graceful degradation instead
         $job->handle($mockAnalysisService);
+
+        // Verify graceful degradation was applied
+        $processingLog->refresh();
+        $this->assertEquals('ai_analysis_fallback', $processingLog->current_step);
+        $this->assertNotNull($processingLog->ai_analysis);
+        $this->assertArrayHasKey('title', $processingLog->ai_analysis);
     }
 
     #[Test]
@@ -144,11 +152,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
     {
         Storage::put('transcripts/sermon_1.md', 'This is a sample sermon transcript.');
 
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'test-graceful-degradation',
+            'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'stored_file_path' => 'path/to/audio.mp3',
-            'transcript_path' => 'transcripts/sermon_1.md',
+            'source_file_path' => 'path/to/audio.mp3',
+            'transcript_file_path' => 'transcripts/sermon_1.md',
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'transcription_completed',
         ]);
@@ -177,13 +186,14 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon', // Will generate same slug
-            'transcript_path' => 'transcripts/sermon_2.md',
+            'transcript_file_path' => 'transcripts/sermon_2.md',
         ]);
 
         Storage::put('transcripts/sermon_2.md', 'This is a sample sermon transcript.');
 
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'test-id',
+            'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'ai_analysis_completed',
@@ -209,10 +219,11 @@ class SermonProcessingErrorHandlingTest extends TestCase
         // Create a sermon first to have a sermon_id for cleanup
         $sermon = Sermon::factory()->create();
 
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'timeout-test-id',
+            'processing_type' => 'audio',
             'original_filename' => 'large-audio.mp3',
-            'stored_file_path' => 'path/to/large-audio.mp3',
+            'source_file_path' => 'path/to/large-audio.mp3',
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'sermon_record_created',
             'sermon_id' => $sermon->id,
@@ -242,10 +253,11 @@ class SermonProcessingErrorHandlingTest extends TestCase
         // Create a sermon first to have a sermon_id for the storeTranscript method
         $sermon = Sermon::factory()->create();
 
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'storage-test-id',
+            'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'stored_file_path' => 'path/to/test-audio.mp3',
+            'source_file_path' => 'path/to/test-audio.mp3',
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'sermon_record_created',
             'sermon_id' => $sermon->id,
@@ -278,11 +290,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
     {
         Storage::put('transcripts/sermon_1.md', 'This is a sample sermon transcript.');
 
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'rate-limit-test-id',
+            'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
-            'stored_file_path' => 'path/to/audio.mp3',
-            'transcript_path' => 'transcripts/sermon_1.md',
+            'source_file_path' => 'path/to/audio.mp3',
+            'transcript_file_path' => 'transcripts/sermon_1.md',
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'transcription_completed',
         ]);
@@ -365,8 +378,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $service = app(\App\Services\SermonProcessingService::class);
 
         // Create failed processing log
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'retry-test-id',
+            'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'transcribing_audio_failed',
@@ -396,8 +410,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $service = app(\App\Services\SermonProcessingService::class);
 
         // Create processing log that's not failed
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'active-test-id',
+            'processing_type' => 'audio',
             'original_filename' => 'test-audio.mp3',
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'transcribing_audio',
@@ -422,8 +437,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'slug' => 'untitled-sermon',
         ]);
 
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'degradation-test-id',
+            'processing_type' => 'audio',
             'original_filename' => '2024-01-15_morning_service.mp3',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'analyzing_transcript_failed',
@@ -461,8 +477,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $service = app(\App\Services\SermonProcessingService::class);
 
         // Create failed processing log
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'manual-review-test-id',
+            'processing_type' => 'audio',
             'original_filename' => 'problematic-audio.mp3',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'transcribing_audio_failed',
@@ -487,8 +504,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         // Create processing log with detailed error
         $sermon = Sermon::factory()->create();
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'detailed-error-test-id',
+            'processing_type' => 'audio',
             'original_filename' => 'error-test-audio.mp3',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'analyzing_transcript_failed',
@@ -528,9 +546,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
     public function it_can_retry_failed_processing_for_preparing_step(): void
     {
         // Create a failed processing log with 'preparing' step
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'retry-test-preparing',
-            'source_type' => 'audio',
+            'processing_type' => 'audio',
             'original_filename' => 'test-sermon.mp3',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'preparing',
@@ -570,11 +588,11 @@ class SermonProcessingErrorHandlingTest extends TestCase
         Storage::put('transcripts/test-transcript.md', 'This is a test sermon transcript.');
 
         // Create a failed processing log with 'analyzing_transcript' step
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'retry-test-analyzing',
-            'source_type' => 'audio',
+            'processing_type' => 'audio',
             'original_filename' => 'test-sermon.mp3',
-            'transcript_path' => 'transcripts/test-transcript.md', // Required for ProcessTranscriptWithAI job
+            'transcript_file_path' => 'transcripts/test-transcript.md', // Required for ProcessTranscriptWithAI job
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'analyzing_transcript',
             'error_message' => 'AI analysis service unavailable',
@@ -607,9 +625,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
     public function it_handles_retry_initiated_step_for_backwards_compatibility(): void
     {
         // Create a failed processing log with legacy 'retry_initiated' step
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'retry-test-legacy',
-            'source_type' => 'livestream',
+            'processing_type' => 'livestream',
             'original_filename' => 'test-livestream.mp4',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'retry_initiated', // Legacy invalid step
@@ -642,9 +660,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
     public function it_rejects_retry_for_non_failed_processing(): void
     {
         // Create a processing log that is not failed
-        $processingLog = SermonProcessingLog::create([
+        $processingLog = MediaProcessingLog::create([
             'processing_id' => 'retry-test-not-failed',
-            'source_type' => 'audio',
+            'processing_type' => 'audio',
             'original_filename' => 'test-sermon.mp3',
             'status' => ProcessingStatus::COMPLETED, // Not failed
             'current_step' => 'completed',

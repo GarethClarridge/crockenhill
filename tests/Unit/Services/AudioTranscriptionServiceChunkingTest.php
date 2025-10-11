@@ -3,7 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Services\AudioTranscriptionService;
-use App\Services\SermonProcessingLogger;
+use App\Services\MediaProcessingLogger;
 use FFMpeg\FFMpeg;
 use FFMpeg\Media\Audio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +19,7 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
 
     private AudioTranscriptionService $service;
 
-    private SermonProcessingLogger $logger;
+    private MediaProcessingLogger $logger;
 
     protected function setUp(): void
     {
@@ -31,7 +31,7 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
         config(['media-processing.ffmpeg_path' => '/usr/bin/ffmpeg']);
         config(['media-processing.ffprobe_path' => '/usr/bin/ffprobe']);
 
-        $this->logger = Mockery::mock(SermonProcessingLogger::class);
+        $this->logger = Mockery::mock(MediaProcessingLogger::class);
         $this->logger->shouldReceive('logProcessingStep')->andReturn(true);
         $this->logger->shouldReceive('logFileOperation')->andReturn(true);
         $this->logger->shouldReceive('logApiCall')->andReturn(true);

@@ -204,28 +204,6 @@ class StandardProcessingResponse
     }
 
     /**
-     * Create response from legacy ProcessingStatusResult
-     */
-    public static function fromProcessingStatusResult(\App\Services\ProcessingStatusResult $result): self
-    {
-        if (! $result->found) {
-            return self::notFound();
-        }
-
-        return self::found(
-            processingId: $result->processingId,
-            status: $result->status->value,
-            currentStep: $result->currentStep,
-            progressPercentage: 0, // Will be calculated separately
-            errorMessage: $result->errorMessage,
-            sermonId: $result->sermonId,
-            sermonUrl: $result->sermonSlug ? "/christ/sermons/{$result->sermonSlug}" : null,
-            startedAt: $result->createdAt,
-            updatedAt: $result->updatedAt
-        );
-    }
-
-    /**
      * Create response from processing status with flexible input
      */
     public static function fromProcessingStatus(
@@ -254,5 +232,88 @@ class StandardProcessingResponse
             estimatedCompletion: $estimatedCompletion,
             additionalData: $additionalData
         );
+    }
+
+    /**
+     * Create response from MediaProcessingLog
+     */
+    public static function fromProcessingLog(\App\Models\MediaProcessingLog $log): self
+    {
+        $metadata = match($log->processing_type) {
+            'livestream' => [
+                'segments_count' => $log->segments->count(),
+                'sermon_duration' => $log->sermon_end_time && $log->sermon_start_time
+                    ? $log->sermon_end_time - $log->sermon_start_time
+                    : null,
+            ],
+            'video' => [
+                'has_thumbnail' => $log->sermon && !empty($log->sermon->thumbnail_path),
+                'video_duration' => $log->duration,
+            ],
+            'audio' => [
+                'audio_duration' => $log->duration,
+            ],
+            default => [],
+        };
+
+        // Add thumbnail data if sermon exists
+        $sermon = $log->sermon;
+        if ($sermon instanceof \App\Models\Sermon) {
+            $metadata['thumbnail_generated'] = !empty($sermon->thumbnail_path);
+            $metadata['thumbnail_url'] = $sermon->thumbnail_path
+                ? \Illuminate\Support\Facades\Storage::disk('public')->url($sermon->thumbnail_path)
+                : null;
+            $metadata['thumbnail_generated_at'] = $sermon->thumbnail_generated_at?->toISOString();
+        }
+
+        $sermonUrl = null;
+        if ($log->sermon instanceof \App\Models\Sermon) {
+            $sermonUrl = "/christ/sermons/{$log->sermon->slug}";
+        }
+
+        return self::found(
+            processingId: $log->processing_id,
+            status: $log->status->value,
+            currentStep: $log->current_step,
+            progressPercentage: self::calculateProgress($log),
+            errorMessage: $log->error_message,
+            sermonId: $log->sermon_id,
+            sermonUrl: $sermonUrl,
+            startedAt: $log->started_at,
+            updatedAt: $log->updated_at,
+            additionalData: $metadata
+        );
+    }
+
+    /**
+     * Calculate progress percentage based on current step
+     */
+    private static function calculateProgress(\App\Models\MediaProcessingLog $log): int
+    {
+        if ($log->isComplete()) {
+            return 100;
+        }
+
+        if ($log->isFailed()) {
+            return 0;
+        }
+
+        // Simple progress calculation based on common steps
+        $stepProgress = match($log->current_step) {
+            'audio_processing_initiated', 'video_processing_initiated' => 10,
+            'validating' => 15,
+            'extracting_audio' => 25,
+            'generating_rms' => 20,
+            'analyzing_segments' => 40,
+            'extracting_sermon' => 50,
+            'creating_sermon' => 60,
+            'transcribing_audio', 'transcription_completed' => 70,
+            'analyzing_transcript', 'ai_analysis_completed' => 85,
+            'generating_thumbnail' => 90,
+            'cleanup' => 95,
+            default => 50,
+        };
+
+        return $stepProgress;
     }
 }
