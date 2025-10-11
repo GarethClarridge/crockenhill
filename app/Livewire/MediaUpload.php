@@ -77,7 +77,7 @@ class MediaUpload extends Component
 
     protected array $rules = [
         'mediaType' => 'required|in:audio,video,livestream',
-        'mediaFile' => 'required|file|mimes:mp3,wav,m4a,mp4,mov,avi,mkv',
+        'mediaFile' => 'required|file|mimes:mp3,wav,m4a,mp4,mov,avi,mkv|max:5242880', // 5GB in KB
     ];
 
     protected function getDynamicMessages(): array
