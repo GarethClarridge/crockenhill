@@ -23,11 +23,27 @@ return new class extends Migration
             WHERE media_processing_log_id NOT IN (SELECT id FROM media_processing_logs)
         ');
 
-        Schema::table('livestream_segments', function (Blueprint $table) {
-            // Drop old foreign keys that reference livestream_processing_logs
-            $table->dropForeign(['processing_id']);
-            $table->dropForeign(['processing_log_id']);
+        // Get existing foreign keys
+        $foreignKeys = DB::select("
+            SELECT CONSTRAINT_NAME
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'livestream_segments'
+            AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ");
 
+        Schema::table('livestream_segments', function (Blueprint $table) use ($foreignKeys) {
+            // Drop old foreign keys only if they exist
+            foreach ($foreignKeys as $fk) {
+                if (str_contains($fk->CONSTRAINT_NAME, 'processing_id') ||
+                    str_contains($fk->CONSTRAINT_NAME, 'processing_log_id') ||
+                    str_contains($fk->CONSTRAINT_NAME, 'media_processing_log_id')) {
+                    $table->dropForeign($fk->CONSTRAINT_NAME);
+                }
+            }
+        });
+
+        Schema::table('livestream_segments', function (Blueprint $table) {
             // Add foreign key to media_processing_logs.processing_id
             $table->foreign('processing_id')
                 ->references('processing_id')
