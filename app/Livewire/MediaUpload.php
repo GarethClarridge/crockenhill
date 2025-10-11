@@ -127,44 +127,16 @@ class MediaUpload extends Component
 
     public function updatedMediaFile(): void
     {
-        $this->logInfo('MediaUpload: File uploaded', [
+        // File selected - just log it
+        // Server-side validation will happen on submit in uploadMedia()
+        // Client-side JS already validated file type and size for better UX
+        $this->logInfo('MediaUpload: File selected', [
             'media_type' => $this->mediaType,
             'file_exists' => $this->mediaFile !== null,
             'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
             'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
             'mime_type' => $this->mediaFile ? $this->mediaFile->getMimeType() : null,
         ]);
-
-        try {
-            // Get dynamic rules for debugging
-            $rules = $this->getDynamicRules();
-            $messages = $this->getDynamicMessages();
-
-            $this->logInfo('MediaUpload: Validation rules', [
-                'rules' => $rules,
-                'messages' => $messages,
-            ]);
-
-            // Validate file immediately when uploaded with dynamic rules
-            $this->validateOnly('mediaFile', $rules, $messages);
-
-            $this->logInfo('MediaUpload: File validation passed');
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            $this->logError('MediaUpload: Validation failed', [
-                'errors' => $e->errors(),
-                'file_size' => $this->mediaFile ? $this->mediaFile->getSize() : null,
-                'file_name' => $this->mediaFile ? $this->mediaFile->getClientOriginalName() : null,
-                'rules' => $this->getDynamicRules(),
-            ]);
-            throw $e;
-        } catch (\Exception $e) {
-            $this->logError('MediaUpload: Unexpected error during validation', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw $e;
-        }
     }
 
     protected function getDynamicRules(): array
