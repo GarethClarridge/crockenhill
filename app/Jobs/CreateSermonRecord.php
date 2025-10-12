@@ -2,9 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Enums\ProcessingStatus;
-use App\Models\Sermon;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Services\SermonProcessingLogger;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -44,12 +43,16 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
         $startTime = microtime(true);
 
         try {
-            $this->initializeStepLogging($this->processingLog->processing_id);
+            // Refresh the processing log to get latest data (including metadata updates)
+            $refreshedLog = $this->processingLog->fresh();
 
-            // Validate processing log exists in database
-            if (! $this->processingLog->exists()) {
+            if (! $refreshedLog) {
                 throw new \Exception('Processing log not found in database');
             }
+
+            $this->processingLog = $refreshedLog;
+
+            $this->initializeStepLogging($this->processingLog->processing_id);
 
             // Check if processing has been cancelled
             if ($this->isCancelled()) {
@@ -81,18 +84,21 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             $slug = $this->generateUniqueSlug($initialTitle);
 
             // Determine filename based on processing type
-            $filename = match($this->processingLog->processing_type) {
+            $filename = match ($this->processingLog->processing_type) {
                 'audio' => $this->processingLog->source_file_path,
                 'video', 'livestream' => $this->processingLog->audio_file_path,
                 default => throw new \Exception("Unknown processing type: {$this->processingLog->processing_type}"),
             };
+
+            // Extract date using cascading strategy: metadata > filename > today
+            $sermonDate = $this->extractSermonDate();
 
             // Create sermon record
             $sermonData = [
                 'title' => $initialTitle,
                 'audio_file_path' => $filename,
                 'filetype' => pathinfo($this->processingLog->original_filename, PATHINFO_EXTENSION),
-                'date' => $this->extractDateFromFilename($this->processingLog->original_filename),
+                'date' => $sermonDate,
                 'service' => $this->extractServiceFromFilename($this->processingLog->original_filename),
                 'slug' => $slug,
                 'series' => $aiAnalysis['series'] ?? null,
@@ -211,6 +217,50 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
     }
 
     /**
+     * Extract sermon date using cascading fallback strategy:
+     * 1. Check processing_metadata for extracted_date (from video metadata)
+     * 2. Fall back to filename parsing
+     * 3. Final fallback to current date
+     */
+    private function extractSermonDate(): string
+    {
+        // Strategy 1: Check if date was extracted from video/audio metadata
+        $processingMetadata = $this->processingLog->processing_metadata;
+
+        // Debug logging
+        Log::info('CreateSermonRecord: Checking for extracted date', [
+            'processing_id' => $this->processingLog->processing_id,
+            'metadata_type' => gettype($processingMetadata),
+            'is_array' => is_array($processingMetadata),
+            'has_extracted_date' => is_array($processingMetadata) && isset($processingMetadata['extracted_date']),
+            'metadata_keys' => is_array($processingMetadata) ? array_keys($processingMetadata) : [],
+        ]);
+
+        if (is_array($processingMetadata) && isset($processingMetadata['extracted_date'])) {
+            $extractedDate = $processingMetadata['extracted_date'];
+            Log::info('Using date extracted from file metadata', [
+                'processing_id' => $this->processingLog->processing_id,
+                'extracted_date' => $extractedDate,
+                'extraction_method' => $processingMetadata['date_extraction_method'] ?? 'unknown',
+            ]);
+
+            return $extractedDate;
+        }
+
+        // Strategy 2: Fall back to filename parsing
+        $filenameDate = $this->extractDateFromFilename($this->processingLog->original_filename);
+
+        // Strategy 3: Final fallback is handled within extractDateFromFilename (defaults to today)
+        Log::info('Using date extracted from filename', [
+            'processing_id' => $this->processingLog->processing_id,
+            'filename' => $this->processingLog->original_filename,
+            'extracted_date' => $filenameDate,
+        ]);
+
+        return $filenameDate;
+    }
+
+    /**
      * Extract date from filename
      */
     private function extractDateFromFilename(string $filename): string
@@ -253,7 +303,7 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
      */
     private function mapProcessingTypeToSourceType(string $processingType): string
     {
-        return match($processingType) {
+        return match ($processingType) {
             'audio' => 'audio_upload',
             'video' => 'video_upload',
             'livestream' => 'livestream',

@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Api;
 use App\Contracts\ProcessingStatusContract;
 use App\Data\StandardProcessingResponse;
 use App\Http\Controllers\Controller;
-use App\Services\ProcessingLogService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,7 +24,7 @@ class MediaController extends Controller implements ProcessingStatusContract
     public function upload(Request $request, string $type): JsonResponse
     {
         // Validate type
-        if (!in_array($type, ['audio', 'video', 'livestream'])) {
+        if (! in_array($type, ['audio', 'video', 'livestream'])) {
             return response()->json([
                 'success' => false,
                 'message' => "Unsupported media type: {$type}",
@@ -81,7 +80,7 @@ class MediaController extends Controller implements ProcessingStatusContract
     public function status(Request $request, string $processingId): JsonResponse
     {
         // Validate processing ID format
-        if (!$this->isValidProcessingId($processingId)) {
+        if (! $this->isValidProcessingId($processingId)) {
             return response()->json([
                 'found' => false,
                 'message' => 'Invalid processing ID format',
@@ -96,7 +95,7 @@ class MediaController extends Controller implements ProcessingStatusContract
                 ? $this->getProcessingStatusWithLogs($processingId, true, $logLimit)
                 : $this->getProcessingStatus($processingId);
 
-            if (!$response->found) {
+            if (! $response->found) {
                 return response()->json($response->toArray(), 404);
             }
 
@@ -140,7 +139,7 @@ class MediaController extends Controller implements ProcessingStatusContract
     public function cancel(Request $request, string $processingId): JsonResponse
     {
         // Validate processing ID format
-        if (!$this->isValidProcessingId($processingId)) {
+        if (! $this->isValidProcessingId($processingId)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid processing ID format',
@@ -149,6 +148,7 @@ class MediaController extends Controller implements ProcessingStatusContract
 
         try {
             $result = $this->cancelProcessing($processingId);
+
             return response()->json($result, $result['success'] ? 200 : 400);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Cancel failed'], 500);
@@ -161,7 +161,7 @@ class MediaController extends Controller implements ProcessingStatusContract
     public function retry(Request $request, string $processingId): JsonResponse
     {
         // Validate processing ID format
-        if (!$this->isValidProcessingId($processingId)) {
+        if (! $this->isValidProcessingId($processingId)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid processing ID format',
@@ -170,6 +170,7 @@ class MediaController extends Controller implements ProcessingStatusContract
 
         try {
             $result = $this->mediaProcessor->retry($processingId);
+
             return response()->json($result->toArray(), $result->success ? 202 : 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Retry failed'], 500);

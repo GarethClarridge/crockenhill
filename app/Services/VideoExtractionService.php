@@ -929,6 +929,7 @@ class VideoExtractionService
 
     /**
      * Alias for extractOptimizedAudio for backward compatibility
+     *
      * @deprecated Use extractOptimizedAudio instead
      */
     public function extractOptimizedAudioFromSegment(

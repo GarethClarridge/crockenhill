@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\SermonProcessingService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -260,12 +259,12 @@ class AutomatedSermonApiTest extends TestCase
                 'created_at',
                 'updated_at',
             ])
-            ->assertJson([
-                'found' => true,
-                'processing_id' => $processingId,
-                'status' => 'processing',
-                'current_step' => 'transcribing_audio',
-            ]);
+                ->assertJson([
+                    'found' => true,
+                    'processing_id' => $processingId,
+                    'status' => 'processing',
+                    'current_step' => 'transcribing_audio',
+                ]);
         }
     }
 
@@ -339,10 +338,10 @@ class AutomatedSermonApiTest extends TestCase
                 'processing_id',
                 'status_url',
             ])
-            ->assertJson([
-                'success' => true,
-                'processing_id' => $processingId,
-            ]);
+                ->assertJson([
+                    'success' => true,
+                    'processing_id' => $processingId,
+                ]);
 
             // Verify processing log was reset to retry transcription
             $this->assertDatabaseHas('media_processing_logs', [

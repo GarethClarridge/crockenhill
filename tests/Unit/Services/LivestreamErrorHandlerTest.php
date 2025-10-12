@@ -270,7 +270,7 @@ class LivestreamErrorHandlerTest extends TestCase
             'FFprobe not found',
             'directory not writable',
             'Temporary directory not writable',
-            'Livestream directory not writable'
+            'Livestream directory not writable',
         ];
 
         $foundValidError = false;
@@ -283,7 +283,7 @@ class LivestreamErrorHandlerTest extends TestCase
             }
         }
 
-        $this->assertTrue($foundValidError, 'Expected a valid system requirement error, got: ' . implode(', ', $errors));
+        $this->assertTrue($foundValidError, 'Expected a valid system requirement error, got: '.implode(', ', $errors));
     }
 
     public function test_graceful_degradation()

@@ -42,4 +42,3 @@ Route::delete('media/processing/{processingId}', [MediaController::class, 'cance
 Route::post('media/processing/{processingId}/retry', [MediaController::class, 'retry'])
     ->middleware(['auth:sanctum', 'throttle:media-retry'])
     ->name('api.media.processing.retry');
-

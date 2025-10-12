@@ -111,7 +111,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
                 'Failed to get audio duration',
                 'Unable to probe',
                 'Transcription failed',
-                'API key'
+                'API key',
             ];
 
             $hasValidFailure = false;
@@ -122,7 +122,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
                 }
             }
 
-            $this->assertTrue($hasValidFailure, "Expected a valid failure reason, got: " . $message);
+            $this->assertTrue($hasValidFailure, 'Expected a valid failure reason, got: '.$message);
         }
 
         // Cleanup
@@ -206,7 +206,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
                 'Please ensure audio is compressed for transcription',
                 'Failed to get audio duration',
                 'Unable to probe',
-                'Audio file too large'
+                'Audio file too large',
             ];
 
             $hasValidFailure = false;
@@ -217,7 +217,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
                 }
             }
 
-            $this->assertTrue($hasValidFailure, "Expected a valid failure reason, got: " . $message);
+            $this->assertTrue($hasValidFailure, 'Expected a valid failure reason, got: '.$message);
         }
 
         // Cleanup

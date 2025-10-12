@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Contracts;
 
 use App\Data\SermonMetadata;
-use App\Models\Sermon;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 
 /**
  * SermonMetadataServiceInterface - Handles sermon metadata extraction and generation

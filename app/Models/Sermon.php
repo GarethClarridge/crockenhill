@@ -548,6 +548,7 @@ class Sermon extends Model
 
     /**
      * Backward compatibility accessor for 'filename' (deprecated)
+     *
      * @deprecated Use audio_file_path instead
      */
     public function getFilenameAttribute(): ?string
@@ -557,6 +558,7 @@ class Sermon extends Model
 
     /**
      * Backward compatibility mutator for 'filename' (deprecated)
+     *
      * @deprecated Use audio_file_path instead
      */
     public function setFilenameAttribute(?string $value): void
@@ -566,6 +568,7 @@ class Sermon extends Model
 
     /**
      * Backward compatibility accessor for 'transcript_path' (deprecated)
+     *
      * @deprecated Use transcript_file_path instead
      */
     public function getTranscriptPathAttribute(): ?string
@@ -575,6 +578,7 @@ class Sermon extends Model
 
     /**
      * Backward compatibility mutator for 'transcript_path' (deprecated)
+     *
      * @deprecated Use transcript_file_path instead
      */
     public function setTranscriptPathAttribute(?string $value): void
@@ -584,6 +588,7 @@ class Sermon extends Model
 
     /**
      * Backward compatibility accessor for 'thumbnail_path' (deprecated)
+     *
      * @deprecated Use thumbnail_file_path instead
      */
     public function getThumbnailPathAttribute(): ?string
@@ -593,6 +598,7 @@ class Sermon extends Model
 
     /**
      * Backward compatibility mutator for 'thumbnail_path' (deprecated)
+     *
      * @deprecated Use thumbnail_file_path instead
      */
     public function setThumbnailPathAttribute(?string $value): void

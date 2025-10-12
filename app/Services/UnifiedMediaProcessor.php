@@ -16,26 +16,27 @@ class UnifiedMediaProcessor
         private readonly ProcessingPipelineBuilder $pipelineBuilder
     ) {}
 
-    public function process(string $type, UploadedFile $file): ProcessingResult
+    public function process(string $type, UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
     {
         Log::info('Unified media processing started', [
             'type' => $type,
             'filename' => $file->getClientOriginalName(),
             'size' => $file->getSize(),
+            'client_file_date' => $clientFileDate,
         ]);
 
         return match ($type) {
             // Audio: Jump directly to existing sermon processing (reuse existing jobs)
-            'audio' => $this->sermonService->processSermon($file),
+            'audio' => $this->sermonService->processSermon($file, $clientFileDate),
 
             // Video: Extract audio then join sermon processing (create new method)
-            'video' => $this->processDirectVideo($file),
+            'video' => $this->processDirectVideo($file, $clientFileDate),
 
             // Livestream: Preserve existing system completely (no changes)
-            'livestream' => $this->videoService->processWithSegmentation($file),
+            'livestream' => $this->videoService->processWithSegmentation($file, $clientFileDate),
 
             default => ProcessingResult::failure(
-                processingId: 'invalid-' . \Illuminate\Support\Str::uuid(),
+                processingId: 'invalid-'.\Illuminate\Support\Str::uuid(),
                 message: "Unsupported media type: {$type}",
                 errorCode: 'UNSUPPORTED_TYPE'
             ),
@@ -46,7 +47,7 @@ class UnifiedMediaProcessor
     {
         $log = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
 
-        if (!$log) {
+        if (! $log) {
             return StandardProcessingResponse::notFound();
         }
 
@@ -57,7 +58,7 @@ class UnifiedMediaProcessor
     {
         $baseStatus = $this->getStatus($processingId);
 
-        if (!$baseStatus->found || !$includeLogs) {
+        if (! $baseStatus->found || ! $includeLogs) {
             return $baseStatus;
         }
 
@@ -87,11 +88,11 @@ class UnifiedMediaProcessor
     {
         $log = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
 
-        if (!$log) {
+        if (! $log) {
             return ['success' => false, 'message' => 'Processing ID not found'];
         }
 
-        $result = match($log->processing_type) {
+        $result = match ($log->processing_type) {
             'audio', 'video' => $this->sermonService->cancelProcessing($processingId),
             'livestream' => $this->videoService->cancelProcessing($processingId),
             default => false,
@@ -107,7 +108,7 @@ class UnifiedMediaProcessor
     {
         $log = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
 
-        if (!$log) {
+        if (! $log) {
             return ProcessingResult::failure(
                 processingId: $processingId,
                 message: 'Processing ID not found for retry',
@@ -115,7 +116,7 @@ class UnifiedMediaProcessor
             );
         }
 
-        return match($log->processing_type) {
+        return match ($log->processing_type) {
             'audio', 'video' => $this->sermonService->retryProcessing($processingId),
             'livestream' => $this->convertLivestreamRetryResult($this->videoService->retryProcessing($processingId)),
             default => ProcessingResult::failure(
@@ -151,13 +152,23 @@ class UnifiedMediaProcessor
      * Process video by extracting audio and joining existing sermon processing
      * This reuses the proven job chain instead of creating new processing logic
      */
-    private function processDirectVideo(UploadedFile $file): ProcessingResult
+    private function processDirectVideo(UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
     {
         try {
             $processingId = \Illuminate\Support\Str::uuid()->toString();
 
+            // Extract date from video metadata BEFORE storing (to preserve file timestamps)
+            $metadataService = app(MetadataExtractionService::class);
+            $extractedDate = $metadataService->extractDateFromVideo($file, $clientFileDate);
+
             // Store video file temporarily
             $tempPath = $file->store('temp/video-processing');
+
+            Log::info('Extracted date from video file', [
+                'processing_id' => $processingId,
+                'original_filename' => $file->getClientOriginalName(),
+                'extracted_date' => $extractedDate->toDateString(),
+            ]);
 
             // Create media processing log
             $processingLog = \App\Models\MediaProcessingLog::create([
@@ -167,6 +178,10 @@ class UnifiedMediaProcessor
                 'source_file_path' => $tempPath,
                 'status' => \App\Enums\ProcessingStatus::PENDING,
                 'current_step' => 'video_processing_initiated',
+                'processing_metadata' => [
+                    'extracted_date' => $extractedDate->toDateString(),
+                    'date_extraction_method' => 'video_metadata_or_filename',
+                ],
             ]);
 
             // Build and dispatch job chain using the standardized pipeline builder
@@ -176,7 +191,7 @@ class UnifiedMediaProcessor
                 ->catch(function (\Throwable $e) use ($processingLog) {
                     $processingLog->update([
                         'status' => \App\Enums\ProcessingStatus::FAILED,
-                        'error_message' => 'Video processing failed: ' . $e->getMessage(),
+                        'error_message' => 'Video processing failed: '.$e->getMessage(),
                     ]);
                 })
                 ->onQueue('video-processing')
@@ -190,11 +205,10 @@ class UnifiedMediaProcessor
 
         } catch (\Exception $e) {
             return ProcessingResult::failure(
-                processingId: 'failed-' . \Illuminate\Support\Str::uuid(),
-                message: 'Failed to initiate video processing: ' . $e->getMessage(),
+                processingId: 'failed-'.\Illuminate\Support\Str::uuid(),
+                message: 'Failed to initiate video processing: '.$e->getMessage(),
                 errorCode: 'VIDEO_PROCESSING_FAILED'
             );
         }
     }
-
 }

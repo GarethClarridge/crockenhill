@@ -177,6 +177,7 @@ class VideoSegmentationService
             // Extract pts_time from frame lines (format: "pts_time:1234.56")
             if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $timeMatches)) {
                 $currentTime = (float) $timeMatches[1];
+
                 continue;
             }
 
@@ -456,6 +457,7 @@ class VideoSegmentationService
             // Extract pts_time from frame lines (format: "pts_time:1234.56")
             if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $timeMatches)) {
                 $currentTime = (float) $timeMatches[1];
+
                 continue;
             }
 
@@ -502,7 +504,7 @@ class VideoSegmentationService
     public function getVideoMetadata(string $videoPath): array
     {
         // In testing environment, return mock metadata
-        if (!isset($this->ffprobe)) {
+        if (! isset($this->ffprobe)) {
             return [
                 'duration' => 3600.0,
                 'format_name' => 'mp4',
@@ -540,7 +542,7 @@ class VideoSegmentationService
     public function validateVideoFile(string $videoPath): bool
     {
         // In testing environment, always return true for validation
-        if (!$this->ffprobe) {
+        if (! $this->ffprobe) {
             return true;
         }
 

@@ -252,6 +252,7 @@ class DirectSermonVideoUploadTest extends TestCase
         if ($response->status() === 429) {
             // Already rate limited, test passes
             $response->assertStatus(429);
+
             return;
         }
 

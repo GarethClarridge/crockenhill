@@ -1,6 +1,7 @@
-<div 
+<div
     x-data="{
-        isDragOver: false
+        isDragOver: false,
+        fileModifiedDate: null
     }"
     class="max-w-4xl mx-auto p-6"
 >
@@ -89,14 +90,28 @@
                             <p class="text-sm">Validating file...</p>
                         </div>
 
-                        <input 
-                            wire:model="mediaFile" 
-                            type="file" 
+                        <input
+                            wire:model="mediaFile"
+                            type="file"
                             id="media-file"
-                            class="sr-only" 
+                            class="sr-only"
                             accept="{{ $mediaType === 'audio' ? '.mp3,.wav,.m4a' : '.mp4,.mov,.avi,.mkv' }}"
-                            onchange="console.log('File selected:', this.files[0]?.name, 'Size:', this.files[0]?.size); if(this.files[0] && this.files[0].size > 5*1024*1024*1024) { alert('File too large! Max 5GB allowed.'); return false; }"
+                            x-on:change="
+                                if($event.target.files[0]) {
+                                    console.log('File selected:', $event.target.files[0].name, 'Size:', $event.target.files[0].size);
+                                    if($event.target.files[0].size > 5*1024*1024*1024) {
+                                        alert('File too large! Max 5GB allowed.');
+                                        return false;
+                                    }
+                                    // Extract file modification date
+                                    const modDate = new Date($event.target.files[0].lastModified);
+                                    fileModifiedDate = modDate.toISOString().split('T')[0];
+                                    console.log('File modified date:', fileModifiedDate);
+                                    $wire.set('fileModifiedDate', fileModifiedDate);
+                                }
+                            "
                         />
+                        <input type="hidden" wire:model="fileModifiedDate" x-model="fileModifiedDate" />
                         <label for="media-file" class="cursor-pointer">
                             <span class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200">
                                 Choose File
@@ -216,8 +231,8 @@
                 @endif
 
                 @if($status === 'completed')
-                    <a href="/christ/sermons" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200">
-                        View All Sermons
+                    <a href="{{ $processingDetails['sermon_url'] ?? '/christ/sermons' }}" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200">
+                        {{ isset($processingDetails['sermon_url']) ? 'View Sermon' : 'View All Sermons' }}
                     </a>
                 @endif
             </div>

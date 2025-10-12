@@ -17,13 +17,14 @@ class SermonAudioProcessingService
      * Process a sermon audio file through the complete automation pipeline
      * Uses ProcessingPipelineBuilder for consistent job chain pattern (same as video processing)
      */
-    public function processSermon(UploadedFile $file): ProcessingResult
+    public function processSermon(UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
     {
         try {
             Log::info('Starting audio processing', [
                 'original_filename' => $file->getClientOriginalName(),
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
+                'client_file_date' => $clientFileDate,
             ]);
 
             // Generate unique processing ID

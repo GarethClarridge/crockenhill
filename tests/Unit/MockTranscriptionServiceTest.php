@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Services\MockTranscriptionService;
 use App\Services\MediaProcessingLogger;
+use App\Services\MockTranscriptionService;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;

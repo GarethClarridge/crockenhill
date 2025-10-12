@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\SermonProcessingService;
 use App\Services\UnifiedMediaProcessor;
 use App\Services\VideoProcessingService;
-use App\Services\SermonProcessingService;
 use Illuminate\Support\ServiceProvider;
 
 class MediaProcessingServiceProvider extends ServiceProvider

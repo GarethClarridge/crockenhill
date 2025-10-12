@@ -2,8 +2,8 @@
 
 namespace Tests\Unit\Services;
 
-use App\Models\MediaProcessingLog;
 use App\Models\LivestreamSegment;
+use App\Models\MediaProcessingLog;
 use App\Services\LivestreamProcessingLogger;
 use App\Services\ProcessingReport;
 use Illuminate\Foundation\Testing\DatabaseTransactions;

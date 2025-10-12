@@ -31,7 +31,7 @@ class ProcessingLogsApiTest extends TestCase
 
         // Check if logs feature is supported in unified architecture
         $testResponse = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/test-id/status?include_logs=true");
+            ->getJson('/api/media/processing/test-id/status?include_logs=true');
 
         if ($testResponse->status() === 500) {
             $this->markTestSkipped('Logs feature not supported in unified MediaController');
@@ -62,10 +62,11 @@ class ProcessingLogsApiTest extends TestCase
     {
         // Quick check if logs feature is supported
         $testResponse = $this->actingAs($this->user)
-            ->getJson("/api/media/processing/test-id/status?include_logs=true");
+            ->getJson('/api/media/processing/test-id/status?include_logs=true');
 
         if ($testResponse->status() === 500) {
             $this->markTestSkipped('Logs feature not supported in unified MediaController');
+
             return;
         }
 
@@ -104,7 +105,7 @@ class ProcessingLogsApiTest extends TestCase
                 'current_step',
                 'progress_percentage',
             ])
-            ->assertJsonMissing(['recent_logs', 'performance_metrics']);
+                ->assertJsonMissing(['recent_logs', 'performance_metrics']);
         }
 
         // Test getting status with logs via query parameter
@@ -182,6 +183,7 @@ class ProcessingLogsApiTest extends TestCase
         if ($response->status() === 500) {
             // Logs feature not supported in unified architecture
             $this->markTestSkipped('Logs feature not supported in unified MediaController');
+
             return;
         }
 
@@ -233,17 +235,17 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
-        $response            ->assertJsonStructure([
-                'processing_id',
-                'status',
-                'current_step',
-                'progress_percentage',
-                'recent_logs' => [
-                    'entries',
-                    'total_count',
-                ],
-                'performance_metrics',
-            ]);
+        $response->assertJsonStructure([
+            'processing_id',
+            'status',
+            'current_step',
+            'progress_percentage',
+            'recent_logs' => [
+                'entries',
+                'total_count',
+            ],
+            'performance_metrics',
+        ]);
 
         $data = $response->json();
         $this->assertEquals($processingId, $data['processing_id']);

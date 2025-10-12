@@ -7,8 +7,8 @@ use App\Jobs\CreateSermonRecord;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
-use App\Models\Sermon;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Services\AudioTranscriptionService;
 use App\Services\SermonAnalysisService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -364,11 +364,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
         } else {
             // If it succeeds, processing will fail at validation step
             // Service integration may succeed or fail depending on environment
-        if (!$result->success) {
-            $this->markTestSkipped('Service integration not available in test environment');
-            return;
-        }
-        $this->assertTrue($result->success);
+            if (! $result->success) {
+                $this->markTestSkipped('Service integration not available in test environment');
+
+                return;
+            }
+            $this->assertTrue($result->success);
         }
     }
 
@@ -451,8 +452,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $result = $service->applyGracefulDegradation('degradation-test-id');
 
         // Service integration may succeed or fail depending on environment
-        if (!$result->success) {
+        if (! $result->success) {
             $this->markTestSkipped('Service integration not available in test environment');
+
             return;
         }
         $this->assertTrue($result->success);
@@ -563,8 +565,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         // Should succeed
         // Service integration may succeed or fail depending on environment
-        if (!$result->success) {
+        if (! $result->success) {
             $this->markTestSkipped('Service integration not available in test environment');
+
             return;
         }
         $this->assertTrue($result->success);
@@ -607,8 +610,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         // Should succeed
         // Service integration may succeed or fail depending on environment
-        if (!$result->success) {
+        if (! $result->success) {
             $this->markTestSkipped('Service integration not available in test environment');
+
             return;
         }
         $this->assertTrue($result->success);
@@ -642,8 +646,9 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         // Should succeed
         // Service integration may succeed or fail depending on environment
-        if (!$result->success) {
+        if (! $result->success) {
             $this->markTestSkipped('Service integration not available in test environment');
+
             return;
         }
         $this->assertTrue($result->success);

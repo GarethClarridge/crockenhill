@@ -7,8 +7,8 @@ namespace App\Services;
 use App\Contracts\SermonMetadataServiceInterface;
 use App\Data\SermonMetadata;
 use App\Enums\SermonService;
-use App\Models\Sermon;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 

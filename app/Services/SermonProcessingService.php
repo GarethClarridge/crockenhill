@@ -19,9 +19,9 @@ class SermonProcessingService implements SermonProcessingServiceInterface
     /**
      * Process a sermon audio file through the complete automation pipeline
      */
-    public function processSermon(UploadedFile $file): ProcessingResult
+    public function processSermon(UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
     {
-        return $this->audioProcessingService->processSermon($file);
+        return $this->audioProcessingService->processSermon($file, $clientFileDate);
     }
 
     /**

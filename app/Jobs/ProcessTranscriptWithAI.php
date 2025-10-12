@@ -3,16 +3,16 @@
 namespace App\Jobs;
 
 use App\Data\SermonAnalysis;
-use App\Models\Sermon;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Services\SermonAnalysisService;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 {
@@ -62,12 +62,12 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             // Get transcript
             $transcriptPath = $this->processingLog->transcript_file_path;
             if (empty($transcriptPath)) {
-                throw new \Exception("No transcript path available");
+                throw new \Exception('No transcript path available');
             }
 
             $transcript = Storage::get($transcriptPath);
             if (empty($transcript)) {
-                throw new \Exception("Transcript file is empty or unreadable");
+                throw new \Exception('Transcript file is empty or unreadable');
             }
 
             Log::info('Processing transcript with AI', [
@@ -82,7 +82,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             // Perform comprehensive AI analysis
             $analysis = $analysisService->analyzeSermon($transcript, $existingSeries);
 
-            if (!$analysis->hasValidTranscript()) {
+            if (! $analysis->hasValidTranscript()) {
                 throw new \Exception('AI analysis produced invalid results');
             }
 
@@ -181,7 +181,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
         $title = trim($title);
 
         if (empty($title) || strlen($title) < 3) {
-            return 'Sermon - ' . $this->processingLog->created_at->format('F j, Y');
+            return 'Sermon - '.$this->processingLog->created_at->format('F j, Y');
         }
 
         return Str::title($title);

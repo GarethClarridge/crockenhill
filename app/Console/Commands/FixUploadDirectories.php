@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class FixUploadDirectories extends Command
 {
     protected $signature = 'upload:fix-directories';
+
     protected $description = 'Create and fix permissions for upload directories';
 
     public function handle()
@@ -23,7 +24,7 @@ class FixUploadDirectories extends Command
         ];
 
         foreach ($directories as $name => $path) {
-            if (!is_dir($path)) {
+            if (! is_dir($path)) {
                 if (mkdir($path, 0755, true)) {
                     $this->line("✅ Created: {$name}");
                 } else {
@@ -36,7 +37,7 @@ class FixUploadDirectories extends Command
             // Ensure writable
             if (is_dir($path)) {
                 chmod($path, 0755);
-                $this->line("   Permissions set to 0755");
+                $this->line('   Permissions set to 0755');
             }
         }
 

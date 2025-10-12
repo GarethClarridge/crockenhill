@@ -99,14 +99,14 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         $fileExists = Storage::disk($diskName)->exists($audioFilePath);
 
         // For backward compatibility with tests, also check 'public' disk if primary disk fails
-        if (!$fileExists && $diskName !== 'public') {
+        if (! $fileExists && $diskName !== 'public') {
             $fileExists = Storage::disk('public')->exists($audioFilePath);
             if ($fileExists) {
                 $diskName = 'public'; // Use public disk if file found there
             }
         }
 
-        if (!$fileExists) {
+        if (! $fileExists) {
             throw new Exception("Audio file not found: {$audioFilePath} on disk: {$diskName}");
         }
 

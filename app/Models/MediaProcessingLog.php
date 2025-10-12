@@ -44,6 +44,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MediaProcessingLog extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'processing_id',
         'processing_type',

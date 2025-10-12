@@ -2,8 +2,8 @@
 
 namespace Tests\Unit\Services;
 
-use App\Models\MediaProcessingLog;
 use App\Models\LivestreamSegment;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonVideoDisplayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;

@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
-use App\Models\LivestreamSegment;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\VideoSegmentationService;
@@ -45,6 +44,7 @@ class LivestreamProcessingApiTest extends TestCase
         $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
         $mockProcessor->method('process')->willReturnCallback(function () {
             $testUuid = \Illuminate\Support\Str::uuid()->toString();
+
             return \App\Services\ProcessingResult::success(
                 processingId: $testUuid,
                 message: 'Livestream processing initiated',

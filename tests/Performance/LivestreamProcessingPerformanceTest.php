@@ -2,8 +2,8 @@
 
 namespace Tests\Performance;
 
-use App\Models\MediaProcessingLog;
 use App\Models\LivestreamSegment;
+use App\Models\MediaProcessingLog;
 use App\Services\LivestreamMonitoringService;
 use App\Services\LivestreamProcessingLogger;
 use App\Services\LivestreamProcessingService;

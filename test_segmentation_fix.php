@@ -31,7 +31,7 @@ if (file_exists($fullPath)) {
             $rmsLines++;
         }
         if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $matches)) {
-            $lastPtsTime = max($lastPtsTime, (float)$matches[1]);
+            $lastPtsTime = max($lastPtsTime, (float) $matches[1]);
         }
     }
 
@@ -39,13 +39,13 @@ if (file_exists($fullPath)) {
     echo "  Total lines: {$totalLines}\n";
     echo "  Frame lines: {$frameLines}\n";
     echo "  RMS lines: {$rmsLines}\n";
-    echo "  Last pts_time found: {$lastPtsTime}s (" . round($lastPtsTime/60, 1) . "m)\n\n";
+    echo "  Last pts_time found: {$lastPtsTime}s (".round($lastPtsTime / 60, 1)."m)\n\n";
 } else {
     echo "ERROR: File not found at {$fullPath}\n";
     exit(1);
 }
 
-$segmentationService = new VideoSegmentationService();
+$segmentationService = new VideoSegmentationService;
 
 try {
     $result = $segmentationService->analyzeSegments($rmsLogPath);
@@ -56,13 +56,13 @@ try {
     echo "Threshold Method: {$thresholdMetadata['method']}\n";
     echo "Threshold Value: {$thresholdMetadata['threshold']}\n\n";
 
-    echo "Total Segments Found: " . count($segments) . "\n\n";
+    echo 'Total Segments Found: '.count($segments)."\n\n";
 
     echo "Segments:\n";
-    echo str_repeat("-", 100) . "\n";
+    echo str_repeat('-', 100)."\n";
     printf("%-5s %-10s %-12s %-12s %-10s %-8s %-8s %s\n",
-        "#", "Type", "Start", "End", "Duration", "Avg RMS", "Peak RMS", "Notes");
-    echo str_repeat("-", 100) . "\n";
+        '#', 'Type', 'Start', 'End', 'Duration', 'Avg RMS', 'Peak RMS', 'Notes');
+    echo str_repeat('-', 100)."\n";
 
     foreach ($segments as $i => $segment) {
         printf("%-5d %-10s %02d:%02d:%02d (%4.0fs) %02d:%02d:%02d (%4.0fs) %7.1fm %8.1f %8.1f %s\n",
@@ -83,31 +83,31 @@ try {
         );
     }
 
-    echo str_repeat("-", 100) . "\n\n";
+    echo str_repeat('-', 100)."\n\n";
 
     // Find speech segments
-    $speechSegments = array_filter($segments, fn($s) => $s->isSpeech());
-    $songSegments = array_filter($segments, fn($s) => $s->isSong());
-    $sermonCandidate = array_filter($segments, fn($s) => $s->isSermonCandidate);
+    $speechSegments = array_filter($segments, fn ($s) => $s->isSpeech());
+    $songSegments = array_filter($segments, fn ($s) => $s->isSong());
+    $sermonCandidate = array_filter($segments, fn ($s) => $s->isSermonCandidate);
 
     echo "Summary:\n";
-    echo "  Speech segments: " . count($speechSegments) . "\n";
-    echo "  Song segments: " . count($songSegments) . "\n";
-    echo "  Sermon candidates: " . count($sermonCandidate) . "\n\n";
+    echo '  Speech segments: '.count($speechSegments)."\n";
+    echo '  Song segments: '.count($songSegments)."\n";
+    echo '  Sermon candidates: '.count($sermonCandidate)."\n\n";
 
-    if (!empty($sermonCandidate)) {
+    if (! empty($sermonCandidate)) {
         $sermon = array_values($sermonCandidate)[0];
         echo "Identified Sermon:\n";
-        echo "  Start: " . gmdate('H:i:s', $sermon->startTime) . " ({$sermon->startTime}s)\n";
-        echo "  End: " . gmdate('H:i:s', $sermon->endTime) . " ({$sermon->endTime}s)\n";
-        echo "  Duration: " . round($sermon->duration / 60, 1) . " minutes\n";
+        echo '  Start: '.gmdate('H:i:s', $sermon->startTime)." ({$sermon->startTime}s)\n";
+        echo '  End: '.gmdate('H:i:s', $sermon->endTime)." ({$sermon->endTime}s)\n";
+        echo '  Duration: '.round($sermon->duration / 60, 1)." minutes\n";
     } else {
         echo "WARNING: No sermon candidate identified!\n";
     }
 
 } catch (Exception $e) {
-    echo "ERROR: " . $e->getMessage() . "\n";
-    echo $e->getTraceAsString() . "\n";
+    echo 'ERROR: '.$e->getMessage()."\n";
+    echo $e->getTraceAsString()."\n";
     exit(1);
 }
 

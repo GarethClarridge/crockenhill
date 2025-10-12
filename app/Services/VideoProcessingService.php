@@ -31,9 +31,9 @@ class VideoProcessingService implements VideoProcessingServiceInterface
     /**
      * Process video with segmentation (for livestream videos)
      */
-    public function processWithSegmentation(UploadedFile $videoFile): ProcessingResult
+    public function processWithSegmentation(UploadedFile $videoFile, ?string $clientFileDate = null): ProcessingResult
     {
-        return $this->segmentationService->processWithSegmentation($videoFile);
+        return $this->segmentationService->processWithSegmentation($videoFile, $clientFileDate);
     }
 
     public function getProcessingStatus(string $processingId): StandardProcessingResponse

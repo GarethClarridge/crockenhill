@@ -83,7 +83,8 @@ class GenerateThumbnail implements ShouldQueue
      * This pragmatic approach avoids breaking changes while encouraging migration
      * to the unified MediaProcessingLog-based architecture.
      *
-     * @param mixed ...$args Variable arguments matching one of the supported patterns
+     * @param  mixed  ...$args  Variable arguments matching one of the supported patterns
+     *
      * @throws \InvalidArgumentException If arguments don't match any supported pattern
      *
      * @see ProcessingPipelineBuilder::buildDirectVideoPipeline() For modern usage

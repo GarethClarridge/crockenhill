@@ -6,7 +6,6 @@ namespace App\Livewire;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
-use App\Services\ProcessingRouter;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -52,6 +51,8 @@ class MediaUpload extends Component
     public string $mediaType = '';
 
     public $mediaFile = null;
+
+    public ?string $fileModifiedDate = null;
 
     // Processing state
     public ?string $processingId = null;
@@ -131,7 +132,7 @@ class MediaUpload extends Component
     {
         // Just log that file was selected - don't validate yet
         // Validation will happen in uploadMedia() where we have the actual file, not Livewire's broken temp reference
-        if (!$this->mediaFile) {
+        if (! $this->mediaFile) {
             return;
         }
 
@@ -247,7 +248,7 @@ class MediaUpload extends Component
 
             // Detect mime type from file extension since we can't rely on Livewire's temp file
             $extension = pathinfo($this->originalFileName, PATHINFO_EXTENSION);
-            $mimeType = match(strtolower($extension)) {
+            $mimeType = match (strtolower($extension)) {
                 'mp3' => 'audio/mpeg',
                 'wav' => 'audio/wav',
                 'm4a' => 'audio/mp4',
@@ -269,10 +270,15 @@ class MediaUpload extends Component
             // Get the log record
             $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
 
+            $this->logInfo('Processing with file date', [
+                'file_modified_date' => $this->fileModifiedDate,
+                'original_filename' => $this->originalFileName,
+            ]);
+
             // Start the actual processing
             $processor = app(\App\Services\UnifiedMediaProcessor::class);
 
-            $result = $processor->process($this->mediaType, $originalFile);
+            $result = $processor->process($this->mediaType, $originalFile, $this->fileModifiedDate);
 
             // Clean up temp file
             if (file_exists($fullTempPath)) {
@@ -285,6 +291,12 @@ class MediaUpload extends Component
                 $this->currentStep = 'Processing completed!';
                 $this->progressPercentage = 100;
                 $this->successMessage = 'Your media has been processed successfully.';
+
+                // Get the sermon URL from the processing status
+                $statusResponse = app(\App\Services\UnifiedMediaProcessor::class)->getStatus($this->processingId);
+                if ($statusResponse->sermonUrl) {
+                    $this->processingDetails['sermon_url'] = $statusResponse->sermonUrl;
+                }
             } else {
                 $this->status = 'failed';
                 $this->errorMessage = $result->message;

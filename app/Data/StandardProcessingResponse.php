@@ -239,7 +239,7 @@ class StandardProcessingResponse
      */
     public static function fromProcessingLog(\App\Models\MediaProcessingLog $log): self
     {
-        $metadata = match($log->processing_type) {
+        $metadata = match ($log->processing_type) {
             'livestream' => [
                 'segments_count' => $log->segments->count(),
                 'sermon_duration' => $log->sermon_end_time && $log->sermon_start_time
@@ -247,7 +247,7 @@ class StandardProcessingResponse
                     : null,
             ],
             'video' => [
-                'has_thumbnail' => $log->sermon && !empty($log->sermon->thumbnail_path),
+                'has_thumbnail' => $log->sermon && ! empty($log->sermon->thumbnail_path),
                 'video_duration' => $log->duration,
             ],
             'audio' => [
@@ -259,7 +259,7 @@ class StandardProcessingResponse
         // Add thumbnail data if sermon exists
         $sermon = $log->sermon;
         if ($sermon instanceof \App\Models\Sermon) {
-            $metadata['thumbnail_generated'] = !empty($sermon->thumbnail_path);
+            $metadata['thumbnail_generated'] = ! empty($sermon->thumbnail_path);
             $metadata['thumbnail_url'] = $sermon->thumbnail_path
                 ? \Illuminate\Support\Facades\Storage::disk('public')->url($sermon->thumbnail_path)
                 : null;
@@ -299,7 +299,7 @@ class StandardProcessingResponse
         }
 
         // Simple progress calculation based on common steps
-        $stepProgress = match($log->current_step) {
+        $stepProgress = match ($log->current_step) {
             'audio_processing_initiated', 'video_processing_initiated' => 10,
             'validating' => 15,
             'extracting_audio' => 25,

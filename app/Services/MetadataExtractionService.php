@@ -416,6 +416,119 @@ class MetadataExtractionService
     }
 
     /**
+     * Extract date from video file metadata (creation date) with fallback to filename
+     *
+     * Cascading date extraction strategy:
+     * 1. Client-provided file date (from browser's File.lastModified API)
+     * 2. Video metadata creation_time tag (from FFprobe)
+     * 3. File timestamp (for non-HTTP uploads)
+     * 4. Filename parsing
+     * 5. Today's date (final fallback)
+     *
+     * @param  UploadedFile|string  $file  UploadedFile or absolute file path
+     * @param  string|null  $clientProvidedDate  Date provided from client-side JavaScript (YYYY-MM-DD format)
+     * @return Carbon The extracted date
+     */
+    public function extractDateFromVideo(UploadedFile|string $file, ?string $clientProvidedDate = null): Carbon
+    {
+        try {
+            // Get file path - handle both UploadedFile and string path
+            $filePath = $file instanceof UploadedFile ? $file->getRealPath() : $file;
+            $filename = $file instanceof UploadedFile ? $file->getClientOriginalName() : basename($file);
+
+            // Strategy 1: Use client-provided file date (from JavaScript extraction of File.lastModified)
+            if ($clientProvidedDate) {
+                try {
+                    $parsedDate = Carbon::parse($clientProvidedDate);
+
+                    Log::info('Using client-provided file modification date', [
+                        'filename' => $filename,
+                        'client_date' => $clientProvidedDate,
+                        'parsed_date' => $parsedDate->toDateString(),
+                    ]);
+
+                    return $parsedDate;
+                } catch (\Exception $e) {
+                    Log::warning('Failed to parse client-provided date, falling back', [
+                        'client_date' => $clientProvidedDate,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            if (! $filePath || ! file_exists($filePath)) {
+                Log::warning('Video file not found for date extraction, using filename', [
+                    'file_path' => $filePath,
+                    'filename' => $filename,
+                ]);
+
+                return $this->extractDateFromFilename($filename);
+            }
+
+            // Strategy 2: Try to extract creation date from video metadata using FFprobe
+            $ffprobe = \FFMpeg\FFProbe::create([
+                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
+                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
+            ]);
+
+            $format = $ffprobe->format($filePath);
+
+            // Try to get creation_time from video metadata
+            // This is typically set by video recording devices
+            $tags = $format->get('tags');
+            if ($tags && isset($tags['creation_time'])) {
+                $creationTime = $tags['creation_time'];
+
+                Log::info('Extracted creation date from video metadata tags', [
+                    'filename' => $filename,
+                    'creation_time' => $creationTime,
+                ]);
+
+                // Parse the creation time - typically in ISO 8601 format
+                return Carbon::parse($creationTime);
+            }
+
+            // Strategy 2: For UploadedFile, check the original file's modification time
+            // This preserves the date from the user's filesystem before Laravel stores it
+            if ($file instanceof UploadedFile) {
+                $originalMtime = filemtime($filePath);
+                if ($originalMtime !== false) {
+                    $fileDate = Carbon::createFromTimestamp($originalMtime);
+
+                    // Only use file timestamp if it's reasonable (not just uploaded seconds ago)
+                    // and different from current date by more than a day
+                    $daysDiff = abs($fileDate->diffInDays(Carbon::now()));
+                    if ($daysDiff >= 1) {
+                        Log::info('Using original file modification timestamp', [
+                            'filename' => $filename,
+                            'file_date' => $fileDate->toDateString(),
+                            'days_difference' => $daysDiff,
+                        ]);
+
+                        return $fileDate;
+                    }
+                }
+            }
+
+            Log::info('No creation date in video metadata or file timestamp, falling back to filename', [
+                'filename' => $filename,
+                'available_tags' => $tags ? array_keys($tags) : [],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to extract date from video metadata, using filename fallback', [
+                'filename' => $file instanceof UploadedFile ? $file->getClientOriginalName() : basename($file),
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Fallback to filename extraction
+        $filename = $file instanceof UploadedFile ? $file->getClientOriginalName() : basename($file);
+
+        return $this->extractDateFromFilename($filename);
+    }
+
+    /**
      * Get file size (S3-aware) - handles both local paths and storage paths
      */
     private function getFileSize(string $filePath): ?int

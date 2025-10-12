@@ -240,11 +240,14 @@ class SubmitToProcessing implements ShouldQueue
         // Extract metadata from filename and livestream context
         $originalFilename = $metadata['original_filename'] ?? $this->processingLog->original_filename;
 
+        // Extract date using cascading strategy: processing metadata > filename > today
+        $sermonDate = $this->extractSermonDate($originalFilename);
+
         $sermonData = [
             'title' => $this->generateTitleFromMetadata($metadata),
             'audio_file_path' => $this->processingLog->audio_file_path,
             'filetype' => pathinfo($originalFilename, PATHINFO_EXTENSION) ?: 'mp3',
-            'date' => $this->extractDateFromFilename($originalFilename),
+            'date' => $sermonDate,
             'service' => $this->extractServiceFromFilename($originalFilename),
             'slug' => $this->generateUniqueSlug($this->generateTitleFromMetadata($metadata)),
             'preacher' => 'Mark Drury', // Default as per existing logic
@@ -253,6 +256,31 @@ class SubmitToProcessing implements ShouldQueue
         ];
 
         return Sermon::create($sermonData);
+    }
+
+    /**
+     * Extract sermon date using cascading fallback strategy:
+     * 1. Check processing_metadata for extracted_date (from video metadata/client)
+     * 2. Fall back to filename parsing
+     * 3. Final fallback to current date
+     */
+    private function extractSermonDate(string $filename): string
+    {
+        // Strategy 1: Check if date was extracted from video/audio metadata
+        $processingMetadata = $this->processingLog->processing_metadata;
+        if (is_array($processingMetadata) && isset($processingMetadata['extracted_date'])) {
+            $extractedDate = $processingMetadata['extracted_date'];
+            Log::info('SubmitToProcessing: Using date extracted from file metadata', [
+                'processing_id' => $this->processingLog->processing_id,
+                'extracted_date' => $extractedDate,
+                'extraction_method' => $processingMetadata['date_extraction_method'] ?? 'unknown',
+            ]);
+
+            return $extractedDate;
+        }
+
+        // Strategy 2: Fall back to filename parsing
+        return $this->extractDateFromFilename($filename);
     }
 
     /**

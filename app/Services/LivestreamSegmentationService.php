@@ -4,14 +4,9 @@ namespace App\Services;
 
 use App\Contracts\VideoStorageServiceInterface;
 use App\Data\LivestreamProcessingResult;
-use App\Jobs\AnalyzeSegments;
 use App\Jobs\CleanupTemporaryFiles;
-use App\Jobs\ExtractSermon;
-use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\SubmitToProcessing;
-use App\Jobs\TranscribeAudio;
-use App\Jobs\ProcessTranscriptWithAI;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
 use Illuminate\Http\UploadedFile;
@@ -38,12 +33,12 @@ class LivestreamSegmentationService
     /**
      * Process video with segmentation (for livestream videos)
      */
-    public function processWithSegmentation(UploadedFile $videoFile): ProcessingResult
+    public function processWithSegmentation(UploadedFile $videoFile, ?string $clientFileDate = null): ProcessingResult
     {
-        return $this->startProcessing($videoFile);
+        return $this->startProcessing($videoFile, $clientFileDate);
     }
 
-    public function startProcessing(UploadedFile $videoFile): ProcessingResult
+    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null): ProcessingResult
     {
         try {
             $processingId = Str::uuid()->toString();
@@ -52,11 +47,16 @@ class LivestreamSegmentationService
                 'processing_id' => $processingId,
                 'original_filename' => $videoFile->getClientOriginalName(),
                 'file_size' => $videoFile->getSize(),
+                'client_file_date' => $clientFileDate,
             ]);
 
             if (! $this->storageService->validateStorageSpace($videoFile->getSize())) {
                 throw new \Exception('Insufficient storage space for processing');
             }
+
+            // Extract date from video metadata BEFORE storing (to preserve file timestamps)
+            $metadataService = app(\App\Services\MetadataExtractionService::class);
+            $extractedDate = $metadataService->extractDateFromVideo($videoFile, $clientFileDate);
 
             $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
 
@@ -65,6 +65,12 @@ class LivestreamSegmentationService
             }
 
             $metadata = $this->segmentationService->getVideoMetadata($uploadResult['full_path']);
+
+            Log::info('Extracted date from livestream video file', [
+                'processing_id' => $processingId,
+                'original_filename' => $uploadResult['original_filename'],
+                'extracted_date' => $extractedDate->toDateString(),
+            ]);
 
             $processingLog = MediaProcessingLog::create([
                 'processing_id' => $processingId,
@@ -79,6 +85,8 @@ class LivestreamSegmentationService
                     'format_details' => $metadata,
                     'mime_type' => $uploadResult['mime_type'],
                     'file_format' => pathinfo($uploadResult['original_filename'], PATHINFO_EXTENSION),
+                    'extracted_date' => $extractedDate->toDateString(),
+                    'date_extraction_method' => 'video_metadata_or_filename',
                 ],
             ]);
 
@@ -119,8 +127,18 @@ class LivestreamSegmentationService
                 throw new \Exception('Insufficient storage space for processing');
             }
 
+            // Extract date from video metadata BEFORE storing (to preserve file timestamps)
+            $metadataService = app(\App\Services\MetadataExtractionService::class);
+            $extractedDate = $metadataService->extractDateFromVideo($videoFile);
+
             // Store the video file
             $storedPath = $this->storageService->storeUploadedVideo($videoFile);
+
+            Log::info('Extracted date from direct video file', [
+                'processing_id' => $processingId,
+                'original_filename' => $videoFile->getClientOriginalName(),
+                'extracted_date' => $extractedDate->toDateString(),
+            ]);
 
             // Create processing log
             $processingLog = MediaProcessingLog::create([
@@ -132,6 +150,8 @@ class LivestreamSegmentationService
                 'current_step' => 'initiated',
                 'processing_metadata' => [
                     'processing_mode' => 'direct_sermon',
+                    'extracted_date' => $extractedDate->toDateString(),
+                    'date_extraction_method' => 'video_metadata_or_filename',
                 ],
             ]);
 
