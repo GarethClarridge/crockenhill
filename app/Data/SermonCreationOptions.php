@@ -29,6 +29,12 @@ class SermonCreationOptions
         public ?string $service = null,
         public ?string $date = null,
         public ?string $customTitle = null,
+
+        // ID3 metadata fields (extracted from audio file tags)
+        public ?string $id3Title = null,
+        public ?string $id3Preacher = null,
+        public ?string $id3Series = null,
+        public ?string $id3Reference = null,
     ) {}
 
     /**

@@ -89,14 +89,43 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             // Store in processing log
             $this->processingLog->update(['ai_analysis' => $analysis->toArray()]);
 
-            // Update sermon
-            $this->processingLog->sermon->update([
-                'title' => $analysis->title,
-                'summary' => $analysis->summary,
-                'points' => $analysis->points,
-                'reference' => $analysis->reference,
-                'series' => $analysis->series,
+            // Update sermon - preserve ID3 metadata, only fill in missing fields with AI data
+            $sermon = $this->processingLog->sermon;
+            $updateData = [];
+
+            // Get ID3 metadata from processing log if available
+            $id3Metadata = is_array($this->processingLog->processing_metadata)
+                && isset($this->processingLog->processing_metadata['id3_metadata'])
+                ? $this->processingLog->processing_metadata['id3_metadata']
+                : null;
+
+            // Only update title if not set by ID3 tags
+            if (! $id3Metadata || empty($id3Metadata['title'])) {
+                $updateData['title'] = $analysis->title;
+            }
+
+            // Only update series if not set by ID3 tags
+            if (! $id3Metadata || empty($id3Metadata['series'])) {
+                $updateData['series'] = $analysis->series;
+            }
+
+            // Only update reference if not set by ID3 tags
+            if (! $id3Metadata || empty($id3Metadata['reference'])) {
+                $updateData['reference'] = $analysis->reference;
+            }
+
+            // Always update summary and points (ID3 tags don't contain these)
+            $updateData['summary'] = $analysis->summary;
+            $updateData['points'] = $analysis->points;
+
+            Log::info('Updating sermon with AI analysis', [
+                'processing_id' => $this->processingLog->processing_id,
+                'has_id3_metadata' => $id3Metadata !== null,
+                'id3_fields_preserved' => $id3Metadata ? array_keys(array_filter($id3Metadata)) : [],
+                'ai_fields_applied' => array_keys($updateData),
             ]);
+
+            $sermon->update($updateData);
 
             // Update processing log and mark step as complete
             $this->processingLog->updateStep('ai_analysis_completed');
@@ -118,15 +147,31 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             if ($fallbackAnalysis) {
                 $this->processingLog->update(['ai_analysis' => $fallbackAnalysis->toArray()]);
 
-                // Update sermon if it exists
+                // Update sermon if it exists - preserve ID3 metadata
                 if ($this->processingLog->sermon) {
-                    $this->processingLog->sermon->update([
-                        'title' => $fallbackAnalysis->title,
-                        'summary' => $fallbackAnalysis->summary,
-                        'points' => $fallbackAnalysis->points,
-                        'reference' => $fallbackAnalysis->reference,
-                        'series' => $fallbackAnalysis->series,
-                    ]);
+                    $updateData = [];
+
+                    // Get ID3 metadata from processing log if available
+                    $id3Metadata = is_array($this->processingLog->processing_metadata)
+                        && isset($this->processingLog->processing_metadata['id3_metadata'])
+                        ? $this->processingLog->processing_metadata['id3_metadata']
+                        : null;
+
+                    // Only update fields not set by ID3 tags
+                    if (! $id3Metadata || empty($id3Metadata['title'])) {
+                        $updateData['title'] = $fallbackAnalysis->title;
+                    }
+                    if (! $id3Metadata || empty($id3Metadata['series'])) {
+                        $updateData['series'] = $fallbackAnalysis->series;
+                    }
+                    if (! $id3Metadata || empty($id3Metadata['reference'])) {
+                        $updateData['reference'] = $fallbackAnalysis->reference;
+                    }
+
+                    $updateData['summary'] = $fallbackAnalysis->summary;
+                    $updateData['points'] = $fallbackAnalysis->points;
+
+                    $this->processingLog->sermon->update($updateData);
                 }
 
                 $this->processingLog->updateStep('ai_analysis_fallback');

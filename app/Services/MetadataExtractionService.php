@@ -582,4 +582,58 @@ class MetadataExtractionService
         // Final fallback - might be a local path without leading slash
         return file_exists($filePath) ? filesize($filePath) : null;
     }
+
+    /**
+     * Extract ID3 metadata tags from audio file (title, artist/preacher, album/series, reference)
+     *
+     * @param  UploadedFile  $file  The uploaded audio file
+     * @return array{title: string|null, preacher: string|null, series: string|null, reference: string|null}
+     */
+    public function extractId3Metadata(UploadedFile $file): array
+    {
+        try {
+            $track = new GetId3($file);
+            $info = $track->extractInfo();
+
+            $title = $track->getTitle();
+            $preacher = $track->getArtist();
+            $series = $track->getAlbum();
+
+            // Reference is typically stored in comments
+            $reference = null;
+            if (isset($info['comments']['comment'][0])) {
+                $reference = $info['comments']['comment'][0];
+            }
+
+            Log::info('Extracted ID3 metadata from audio file', [
+                'filename' => $file->getClientOriginalName(),
+                'title' => $title,
+                'preacher' => $preacher,
+                'series' => $series,
+                'reference' => $reference,
+                'title_type' => gettype($title),
+                'title_empty' => empty($title),
+                'raw_info_keys' => array_keys($info),
+            ]);
+
+            return [
+                'title' => $title ?: null,
+                'preacher' => $preacher ?: null,
+                'series' => $series ?: null,
+                'reference' => $reference,
+            ];
+        } catch (\Exception $e) {
+            Log::warning('Failed to extract ID3 metadata from audio file', [
+                'filename' => $file->getClientOriginalName(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'title' => null,
+                'preacher' => null,
+                'series' => null,
+                'reference' => null,
+            ];
+        }
+    }
 }

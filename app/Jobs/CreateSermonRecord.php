@@ -82,6 +82,12 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
                 $aiAnalysis = json_decode($aiAnalysis, true);
             }
 
+            // Extract ID3 metadata from processing_metadata if available
+            $processingMetadata = $this->processingLog->processing_metadata;
+            $id3Metadata = is_array($processingMetadata) && isset($processingMetadata['id3_metadata'])
+                ? $processingMetadata['id3_metadata']
+                : null;
+
             // Prepare options using factory method based on processing type
             $options = match ($this->processingLog->processing_type) {
                 'audio' => SermonCreationOptions::fromAudioUpload($refreshedLog, $aiAnalysis ?? []),
@@ -89,6 +95,22 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
                 'livestream' => throw new \Exception('CreateSermonRecord should not be used for livestream processing'),
                 default => throw new \Exception("Unknown processing type: {$this->processingLog->processing_type}"),
             };
+
+            // Overlay ID3 metadata if available (takes priority over AI/defaults)
+            if ($id3Metadata && is_array($id3Metadata)) {
+                $options->id3Title = $id3Metadata['title'] ?? null;
+                $options->id3Preacher = $id3Metadata['preacher'] ?? null;
+                $options->id3Series = $id3Metadata['series'] ?? null;
+                $options->id3Reference = $id3Metadata['reference'] ?? null;
+
+                Log::info('Using ID3 metadata for sermon creation', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'id3_title' => $options->id3Title,
+                    'id3_preacher' => $options->id3Preacher,
+                    'id3_series' => $options->id3Series,
+                    'id3_reference' => $options->id3Reference,
+                ]);
+            }
 
             // Create sermon using service
             $sermon = $sermonCreationService->createSermon($refreshedLog, $options);

@@ -30,13 +30,14 @@ class SermonCreationService
             $options->originalFilename
         );
 
-        // Generate title based on strategy
+        // Generate title based on strategy, with ID3 taking priority
         $title = $this->generateTitle(
             $options->titleStrategy,
             [
                 'ai_analysis' => $options->aiAnalysis,
                 'filename' => $options->originalFilename,
                 'custom_title' => $options->customTitle,
+                'id3_title' => $options->id3Title,
                 'processing_log' => $processingLog,
                 'date' => $sermonDate,
                 'service' => $service,
@@ -46,6 +47,12 @@ class SermonCreationService
         // Generate unique slug
         $slug = $this->generateUniqueSlug($title, $sermonDate);
 
+        // Determine preacher using cascading priority: ID3 → explicit override → AI → default
+        $preacher = $options->id3Preacher
+            ?? $options->preacher
+            ?? ($options->aiAnalysis['preacher'] ?? null)
+            ?? 'Mark Drury';
+
         // Build sermon data
         $sermonData = [
             'title' => $title,
@@ -54,7 +61,7 @@ class SermonCreationService
             'date' => $sermonDate,
             'service' => $service,
             'slug' => $slug,
-            'preacher' => $options->preacher ?? 'Mark Drury',
+            'preacher' => $preacher,
             'source_type' => $options->sourceType,
         ];
 
@@ -71,17 +78,23 @@ class SermonCreationService
             $sermonData['livestream_processing_id'] = $options->livestreamProcessingId;
         }
 
-        // Add AI analysis fields if available
-        if ($options->aiAnalysis) {
-            if (isset($options->aiAnalysis['series'])) {
-                $sermonData['series'] = $options->aiAnalysis['series'];
-            }
-            if (isset($options->aiAnalysis['reference'])) {
-                $sermonData['reference'] = $options->aiAnalysis['reference'];
-            }
-            if (isset($options->aiAnalysis['points'])) {
-                $sermonData['points'] = json_encode($options->aiAnalysis['points']);
-            }
+        // Add series with cascading priority: ID3 → AI
+        if ($options->id3Series) {
+            $sermonData['series'] = $options->id3Series;
+        } elseif ($options->aiAnalysis && isset($options->aiAnalysis['series'])) {
+            $sermonData['series'] = $options->aiAnalysis['series'];
+        }
+
+        // Add reference with cascading priority: ID3 → AI
+        if ($options->id3Reference) {
+            $sermonData['reference'] = $options->id3Reference;
+        } elseif ($options->aiAnalysis && isset($options->aiAnalysis['reference'])) {
+            $sermonData['reference'] = $options->aiAnalysis['reference'];
+        }
+
+        // Add AI analysis points (ID3 tags don't typically contain sermon points)
+        if ($options->aiAnalysis && isset($options->aiAnalysis['points'])) {
+            $sermonData['points'] = json_encode($options->aiAnalysis['points']);
         }
 
         return Sermon::create($sermonData);
@@ -210,18 +223,23 @@ class SermonCreationService
     }
 
     /**
-     * Generate title using AI analysis first, fallback to filename
+     * Generate title using ID3 tags first, then AI analysis, then filename
      */
     private function generateTitleAiWithFallback(array $context): string
     {
-        $aiAnalysis = $context['ai_analysis'] ?? null;
+        // Priority 1: ID3 tag title (if present)
+        $id3Title = $context['id3_title'] ?? null;
+        if ($id3Title && ! empty(trim($id3Title))) {
+            return Str::limit($id3Title, 100, '');
+        }
 
-        // Use AI-generated title if available
+        // Priority 2: AI-generated title (if available)
+        $aiAnalysis = $context['ai_analysis'] ?? null;
         if ($aiAnalysis && ! empty($aiAnalysis['title'])) {
             return Str::limit($aiAnalysis['title'], 100, '');
         }
 
-        // Fall back to filename processing
+        // Priority 3: Fall back to filename processing
         return $this->generateTitleFromFilename($context);
     }
 

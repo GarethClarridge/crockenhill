@@ -37,12 +37,17 @@ class SermonAudioProcessingService
             $metadata = SermonMetadata::fromUploadedFile($file);
             $storedFilePath = $this->storeAudioFile($file, $metadata);
 
+            // Extract ID3 metadata tags (title, artist/preacher, album/series, reference)
+            $metadataService = app(MetadataExtractionService::class);
+            $id3Metadata = $metadataService->extractId3Metadata($file);
+
             Log::info('Audio file stored, creating processing log', [
                 'processing_id' => $processingId,
                 'stored_path' => $storedFilePath,
+                'id3_metadata' => $id3Metadata,
             ]);
 
-            // Create media processing log
+            // Create media processing log with ID3 metadata in processing_metadata
             $processingLog = MediaProcessingLog::create([
                 'processing_id' => $processingId,
                 'processing_type' => 'audio',
@@ -50,6 +55,9 @@ class SermonAudioProcessingService
                 'source_file_path' => $storedFilePath,
                 'status' => ProcessingStatus::PENDING,
                 'current_step' => 'audio_processing_initiated',
+                'processing_metadata' => [
+                    'id3_metadata' => $id3Metadata,
+                ],
             ]);
 
             // Build and dispatch job chain using ProcessingPipelineBuilder (same as video processing)
