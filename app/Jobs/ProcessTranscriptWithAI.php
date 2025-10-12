@@ -99,8 +99,12 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 ? $this->processingLog->processing_metadata['id3_metadata']
                 : null;
 
-            // Only update title if not set by ID3 tags
-            if (! $id3Metadata || empty($id3Metadata['title'])) {
+            // Only update title if not set by ID3 tags OR if ID3 title looks like a filename
+            $hasValidId3Title = $id3Metadata
+                && !empty($id3Metadata['title'])
+                && !$this->looksLikeFilename($id3Metadata['title']);
+
+            if (!$hasValidId3Title) {
                 $updateData['title'] = $analysis->title;
             }
 
@@ -157,8 +161,12 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                         ? $this->processingLog->processing_metadata['id3_metadata']
                         : null;
 
-                    // Only update fields not set by ID3 tags
-                    if (! $id3Metadata || empty($id3Metadata['title'])) {
+                    // Only update fields not set by ID3 tags OR if ID3 title looks like a filename
+                    $hasValidId3Title = $id3Metadata
+                        && !empty($id3Metadata['title'])
+                        && !$this->looksLikeFilename($id3Metadata['title']);
+
+                    if (!$hasValidId3Title) {
                         $updateData['title'] = $fallbackAnalysis->title;
                     }
                     if (! $id3Metadata || empty($id3Metadata['series'])) {
@@ -230,6 +238,30 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
         }
 
         return Str::title($title);
+    }
+
+    /**
+     * Check if a string looks like a filename rather than a proper title
+     */
+    private function looksLikeFilename(string $title): bool
+    {
+        // Check for file extension
+        if (preg_match('/\.(mp3|wav|m4a|mp4|mov|avi|mkv|flac|aac|ogg)$/i', $title)) {
+            return true;
+        }
+
+        // Check for hash-like patterns (long strings of random characters)
+        // Look for 20+ contiguous lowercase letters/numbers without spaces
+        if (preg_match('/[a-z0-9]{20,}/i', $title)) {
+            return true;
+        }
+
+        // Check for UUID-like patterns
+        if (preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $title)) {
+            return true;
+        }
+
+        return false;
     }
 
     public function failed(\Throwable $exception): void

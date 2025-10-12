@@ -28,6 +28,9 @@ class UpdateSermonRequest extends FormRequest
             'reference' => 'nullable|string|max:255',
             'preacher' => 'required|string|max:255',
             'points' => 'nullable|json', // Expects a JSON string or null
+            'summary' => 'nullable|string|max:1000',
+            'show_summary' => 'nullable|boolean',
+            'show_points' => 'nullable|boolean',
         ];
     }
 

@@ -103,7 +103,7 @@ use Illuminate\Support\Str;
     </dl>
 
     {{-- Sermon Summary --}}
-    @if (!empty($sermon->summary))
+    @if ($sermon->show_summary && !empty($sermon->summary))
     <div class="mt-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
       <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
         <x-heroicon-o-document-text class="h-5 w-5 mr-2" />
@@ -116,7 +116,7 @@ use Illuminate\Support\Str;
     @endif
 
     {{-- Sermon Outline --}}
-    @if (!empty($sermon->points) && is_array($sermon->points))
+    @if ($sermon->show_points && !empty($sermon->points) && is_array($sermon->points))
     <h2 class="text-xl font-semibold text-gray-900 mt-12 mb-4 flex items-center">
       <x-heroicon-o-list-bullet class="h-5 w-5 mr-2" />
       Sermon Outline

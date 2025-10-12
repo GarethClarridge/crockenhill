@@ -57,6 +57,24 @@
 @endif
 </textarea>
     <small class="text-xs text-gray-600">Sermon outline should be entered as a valid JSON array. E.g., `[{"point":"Main Point 1", "sub_points":["Sub 1.1"]}]`</small>
+    <div class="mt-2">
+      <label class="inline-flex items-center">
+        <input type="checkbox" name="show_points" value="1" {{ $sermon->show_points ? 'checked' : '' }} class="rounded border-gray-300 text-green-600 shadow-sm focus:border-green-300 focus:ring focus:ring-green-200 focus:ring-opacity-50">
+        <span class="ml-2 text-sm text-gray-700">Show sermon outline on public page</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="summary">Sermon summary</label>
+    <textarea class="block appearance-none w-full py-1 px-2 mb-1 text-base leading-normal bg-white text-gray-800 border border-gray-200 rounded" rows="4" name="summary" id="summary">{{ $sermon->summary }}</textarea>
+    <small class="text-xs text-gray-600">AI-generated summary of the sermon (optional)</small>
+    <div class="mt-2">
+      <label class="inline-flex items-center">
+        <input type="checkbox" name="show_summary" value="1" {{ $sermon->show_summary ? 'checked' : '' }} class="rounded border-gray-300 text-green-600 shadow-sm focus:border-green-300 focus:ring focus:ring-green-200 focus:ring-opacity-50">
+        <span class="ml-2 text-sm text-gray-700">Show summary on public page</span>
+      </label>
+    </div>
   </div>
 
   <div class="form-actions">

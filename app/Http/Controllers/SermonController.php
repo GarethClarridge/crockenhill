@@ -136,6 +136,15 @@ class SermonController extends Controller
             $sermon->points = $validatedData['points'] ? json_decode($validatedData['points'], true) : null;
         }
 
+        // Update summary if provided
+        if (array_key_exists('summary', $validatedData)) {
+            $sermon->summary = $validatedData['summary'];
+        }
+
+        // Update visibility toggles (checkboxes return '1' when checked, null when unchecked)
+        $sermon->show_summary = $request->has('show_summary');
+        $sermon->show_points = $request->has('show_points');
+
         if ($sermon->save()) {
             return redirect()->route('sermonIndex')->with('message', '"'.$sermon->title.'" successfully updated!');
         } else {

@@ -27,6 +27,8 @@ use Illuminate\Support\Str; // Added Enum import
  * @property ?string $series
  * @property ?array $points
  * @property ?string $summary
+ * @property bool $show_summary
+ * @property bool $show_points
  * @property ?string $transcript_file_path
  * @property ?string $thumbnail_file_path
  * @property ?\Illuminate\Support\Carbon $thumbnail_generated_at
@@ -97,6 +99,8 @@ class Sermon extends Model
         'preacher',
         'points', // Stored as JSON string, handled by accessor/mutator potentially
         'summary', // AI-generated sermon summary
+        'show_summary', // Toggle to show/hide AI-generated summary
+        'show_points', // Toggle to show/hide AI-generated points
         'transcript_file_path', // Renamed from 'transcript_path' for consistency
         'thumbnail_file_path', // Renamed from 'thumbnail_path' for consistency
         'thumbnail_generated_at', // Timestamp when thumbnail was generated
@@ -121,6 +125,8 @@ class Sermon extends Model
         'segment_end_time' => 'float',
         'thumbnail_generated_at' => 'datetime',
         'thumbnail_metadata' => 'array',
+        'show_summary' => 'boolean',
+        'show_points' => 'boolean',
     ];
 
     // Accessor for points is no longer strictly needed if 'points' => 'array' cast is used.
