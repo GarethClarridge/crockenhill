@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\SermonService;
-use App\Http\Requests\PostSermonRequest;
-use App\Http\Requests\StoreSermonRequest;
 use App\Http\Requests\UpdateSermonRequest;
 use App\Models\Page;
 use App\Models\Sermon; // Added for DB facade
@@ -61,82 +59,6 @@ class SermonController extends Controller
         ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(): View
-    {
-        $this->authorize('create', Sermon::class);
-
-        $series = array_unique(Sermon::pluck('series')->all());
-
-        return view('sermons.create', [
-            'series' => $series,
-            'heading' => 'Upload sermon',
-        ]);
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreSermonRequest $request): RedirectResponse
-    {
-        // Gate check removed, handled by StoreSermonRequest::authorize()
-
-        // The request data is already validated here.
-        // You can get validated data using $request->validated();
-
-        $path = null;
-        if ($request->hasFile('file') && $request->file('file')->isValid()) {
-            $file = $request->file('file');
-            // Store the file in 'storage/app/public/sermons' with a unique name
-            $path = Storage::disk('public')->putFile('sermons', $file);
-            if (! $path) {
-                // Handle error if file storage failed
-                return redirect()->back()->with('error', 'File upload failed.');
-            }
-        } else {
-            // Handle error if file is not present or invalid
-            return redirect()->back()->with('error', 'No valid file uploaded.');
-        }
-
-        $pointsData = [];
-        for ($p = 1; $p < 7; $p++) {
-            if ($request->filled("point-{$p}")) {
-                $mainPoint = $request->input("point-{$p}");
-                $subPoints = [];
-                for ($i = 1; $i < 6; $i++) {
-                    if ($request->filled("sub-point-{$p}-{$i}")) {
-                        $subPoints[] = $request->input("sub-point-{$p}-{$i}");
-                    }
-                }
-                // Only add if main point has content, or if sub_points have content even if main is empty (adjust as needed)
-                if (! empty($mainPoint) || ! empty($subPoints)) {
-                    $pointsData[] = ['point' => $mainPoint ?: '', 'sub_points' => $subPoints];
-                }
-            }
-        }
-
-        $sermon = new \App\Models\Sermon;
-        // Use $request->input() or $request->validated() for other fields.
-        // $request->validated() is preferred if all fields are in the rules.
-        $validatedData = $request->validated();
-
-        $sermon->title = $validatedData['title'];
-        $sermon->filename = $path; // filename comes from storage, not direct validation
-        $sermon->date = Carbon::parse($validatedData['date']);
-        $sermon->service = SermonService::from($validatedData['service']);
-        $sermon->slug = Str::slug($validatedData['title']); // Use validated title for slug
-        $sermon->series = $validatedData['series'] ?? null; // Handle nullable
-        $sermon->reference = $validatedData['reference'] ?? null; // Handle nullable
-        $sermon->preacher = $validatedData['preacher'];
-        // Sermon model's $casts property will handle encoding $pointsData to JSON
-        $sermon->points = ! empty($pointsData) ? $pointsData : null;
-
-        $sermon->save();
-
-        return redirect()->route('sermonIndex')->with('message', '"'.$sermon->title.'" successfully uploaded!');
-    }
 
     /**
      * Display the specified resource.
@@ -353,59 +275,6 @@ class SermonController extends Controller
         }
     }
 
-    /**
-     * Post a newly created resource in storage.
-     */
-    public function post(PostSermonRequest $request): RedirectResponse
-    {
-        // Manual Gate check removed
-        // Manual file validation check removed
-
-        // $request is now an instance of PostSermonRequest, validation has passed.
-        $file = $request->file('file'); // This is safe to call now.
-
-        // ID3 - get info from the temporary uploaded file
-        $track = new \Owenoj\LaravelGetId3\GetId3($file); // Pass the UploadedFile object
-        $info = $track->extractInfo();
-
-        // File handling - extract info from original name BEFORE storing with unique name
-        $originalClientName = $file->getClientOriginalName();
-        $originalFilenameBase = pathinfo($originalClientName, PATHINFO_FILENAME);
-
-        $date = Str::beforeLast($originalFilenameBase, '-');
-        $serviceString = match (Str::afterLast($originalFilenameBase, '-')) {
-            'am' => 'morning',
-            'pm' => 'evening',
-            default => 'other',
-        };
-
-        // Reference
-        $reference = '';
-        if (isset($info['comments']['comment'][0])) {
-            $reference = $info['comments']['comment'][0];
-        }
-
-        // Now, store the file with a unique name
-        $path = Storage::disk('public')->putFile('sermons', $file);
-        if (! $path) {
-            // Handle error if file storage failed
-            return redirect()->back()->with('error', 'File upload failed during storage.');
-        }
-
-        $sermon = new \App\Models\Sermon;
-        $sermon->title = $track->getTitle();
-        $sermon->filename = $path;
-        $sermon->date = Carbon::parse($date);
-        $sermon->service = SermonService::from($serviceString);
-        $sermon->slug = Str::slug($track->getTitle() ?: $originalFilenameBase); // Fallback for slug
-        $sermon->series = $track->getAlbum();
-        $sermon->reference = $reference;
-        $sermon->preacher = $track->getArtist();
-        // Points are not handled by this upload method.
-        $sermon->save();
-
-        return redirect()->route('sermonIndex')->with('message', ($track->getTitle() ?: 'Sermon').' successfully posted!');
-    }
 
     /**
      * Display the specified resource with date validation.

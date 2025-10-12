@@ -50,10 +50,8 @@ Route::get('/community/{slug}', [MeetingController::class, 'showCommunityContent
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
-    Route::get('/create', [SermonController::class, 'create'])->name('sermonCreate');
-    Route::post('/', [SermonController::class, 'store'])->name('sermonStore');
     Route::get('/upload', [SermonController::class, 'upload'])->name('sermonUpload');
-    Route::post('/post', [SermonController::class, 'post'])->name('sermonPost');
+    Route::post('/upload', [SermonController::class, 'processMedia'])->name('sermonPost');
     Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
     Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
     Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
