@@ -242,9 +242,10 @@ class MediaUpload extends Component
             return;
         }
 
+        $fullTempPath = storage_path('app/'.$this->tempFilePath);
+
         try {
             // Reconstruct the uploaded file from stored temp file
-            $fullTempPath = storage_path('app/'.$this->tempFilePath);
 
             // Detect mime type from file extension since we can't rely on Livewire's temp file
             $extension = pathinfo($this->originalFileName, PATHINFO_EXTENSION);
@@ -279,11 +280,6 @@ class MediaUpload extends Component
             $processor = app(\App\Services\UnifiedMediaProcessor::class);
 
             $result = $processor->process($this->mediaType, $originalFile, $this->fileModifiedDate);
-
-            // Clean up temp file
-            if (file_exists($fullTempPath)) {
-                unlink($fullTempPath);
-            }
 
             // Update UI to show completion
             if ($result->success) {
@@ -320,6 +316,22 @@ class MediaUpload extends Component
             if ($this->processingId) {
                 $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
                 $log?->markAsFailed('Processing failed: '.$e->getMessage());
+            }
+
+            $this->status = 'failed';
+            $this->errorMessage = 'Processing failed: '.$e->getMessage();
+        } finally {
+            // Always clean up the Livewire temp file, regardless of success or failure
+            if (file_exists($fullTempPath)) {
+                try {
+                    unlink($fullTempPath);
+                    $this->logInfo('Cleaned up Livewire temp file', ['path' => $fullTempPath]);
+                } catch (\Exception $e) {
+                    $this->logError('Failed to clean up Livewire temp file', [
+                        'path' => $fullTempPath,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         }
     }

@@ -24,6 +24,9 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         $schedule->command('calendar:sync')->cron('0 */4 * * *');
+
+        // Clean up temporary files older than 24 hours, run every 6 hours
+        $schedule->command('media:cleanup-temp-files --hours=24')->everySixHours();
     }
 
     /**

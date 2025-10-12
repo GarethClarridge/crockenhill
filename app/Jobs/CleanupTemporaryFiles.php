@@ -29,7 +29,33 @@ class CleanupTemporaryFiles implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
-            $storageService->cleanupTemporaryFiles([]);
+            // Collect all temporary file paths from the processing log
+            $tempFiles = [];
+
+            // Add source file if it's in temp directory
+            if ($this->processingLog->source_file_path) {
+                $tempFiles[] = $this->processingLog->source_file_path;
+            }
+
+            // Add extracted segment paths if they exist in metadata
+            $metadata = $this->processingLog->processing_metadata ?? [];
+            if (isset($metadata['extracted_segment_path'])) {
+                $tempFiles[] = $metadata['extracted_segment_path'];
+            }
+            if (isset($metadata['extracted_audio_path'])) {
+                $tempFiles[] = $metadata['extracted_audio_path'];
+            }
+            if (isset($metadata['temp_video_path'])) {
+                $tempFiles[] = $metadata['temp_video_path'];
+            }
+
+            Log::info('Cleaning up temporary files', [
+                'processing_id' => $this->processingLog->processing_id,
+                'file_count' => count($tempFiles),
+                'files' => $tempFiles,
+            ]);
+
+            $storageService->cleanupTemporaryFiles($tempFiles);
 
             // Mark processing as completed
             $this->processingLog->markAsCompleted();

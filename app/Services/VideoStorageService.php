@@ -179,13 +179,37 @@ class VideoStorageService implements VideoStorageServiceInterface
 
     public function cleanupTemporaryFiles(array $filePaths): void
     {
+        $deletedCount = 0;
+
+        // Clean up specific files passed in the array
         foreach ($filePaths as $filePath) {
-            if (is_string($filePath)) {
-                Storage::delete($filePath);
+            if (is_string($filePath) && ! empty($filePath)) {
+                try {
+                    // Try temp disk first
+                    if (Storage::disk($this->tempDisk)->exists($filePath)) {
+                        Storage::disk($this->tempDisk)->delete($filePath);
+                        $deletedCount++;
+                        Log::debug('Deleted temp file', ['file' => $filePath, 'disk' => $this->tempDisk]);
+                    }
+                    // Check if it's an absolute path (for local files)
+                    elseif (file_exists($filePath)) {
+                        unlink($filePath);
+                        $deletedCount++;
+                        Log::debug('Deleted local temp file', ['file' => $filePath]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to delete temp file', [
+                        'file' => $filePath,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         }
 
-        Log::info('Temporary files cleaned up', ['file_count' => count($filePaths)]);
+        Log::info('Temporary files cleaned up', [
+            'file_count' => count($filePaths),
+            'deleted_count' => $deletedCount,
+        ]);
     }
 
     public function cleanupExpiredFiles(): int

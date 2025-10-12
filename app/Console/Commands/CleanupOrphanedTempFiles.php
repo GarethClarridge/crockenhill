@@ -1,0 +1,159 @@
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
+class CleanupOrphanedTempFiles extends Command
+{
+    /**
+     * The name and signature of the console command.
+     */
+    protected $signature = 'media:cleanup-temp-files
+                          {--hours=24 : Delete files older than this many hours}
+                          {--dry-run : Show what would be deleted without actually deleting}';
+
+    /**
+     * The console command description.
+     */
+    protected $description = 'Clean up orphaned temporary files from media processing';
+
+    /**
+     * Execute the console command.
+     */
+    public function handle(): int
+    {
+        $hours = (int) $this->option('hours');
+        $dryRun = $this->option('dry-run');
+        $cutoffTime = now()->subHours($hours);
+
+        $this->info("Cleaning up temporary files older than {$hours} hours (cutoff: {$cutoffTime->toDateTimeString()})");
+
+        if ($dryRun) {
+            $this->warn('DRY RUN MODE - No files will be deleted');
+        }
+
+        $totalDeleted = 0;
+        $totalSize = 0;
+
+        // Clean up livestream/temp directory
+        $this->info('');
+        $this->info('Cleaning livestream/temp directory...');
+        [$deleted, $size] = $this->cleanupDirectory('livestream/temp', $cutoffTime, $dryRun);
+        $totalDeleted += $deleted;
+        $totalSize += $size;
+
+        // Clean up livewire-tmp directory
+        $this->info('');
+        $this->info('Cleaning livewire-tmp directory...');
+        [$deleted, $size] = $this->cleanupDirectory('livewire-tmp', $cutoffTime, $dryRun);
+        $totalDeleted += $deleted;
+        $totalSize += $size;
+
+        // Clean up temp/livewire-upload directory (used by MediaUpload component)
+        $this->info('');
+        $this->info('Cleaning temp/livewire-upload directory...');
+        [$deleted, $size] = $this->cleanupDirectory('temp/livewire-upload', $cutoffTime, $dryRun);
+        $totalDeleted += $deleted;
+        $totalSize += $size;
+
+        // Clean up temp/audio_extraction directory (used by VideoExtractionService)
+        $this->info('');
+        $this->info('Cleaning temp/audio_extraction directory...');
+        [$deleted, $size] = $this->cleanupDirectory('temp/audio_extraction', $cutoffTime, $dryRun);
+        $totalDeleted += $deleted;
+        $totalSize += $size;
+
+        // Clean up temp directory (general temp files)
+        $this->info('');
+        $this->info('Cleaning temp directory...');
+        [$deleted, $size] = $this->cleanupDirectory('temp', $cutoffTime, $dryRun, 1);
+        $totalDeleted += $deleted;
+        $totalSize += $size;
+
+        $this->info('');
+        $this->info('========================================');
+        $totalSizeMB = round($totalSize / 1024 / 1024, 2);
+        $totalSizeGB = round($totalSize / 1024 / 1024 / 1024, 2);
+
+        if ($dryRun) {
+            $this->info("Would delete {$totalDeleted} files ({$totalSizeMB} MB / {$totalSizeGB} GB)");
+        } else {
+            $this->info("Deleted {$totalDeleted} files ({$totalSizeMB} MB / {$totalSizeGB} GB)");
+        }
+        $this->info('========================================');
+
+        // Log the cleanup
+        if (! $dryRun) {
+            Log::info('Orphaned temp files cleaned up', [
+                'files_deleted' => $totalDeleted,
+                'size_bytes' => $totalSize,
+                'size_mb' => $totalSizeMB,
+                'cutoff_hours' => $hours,
+                'cutoff_time' => $cutoffTime->toDateTimeString(),
+            ]);
+        }
+
+        return Command::SUCCESS;
+    }
+
+    /**
+     * Clean up files in a specific directory
+     *
+     * @return array [files_deleted, total_size]
+     */
+    private function cleanupDirectory(string $directory, \Carbon\Carbon $cutoffTime, bool $dryRun, int $depth = 0): array
+    {
+        $disk = Storage::disk('local');
+        $deletedCount = 0;
+        $totalSize = 0;
+
+        try {
+            if (! $disk->exists($directory)) {
+                $this->line("  Directory does not exist: {$directory}");
+
+                return [0, 0];
+            }
+
+            // Get files in the directory (optionally recursive)
+            $files = $depth > 0 ? $disk->files($directory) : $disk->allFiles($directory);
+
+            foreach ($files as $file) {
+                try {
+                    $lastModified = $disk->lastModified($file);
+                    $fileTime = \Carbon\Carbon::createFromTimestamp($lastModified);
+
+                    if ($fileTime->lt($cutoffTime)) {
+                        $fileSize = $disk->size($file);
+                        $totalSize += $fileSize;
+
+                        $fileSizeKB = round($fileSize / 1024, 2);
+                        $age = $fileTime->diffForHumans();
+
+                        if ($dryRun) {
+                            $this->line("  [DRY RUN] Would delete: {$file} ({$fileSizeKB} KB, {$age})");
+                        } else {
+                            $disk->delete($file);
+                            $deletedCount++;
+                            $this->line("  Deleted: {$file} ({$fileSizeKB} KB, {$age})");
+                        }
+                    }
+                } catch (\Exception $e) {
+                    $this->error("  Failed to process file {$file}: {$e->getMessage()}");
+                }
+            }
+
+            if ($deletedCount === 0 && count($files) === 0) {
+                $this->line("  No files found in {$directory}");
+            } elseif ($deletedCount === 0) {
+                $this->line("  No files older than cutoff time in {$directory}");
+            }
+        } catch (\Exception $e) {
+            $this->error("  Failed to clean directory {$directory}: {$e->getMessage()}");
+        }
+
+        return [$deletedCount, $totalSize];
+    }
+}

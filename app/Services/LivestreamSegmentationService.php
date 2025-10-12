@@ -245,7 +245,27 @@ class LivestreamSegmentationService
         }
 
         $processingLog->markAsFailed('Processing cancelled by user');
-        $this->storageService->cleanupTemporaryFiles([]);
+
+        // Clean up temporary files - collect paths from processing log
+        $tempFiles = [];
+        if ($processingLog->source_file_path) {
+            $tempFiles[] = $processingLog->source_file_path;
+        }
+
+        $metadata = $processingLog->processing_metadata ?? [];
+        if (isset($metadata['extracted_segment_path'])) {
+            $tempFiles[] = $metadata['extracted_segment_path'];
+        }
+        if (isset($metadata['extracted_audio_path'])) {
+            $tempFiles[] = $metadata['extracted_audio_path'];
+        }
+        if (isset($metadata['temp_video_path'])) {
+            $tempFiles[] = $metadata['temp_video_path'];
+        }
+
+        if (! empty($tempFiles)) {
+            $this->storageService->cleanupTemporaryFiles($tempFiles);
+        }
 
         return true;
     }
@@ -282,8 +302,26 @@ class LivestreamSegmentationService
                 'completed_at' => now(),
             ]);
 
-            // Clean up temporary files
-            $this->storageService->cleanupTemporaryFiles([]);
+            // Clean up temporary files - collect paths from processing log
+            $tempFiles = [];
+            if ($processingLog->source_file_path) {
+                $tempFiles[] = $processingLog->source_file_path;
+            }
+
+            $metadata = $processingLog->processing_metadata ?? [];
+            if (isset($metadata['extracted_segment_path'])) {
+                $tempFiles[] = $metadata['extracted_segment_path'];
+            }
+            if (isset($metadata['extracted_audio_path'])) {
+                $tempFiles[] = $metadata['extracted_audio_path'];
+            }
+            if (isset($metadata['temp_video_path'])) {
+                $tempFiles[] = $metadata['temp_video_path'];
+            }
+
+            if (! empty($tempFiles)) {
+                $this->storageService->cleanupTemporaryFiles($tempFiles);
+            }
         }
 
         // Send email notification to administrators
