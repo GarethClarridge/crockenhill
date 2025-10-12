@@ -54,7 +54,8 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $this->expectException(\Exception::class);
 
         $logger = app(\App\Services\SermonProcessingLogger::class);
-        $job->handle($logger);
+        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $job->handle($logger, $sermonCreationService);
     }
 
     #[Test]

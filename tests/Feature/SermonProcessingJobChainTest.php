@@ -82,7 +82,8 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Execute the job with dependency injection
         $logger = app(MediaProcessingLogger::class);
-        $job->handle($logger);
+        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $job->handle($logger, $sermonCreationService);
 
         // Assert sermon record was created
         $this->assertDatabaseHas('sermons', [
@@ -138,7 +139,8 @@ class SermonProcessingJobChainTest extends TestCase
         $this->expectExceptionMessage('Processing log not found');
 
         $logger = app(MediaProcessingLogger::class);
-        $job->handle($logger);
+        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $job->handle($logger, $sermonCreationService);
     }
 
     #[Test]
@@ -489,7 +491,8 @@ class SermonProcessingJobChainTest extends TestCase
         $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
         $createJob = new CreateSermonRecord($processingLog);
         $logger = app(MediaProcessingLogger::class);
-        $createJob->handle($logger);
+        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $createJob->handle($logger, $sermonCreationService);
 
         // Verify sermon was created
         $sermon = Sermon::where('audio_file_path', $storedFilePath)->first();
@@ -622,7 +625,8 @@ class SermonProcessingJobChainTest extends TestCase
         // Execute create sermon job
         $createJob = new CreateSermonRecord($processingLog);
         $logger = app(MediaProcessingLogger::class);
-        $createJob->handle($logger);
+        $sermonCreationService = app(\App\Services\SermonCreationService::class);
+        $createJob->handle($logger, $sermonCreationService);
 
         // Verify database state
         $this->assertDatabaseHas('sermons', [

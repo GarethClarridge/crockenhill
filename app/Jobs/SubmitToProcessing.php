@@ -2,8 +2,9 @@
 
 namespace App\Jobs;
 
+use App\Data\SermonCreationOptions;
 use App\Models\MediaProcessingLog;
-use App\Models\Sermon;
+use App\Services\SermonCreationService;
 use App\Services\SermonMetadataIntegrationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -11,7 +12,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class SubmitToProcessing implements ShouldQueue
 {
@@ -26,7 +26,8 @@ class SubmitToProcessing implements ShouldQueue
     ) {}
 
     public function handle(
-        SermonMetadataIntegrationService $metadataIntegrationService
+        SermonMetadataIntegrationService $metadataIntegrationService,
+        SermonCreationService $sermonCreationService
     ): void {
         try {
             // Update status to show sermon processing is starting
@@ -132,8 +133,9 @@ class SubmitToProcessing implements ShouldQueue
                 'video_file_path' => $this->processingLog->video_file_path,
             ];
 
-            // Inline sermon creation logic - no longer calling external service
-            $sermon = $this->createSermonFromLivestream($metadata);
+            // Create sermon using unified service
+            $options = SermonCreationOptions::fromLivestream($this->processingLog, $metadata);
+            $sermon = $sermonCreationService->createSermon($this->processingLog, $options);
             $sermonId = $sermon->id;
 
             // Update this processing log with the sermon ID immediately
@@ -230,147 +232,6 @@ class SubmitToProcessing implements ShouldQueue
         );
 
         // Cleanup will be handled by the chain failure handler
-    }
-
-    /**
-     * Create sermon record directly from livestream metadata
-     */
-    private function createSermonFromLivestream(array $metadata): Sermon
-    {
-        // Extract metadata from filename and livestream context
-        $originalFilename = $metadata['original_filename'] ?? $this->processingLog->original_filename;
-
-        // Extract date using cascading strategy: processing metadata > filename > today
-        $sermonDate = $this->extractSermonDate($originalFilename);
-
-        $sermonData = [
-            'title' => $this->generateTitleFromMetadata($metadata),
-            'audio_file_path' => $this->processingLog->audio_file_path,
-            'filetype' => pathinfo($originalFilename, PATHINFO_EXTENSION) ?: 'mp3',
-            'date' => $sermonDate,
-            'service' => $this->extractServiceFromFilename($originalFilename),
-            'slug' => $this->generateUniqueSlug($this->generateTitleFromMetadata($metadata)),
-            'preacher' => 'Mark Drury', // Default as per existing logic
-            'source_type' => 'livestream',
-            'livestream_processing_id' => $metadata['livestream_processing_id'],
-        ];
-
-        return Sermon::create($sermonData);
-    }
-
-    /**
-     * Extract sermon date using cascading fallback strategy:
-     * 1. Check processing_metadata for extracted_date (from video metadata/client)
-     * 2. Fall back to filename parsing
-     * 3. Final fallback to current date
-     */
-    private function extractSermonDate(string $filename): string
-    {
-        // Strategy 1: Check if date was extracted from video/audio metadata
-        $processingMetadata = $this->processingLog->processing_metadata;
-        if (is_array($processingMetadata) && isset($processingMetadata['extracted_date'])) {
-            $extractedDate = $processingMetadata['extracted_date'];
-            Log::info('SubmitToProcessing: Using date extracted from file metadata', [
-                'processing_id' => $this->processingLog->processing_id,
-                'extracted_date' => $extractedDate,
-                'extraction_method' => $processingMetadata['date_extraction_method'] ?? 'unknown',
-            ]);
-
-            return $extractedDate;
-        }
-
-        // Strategy 2: Fall back to filename parsing
-        return $this->extractDateFromFilename($filename);
-    }
-
-    /**
-     * Generate title from metadata
-     */
-    private function generateTitleFromMetadata(array $metadata): string
-    {
-        $originalFilename = $metadata['original_filename'] ?? $this->processingLog->original_filename;
-
-        if (empty($originalFilename)) {
-            return 'Sermon - '.now()->format('F j, Y');
-        }
-
-        $filename = pathinfo($originalFilename, PATHINFO_FILENAME);
-
-        // Remove common date patterns
-        $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename);
-        $title = preg_replace('/\d{1,2}[-_]\d{1,2}[-_]\d{4}/', '', $title);
-
-        // Remove common sermon-related words and clean up
-        $title = preg_replace('/\b(sermon|message|service|am|pm)\b/i', '', $title);
-        $title = preg_replace('/[-_]+/', ' ', $title);
-        $title = trim($title);
-
-        // If title is empty or too short, use a default
-        if (empty($title) || strlen($title) < 3) {
-            $date = $this->extractDateFromFilename($originalFilename);
-            $service = $this->extractServiceFromFilename($originalFilename);
-            $serviceLabel = $service === 'evening' ? 'Evening' : 'Morning';
-            $title = $serviceLabel.' Sermon - '.date('F j, Y', strtotime($date));
-        }
-
-        // Capitalize words properly
-        return Str::title($title);
-    }
-
-    /**
-     * Extract date from filename
-     */
-    private function extractDateFromFilename(string $filename): string
-    {
-        // Try to extract date in various formats from filename
-        if (preg_match('/(\d{4})[-_](\d{1,2})[-_](\d{1,2})/', $filename, $matches)) {
-            return $matches[1].'-'.str_pad($matches[2], 2, '0', STR_PAD_LEFT).'-'.str_pad($matches[3], 2, '0', STR_PAD_LEFT);
-        }
-
-        // Try DD-MM-YYYY format
-        if (preg_match('/(\d{1,2})[-_](\d{1,2})[-_](\d{4})/', $filename, $matches)) {
-            return $matches[3].'-'.str_pad($matches[2], 2, '0', STR_PAD_LEFT).'-'.str_pad($matches[1], 2, '0', STR_PAD_LEFT);
-        }
-
-        // Fallback to current date if no date pattern found
-        return now()->format('Y-m-d');
-    }
-
-    /**
-     * Extract service from filename
-     */
-    private function extractServiceFromFilename(string $filename): string
-    {
-        $filename = strtolower($filename);
-
-        if (str_contains($filename, 'evening')) {
-            return 'evening';
-        }
-
-        if (str_contains($filename, 'morning')) {
-            return 'morning';
-        }
-
-        // Default to morning if no service pattern found
-        return 'morning';
-    }
-
-    /**
-     * Generate a unique slug for the sermon
-     */
-    private function generateUniqueSlug(string $title): string
-    {
-        $baseSlug = Str::slug($title);
-        $slug = $baseSlug;
-        $counter = 1;
-
-        // Ensure slug is unique
-        while (Sermon::where('slug', $slug)->exists()) {
-            $slug = $baseSlug.'-'.$counter;
-            $counter++;
-        }
-
-        return $slug;
     }
 
     public function retryUntil(): \DateTime
