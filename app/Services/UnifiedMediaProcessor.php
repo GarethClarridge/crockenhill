@@ -157,17 +157,28 @@ class UnifiedMediaProcessor
         try {
             $processingId = \Illuminate\Support\Str::uuid()->toString();
 
-            // Extract date from video metadata BEFORE storing (to preserve file timestamps)
+            // Extract date and service from video metadata BEFORE storing (to preserve file timestamps)
             $metadataService = app(MetadataExtractionService::class);
-            $extractedDate = $metadataService->extractDateFromVideo($file, $clientFileDate);
+            $extractedDateTime = $metadataService->extractDateFromVideo($file, $clientFileDate);
+
+            // Only use datetime for service detection if we have actual time information (not just date)
+            // If the time is midnight (00:00:00), it likely means only the date was extracted
+            if ($extractedDateTime->hour !== 0 || $extractedDateTime->minute !== 0 || $extractedDateTime->second !== 0) {
+                $extractedService = $metadataService->determineServiceFromTime($extractedDateTime);
+            } else {
+                // No time info available, fall back to filename-based detection
+                $extractedService = $metadataService->determineServiceFromFilename($file->getClientOriginalName());
+            }
 
             // Store video file temporarily
             $tempPath = $file->store('temp/video-processing');
 
-            Log::info('Extracted date from video file', [
+            Log::info('Extracted metadata from video file', [
                 'processing_id' => $processingId,
                 'original_filename' => $file->getClientOriginalName(),
-                'extracted_date' => $extractedDate->toDateString(),
+                'extracted_date' => $extractedDateTime->toDateString(),
+                'extracted_datetime' => $extractedDateTime->toDateTimeString(),
+                'extracted_service' => $extractedService->value,
             ]);
 
             // Create media processing log
@@ -179,8 +190,11 @@ class UnifiedMediaProcessor
                 'status' => \App\Enums\ProcessingStatus::PENDING,
                 'current_step' => 'video_processing_initiated',
                 'processing_metadata' => [
-                    'extracted_date' => $extractedDate->toDateString(),
+                    'extracted_date' => $extractedDateTime->toDateString(),
+                    'extracted_datetime' => $extractedDateTime->toDateTimeString(),
+                    'extracted_service' => $extractedService->value,
                     'date_extraction_method' => 'video_metadata_or_filename',
+                    'service_extraction_method' => 'datetime_timestamp',
                 ],
             ]);
 

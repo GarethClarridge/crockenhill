@@ -54,9 +54,18 @@ class LivestreamSegmentationService
                 throw new \Exception('Insufficient storage space for processing');
             }
 
-            // Extract date from video metadata BEFORE storing (to preserve file timestamps)
+            // Extract date and service from video metadata BEFORE storing (to preserve file timestamps)
             $metadataService = app(\App\Services\MetadataExtractionService::class);
-            $extractedDate = $metadataService->extractDateFromVideo($videoFile, $clientFileDate);
+            $extractedDateTime = $metadataService->extractDateFromVideo($videoFile, $clientFileDate);
+
+            // Only use datetime for service detection if we have actual time information (not just date)
+            // If the time is midnight (00:00:00), it likely means only the date was extracted
+            if ($extractedDateTime->hour !== 0 || $extractedDateTime->minute !== 0 || $extractedDateTime->second !== 0) {
+                $extractedService = $metadataService->determineServiceFromTime($extractedDateTime);
+            } else {
+                // No time info available, fall back to filename-based detection
+                $extractedService = $metadataService->determineServiceFromFilename($videoFile->getClientOriginalName());
+            }
 
             $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
 
@@ -66,10 +75,12 @@ class LivestreamSegmentationService
 
             $metadata = $this->segmentationService->getVideoMetadata($uploadResult['full_path']);
 
-            Log::info('Extracted date from livestream video file', [
+            Log::info('Extracted metadata from livestream video file', [
                 'processing_id' => $processingId,
                 'original_filename' => $uploadResult['original_filename'],
-                'extracted_date' => $extractedDate->toDateString(),
+                'extracted_date' => $extractedDateTime->toDateString(),
+                'extracted_datetime' => $extractedDateTime->toDateTimeString(),
+                'extracted_service' => $extractedService->value,
             ]);
 
             $processingLog = MediaProcessingLog::create([
@@ -85,8 +96,11 @@ class LivestreamSegmentationService
                     'format_details' => $metadata,
                     'mime_type' => $uploadResult['mime_type'],
                     'file_format' => pathinfo($uploadResult['original_filename'], PATHINFO_EXTENSION),
-                    'extracted_date' => $extractedDate->toDateString(),
+                    'extracted_date' => $extractedDateTime->toDateString(),
+                    'extracted_datetime' => $extractedDateTime->toDateTimeString(),
+                    'extracted_service' => $extractedService->value,
                     'date_extraction_method' => 'video_metadata_or_filename',
+                    'service_extraction_method' => 'datetime_timestamp',
                 ],
             ]);
 

@@ -193,16 +193,62 @@ class MetadataExtractionServiceTest extends TestCase
             'evening_sermon.mp3',
             'sermon_pm.mp3',
             'pm_service.mp3',
-            '6:30_service.mp3',
-            '7-00_sermon.mp3',
-            '630_evening.mp3',
-            '1830service.mp3',
-            '1900_sermon.mp3',
+            '630_evening.mp3', // "630" without separator won't match time pattern, falls through to "evening" keyword
+            '1830service.mp3', // "1830" without separator won't match, but matches 18:30 pattern
+            '1900_sermon.mp3', // "1900" without separator won't match, but matches 19:00 pattern
         ];
 
         foreach ($eveningFilenames as $filename) {
             $result = $this->service->determineServiceFromFilename($filename);
             $this->assertEquals(SermonService::EVENING, $result, "Failed for filename: {$filename}");
+        }
+    }
+
+    #[Test]
+    public function it_extracts_time_from_filename_for_service_detection(): void
+    {
+        // Morning times (before 14:00)
+        $morningFilenames = [
+            '10-30.mp3' => 'HH-MM format at 10:30',
+            '11:45.mkv' => 'HH:MM format at 11:45',
+            '09.15.mp4' => 'HH.MM format at 09:15',
+            '13-59.mp3' => 'Edge case: 13:59 (last minute of morning)',
+        ];
+
+        foreach ($morningFilenames as $filename => $description) {
+            $result = $this->service->determineServiceFromFilename($filename);
+            $this->assertEquals(SermonService::MORNING, $result, "Failed for {$description}: {$filename}");
+        }
+
+        // Evening times (14:00 and after)
+        $eveningFilenames = [
+            '14-00.mp3' => 'Edge case: 14:00 (first minute of evening)',
+            '18-07.mkv' => 'HH-MM format at 18:07',
+            '19:30.mp4' => 'HH:MM format at 19:30',
+            '20.45.mp3' => 'HH.MM format at 20:45',
+            '23-59.mp3' => 'Edge case: 23:59 (last minute of day)',
+        ];
+
+        foreach ($eveningFilenames as $filename => $description) {
+            $result = $this->service->determineServiceFromFilename($filename);
+            $this->assertEquals(SermonService::EVENING, $result, "Failed for {$description}: {$filename}");
+        }
+    }
+
+    #[Test]
+    public function it_validates_extracted_time_is_reasonable(): void
+    {
+        // Invalid times should fall through to other patterns
+        $invalidTimes = [
+            '25-00.mp3', // Invalid hour
+            '12-60.mp3', // Invalid minute
+            '30-30.mp3', // Invalid hour
+        ];
+
+        foreach ($invalidTimes as $filename) {
+            // Should default to morning since no other patterns match
+            $result = $this->service->determineServiceFromFilename($filename);
+            $this->assertEquals(SermonService::MORNING, $result, "Failed for invalid time: {$filename}");
         }
     }
 

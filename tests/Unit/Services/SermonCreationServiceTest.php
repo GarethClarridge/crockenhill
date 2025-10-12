@@ -100,28 +100,56 @@ class SermonCreationServiceTest extends TestCase
     /** @test */
     public function it_detects_evening_service_from_filename(): void
     {
-        $service = $this->service->extractServiceType('2024-03-15-evening-sermon.mp3');
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [], // No extracted service in metadata
+        ]);
+
+        $service = $this->service->extractServiceType($log, '2024-03-15-evening-sermon.mp3');
         $this->assertEquals('evening', $service);
 
-        $service = $this->service->extractServiceType('2024-03-15-EVENING-sermon.mp3');
+        $service = $this->service->extractServiceType($log, '2024-03-15-EVENING-sermon.mp3');
         $this->assertEquals('evening', $service);
     }
 
     /** @test */
     public function it_detects_morning_service_from_filename(): void
     {
-        $service = $this->service->extractServiceType('2024-03-15-morning-sermon.mp3');
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [], // No extracted service in metadata
+        ]);
+
+        $service = $this->service->extractServiceType($log, '2024-03-15-morning-sermon.mp3');
         $this->assertEquals('morning', $service);
 
-        $service = $this->service->extractServiceType('2024-03-15-MORNING-sermon.mp3');
+        $service = $this->service->extractServiceType($log, '2024-03-15-MORNING-sermon.mp3');
         $this->assertEquals('morning', $service);
     }
 
     /** @test */
     public function it_defaults_to_morning_service_when_not_specified(): void
     {
-        $service = $this->service->extractServiceType('2024-03-15-sermon.mp3');
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [], // No extracted service in metadata
+        ]);
+
+        $service = $this->service->extractServiceType($log, '2024-03-15-sermon.mp3');
         $this->assertEquals('morning', $service);
+    }
+
+    /** @test */
+    public function it_uses_extracted_service_from_metadata(): void
+    {
+        // Test that metadata takes precedence over filename
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [
+                'extracted_service' => 'evening',
+                'service_extraction_method' => 'file_timestamp',
+            ],
+        ]);
+
+        // Even though filename says "morning", metadata should win
+        $service = $this->service->extractServiceType($log, '2024-03-15-morning-sermon.mp3');
+        $this->assertEquals('evening', $service);
     }
 
     /** @test */

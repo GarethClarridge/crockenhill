@@ -128,6 +128,23 @@ class MetadataExtractionService
     {
         $lowerFilename = strtolower($filename);
 
+        // Try to extract time in HH-MM or HH:MM format (e.g., "18-07.mkv" or "10:30.mp3")
+        // Look for patterns like: 18-07, 18:07, 1807 (two digits, separator optional, two digits)
+        if (preg_match('/(\d{1,2})[-:\.](\d{2})/', $filename, $matches)) {
+            $hour = (int) $matches[1];
+            $minute = (int) $matches[2];
+
+            // Validate it's a reasonable time (hour 0-23, minute 0-59)
+            if ($hour >= 0 && $hour <= 23 && $minute >= 0 && $minute <= 59) {
+                // Use the same 2 PM (14:00) cutoff
+                if ($hour < 14) {
+                    return SermonService::MORNING;
+                } else {
+                    return SermonService::EVENING;
+                }
+            }
+        }
+
         // Morning patterns
         if (
             preg_match('/morning/', $lowerFilename) ||

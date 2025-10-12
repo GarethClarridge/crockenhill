@@ -24,8 +24,11 @@ class SermonCreationService
             $options->originalFilename
         );
 
-        // Extract service type
-        $service = $options->service ?? $this->extractServiceType($options->originalFilename);
+        // Extract service type using cascading strategy
+        $service = $options->service ?? $this->extractServiceType(
+            $processingLog,
+            $options->originalFilename
+        );
 
         // Generate title based on strategy
         $title = $this->generateTitle(
@@ -121,21 +124,56 @@ class SermonCreationService
     }
 
     /**
-     * Detect service type (morning/evening) from filename
+     * Extract service type using cascading strategy
+     * 1. Processing metadata (file timestamp-based detection)
+     * 2. Filename parsing
+     * 3. Default to morning
      */
-    public function extractServiceType(string $filename): string
-    {
+    public function extractServiceType(
+        MediaProcessingLog $processingLog,
+        string $filename
+    ): string {
+        // Strategy 1: Check if service was extracted from file metadata
+        $processingMetadata = $processingLog->processing_metadata;
+
+        if (is_array($processingMetadata) && isset($processingMetadata['extracted_service'])) {
+            $extractedService = $processingMetadata['extracted_service'];
+            Log::info('SermonCreationService: Using service extracted from file metadata', [
+                'processing_id' => $processingLog->processing_id,
+                'extracted_service' => $extractedService,
+                'extraction_method' => $processingMetadata['service_extraction_method'] ?? 'unknown',
+            ]);
+
+            return $extractedService;
+        }
+
+        // Strategy 2: Fall back to filename parsing
         $filename = strtolower($filename);
 
         if (str_contains($filename, 'evening')) {
+            Log::info('SermonCreationService: Detected evening service from filename', [
+                'processing_id' => $processingLog->processing_id,
+                'filename' => $filename,
+            ]);
+
             return 'evening';
         }
 
         if (str_contains($filename, 'morning')) {
+            Log::info('SermonCreationService: Detected morning service from filename', [
+                'processing_id' => $processingLog->processing_id,
+                'filename' => $filename,
+            ]);
+
             return 'morning';
         }
 
-        // Default to morning if no service pattern found
+        // Strategy 3: Default to morning if no service pattern found
+        Log::info('SermonCreationService: Defaulting to morning service', [
+            'processing_id' => $processingLog->processing_id,
+            'filename' => $filename,
+        ]);
+
         return 'morning';
     }
 
@@ -215,7 +253,15 @@ class SermonCreationService
         if (empty($title) || strlen($title) < 3) {
             // Try to build from context
             $date = $context['date'] ?? $this->extractDateFromFilename($filename);
-            $service = $context['service'] ?? $this->extractServiceType($filename);
+
+            // Extract service type - only if processing log is available
+            if ($processingLog) {
+                $service = $context['service'] ?? $this->extractServiceType($processingLog, $filename);
+            } else {
+                // Fallback: simple filename parsing when no processing log
+                $service = $context['service'] ?? (str_contains(strtolower($filename), 'evening') ? 'evening' : 'morning');
+            }
+
             $serviceLabel = $service === 'evening' ? 'Evening' : 'Morning';
 
             // Use processing log created_at if available, otherwise parse date
