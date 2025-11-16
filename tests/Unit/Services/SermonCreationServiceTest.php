@@ -126,6 +126,117 @@ class SermonCreationServiceTest extends TestCase
     }
 
     /** @test */
+    public function it_detects_pm_service_from_filename(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [],
+        ]);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19-pm.mp3');
+        $this->assertEquals('evening', $service);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19_pm.mp3');
+        $this->assertEquals('evening', $service);
+    }
+
+    /** @test */
+    public function it_detects_am_service_from_filename(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [],
+        ]);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19-am.mp3');
+        $this->assertEquals('morning', $service);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19_am.mp3');
+        $this->assertEquals('morning', $service);
+    }
+
+    /** @test */
+    public function it_detects_evening_service_from_time_in_filename(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [],
+        ]);
+
+        // Test various time formats that indicate evening (>= 12:00)
+        $service = $this->service->extractServiceType($log, '2024-10-19-18:00.mp3');
+        $this->assertEquals('evening', $service);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19-1830.mp3');
+        $this->assertEquals('evening', $service);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19-14:30.mp3');
+        $this->assertEquals('evening', $service);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19_18-30.mp3');
+        $this->assertEquals('evening', $service);
+
+        $service = $this->service->extractServiceType($log, 'sermon-12:00.mp3');
+        $this->assertEquals('evening', $service);
+    }
+
+    /** @test */
+    public function it_detects_morning_service_from_time_in_filename(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [],
+        ]);
+
+        // Test various time formats that indicate morning (< 12:00)
+        $service = $this->service->extractServiceType($log, '2024-10-19-10:00.mp3');
+        $this->assertEquals('morning', $service);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19-1030.mp3');
+        $this->assertEquals('morning', $service);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19-09:30.mp3');
+        $this->assertEquals('morning', $service);
+
+        $service = $this->service->extractServiceType($log, '2024-10-19_08-30.mp3');
+        $this->assertEquals('morning', $service);
+
+        $service = $this->service->extractServiceType($log, 'sermon-06:00.mp3');
+        $this->assertEquals('morning', $service);
+    }
+
+    /** @test */
+    public function it_does_not_confuse_dates_with_times(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [],
+        ]);
+
+        // These should default to morning because the date is not a valid time
+        $service = $this->service->extractServiceType($log, '2024-10-19.mp3');
+        $this->assertEquals('morning', $service);
+
+        $service = $this->service->extractServiceType($log, '19-10-2024.mp3');
+        $this->assertEquals('morning', $service);
+    }
+
+    /** @test */
+    public function it_prioritizes_explicit_markers_over_time(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [],
+        ]);
+
+        // Even with evening time, "am" marker should take priority
+        $service = $this->service->extractServiceType($log, '2024-10-19-18:00-am.mp3');
+        $this->assertEquals('morning', $service);
+
+        // Even with morning time, "pm" marker should take priority
+        $service = $this->service->extractServiceType($log, '2024-10-19-10:00-pm.mp3');
+        $this->assertEquals('evening', $service);
+
+        // "evening" keyword should take priority
+        $service = $this->service->extractServiceType($log, '2024-10-19-10:00-evening.mp3');
+        $this->assertEquals('evening', $service);
+    }
+
+    /** @test */
     public function it_defaults_to_morning_service_when_not_specified(): void
     {
         $log = MediaProcessingLog::factory()->create([
