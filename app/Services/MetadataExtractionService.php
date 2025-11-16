@@ -218,7 +218,7 @@ class MetadataExtractionService
     public function extractAudioInfo(UploadedFile $file): array
     {
         try {
-            $track = app(GetId3::class, [$file]);
+            $track = new GetId3($file);
             $info = $track->extractInfo();
 
             return [
@@ -244,7 +244,7 @@ class MetadataExtractionService
     public function extractAudioInfoFromPath(string $filePath): array
     {
         try {
-            $track = app(GetId3::class, [$filePath]);
+            $track = new GetId3($filePath);
             $info = $track->extractInfo();
 
             return [
@@ -320,8 +320,8 @@ class MetadataExtractionService
      */
     private function extractFilesize(array $info, UploadedFile $file): ?int
     {
-        // Try GetID3 info first
-        if (isset($info['filesize']) && is_numeric($info['filesize'])) {
+        // Try GetID3 info first (but only if it's a valid non-zero size)
+        if (isset($info['filesize']) && is_numeric($info['filesize']) && $info['filesize'] > 0) {
             return (int) $info['filesize'];
         }
 

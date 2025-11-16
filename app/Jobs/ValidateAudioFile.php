@@ -34,6 +34,8 @@ class ValidateAudioFile implements ShouldQueue
             'processing_id' => $this->processingLog->processing_id,
         ]);
 
+        $tempFilePath = null;
+
         try {
             // Create temporary UploadedFile for validation
             $storedFilePath = $this->processingLog->stored_file_path;
@@ -43,16 +45,46 @@ class ValidateAudioFile implements ShouldQueue
                 throw new \Exception('No stored file path found in processing log');
             }
 
-            // Convert relative path to absolute path for file operations
+            // Determine storage disk and check if it's S3-compatible
             $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
-            $filePath = \Illuminate\Support\Facades\Storage::disk($sermonDisk)->path($storedFilePath);
+            $isS3Disk = $this->isS3Disk($sermonDisk);
 
             Log::info('ValidateAudioFile path resolution', [
                 'processing_id' => $this->processingLog->processing_id,
                 'stored_file_path' => $storedFilePath,
-                'resolved_absolute_path' => $filePath,
                 'sermon_disk' => $sermonDisk,
+                'is_s3_disk' => $isS3Disk,
             ]);
+
+            // For S3-compatible disks, download to local temp for validation
+            if ($isS3Disk) {
+                // Ensure file exists on S3
+                if (! \Illuminate\Support\Facades\Storage::disk($sermonDisk)->exists($storedFilePath)) {
+                    throw new \Exception("Audio file not found in S3 storage: {$storedFilePath}");
+                }
+
+                // Download to local temp directory
+                $tempDir = 'temp/audio-validation';
+                \Illuminate\Support\Facades\Storage::disk('local')->makeDirectory($tempDir);
+
+                $tempFilePath = $tempDir.'/'.basename($storedFilePath);
+                $localTempPath = \Illuminate\Support\Facades\Storage::disk('local')->path($tempFilePath);
+
+                Log::info('Downloading audio from S3 for validation', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    's3_path' => $storedFilePath,
+                    'temp_path' => $localTempPath,
+                ]);
+
+                // Download file from S3
+                $s3Contents = \Illuminate\Support\Facades\Storage::disk($sermonDisk)->get($storedFilePath);
+                \Illuminate\Support\Facades\Storage::disk('local')->put($tempFilePath, $s3Contents);
+
+                $filePath = $localTempPath;
+            } else {
+                // For local disks, use direct path
+                $filePath = \Illuminate\Support\Facades\Storage::disk($sermonDisk)->path($storedFilePath);
+            }
 
             // Ensure file exists before attempting to get MIME type
             if (! file_exists($filePath)) {
@@ -95,7 +127,26 @@ class ValidateAudioFile implements ShouldQueue
             ]);
 
             throw $e;
+        } finally {
+            // Clean up temporary file if it was created
+            if ($tempFilePath && \Illuminate\Support\Facades\Storage::disk('local')->exists($tempFilePath)) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($tempFilePath);
+                Log::info('Cleaned up temporary validation file', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'temp_path' => $tempFilePath,
+                ]);
+            }
         }
+    }
+
+    /**
+     * Check if a disk is S3-compatible
+     */
+    private function isS3Disk(string $diskName): bool
+    {
+        $diskConfig = config("filesystems.disks.{$diskName}");
+
+        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
     }
 
     public function failed(\Throwable $exception): void
