@@ -27,6 +27,7 @@ class CleanupTemporaryFiles implements ShouldQueue
         try {
             Log::info('Starting temporary file cleanup', [
                 'processing_id' => $this->processingLog->processing_id,
+                'processing_type' => $this->processingLog->processing_type,
             ]);
 
             // Collect all temporary file paths from the processing log
@@ -37,7 +38,7 @@ class CleanupTemporaryFiles implements ShouldQueue
                 $tempFiles[] = $this->processingLog->source_file_path;
             }
 
-            // Add extracted segment paths if they exist in metadata
+            // Add extracted segment paths if they exist in metadata (livestream processing)
             $metadata = $this->processingLog->processing_metadata ?? [];
             if (isset($metadata['extracted_segment_path'])) {
                 $tempFiles[] = $metadata['extracted_segment_path'];
@@ -49,8 +50,25 @@ class CleanupTemporaryFiles implements ShouldQueue
                 $tempFiles[] = $metadata['temp_video_path'];
             }
 
+            // Audio processing: cleanup temp files from validation and extraction
+            if ($this->processingLog->processing_type === 'audio') {
+                // Audio validation temp files are already cleaned by ValidateAudioFile job
+                // Audio transcription chunks are already cleaned by AudioTranscriptionService
+                // No additional cleanup needed for audio processing
+            }
+
+            // Video processing: cleanup temp files from extraction
+            if ($this->processingLog->processing_type === 'video') {
+                // Video extraction temp files are handled by VideoExtractionService
+                // Stored file might be in temp directory for processing
+                if ($this->processingLog->stored_file_path && str_contains($this->processingLog->stored_file_path, 'temp/')) {
+                    $tempFiles[] = $this->processingLog->stored_file_path;
+                }
+            }
+
             Log::info('Cleaning up temporary files', [
                 'processing_id' => $this->processingLog->processing_id,
+                'processing_type' => $this->processingLog->processing_type,
                 'file_count' => count($tempFiles),
                 'files' => $tempFiles,
             ]);

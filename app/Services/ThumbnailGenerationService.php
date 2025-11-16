@@ -46,6 +46,8 @@ class ThumbnailGenerationService
      */
     public function generateThumbnail(Sermon $sermon, string $videoPath, ?string $disk = null): ThumbnailResult
     {
+        $tempVideoPath = null;
+
         try {
             // Check if thumbnail generation is enabled
             if (! $this->config['enabled']) {
@@ -60,11 +62,18 @@ class ThumbnailGenerationService
             // For S3 storage, we need to download the file temporarily for FFmpeg processing
             $localVideoPath = $this->ensureLocalVideoPath($videoPath, $disk);
 
+            // Track if we downloaded a temp video for S3 processing
+            if ($disk && $this->isS3CompatibleDisk(Storage::disk($disk))) {
+                $tempVideoPath = $localVideoPath;
+            }
+
             // Get video metadata
             $metadata = $this->getVideoMetadata($localVideoPath);
 
             // Check minimum duration requirement
             if ($metadata['duration'] < $this->config['extraction']['min_video_duration']) {
+                $this->cleanupDownloadedVideo($tempVideoPath);
+
                 return ThumbnailResult::skipped('Video too short for thumbnail generation');
             }
 
@@ -75,6 +84,8 @@ class ThumbnailGenerationService
             $baseFramePath = $this->extractBaseFrame($localVideoPath, $timestamp);
 
             if (! $baseFramePath) {
+                $this->cleanupDownloadedVideo($tempVideoPath);
+
                 return ThumbnailResult::failed('Failed to extract frame from video');
             }
 
@@ -83,6 +94,7 @@ class ThumbnailGenerationService
 
             if (! $thumbnailPath) {
                 $this->cleanupTempFile($baseFramePath);
+                $this->cleanupDownloadedVideo($tempVideoPath);
 
                 return ThumbnailResult::failed('Failed to create branded thumbnail');
             }
@@ -93,6 +105,7 @@ class ThumbnailGenerationService
             // Cleanup temporary files
             $this->cleanupTempFile($baseFramePath);
             $this->cleanupTempFile($thumbnailPath);
+            $this->cleanupDownloadedVideo($tempVideoPath);
 
             if (! $finalPath) {
                 return ThumbnailResult::failed('Failed to store thumbnail');
@@ -113,6 +126,9 @@ class ThumbnailGenerationService
             return ThumbnailResult::success($finalPath, $resultMetadata);
 
         } catch (\Exception $e) {
+            // Cleanup temp video on exception
+            $this->cleanupDownloadedVideo($tempVideoPath);
+
             Log::warning('Thumbnail generation failed, skipping', [
                 'sermon_id' => $sermon->id,
                 'video_path' => $videoPath,
@@ -731,6 +747,32 @@ class ThumbnailGenerationService
         } catch (\Exception $e) {
             Log::warning('Failed to cleanup temp file', [
                 'temp_path' => $tempPath,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Clean up downloaded video file (for S3 processing)
+     *
+     * @param  string|null  $tempVideoPath  Absolute path to temporary video file
+     */
+    private function cleanupDownloadedVideo(?string $tempVideoPath): void
+    {
+        if (! $tempVideoPath) {
+            return;
+        }
+
+        try {
+            if ($this->config['processing']['cleanup_temp_files'] && file_exists($tempVideoPath)) {
+                unlink($tempVideoPath);
+                Log::debug('Cleaned up downloaded S3 video temp file', [
+                    'temp_video_path' => $tempVideoPath,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to cleanup downloaded video temp file', [
+                'temp_video_path' => $tempVideoPath,
                 'error' => $e->getMessage(),
             ]);
         }

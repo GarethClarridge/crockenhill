@@ -45,7 +45,7 @@ class CleanupOrphanedTempFiles extends Command
         $totalDeleted += $deleted;
         $totalSize += $size;
 
-        // Clean up livewire-tmp directory
+        // Clean up livewire-tmp directory (Livewire's default temp uploads)
         $this->info('');
         $this->info('Cleaning livewire-tmp directory...');
         [$deleted, $size] = $this->cleanupDirectory('livewire-tmp', $cutoffTime, $dryRun);
@@ -59,6 +59,13 @@ class CleanupOrphanedTempFiles extends Command
         $totalDeleted += $deleted;
         $totalSize += $size;
 
+        // Clean up temp/thumbnails directory (used by ThumbnailGenerationService for S3 video downloads)
+        $this->info('');
+        $this->info('Cleaning temp/thumbnails directory...');
+        [$deleted, $size] = $this->cleanupDirectory('temp/thumbnails', $cutoffTime, $dryRun);
+        $totalDeleted += $deleted;
+        $totalSize += $size;
+
         // Clean up temp/audio_extraction directory (used by VideoExtractionService)
         $this->info('');
         $this->info('Cleaning temp/audio_extraction directory...');
@@ -66,9 +73,23 @@ class CleanupOrphanedTempFiles extends Command
         $totalDeleted += $deleted;
         $totalSize += $size;
 
-        // Clean up temp directory (general temp files)
+        // Clean up temp/video-processing directory (used by UnifiedMediaProcessor)
         $this->info('');
-        $this->info('Cleaning temp directory...');
+        $this->info('Cleaning temp/video-processing directory...');
+        [$deleted, $size] = $this->cleanupDirectory('temp/video-processing', $cutoffTime, $dryRun);
+        $totalDeleted += $deleted;
+        $totalSize += $size;
+
+        // Clean up temp/audio-validation directory (used by ValidateAudioFile job)
+        $this->info('');
+        $this->info('Cleaning temp/audio-validation directory...');
+        [$deleted, $size] = $this->cleanupDirectory('temp/audio-validation', $cutoffTime, $dryRun);
+        $totalDeleted += $deleted;
+        $totalSize += $size;
+
+        // Clean up temp directory (general temp files, only direct children to avoid recursion)
+        $this->info('');
+        $this->info('Cleaning temp directory (direct files only)...');
         [$deleted, $size] = $this->cleanupDirectory('temp', $cutoffTime, $dryRun, 1);
         $totalDeleted += $deleted;
         $totalSize += $size;
