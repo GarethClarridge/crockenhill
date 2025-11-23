@@ -664,4 +664,235 @@ class VideoSegmentationService
 
         return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
     }
+
+    /**
+     * Calibrate per-song RMS threshold based on song and adjacent speech
+     *
+     * @param  array{start_estimate: float, end_estimate: float, samples: array, confidence: float}  $songCluster
+     * @return array{threshold: float, song_avg_rms: float, speech_avg_rms: float}
+     */
+    public function calibratePerSongThreshold(string $rmsLogPath, array $songCluster): array
+    {
+        try {
+            $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
+            $logContent = $this->getFileContents($fullRmsLogPath, $rmsLogPath);
+
+            $rmsData = $this->extractRmsData($logContent);
+
+            // Extract RMS values for song period (from visual SONG samples)
+            $songRmsValues = $this->extractRmsForTimestamps($rmsData, $songCluster['samples']);
+
+            if (empty($songRmsValues)) {
+                throw new \Exception('No RMS data found for song period');
+            }
+
+            $songAvgRms = array_sum($songRmsValues) / count($songRmsValues);
+
+            // Extract RMS values for adjacent speech
+            $speechBuffer = config('media-processing.visual_analysis.calibration_speech_buffer', 60);
+            $beforeStart = max(0, $songCluster['start_estimate'] - $speechBuffer);
+            $afterEnd = $songCluster['end_estimate'];
+
+            $beforeSpeechRms = $this->extractRmsForRegion($rmsData, $beforeStart, $songCluster['start_estimate']);
+            $afterSpeechRms = $this->extractRmsForRegion($rmsData, $songCluster['end_estimate'], $afterEnd + $speechBuffer);
+
+            $allSpeechRms = array_merge($beforeSpeechRms, $afterSpeechRms);
+
+            if (empty($allSpeechRms)) {
+                // Fallback: use lower threshold if no speech data available
+                Log::warning('No adjacent speech data for threshold calibration', [
+                    'song_cluster' => $songCluster,
+                ]);
+                $speechAvgRms = $songAvgRms - 10.0; // Assume speech is 10dB quieter
+            } else {
+                $speechAvgRms = array_sum($allSpeechRms) / count($allSpeechRms);
+            }
+
+            // Calculate threshold as midpoint
+            $threshold = ($songAvgRms + $speechAvgRms) / 2.0;
+
+            // Apply safety bounds
+            $safetyFloor = config('media-processing.visual_analysis.threshold_safety_floor', -80.0);
+            $safetyCeiling = config('media-processing.visual_analysis.threshold_safety_ceiling', -20.0);
+            $threshold = max($safetyFloor, min($safetyCeiling, $threshold));
+
+            Log::info('Per-song threshold calibrated', [
+                'song_avg_rms' => round($songAvgRms, 2),
+                'speech_avg_rms' => round($speechAvgRms, 2),
+                'threshold' => round($threshold, 2),
+            ]);
+
+            return [
+                'threshold' => $threshold,
+                'song_avg_rms' => $songAvgRms,
+                'speech_avg_rms' => $speechAvgRms,
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Per-song threshold calibration failed', [
+                'error' => $e->getMessage(),
+                'song_cluster' => $songCluster,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Detect precise boundaries for a song cluster using min/max of visual and RMS boundaries
+     *
+     * @param  array{start_estimate: float, end_estimate: float, samples: array, confidence: float, refined_visual_start?: float, refined_visual_end?: float}  $cluster
+     */
+    public function detectBoundariesForCluster(
+        string $rmsLogPath,
+        array $cluster,
+        float $threshold
+    ): LivestreamSegment {
+        try {
+            $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
+            $logContent = $this->getFileContents($fullRmsLogPath, $rmsLogPath);
+
+            // Get refined visual boundaries if available, otherwise use estimates
+            $visualStart = $cluster['refined_visual_start'] ?? $cluster['start_estimate'];
+            $visualEnd = $cluster['refined_visual_end'] ?? $cluster['end_estimate'];
+
+            // Define search region for RMS boundaries
+            $introBuffer = config('media-processing.visual_analysis.intro_search_buffer', 120);
+            $outroBuffer = config('media-processing.visual_analysis.outro_search_buffer', 60);
+
+            $searchStart = max(0, $visualStart - $introBuffer);
+            $searchEnd = $visualEnd + $outroBuffer;
+
+            // Parse RMS sections within search region
+            $sections = $this->parseAudioSections($logContent, $threshold, 0); // No min duration for boundary detection
+
+            // Find RMS section that best overlaps with visual boundaries
+            $bestSection = null;
+            $bestOverlap = 0;
+
+            foreach ($sections as $section) {
+                // Check if section overlaps with search region
+                if ($section['end'] < $searchStart || $section['start'] > $searchEnd) {
+                    continue;
+                }
+
+                // Calculate overlap with visual boundaries
+                $overlapStart = max($section['start'], $visualStart);
+                $overlapEnd = min($section['end'], $visualEnd);
+                $overlap = max(0, $overlapEnd - $overlapStart);
+
+                if ($overlap > $bestOverlap) {
+                    $bestOverlap = $overlap;
+                    $bestSection = $section;
+                }
+            }
+
+            // Determine final boundaries using min/max approach
+            if ($bestSection === null) {
+                // No RMS section found, use visual boundaries only
+                Log::warning('No RMS section found for cluster, using visual boundaries only', [
+                    'visual_start' => gmdate('H:i:s', (int) $visualStart),
+                    'visual_end' => gmdate('H:i:s', (int) $visualEnd),
+                ]);
+
+                $finalStart = $visualStart;
+                $finalEnd = $visualEnd;
+                $boundaryMethod = 'visual_only';
+            } else {
+                // Use min/max approach: earlier start, later end
+                $rmsStart = $bestSection['start'];
+                $rmsEnd = $bestSection['end'];
+
+                $finalStart = min($visualStart, $rmsStart);
+                $finalEnd = max($visualEnd, $rmsEnd);
+                $boundaryMethod = 'visual_rms_union';
+
+                Log::info('Boundaries determined using min/max approach', [
+                    'visual_start' => gmdate('H:i:s', (int) $visualStart),
+                    'rms_start' => gmdate('H:i:s', (int) $rmsStart),
+                    'final_start' => gmdate('H:i:s', (int) $finalStart),
+                    'visual_end' => gmdate('H:i:s', (int) $visualEnd),
+                    'rms_end' => gmdate('H:i:s', (int) $rmsEnd),
+                    'final_end' => gmdate('H:i:s', (int) $finalEnd),
+                ]);
+            }
+
+            // Calculate RMS for final segment
+            $rmsData = $this->extractRmsData($logContent);
+            $segmentRms = $this->calculateSegmentRms($finalStart, $finalEnd, $rmsData);
+
+            return new LivestreamSegment(
+                startTime: $finalStart,
+                endTime: $finalEnd,
+                duration: $finalEnd - $finalStart,
+                classification: 'song',
+                avgRms: $segmentRms['avg'],
+                peakRms: $segmentRms['peak'],
+                isSermonCandidate: false,
+                segmentOrder: 0, // Will be set by caller
+                metadata: [
+                    'threshold_used' => $threshold,
+                    'visual_sample_count' => count($cluster['samples']),
+                    'visual_confidence' => $cluster['confidence'],
+                    'calibration_method' => 'per_song_visual',
+                    'boundary_method' => $boundaryMethod,
+                    'visual_start' => $visualStart,
+                    'visual_end' => $visualEnd,
+                    'rms_start' => $bestSection['start'] ?? null,
+                    'rms_end' => $bestSection['end'] ?? null,
+                ]
+            );
+
+        } catch (\Exception $e) {
+            Log::error('Boundary detection failed', [
+                'error' => $e->getMessage(),
+                'cluster' => $cluster,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Extract RMS values for specific timestamps
+     *
+     * @param  array<array{time: float, rms: float}>  $rmsData
+     * @param  array<float>  $timestamps
+     * @return array<float>
+     */
+    private function extractRmsForTimestamps(array $rmsData, array $timestamps): array
+    {
+        $values = [];
+        $tolerance = 5.0; // Allow 5 second tolerance for matching
+
+        foreach ($timestamps as $targetTime) {
+            foreach ($rmsData as $data) {
+                if (abs($data['time'] - $targetTime) <= $tolerance && $data['rms'] > -999.0) {
+                    $values[] = $data['rms'];
+                    break; // Move to next timestamp after finding match
+                }
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Extract RMS values for a time region
+     *
+     * @param  array<array{time: float, rms: float}>  $rmsData
+     * @return array<float>
+     */
+    private function extractRmsForRegion(array $rmsData, float $startTime, float $endTime): array
+    {
+        $values = [];
+
+        foreach ($rmsData as $data) {
+            if ($data['time'] >= $startTime && $data['time'] <= $endTime && $data['rms'] > -999.0) {
+                $values[] = $data['rms'];
+            }
+        }
+
+        return $values;
+    }
 }

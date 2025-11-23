@@ -63,21 +63,39 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('livestream_segments', function (Blueprint $table) {
-            // Drop new foreign keys
-            $table->dropForeign(['processing_id']);
-            $table->dropForeign(['media_processing_log_id']);
+        // Get existing foreign keys
+        $foreignKeys = DB::select("
+            SELECT CONSTRAINT_NAME
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'livestream_segments'
+            AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ");
 
-            // Restore old foreign keys (assuming old tables exist)
-            $table->foreign('processing_id')
-                ->references('processing_id')
-                ->on('livestream_processing_logs')
-                ->onDelete('cascade');
-
-            $table->foreign('processing_log_id')
-                ->references('id')
-                ->on('livestream_processing_logs')
-                ->onDelete('cascade');
+        Schema::table('livestream_segments', function (Blueprint $table) use ($foreignKeys) {
+            // Drop foreign keys only if they exist
+            foreach ($foreignKeys as $fk) {
+                if (str_contains($fk->CONSTRAINT_NAME, 'processing_id') ||
+                    str_contains($fk->CONSTRAINT_NAME, 'media_processing_log_id')) {
+                    $table->dropForeign($fk->CONSTRAINT_NAME);
+                }
+            }
         });
+
+        // Only restore old foreign keys if the old table exists
+        if (Schema::hasTable('livestream_processing_logs')) {
+            Schema::table('livestream_segments', function (Blueprint $table) {
+                // Restore old foreign keys
+                $table->foreign('processing_id')
+                    ->references('processing_id')
+                    ->on('livestream_processing_logs')
+                    ->onDelete('cascade');
+
+                $table->foreign('media_processing_log_id')
+                    ->references('id')
+                    ->on('livestream_processing_logs')
+                    ->onDelete('cascade');
+            });
+        }
     }
 };

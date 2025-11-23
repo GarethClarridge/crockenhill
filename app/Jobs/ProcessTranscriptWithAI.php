@@ -101,10 +101,10 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
             // Only update title if not set by ID3 tags OR if ID3 title looks like a filename
             $hasValidId3Title = $id3Metadata
-                && !empty($id3Metadata['title'])
-                && !$this->looksLikeFilename($id3Metadata['title']);
+                && ! empty($id3Metadata['title'])
+                && ! $this->looksLikeFilename($id3Metadata['title']);
 
-            if (!$hasValidId3Title) {
+            if (! $hasValidId3Title) {
                 $updateData['title'] = $analysis->title;
             }
 
@@ -163,10 +163,10 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
                     // Only update fields not set by ID3 tags OR if ID3 title looks like a filename
                     $hasValidId3Title = $id3Metadata
-                        && !empty($id3Metadata['title'])
-                        && !$this->looksLikeFilename($id3Metadata['title']);
+                        && ! empty($id3Metadata['title'])
+                        && ! $this->looksLikeFilename($id3Metadata['title']);
 
-                    if (!$hasValidId3Title) {
+                    if (! $hasValidId3Title) {
                         $updateData['title'] = $fallbackAnalysis->title;
                     }
                     if (! $id3Metadata || empty($id3Metadata['series'])) {

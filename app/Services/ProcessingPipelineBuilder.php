@@ -11,6 +11,7 @@ use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
+use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
@@ -61,15 +62,27 @@ class ProcessingPipelineBuilder
      */
     public function buildLivestreamPipeline(MediaProcessingLog $log): array
     {
-        return [
-            new GenerateRmsLog($log),
-            new AnalyzeSegments($log),
-            new ExtractSermon($log),
-            new SubmitToProcessing($log),
-            new TranscribeAudio($log),
-            new ProcessTranscriptWithAI($log),
-            new GenerateThumbnail($log),
-            new CleanupTemporaryFiles($log),
-        ];
+        $jobs = [];
+
+        // Visual analysis (if enabled) - runs before RMS analysis
+        if (config('media-processing.visual_analysis.enabled', true)) {
+            $jobs[] = new PerformVisualAnalysis($log);
+        }
+
+        // RMS generation (always needed for segmentation)
+        $jobs[] = new GenerateRmsLog($log);
+
+        // Segment analysis (uses visual results if available, falls back to RMS-only)
+        $jobs[] = new AnalyzeSegments($log);
+
+        // Continue with sermon extraction and processing
+        $jobs[] = new ExtractSermon($log);
+        $jobs[] = new SubmitToProcessing($log);
+        $jobs[] = new TranscribeAudio($log);
+        $jobs[] = new ProcessTranscriptWithAI($log);
+        $jobs[] = new GenerateThumbnail($log);
+        $jobs[] = new CleanupTemporaryFiles($log);
+
+        return $jobs;
     }
 }

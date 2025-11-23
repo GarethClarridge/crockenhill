@@ -22,13 +22,14 @@ class MigrateLocalFilesToSpacesCommand extends Command
         // Get all files recursively
         $files = $localDisk->allFiles('sermons');
 
-        $this->info('Found ' . count($files) . ' files to migrate');
+        $this->info('Found '.count($files).' files to migrate');
 
         if ($dryRun) {
             $this->warn('DRY RUN MODE - No files will be actually migrated');
             foreach ($files as $file) {
                 $this->line("Would migrate: {$file}");
             }
+
             return 0;
         }
 
@@ -73,13 +74,13 @@ class MigrateLocalFilesToSpacesCommand extends Command
         $progressBar->finish();
         $this->newLine(2);
 
-        $this->info("Migration complete!");
+        $this->info('Migration complete!');
         $this->info("Success: {$success}");
 
         if ($failed > 0) {
             $this->error("Failed: {$failed}");
             $this->newLine();
-            $this->error("Errors:");
+            $this->error('Errors:');
             foreach ($errors as $error) {
                 $this->line("  - {$error}");
             }

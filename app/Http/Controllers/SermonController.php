@@ -59,7 +59,6 @@ class SermonController extends Controller
         ]);
     }
 
-
     /**
      * Display the specified resource.
      */
@@ -283,7 +282,6 @@ class SermonController extends Controller
                 ->with('error', 'An error occurred during upload: '.$e->getMessage());
         }
     }
-
 
     /**
      * Display the specified resource with date validation.

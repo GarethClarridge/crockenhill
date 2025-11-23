@@ -95,7 +95,9 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->assertTrue(Storage::exists($processing->source_file_path));
 
         // Verify job chain was dispatched with unified processing jobs
+        // Note: PerformVisualAnalysis runs first if visual analysis is enabled
         Bus::assertChained([
+            \App\Jobs\PerformVisualAnalysis::class,        // NEW: Visual analysis
             \App\Jobs\GenerateRmsLog::class,
             \App\Jobs\AnalyzeSegments::class,
             \App\Jobs\ExtractSermon::class,

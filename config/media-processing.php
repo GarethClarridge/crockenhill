@@ -141,4 +141,56 @@ return [
             'quality_check_enabled' => true,
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Visual Song Detection (Visual Analysis)
+    |--------------------------------------------------------------------------
+    |
+    | Visual frame analysis for identifying songs in livestream recordings
+    | by detecting on-screen lyrics (white text boxes on dark backgrounds)
+    |
+    */
+    'visual_analysis' => [
+        // Master toggle
+        'enabled' => env('VISUAL_ANALYSIS_ENABLED', true),
+
+        // Frame sampling
+        'sample_interval_seconds' => env('VISUAL_SAMPLE_INTERVAL', 10),
+
+        // Visual classification thresholds
+        // Adjusted based on actual frame metrics (from debug logs):
+        // - Brightness: 0.492-0.543 (moderate - preacher + screen)
+        // - Contrast (YDIF): 0.000-0.046 (VERY low - FFmpeg metric unreliable)
+        // - Edge density (YHIGH): 0.514-0.922 (good - white lyric boxes)
+        // Strategy: Use brightness + edge density only, disable contrast requirement
+        'brightness_threshold' => env('VISUAL_BRIGHTNESS_THRESHOLD', 0.48),
+        'contrast_threshold' => env('VISUAL_CONTRAST_THRESHOLD', 0.0), // Disabled - FFmpeg YDIF not suitable
+        'edge_density_threshold' => env('VISUAL_EDGE_THRESHOLD', 0.75), // Require strong white pixels
+        'min_confidence' => env('VISUAL_MIN_CONFIDENCE', 0.35), // Lower minimum
+
+        // Clustering parameters
+        'min_song_duration' => env('MIN_SONG_DURATION', 60),
+        'max_gap_seconds' => env('MAX_SONG_GAP', 30),
+        'smoothing_window' => env('CLASSIFICATION_SMOOTHING', 3),
+
+        // Boundary refinement (dense sampling)
+        'dense_sample_interval' => env('VISUAL_DENSE_INTERVAL', 1), // Sample every 1 second for precise boundaries
+        'refinement_intro_buffer' => env('REFINEMENT_INTRO_BUFFER', 120), // Look 2min before cluster start
+        'refinement_outro_buffer' => env('REFINEMENT_OUTRO_BUFFER', 60),  // Look 1min after cluster end
+
+        // Boundary detection (RMS-based)
+        'intro_search_buffer' => env('SONG_INTRO_BUFFER', 120), // Look 2min before first visual sample
+        'outro_search_buffer' => env('SONG_OUTRO_BUFFER', 60),  // Look 1min after last visual sample
+        'quiet_section_tolerance' => env('QUIET_SECTION_TOLERANCE', 10), // Allow 10sec dips below threshold
+
+        // Per-song calibration
+        'calibration_speech_buffer' => env('CALIBRATION_SPEECH_BUFFER', 60), // Use 60sec of adjacent speech
+        'threshold_safety_floor' => env('THRESHOLD_FLOOR', -80.0),
+        'threshold_safety_ceiling' => env('THRESHOLD_CEILING', -20.0),
+
+        // Fallback behavior
+        'fallback_to_rms_on_failure' => env('VISUAL_FALLBACK_ENABLED', true),
+        'require_min_clusters' => env('MIN_SONG_CLUSTERS', 1), // Fail if no songs detected
+    ],
 ];

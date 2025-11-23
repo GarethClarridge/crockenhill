@@ -38,14 +38,36 @@ class AnalyzeSegments implements ShouldQueue
                 throw new \Exception('RMS log path not found in processing log');
             }
 
-            $analysisResult = $segmentationService->analyzeSegments($this->processingLog->rms_log_path);
+            // Check if visual analysis results are available
+            $visualClusters = $this->getVisualClusters();
 
-            // Extract segments and metadata from the analysis result
-            $segments = $analysisResult['segments'];
-            $thresholdMetadata = $analysisResult['threshold_metadata'];
+            if ($visualClusters !== null && count($visualClusters) > 0) {
+                Log::info('Using visual-guided segmentation', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'cluster_count' => count($visualClusters),
+                ]);
+
+                $segments = $this->analyzeWithVisualGuidance(
+                    $segmentationService,
+                    $this->processingLog->rms_log_path,
+                    $visualClusters
+                );
+
+                $thresholdMetadata = ['method' => 'visual_guided', 'clusters' => count($visualClusters)];
+            } else {
+                Log::info('Using RMS-only segmentation (no visual data)', [
+                    'processing_id' => $this->processingLog->processing_id,
+                ]);
+
+                $analysisResult = $segmentationService->analyzeSegments($this->processingLog->rms_log_path);
+
+                // Extract segments and metadata from the analysis result
+                $segments = $analysisResult['segments'];
+                $thresholdMetadata = $analysisResult['threshold_metadata'];
+            }
 
             if (empty($segments)) {
-                throw new \Exception('No segments found in RMS log analysis');
+                throw new \Exception('No segments found in analysis');
             }
 
             // Store threshold metadata if available
@@ -131,7 +153,7 @@ class AnalyzeSegments implements ShouldQueue
     private function storeSegments(array $segments): void
     {
         foreach ($segments as $segmentData) {
-            LivestreamSegment::create([
+            $segmentRecord = [
                 'processing_id' => $this->processingLog->processing_id,
                 'media_processing_log_id' => $this->processingLog->id,
                 'segment_index' => $segmentData->segmentOrder,
@@ -144,7 +166,22 @@ class AnalyzeSegments implements ShouldQueue
                 'is_sermon_candidate' => $segmentData->isSermonCandidate,
                 'segment_order' => $segmentData->segmentOrder,
                 'metadata' => $segmentData->metadata,
-            ]);
+            ];
+
+            // Add visual analysis fields if present in metadata
+            if (isset($segmentData->metadata['visual_confidence'])) {
+                $segmentRecord['visual_confidence'] = $segmentData->metadata['visual_confidence'];
+            }
+
+            if (isset($segmentData->metadata['visual_sample_count'])) {
+                $segmentRecord['visual_sample_count'] = $segmentData->metadata['visual_sample_count'];
+            }
+
+            if (isset($segmentData->metadata['calibration_method'])) {
+                $segmentRecord['calibration_method'] = $segmentData->metadata['calibration_method'];
+            }
+
+            LivestreamSegment::create($segmentRecord);
         }
 
         Log::info('Segments stored in database', [
@@ -191,5 +228,152 @@ class AnalyzeSegments implements ShouldQueue
     public function retryUntil(): \DateTime
     {
         return now()->addHours(1);
+    }
+
+    /**
+     * Get visual clusters from processing log
+     */
+    private function getVisualClusters(): ?array
+    {
+        // song_clusters is already decoded by Laravel's model cast
+        // If it's null or empty array, return null
+        $clusters = $this->processingLog->song_clusters;
+
+        return empty($clusters) ? null : $clusters;
+    }
+
+    /**
+     * Analyze segments using visual guidance
+     *
+     * @return array<\App\Data\LivestreamSegment>
+     */
+    private function analyzeWithVisualGuidance(
+        VideoSegmentationService $segmentationService,
+        string $rmsLogPath,
+        array $visualClusters
+    ): array {
+        $segments = [];
+        $segmentOrder = 0;
+
+        // Get total duration from RMS log for sermon identification
+        $fullRmsLogPath = \Illuminate\Support\Facades\Storage::disk(config('media-processing.storage.temp_disk'))
+            ->path($rmsLogPath);
+        $logContent = file_get_contents($fullRmsLogPath);
+        $lines = explode("\n", trim($logContent));
+        $totalDuration = $this->getTotalDurationFromLog($lines);
+
+        // Process each visual cluster to create song segments
+        foreach ($visualClusters as $cluster) {
+            // Calibrate threshold for this song
+            $calibration = $segmentationService->calibratePerSongThreshold($rmsLogPath, $cluster);
+
+            // Detect precise boundaries
+            $segment = $segmentationService->detectBoundariesForCluster(
+                $rmsLogPath,
+                $cluster,
+                $calibration['threshold']
+            );
+
+            // Update segment order
+            $segment->segmentOrder = $segmentOrder++;
+
+            // Add metadata about calibration
+            $segment->metadata = array_merge($segment->metadata ?? [], [
+                'song_avg_rms' => $calibration['song_avg_rms'],
+                'speech_avg_rms' => $calibration['speech_avg_rms'],
+            ]);
+
+            $segments[] = $segment;
+        }
+
+        // Generate speech segments from gaps between songs
+        $segments = $this->fillGapsWithSpeechSegments($segments, $totalDuration, $segmentOrder);
+
+        return $segments;
+    }
+
+    /**
+     * Fill gaps between song segments with speech segments
+     *
+     * @param  array<\App\Data\LivestreamSegment>  $songSegments
+     * @return array<\App\Data\LivestreamSegment>
+     */
+    private function fillGapsWithSpeechSegments(array $songSegments, float $totalDuration, int &$segmentOrder): array
+    {
+        if (empty($songSegments)) {
+            // No songs found, entire video is speech
+            return [
+                new \App\Data\LivestreamSegment(
+                    startTime: 0.0,
+                    endTime: $totalDuration,
+                    duration: $totalDuration,
+                    classification: 'speech',
+                    avgRms: -50.0,
+                    peakRms: -40.0,
+                    segmentOrder: $segmentOrder++
+                ),
+            ];
+        }
+
+        // Sort song segments by start time
+        usort($songSegments, fn ($a, $b) => $a->startTime <=> $b->startTime);
+
+        $allSegments = [];
+        $previousEnd = 0.0;
+
+        foreach ($songSegments as $songSegment) {
+            // Add speech segment before this song if there's a gap
+            if ($songSegment->startTime > $previousEnd) {
+                $allSegments[] = new \App\Data\LivestreamSegment(
+                    startTime: $previousEnd,
+                    endTime: $songSegment->startTime,
+                    duration: $songSegment->startTime - $previousEnd,
+                    classification: 'speech',
+                    avgRms: -50.0,
+                    peakRms: -40.0,
+                    segmentOrder: $segmentOrder++
+                );
+            }
+
+            // Add the song segment
+            $allSegments[] = $songSegment;
+            $previousEnd = $songSegment->endTime;
+        }
+
+        // Add final speech segment if needed
+        if ($previousEnd < $totalDuration) {
+            $allSegments[] = new \App\Data\LivestreamSegment(
+                startTime: $previousEnd,
+                endTime: $totalDuration,
+                duration: $totalDuration - $previousEnd,
+                classification: 'speech',
+                avgRms: -50.0,
+                peakRms: -40.0,
+                segmentOrder: $segmentOrder++
+            );
+        }
+
+        return $allSegments;
+    }
+
+    /**
+     * Get total duration from RMS log lines
+     */
+    private function getTotalDurationFromLog(array $lines): float
+    {
+        $maxTime = 0.0;
+
+        foreach ($lines as $line) {
+            if (preg_match('/pts_time:(\d+(?:\.\d+)?)/', $line, $matches)) {
+                $maxTime = max($maxTime, (float) $matches[1]);
+            }
+        }
+
+        // Fallback estimate if no pts_time found
+        if ($maxTime === 0.0) {
+            $maxTime = count($lines) / 43.0;
+        }
+
+        return $maxTime;
     }
 }

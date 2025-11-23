@@ -23,6 +23,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool|null $is_sermon_segment
  * @property int|null $segment_order
  * @property array|null $metadata
+ * @property float|null $visual_confidence
+ * @property int|null $visual_sample_count
+ * @property string|null $calibration_method
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
@@ -44,6 +47,9 @@ class LivestreamSegment extends Model
         'is_sermon_segment',
         'segment_order',
         'metadata',
+        'visual_confidence',
+        'visual_sample_count',
+        'calibration_method',
     ];
 
     protected $casts = [
@@ -55,6 +61,8 @@ class LivestreamSegment extends Model
         'peak_rms' => 'float',
         'is_sermon_candidate' => 'boolean',
         'segment_order' => 'integer',
+        'visual_confidence' => 'float',
+        'visual_sample_count' => 'integer',
     ];
 
     public function processingLog(): BelongsTo

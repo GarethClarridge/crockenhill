@@ -33,6 +33,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $threshold_method
  * @property float|null $adaptive_threshold
  * @property array|null $rms_stats
+ * @property array|null $visual_samples
+ * @property array|null $song_clusters
+ * @property int|null $visual_sample_count
+ * @property float|null $visual_processing_time
  * @property int|null $sermon_id
  * @property \Illuminate\Support\Carbon|null $started_at
  * @property \Illuminate\Support\Carbon|null $completed_at
@@ -78,6 +82,12 @@ class MediaProcessingLog extends Model
         'adaptive_threshold',
         'rms_stats',
 
+        // Visual analysis fields
+        'visual_samples',
+        'song_clusters',
+        'visual_sample_count',
+        'visual_processing_time',
+
         // Relationships
         'sermon_id',
 
@@ -91,10 +101,14 @@ class MediaProcessingLog extends Model
         'ai_analysis' => 'array',
         'processing_metadata' => 'array',
         'rms_stats' => 'array',
+        'visual_samples' => 'array',
+        'song_clusters' => 'array',
         'duration' => 'float',
         'sermon_start_time' => 'float',
         'sermon_end_time' => 'float',
         'adaptive_threshold' => 'float',
+        'visual_sample_count' => 'integer',
+        'visual_processing_time' => 'float',
         'file_size' => 'integer',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
