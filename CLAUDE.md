@@ -68,6 +68,53 @@ sail composer phpstan         # Static analysis (currently 0 errors)
 sail composer exec pint       # Code formatting
 ```
 
+### Email Configuration
+
+**Development (Sail):** Uses **Mailpit** - a local email testing tool with web UI
+**Production:** Uses **Mailgun** transactional email service (100 free emails/day)
+
+**Testing Emails in Development:**
+```bash
+# Send a test email
+sail artisan tinker
+>>> use App\Mail\LivestreamProcessingCompleted;
+>>> Mail::to('test@example.com')->queue(new LivestreamProcessingCompleted('test-123', [
+    'sermon_count' => 2,
+    'total_duration' => '1:23:45'
+]));
+>>> exit
+
+# View the email in Mailpit's web interface
+# Open: http://localhost:8025
+```
+
+**Configuration:**
+- `MAIL_FROM_ADDRESS` - Sender email (default: `admin@crockenhill.org`)
+- `LIVESTREAM_ADMIN_EMAIL` - Receives all processing error/success alerts
+- Mailpit configured automatically by Laravel Sail (mailpit:1025)
+
+**Mailable Classes** (`app/Mail/`):
+- `DiskSpaceWarning` - Critical disk space alerts
+- `LivestreamProcessingCompleted` - Success notifications with sermon details
+- `LivestreamProcessingFailed` - Failure notifications with stack traces
+- `ManualReviewRequired` - Segmentation review alerts
+- `PermissionError` - File permission issues
+
+**Email Queueing:**
+All emails use `Mail::queue()` for async delivery. Queue driver (`QUEUE_DRIVER`):
+- `sync` (default) - Processes immediately, no background worker needed
+- `database` - Queues in database (requires `sail artisan queue:work`)
+
+**Notification Toggles** (`config/media-processing.php`):
+- `email.send_success_notifications` - Success emails (default: false)
+- `email.send_failure_notifications` - Failure emails (default: true)
+
+**Production Setup (Mailgun):**
+1. Sign up at [mailgun.com](https://mailgun.com) (free tier: 100 emails/day)
+2. Get domain from dashboard and API key from settings
+3. Update `.env` or `docker-compose.yml` with credentials
+4. Set `MAIL_MAILER=mailgun`
+
 ### Testing Strategy
 - **Feature Tests**: HTTP routes, integration tests
 - **Unit Tests**: Models, services, request validation

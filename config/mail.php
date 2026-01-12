@@ -110,10 +110,11 @@ return [
     |
     | This configuration is maintained for backward compatibility.
     | Use 'default' and 'mailers' configuration above instead.
+    | IMPORTANT: Must be null for Laravel 12+ to use modern mail config.
     |
     */
 
-    'driver' => env('MAIL_DRIVER', env('MAIL_MAILER', 'smtp')),
+    'driver' => null,
 
     /*
     |--------------------------------------------------------------------------

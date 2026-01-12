@@ -256,6 +256,8 @@ class SendCompletionNotification implements ShouldQueue
         ]);
 
         // Send email notification with error handling
+        // Note: Since this job itself is already queued, we send the email directly
+        // to avoid double-queueing. The job's retry logic handles email failures.
         try {
             Mail::raw($message, function ($mail) use ($admin, $subject) {
                 $mail->to($admin->email)

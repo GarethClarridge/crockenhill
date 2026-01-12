@@ -81,6 +81,21 @@ return [
         'max_concurrent_jobs' => 2,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Notification Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure email notifications for processing events (success, failure, errors)
+    | Admin email receives all critical notifications about processing issues
+    |
+    */
+    'email' => [
+        'admin_email' => env('LIVESTREAM_ADMIN_EMAIL', env('MAIL_FROM_ADDRESS')),
+        'send_success_notifications' => env('LIVESTREAM_NOTIFY_SUCCESS', false),
+        'send_failure_notifications' => env('LIVESTREAM_NOTIFY_FAILURE', true),
+    ],
+
     'transcription' => [
         'service' => env('TRANSCRIPTION_SERVICE_TYPE', 'openai'),
         'openai_api_key' => env('OPENAI_API_KEY'),
