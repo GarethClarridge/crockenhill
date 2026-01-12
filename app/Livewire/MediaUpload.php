@@ -67,6 +67,17 @@ class MediaUpload extends Component
 
     public int $progressPercentage = 0;
 
+    // Upload progress tracking
+    public int $uploadProgress = 0;           // 0-100 percentage
+
+    public ?int $uploadedBytes = null;        // Bytes uploaded so far
+
+    public ?int $totalBytes = null;           // Total file size in bytes
+
+    public bool $isUploading = false;         // Track if upload is in progress
+
+    public bool $uploadCancelled = false;     // Track if user cancelled upload
+
     public array $processingDetails = [];
 
     public ?string $errorMessage = null;
@@ -131,16 +142,107 @@ class MediaUpload extends Component
     public function updatedMediaFile(): void
     {
         // Just log that file was selected - don't validate yet
-        // Validation will happen in uploadMedia() where we have the actual file, not Livewire's broken temp reference
+        // Validation will happen in uploadComplete() where we have the actual file
         if (! $this->mediaFile) {
             return;
         }
 
-        $this->logInfo('MediaUpload: File uploaded', [
+        // Set upload state - the actual upload will be tracked by JavaScript
+        $this->isUploading = true;
+        $this->uploadCancelled = false;
+        $this->status = 'uploading';
+        $this->errorMessage = null;
+        $this->uploadProgress = 0;
+        $this->uploadedBytes = null;
+        $this->totalBytes = null;
+
+        $this->logInfo('MediaUpload: File upload started', [
             'media_type' => $this->mediaType,
-            'file_exists' => true,
             'file_name' => $this->mediaFile->getClientOriginalName(),
         ]);
+    }
+
+    public function uploadComplete(): void
+    {
+        // This is called by JavaScript after livewire-upload-finish event
+
+        if ($this->uploadCancelled) {
+            $this->logInfo('Upload complete but was cancelled, ignoring');
+
+            return;
+        }
+
+        if (! $this->mediaFile) {
+            $this->handleUploadError('File upload completed but file is missing');
+
+            return;
+        }
+
+        $this->isUploading = false;
+        $this->uploadProgress = 100;
+
+        $this->logInfo('MediaUpload: File upload completed, starting validation', [
+            'file_name' => $this->mediaFile->getClientOriginalName(),
+        ]);
+
+        // Now validate and start processing
+        try {
+            $this->validate($this->getDynamicRules(), $this->getDynamicMessages());
+
+            // Save original filename before we lose access to the file object
+            $this->originalFileName = $this->mediaFile->getClientOriginalName();
+
+            // Hide upload form and show processing status section
+            $this->showUploadForm = false;
+            $this->showProcessingStatus = true;
+            $this->status = 'processing';
+            $this->currentStep = 'Preparing for processing...';
+            $this->progressPercentage = 5;
+            $this->errorMessage = null;
+
+            // Create a processing record
+            $processingId = Str::uuid()->toString();
+            $log = MediaProcessingLog::create([
+                'processing_id' => $processingId,
+                'processing_type' => $this->mediaType,
+                'status' => ProcessingStatus::PENDING,
+                'original_filename' => $this->originalFileName,
+                'current_step' => 'preparing',
+            ]);
+
+            $this->processingId = $processingId;
+
+            // Store file data for processing
+            $tempFilePath = $this->mediaFile->store('temp/livewire-upload', 'local');
+            $this->tempFilePath = $tempFilePath;
+
+            $this->logInfo('File stored to temp directory', [
+                'temp_file_path' => $tempFilePath,
+                'full_path' => storage_path('app/'.$tempFilePath),
+                'file_exists' => file_exists(storage_path('app/'.$tempFilePath)),
+            ]);
+
+            // Call processing directly
+            $this->startProcessing();
+
+            $this->logInfo('Media processing started', [
+                'processing_id' => $processingId,
+                'media_type' => $this->mediaType,
+                'user_id' => Auth::id(),
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->handleUploadError('Validation failed: '.$e->getMessage());
+            $this->setErrorBag($e->validator->getMessageBag());
+        } catch (\Exception $e) {
+            $this->logError('Media processing preparation failed', [
+                'error' => $e->getMessage(),
+                'media_type' => $this->mediaType,
+                'user_id' => Auth::id(),
+            ]);
+
+            $this->handleUploadError('An unexpected error occurred: '.$e->getMessage());
+        }
     }
 
     protected function getDynamicRules(): array
@@ -168,60 +270,9 @@ class MediaUpload extends Component
 
     public function uploadMedia(): void
     {
-        $this->validate($this->getDynamicRules(), $this->getDynamicMessages());
-
-        try {
-            // Save original filename before we lose access to the file object
-            $this->originalFileName = $this->mediaFile->getClientOriginalName();
-
-            // Hide upload form and show processing status section immediately
-            $this->showUploadForm = false;
-            $this->showProcessingStatus = true;
-            $this->status = 'processing';
-            $this->currentStep = 'Preparing for processing...';
-            $this->progressPercentage = 5;
-            $this->errorMessage = null;
-
-            // Create a processing record first to get the ID for polling
-            $processingId = Str::uuid()->toString();
-            $log = MediaProcessingLog::create([
-                'processing_id' => $processingId,
-                'processing_type' => $this->mediaType,
-                'status' => ProcessingStatus::PENDING,
-                'original_filename' => $this->originalFileName,
-                'current_step' => 'preparing',
-            ]);
-
-            $this->processingId = $processingId;
-
-            // Store file data for processing
-            $tempFilePath = $this->mediaFile->store('temp/livewire-upload', 'local');
-            $this->tempFilePath = $tempFilePath;
-
-            $this->logInfo('File stored to temp directory', [
-                'temp_file_path' => $tempFilePath,
-                'full_path' => storage_path('app/'.$tempFilePath),
-                'file_exists' => file_exists(storage_path('app/'.$tempFilePath)),
-            ]);
-
-            // Call processing directly - simple and reliable
-            $this->startProcessing();
-
-            $this->logInfo('Media upload prepared for processing', [
-                'processing_id' => $processingId,
-                'media_type' => $this->mediaType,
-                'user_id' => Auth::id(),
-            ]);
-
-        } catch (\Exception $e) {
-            $this->logError('Media upload preparation failed', [
-                'error' => $e->getMessage(),
-                'media_type' => $this->mediaType,
-                'user_id' => Auth::id(),
-            ]);
-
-            $this->handleUploadError('An unexpected error occurred during upload: '.$e->getMessage());
-        }
+        // Fallback for manual upload button (JavaScript-disabled browsers)
+        $this->logInfo('Manual upload triggered (JavaScript fallback)');
+        $this->uploadComplete();
     }
 
     public function startProcessing(): void
@@ -339,8 +390,53 @@ class MediaUpload extends Component
     public function retryUpload(): void
     {
         $this->resetProcessingState();
+        $this->resetUploadState();
         $this->showUploadForm = true;
         $this->showProcessingStatus = false;
+    }
+
+    public function cancelUpload(): void
+    {
+        if (! $this->isUploading) {
+            return;
+        }
+
+        $this->logInfo('Upload cancelled by user', [
+            'file_name' => $this->originalFileName ?? 'unknown',
+            'upload_progress' => $this->uploadProgress,
+        ]);
+
+        // Set cancellation flag to prevent uploadComplete() from executing
+        $this->uploadCancelled = true;
+        $this->isUploading = false;
+
+        // Reset to idle state
+        $this->status = 'idle';
+        $this->uploadProgress = 0;
+        $this->uploadedBytes = null;
+        $this->totalBytes = null;
+        $this->mediaFile = null;
+        $this->errorMessage = null;
+
+        // Livewire temp file cleanup happens automatically via JavaScript
+        // calling Livewire.find(componentId).cancelUpload('mediaFile')
+    }
+
+    public function updateUploadProgress(int $progress, int $loaded, int $total): void
+    {
+        if ($this->uploadCancelled) {
+            return; // Ignore updates after cancellation
+        }
+
+        $this->uploadProgress = $progress;
+        $this->uploadedBytes = $loaded;
+        $this->totalBytes = $total;
+
+        $this->logDebug('Upload progress updated', [
+            'progress' => $progress,
+            'loaded_mb' => round($loaded / 1024 / 1024, 2),
+            'total_mb' => round($total / 1024 / 1024, 2),
+        ]);
     }
 
     public function cancelProcessing(): void
@@ -376,6 +472,9 @@ class MediaUpload extends Component
         $this->errorMessage = $message;
         $this->showUploadForm = true;
         $this->showProcessingStatus = true;
+
+        // Reset upload state
+        $this->resetUploadState();
     }
 
     private function handleProcessingError(string $message): void
@@ -434,6 +533,16 @@ class MediaUpload extends Component
         $this->processingDetails = [];
         $this->errorMessage = null;
         $this->successMessage = null;
+    }
+
+    private function resetUploadState(): void
+    {
+        $this->isUploading = false;
+        $this->uploadCancelled = false;
+        $this->uploadProgress = 0;
+        $this->uploadedBytes = null;
+        $this->totalBytes = null;
+        $this->mediaFile = null;
     }
 
     public function render()

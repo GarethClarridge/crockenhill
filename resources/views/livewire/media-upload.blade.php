@@ -1,12 +1,111 @@
 <div
     x-data="{
         isDragOver: false,
-        fileModifiedDate: null
+        fileModifiedDate: null,
+        componentId: null,
+        lastProgressUpdate: 0,
+        progressThrottleMs: 500,
+        uploadTimeout: null,
+
+        init() {
+            this.componentId = @this.__instance.id;
+            this.setupUploadListeners();
+        },
+
+        setupUploadListeners() {
+            // Livewire upload events
+            window.addEventListener('livewire-upload-start', (event) => {
+                if (event.detail.id === this.componentId && event.detail.property === 'mediaFile') {
+                    console.log('Upload started');
+                    @this.set('isUploading', true);
+                    @this.set('status', 'uploading');
+
+                    // Start 10-minute timeout for network disconnection detection
+                    this.uploadTimeout = setTimeout(() => {
+                        console.error('Upload timeout - network issue suspected');
+                        @this.call('handleUploadError', 'Upload timed out. Please check your connection and try again.');
+                        if (Livewire.find(this.componentId)) {
+                            Livewire.find(this.componentId).cancelUpload('mediaFile');
+                        }
+                    }, 10 * 60 * 1000); // 10 minutes
+                }
+            });
+
+            window.addEventListener('livewire-upload-progress', (event) => {
+                if (event.detail.id === this.componentId && event.detail.property === 'mediaFile') {
+                    const now = Date.now();
+
+                    // Throttle to max 2 updates per second
+                    if (now - this.lastProgressUpdate < this.progressThrottleMs) {
+                        return;
+                    }
+
+                    this.lastProgressUpdate = now;
+                    const progress = Math.round(event.detail.progress);
+                    const loaded = event.detail.loaded || 0;
+                    const total = event.detail.total || 0;
+
+                    console.log('Upload progress:', progress + '%', loaded, '/', total);
+                    @this.call('updateUploadProgress', progress, loaded, total);
+                }
+            });
+
+            window.addEventListener('livewire-upload-finish', (event) => {
+                if (event.detail.id === this.componentId && event.detail.property === 'mediaFile') {
+                    clearTimeout(this.uploadTimeout);
+                    console.log('Upload finished, auto-submitting...');
+                    // Trigger automatic processing
+                    @this.call('uploadComplete');
+                }
+            });
+
+            window.addEventListener('livewire-upload-error', (event) => {
+                if (event.detail.id === this.componentId && event.detail.property === 'mediaFile') {
+                    clearTimeout(this.uploadTimeout);
+                    console.error('Upload error:', event.detail.error);
+                    @this.call('handleUploadError', 'Upload failed: ' + (event.detail.error || 'Unknown error'));
+                }
+            });
+
+            // Browser navigation warning
+            window.addEventListener('beforeunload', (event) => {
+                if (@this.isUploading) {
+                    event.preventDefault();
+                    event.returnValue = 'Upload in progress. Are you sure you want to leave?';
+                    return event.returnValue;
+                }
+            });
+        },
+
+        cancelUpload() {
+            console.log('Cancelling upload...');
+            clearTimeout(this.uploadTimeout);
+
+            // Call backend to set flags
+            @this.call('cancelUpload');
+
+            // Cancel Livewire's upload
+            if (Livewire.find(this.componentId)) {
+                Livewire.find(this.componentId).cancelUpload('mediaFile');
+            }
+        },
+
+        formatBytes(bytes, decimals = 2) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
     }"
     class="max-w-4xl mx-auto p-6"
 >
     {{-- Upload Form --}}
-    @if($showUploadForm && $status !== 'processing')
+    @if($showUploadForm && !in_array($status, ['processing', 'completed']))
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">Upload Media</h2>
             
@@ -124,21 +223,63 @@
                     @enderror
                 </div>
 
-                {{-- Upload Button --}}
-                <div class="flex justify-between items-center">
-                    <a href="/church/members" class="text-gray-600 hover:text-gray-800 transition-colors duration-200">
-                        ← Back to Members Area
-                    </a>
-                    
-                    <button 
-                        wire:click="uploadMedia"
-                        wire:loading.attr="disabled"
-                        wire:target="uploadMedia"
-                        @if(!$mediaFile) disabled @endif
-                        class="px-6 py-2 {{ $mediaFile ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 cursor-not-allowed' }} text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
-                    >
-                        <span wire:loading.remove wire:target="uploadMedia">Process Media</span>
-                        <span wire:loading wire:target="uploadMedia" class="flex items-center">
+                {{-- Upload Progress (shown during file upload) --}}
+                @if($isUploading && $status === 'uploading')
+                    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-sm font-semibold text-blue-900">
+                                Uploading {{ $originalFileName ?? ($mediaFile ? $mediaFile->getClientOriginalName() : 'file') }}...
+                            </h3>
+                            <button
+                                x-on:click="cancelUpload()"
+                                class="text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
+                                type="button"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+
+                        {{-- Progress Bar --}}
+                        <div class="mb-2">
+                            <div class="w-full bg-blue-200 rounded-full h-3">
+                                <div
+                                    class="h-3 rounded-full bg-blue-600 transition-all duration-300 ease-out"
+                                    style="width: {{ $uploadProgress }}%"
+                                ></div>
+                            </div>
+                        </div>
+
+                        {{-- Progress Stats --}}
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-blue-700">
+                                {{ $uploadProgress }}%
+                                @if($uploadedBytes && $totalBytes)
+                                    <span x-text="'(' + formatBytes({{ $uploadedBytes }}) + ' / ' + formatBytes({{ $totalBytes }}) + ')'"></span>
+                                @endif
+                            </span>
+                            <span class="text-blue-600 text-xs">
+                                Processing will start automatically when upload completes
+                            </span>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Upload Button (hidden during upload) --}}
+                @if(!$isUploading)
+                    <div class="flex justify-between items-center">
+                        <a href="/church/members" class="text-gray-600 hover:text-gray-800 transition-colors duration-200">
+                            ← Back to Members Area
+                        </a>
+
+                        <button
+                            wire:click="uploadMedia"
+                            wire:loading.attr="disabled"
+                            wire:target="uploadMedia"
+                            @if(!$mediaFile) disabled @endif
+                            class="px-6 py-2 {{ $mediaFile ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 cursor-not-allowed' }} text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+                        >
+                            <span wire:loading.remove wire:target="uploadMedia">Process Media</span>
+                            <span wire:loading wire:target="uploadMedia" class="flex items-center">
                             <svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -147,6 +288,7 @@
                         </span>
                     </button>
                 </div>
+                @endif
             @endif
         </div>
     @endif
