@@ -2,7 +2,7 @@
 'sermon',
 ])
 
-<div class="max-w-sm rounded-lg shadow bg-white border-1 border-gray-300 p-0 m-2">
+<div class="max-w-sm rounded-lg shadow bg-white border-1 border-gray-300 p-0 m-2 flex flex-col">
 
   @if (($sermon->title != null))
   <a class="font-display text-4xl my-auto underline" href="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">
@@ -11,7 +11,7 @@
     </h4>
   </a>
   @endif
-  <ul class="mx-6 px-6 mb-6 pb-6 prose">
+  <ul class="mx-6 px-6 pb-6 prose">
     @if (($sermon->date != null))
     <li class="my-2 flex items-center">
       <x-heroicon-s-calendar class="h-5 w-5 mr-2" />
@@ -45,11 +45,13 @@
   </ul>
 
   @can ('edit-sermons')
-    <x-admin-actions 
-      :editRoute="'/christ/sermons/' . date('Y', strtotime($sermon->date)) . '/' . date('m', strtotime($sermon->date)) . '/' . $sermon->slug . '/edit'"
-      :deleteRoute="'/christ/sermons/' . date('Y', strtotime($sermon->date)) . '/' . date('m', strtotime($sermon->date)) . '/' . $sermon->slug . '/delete'"
-      deleteConfirmMessage="Are you sure you want to delete this sermon?"
-      layout="grid"
-      :withIcons="true" />
+    <div class="mt-auto">
+      <x-admin-actions
+        :editRoute="'/christ/sermons/' . date('Y', strtotime($sermon->date)) . '/' . date('m', strtotime($sermon->date)) . '/' . $sermon->slug . '/edit'"
+        :deleteRoute="'/christ/sermons/' . date('Y', strtotime($sermon->date)) . '/' . date('m', strtotime($sermon->date)) . '/' . $sermon->slug . '/delete'"
+        deleteConfirmMessage="Are you sure you want to delete this sermon?"
+        layout="grid"
+        :withIcons="true" />
+    </div>
   @endcan
 </div>

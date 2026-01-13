@@ -1,7 +1,7 @@
 @props(['editRoute', 'deleteRoute', 'deleteConfirmMessage' => 'Are you sure you want to delete this item?', 'layout' => 'grid', 'withIcons' => false])
 
 @if($layout === 'grid')
-<form method="POST" action="{{ $deleteRoute }}" accept-charset="UTF-8" class="-mt-6 grid grid-cols-2">
+<form method="POST" action="{{ $deleteRoute }}" accept-charset="UTF-8" class="grid grid-cols-2">
   @csrf
   <a href="{{ $editRoute }}" 
      class="w-full no-underline mx-auto block max-w-md p-4 text-center text-white rounded-bl-md bg-cbc-pattern bg-cover focus:ring-2 focus:ring-blue-800 focus:ring-offset-2 transition-all">
