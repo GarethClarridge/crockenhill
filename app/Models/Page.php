@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory; // For scope return types
 use Illuminate\Database\Eloquent\Model; // For type hinting Carbon instances
 use Illuminate\Support\Carbon; // Added Enum import
+use Spatie\Sitemap\Contracts\Sitemapable;
+use Spatie\Sitemap\Tags\Url;
 
 /**
  * App\Models\Page
@@ -37,7 +39,7 @@ use Illuminate\Support\Carbon; // Added Enum import
  *
  * @mixin \Eloquent
  */
-class Page extends Model
+class Page extends Model implements Sitemapable
 {
     use HasFactory;
 
@@ -100,5 +102,21 @@ class Page extends Model
     public function scopeIsNavigation(Builder $query, bool $isNavigation = true): Builder
     {
         return $query->where('navigation', $isNavigation);
+    }
+
+    /**
+     * Convert the page to a sitemap tag.
+     */
+    public function toSitemapTag(): Url | string | array
+    {
+        $url = Url::create($this->route)
+            ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
+            ->setPriority(0.7);
+
+        if ($this->updated_at) {
+            $url->setLastModificationDate($this->updated_at);
+        }
+
+        return $url;
     }
 }

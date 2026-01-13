@@ -1,2 +1,7 @@
 User-agent: *
-Disallow: 
+Allow: /
+Disallow: /church/members/
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://crockenhill.org/sitemap.xml

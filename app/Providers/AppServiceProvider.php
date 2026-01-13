@@ -6,7 +6,10 @@ use App\Contracts\TranscriptionServiceInterface;
 use App\HealthChecks\OpenAIHealthCheck;
 use App\HealthChecks\SermonProcessingQueueHealthCheck;
 use App\HealthChecks\StorageHealthCheck;
+use App\Models\Meeting;
 use App\Models\Page;
+use App\Models\Sermon;
+use App\Observers\SitemapCacheObserver;
 use App\Services\AudioTranscriptionService;
 use App\Services\MockTranscriptionService;
 use Illuminate\Foundation\Events\DiagnosingHealth;
@@ -62,6 +65,11 @@ class AppServiceProvider extends ServiceProvider
         View::composer('components.layout.header', function ($view) {
             $view->with('pages', Page::isNavigation()->get());
         });
+
+        // Register sitemap cache observers
+        Sermon::observe(SitemapCacheObserver::class);
+        Page::observe(SitemapCacheObserver::class);
+        Meeting::observe(SitemapCacheObserver::class);
     }
 
     /**

@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon; // For type hinting Carbon instances
 use Illuminate\Support\Str; // Added Enum import
+use Spatie\Sitemap\Contracts\Sitemapable;
+use Spatie\Sitemap\Tags\Url;
 
 /**
  * App\Models\Sermon
@@ -74,7 +76,7 @@ use Illuminate\Support\Str; // Added Enum import
  *
  * @mixin \Eloquent
  */
-class Sermon extends Model
+class Sermon extends Model implements Sitemapable
 {
     use HasFactory;
 
@@ -546,6 +548,29 @@ class Sermon extends Model
     public function scopeWithThumbnail(Builder $query): Builder
     {
         return $query->whereNotNull('thumbnail_file_path');
+    }
+
+    /**
+     * Convert the sermon to a sitemap tag.
+     */
+    public function toSitemapTag(): Url | string | array
+    {
+        $year = $this->date->format('Y');
+        $month = $this->date->format('m');
+
+        // Calculate priority based on recency (use absolute value for past dates)
+        $daysOld = abs(now()->diffInDays($this->date, false));
+        $priority = $daysOld < 30 ? 0.8 : 0.6;
+
+        // Change frequency based on age
+        $changeFreq = $daysOld < 365
+            ? Url::CHANGE_FREQUENCY_MONTHLY
+            : Url::CHANGE_FREQUENCY_YEARLY;
+
+        return Url::create("/christ/sermons/{$year}/{$month}/{$this->slug}")
+            ->setLastModificationDate($this->updated_at ?? $this->date)
+            ->setChangeFrequency($changeFreq)
+            ->setPriority($priority);
     }
 
     // ========================================================================

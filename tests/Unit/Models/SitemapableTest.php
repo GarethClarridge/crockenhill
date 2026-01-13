@@ -1,0 +1,287 @@
+<?php
+
+namespace Tests\Unit\Models;
+
+use App\Models\Meeting;
+use App\Models\Page;
+use App\Models\Sermon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Spatie\Sitemap\Tags\Url;
+use Tests\TestCase;
+
+class SitemapableTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /** @test */
+    public function sermon_implements_sitemapable_interface(): void
+    {
+        $sermon = new Sermon;
+
+        $this->assertInstanceOf(
+            \Spatie\Sitemap\Contracts\Sitemapable::class,
+            $sermon,
+            'Sermon model should implement Sitemapable interface'
+        );
+    }
+
+    /** @test */
+    public function page_implements_sitemapable_interface(): void
+    {
+        $page = new Page;
+
+        $this->assertInstanceOf(
+            \Spatie\Sitemap\Contracts\Sitemapable::class,
+            $page,
+            'Page model should implement Sitemapable interface'
+        );
+    }
+
+    /** @test */
+    public function meeting_implements_sitemapable_interface(): void
+    {
+        $meeting = new Meeting;
+
+        $this->assertInstanceOf(
+            \Spatie\Sitemap\Contracts\Sitemapable::class,
+            $meeting,
+            'Meeting model should implement Sitemapable interface'
+        );
+    }
+
+    /** @test */
+    public function sermon_to_sitemap_tag_returns_url_object(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'test-sermon',
+            'date' => '2024-01-15',
+        ]);
+
+        $tag = $sermon->toSitemapTag();
+
+        $this->assertInstanceOf(Url::class, $tag);
+    }
+
+    /** @test */
+    public function sermon_sitemap_tag_uses_date_based_url_format(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'test-sermon',
+            'date' => '2024-03-15',
+        ]);
+
+        $tag = $sermon->toSitemapTag();
+
+        $this->assertStringContainsString(
+            '/christ/sermons/2024/03/test-sermon',
+            $tag->url
+        );
+    }
+
+    /** @test */
+    public function recent_sermon_has_high_priority(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'recent-sermon',
+            'date' => now()->subDays(15),
+        ]);
+
+        $tag = $sermon->toSitemapTag();
+
+        $this->assertEquals(0.8, $tag->priority);
+    }
+
+    /** @test */
+    public function old_sermon_has_lower_priority(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'old-sermon',
+            'date' => now()->subDays(60), // 60 days old should have lower priority than < 30 days
+        ]);
+
+        $tag = $sermon->toSitemapTag();
+
+        $this->assertEquals(0.6, $tag->priority);
+    }
+
+    /** @test */
+    public function recent_sermon_has_monthly_change_frequency(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'recent-sermon',
+            'date' => now()->subDays(100),
+        ]);
+
+        $tag = $sermon->toSitemapTag();
+
+        $this->assertEquals('monthly', $tag->changeFrequency);
+    }
+
+    /** @test */
+    public function old_sermon_has_yearly_change_frequency(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'old-sermon',
+            'date' => now()->subYears(2), // 2 years old should have yearly frequency
+        ]);
+
+        $tag = $sermon->toSitemapTag();
+
+        $this->assertEquals('yearly', $tag->changeFrequency);
+    }
+
+    /** @test */
+    public function sermon_sitemap_tag_includes_last_modification_date(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'test-sermon',
+            'date' => '2024-01-15',
+        ]);
+
+        $tag = $sermon->toSitemapTag();
+
+        $this->assertNotNull($tag->lastModificationDate);
+    }
+
+    /** @test */
+    public function page_to_sitemap_tag_returns_url_object(): void
+    {
+        $page = Page::factory()->create([
+            'slug' => 'test-page',
+            'area' => 'church',
+        ]);
+
+        $tag = $page->toSitemapTag();
+
+        $this->assertInstanceOf(Url::class, $tag);
+    }
+
+    /** @test */
+    public function page_sitemap_tag_uses_route_attribute(): void
+    {
+        $page = Page::factory()->create([
+            'slug' => 'about-us',
+            'area' => 'church',
+        ]);
+
+        $tag = $page->toSitemapTag();
+
+        $this->assertStringContainsString('/church/about-us', $tag->url);
+    }
+
+    /** @test */
+    public function page_has_correct_priority(): void
+    {
+        $page = Page::factory()->create([
+            'slug' => 'test-page',
+            'area' => 'church',
+        ]);
+
+        $tag = $page->toSitemapTag();
+
+        $this->assertEquals(0.7, $tag->priority);
+    }
+
+    /** @test */
+    public function page_has_monthly_change_frequency(): void
+    {
+        $page = Page::factory()->create([
+            'slug' => 'test-page',
+            'area' => 'church',
+        ]);
+
+        $tag = $page->toSitemapTag();
+
+        $this->assertEquals('monthly', $tag->changeFrequency);
+    }
+
+    /** @test */
+    public function page_sitemap_tag_handles_null_updated_at(): void
+    {
+        $page = Page::factory()->create([
+            'slug' => 'test-page',
+            'area' => 'church',
+        ]);
+
+        // Manually set updated_at to null
+        \DB::table('pages')
+            ->where('id', $page->id)
+            ->update(['updated_at' => null]);
+
+        $page = $page->fresh();
+
+        $tag = $page->toSitemapTag();
+
+        // Should not throw error and return valid Url object
+        $this->assertInstanceOf(Url::class, $tag);
+    }
+
+    /** @test */
+    public function meeting_to_sitemap_tag_returns_url_object(): void
+    {
+        $meeting = Meeting::factory()->create([
+            'slug' => 'test-meeting',
+        ]);
+
+        $tag = $meeting->toSitemapTag();
+
+        $this->assertInstanceOf(Url::class, $tag);
+    }
+
+    /** @test */
+    public function meeting_sitemap_tag_uses_community_url_format(): void
+    {
+        $meeting = Meeting::factory()->create([
+            'slug' => 'bible-study',
+        ]);
+
+        $tag = $meeting->toSitemapTag();
+
+        $this->assertStringContainsString('/community/bible-study', $tag->url);
+    }
+
+    /** @test */
+    public function meeting_has_correct_priority(): void
+    {
+        $meeting = Meeting::factory()->create([
+            'slug' => 'test-meeting',
+        ]);
+
+        $tag = $meeting->toSitemapTag();
+
+        $this->assertEquals(0.6, $tag->priority);
+    }
+
+    /** @test */
+    public function meeting_has_monthly_change_frequency(): void
+    {
+        $meeting = Meeting::factory()->create([
+            'slug' => 'test-meeting',
+        ]);
+
+        $tag = $meeting->toSitemapTag();
+
+        $this->assertEquals('monthly', $tag->changeFrequency);
+    }
+
+    /** @test */
+    public function meeting_sitemap_tag_handles_null_updated_at(): void
+    {
+        $meeting = Meeting::factory()->create([
+            'slug' => 'test-meeting',
+        ]);
+
+        // Manually set updated_at to null
+        \DB::table('meetings')
+            ->where('id', $meeting->id)
+            ->update(['updated_at' => null]);
+
+        $meeting = $meeting->fresh();
+
+        $tag = $meeting->toSitemapTag();
+
+        // Should not throw error and return valid Url object
+        $this->assertInstanceOf(Url::class, $tag);
+    }
+}

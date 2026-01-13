@@ -8,7 +8,13 @@ use App\Http\Controllers\MeetingController; // Added this line
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\SermonController;
+use App\Models\Meeting;
+use App\Models\Page;
+use App\Models\Sermon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
+use Spatie\Sitemap\Sitemap;
+use Spatie\Sitemap\Tags\Url;
 
 /*
 |--------------------------------------------------------------------------
@@ -125,6 +131,39 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
 });
 
 Route::get('phpinfo', fn () => phpinfo())->middleware('admin');
+
+// Sitemap route
+Route::get('/sitemap.xml', function () {
+    $sitemapPath = public_path('sitemap.xml');
+
+    // Laravel 12 flexible cache: fresh for 1 day, stale for 2 days
+    Cache::flexible('sitemap', [86400, 172800], function () use ($sitemapPath) {
+        Sitemap::create()
+            // Static high-priority URLs
+            ->add(Url::create('/')->setPriority(1.0)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
+            ->add(Url::create('/christ')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
+            ->add(Url::create('/church')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
+            ->add(Url::create('/community')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
+            ->add(Url::create('/calendar')->setPriority(0.5)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
+            ->add(Url::create('/christ/sermons')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY))
+
+            // Dynamic content via Sitemapable models
+            ->add(Sermon::all())
+            ->add(Page::where('admin', 'no')->get()) // Only include non-admin pages
+            ->add(Meeting::all())
+
+            ->writeToFile($sitemapPath);
+
+        return true;
+    });
+
+    // Read and return the sitemap content
+    $content = file_get_contents($sitemapPath);
+
+    return response($content, 200, [
+        'Content-Type' => 'application/xml',
+    ]);
+})->name('sitemap');
 
 // Permanent Redirects (fixed with absolute paths)
 // Specific whats-on/* redirects must come before general whats-on redirect

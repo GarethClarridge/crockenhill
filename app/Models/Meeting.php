@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Spatie\GoogleCalendar\Event;
+use Spatie\Sitemap\Contracts\Sitemapable;
+use Spatie\Sitemap\Tags\Url;
 
 /**
  * App\Models\Meeting
@@ -44,7 +46,7 @@ use Spatie\GoogleCalendar\Event;
  *
  * @mixin \Eloquent
  */
-class Meeting extends Model
+class Meeting extends Model implements Sitemapable
 {
     use HasFactory;
 
@@ -242,5 +244,21 @@ class Meeting extends Model
     public function createEvent(array $eventData): Event
     {
         return app(CalendarService::class)->createEventForMeeting($this->slug, $eventData);
+    }
+
+    /**
+     * Convert the meeting to a sitemap tag.
+     */
+    public function toSitemapTag(): Url | string | array
+    {
+        $url = Url::create("/community/{$this->slug}")
+            ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
+            ->setPriority(0.6);
+
+        if ($this->updated_at) {
+            $url->setLastModificationDate($this->updated_at);
+        }
+
+        return $url;
     }
 }
