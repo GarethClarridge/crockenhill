@@ -50,7 +50,7 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertEquals('failed', $processing->status->value);
         $this->assertEquals('Test error message', $processing->error_message);
 
-        Mail::assertSent(\App\Mail\LivestreamProcessingFailed::class, function ($mail) {
+        Mail::assertQueued(\App\Mail\LivestreamProcessingFailed::class, function ($mail) {
             return $mail->processingId === 'test-processing-id' &&
                    $mail->step === 'video_analysis';
         });
@@ -136,7 +136,7 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertEquals('failed', $processing->status->value);
         $this->assertStringContainsString($reason, $processing->error_message);
 
-        Mail::assertSent(\App\Mail\ManualReviewRequired::class, function ($mail) use ($reason, $segments) {
+        Mail::assertQueued(\App\Mail\ManualReviewRequired::class, function ($mail) use ($reason, $segments) {
             return $mail->processingId === 'test-processing-id' &&
                    $mail->reason === $reason &&
                    $mail->segments === $segments;
@@ -183,7 +183,7 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertEquals('failed', $processing->status->value);
         $this->assertEquals('Insufficient disk space for processing', $processing->error_message);
 
-        Mail::assertSent(\App\Mail\DiskSpaceWarning::class);
+        Mail::assertQueued(\App\Mail\DiskSpaceWarning::class);
     }
 
     public function test_handle_storage_error_permission()
@@ -208,7 +208,7 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertEquals('failed', $processing->status->value);
         $this->assertStringContainsString($operation, $processing->error_message);
 
-        Mail::assertSent(\App\Mail\PermissionError::class, function ($mail) use ($operation) {
+        Mail::assertQueued(\App\Mail\PermissionError::class, function ($mail) use ($operation) {
             return $mail->processingId === 'test-processing-id' &&
                    $mail->operation === $operation;
         });
