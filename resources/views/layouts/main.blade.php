@@ -19,7 +19,11 @@
   @endif
 
   {{-- Canonical URL --}}
-  <link rel="canonical" href="{{ url()->current() }}">
+  @hasSection('canonical')
+    @yield('canonical')
+  @else
+    <link rel="canonical" href="{{ url()->current() }}">
+  @endif
 
   {{-- Additional meta tags for social media sharing --}}
   @yield('meta_tags')

@@ -82,6 +82,9 @@ use Illuminate\Support\Str;
 <script type="application/ld+json">
     {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
 </script>
+@section('canonical')
+<link rel="canonical" href="{{ route('showSermon', $sermon->slug) }}">
+@endsection
 @endsection
 
 @section('dynamic_content')
