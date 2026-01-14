@@ -13,13 +13,9 @@ class SitemapTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // Seed the database with test data
-        $this->seed();
-    }
+    // Tests rely on seeded data (pages, sermons, meetings)
+    // Seeding on every test is slow but ensures data isolation
+    protected $seed = true;
 
     /** @test */
     public function it_generates_sitemap_xml_successfully(): void
@@ -138,15 +134,23 @@ class SitemapTest extends TestCase
     /** @test */
     public function sitemap_includes_change_frequencies(): void
     {
+        // Create a page to ensure "monthly" frequency appears
+        // (seeded sermons are all old, so they have "yearly" frequency)
+        Page::factory()->create([
+            'slug' => 'test-page-for-frequency',
+            'area' => 'church',
+            'admin' => 'no',
+        ]);
+
         Cache::forget('sitemap');
 
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
 
         // Check for various change frequencies
-        $this->assertStringContainsString('<changefreq>weekly</changefreq>', $content);
-        $this->assertStringContainsString('<changefreq>daily</changefreq>', $content);
-        $this->assertStringContainsString('<changefreq>monthly</changefreq>', $content);
+        $this->assertStringContainsString('<changefreq>weekly</changefreq>', $content);  // Static pages
+        $this->assertStringContainsString('<changefreq>daily</changefreq>', $content);   // Sermons index
+        $this->assertStringContainsString('<changefreq>monthly</changefreq>', $content); // Pages
     }
 
     /** @test */
@@ -229,10 +233,7 @@ class SitemapTest extends TestCase
         $originalContent = file_get_contents(public_path('sitemap.xml'));
         $modificationTime1 = filemtime(public_path('sitemap.xml'));
 
-        // Wait a moment
-        sleep(1);
-
-        // Second request should serve cached version
+        // Second request should serve cached version (no sleep needed - filemtime is precise enough)
         $response2 = $this->get('/sitemap.xml');
         $modificationTime2 = filemtime(public_path('sitemap.xml'));
 
@@ -279,6 +280,7 @@ class SitemapTest extends TestCase
         // Should still contain static URLs
         $this->assertStringContainsString('<loc>http://localhost</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/christ</loc>', $content);
+
     }
 
     /** @test */

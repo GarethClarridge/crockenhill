@@ -11,11 +11,9 @@ class SeoMetaTagsTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->seed();
-    }
+    // Tests rely on seeded data (pages, sermons)
+    // Seeding on every test is slow but ensures data isolation
+    protected $seed = true;
 
     /** @test */
     public function homepage_has_meta_description(): void
