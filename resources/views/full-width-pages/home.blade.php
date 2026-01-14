@@ -2,8 +2,28 @@
 
 @section('title', 'Crockenhill Baptist Church')
 
-@section('description', '
-<meta name="description" content="We are an independent evangelical church located in the village of Crockenhill in Kent.">')
+@section('meta_description', 'We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all.')
+
+@section('meta_tags')
+{{-- Open Graph meta tags --}}
+<meta property="og:title" content="Crockenhill Baptist Church">
+<meta property="og:description" content="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ url()->current() }}">
+<meta property="og:site_name" content="Crockenhill Baptist Church">
+<meta property="og:image" content="{{ asset('images/Primary.png') }}">
+<meta property="og:image:width" content="800">
+<meta property="og:image:height" content="600">
+
+{{-- Twitter Card meta tags --}}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Crockenhill Baptist Church">
+<meta name="twitter:description" content="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all.">
+<meta name="twitter:image" content="{{ asset('images/Primary.png') }}">
+
+{{-- Organization Schema --}}
+<x-schema.organization />
+@stop
 
 @section('content')
 

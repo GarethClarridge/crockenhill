@@ -4,8 +4,26 @@
 {{$heading}}
 @stop
 
-@section('description')
-{{ $description }}
+@section('meta_description')
+{{ isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading) }}
+@stop
+
+@section('meta_tags')
+{{-- Open Graph meta tags --}}
+<meta property="og:title" content="{{ $heading }} - Crockenhill Baptist Church">
+<meta property="og:description" content="{{ isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading) }}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ url()->current() }}">
+<meta property="og:site_name" content="Crockenhill Baptist Church">
+<meta property="og:image" content="{{ asset('images/Primary.png') }}">
+<meta property="og:image:width" content="800">
+<meta property="og:image:height" content="600">
+
+{{-- Twitter Card meta tags --}}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ $heading }} - Crockenhill Baptist Church">
+<meta name="twitter:description" content="{{ isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading) }}">
+<meta name="twitter:image" content="{{ asset('images/Primary.png') }}">
 @stop
 
 @section('content')

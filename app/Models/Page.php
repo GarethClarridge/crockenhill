@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory; // For scope return types
 use Illuminate\Database\Eloquent\Model; // For type hinting Carbon instances
 use Illuminate\Support\Carbon; // Added Enum import
+use Illuminate\Support\Str;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -102,6 +103,21 @@ class Page extends Model implements Sitemapable
     public function scopeIsNavigation(Builder $query, bool $isNavigation = true): Builder
     {
         return $query->where('navigation', $isNavigation);
+    }
+
+    /**
+     * Get the SEO meta description for the page.
+     * Truncates the description field to 155 characters (plus ellipsis if truncated).
+     */
+    public function getMetaDescriptionAttribute(): string
+    {
+        $description = trim(strip_tags($this->description ?? ''));
+
+        if (empty($description)) {
+            $description = $this->heading;
+        }
+
+        return Str::limit($description, 155);
     }
 
     /**

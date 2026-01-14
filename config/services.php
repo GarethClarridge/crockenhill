@@ -45,4 +45,8 @@ return [
         'organization' => env('OPENAI_ORGANIZATION'),
     ],
 
+    'google_analytics' => [
+        'measurement_id' => env('GOOGLE_ANALYTICS_ID'),
+    ],
+
 ];

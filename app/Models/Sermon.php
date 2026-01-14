@@ -101,6 +101,7 @@ class Sermon extends Model implements Sitemapable
         'preacher',
         'points', // Stored as JSON string, handled by accessor/mutator potentially
         'summary', // AI-generated sermon summary
+        'meta_description', // SEO meta description (auto-generated if empty)
         'show_summary', // Toggle to show/hide AI-generated summary
         'show_points', // Toggle to show/hide AI-generated points
         'transcript_file_path', // Renamed from 'transcript_path' for consistency
@@ -548,6 +549,39 @@ class Sermon extends Model implements Sitemapable
     public function scopeWithThumbnail(Builder $query): Builder
     {
         return $query->whereNotNull('thumbnail_file_path');
+    }
+
+    /**
+     * Get the SEO meta description for the sermon.
+     * Auto-generates from summary or title if not explicitly set.
+     */
+    public function getMetaDescriptionAttribute(): string
+    {
+        // Return explicitly set meta description if it exists
+        if (!empty($this->attributes['meta_description'])) {
+            return $this->attributes['meta_description'];
+        }
+
+        // Auto-generate from available content
+        $source = $this->summary ?? $this->title;
+        $description = "Listen to '{$this->title}' by {$this->preacher}";
+
+        if ($this->date) {
+            $description .= " preached on {$this->human_date}";
+        }
+
+        if ($this->reference) {
+            $description .= " - {$this->reference}";
+        }
+
+        // Add excerpt from summary if available
+        if ($this->summary) {
+            $excerpt = Str::limit(strip_tags($this->summary), 80);
+            $description .= ". {$excerpt}";
+        }
+
+        // Truncate to 155 characters (SEO best practice)
+        return Str::limit($description, 155);
     }
 
     /**

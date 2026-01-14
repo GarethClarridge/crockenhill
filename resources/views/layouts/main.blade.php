@@ -11,7 +11,15 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="msvalidate.01" content="2EF7ECDA9644EAD5B1B36A960808B8DB" />
 
-  @section('description') {{isset($description) ? $description : '<meta name="description" content="Crockenhill Baptist Church">'}} @endsection
+  {{-- Meta Description --}}
+  @hasSection('meta_description')
+    <meta name="description" content="@yield('meta_description')">
+  @else
+    <meta name="description" content="{{ $metaDescription ?? 'Crockenhill Baptist Church - An independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ.' }}">
+  @endif
+
+  {{-- Canonical URL --}}
+  <link rel="canonical" href="{{ url()->current() }}">
 
   {{-- Additional meta tags for social media sharing --}}
   @yield('meta_tags')
@@ -24,22 +32,17 @@
   <link rel="shortcut icon" href="/favicon.ico?v=GvJNbAA7Wv">
   <meta name="theme-color" content="#16324f">
 
+  {{-- Google Analytics 4 --}}
+  @if(config('services.google_analytics.measurement_id'))
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('services.google_analytics.measurement_id') }}"></script>
   <script>
-    (function(i, s, o, g, r, a, m) {
-      i['GoogleAnalyticsObject'] = r;
-      i[r] = i[r] || function() {
-        (i[r].q = i[r].q || []).push(arguments)
-      }, i[r].l = 1 * new Date();
-      a = s.createElement(o),
-        m = s.getElementsByTagName(o)[0];
-      a.async = 1;
-      a.src = g;
-      m.parentNode.insertBefore(a, m)
-    })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
-
-    ga('create', 'UA-81335303-1', 'auto');
-    ga('send', 'pageview');
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ config('services.google_analytics.measurement_id') }}');
   </script>
+  @endif
 
   @vite(['resources/css/app.scss', 'resources/js/app.js'])
   
