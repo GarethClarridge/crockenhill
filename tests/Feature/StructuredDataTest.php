@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Models\Page;
+use App\Enums\PageArea;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -85,5 +87,71 @@ class StructuredDataTest extends TestCase
         $response->assertSee('"@type": "VideoObject"', false);
         $response->assertSee('"description": "Video meta description"', false);
         $response->assertSee('"uploadDate":', false); // Value check might be separate if needed
+    }
+
+    /** @test */
+    public function sermon_page_contains_breadcrumb_list_schema()
+    {
+        $sermon = Sermon::factory()->create([
+            'title' => 'Breadcrumb Test Sermon',
+            'date' => '2023-12-25',
+        ]);
+
+        $year = $sermon->date->format('Y');
+        $month = $sermon->date->format('m');
+        $url = "/christ/sermons/{$year}/{$month}/{$sermon->slug}";
+
+        $response = $this->get($url);
+
+        $response->assertStatus(200);
+
+        // Check for BreadcrumbList
+        $response->assertSee('"@type": "BreadcrumbList"', false);
+        
+        // Root / Home
+        $response->assertSee('"position": 1', false);
+        $response->assertSee('"name": "Home"', false);
+        
+        // Area (christ)
+        $response->assertSee('"position": 2', false);
+        $response->assertSee('"name": "Christ"', false);
+        
+        // Sermons (level 3)
+        $response->assertSee('"position": 3', false);
+        $response->assertSee('"name": "Sermons"', false);
+        
+        // Last item (usually level 4 for specific sermon)
+        $response->assertSee('"name": "Breadcrumb Test Sermon"', false);
+    }
+
+    /** @test */
+    public function generic_page_contains_breadcrumb_list_schema()
+    {
+        $page = Page::factory()->create([
+            'heading' => 'About Us',
+            'area' => PageArea::CHURCH,
+            'slug' => 'about-us',
+        ]);
+
+        $url = "/church/about-us";
+
+        $response = $this->get($url);
+
+        $response->assertStatus(200);
+
+        // Check for BreadcrumbList
+        $response->assertSee('"@type": "BreadcrumbList"', false);
+        
+        // Root / Home
+        $response->assertSee('"position": 1', false);
+        $response->assertSee('"name": "Home"', false);
+        
+        // Area (church)
+        $response->assertSee('"position": 2', false);
+        $response->assertSee('"name": "Church"', false);
+        
+        // Last item (About Us)
+        $response->assertSee('"position": 3', false);
+        $response->assertSee('"name": "About Us"', false);
     }
 }

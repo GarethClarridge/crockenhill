@@ -1,6 +1,44 @@
 @php
  use Illuminate\Support\Str;
+
+ $breadcrumbItems = [];
+ $breadcrumbItems[] = ['name' => 'Home', 'item' => url('/')];
+
+ if (count(\Request::segments()) >= 2) {
+     $breadcrumbItems[] = ['name' => Str::title($area), 'item' => url($area)];
+
+     if (count(\Request::segments()) >= 3) {
+         if (\Request::segment(2) === 'sermons') {
+             $breadcrumbItems[] = ['name' => 'Sermons', 'item' => url('christ/sermons')];
+             if (count(\Request::segments()) === 4) {
+                 $breadcrumbItems[] = ['name' => Str::title(\Request::segment(3)), 'item' => url('christ/sermons/' . \Request::segment(3))];
+             }
+         } elseif (\Request::segment(2) === 'members') {
+             $breadcrumbItems[] = ['name' => 'Members', 'item' => url('church/members')];
+         }
+     }
+ }
+
+ $breadcrumbItems[] = ['name' => $heading, 'item' => url()->current()];
+
+ $breadcrumbList = [
+     '@context' => 'https://schema.org',
+     '@type' => 'BreadcrumbList',
+     'itemListElement' => array_map(function ($item, $index) {
+         return [
+             '@type' => 'ListItem',
+             'position' => $index + 1,
+             'name' => $item['name'],
+             'item' => $item['item'],
+         ];
+     }, $breadcrumbItems, array_keys($breadcrumbItems)),
+ ];
 @endphp
+
+<script type="application/ld+json">
+    {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
+</script>
+
 
 @props([
     'area',
