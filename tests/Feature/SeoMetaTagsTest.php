@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SeoMetaTagsTest extends TestCase
@@ -15,7 +16,7 @@ class SeoMetaTagsTest extends TestCase
     // Seeding on every test is slow but ensures data isolation
     protected $seed = true;
 
-    /** @test */
+    #[Test]
     public function homepage_has_meta_description(): void
     {
         $response = $this->get('/');
@@ -25,7 +26,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('We are an independent evangelical church in Crockenhill, Kent', false);
     }
 
-    /** @test */
+    #[Test]
     public function homepage_has_canonical_url(): void
     {
         $response = $this->get('/');
@@ -34,7 +35,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('<link rel="canonical"', false);
     }
 
-    /** @test */
+    #[Test]
     public function homepage_has_open_graph_tags(): void
     {
         $response = $this->get('/');
@@ -47,7 +48,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('<meta property="og:image"', false);
     }
 
-    /** @test */
+    #[Test]
     public function homepage_has_twitter_card_tags(): void
     {
         $response = $this->get('/');
@@ -59,7 +60,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('<meta name="twitter:image"', false);
     }
 
-    /** @test */
+    #[Test]
     public function homepage_has_organization_schema(): void
     {
         $response = $this->get('/');
@@ -75,7 +76,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('"telephone": "+44-1322-663995"', false);
     }
 
-    /** @test */
+    #[Test]
     public function christ_page_has_meta_description_and_og_tags(): void
     {
         $response = $this->get('/christ');
@@ -87,7 +88,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('<meta name="twitter:card"', false);
     }
 
-    /** @test */
+    #[Test]
     public function church_page_has_meta_description_and_og_tags(): void
     {
         $response = $this->get('/church');
@@ -99,7 +100,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('<meta name="twitter:card"', false);
     }
 
-    /** @test */
+    #[Test]
     public function community_page_has_meta_description_and_og_tags(): void
     {
         $response = $this->get('/community');
@@ -111,7 +112,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('<meta name="twitter:card"', false);
     }
 
-    /** @test */
+    #[Test]
     public function dynamic_page_has_meta_description(): void
     {
         $page = Page::factory()->create([
@@ -130,7 +131,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('This is a test page description that should appear as the meta description in the HTML head section.', false);
     }
 
-    /** @test */
+    #[Test]
     public function dynamic_page_has_open_graph_tags(): void
     {
         $page = Page::factory()->create([
@@ -150,7 +151,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('<meta property="og:url"', false);
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_has_meta_description(): void
     {
         $sermon = Sermon::factory()->create([
@@ -169,7 +170,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('Test Sermon Title', false);
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_has_open_graph_tags(): void
     {
         $sermon = Sermon::factory()->create([
@@ -189,7 +190,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('<meta property="og:url"', false);
     }
 
-    /** @test */
+    #[Test]
     public function all_pages_have_canonical_url(): void
     {
         $pages = [
@@ -206,7 +207,7 @@ class SeoMetaTagsTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function google_analytics_tag_appears_when_configured(): void
     {
         config(['services.google_analytics.measurement_id' => 'G-TEST123456']);
@@ -218,7 +219,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertSee('gtag(\'config\', \'G-TEST123456\');', false);
     }
 
-    /** @test */
+    #[Test]
     public function google_analytics_tag_does_not_appear_when_not_configured(): void
     {
         config(['services.google_analytics.measurement_id' => null]);
@@ -230,7 +231,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertDontSee('gtag(', false);
     }
 
-    /** @test */
+    #[Test]
     public function meta_descriptions_are_within_155_character_limit(): void
     {
         // Create a page with a very long description

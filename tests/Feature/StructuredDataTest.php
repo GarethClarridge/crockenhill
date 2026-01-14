@@ -6,13 +6,14 @@ use App\Models\Sermon;
 use App\Models\Page;
 use App\Enums\PageArea;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class StructuredDataTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function sermon_page_contains_json_ld_article_schema()
     {
         $sermon = Sermon::factory()->create([
@@ -47,7 +48,7 @@ class StructuredDataTest extends TestCase
         $response->assertSee('"datePublished": "2023-10-22T00:00:00+00:00"', false); 
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_contains_audio_object_schema_when_audio_present()
     {
         $sermon = Sermon::factory()->create([
@@ -67,7 +68,7 @@ class StructuredDataTest extends TestCase
         $response->assertSee('"description": "Audio meta description"', false);
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_contains_video_object_schema_when_video_present()
     {
         $sermon = Sermon::factory()->create([
@@ -89,7 +90,7 @@ class StructuredDataTest extends TestCase
         $response->assertSee('"uploadDate":', false); // Value check might be separate if needed
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_contains_breadcrumb_list_schema()
     {
         $sermon = Sermon::factory()->create([
@@ -124,7 +125,7 @@ class StructuredDataTest extends TestCase
         $response->assertSee('"name": "Breadcrumb Test Sermon"', false);
     }
 
-    /** @test */
+    #[Test]
     public function generic_page_contains_breadcrumb_list_schema()
     {
         $page = Page::factory()->create([

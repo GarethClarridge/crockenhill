@@ -6,6 +6,7 @@ use App\Models\Sermon;
 use App\Services\ThumbnailGenerationService;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ThumbnailGenerationPerformanceTest extends TestCase
@@ -33,7 +34,7 @@ class ThumbnailGenerationPerformanceTest extends TestCase
         $this->service = new ThumbnailGenerationService($videoService);
     }
 
-    /** @test */
+    #[Test]
     public function thumbnail_generation_completes_within_reasonable_time()
     {
         // Skip if not in performance testing environment
@@ -67,7 +68,7 @@ class ThumbnailGenerationPerformanceTest extends TestCase
         unlink($tempFile);
     }
 
-    /** @test */
+    #[Test]
     public function text_wrapping_performance_with_long_titles()
     {
         $reflection = new \ReflectionClass($this->service);
@@ -93,7 +94,7 @@ class ThumbnailGenerationPerformanceTest extends TestCase
         $this->assertStringContainsString("\n", $wrappedText);
     }
 
-    /** @test */
+    #[Test]
     public function responsive_calculations_performance()
     {
         $reflection = new \ReflectionClass($this->service);
@@ -121,7 +122,7 @@ class ThumbnailGenerationPerformanceTest extends TestCase
             "Average responsive calculation took {$avgTime} seconds, which is too slow");
     }
 
-    /** @test */
+    #[Test]
     public function color_conversion_performance()
     {
         $reflection = new \ReflectionClass($this->service);
@@ -149,7 +150,7 @@ class ThumbnailGenerationPerformanceTest extends TestCase
             "Average color conversion took {$avgTime} seconds, which is too slow");
     }
 
-    /** @test */
+    #[Test]
     public function memory_usage_stays_reasonable_during_processing()
     {
         // Skip if not in performance testing environment
@@ -182,7 +183,7 @@ class ThumbnailGenerationPerformanceTest extends TestCase
         unlink($tempFile);
     }
 
-    /** @test */
+    #[Test]
     public function concurrent_thumbnail_generation_performance()
     {
         // Skip if not in performance testing environment
@@ -226,7 +227,7 @@ class ThumbnailGenerationPerformanceTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function brand_position_calculation_performance()
     {
         $reflection = new \ReflectionClass($this->service);

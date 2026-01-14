@@ -14,8 +14,8 @@ class SermonTest extends TestCase
 {
     use DatabaseTransactions;
 
-    #[Test] // Replaced @test
-    public function test_sermon_relationships()
+    #[Test]
+    public function sermon_relationships()
     {
         // $serviceModel = \App\Models\Service::factory()->create(); // Not a direct relationship anymore
         $sermon = \App\Models\Sermon::factory()->create([
@@ -36,8 +36,8 @@ class SermonTest extends TestCase
         // $this->assertTrue($sermon->playDates->contains($playDate2));
     }
 
-    #[Test] // Replaced @test
-    public function test_sermon_accessors()
+    #[Test]
+    public function sermon_accessors()
     {
         $date = Carbon::create(2023, 1, 15, 10, 0, 0);
         $testFilename = 'sermons/audio.mp3';
@@ -68,8 +68,8 @@ class SermonTest extends TestCase
         // If the accessor is not yet implemented, this test will guide its creation.
     }
 
-    #[Test] // Replaced @test
-    public function test_sermon_mutators_and_casts()
+    #[Test]
+    public function sermon_mutators_and_casts()
     {
         // Test 'points' attribute casting to array when explicitly set with valid JSON
         $pointsArray = ['Point 1: Introduction', 'Point 2: Main Body', 'Point 3: Conclusion'];
@@ -98,8 +98,8 @@ class SermonTest extends TestCase
         );
     }
 
-    #[Test] // Replaced @test
-    public function test_sermon_scopes()
+    #[Test]
+    public function sermon_scopes()
     {
         // Test last12Months scope
         $withinLast12Months = \App\Models\Sermon::factory()->withDate(Carbon::now()->subMonths(6))->create();

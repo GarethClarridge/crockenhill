@@ -8,6 +8,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonCreationServiceTest extends TestCase
@@ -22,7 +23,7 @@ class SermonCreationServiceTest extends TestCase
         $this->service = new SermonCreationService;
     }
 
-    /** @test */
+    #[Test]
     public function it_extracts_date_from_processing_metadata(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -37,7 +38,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('2024-03-15', $date);
     }
 
-    /** @test */
+    #[Test]
     public function it_extracts_date_from_filename_when_no_metadata(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -49,7 +50,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('2024-03-15', $date);
     }
 
-    /** @test */
+    #[Test]
     public function it_extracts_date_from_filename_with_yyyy_mm_dd_format(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -61,7 +62,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('2024-12-25', $date);
     }
 
-    /** @test */
+    #[Test]
     public function it_extracts_date_from_filename_with_dd_mm_yyyy_format(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -73,7 +74,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('2024-12-25', $date);
     }
 
-    /** @test */
+    #[Test]
     public function it_extracts_date_from_filename_with_underscores(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -85,7 +86,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('2024-03-15', $date);
     }
 
-    /** @test */
+    #[Test]
     public function it_falls_back_to_current_date_when_no_date_found(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -97,7 +98,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals(now()->format('Y-m-d'), $date);
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_evening_service_from_filename(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -111,7 +112,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('evening', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_morning_service_from_filename(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -125,7 +126,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('morning', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_pm_service_from_filename(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -139,7 +140,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('evening', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_am_service_from_filename(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -153,7 +154,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('morning', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_evening_service_from_time_in_filename(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -177,7 +178,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('evening', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_morning_service_from_time_in_filename(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -201,7 +202,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('morning', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_does_not_confuse_dates_with_times(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -216,7 +217,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('morning', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_prioritizes_explicit_markers_over_time(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -236,7 +237,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('evening', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_defaults_to_morning_service_when_not_specified(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -247,7 +248,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('morning', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_extracted_service_from_metadata(): void
     {
         // Test that metadata takes precedence over filename
@@ -263,7 +264,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('evening', $service);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_unique_slug(): void
     {
         $slug = $this->service->generateUniqueSlug('Test Sermon Title');
@@ -271,7 +272,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('test-sermon-title', $slug);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_unique_slug_with_counter_when_duplicate_exists(): void
     {
         // Create existing sermon with slug
@@ -282,7 +283,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('test-sermon-1', $slug);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_unique_slug_with_incrementing_counter(): void
     {
         // Create existing sermons with slugs
@@ -295,7 +296,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('test-sermon-3', $slug);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_title_from_ai_analysis(): void
     {
         $title = $this->service->generateTitle(
@@ -309,7 +310,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('The Grace of God', $title);
     }
 
-    /** @test */
+    #[Test]
     public function it_falls_back_to_filename_when_no_ai_title(): void
     {
         $log = MediaProcessingLog::factory()->create();
@@ -326,7 +327,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertStringContainsString('Faith And Works', $title);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_title_from_filename_only(): void
     {
         $log = MediaProcessingLog::factory()->create();
@@ -342,7 +343,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertStringContainsString('The Power Of Prayer', $title);
     }
 
-    /** @test */
+    #[Test]
     public function it_cleans_filename_when_generating_title(): void
     {
         $log = MediaProcessingLog::factory()->create();
@@ -362,7 +363,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertStringNotContainsString('message', strtolower($title));
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_default_title_when_filename_is_too_short(): void
     {
         $log = MediaProcessingLog::factory()->create();
@@ -379,7 +380,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertStringContainsString('Morning Sermon', $title);
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_custom_title_when_strategy_is_custom(): void
     {
         $title = $this->service->generateTitle(
@@ -393,7 +394,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('My Custom Sermon Title', $title);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_sermon_from_audio_upload_options(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -425,7 +426,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertNotNull($sermon->points);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_sermon_from_video_upload_options(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -451,7 +452,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('video_upload', $sermon->source_type);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_sermon_from_livestream_options(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -479,7 +480,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('morning', $sermon->service->value);
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_preacher_override_when_provided(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -499,7 +500,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('John Smith', $sermon->preacher);
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_default_preacher_when_not_provided(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -518,7 +519,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('Mark Drury', $sermon->preacher);
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_date_override_when_provided(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -538,7 +539,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('2024-12-25', $sermon->date->format('Y-m-d'));
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_service_override_when_provided(): void
     {
         $log = MediaProcessingLog::factory()->create([
@@ -558,7 +559,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('evening', $sermon->service->value);
     }
 
-    /** @test */
+    #[Test]
     public function it_limits_ai_title_to_100_characters(): void
     {
         $longTitle = str_repeat('Very Long Title ', 20); // Creates a very long title

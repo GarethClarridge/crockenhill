@@ -8,13 +8,14 @@ use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Sitemap\Tags\Url;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SitemapableTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function sermon_implements_sitemapable_interface(): void
     {
         $sermon = new Sermon;
@@ -26,7 +27,7 @@ class SitemapableTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function page_implements_sitemapable_interface(): void
     {
         $page = new Page;
@@ -38,7 +39,7 @@ class SitemapableTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function meeting_implements_sitemapable_interface(): void
     {
         $meeting = new Meeting;
@@ -50,7 +51,7 @@ class SitemapableTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function sermon_to_sitemap_tag_returns_url_object(): void
     {
         $sermon = Sermon::factory()->create([
@@ -63,7 +64,7 @@ class SitemapableTest extends TestCase
         $this->assertInstanceOf(Url::class, $tag);
     }
 
-    /** @test */
+    #[Test]
     public function sermon_sitemap_tag_uses_date_based_url_format(): void
     {
         $sermon = Sermon::factory()->create([
@@ -79,7 +80,7 @@ class SitemapableTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function recent_sermon_has_high_priority(): void
     {
         $sermon = Sermon::factory()->create([
@@ -92,7 +93,7 @@ class SitemapableTest extends TestCase
         $this->assertEquals(0.8, $tag->priority);
     }
 
-    /** @test */
+    #[Test]
     public function old_sermon_has_lower_priority(): void
     {
         $sermon = Sermon::factory()->create([
@@ -105,7 +106,7 @@ class SitemapableTest extends TestCase
         $this->assertEquals(0.6, $tag->priority);
     }
 
-    /** @test */
+    #[Test]
     public function recent_sermon_has_monthly_change_frequency(): void
     {
         $sermon = Sermon::factory()->create([
@@ -118,7 +119,7 @@ class SitemapableTest extends TestCase
         $this->assertEquals('monthly', $tag->changeFrequency);
     }
 
-    /** @test */
+    #[Test]
     public function old_sermon_has_yearly_change_frequency(): void
     {
         $sermon = Sermon::factory()->create([
@@ -131,7 +132,7 @@ class SitemapableTest extends TestCase
         $this->assertEquals('yearly', $tag->changeFrequency);
     }
 
-    /** @test */
+    #[Test]
     public function sermon_sitemap_tag_includes_last_modification_date(): void
     {
         $sermon = Sermon::factory()->create([
@@ -144,7 +145,7 @@ class SitemapableTest extends TestCase
         $this->assertNotNull($tag->lastModificationDate);
     }
 
-    /** @test */
+    #[Test]
     public function page_to_sitemap_tag_returns_url_object(): void
     {
         $page = Page::factory()->create([
@@ -157,7 +158,7 @@ class SitemapableTest extends TestCase
         $this->assertInstanceOf(Url::class, $tag);
     }
 
-    /** @test */
+    #[Test]
     public function page_sitemap_tag_uses_route_attribute(): void
     {
         $page = Page::factory()->create([
@@ -170,7 +171,7 @@ class SitemapableTest extends TestCase
         $this->assertStringContainsString('/church/about-us', $tag->url);
     }
 
-    /** @test */
+    #[Test]
     public function page_has_correct_priority(): void
     {
         $page = Page::factory()->create([
@@ -183,7 +184,7 @@ class SitemapableTest extends TestCase
         $this->assertEquals(0.7, $tag->priority);
     }
 
-    /** @test */
+    #[Test]
     public function page_has_monthly_change_frequency(): void
     {
         $page = Page::factory()->create([
@@ -196,7 +197,7 @@ class SitemapableTest extends TestCase
         $this->assertEquals('monthly', $tag->changeFrequency);
     }
 
-    /** @test */
+    #[Test]
     public function page_sitemap_tag_handles_null_updated_at(): void
     {
         $page = Page::factory()->create([
@@ -217,7 +218,7 @@ class SitemapableTest extends TestCase
         $this->assertInstanceOf(Url::class, $tag);
     }
 
-    /** @test */
+    #[Test]
     public function meeting_to_sitemap_tag_returns_url_object(): void
     {
         $meeting = Meeting::factory()->create([
@@ -229,7 +230,7 @@ class SitemapableTest extends TestCase
         $this->assertInstanceOf(Url::class, $tag);
     }
 
-    /** @test */
+    #[Test]
     public function meeting_sitemap_tag_uses_community_url_format(): void
     {
         $meeting = Meeting::factory()->create([
@@ -241,7 +242,7 @@ class SitemapableTest extends TestCase
         $this->assertStringContainsString('/community/bible-study', $tag->url);
     }
 
-    /** @test */
+    #[Test]
     public function meeting_has_correct_priority(): void
     {
         $meeting = Meeting::factory()->create([
@@ -253,7 +254,7 @@ class SitemapableTest extends TestCase
         $this->assertEquals(0.6, $tag->priority);
     }
 
-    /** @test */
+    #[Test]
     public function meeting_has_monthly_change_frequency(): void
     {
         $meeting = Meeting::factory()->create([
@@ -265,7 +266,7 @@ class SitemapableTest extends TestCase
         $this->assertEquals('monthly', $tag->changeFrequency);
     }
 
-    /** @test */
+    #[Test]
     public function meeting_sitemap_tag_handles_null_updated_at(): void
     {
         $meeting = Meeting::factory()->create([

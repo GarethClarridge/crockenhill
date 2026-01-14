@@ -11,6 +11,7 @@ use App\Services\VisualAnalysisService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class VisualGuidedSegmentationIntegrationTest extends TestCase
@@ -29,7 +30,7 @@ class VisualGuidedSegmentationIntegrationTest extends TestCase
         Config::set('media-processing.segmentation.min_sermon_duration', 300);
     }
 
-    /** @test */
+    #[Test]
     public function it_performs_end_to_end_visual_guided_segmentation(): void
     {
         // Create a realistic scenario: 1 hour livestream with 2 songs and sermon
@@ -200,7 +201,7 @@ class VisualGuidedSegmentationIntegrationTest extends TestCase
         $this->assertEquals('segmenting', $processingLog->current_step);
     }
 
-    /** @test */
+    #[Test]
     public function it_gracefully_degrades_to_rms_only_when_visual_fails(): void
     {
         $processingLog = MediaProcessingLog::factory()->create([

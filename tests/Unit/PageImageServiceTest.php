@@ -27,7 +27,7 @@ class PageImageServiceTest extends TestCase
         parent::tearDown();
     }
 
-    #[Test] // Replaced @test
+    #[Test]
     public function handle_image_upload_processes_and_saves_images_correctly()
     {
         // 1. Setup: Mock dependencies
@@ -61,7 +61,7 @@ class PageImageServiceTest extends TestCase
         // but assertExists checks that files were created by the put operations.
     }
 
-    #[Test] // Replaced @test
+    #[Test]
     public function delete_images_removes_images_from_storage()
     {
         // 1. Setup: Mock dependencies and create dummy files

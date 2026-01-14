@@ -12,8 +12,8 @@ class MeetingTest extends TestCase
 {
     use DatabaseTransactions;
 
-    #[Test] // Replaced @test
-    public function test_meeting_relationships()
+    #[Test]
+    public function meeting_relationships()
     {
         // No relationships are defined on the Meeting model yet.
         // This test serves as a placeholder.
@@ -25,8 +25,8 @@ class MeetingTest extends TestCase
         $this->assertTrue(true); // Basic assertion
     }
 
-    #[Test] // Replaced @test
-    public function test_meeting_accessors()
+    #[Test]
+    public function meeting_accessors()
     {
         // Test getFormattedDateTimeAttribute
         $date = Carbon::create(2023, 1, 15, 10, 30, 0);
@@ -44,8 +44,8 @@ class MeetingTest extends TestCase
         $this->assertNull($meetingWithoutAddress->location);
     }
 
-    #[Test] // Replaced @test
-    public function test_meeting_mutators_and_casts()
+    #[Test]
+    public function meeting_mutators_and_casts()
     {
         // Test meeting_date casting to Carbon instance
         $meetingWithDate = \App\Models\Meeting::factory()->onDate(Carbon::now())->create();
@@ -68,8 +68,8 @@ class MeetingTest extends TestCase
         $this->assertNull($meetingWithoutFrequency->frequency);
     }
 
-    #[Test] // Replaced @test
-    public function test_meeting_scopes()
+    #[Test]
+    public function meeting_scopes()
     {
         // Test isRecurring() scope
         $recurringMeeting = \App\Models\Meeting::factory()->recurring()->create();
@@ -107,8 +107,8 @@ class MeetingTest extends TestCase
         // }
     }
 
-    #[Test] // Replaced @test
-    public function test_custom_meeting_methods()
+    #[Test]
+    public function custom_meeting_methods()
     {
         // Test getNextOccurrence() method for a weekly recurring meeting
         $today = Carbon::now();

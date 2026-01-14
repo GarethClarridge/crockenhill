@@ -12,15 +12,15 @@ class PageTest extends TestCase
 {
     use DatabaseTransactions;
 
-    #[Test] // Replaced @test
-    public function test_page_relationships()
+    #[Test]
+    public function page_relationships()
     {
         // Implementation will follow - likely empty or for future relationships
         $this->assertTrue(true); // Placeholder if no relationships to test initially
     }
 
-    #[Test] // Replaced @test
-    public function test_page_accessors()
+    #[Test]
+    public function page_accessors()
     {
         // Test getRouteAttribute
         $page1 = \App\Models\Page::factory()->create([
@@ -44,8 +44,8 @@ class PageTest extends TestCase
         // This will depend on the actual accessor logic in the Page model.
     }
 
-    #[Test] // Replaced @test
-    public function test_page_mutators_and_casts()
+    #[Test]
+    public function page_mutators_and_casts()
     {
         // Test 'navigation' attribute casting to boolean
         $pageNavTrue = \App\Models\Page::factory()->create(['navigation' => 1]);
@@ -66,8 +66,8 @@ class PageTest extends TestCase
         $this->assertIsBool($pageFromFactory->navigation);
     }
 
-    #[Test] // Replaced @test
-    public function test_page_scopes()
+    #[Test]
+    public function page_scopes()
     {
         \App\Models\Page::query()->delete(); // Clear pages before this test
 
@@ -102,7 +102,7 @@ class PageTest extends TestCase
     }
 
     #[Test]
-    public function test_page_controller_show_method_handles_route_parameters_correctly()
+    public function page_controller_show_method_handles_route_parameters_correctly()
     {
         // This test specifically ensures that the PageController show method
         // can handle string parameters without throwing type errors
@@ -128,7 +128,7 @@ class PageTest extends TestCase
     }
 
     #[Test]
-    public function test_page_controller_show_method_returns_correct_data_structure()
+    public function page_controller_show_method_returns_correct_data_structure()
     {
         // Test that the show method returns the expected data structure
         $page = \App\Models\Page::factory()->create([
@@ -172,7 +172,7 @@ This is about us.';
     }
 
     #[Test]
-    public function test_page_controller_show_method_handles_missing_pages_gracefully()
+    public function page_controller_show_method_handles_missing_pages_gracefully()
     {
         // Test that the show method handles missing pages correctly
         $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
@@ -183,12 +183,4 @@ This is about us.';
             ->firstOrFail();
     }
 
-    // Placeholder for custom methods test if any are identified
-    // /**
-    //  * @test
-    //  */
-    // public function testCustomPageMethods()
-    // {
-    //     // Implementation will follow
-    // }
 }

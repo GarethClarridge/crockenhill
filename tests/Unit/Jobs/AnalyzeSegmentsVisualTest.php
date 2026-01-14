@@ -10,13 +10,14 @@ use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AnalyzeSegmentsVisualTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_uses_visual_guidance_when_clusters_available(): void
     {
         Storage::fake('local');
@@ -92,7 +93,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->assertEquals('per_song_visual', $songSegment->metadata['calibration_method']);
     }
 
-    /** @test */
+    #[Test]
     public function it_falls_back_to_rms_only_when_no_visual_clusters(): void
     {
         Storage::fake('local');
@@ -137,7 +138,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->assertGreaterThan(0, $segments->count());
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_speech_segments_between_songs(): void
     {
         Storage::fake('local');
@@ -220,7 +221,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->assertGreaterThan(0, $speechSegments->count());
     }
 
-    /** @test */
+    #[Test]
     public function it_identifies_sermon_candidate_from_visual_segments(): void
     {
         Storage::fake('local');
@@ -276,7 +277,7 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $this->assertGreaterThanOrEqual(105.0, $processingLog->sermon_start_time);
     }
 
-    /** @test */
+    #[Test]
     public function it_stores_visual_metadata_in_segments(): void
     {
         Storage::fake('local');

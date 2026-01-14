@@ -19,7 +19,7 @@ class UpdateSermonRequestTest extends TestCase
     }
 
     #[Test]
-    public function test_authorize_allows_user_with_update_permission()
+    public function authorize_allows_user_with_update_permission()
     {
         // Mock a sermon object
         $sermon = \Mockery::mock(\App\Models\Sermon::class);
@@ -40,7 +40,7 @@ class UpdateSermonRequestTest extends TestCase
     }
 
     #[Test]
-    public function test_authorize_denies_user_without_update_permission()
+    public function authorize_denies_user_without_update_permission()
     {
         // Mock a sermon object
         $sermon = \Mockery::mock(\App\Models\Sermon::class);
@@ -60,9 +60,9 @@ class UpdateSermonRequestTest extends TestCase
         $this->assertFalse($request->authorize());
     }
 
-    #[Test] // Added Test
-    #[DataProvider('validationDataProvider')] // Replaced @dataProvider
-    public function test_validation_rules(array $data, bool $shouldPass, array $expectedErrors = [])
+    #[Test]
+    #[DataProvider('validationDataProvider')]
+    public function validation_rules(array $data, bool $shouldPass, array $expectedErrors = [])
     {
         // For UpdateSermonRequest, route parameters might be needed for the request object
         // if rules depend on them (e.g., ignore unique rule for current model).

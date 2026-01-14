@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ProcessingLogsViewerTest extends TestCase
@@ -52,7 +53,8 @@ class ProcessingLogsViewerTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_component_renders_with_processing_id(): void
+    #[Test]
+    public function component_renders_with_processing_id(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -77,7 +79,8 @@ class ProcessingLogsViewerTest extends TestCase
             ->assertSet('expanded', false);
     }
 
-    public function test_component_fetches_logs_on_mount(): void
+    #[Test]
+    public function component_fetches_logs_on_mount(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -110,7 +113,8 @@ class ProcessingLogsViewerTest extends TestCase
         $this->assertEquals('API timeout', $logs[0]['error_message']);
     }
 
-    public function test_component_can_toggle_expanded_state(): void
+    #[Test]
+    public function component_can_toggle_expanded_state(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -134,7 +138,8 @@ class ProcessingLogsViewerTest extends TestCase
             ->assertSet('expanded', false);
     }
 
-    public function test_component_can_toggle_auto_refresh(): void
+    #[Test]
+    public function component_can_toggle_auto_refresh(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -158,7 +163,8 @@ class ProcessingLogsViewerTest extends TestCase
             ->assertSet('autoRefresh', false);
     }
 
-    public function test_component_can_refresh_logs_manually(): void
+    #[Test]
+    public function component_can_refresh_logs_manually(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -192,7 +198,8 @@ class ProcessingLogsViewerTest extends TestCase
             ->assertCount('logs', 2);
     }
 
-    public function test_component_can_update_log_limit(): void
+    #[Test]
+    public function component_can_update_log_limit(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -225,7 +232,8 @@ class ProcessingLogsViewerTest extends TestCase
             ->assertCount('logs', 5);
     }
 
-    public function test_component_validates_log_limit(): void
+    #[Test]
+    public function component_validates_log_limit(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -257,7 +265,8 @@ class ProcessingLogsViewerTest extends TestCase
             ->assertHasNoErrors();
     }
 
-    public function test_component_filters_logs_by_level(): void
+    #[Test]
+    public function component_filters_logs_by_level(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -308,7 +317,8 @@ class ProcessingLogsViewerTest extends TestCase
         $this->assertCount(3, $filteredLogs);
     }
 
-    public function test_component_filters_logs_by_step(): void
+    #[Test]
+    public function component_filters_logs_by_step(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -362,7 +372,8 @@ class ProcessingLogsViewerTest extends TestCase
         $this->assertEquals('transcription', $filteredLogs->first()['step']);
     }
 
-    public function test_component_computes_processing_time_correctly(): void
+    #[Test]
+    public function component_computes_processing_time_correctly(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -397,7 +408,8 @@ class ProcessingLogsViewerTest extends TestCase
         $this->assertEquals('N/A', $component->get('processingTime'));
     }
 
-    public function test_component_computes_memory_peak_correctly(): void
+    #[Test]
+    public function component_computes_memory_peak_correctly(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -425,7 +437,8 @@ class ProcessingLogsViewerTest extends TestCase
         $this->assertEquals('N/A', $component->get('memoryPeak'));
     }
 
-    public function test_component_computes_status_color_correctly(): void
+    #[Test]
+    public function component_computes_status_color_correctly(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -458,7 +471,8 @@ class ProcessingLogsViewerTest extends TestCase
         $this->assertEquals('gray', $component->get('statusColor'));
     }
 
-    public function test_component_handles_missing_processing_id_gracefully(): void
+    #[Test]
+    public function component_handles_missing_processing_id_gracefully(): void
     {
         $nonExistentId = Str::uuid()->toString();
 
@@ -474,7 +488,8 @@ class ProcessingLogsViewerTest extends TestCase
             ->assertCount('statusData', 0);
     }
 
-    public function test_component_displays_no_logs_message_when_empty(): void
+    #[Test]
+    public function component_displays_no_logs_message_when_empty(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -494,7 +509,8 @@ class ProcessingLogsViewerTest extends TestCase
         $component->assertSee('No processing logs available');
     }
 
-    public function test_component_respects_custom_initialization_parameters(): void
+    #[Test]
+    public function component_respects_custom_initialization_parameters(): void
     {
         $processingId = Str::uuid()->toString();
 

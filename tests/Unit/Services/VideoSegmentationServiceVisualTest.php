@@ -5,6 +5,7 @@ namespace Tests\Unit\Services;
 use App\Data\LivestreamSegment;
 use App\Services\VideoSegmentationService;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class VideoSegmentationServiceVisualTest extends TestCase
@@ -19,7 +20,7 @@ class VideoSegmentationServiceVisualTest extends TestCase
         $this->service = new VideoSegmentationService;
     }
 
-    /** @test */
+    #[Test]
     public function it_calibrates_per_song_threshold_from_visual_cluster(): void
     {
         // Create mock RMS log with varying levels
@@ -59,7 +60,7 @@ class VideoSegmentationServiceVisualTest extends TestCase
         $this->assertLessThan($result['song_avg_rms'], $result['threshold']);
     }
 
-    /** @test */
+    #[Test]
     public function it_applies_safety_bounds_to_calibrated_threshold(): void
     {
         // Create extreme RMS values
@@ -84,7 +85,7 @@ class VideoSegmentationServiceVisualTest extends TestCase
         $this->assertLessThanOrEqual(-20.0, $result['threshold']);
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_boundaries_for_visual_cluster(): void
     {
         // Create RMS log with clear song boundaries
@@ -124,7 +125,7 @@ class VideoSegmentationServiceVisualTest extends TestCase
         $this->assertLessThanOrEqual(65.0, $segment->endTime);
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_min_max_approach_for_boundaries(): void
     {
         $rmsLog = $this->createMockRmsLog([
@@ -155,7 +156,7 @@ class VideoSegmentationServiceVisualTest extends TestCase
         $this->assertGreaterThanOrEqual(75.0, $segment->endTime);
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_calibration_metadata_in_segment(): void
     {
         $rmsLog = $this->createMockRmsLog([
@@ -195,7 +196,7 @@ class VideoSegmentationServiceVisualTest extends TestCase
         $this->assertContains($segment->metadata['boundary_method'], ['visual_only', 'visual_rms_union']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_missing_rms_data_gracefully(): void
     {
         $rmsLog = $this->createMockRmsLog([
@@ -220,7 +221,7 @@ class VideoSegmentationServiceVisualTest extends TestCase
         $this->assertEquals(60.0, $segment->endTime);
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_segment_rms_correctly(): void
     {
         $rmsLog = $this->createMockRmsLog([

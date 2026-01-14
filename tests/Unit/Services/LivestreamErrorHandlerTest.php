@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 use Mockery;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class LivestreamErrorHandlerTest extends TestCase
@@ -30,7 +31,8 @@ class LivestreamErrorHandlerTest extends TestCase
         Config::set('media-processing.admin_email', 'admin@test.com');
     }
 
-    public function test_handle_processing_failure()
+    #[Test]
+    public function handle_processing_failure()
     {
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
@@ -56,7 +58,8 @@ class LivestreamErrorHandlerTest extends TestCase
         });
     }
 
-    public function test_handle_partial_failure()
+    #[Test]
+    public function handle_partial_failure()
     {
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
@@ -78,7 +81,8 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertEquals($message, $processing->error_message);
     }
 
-    public function test_should_retry_with_retryable_exception()
+    #[Test]
+    public function should_retry_with_retryable_exception()
     {
         $process = new \Symfony\Component\Process\Process(['echo', 'test']);
         $retryableException = new \Symfony\Component\Process\Exception\ProcessTimedOutException($process, \Symfony\Component\Process\Exception\ProcessTimedOutException::TYPE_GENERAL);
@@ -88,21 +92,24 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertFalse($this->errorHandler->shouldRetry($retryableException, 3)); // Max retries reached
     }
 
-    public function test_should_retry_with_non_retryable_exception()
+    #[Test]
+    public function should_retry_with_non_retryable_exception()
     {
         $nonRetryableException = new \InvalidArgumentException('Invalid file format');
 
         $this->assertFalse($this->errorHandler->shouldRetry($nonRetryableException, 1));
     }
 
-    public function test_should_retry_with_retryable_message()
+    #[Test]
+    public function should_retry_with_retryable_message()
     {
         $exception = new \Exception('Connection timed out while processing');
 
         $this->assertTrue($this->errorHandler->shouldRetry($exception, 1));
     }
 
-    public function test_get_retry_delay()
+    #[Test]
+    public function get_retry_delay()
     {
         Config::set('media-processing.retry_base_delay', 60);
         Config::set('media-processing.retry_max_delay', 3600);
@@ -113,7 +120,8 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertEquals(3600, $this->errorHandler->getRetryDelay(10)); // Capped at max_delay
     }
 
-    public function test_handle_segmentation_failure()
+    #[Test]
+    public function handle_segmentation_failure()
     {
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
@@ -143,7 +151,8 @@ class LivestreamErrorHandlerTest extends TestCase
         });
     }
 
-    public function test_handle_video_extraction_failure()
+    #[Test]
+    public function handle_video_extraction_failure()
     {
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
@@ -162,7 +171,8 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertStringContainsString('Video extraction failed', $processing->error_message);
     }
 
-    public function test_handle_storage_error_disk_space()
+    #[Test]
+    public function handle_storage_error_disk_space()
     {
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
@@ -186,7 +196,8 @@ class LivestreamErrorHandlerTest extends TestCase
         Mail::assertQueued(\App\Mail\DiskSpaceWarning::class);
     }
 
-    public function test_handle_storage_error_permission()
+    #[Test]
+    public function handle_storage_error_permission()
     {
         $processing = MediaProcessingLog::factory()->create([
             'processing_id' => 'test-processing-id',
@@ -214,7 +225,8 @@ class LivestreamErrorHandlerTest extends TestCase
         });
     }
 
-    public function test_validate_file_format_valid_file()
+    #[Test]
+    public function validate_file_format_valid_file()
     {
         Config::set('media-processing.supported_formats', ['mp4', 'mov', 'avi', 'mkv']);
         Config::set('media-processing.max_file_size', 1000);
@@ -230,7 +242,8 @@ class LivestreamErrorHandlerTest extends TestCase
         unlink($tempFile);
     }
 
-    public function test_validate_file_format_invalid_format()
+    #[Test]
+    public function validate_file_format_invalid_format()
     {
         Config::set('media-processing.supported_formats', ['mp4', 'mov']);
 
@@ -240,7 +253,8 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertStringContainsString('Unsupported file format: wmv', $errors[0]);
     }
 
-    public function test_validate_file_format_file_too_large()
+    #[Test]
+    public function validate_file_format_file_too_large()
     {
         Config::set('media-processing.types.livestream.max_file_size', 100);
 
@@ -255,7 +269,8 @@ class LivestreamErrorHandlerTest extends TestCase
         unlink($tempFile);
     }
 
-    public function test_check_system_requirements()
+    #[Test]
+    public function check_system_requirements()
     {
         Config::set('media-processing.ffmpeg_path', '/nonexistent/ffmpeg');
         Config::set('media-processing.ffprobe_path', '/nonexistent/ffprobe');
@@ -286,7 +301,8 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertTrue($foundValidError, 'Expected a valid system requirement error, got: '.implode(', ', $errors));
     }
 
-    public function test_graceful_degradation()
+    #[Test]
+    public function graceful_degradation()
     {
         $fallbackCalled = false;
         $fallbackAction = function () use (&$fallbackCalled) {
@@ -306,7 +322,8 @@ class LivestreamErrorHandlerTest extends TestCase
         $this->assertTrue($fallbackCalled);
     }
 
-    public function test_graceful_degradation_with_failing_fallback()
+    #[Test]
+    public function graceful_degradation_with_failing_fallback()
     {
         $fallbackAction = function () {
             throw new \Exception('Fallback failed');

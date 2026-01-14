@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ProcessingLogsApiTest extends TestCase
@@ -58,7 +59,8 @@ class ProcessingLogsApiTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_processing_status_includes_logs_when_requested(): void
+    #[Test]
+    public function processing_status_includes_logs_when_requested(): void
     {
         // Quick check if logs feature is supported
         $testResponse = $this->actingAs($this->user)
@@ -154,7 +156,8 @@ class ProcessingLogsApiTest extends TestCase
         $this->assertEquals('API timeout', $transcriptionError['error_message']);
     }
 
-    public function test_processing_status_respects_log_limit_parameter(): void
+    #[Test]
+    public function processing_status_respects_log_limit_parameter(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -210,7 +213,8 @@ class ProcessingLogsApiTest extends TestCase
         }
     }
 
-    public function test_livestream_processing_status_includes_logs(): void
+    #[Test]
+    public function livestream_processing_status_includes_logs(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -252,7 +256,8 @@ class ProcessingLogsApiTest extends TestCase
         $this->assertCount(2, $data['recent_logs']['entries']);
     }
 
-    public function test_processing_status_returns_404_for_nonexistent_processing_id(): void
+    #[Test]
+    public function processing_status_returns_404_for_nonexistent_processing_id(): void
     {
         $nonexistentId = Str::uuid()->toString();
 
@@ -265,7 +270,8 @@ class ProcessingLogsApiTest extends TestCase
             ]);
     }
 
-    public function test_processing_status_validates_processing_id_format(): void
+    #[Test]
+    public function processing_status_validates_processing_id_format(): void
     {
         $invalidId = 'invalid-id-format';
 
@@ -277,7 +283,8 @@ class ProcessingLogsApiTest extends TestCase
         $this->assertContains($response->status(), [400, 404]);
     }
 
-    public function test_processing_status_handles_empty_log_files_gracefully(): void
+    #[Test]
+    public function processing_status_handles_empty_log_files_gracefully(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -302,7 +309,8 @@ class ProcessingLogsApiTest extends TestCase
         $this->assertEquals(0, $data['recent_logs']['total_count']);
     }
 
-    public function test_processing_status_includes_performance_metrics(): void
+    #[Test]
+    public function processing_status_includes_performance_metrics(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -337,7 +345,8 @@ class ProcessingLogsApiTest extends TestCase
         $this->assertEquals(1, $metrics['warning_count']);
     }
 
-    public function test_processing_status_filters_logs_by_processing_id(): void
+    #[Test]
+    public function processing_status_filters_logs_by_processing_id(): void
     {
         $processingId1 = Str::uuid()->toString();
         $processingId2 = Str::uuid()->toString();
@@ -378,7 +387,8 @@ class ProcessingLogsApiTest extends TestCase
         $this->assertEquals('step1', $entries[1]['step']);
     }
 
-    public function test_processing_status_handles_malformed_log_entries(): void
+    #[Test]
+    public function processing_status_handles_malformed_log_entries(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -416,7 +426,8 @@ class ProcessingLogsApiTest extends TestCase
         $this->assertEquals('valid', $entries[1]['step']);
     }
 
-    public function test_unauthenticated_requests_are_rejected(): void
+    #[Test]
+    public function unauthenticated_requests_are_rejected(): void
     {
         $processingId = Str::uuid()->toString();
 
@@ -427,7 +438,8 @@ class ProcessingLogsApiTest extends TestCase
         $this->assertContains($response->status(), [401, 404]);
     }
 
-    public function test_processing_status_includes_log_summary(): void
+    #[Test]
+    public function processing_status_includes_log_summary(): void
     {
         $processingId = Str::uuid()->toString();
 

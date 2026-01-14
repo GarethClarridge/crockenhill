@@ -7,6 +7,7 @@ use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SitemapTest extends TestCase
@@ -17,7 +18,7 @@ class SitemapTest extends TestCase
     // Seeding on every test is slow but ensures data isolation
     protected $seed = true;
 
-    /** @test */
+    #[Test]
     public function it_generates_sitemap_xml_successfully(): void
     {
         $response = $this->get('/sitemap.xml');
@@ -26,7 +27,7 @@ class SitemapTest extends TestCase
         $response->assertHeader('content-type', 'application/xml');
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_contains_static_urls(): void
     {
         $response = $this->get('/sitemap.xml');
@@ -42,7 +43,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('<loc>http://localhost/christ/sermons</loc>', $content);
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_contains_sermon_urls_with_date_format(): void
     {
         $sermon = Sermon::factory()->create([
@@ -63,7 +64,7 @@ class SitemapTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_excludes_admin_pages(): void
     {
         // Create a public page
@@ -92,7 +93,7 @@ class SitemapTest extends TestCase
         $this->assertStringNotContainsString('/church/admin-page', $content);
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_includes_meeting_urls(): void
     {
         $meeting = Meeting::factory()->create([
@@ -110,7 +111,7 @@ class SitemapTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_has_correct_priorities(): void
     {
         Cache::forget('sitemap');
@@ -131,7 +132,7 @@ class SitemapTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_includes_change_frequencies(): void
     {
         // Create a page to ensure "monthly" frequency appears
@@ -153,7 +154,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('<changefreq>monthly</changefreq>', $content); // Pages
     }
 
-    /** @test */
+    #[Test]
     public function recent_sermons_have_higher_priority(): void
     {
         // Create a recent sermon (< 30 days old)
@@ -186,7 +187,7 @@ class SitemapTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_includes_last_modification_dates(): void
     {
         $sermon = Sermon::factory()->create([
@@ -203,7 +204,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('<lastmod>', $content);
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_is_valid_xml(): void
     {
         $response = $this->get('/sitemap.xml');
@@ -219,7 +220,7 @@ class SitemapTest extends TestCase
         $this->assertNotFalse($xml, 'Sitemap should be valid XML');
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_uses_flexible_caching(): void
     {
         // Clear cache
@@ -241,7 +242,7 @@ class SitemapTest extends TestCase
         $this->assertEquals($modificationTime1, $modificationTime2);
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_file_is_created_in_public_directory(): void
     {
         Cache::forget('sitemap');
@@ -252,7 +253,7 @@ class SitemapTest extends TestCase
         $this->assertGreaterThan(0, filesize(public_path('sitemap.xml')));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_route_is_named_correctly(): void
     {
         $this->assertTrue(
@@ -261,7 +262,7 @@ class SitemapTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_handles_empty_database_gracefully(): void
     {
         // Clear all data
@@ -283,7 +284,7 @@ class SitemapTest extends TestCase
 
     }
 
-    /** @test */
+    #[Test]
     public function old_sermons_have_yearly_change_frequency(): void
     {
         // Create an old sermon (> 365 days) - use 2 years to be safe
@@ -304,7 +305,7 @@ class SitemapTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_handles_pages_without_updated_at(): void
     {
         // Create a page with null updated_at
@@ -330,7 +331,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('/church/page-without-date', $content);
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_handles_meetings_without_updated_at(): void
     {
         // Create a meeting with null updated_at

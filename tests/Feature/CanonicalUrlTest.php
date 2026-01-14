@@ -4,13 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class CanonicalUrlTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function homepage_has_correct_canonical_url(): void
     {
         $response = $this->get('/');
@@ -18,7 +19,7 @@ class CanonicalUrlTest extends TestCase
         $response->assertSee('<link rel="canonical" href="' . url('/') . '">', false);
     }
 
-    /** @test */
+    #[Test]
     public function sermon_page_has_canonical_url_pointing_to_slug_route(): void
     {
         $sermon = Sermon::factory()->create([

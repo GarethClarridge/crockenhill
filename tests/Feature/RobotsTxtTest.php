@@ -2,17 +2,18 @@
 
 namespace Tests\Feature;
 
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class RobotsTxtTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function robots_txt_file_exists(): void
     {
         $this->assertFileExists(public_path('robots.txt'));
     }
 
-    /** @test */
+    #[Test]
     public function robots_txt_is_accessible_via_http(): void
     {
         // In tests, Laravel doesn't serve static files like production
@@ -22,7 +23,7 @@ class RobotsTxtTest extends TestCase
         $this->assertNotEmpty($content);
     }
 
-    /** @test */
+    #[Test]
     public function robots_txt_allows_all_user_agents(): void
     {
         $content = file_get_contents(public_path('robots.txt'));
@@ -31,7 +32,7 @@ class RobotsTxtTest extends TestCase
         $this->assertStringContainsString('Allow: /', $content);
     }
 
-    /** @test */
+    #[Test]
     public function robots_txt_disallows_member_area(): void
     {
         $content = file_get_contents(public_path('robots.txt'));
@@ -39,7 +40,7 @@ class RobotsTxtTest extends TestCase
         $this->assertStringContainsString('Disallow: /church/members/', $content);
     }
 
-    /** @test */
+    #[Test]
     public function robots_txt_disallows_authentication_routes(): void
     {
         $content = file_get_contents(public_path('robots.txt'));
@@ -48,7 +49,7 @@ class RobotsTxtTest extends TestCase
         $this->assertStringContainsString('Disallow: /register', $content);
     }
 
-    /** @test */
+    #[Test]
     public function robots_txt_references_sitemap(): void
     {
         $content = file_get_contents(public_path('robots.txt'));
@@ -56,7 +57,7 @@ class RobotsTxtTest extends TestCase
         $this->assertStringContainsString('Sitemap: https://crockenhill.org/sitemap.xml', $content);
     }
 
-    /** @test */
+    #[Test]
     public function robots_txt_format_is_valid(): void
     {
         $content = file_get_contents(public_path('robots.txt'));

@@ -7,6 +7,7 @@ use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SitemapCacheTest extends TestCase
@@ -19,7 +20,7 @@ class SitemapCacheTest extends TestCase
         $this->seed();
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_cache_is_invalidated_when_sermon_is_created(): void
     {
         // Generate initial sitemap
@@ -39,7 +40,7 @@ class SitemapCacheTest extends TestCase
         $this->assertFalse(Cache::has('sitemap'));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_cache_is_invalidated_when_sermon_is_updated(): void
     {
         $sermon = Sermon::factory()->create([
@@ -60,7 +61,7 @@ class SitemapCacheTest extends TestCase
         $this->assertFalse(Cache::has('sitemap'));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_cache_is_invalidated_when_sermon_is_deleted(): void
     {
         $sermon = Sermon::factory()->create([
@@ -81,7 +82,7 @@ class SitemapCacheTest extends TestCase
         $this->assertFalse(Cache::has('sitemap'));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_cache_is_invalidated_when_page_is_created(): void
     {
         // Generate initial sitemap
@@ -101,7 +102,7 @@ class SitemapCacheTest extends TestCase
         $this->assertFalse(Cache::has('sitemap'));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_cache_is_invalidated_when_page_is_updated(): void
     {
         $page = Page::factory()->create([
@@ -123,7 +124,7 @@ class SitemapCacheTest extends TestCase
         $this->assertFalse(Cache::has('sitemap'));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_cache_is_invalidated_when_page_is_deleted(): void
     {
         $page = Page::factory()->create([
@@ -145,7 +146,7 @@ class SitemapCacheTest extends TestCase
         $this->assertFalse(Cache::has('sitemap'));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_cache_is_invalidated_when_meeting_is_created(): void
     {
         // Generate initial sitemap
@@ -163,7 +164,7 @@ class SitemapCacheTest extends TestCase
         $this->assertFalse(Cache::has('sitemap'));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_cache_is_invalidated_when_meeting_is_updated(): void
     {
         $meeting = Meeting::factory()->create([
@@ -183,7 +184,7 @@ class SitemapCacheTest extends TestCase
         $this->assertFalse(Cache::has('sitemap'));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_cache_is_invalidated_when_meeting_is_deleted(): void
     {
         $meeting = Meeting::factory()->create([
@@ -203,7 +204,7 @@ class SitemapCacheTest extends TestCase
         $this->assertFalse(Cache::has('sitemap'));
     }
 
-    /** @test */
+    #[Test]
     public function sitemap_regenerates_with_new_content_after_cache_invalidation(): void
     {
         // Generate initial sitemap
@@ -228,7 +229,7 @@ class SitemapCacheTest extends TestCase
         $this->assertStringContainsString('brand-new-sermon', $content2);
     }
 
-    /** @test */
+    #[Test]
     public function multiple_model_changes_only_invalidate_cache_once(): void
     {
         // Generate initial sitemap

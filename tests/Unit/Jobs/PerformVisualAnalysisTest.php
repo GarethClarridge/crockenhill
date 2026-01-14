@@ -10,13 +10,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PerformVisualAnalysisTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_performs_visual_analysis_successfully(): void
     {
         Storage::fake('local');
@@ -85,7 +86,7 @@ class PerformVisualAnalysisTest extends TestCase
         $this->assertCount(1, $processingLog->song_clusters);
     }
 
-    /** @test */
+    #[Test]
     public function it_skips_when_visual_analysis_is_disabled(): void
     {
         Config::set('media-processing.visual_analysis.enabled', false);
@@ -109,7 +110,7 @@ class PerformVisualAnalysisTest extends TestCase
         $this->assertNull($processingLog->visual_samples);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_no_visual_samples_gracefully(): void
     {
         Storage::fake('local');
@@ -142,7 +143,7 @@ class PerformVisualAnalysisTest extends TestCase
         $this->assertNotNull($processingLog->visual_processing_time);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_insufficient_clusters(): void
     {
         Storage::fake('local');
@@ -178,7 +179,7 @@ class PerformVisualAnalysisTest extends TestCase
         $this->assertEquals(1, $processingLog->visual_sample_count);
     }
 
-    /** @test */
+    #[Test]
     public function it_falls_back_gracefully_on_failure_when_enabled(): void
     {
         Storage::fake('local');
@@ -210,7 +211,7 @@ class PerformVisualAnalysisTest extends TestCase
         $this->assertNull($processingLog->visual_processing_time);
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_exception_on_failure_when_fallback_disabled(): void
     {
         Storage::fake('local');
@@ -238,7 +239,7 @@ class PerformVisualAnalysisTest extends TestCase
         $job->handle($mockVisualService, $mockClusteringService);
     }
 
-    /** @test */
+    #[Test]
     public function it_stores_processing_time(): void
     {
         Storage::fake('local');

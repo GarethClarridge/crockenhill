@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ThumbnailVideoProcessingIntegrationTest extends TestCase
@@ -33,7 +34,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         Config::set('media-processing.storage.sermon_disk', 'sermon_disk');
     }
 
-    /** @test */
+    #[Test]
     public function thumbnail_generation_integrates_with_direct_video_processing()
     {
         // Create a fake video file
@@ -66,7 +67,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function thumbnail_generation_respects_disabled_configuration()
     {
         // Disable thumbnail generation
@@ -94,7 +95,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         Queue::assertNotPushed(GenerateThumbnail::class);
     }
 
-    /** @test */
+    #[Test]
     public function thumbnail_generation_handles_missing_video_files_gracefully()
     {
         // Don't create the video file - it should be missing
@@ -118,7 +119,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         Queue::assertNotPushed(GenerateThumbnail::class);
     }
 
-    /** @test */
+    #[Test]
     public function thumbnail_generation_uses_correct_queue_configuration()
     {
         // Set custom queue name
@@ -148,7 +149,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function thumbnail_generation_preserves_video_path_correctly()
     {
         // Create a fake video file with specific path
@@ -177,7 +178,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function thumbnail_generation_works_with_different_video_formats()
     {
         $videoFormats = ['mp4', 'avi', 'mov', 'mkv'];
@@ -212,7 +213,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function thumbnail_generation_handles_concurrent_processing()
     {
         // Create multiple fake video files
@@ -257,7 +258,7 @@ class ThumbnailVideoProcessingIntegrationTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function thumbnail_generation_integration_with_storage_disks()
     {
         // Test with different storage disk configurations

@@ -5,6 +5,7 @@ namespace Tests\Unit\Services;
 use App\Services\VisualAnalysisService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class VisualAnalysisServiceTest extends TestCase
@@ -19,7 +20,7 @@ class VisualAnalysisServiceTest extends TestCase
         $this->service = new VisualAnalysisService;
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_high_brightness_frame_as_song(): void
     {
         $metrics = [
@@ -36,7 +37,7 @@ class VisualAnalysisServiceTest extends TestCase
         $this->assertGreaterThan(0.5, $result['confidence']);
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_low_brightness_frame_as_speech(): void
     {
         $metrics = [
@@ -52,7 +53,7 @@ class VisualAnalysisServiceTest extends TestCase
         $this->assertLessThan(0.7, $result['confidence']);
     }
 
-    /** @test */
+    #[Test]
     public function it_classifies_borderline_frame_correctly(): void
     {
         // Frame with moderate brightness - should be classified as speech
@@ -68,7 +69,7 @@ class VisualAnalysisServiceTest extends TestCase
         $this->assertEquals('speech', $result['classification']);
     }
 
-    /** @test */
+    #[Test]
     public function it_weights_edge_density_most_heavily(): void
     {
         // Edge density (80% weight) should dominate classification
@@ -86,7 +87,7 @@ class VisualAnalysisServiceTest extends TestCase
         $this->assertGreaterThan(0.5, $result['confidence']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_confidence_score(): void
     {
         $metrics = [
@@ -104,7 +105,7 @@ class VisualAnalysisServiceTest extends TestCase
         $this->assertLessThanOrEqual(1.0, $result['confidence']);
     }
 
-    /** @test */
+    #[Test]
     public function it_respects_custom_thresholds(): void
     {
         // Set very high thresholds
@@ -126,7 +127,7 @@ class VisualAnalysisServiceTest extends TestCase
         $this->assertEquals('speech', $result['classification']);
     }
 
-    /** @test */
+    #[Test]
     public function it_parses_frame_metrics_from_ffmpeg_output(): void
     {
         // Create mock FFmpeg metadata output
@@ -179,7 +180,7 @@ EOF;
         @unlink($tempFile);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_empty_metrics_gracefully(): void
     {
         $tempDir = Storage::disk('local')->path('temp');
@@ -200,7 +201,7 @@ EOF;
         @unlink($tempFile);
     }
 
-    /** @test */
+    #[Test]
     public function it_normalizes_brightness_values_correctly(): void
     {
         // Test boundary values
@@ -225,7 +226,7 @@ EOF;
         $this->assertEquals('speech', $result['classification']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_proper_structure_from_classification(): void
     {
         $metrics = [
@@ -250,7 +251,7 @@ EOF;
         $this->assertContains($result['classification'], ['song', 'speech']);
     }
 
-    /** @test */
+    #[Test]
     public function it_applies_weighted_scoring_correctly(): void
     {
         // Test scenario where edge density (80% weight) dominates
@@ -268,7 +269,7 @@ EOF;
         $this->assertGreaterThan(0.4, $result['confidence']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_refined_boundaries_with_proper_structure(): void
     {
         // This test verifies the structure returned by refineBoundaries
@@ -296,7 +297,7 @@ EOF;
         $this->assertEquals(0, $result['dense_sample_count']);
     }
 
-    /** @test */
+    #[Test]
     public function it_adjusts_timestamps_correctly_in_region_extraction(): void
     {
         // This verifies the logic that timestamps should be relative to video start

@@ -4,13 +4,14 @@ namespace Tests\Unit\Models;
 
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonSeoTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_returns_custom_meta_description_when_set(): void
     {
         $sermon = Sermon::factory()->create([
@@ -22,7 +23,7 @@ class SermonSeoTest extends TestCase
         $this->assertEquals('This is a custom meta description', $sermon->meta_description);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_meta_description_from_title_and_preacher(): void
     {
         $sermon = Sermon::factory()->create([
@@ -40,7 +41,7 @@ class SermonSeoTest extends TestCase
         $this->assertStringContainsString('John Smith', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_date_in_generated_meta_description(): void
     {
         $sermon = Sermon::factory()->create([
@@ -57,7 +58,7 @@ class SermonSeoTest extends TestCase
         $this->assertMatchesRegularExpression('/[A-Z][a-z]+ \d{1,2}, \d{4}/', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_reference_in_generated_meta_description(): void
     {
         $sermon = Sermon::factory()->create([
@@ -72,7 +73,7 @@ class SermonSeoTest extends TestCase
         $this->assertStringContainsString('John 3:16', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_summary_excerpt_in_generated_meta_description(): void
     {
         $sermon = Sermon::factory()->create([
@@ -87,7 +88,7 @@ class SermonSeoTest extends TestCase
         $this->assertStringContainsString('This is a comprehensive summary', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_strips_html_from_summary_in_meta_description(): void
     {
         $sermon = Sermon::factory()->create([
@@ -105,7 +106,7 @@ class SermonSeoTest extends TestCase
         $this->assertStringContainsString('This summary has HTML tags', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_truncates_generated_meta_description_to_155_characters(): void
     {
         $sermon = Sermon::factory()->create([
@@ -122,7 +123,7 @@ class SermonSeoTest extends TestCase
         $this->assertLessThanOrEqual(158, strlen($metaDescription));
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_complete_meta_description_with_all_fields(): void
     {
         $sermon = Sermon::factory()->create([
@@ -148,7 +149,7 @@ class SermonSeoTest extends TestCase
         $this->assertLessThanOrEqual(158, strlen($metaDescription));
     }
 
-    /** @test */
+    #[Test]
     public function meta_description_field_is_fillable(): void
     {
         $sermon = Sermon::factory()->create([
@@ -161,7 +162,7 @@ class SermonSeoTest extends TestCase
         $this->assertEquals('New meta description', $sermon->meta_description);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_null_values_gracefully(): void
     {
         $sermon = Sermon::factory()->create([

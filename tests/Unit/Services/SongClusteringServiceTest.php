@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\SongClusteringService;
 use Illuminate\Support\Facades\Config;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SongClusteringServiceTest extends TestCase
@@ -18,7 +19,7 @@ class SongClusteringServiceTest extends TestCase
         $this->service = new SongClusteringService;
     }
 
-    /** @test */
+    #[Test]
     public function it_clusters_consecutive_song_samples(): void
     {
         Config::set('media-processing.visual_analysis.min_song_duration', 10);
@@ -40,7 +41,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEquals(3, $clusters[0]['sample_count']);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_separate_clusters_for_distinct_songs(): void
     {
         Config::set('media-processing.visual_analysis.min_song_duration', 10);
@@ -71,7 +72,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEquals(2, $clusters[1]['sample_count']);
     }
 
-    /** @test */
+    #[Test]
     public function it_merges_clusters_with_small_gaps(): void
     {
         Config::set('media-processing.visual_analysis.max_gap_seconds', 30);
@@ -94,7 +95,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEquals(50.0, $clusters[0]['end_estimate']);
     }
 
-    /** @test */
+    #[Test]
     public function it_does_not_merge_clusters_with_large_gaps(): void
     {
         Config::set('media-processing.visual_analysis.max_gap_seconds', 20);
@@ -118,7 +119,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertCount(2, $clusters);
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_clusters_by_minimum_duration(): void
     {
         Config::set('media-processing.visual_analysis.min_song_duration', 60);
@@ -146,7 +147,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEquals(160.0, $clusters[0]['end_estimate']);
     }
 
-    /** @test */
+    #[Test]
     public function it_smooths_classifications_to_reduce_flickering(): void
     {
         Config::set('media-processing.visual_analysis.smoothing_window', 3);
@@ -168,7 +169,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEquals(20.0, $clusters[0]['start_estimate']);  // Edge effect: first sample classified as speech
     }
 
-    /** @test */
+    #[Test]
     public function it_calculates_average_confidence_for_clusters(): void
     {
         Config::set('media-processing.visual_analysis.smoothing_window', 1);  // Disable smoothing
@@ -190,7 +191,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEqualsWithDelta(0.8, $clusters[0]['confidence'], 0.01);
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_sample_timestamps_in_clusters(): void
     {
         Config::set('media-processing.visual_analysis.min_song_duration', 10);
@@ -210,7 +211,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEquals([10.0, 20.0, 30.0], $clusters[0]['samples']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_empty_input_gracefully(): void
     {
         $clusters = $this->service->clusterSongPeriods([]);
@@ -218,7 +219,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEmpty($clusters);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_all_speech_samples(): void
     {
         $visualSamples = [
@@ -232,7 +233,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEmpty($clusters);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_single_song_sample(): void
     {
         Config::set('media-processing.visual_analysis.min_song_duration', 0);
@@ -253,7 +254,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertEquals(1, $clusters[0]['sample_count']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_alternating_classifications_correctly(): void
     {
         Config::set('media-processing.visual_analysis.smoothing_window', 1); // Disable smoothing
@@ -275,7 +276,7 @@ class SongClusteringServiceTest extends TestCase
         $this->assertCount(3, $clusters);
     }
 
-    /** @test */
+    #[Test]
     public function it_merges_multiple_close_clusters(): void
     {
         Config::set('media-processing.visual_analysis.max_gap_seconds', 30);

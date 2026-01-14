@@ -4,13 +4,14 @@ namespace Tests\Unit\Models;
 
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PageSeoTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_returns_description_as_meta_description_when_present(): void
     {
         $page = Page::factory()->create([
@@ -26,7 +27,7 @@ class PageSeoTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function it_truncates_long_description_to_155_characters(): void
     {
         $longDescription = str_repeat('This is a very long description that will definitely exceed the 155 character limit. ', 5);
@@ -42,7 +43,7 @@ class PageSeoTest extends TestCase
         $this->assertStringEndsWith('...', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_strips_html_tags_from_description(): void
     {
         $page = Page::factory()->create([
@@ -58,7 +59,7 @@ class PageSeoTest extends TestCase
         $this->assertStringContainsString('This description has HTML tags', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_falls_back_to_heading_when_description_is_empty(): void
     {
         $page = Page::factory()->create([
@@ -71,7 +72,7 @@ class PageSeoTest extends TestCase
         $this->assertEquals('Sunday Morning Services', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_falls_back_to_heading_when_description_is_null(): void
     {
         $page = Page::factory()->create([
@@ -84,7 +85,7 @@ class PageSeoTest extends TestCase
         $this->assertEquals('Bible Study Groups', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_truncates_heading_fallback_to_155_characters(): void
     {
         // Create a heading that's 200 characters (longer than 155 but fits in DB column)
@@ -100,7 +101,7 @@ class PageSeoTest extends TestCase
         $this->assertLessThanOrEqual(158, strlen($metaDescription));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_description_with_only_whitespace(): void
     {
         $page = Page::factory()->create([
@@ -114,7 +115,7 @@ class PageSeoTest extends TestCase
         $this->assertEquals('Test Heading', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_preserves_descriptions_under_155_characters(): void
     {
         $shortDescription = 'A short but informative description of this page.';
@@ -130,7 +131,7 @@ class PageSeoTest extends TestCase
         $this->assertStringNotContainsString('...', $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_description_with_exactly_155_characters(): void
     {
         // Create a description that's exactly 155 characters
@@ -147,7 +148,7 @@ class PageSeoTest extends TestCase
         $this->assertEquals($exactDescription, $metaDescription);
     }
 
-    /** @test */
+    #[Test]
     public function it_strips_tags_before_truncating(): void
     {
         $htmlDescription = '<p>' . str_repeat('Word ', 50) . '</p>';
@@ -166,7 +167,7 @@ class PageSeoTest extends TestCase
         $this->assertLessThanOrEqual(158, strlen($metaDescription));
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_route_with_area_and_slug(): void
     {
         $page = Page::factory()->create([
@@ -179,7 +180,7 @@ class PageSeoTest extends TestCase
         $this->assertEquals('/church/sunday-mornings', $route);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_null_route_when_slug_is_empty(): void
     {
         $page = Page::factory()->create([
@@ -192,7 +193,7 @@ class PageSeoTest extends TestCase
         $this->assertNull($route);
     }
 
-    /** @test */
+    #[Test]
     public function it_trims_slashes_from_area_and_slug_in_route(): void
     {
         $page = Page::factory()->create([
@@ -206,7 +207,7 @@ class PageSeoTest extends TestCase
         $this->assertStringNotContainsString('//', $route);
     }
 
-    /** @test */
+    #[Test]
     public function multiple_pages_can_have_different_meta_descriptions(): void
     {
         $page1 = Page::factory()->create([
