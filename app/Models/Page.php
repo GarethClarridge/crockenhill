@@ -121,6 +121,26 @@ class Page extends Model implements Sitemapable
     }
 
     /**
+     * Check if the page has a heading image.
+     */
+    public function hasImage(): bool
+    {
+        return \Illuminate\Support\Facades\Storage::disk('public_images')->exists('images/headings/large/'.$this->slug.'.jpg');
+    }
+
+    /**
+     * Get the URL for the page's heading image.
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        if (! $this->hasImage()) {
+            return null;
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public_images')->url('images/headings/large/'.$this->slug.'.jpg');
+    }
+
+    /**
      * Convert the page to a sitemap tag.
      */
     public function toSitemapTag(): Url | string | array
@@ -131,6 +151,15 @@ class Page extends Model implements Sitemapable
 
         if ($this->updated_at) {
             $url->setLastModificationDate($this->updated_at);
+        }
+
+        if ($this->hasImage() && $this->image_url) {
+            $url->addImage(
+                $this->image_url,
+                $this->meta_description, // Caption
+                '', // Geo location
+                $this->heading // Title
+            );
         }
 
         return $url;

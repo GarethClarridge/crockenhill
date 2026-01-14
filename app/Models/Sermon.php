@@ -621,6 +621,15 @@ class Sermon extends Model implements Sitemapable
             );
         }
 
+        if ($this->hasThumbnail() && $this->thumbnail_url) {
+            $url->addImage(
+                $this->thumbnail_url,
+                $this->meta_description, // Caption
+                '', // Geo location
+                $this->title // Title
+            );
+        }
+
         return $url;
     }
 
