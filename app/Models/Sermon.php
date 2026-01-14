@@ -113,6 +113,7 @@ class Sermon extends Model implements Sitemapable
         'source_type', // Source type: manual, livestream, upload
         'segment_start_time', // Start time of sermon segment in livestream
         'segment_end_time', // End time of sermon segment in livestream
+        'duration', // Duration of the sermon in seconds
     ];
 
     /**
@@ -604,10 +605,23 @@ class Sermon extends Model implements Sitemapable
             ? Url::CHANGE_FREQUENCY_MONTHLY
             : Url::CHANGE_FREQUENCY_YEARLY;
 
-        return Url::create("/christ/sermons/{$year}/{$month}/{$this->slug}")
+        $url = Url::create("/christ/sermons/{$year}/{$month}/{$this->slug}")
             ->setLastModificationDate($this->updated_at ?? $this->date)
             ->setChangeFrequency($changeFreq)
             ->setPriority($priority);
+
+        if ($this->hasVideo() && $this->video_url) {
+            $url->addVideo(
+                $this->thumbnail_url ?? '',
+                $this->title,
+                $this->summary ?? $this->title,
+                $this->video_url,
+                null,
+                ['duration' => $this->duration]
+            );
+        }
+
+        return $url;
     }
 
     // ========================================================================

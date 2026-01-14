@@ -35,6 +35,7 @@ class SermonCreationOptions
         public ?string $id3Preacher = null,
         public ?string $id3Series = null,
         public ?string $id3Reference = null,
+        public ?float $duration = null,
     ) {}
 
     /**
@@ -49,6 +50,7 @@ class SermonCreationOptions
             transcriptFilePath: $log->transcript_file_path,
             aiAnalysis: $aiAnalysis,
             titleStrategy: TitleGenerationStrategy::AI_WITH_FALLBACK,
+            duration: $log->duration,
         );
     }
 
@@ -65,6 +67,7 @@ class SermonCreationOptions
             transcriptFilePath: $log->transcript_file_path,
             aiAnalysis: $aiAnalysis,
             titleStrategy: TitleGenerationStrategy::AI_WITH_FALLBACK,
+            duration: $log->duration,
         );
     }
 

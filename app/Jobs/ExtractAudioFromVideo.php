@@ -91,6 +91,7 @@ class ExtractAudioFromVideo implements ShouldQueue
                 'current_step' => 'audio_extraction_complete',
                 'status' => 'processing',
                 'audio_file_path' => $sermonAudioPath,
+                'duration' => $duration,
                 'processing_metadata' => array_merge(
                     $this->processingLog->processing_metadata ?? [],
                     [

@@ -63,6 +63,7 @@ class SermonCreationService
             'slug' => $slug,
             'preacher' => $preacher,
             'source_type' => $options->sourceType,
+            'duration' => $options->duration,
         ];
 
         // Add optional fields if present
