@@ -563,7 +563,6 @@ class Sermon extends Model implements Sitemapable
         }
 
         // Auto-generate from available content
-        $source = $this->summary ?? $this->title;
         $description = "Listen to '{$this->title}' by {$this->preacher}";
 
         if ($this->date) {
@@ -572,6 +571,10 @@ class Sermon extends Model implements Sitemapable
 
         if ($this->reference) {
             $description .= " - {$this->reference}";
+        }
+
+        if ($this->series) {
+            $description .= " (Part of the {$this->series} series)";
         }
 
         // Add excerpt from summary if available

@@ -45,7 +45,7 @@ class SermonOpenGraphTest extends TestCase
 
         // Check Open Graph meta tags
         $response->assertSee('<meta property="og:title" content="Test Sermon Title - Crockenhill Baptist Church">', false);
-        $response->assertSee('<meta property="og:description" content="Sermon by John Smith on January 15, 2024 - John 3:16 (Part of the Gospel Series series)">', false);
+        $response->assertSee('<meta property="og:description" content="Listen to &#039;Test Sermon Title&#039; by John Smith preached on January 15, 2024 - John 3:16 (Part of the Gospel Series series)">', false);
         $response->assertSee('<meta property="og:type" content="article">', false);
         $response->assertSee('<meta property="og:site_name" content="Crockenhill Baptist Church">', false);
         $response->assertSee('<meta property="og:image"', false);
@@ -111,7 +111,7 @@ class SermonOpenGraphTest extends TestCase
 
         // Should still have basic Open Graph meta tags
         $response->assertSee('<meta property="og:title" content="Minimal Sermon - Crockenhill Baptist Church">', false);
-        $response->assertSee('<meta property="og:description" content="Sermon by Test Preacher on March 10, 2024">', false);
+        $response->assertSee('<meta property="og:description" content="Listen to &#039;Minimal Sermon&#039; by Test Preacher preached on March 10, 2024">', false);
 
         // Should not include series or reference in description when not present
         $content = $response->getContent();

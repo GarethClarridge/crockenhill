@@ -7,10 +7,21 @@ use Illuminate\Support\Str;
 @section('meta_tags')
 {{-- Open Graph meta tags for social media sharing --}}
 <meta property="og:title" content="{{ $sermon->title }} - Crockenhill Baptist Church">
-<meta property="og:description" content="Sermon by {{ $sermon->preacher }} on {{ $sermon->human_date }}{{ $sermon->reference ? ' - ' . $sermon->reference : '' }}{{ $sermon->series ? ' (Part of the ' . $sermon->series . ' series)' : '' }}">
+<meta property="og:description" content="{{ $sermon->meta_description }}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{{ request()->url() }}">
 <meta property="og:site_name" content="Crockenhill Baptist Church">
+
+{{-- Audio/Video specific tags --}}
+@if($sermon->audio_url)
+<meta property="og:audio" content="{{ $sermon->audio_url }}">
+<meta property="og:audio:type" content="audio/mpeg">
+@endif
+
+@if($sermon->video_url)
+<meta property="og:video" content="{{ $sermon->video_url }}">
+<meta property="og:video:type" content="video/mp4">
+@endif
 
 {{-- Include thumbnail image if available, otherwise use fallback --}}
 @if($sermon->thumbnail_url && $sermon->hasThumbnail())
@@ -25,9 +36,10 @@ use Illuminate\Support\Str;
 <meta property="og:image:alt" content="Sermon: {{ $sermon->title }}">
 
 {{-- Twitter Card meta tags --}}
+{{-- Note: 'player' card requires a secure iframe URL, defaulting to summary_large_image which works well with audio/video content linked --}}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ $sermon->title }}">
-<meta name="twitter:description" content="Sermon by {{ $sermon->preacher }} on {{ $sermon->human_date }}{{ $sermon->reference ? ' - ' . $sermon->reference : '' }}">
+<meta name="twitter:description" content="{{ $sermon->meta_description }}">
 @if($sermon->thumbnail_url && $sermon->hasThumbnail())
 <meta name="twitter:image" content="{{ $sermon->thumbnail_url }}">
 @else
