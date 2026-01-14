@@ -45,6 +45,43 @@ use Illuminate\Support\Str;
 @else
 <meta name="twitter:image" content="{{ asset('images/Primary.png') }}">
 @endif
+{{-- JSON-LD Structured Data --}}
+@php
+    $schema = [
+        '@context' => 'https://schema.org',
+        '@type' => 'Article',
+        'headline' => $sermon->title,
+        'image' => $sermon->thumbnail_url ?: asset('images/Primary.png'),
+        'datePublished' => $sermon->date->toIso8601String(),
+        'author' => [
+            '@type' => 'Person',
+            'name' => $sermon->preacher,
+        ],
+    ];
+
+    if ($sermon->video_url) {
+        $schema['video'] = [
+            '@type' => 'VideoObject',
+            'name' => $sermon->title,
+            'description' => $sermon->meta_description,
+            'thumbnailUrl' => $sermon->thumbnail_url ?: asset('images/Primary.png'),
+            'uploadDate' => $sermon->date->toIso8601String(),
+            'contentUrl' => $sermon->video_url,
+        ];
+    }
+
+    if ($sermon->audio_url) {
+        $schema['audio'] = [
+            '@type' => 'AudioObject',
+            'contentUrl' => $sermon->audio_url,
+            'description' => $sermon->meta_description,
+            'encodingFormat' => 'audio/mpeg',
+        ];
+    }
+@endphp
+<script type="application/ld+json">
+    {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
+</script>
 @endsection
 
 @section('dynamic_content')
