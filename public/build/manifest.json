@@ -1,28 +1,28 @@
 {
   "public/images/homepage/christmas2023.jpg": {
-    "file": "assets/christmas2023-D0OeEOCU-mf6oagta.jpg",
+    "file": "assets/christmas2023-D0OeEOCU-mkk9dd4s.jpg",
     "src": "public/images/homepage/christmas2023.jpg"
   },
   "public/images/pattern.svg": {
-    "file": "assets/pattern-Cymk78WI-mf6oagta.svg",
+    "file": "assets/pattern-Cymk78WI-mkk9dd4s.svg",
     "src": "public/images/pattern.svg"
   },
   "resources/css/app.scss": {
-    "file": "assets/app-EniLG5IG-mf6oagta.css",
+    "file": "assets/app-CVmJVROK-mkk9dd4s.css",
     "src": "resources/css/app.scss",
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-BeDcHhWw-mf6oagta.js",
+    "file": "assets/app-D4ClqAbo-mkk9dd4s.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "css": [
-      "assets/app-EniLG5IG-mf6oagta.css"
+      "assets/app-CVmJVROK-mkk9dd4s.css"
     ],
     "assets": [
-      "assets/christmas2023-D0OeEOCU-mf6oagta.jpg",
-      "assets/pattern-Cymk78WI-mf6oagta.svg"
+      "assets/christmas2023-D0OeEOCU-mkk9dd4s.jpg",
+      "assets/pattern-Cymk78WI-mkk9dd4s.svg"
     ]
   }
 }

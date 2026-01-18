@@ -3,7 +3,7 @@
 <div class="w-100 text-white grid grid-cols-7 lg:grid-cols-12 justify-between bg-cbc-pattern bg-cover">
 
   <a class="p-2" href="/" wire:navigate>
-    <img src="/images/IconWhite.svg" class="inline-block align-top max-h-8" alt="Crockenhill Baptist Church logo">
+    <img src="/images/IconWhite.svg" class="inline-block align-top max-h-8" alt="Crockenhill Baptist Church logo" width="30" height="32">
   </a>
 
   <a class="font-display col-span-5 text-xl min-[400px]:text-2xl text-center flex" href="/" wire:navigate>

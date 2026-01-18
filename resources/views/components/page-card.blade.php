@@ -11,7 +11,7 @@
         @else
         <a href="/{{$page->area}}/{{$page->slug}}" wire:navigate>
           @endif
-          <img class="w-full rounded-t-lg brightness-75 contrast-75 hover:scale-110 transition-all duration-500" src="/images/headings/small/{{$page->slug}}.jpg" alt="" onerror="this.onerror=null;this.src='/images/headings/small/default.jpg';" loading="lazy">
+          <img class="w-full rounded-t-lg brightness-75 contrast-75 hover:scale-110 transition-all duration-500" src="/images/headings/small/{{$page->slug}}.jpg" alt="" onerror="this.onerror=null;this.src='/images/headings/small/default.jpg';" loading="lazy" width="300" height="169">
           <h5 class="leading-normal align-middle absolute top-1/3 left-0 right-0 text-white font-display text-2xl text-center">
             {{ $page->heading }}
           </h5>
