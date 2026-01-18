@@ -602,9 +602,11 @@ class Sermon extends Model implements Sitemapable
             ? Url::CHANGE_FREQUENCY_MONTHLY
             : Url::CHANGE_FREQUENCY_YEARLY;
 
-        $lastModified = $this->updated_at ?? $this->date;
-        if (! $lastModified instanceof \Carbon\Carbon) {
-            $lastModified = \Carbon\Carbon::parse($lastModified);
+        // Use updated_at if valid, otherwise fall back to date
+        // Note: old records may have invalid updated_at values (0000-00-00) that aren't null
+        $lastModified = $this->date;
+        if ($this->updated_at && $this->updated_at->year > 0) {
+            $lastModified = $this->updated_at;
         }
 
         $url = Url::create("/christ/sermons/{$year}/{$month}/{$this->slug}")
