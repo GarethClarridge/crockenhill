@@ -15,6 +15,7 @@ use App\Services\MockTranscriptionService;
 use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 // use Laravel\Dusk\DuskServiceProvider;
 use Illuminate\Support\ServiceProvider;
@@ -28,6 +29,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        // Force URL generation to use APP_URL (important for sitemap, emails, etc.)
+        URL::forceRootUrl(config('app.url'));
+        if (str_starts_with(config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         // Register custom health checks for Laravel 12
         Event::listen(DiagnosingHealth::class, function () {
             // Run OpenAI health check

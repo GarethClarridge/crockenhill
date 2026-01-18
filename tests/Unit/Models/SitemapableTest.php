@@ -234,12 +234,12 @@ class SitemapableTest extends TestCase
     public function meeting_sitemap_tag_uses_community_url_format(): void
     {
         $meeting = Meeting::factory()->create([
-            'slug' => 'bible-study',
+            'slug' => 'test-community-meeting',
         ]);
 
         $tag = $meeting->toSitemapTag();
 
-        $this->assertStringContainsString('/community/bible-study', $tag->url);
+        $this->assertStringContainsString('/community/test-community-meeting', $tag->url);
     }
 
     #[Test]
