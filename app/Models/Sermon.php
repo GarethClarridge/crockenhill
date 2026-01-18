@@ -603,7 +603,7 @@ class Sermon extends Model implements Sitemapable
             : Url::CHANGE_FREQUENCY_YEARLY;
 
         $lastModified = $this->updated_at ?? $this->date;
-        if (is_string($lastModified)) {
+        if (! $lastModified instanceof \Carbon\Carbon) {
             $lastModified = \Carbon\Carbon::parse($lastModified);
         }
 
@@ -613,14 +613,21 @@ class Sermon extends Model implements Sitemapable
             ->setPriority($priority);
 
         if ($this->hasVideo() && $this->video_url) {
-            $url->addVideo(
-                $this->thumbnail_url ?? '',
-                $this->title,
-                $this->summary ?? $this->title,
-                $this->video_url,
-                null,
-                ['duration' => $this->duration]
-            );
+            $thumbnailUrl = $this->thumbnail_url;
+            if ($thumbnailUrl) {
+                $videoOptions = [];
+                if ($this->duration && $this->duration > 0) {
+                    $videoOptions['duration'] = (int) $this->duration;
+                }
+                $url->addVideo(
+                    $thumbnailUrl,
+                    $this->title,
+                    $this->summary ?? $this->title,
+                    $this->video_url,
+                    null,
+                    $videoOptions
+                );
+            }
         }
 
         if ($this->hasThumbnail() && $this->thumbnail_url) {
