@@ -2,11 +2,11 @@
 
 <div class="w-100 text-white grid grid-cols-7 lg:grid-cols-12 justify-between bg-cbc-pattern bg-cover">
 
-  <a class="p-2" href="/">
+  <a class="p-2" href="/" wire:navigate>
     <img src="/images/IconWhite.svg" class="inline-block align-top max-h-8" alt="Crockenhill Baptist Church logo">
   </a>
 
-  <a class="font-display col-span-5 text-xl min-[400px]:text-2xl text-center flex" href="/">
+  <a class="font-display col-span-5 text-xl min-[400px]:text-2xl text-center flex" href="/" wire:navigate>
     <span class="inline-block align-middle pb-1 my-auto mx-auto">
       Crockenhill Baptist Church
     </span>
@@ -15,21 +15,21 @@
   <div class="hidden w-100 lg:block col-span-5 flex my-auto pb-1">
     <ul class="mx-auto flex font-display text-l fill-white">
       <li>
-        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/christ">
+        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/christ" wire:navigate>
           <x-icon-cross class="h-4 w-4 mr-1" />
           <span class="">Christ</span>
         </a>
       </li>
 
       <li>
-        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/church">
+        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/church" wire:navigate>
           <x-icon-church class="h-5 w-5 mr-1" />
           <span class="">Church</span>
         </a>
       </li>
 
       <li>
-        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/community">
+        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/community" wire:navigate>
           <x-heroicon-s-user-group class="h-5 w-5 mr-1" />
           <span class="">Community</span>
         </a>
@@ -44,21 +44,21 @@
   <div class="w-100 lg:hidden col-span-8 flex bg-gradient-to-r from-green-100 to-emerald-100 text-emerald-950 fill-emerald-950 py-2">
     <ul class="mx-auto flex font-display">
       <li>
-        <a class="px-8 py-2 flex justify-between items-center" href="/christ">
+        <a class="px-8 py-2 flex justify-between items-center" href="/christ" wire:navigate>
           <x-icon-cross class="h-4 w-4 mr-1" />
           <span class="">Christ</span>
         </a>
       </li>
 
       <li>
-        <a class="px-8 py-2 flex justify-between items-center" href="/church">
+        <a class="px-8 py-2 flex justify-between items-center" href="/church" wire:navigate>
           <x-icon-church class="h-5 w-5 mr-1" />
           <span class="">Church</span>
         </a>
       </li>
 
       <li>
-        <a class="px-8 py-2 flex justify-between items-center" href="/community">
+        <a class="px-8 py-2 flex justify-between items-center" href="/community" wire:navigate>
           <x-heroicon-s-user-group class="h-5 w-5 mr-1" />
           <span class="">Community</span>
         </a>
@@ -74,7 +74,7 @@
   <ul class="grid grid-cols-3 text-center mt-3">
 
     <li class="">
-      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/christ">
+      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/christ" wire:navigate>
         <div class="flex items-center">
           <x-icon-cross class="h-4 w-4 mr-1" />
           <span class="">Christ</span>
@@ -84,7 +84,7 @@
         @foreach ($pages as $page)
         @if ($page->area->value == 'christ')
         <li class="leading-none mb-6">
-          <a class="" href="/christ/{{$page->slug}}">
+          <a class="" href="/christ/{{$page->slug}}" wire:navigate>
             {{$page->heading}}
           </a>
         </li>
@@ -94,7 +94,7 @@
     </li>
 
     <li class="">
-      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/church">
+      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/church" wire:navigate>
         <div class="flex items-center">
           <x-icon-church class="h-5 w-5 mr-1" />
           <span class="">Church</span>
@@ -104,7 +104,7 @@
         @foreach ($pages as $page)
         @if ($page->area->value == 'church')
         <li class="leading-none mb-6">
-          <a class="" href="/church/{{$page->slug}}">
+          <a class="" href="/church/{{$page->slug}}" wire:navigate>
             {{$page->heading}}
           </a>
         </li>
@@ -114,7 +114,7 @@
     </li>
 
     <li class="">
-      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/community">
+      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/community" wire:navigate>
         <div class="flex items-center">
           <x-heroicon-s-user-group class="h-5 w-5 mr-1" />
           <span class="">Community</span>
@@ -124,7 +124,7 @@
         @foreach ($pages as $page)
         @if ($page->area->value == 'community')
         <li class="leading-none mb-6">
-          <a class="" href="/community/{{$page->slug}}">
+          <a class="" href="/community/{{$page->slug}}" wire:navigate>
             {{$page->heading}}
           </a>
         </li>
@@ -135,7 +135,7 @@
 
     @if ($user)
     <li class="">
-      <a class="" href="/church/members">
+      <a class="" href="/church/members" wire:navigate>
         Members
       </a>
     </li>

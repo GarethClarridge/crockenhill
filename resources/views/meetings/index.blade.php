@@ -15,7 +15,7 @@
     @foreach ($meetings as $meeting)
       <tr>
         <td>
-          <a href="/meetings/{{ $meeting->slug }}">
+          <a href="/meetings/{{ $meeting->slug }}" wire:navigate>
             {{ $meeting->slug }}
           </a>
         </td>

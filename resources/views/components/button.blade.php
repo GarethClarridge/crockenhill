@@ -13,7 +13,7 @@ $classes = $baseClasses . ' ' . $variantClasses[$variant];
 @endphp
 
 <div>
-  <a class="{{ $classes }}" href="{{ $link }}">
+  <a class="{{ $classes }}" href="{{ $link }}" wire:navigate>
     {{ $slot }}
   </a>
 </div>

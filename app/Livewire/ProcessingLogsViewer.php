@@ -9,6 +9,7 @@ use App\Data\ProcessingLogEntry;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Livewire\Attributes\Lazy;
 use Livewire\Component;
 
 class ProcessingLogsViewer extends Component
@@ -310,8 +311,14 @@ class ProcessingLogsViewer extends Component
         return round($bytes, 2).' '.$units[$pow];
     }
 
+    #[Lazy]
     public function render()
     {
         return view('livewire.processing-logs-viewer');
+    }
+
+    public function placeholder()
+    {
+        return view('livewire.components.lazy-placeholder');
     }
 }

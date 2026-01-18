@@ -5,7 +5,7 @@
 <div class="max-w-sm rounded-lg shadow bg-white border-1 border-gray-300 p-0 m-2 flex flex-col">
 
   @if (($sermon->title != null))
-  <a class="font-display text-4xl my-auto underline" href="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}">
+  <a class="font-display text-4xl my-auto underline" href="/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}" wire:navigate>
     <h4 class="p-6 mx-6 mt-6">
       {{$sermon->title}}
     </h4>
@@ -27,13 +27,13 @@
     @if ($sermon->preacher != null)
     <li class="my-2 flex items-center">
       <x-heroicon-o-user class="h-5 w-5 mr-2" />
-      <a href="/christ/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}">{{ $sermon->preacher }}</a>
+      <a href="/christ/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}" wire:navigate>{{ $sermon->preacher }}</a>
     </li>
     @endif
     @if ($sermon->series != null)
     <li class="my-2 flex items-center">
       <x-heroicon-o-tag class="h-5 w-5 mr-2" />
-      <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}">{{ $sermon->series }}</a>
+      <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" wire:navigate>{{ $sermon->series }}</a>
     </li>
     @endif
     @if ($sermon->reference != null)

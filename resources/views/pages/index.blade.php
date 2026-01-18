@@ -16,9 +16,9 @@
       <tr>
         <td>
           @if ($page->area == $page->slug)
-            <a href="/{{$page->slug}}">
+            <a href="/{{$page->slug}}" wire:navigate>
           @else
-            <a href="/{{$page->area}}/{{$page->slug}}">
+            <a href="/{{$page->area}}/{{$page->slug}}" wire:navigate>
           @endif
               {{ $page->heading }}
             </a>

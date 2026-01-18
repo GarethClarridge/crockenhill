@@ -5,22 +5,24 @@ namespace App\Livewire\Auth;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Validator;
+use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 class ResetPassword extends Component
 {
-    public $token;
+    public string $token = '';
 
-    public $email = '';
+    #[Validate('required|email|exists:users,email')]
+    public string $email = '';
 
-    public $password = '';
+    #[Validate('required|string|min:8|confirmed')]
+    public string $password = '';
 
-    public $password_confirmation = '';
+    public string $password_confirmation = '';
 
-    public $status = '';
+    public string $status = '';
 
-    public $error = '';
+    public string $error = '';
 
     public function mount($token)
     {
@@ -29,22 +31,15 @@ class ResetPassword extends Component
 
     public function resetPassword()
     {
+        $this->validate();
+
         $data = [
             'token' => $this->token,
             'email' => $this->email,
             'password' => $this->password,
             'password_confirmation' => $this->password_confirmation,
         ];
-        $validator = Validator::make($data, [
-            'token' => 'required',
-            'email' => 'required|email|exists:users,email',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-        if ($validator->fails()) {
-            $this->error = $validator->errors()->first();
 
-            return;
-        }
         $status = Password::reset($data, function ($user, $password) {
             $user->password = Hash::make($password);
             $user->save();

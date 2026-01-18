@@ -3,7 +3,7 @@
 @if($layout === 'grid')
 <form method="POST" action="{{ $deleteRoute }}" accept-charset="UTF-8" class="grid grid-cols-2">
   @csrf
-  <a href="{{ $editRoute }}" 
+  <a href="{{ $editRoute }}" wire:navigate
      class="w-full no-underline mx-auto block max-w-md p-4 text-center text-white rounded-bl-md bg-cbc-pattern bg-cover focus:ring-2 focus:ring-blue-800 focus:ring-offset-2 transition-all">
     @if($withIcons)
     <div class="flex items-center justify-center">
@@ -32,7 +32,7 @@
   @csrf
   @method('DELETE')
   <div class="relative inline-flex align-middle">
-    <a href="{{ $editRoute }}" 
+    <a href="{{ $editRoute }}" wire:navigate
        class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline bg-green-500 hover:bg-green-600 text-white">
       Edit
     </a>

@@ -3,7 +3,11 @@
     'heading',
 ])
 
-<a href="{{ $link }}" class="block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow hover:bg-gray-100">
+@php
+$isInternalLink = !str_starts_with($link, 'http') && !str_ends_with($link, '.pdf');
+@endphp
+
+<a href="{{ $link }}" @if($isInternalLink) wire:navigate @endif class="block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow hover:bg-gray-100">
     <h5 class="mb-2 text-2x">
         {{ $heading }}
     </h5>

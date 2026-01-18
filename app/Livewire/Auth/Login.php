@@ -4,20 +4,25 @@ namespace App\Livewire\Auth;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 class Login extends Component
 {
-    public $email = '';
+    #[Validate('required|email')]
+    public string $email = '';
 
-    public $password = '';
+    #[Validate('required|min:1')]
+    public string $password = '';
 
-    public $remember = false;
+    public bool $remember = false;
 
-    public $error = '';
+    public string $error = '';
 
     public function login()
     {
+        $this->validate();
+
         $credentials = [
             'email' => $this->email,
             'password' => $this->password,

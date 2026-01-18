@@ -5,39 +5,28 @@ namespace App\Livewire\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 class Register extends Component
 {
-    public $name = '';
+    #[Validate('required|string|max:255')]
+    public string $name = '';
 
-    public $email = '';
+    #[Validate('required|email|max:255|unique:users')]
+    public string $email = '';
 
-    public $password = '';
+    #[Validate('required|string|min:8|confirmed')]
+    public string $password = '';
 
-    public $password_confirmation = '';
+    public string $password_confirmation = '';
 
-    public $error = '';
+    public string $error = '';
 
     public function register()
     {
-        $data = [
-            'name' => $this->name,
-            'email' => $this->email,
-            'password' => $this->password,
-            'password_confirmation' => $this->password_confirmation,
-        ];
-        $validator = Validator::make($data, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-        if ($validator->fails()) {
-            $this->error = $validator->errors()->first();
+        $this->validate();
 
-            return;
-        }
         $user = User::create([
             'name' => $this->name,
             'email' => $this->email,

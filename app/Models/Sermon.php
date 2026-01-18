@@ -565,10 +565,7 @@ class Sermon extends Model implements Sitemapable
 
         // Auto-generate from available content
         $description = "Listen to '{$this->title}' by {$this->preacher}";
-
-        if ($this->date) {
-            $description .= " preached on {$this->human_date}";
-        }
+        $description .= " preached on {$this->human_date}";
 
         if ($this->reference) {
             $description .= " - {$this->reference}";

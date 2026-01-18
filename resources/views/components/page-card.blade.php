@@ -7,9 +7,9 @@
   <div class="rounded-lg shadow bg-white border-1 border-gray-300 p-0 m-2">
     <div class="relative overflow-hidden">
       @if ($page->area == 'sermons')
-      <a href="/christ/sermons/{{$page->slug}}">
+      <a href="/christ/sermons/{{$page->slug}}" wire:navigate>
         @else
-        <a href="/{{$page->area}}/{{$page->slug}}">
+        <a href="/{{$page->area}}/{{$page->slug}}" wire:navigate>
           @endif
           <img class="w-full rounded-t-lg brightness-75 contrast-75 hover:scale-110 transition-all duration-500" src="/images/headings/small/{{$page->slug}}.jpg" alt="" onerror="this.onerror=null;this.src='/images/headings/small/default.jpg';" loading="lazy">
           <h5 class="leading-normal align-middle absolute top-1/3 left-0 right-0 text-white font-display text-2xl text-center">

@@ -124,7 +124,7 @@ use Illuminate\Support\Str;
         <div>
           <dt class="sr-only">Preacher</dt>
           <dd class="text-gray-900 font-medium">
-            <a href="/christ/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}" class="text-blue-600 hover:text-blue-800 transition-colors">{{ $sermon->preacher }}</a>
+            <a href="/christ/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">{{ $sermon->preacher }}</a>
           </dd>
         </div>
       </div>
@@ -136,7 +136,7 @@ use Illuminate\Support\Str;
         <div>
           <dt class="sr-only">Series</dt>
           <dd class="text-gray-900 font-medium">
-            <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" class="text-blue-600 hover:text-blue-800 transition-colors">{{ $sermon->series }}</a>
+            <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">{{ $sermon->series }}</a>
           </dd>
         </div>
       </div>
