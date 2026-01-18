@@ -150,7 +150,12 @@ class Page extends Model implements Sitemapable
             ->setPriority(0.7);
 
         if ($this->updated_at) {
-            $url->setLastModificationDate($this->updated_at);
+            $updatedAt = $this->updated_at instanceof \Carbon\Carbon
+                ? $this->updated_at
+                : \Carbon\Carbon::parse($this->updated_at);
+            if ($updatedAt->year > 0) {
+                $url->setLastModificationDate($updatedAt);
+            }
         }
 
         if ($this->hasImage() && $this->image_url) {
