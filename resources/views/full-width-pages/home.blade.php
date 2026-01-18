@@ -31,10 +31,10 @@
 
   <div class="full-width-head py-16 mb-16 hidden md:block" style="background-image: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url({{ asset('/images/homepage/may2024wide.webp') }}); background-position: right; background-size: cover;">
     <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
-      <h1 class="text-white text-6xl font-display p-12 text-center md:text-left typewriter">
-        <span class="typewriter-line typewriter-line-1">Crockenhill</span><br>
-        <span class="typewriter-line typewriter-line-2">Baptist</span><br>
-        <span class="typewriter-line typewriter-line-3">Church.</span>
+      <h1 class="text-white text-6xl font-display p-12 text-center md:text-left">
+        <span class="">Crockenhill</span><br>
+        <span class="">Baptist</span><br>
+        <span class="">Church.</span>
       </h1>
       <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right hero-nav-container">
         <div class="hero-nav-link-animated hero-nav-link-1">
@@ -52,10 +52,10 @@
 
   <div class="full-width-head py-16 mb-16 md:hidden" style="background-image: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url({{ asset('/images/homepage/may2024mobile.webp') }}); background-position: bottom; background-size: cover;">
     <div class="grid grid-cols-1 mx-auto justify-items-center">
-      <h1 class="text-white font-display text-6xl p-12 text-center typewriter">
-        <span class="typewriter-line typewriter-line-1">Crockenhill</span><br>
-        <span class="typewriter-line typewriter-line-2">Baptist</span><br>
-        <span class="typewriter-line typewriter-line-3">Church.</span>
+      <h1 class="text-white font-display text-6xl p-12 text-center">
+        <span class="">Crockenhill</span><br>
+        <span class="">Baptist</span><br>
+        <span class="">Church.</span>
       </h1>
       <div class="p-3 m-6 leading-10 text-xl font-display text-center hero-nav-container">
         <div class="hero-nav-link-animated hero-nav-link-1">
