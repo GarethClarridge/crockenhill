@@ -136,8 +136,7 @@ Route::get('phpinfo', fn () => phpinfo())->middleware('admin');
 Route::get('/sitemap.xml', function () {
     $sitemapPath = public_path('sitemap.xml');
 
-    // Laravel 12 flexible cache: fresh for 1 day, stale for 2 days
-    Cache::flexible('sitemap', [86400, 172800], function () use ($sitemapPath) {
+    $generateSitemap = function () use ($sitemapPath) {
         Sitemap::create()
             // Static high-priority URLs
             ->add(Url::create('/')->setPriority(1.0)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
@@ -155,12 +154,17 @@ Route::get('/sitemap.xml', function () {
             ->writeToFile($sitemapPath);
 
         return true;
-    });
+    };
 
-    // Read and return the sitemap content
-    $content = file_get_contents($sitemapPath);
+    // Laravel 12 flexible cache: fresh for 1 day, stale for 2 days
+    Cache::flexible('sitemap', [86400, 172800], $generateSitemap);
 
-    return response($content, 200, [
+    // Regenerate if file is missing (e.g., manually deleted)
+    if (! file_exists($sitemapPath)) {
+        $generateSitemap();
+    }
+
+    return response(file_get_contents($sitemapPath), 200, [
         'Content-Type' => 'application/xml',
     ]);
 })->name('sitemap');
