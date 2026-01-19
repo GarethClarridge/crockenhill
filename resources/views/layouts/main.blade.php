@@ -39,15 +39,26 @@
   <link rel="shortcut icon" href="/favicon.ico?v=GvJNbAA7Wv">
   <meta name="theme-color" content="#16324f">
 
-  {{-- Google Analytics 4 --}}
+  {{-- Google Analytics 4 - Deferred to improve LCP --}}
   @if(config('services.google_analytics.measurement_id'))
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('services.google_analytics.measurement_id') }}"></script>
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', '{{ config('services.google_analytics.measurement_id') }}');
+    // Load GA after page becomes interactive to avoid blocking LCP
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        var script = document.createElement('script');
+        script.src = 'https://www.googletagmanager.com/gtag/js?id={{ config('services.google_analytics.measurement_id') }}';
+        script.async = true;
+        document.head.appendChild(script);
+
+        script.onload = function() {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', '{{ config('services.google_analytics.measurement_id') }}');
+        };
+      }, 100); // Small delay to ensure page is fully rendered
+    });
   </script>
   @endif
 

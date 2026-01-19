@@ -26,8 +26,8 @@
 @endsection
 
 @section('preload')
-<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024wide.webp') }}" media="(min-width: 768px)" fetchpriority="high">
-<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024mobile.webp') }}" media="(max-width: 767px)" fetchpriority="high">
+<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024wide.webp') }}" media="(min-width: 768px)">
+<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024mobile-600.webp') }}" media="(max-width: 767px)">
 @endsection
 
 @section('content')
@@ -70,13 +70,16 @@
 
   {{-- Mobile Hero --}}
   <div class="full-width-head relative py-16 mb-16 md:hidden overflow-hidden">
-    {{-- Background Image (LCP element) --}}
+    {{-- Background Image (LCP element) - responsive srcset for mobile --}}
     <img
-      src="{{ asset('/images/homepage/may2024mobile.webp') }}"
+      src="{{ asset('/images/homepage/may2024mobile-600.webp') }}"
+      srcset="{{ asset('/images/homepage/may2024mobile-600.webp') }} 600w,
+              {{ asset('/images/homepage/may2024mobile.webp') }} 1200w"
+      sizes="100vw"
       alt=""
       class="absolute inset-0 w-full h-full object-cover object-bottom"
-      width="1200"
-      height="900"
+      width="600"
+      height="450"
       fetchpriority="high"
     >
     {{-- Gradient Overlay --}}
