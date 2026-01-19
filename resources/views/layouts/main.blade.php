@@ -29,6 +29,7 @@
   @yield('meta_tags')
 
   {{-- Preload hints for critical resources --}}
+  <link rel="preload" as="image" href="/public/images/pattern.svg">
   @yield('preload')
 
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=GvJNbAA7Wv">

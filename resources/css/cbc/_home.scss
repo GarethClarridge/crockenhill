@@ -1,6 +1,6 @@
 .full-width-head {
   // Background properties removed - now using img element with object-fit
-  // min-height: 33vh;
+  min-height: 50vh; // Reserve space to prevent CLS from hero image loading
 
   h1 {
     // font-size: $font-size-base*5;
