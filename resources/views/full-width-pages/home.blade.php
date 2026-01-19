@@ -26,8 +26,8 @@
 @endsection
 
 @section('preload')
-<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024wide.webp') }}" media="(min-width: 768px)">
-<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024mobile.webp') }}" media="(max-width: 767px)">
+<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024wide.webp') }}" media="(min-width: 768px)" fetchpriority="high">
+<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024mobile.webp') }}" media="(max-width: 767px)" fetchpriority="high">
 @endsection
 
 @section('content')
