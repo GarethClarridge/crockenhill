@@ -109,12 +109,6 @@ All emails use `Mail::queue()` for async delivery. Queue driver (`QUEUE_DRIVER`)
 - `email.send_success_notifications` - Success emails (default: false)
 - `email.send_failure_notifications` - Failure emails (default: true)
 
-**Production Setup (Mailgun):**
-1. Sign up at [mailgun.com](https://mailgun.com) (free tier: 100 emails/day)
-2. Get domain from dashboard and API key from settings
-3. Update `.env` or `docker-compose.yml` with credentials
-4. Set `MAIL_MAILER=mailgun`
-
 ### Testing Strategy
 - **Feature Tests**: HTTP routes, integration tests
 - **Unit Tests**: Models, services, request validation
