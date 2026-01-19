@@ -26,20 +26,33 @@
 @endsection
 
 @section('preload')
-<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024wide.webp') }}" media="(min-width: 768px)" fetchpriority="high">
-<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024mobile.webp') }}" media="(max-width: 767px)" fetchpriority="high">
+<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024wide.webp') }}" media="(min-width: 768px)">
+<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024mobile.webp') }}" media="(max-width: 767px)">
 @endsection
 
 @section('content')
 
-<main id="home" class="text-sm">
+<main id="home" class="text-sm -mt-px">
 
-  <div class="full-width-head py-16 mb-16 hidden md:block" style="background-image: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url({{ asset('/images/homepage/may2024wide.webp') }}); background-position: right; background-size: cover;">
-    <div class="grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
-      <h1 class="text-white text-6xl font-display p-12 text-center md:text-left">
-        <span class="">Crockenhill</span><br>
-        <span class="">Baptist</span><br>
-        <span class="">Church.</span>
+  {{-- Desktop Hero --}}
+  <div class="full-width-head relative py-16 mb-16 hidden md:block overflow-hidden">
+    {{-- Background Image (LCP element) --}}
+    <img
+      src="{{ asset('/images/homepage/may2024wide.webp') }}"
+      alt=""
+      class="absolute inset-0 w-full h-full object-cover object-right"
+      width="1200"
+      height="450"
+      fetchpriority="high"
+    >
+    {{-- Gradient Overlay --}}
+    <div class="absolute inset-0 bg-black/30"></div>
+    {{-- Content --}}
+    <div class="relative grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
+      <h1 class="text-white text-6xl font-display p-12 text-center md:text-left typewriter">
+        <span class="typewriter-line typewriter-line-1">Crockenhill</span><br>
+        <span class="typewriter-line typewriter-line-2">Baptist</span><br>
+        <span class="typewriter-line typewriter-line-3">Church.</span>
       </h1>
       <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right hero-nav-container">
         <div class="hero-nav-link-animated hero-nav-link-1">
@@ -55,12 +68,25 @@
     </div>
   </div>
 
-  <div class="full-width-head py-16 mb-16 md:hidden" style="background-image: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url({{ asset('/images/homepage/may2024mobile.webp') }}); background-position: bottom; background-size: cover;">
-    <div class="grid grid-cols-1 mx-auto justify-items-center">
-      <h1 class="text-white font-display text-6xl p-12 text-center">
-        <span class="">Crockenhill</span><br>
-        <span class="">Baptist</span><br>
-        <span class="">Church.</span>
+  {{-- Mobile Hero --}}
+  <div class="full-width-head relative py-16 mb-16 md:hidden overflow-hidden">
+    {{-- Background Image (LCP element) --}}
+    <img
+      src="{{ asset('/images/homepage/may2024mobile.webp') }}"
+      alt=""
+      class="absolute inset-0 w-full h-full object-cover object-bottom"
+      width="1200"
+      height="900"
+      fetchpriority="high"
+    >
+    {{-- Gradient Overlay --}}
+    <div class="absolute inset-0 bg-black/20"></div>
+    {{-- Content --}}
+    <div class="relative grid grid-cols-1 mx-auto justify-items-center">
+      <h1 class="text-white font-display text-6xl p-12 text-center typewriter">
+        <span class="typewriter-line typewriter-line-1">Crockenhill</span><br>
+        <span class="typewriter-line typewriter-line-2">Baptist</span><br>
+        <span class="typewriter-line typewriter-line-3">Church.</span>
       </h1>
       <div class="p-3 m-6 leading-10 text-xl font-display text-center hero-nav-container">
         <div class="hero-nav-link-animated hero-nav-link-1">
