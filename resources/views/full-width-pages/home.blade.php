@@ -27,7 +27,7 @@
 
 @section('preload')
 <link rel="preload" as="image" href="{{ asset('/images/homepage/may2024wide.webp') }}" media="(min-width: 768px)">
-<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024mobile-portrait.webp') }}" media="(max-width: 767px)">
+<link rel="preload" as="image" href="{{ asset('/images/homepage/may2024mobile-portrait-600.webp') }}" media="(max-width: 767px)">
 @endsection
 
 @section('content')
@@ -72,11 +72,14 @@
   <div class="full-width-head relative py-16 mb-16 md:hidden overflow-hidden">
     {{-- Background Image (LCP element) - portrait orientation for mobile --}}
     <img
-      src="{{ asset('/images/homepage/may2024mobile-portrait.webp') }}"
+      src="{{ asset('/images/homepage/may2024mobile-portrait-600.webp') }}"
+      srcset="{{ asset('/images/homepage/may2024mobile-portrait-600.webp') }} 600w,
+              {{ asset('/images/homepage/may2024mobile-portrait.webp') }} 675w"
+      sizes="100vw"
       alt=""
       class="absolute inset-0 w-full h-full object-cover"
-      width="675"
-      height="900"
+      width="600"
+      height="800"
       fetchpriority="high"
     >
     {{-- Gradient Overlay --}}
