@@ -71,7 +71,7 @@
   </div>
 </div>
 
-<section class="md:w-1/2 mx-auto p-4 my-4">
+<section class="md:w-1/2 mx-auto p-4 my-4 flex justify-center">
   <a class="fiec-footer" href="https://www.fiec.org.uk">
     <img src="/images/affiliated-to-FIEC-logo-white.webp" alt="Affiliated to the Fellowship of Independent Evangelical Churches" loading="lazy" width="384" height="68">
   </a>
