@@ -59,6 +59,8 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read string $podcast_summary
  * @property-read string $rss_pub_date
  * @property-read string $canonical_url
+ * @property-read ?string $episode_image_url
+ * @property-read ?string $transcript_url
  * @property-read string $filename (deprecated, use audio_file_path)
  * @property-read ?string $transcript_path (deprecated, use transcript_file_path)
  * @property-read ?string $thumbnail_path (deprecated, use thumbnail_file_path)
@@ -720,6 +722,30 @@ class Sermon extends Model implements Sitemapable
         return $query->whereNotNull('audio_file_path')
             ->where('audio_file_path', '!=', '')
             ->orderBy('date', 'desc');
+    }
+
+    /**
+     * Get episode image URL for podcast feeds
+     * Uses thumbnail if available, otherwise returns null (template falls back to podcast artwork)
+     */
+    public function getEpisodeImageUrlAttribute(): ?string
+    {
+        return $this->thumbnail_url;
+    }
+
+    /**
+     * Get transcript URL for podcast feeds (Podcast 2.0 transcript support)
+     * Returns null if no transcript is available
+     */
+    public function getTranscriptUrlAttribute(): ?string
+    {
+        if (! $this->transcript_file_path) {
+            return null;
+        }
+
+        // Generate a public URL to the transcript
+        // This assumes transcripts are stored in a publicly accessible location
+        return url("/christ/sermons/{$this->date->format('Y')}/{$this->date->format('m')}/{$this->slug}/transcript");
     }
 
     // ========================================================================

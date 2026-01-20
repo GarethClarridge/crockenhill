@@ -522,4 +522,19 @@ class PodcastFeedTest extends TestCase
         $this->assertStringContainsString('type="audio/mpeg"', $content);
         $this->assertStringContainsString('length="10485760"', $content); // Mocked 10MB
     }
+
+    #[Test]
+    public function feed_includes_episode_image(): void
+    {
+        Sermon::factory()->create([
+            'service' => SermonService::MORNING->value,
+            'audio_file_path' => 'test.mp3',
+        ]);
+
+        $response = $this->get('/christ/sermons/morning/feed');
+        $content = $response->getContent();
+
+        // Episode should have itunes:image (falls back to podcast artwork if no thumbnail)
+        $this->assertStringContainsString('<itunes:image href="http://localhost/images/podcast/MorningArtwork.jpg"', $content);
+    }
 }

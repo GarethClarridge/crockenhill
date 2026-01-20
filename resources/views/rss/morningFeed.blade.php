@@ -37,6 +37,7 @@
       <title><![CDATA[{{ $sermon->title }}]]></title>
       <itunes:title><![CDATA[{{ $sermon->title }}]]></itunes:title>
       <itunes:author>{{ $metadata['author'] }}</itunes:author>
+      <itunes:image href="{{ $sermon->episode_image_url ?? $metadata['image'] }}" />
       <link>{{ $sermon->canonical_url }}</link>
       <itunes:summary><![CDATA[{{ $sermon->podcast_summary }}]]></itunes:summary>
       <itunes:subtitle><![CDATA[{{ $sermon->podcast_summary }}]]></itunes:subtitle>
@@ -50,6 +51,9 @@
       <pubDate>{{ $sermon->rss_pub_date }}</pubDate>
       <itunes:explicit>false</itunes:explicit>
       <itunes:episodeType>full</itunes:episodeType>
+@if($sermon->transcript_url)
+      <podcast:transcript url="{{ $sermon->transcript_url }}" type="text/plain" />
+@endif
     </item>
     @endforeach
 
