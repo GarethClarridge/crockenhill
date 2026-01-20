@@ -55,6 +55,10 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $preacher_url
  * @property-read ?string $video_url
  * @property-read ?string $thumbnail_url
+ * @property-read string $itunes_duration
+ * @property-read string $podcast_summary
+ * @property-read string $rss_pub_date
+ * @property-read string $canonical_url
  * @property-read string $filename (deprecated, use audio_file_path)
  * @property-read ?string $transcript_path (deprecated, use transcript_file_path)
  * @property-read ?string $thumbnail_path (deprecated, use thumbnail_file_path)
@@ -73,6 +77,7 @@ use Spatie\Sitemap\Tags\Url;
  * @method static Builder|Sermon processingFailed()
  * @method static Builder|Sermon processingInProgress()
  * @method static Builder|Sermon withThumbnail()
+ * @method static Builder|Sermon forPodcast()
  *
  * @mixin \Eloquent
  */
@@ -559,7 +564,7 @@ class Sermon extends Model implements Sitemapable
     public function getMetaDescriptionAttribute(): string
     {
         // Return explicitly set meta description if it exists
-        if (!empty($this->attributes['meta_description'])) {
+        if (! empty($this->attributes['meta_description'])) {
             return $this->attributes['meta_description'];
         }
 
@@ -588,7 +593,7 @@ class Sermon extends Model implements Sitemapable
     /**
      * Convert the sermon to a sitemap tag.
      */
-    public function toSitemapTag(): Url | string | array
+    public function toSitemapTag(): Url|string|array
     {
         $year = $this->date->format('Y');
         $month = $this->date->format('m');
@@ -646,6 +651,75 @@ class Sermon extends Model implements Sitemapable
         }
 
         return $url;
+    }
+
+    // ========================================================================
+    // Podcast Feed Accessors
+    // ========================================================================
+
+    /**
+     * Get duration formatted for iTunes podcast feeds (HH:MM:SS)
+     */
+    public function getItunesDurationAttribute(): string
+    {
+        $seconds = (int) ($this->duration ?? 0);
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $remainingSeconds = $seconds % 60;
+
+        return sprintf('%02d:%02d:%02d', $hours, $minutes, $remainingSeconds);
+    }
+
+    /**
+     * Get podcast episode summary from available metadata
+     */
+    public function getPodcastSummaryAttribute(): string
+    {
+        $parts = [];
+
+        if ($this->reference) {
+            $parts[] = "A sermon on {$this->reference}";
+        }
+
+        if ($this->preacher) {
+            $prefix = empty($parts) ? 'A sermon from' : 'from';
+            $parts[] = "{$prefix} {$this->preacher}";
+        }
+
+        if ($this->series) {
+            $parts[] = "as part of our {$this->series} series";
+        }
+
+        return ! empty($parts) ? implode(' ', $parts).'.' : $this->title;
+    }
+
+    /**
+     * Get RFC 2822 formatted date for RSS pubDate
+     */
+    public function getRssPubDateAttribute(): string
+    {
+        return $this->date->toRfc2822String();
+    }
+
+    /**
+     * Get canonical sermon URL
+     */
+    public function getCanonicalUrlAttribute(): string
+    {
+        $year = $this->date->format('Y');
+        $month = $this->date->format('m');
+
+        return url("/christ/sermons/{$year}/{$month}/{$this->slug}");
+    }
+
+    /**
+     * Scope for podcast-ready sermons (must have audio file)
+     */
+    public function scopeForPodcast(Builder $query): Builder
+    {
+        return $query->whereNotNull('audio_file_path')
+            ->where('audio_file_path', '!=', '')
+            ->orderBy('date', 'desc');
     }
 
     // ========================================================================

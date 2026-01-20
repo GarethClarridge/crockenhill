@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Sermon;
-use App\Models\Page;
 use App\Enums\PageArea;
+use App\Models\Page;
+use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -39,13 +39,13 @@ class StructuredDataTest extends TestCase
 
         // Extract JSON-LD and check content
         // Matching JSON_PRETTY_PRINT format: keys and values separated by ": "
-        
+
         $response->assertSee('"@context": "https://schema.org"', false);
         $response->assertSee('"@type": "Article"', false);
         $response->assertSee('"headline": "Test Sermon Title"', false);
         $response->assertSee('"name": "Rev. John Doe"', false); // Author name
         // Date format might vary slightly in JSON encoding vs string, but generally consistent
-        $response->assertSee('"datePublished": "2023-10-22T00:00:00+00:00"', false); 
+        $response->assertSee('"datePublished": "2023-10-22T00:00:00+00:00"', false);
     }
 
     #[Test]
@@ -55,7 +55,7 @@ class StructuredDataTest extends TestCase
             'audio_file_path' => 'sermons/audio.mp3',
             'meta_description' => 'Audio meta description',
         ]);
-        
+
         $year = $sermon->date->format('Y');
         $month = $sermon->date->format('m');
         $url = "/christ/sermons/{$year}/{$month}/{$sermon->slug}";
@@ -63,7 +63,7 @@ class StructuredDataTest extends TestCase
         $response = $this->get($url);
 
         $response->assertStatus(200);
-        
+
         $response->assertSee('"@type": "AudioObject"', false);
         $response->assertSee('"description": "Audio meta description"', false);
     }
@@ -108,19 +108,19 @@ class StructuredDataTest extends TestCase
 
         // Check for BreadcrumbList
         $response->assertSee('"@type": "BreadcrumbList"', false);
-        
+
         // Root / Home
         $response->assertSee('"position": 1', false);
         $response->assertSee('"name": "Home"', false);
-        
+
         // Area (christ)
         $response->assertSee('"position": 2', false);
         $response->assertSee('"name": "Christ"', false);
-        
+
         // Sermons (level 3)
         $response->assertSee('"position": 3', false);
         $response->assertSee('"name": "Sermons"', false);
-        
+
         // Last item (usually level 4 for specific sermon)
         $response->assertSee('"name": "Breadcrumb Test Sermon"', false);
     }
@@ -134,7 +134,7 @@ class StructuredDataTest extends TestCase
             'slug' => 'about-us',
         ]);
 
-        $url = "/church/about-us";
+        $url = '/church/about-us';
 
         $response = $this->get($url);
 
@@ -142,15 +142,15 @@ class StructuredDataTest extends TestCase
 
         // Check for BreadcrumbList
         $response->assertSee('"@type": "BreadcrumbList"', false);
-        
+
         // Root / Home
         $response->assertSee('"position": 1', false);
         $response->assertSee('"name": "Home"', false);
-        
+
         // Area (church)
         $response->assertSee('"position": 2', false);
         $response->assertSee('"name": "Church"', false);
-        
+
         // Last item (About Us)
         $response->assertSee('"position": 3', false);
         $response->assertSee('"name": "About Us"', false);

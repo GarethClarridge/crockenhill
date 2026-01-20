@@ -6,9 +6,8 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Spatie\Sitemap\Tags\Url;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Sitemap\Tags\Url;
 use Tests\TestCase;
 
 class SitemapableTest extends TestCase

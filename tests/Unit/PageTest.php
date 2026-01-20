@@ -182,5 +182,4 @@ This is about us.';
             ->where('area', PageArea::CHRIST->value)
             ->firstOrFail();
     }
-
 }

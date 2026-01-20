@@ -143,7 +143,7 @@ class Page extends Model implements Sitemapable
     /**
      * Convert the page to a sitemap tag.
      */
-    public function toSitemapTag(): Url | string | array
+    public function toSitemapTag(): Url|string|array
     {
         $url = Url::create($this->route)
             ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)

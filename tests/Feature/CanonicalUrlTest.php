@@ -16,7 +16,7 @@ class CanonicalUrlTest extends TestCase
     {
         $response = $this->get('/');
         $response->assertStatus(200);
-        $response->assertSee('<link rel="canonical" href="' . url('/') . '">', false);
+        $response->assertSee('<link rel="canonical" href="'.url('/').'">', false);
     }
 
     #[Test]
@@ -28,22 +28,22 @@ class CanonicalUrlTest extends TestCase
         ]);
 
         $slugRoute = route('showSermon', $sermon->slug);
-        
+
         // Test slug-based route
         $response = $this->get($slugRoute);
         $response->assertStatus(200);
-        $response->assertSee('<link rel="canonical" href="' . $slugRoute . '">', false);
+        $response->assertSee('<link rel="canonical" href="'.$slugRoute.'">', false);
 
         // Test date-based route
         $dateRoute = route('showSermonWithDate', [
             'year' => '2024',
             'month' => '01',
-            'sermon' => $sermon->slug
+            'sermon' => $sermon->slug,
         ]);
-        
+
         $response = $this->get($dateRoute);
         $response->assertStatus(200);
         // It should still point to the slugRoute
-        $response->assertSee('<link rel="canonical" href="' . $slugRoute . '">', false);
+        $response->assertSee('<link rel="canonical" href="'.$slugRoute.'">', false);
     }
 }

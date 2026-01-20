@@ -7,6 +7,7 @@ use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\MeetingController; // Added this line
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\PodcastFeedController;
 use App\Http\Controllers\SermonController;
 use App\Models\Meeting;
 use App\Models\Page;
@@ -62,6 +63,12 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
     Route::get('series', [SermonController::class, 'getSerieses'])->name('getSerieses');
     Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
+
+    // Podcast RSS feeds (must be before {service} catch-all)
+    Route::get('{service}/feed', [PodcastFeedController::class, 'show'])
+        ->where('service', 'morning|evening')
+        ->name('podcast.feed');
+
     Route::get('{service}', [SermonController::class, 'getService'])->where('service', 'morning|evening|other')->name('getService');
 
     // Date-based sermon routes (must come before slug-only routes)

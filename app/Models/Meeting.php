@@ -249,7 +249,7 @@ class Meeting extends Model implements Sitemapable
     /**
      * Convert the meeting to a sitemap tag.
      */
-    public function toSitemapTag(): Url | string | array
+    public function toSitemapTag(): Url|string|array
     {
         $url = Url::create("/community/{$this->slug}")
             ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)

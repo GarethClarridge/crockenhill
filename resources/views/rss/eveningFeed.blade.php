@@ -1,65 +1,50 @@
-<?=
-'<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL
-?>
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<?= '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL ?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Sunday evenings at Crockenhill Baptist Church</title>
+    <title>{{ $metadata['title'] }}</title>
+    <atom:link href="{{ $metadata['feed_url'] }}" rel="self" type="application/rss+xml" />
     <itunes:owner>
-      <itunes:name>Crockenhill Baptist Church</itunes:name>
-      <itunes:email>admin@crockenhill.org</itunes:email>
+      <itunes:name>{{ $metadata['owner_name'] }}</itunes:name>
+      <itunes:email>{{ $metadata['owner_email'] }}</itunes:email>
     </itunes:owner>
-    <itunes:author>Crockenhill Baptist Church</itunes:author>
-    <link>https://crockenhill.org/christ/sermons/evening</link>
-    <itunes:summary>Sermons from Sunday evenings at Crockenhill Baptist Church</itunes:summary>
-    <description>Sermons from Sunday evenings at Crockenhill Baptist Church</description>
-    <itunes:category text="Religion &amp; Spirituality">
-      <itunes:category text="Christianity" />
-      <itunes:category text="Religion" />
+    <itunes:author>{{ $metadata['author'] }}</itunes:author>
+    <link>{{ $metadata['link'] }}</link>
+    <itunes:summary>{{ $metadata['description'] }}</itunes:summary>
+    <description>{{ $metadata['description'] }}</description>
+    <itunes:category text="{{ $metadata['category'] }}">
+      <itunes:category text="{{ $metadata['subcategory'] }}" />
     </itunes:category>
-    <itunes:explicit>no</itunes:explicit>
+    <itunes:explicit>{{ $metadata['explicit'] }}</itunes:explicit>
     <image>
-      <link>https://crockenhill.org/christ/sermons/evening</link>
-      <title>Crockenhill Baptist Church: sermons from the evening service</title>
-      <url>https://crockenhill.org/images/podcast/EveningArtwork.jpg</url>
+      <link>{{ $metadata['link'] }}</link>
+      <title>{{ $metadata['title'] }}</title>
+      <url>{{ $metadata['image'] }}</url>
     </image>
-    <itunes:image href="https://crockenhill.org/images/podcast/EveningArtwork.jpg" />
-    <itunes:new-feed-url>https://crockenhill.org/christ/sermons/evening/feed</itunes:new-feed-url>
-    <language>en-gb</language>
-    <pubDate>{{ now() }}</pubDate>
+    <itunes:image href="{{ $metadata['image'] }}" />
+    <itunes:new-feed-url>{{ $metadata['feed_url'] }}</itunes:new-feed-url>
+    <language>{{ $metadata['language'] }}</language>
+    <pubDate>{{ now()->toRfc2822String() }}</pubDate>
 
     @foreach($sermons as $sermon)
     <item>
-      <title>
-        <![CDATA[{{ $sermon->title }}]]>
-      </title>
-      <itunes:title>
-        <![CDATA[{{ $sermon->title }}]]>
-      </itunes:title>
-      <itunes:author>Crockenhill Baptist Church</itunes:author>
-      <link>https://crockenhill.org/christ/sermons/{{date('Y', strtotime($sermon->date))}}/{{date('m', strtotime($sermon->date))}}/{{$sermon->slug}}</link>
-      <itunes:summary>
-        A sermon on
-        <![CDATA[{!! $sermon->reference !!}]]> from
-        <![CDATA[{!! $sermon->preacher !!}]]> as part of our
-        <![CDATA[{!! $sermon->series !!}]]> series.
-      </itunes:summary>
-      <itunes:subtitle>
-        A sermon on
-        <![CDATA[{!! $sermon->reference !!}]]> from
-        <![CDATA[{!! $sermon->preacher !!}]]> as part of our
-        <![CDATA[{!! $sermon->series !!}]]> series.
-      </itunes:subtitle>
-      <itunes:description>
-        A sermon on
-        <![CDATA[{!! $sermon->reference !!}]]> from
-        <![CDATA[{!! $sermon->preacher !!}]]> as part of our
-        <![CDATA[{!! $sermon->series !!}]]> series.
-      </itunes:description>
-      <enclosure url="https://crockenhill.org/media/sermons/{{ $sermon->filename }}.mp3" type="audio/mpeg" length="{{ $sermon->duration }}" />
-      <itunes:duration>{{ $sermon->duration }}</itunes:duration>
-      <guid isPermaLink="false">{{ $sermon->id }}</guid>
-      <pubDate>{{ $sermon->created_at }}</pubDate>
-      <itunes:explicit>no</itunes:explicit>
+      <title><![CDATA[{{ $sermon->title }}]]></title>
+      <itunes:title><![CDATA[{{ $sermon->title }}]]></itunes:title>
+      <itunes:author>{{ $metadata['author'] }}</itunes:author>
+      <link>{{ $sermon->canonical_url }}</link>
+      <itunes:summary><![CDATA[{{ $sermon->podcast_summary }}]]></itunes:summary>
+      <itunes:subtitle><![CDATA[{{ $sermon->podcast_summary }}]]></itunes:subtitle>
+      <description><![CDATA[{{ $sermon->podcast_summary }}]]></description>
+      <enclosure
+        url="{{ $sermon->enclosure_url }}"
+        type="audio/mpeg"
+        length="{{ $sermon->enclosure_length }}" />
+      <itunes:duration>{{ $sermon->itunes_duration }}</itunes:duration>
+      <guid isPermaLink="false">sermon-{{ $sermon->id }}</guid>
+      <pubDate>{{ $sermon->rss_pub_date }}</pubDate>
+      <itunes:explicit>{{ $metadata['explicit'] }}</itunes:explicit>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
     @endforeach

@@ -151,7 +151,7 @@ class PageSeoTest extends TestCase
     #[Test]
     public function it_strips_tags_before_truncating(): void
     {
-        $htmlDescription = '<p>' . str_repeat('Word ', 50) . '</p>';
+        $htmlDescription = '<p>'.str_repeat('Word ', 50).'</p>';
 
         $page = Page::factory()->create([
             'heading' => 'Test Page',

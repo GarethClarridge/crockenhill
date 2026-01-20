@@ -13,8 +13,8 @@ use Tests\TestCase;
 class SitemapCacheTest extends TestCase
 {
     use RefreshDatabase;
-    protected $seed = true;
 
+    protected $seed = true;
 
     #[Test]
     public function sitemap_cache_is_invalidated_when_sermon_is_created(): void
