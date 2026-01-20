@@ -278,9 +278,13 @@ class PodcastFeedTest extends TestCase
         $content = $response->getContent();
 
         $this->assertStringContainsString('<itunes:author>Crockenhill Baptist Church</itunes:author>', $content);
-        $this->assertStringContainsString('<itunes:explicit>no</itunes:explicit>', $content);
+        $this->assertStringContainsString('<itunes:explicit>false</itunes:explicit>', $content);
         $this->assertStringContainsString('<itunes:episodeType>full</itunes:episodeType>', $content);
         $this->assertStringContainsString('<itunes:category text="Religion &amp; Spirituality">', $content);
+        // Podcast 2.0 elements
+        $this->assertStringContainsString('xmlns:podcast="https://podcastindex.org/namespace/1.0"', $content);
+        $this->assertStringContainsString('<podcast:locked>no</podcast:locked>', $content);
+        $this->assertStringContainsString('<podcast:guid>', $content);
     }
 
     #[Test]

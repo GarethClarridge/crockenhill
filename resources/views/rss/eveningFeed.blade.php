@@ -2,7 +2,8 @@
 <rss version="2.0"
      xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
      xmlns:content="http://purl.org/rss/1.0/modules/content/"
-     xmlns:atom="http://www.w3.org/2005/Atom">
+     xmlns:atom="http://www.w3.org/2005/Atom"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>{{ $metadata['title'] }}</title>
     <atom:link href="{{ $metadata['feed_url'] }}" rel="self" type="application/rss+xml" />
@@ -17,7 +18,8 @@
     <itunes:category text="{{ $metadata['category'] }}">
       <itunes:category text="{{ $metadata['subcategory'] }}" />
     </itunes:category>
-    <itunes:explicit>{{ $metadata['explicit'] }}</itunes:explicit>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:type>episodic</itunes:type>
     <image>
       <link>{{ $metadata['link'] }}</link>
       <title>{{ $metadata['title'] }}</title>
@@ -27,6 +29,8 @@
     <itunes:new-feed-url>{{ $metadata['feed_url'] }}</itunes:new-feed-url>
     <language>{{ $metadata['language'] }}</language>
     <pubDate>{{ now()->toRfc2822String() }}</pubDate>
+    <podcast:locked>no</podcast:locked>
+    <podcast:guid>{{ $metadata['podcast_guid'] }}</podcast:guid>
 
     @foreach($sermons as $sermon)
     <item>
@@ -44,7 +48,7 @@
       <itunes:duration>{{ $sermon->itunes_duration }}</itunes:duration>
       <guid isPermaLink="false">sermon-{{ $sermon->id }}</guid>
       <pubDate>{{ $sermon->rss_pub_date }}</pubDate>
-      <itunes:explicit>{{ $metadata['explicit'] }}</itunes:explicit>
+      <itunes:explicit>false</itunes:explicit>
       <itunes:episodeType>full</itunes:episodeType>
     </item>
     @endforeach

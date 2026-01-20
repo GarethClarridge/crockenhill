@@ -73,12 +73,16 @@ return [
             'description' => 'Sermons from Sunday mornings at Crockenhill Baptist Church',
             'image' => '/images/podcast/MorningArtwork.jpg',
             'route' => '/christ/sermons/morning',
+            // Permanent UUID for Podcast 2.0 - DO NOT CHANGE once published
+            'podcast_guid' => 'cbc-morning-sermons-a1b2c3d4-e5f6-7890-abcd-ef1234567890',
         ],
         'evening' => [
             'title' => 'Sunday evenings at Crockenhill Baptist Church',
             'description' => 'Sermons from Sunday evenings at Crockenhill Baptist Church',
             'image' => '/images/podcast/EveningArtwork.jpg',
             'route' => '/christ/sermons/evening',
+            // Permanent UUID for Podcast 2.0 - DO NOT CHANGE once published
+            'podcast_guid' => 'cbc-evening-sermons-f9e8d7c6-b5a4-3210-fedc-ba0987654321',
         ],
     ],
 
