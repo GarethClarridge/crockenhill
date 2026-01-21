@@ -4,10 +4,14 @@ namespace App\Models;
 
 use App\Enums\PageArea;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory; // For scope return types
-use Illuminate\Database\Eloquent\Model; // For type hinting Carbon instances
-use Illuminate\Support\Carbon; // Added Enum import
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -40,9 +44,10 @@ use Spatie\Sitemap\Tags\Url;
  *
  * @mixin \Eloquent
  */
-class Page extends Model implements Sitemapable
+class Page extends Model implements HasMedia, Sitemapable
 {
     use HasFactory;
+    use InteractsWithMedia;
 
     protected $table = 'pages';
 
@@ -121,23 +126,234 @@ class Page extends Model implements Sitemapable
     }
 
     /**
-     * Check if the page has a heading image.
+     * Register media collections for the page.
      */
-    public function hasImage(): bool
+    public function registerMediaCollections(): void
     {
-        return \Illuminate\Support\Facades\Storage::disk('public_images')->exists('images/headings/large/'.$this->slug.'.jpg');
+        $this->addMediaCollection('headings')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
     }
 
     /**
-     * Get the URL for the page's heading image.
+     * Register media conversions for responsive images.
+     *
+     * Conversions are optimized for different device sizes:
+     * - desktop: 1920px wide for full-width hero images on desktop
+     * - tablet: 1024px wide for tablets and smaller desktops
+     * - mobile: 640px wide for mobile devices
+     * - thumbnail: 300px wide for page cards and previews
+     *
+     * All conversions use WebP format for optimal performance.
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        // Desktop - full width hero images (1920px is common max viewport)
+        $this->addMediaConversion('desktop')
+            ->width(1920)
+            ->height(960)
+            ->sharpen(10)
+            ->format('webp')
+            ->quality(85)
+            ->nonQueued();
+
+        // Tablet - for tablets and smaller desktops
+        $this->addMediaConversion('tablet')
+            ->width(1024)
+            ->height(512)
+            ->sharpen(10)
+            ->format('webp')
+            ->quality(85)
+            ->nonQueued();
+
+        // Mobile - for mobile devices
+        $this->addMediaConversion('mobile')
+            ->width(640)
+            ->height(320)
+            ->sharpen(10)
+            ->format('webp')
+            ->quality(80)
+            ->nonQueued();
+
+        // Thumbnail - for page cards and previews
+        $this->addMediaConversion('thumbnail')
+            ->width(300)
+            ->height(200)
+            ->sharpen(10)
+            ->format('webp')
+            ->quality(80)
+            ->nonQueued();
+
+        // Legacy conversions for backwards compatibility
+        $this->addMediaConversion('large')
+            ->width(1920)
+            ->height(960)
+            ->sharpen(10)
+            ->format('webp')
+            ->quality(85)
+            ->nonQueued();
+
+        $this->addMediaConversion('small')
+            ->width(300)
+            ->height(200)
+            ->sharpen(10)
+            ->format('webp')
+            ->quality(80)
+            ->nonQueued();
+    }
+
+    /**
+     * Check if the page has a heading image (legacy or media library).
+     */
+    public function hasImage(): bool
+    {
+        // Check media library first
+        if ($this->getFirstMedia('headings')) {
+            return true;
+        }
+
+        // Fallback to legacy file-based images
+        return Storage::disk('public_images')->exists('images/headings/large/'.$this->slug.'.jpg');
+    }
+
+    /**
+     * Get the URL for the page's heading image (desktop version).
      */
     public function getImageUrlAttribute(): ?string
     {
-        if (! $this->hasImage()) {
+        return $this->heading_image_url;
+    }
+
+    /**
+     * Get the heading image URL for desktop (for backwards compatibility).
+     */
+    public function getHeadingImageUrlAttribute(): ?string
+    {
+        $media = $this->getFirstMedia('headings');
+
+        if ($media) {
+            // Use desktop conversion if available, fall back to large, then original
+            if ($media->hasGeneratedConversion('desktop')) {
+                return $media->getUrl('desktop');
+            }
+            if ($media->hasGeneratedConversion('large')) {
+                return $media->getUrl('large');
+            }
+
+            return $media->getUrl();
+        }
+
+        // Fallback to legacy file-based images
+        $legacyPath = "/images/headings/large/{$this->slug}.jpg";
+        if (file_exists(public_path($legacyPath))) {
+            return $legacyPath;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the tablet-sized heading image URL.
+     */
+    public function getHeadingImageTabletUrlAttribute(): ?string
+    {
+        $media = $this->getFirstMedia('headings');
+
+        if ($media) {
+            if ($media->hasGeneratedConversion('tablet')) {
+                return $media->getUrl('tablet');
+            }
+
+            return $media->getUrl();
+        }
+
+        // Fallback to legacy file-based images (use large as fallback)
+        $legacyPath = "/images/headings/large/{$this->slug}.jpg";
+        if (file_exists(public_path($legacyPath))) {
+            return $legacyPath;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the mobile-sized heading image URL.
+     */
+    public function getHeadingImageMobileUrlAttribute(): ?string
+    {
+        $media = $this->getFirstMedia('headings');
+
+        if ($media) {
+            if ($media->hasGeneratedConversion('mobile')) {
+                return $media->getUrl('mobile');
+            }
+
+            return $media->getUrl();
+        }
+
+        // Fallback to legacy file-based images (use small as fallback)
+        $legacyPath = "/images/headings/small/{$this->slug}.jpg";
+        if (file_exists(public_path($legacyPath))) {
+            return $legacyPath;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the small heading image URL (for page cards).
+     */
+    public function getHeadingImageSmallUrlAttribute(): ?string
+    {
+        $media = $this->getFirstMedia('headings');
+
+        if ($media) {
+            // Use thumbnail conversion if available, fall back to small, then original
+            if ($media->hasGeneratedConversion('thumbnail')) {
+                return $media->getUrl('thumbnail');
+            }
+            if ($media->hasGeneratedConversion('small')) {
+                return $media->getUrl('small');
+            }
+
+            return $media->getUrl();
+        }
+
+        // Fallback to legacy file-based images
+        $legacyPath = "/images/headings/small/{$this->slug}.jpg";
+        if (file_exists(public_path($legacyPath))) {
+            return $legacyPath;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get responsive image srcset for the heading image.
+     *
+     * Returns a srcset string suitable for use in an img tag's srcset attribute.
+     */
+    public function getHeadingImageSrcsetAttribute(): ?string
+    {
+        $media = $this->getFirstMedia('headings');
+
+        if (! $media) {
             return null;
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('public_images')->url('images/headings/large/'.$this->slug.'.jpg');
+        $srcset = [];
+
+        if ($media->hasGeneratedConversion('mobile')) {
+            $srcset[] = $media->getUrl('mobile').' 640w';
+        }
+        if ($media->hasGeneratedConversion('tablet')) {
+            $srcset[] = $media->getUrl('tablet').' 1024w';
+        }
+        if ($media->hasGeneratedConversion('desktop')) {
+            $srcset[] = $media->getUrl('desktop').' 1920w';
+        }
+
+        return ! empty($srcset) ? implode(', ', $srcset) : null;
     }
 
     /**
@@ -150,9 +366,7 @@ class Page extends Model implements Sitemapable
             ->setPriority(0.7);
 
         if ($this->updated_at) {
-            $updatedAt = $this->updated_at instanceof \Carbon\Carbon
-                ? $this->updated_at
-                : \Carbon\Carbon::parse($this->updated_at);
+            $updatedAt = $this->updated_at;
             if ($updatedAt->year > 0) {
                 $url->setLastModificationDate($updatedAt);
             }

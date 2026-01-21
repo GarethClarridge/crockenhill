@@ -31,8 +31,19 @@
 
   <article>
 
-    @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
-    <x-h1-picture :headingpicture="$headingpicture">
+    @php
+      $hasHeadingPicture = isset($headingpicture) && $headingpicture && (
+        str_starts_with($headingpicture, 'http') ||
+        str_starts_with($headingpicture, '//') ||
+        file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture)
+      );
+    @endphp
+    @if ($hasHeadingPicture)
+    <x-h1-picture
+      :headingpicture="$headingpicture"
+      :headingpicture-mobile="$headingpictureMobile ?? null"
+      :headingpicture-tablet="$headingpictureTablet ?? null"
+    >
       {{$heading}}
     </x-h1-picture>
     @else

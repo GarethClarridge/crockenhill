@@ -117,11 +117,17 @@ Route::get('verify-email', function () {
     return view('auth.verify-email');
 })->middleware('auth')->name('verification.notice');
 
+// Redirect old page admin routes to Filament
+Route::middleware('auth')->group(function () {
+    Route::get('/admin', fn () => redirect('/admin/pages'));
+    Route::get('/church/members/pages', fn () => redirect('/admin/pages'));
+    Route::get('/church/members/pages/create', fn () => redirect('/admin/pages/create'));
+    Route::get('/church/members/pages/{page}/edit', fn (Page $page) => redirect("/admin/pages/{$page->slug}/edit"));
+});
+
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
-    Route::get('', MemberController::class)->name('memberHome'); // Changed for invokable controller
-    // Manage pages
-    Route::resource('pages', PageController::class);
-    // Manage sermons
+    Route::get('', MemberController::class)->name('memberHome');
+    // Pages resource removed - now handled by Filament at /admin/pages
     Route::resource('sermons', SermonController::class);
     // Manage meetings
     Route::resource('meetings', MeetingController::class);

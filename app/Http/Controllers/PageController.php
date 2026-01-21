@@ -131,6 +131,9 @@ class PageController extends Controller
             'description' => $page->description,
             'area' => $page->area->value,
             'slug' => $page->slug,
+            'headingpicture' => $page->heading_image_url,
+            'headingpictureMobile' => $page->heading_image_mobile_url,
+            'headingpictureTablet' => $page->heading_image_tablet_url,
         ]);
     }
 

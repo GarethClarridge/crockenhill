@@ -16,6 +16,23 @@ header {
     }
 }
 
+// Reset Filament admin panel to use default fonts (not Oswald)
+// Only H1s should use Oswald in the admin
+.fi-body {
+    header {
+        font-family: $font-family-sans-serif;
+        text-transform: none;
+    }
+
+    h1 {
+        font-family: $headings-font-family;
+    }
+
+    h2, h3, h4, h5, h6 {
+        font-family: $font-family-sans-serif;
+    }
+}
+
 p a {
   text-decoration: underline;
 }

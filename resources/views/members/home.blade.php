@@ -94,7 +94,7 @@
       </h3>
     </div>
     <div class="p-4 space-y-2">
-      <x-button link="/church/members/pages">
+      <x-button link="/admin/pages">
         <div class="flex items-center justify-center">
           <x-heroicon-s-pencil-square class="h-5 w-5 mr-2" />
           Edit pages

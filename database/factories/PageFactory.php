@@ -19,7 +19,7 @@ class PageFactory extends Factory
             'area' => $this->faker->randomElement(PageArea::values()),
             'body' => $this->faker->paragraphs(3, true),
             'admin' => $this->faker->randomElement(['yes', 'no']),
-            'markdown' => $this->faker->optional()->paragraphs(2, true),
+            'markdown' => $this->faker->paragraphs(2, true),
             'navigation' => $this->faker->boolean(70),
         ];
     }

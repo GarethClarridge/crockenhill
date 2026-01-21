@@ -71,7 +71,7 @@ class ViewServiceProvider extends ServiceProvider
                 $description = '<meta name="description" content="'.$page->description.'">';
                 $heading = $page->heading;
                 $content = htmlspecialchars_decode($page->body);
-                $headingpicture = '/images/headings/large/'.$page->slug.'.jpg';
+                $headingpicture = $page->heading_image_url;
                 $area = $page->area->value;
                 $slug = $page->slug;
                 $links = Page::where('area', $area)
@@ -233,13 +233,16 @@ class ViewServiceProvider extends ServiceProvider
 
                         // Content
                         $content = htmlspecialchars_decode($page->body);
+
+                        // Heading picture - prefer media library, fall back to legacy
+                        $headingpicture = $page->heading_image_url ?? '/images/headings/large/'.$slug.'.jpg';
                     } else {
                         $description = null;
                         $heading = null;
-                    }
 
-                    // Heading picture
-                    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
+                        // Heading picture - legacy path for non-page content
+                        $headingpicture = '/images/headings/large/'.$slug.'.jpg';
+                    }
 
                     // Links
                     if (request()->segment(2) == 'sermons') {

@@ -10,7 +10,10 @@ parameters:
     # Level 10 is the highest level
     level: 5
 
-    ignoreErrors: []
+    ignoreErrors:
+        # Spatie Media Library's nonQueued() method type is not correctly inferred
+        # The method exists on Conversion class and works correctly at runtime
+        - '#Call to an undefined method Spatie\\Image\\Drivers\\ImageDriver::nonQueued\(\)#'
 
     excludePaths:
         - app/Http/Controllers/Auth/PasswordController.php

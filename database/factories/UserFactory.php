@@ -32,4 +32,15 @@ class UserFactory extends Factory
             ];
         });
     }
+
+    /**
+     * Create a user with @crockenhill.org email for Filament admin access.
+     */
+    public function crockenhillAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'email' => 'admin@crockenhill.org',
+            'email_verified_at' => now(),
+        ]);
+    }
 }
