@@ -47,9 +47,9 @@
       </p>
     </x-text>
 
-    <x-youtube 
-      link="https://www.youtube.com/embed/Y_lDeIzh2t0" 
-      title=""
+    <x-youtube
+      link="https://www.youtube.com/embed/Y_lDeIzh2t0"
+      title="Two Ways to Live - The Gospel in 90 seconds"
     />
     
     <x-button-grid>
