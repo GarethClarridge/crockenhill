@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Enums\SermonService;
-use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Http\Request;
@@ -260,20 +259,14 @@ class ViewServiceProvider extends ServiceProvider
                             ->orderBy('slug', 'asc')
                             ->get();
                     } elseif (request()->segment(1) == 'community') {
-                        $meeting = Meeting::where('slug', $slug)->first();
-
-                        if ($meeting) {
-                            $related_meetings = Meeting::where('type', $meeting->type)
-                                ->pluck('slug');
-
-                            $links = Page::where('area', $area)
-                                ->whereIn('slug', $related_meetings)
-                                ->where('slug', '!=', $slug)
-                                ->where('slug', '!=', $area)
-                                ->where('admin', '!=', 'yes')
-                                ->orderBy('slug', 'asc')
-                                ->get();
-                        }
+                        // Community pages - meetings now pass page data directly from controller
+                        // This block is now only used for non-meeting community pages
+                        $links = Page::where('area', $area)
+                            ->where('slug', '!=', $slug)
+                            ->where('slug', '!=', $area)
+                            ->where('admin', '!=', 'yes')
+                            ->orderBy('slug', 'asc')
+                            ->get();
                     } else {
                         $links = Page::where('area', $area)
                             ->where('slug', '!=', $slug)

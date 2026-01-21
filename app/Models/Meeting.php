@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Spatie\GoogleCalendar\Event;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
@@ -19,6 +21,7 @@ use Spatie\Sitemap\Tags\Url;
  * App\Models\Meeting
  *
  * @property int $id
+ * @property ?int $page_id
  * @property string $slug
  * @property MeetingType $type
  * @property ?Carbon $StartTime // Cast to datetime:H:i:s -> Carbon
@@ -35,6 +38,12 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
  * @property-read ?string $formatted_date_time
+ * @property-read string $heading
+ * @property-read ?string $description
+ * @property-read ?string $body
+ * @property-read ?string $markdown
+ * @property-read ?string $heading_image_url
+ * @property-read Page|null $page
  *
  * @method static \Database\Factories\MeetingFactory factory(...$parameters)
  * @method static Builder|Meeting newModelQuery()
@@ -56,6 +65,7 @@ class Meeting extends Model implements Sitemapable
      * @var list<string>
      */
     protected $fillable = [
+        'page_id',
         'slug',
         'type',
         'StartTime',
@@ -94,6 +104,62 @@ class Meeting extends Model implements Sitemapable
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    /**
+     * Get the page that provides content for this meeting.
+     */
+    public function page(): BelongsTo
+    {
+        return $this->belongsTo(Page::class);
+    }
+
+    /**
+     * Get the heading from the related page, or generate from slug.
+     */
+    public function getHeadingAttribute(): string
+    {
+        return $this->page->heading ?? Str::title(str_replace('-', ' ', $this->slug));
+    }
+
+    /**
+     * Get the description from the related page.
+     */
+    public function getDescriptionAttribute(): ?string
+    {
+        return $this->page?->description;
+    }
+
+    /**
+     * Get the body content from the related page.
+     */
+    public function getBodyAttribute(): ?string
+    {
+        return $this->page?->body;
+    }
+
+    /**
+     * Get the markdown content from the related page.
+     */
+    public function getMarkdownAttribute(): ?string
+    {
+        return $this->page?->markdown;
+    }
+
+    /**
+     * Get the heading image URL from the related page.
+     */
+    public function getHeadingImageUrlAttribute(): ?string
+    {
+        return $this->page?->heading_image_url;
+    }
+
+    /**
+     * Check if the meeting has rich content via a related page.
+     */
+    public function hasContent(): bool
+    {
+        return $this->page !== null;
     }
 
     /**

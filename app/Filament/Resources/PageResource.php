@@ -172,6 +172,16 @@ class PageResource extends Resource
                     ->trueColor('success')
                     ->falseColor('gray'),
 
+                IconColumn::make('meeting')
+                    ->label('Has Meeting')
+                    ->boolean()
+                    ->getStateUsing(fn ($record) => $record->meeting()->exists())
+                    ->trueIcon('heroicon-o-calendar')
+                    ->falseIcon('heroicon-o-minus')
+                    ->trueColor('info')
+                    ->falseColor('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('updated_at')
                     ->label('Last Updated')
                     ->dateTime('M j, Y g:i A')

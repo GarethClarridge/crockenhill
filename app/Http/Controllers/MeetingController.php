@@ -70,79 +70,55 @@ class MeetingController extends Controller
      */
     public function show(Meeting $meeting)
     {
-        // Eager load calendar events to avoid N+1 queries
+        // Eager load page and calendar events to avoid N+1 queries
         $meeting->load([
+            'page',
             'calendarEvents' => function ($query) {
-                $query->upcoming()->confirmed()->orderBy('start_datetime')->limit(5);
+                $query->upcoming()->confirmed()->orderBy('start_datetime')->limit(6);
             },
         ]);
 
         $upcomingEvents = $meeting->calendarEvents;
 
-        // Load past events separately if needed
+        // Load past events separately
         $pastEvents = \App\Models\CalendarEvent::where('meeting_slug', $meeting->slug)
             ->past()
             ->confirmed()
             ->orderBy('start_datetime', 'desc')
-            ->limit(10)
+            ->limit(3)
             ->get();
 
-        // Photos logic might need adjustment based on how pictures are stored and accessed.
+        // Photos logic
         $photos = [];
         if ($meeting->pictures) {
-            // Temporarily commenting out the scandir logic as it might not work in all environments / setups.
-            // if (is_dir(public_path('images/meetings/' . $meeting->slug))) {
-            //   $filelist = scandir(public_path('images/meetings/' . $meeting->slug));
-            //   $photos = array_slice($filelist, 2); // Remove . and ..
-            // }
-        }
-
-        return view('meetings.show', compact('meeting', 'photos', 'upcomingEvents', 'pastEvents'));
-    }
-
-    /**
-     * Show a meeting or page from the community area.
-     */
-    public function showCommunityContent(string $slug)
-    {
-        $meeting = Meeting::where('slug', $slug)->first();
-
-        if ($meeting) {
-            // Eager load calendar events
-            $meeting->load([
-                'calendarEvents' => function ($query) {
-                    $query->upcoming()->confirmed()->orderBy('start_datetime')->limit(5);
-                },
-            ]);
-
-            $upcomingEvents = $meeting->calendarEvents;
-            $pastEvents = \App\Models\CalendarEvent::where('meeting_slug', $meeting->slug)
-                ->past()
-                ->confirmed()
-                ->orderBy('start_datetime', 'desc')
-                ->limit(10)
-                ->get();
-
-            $photos = [];
-            if ($meeting->pictures) {
-                // Add your photo logic here if needed
+            $photoDir = public_path('images/meetings/'.$meeting->slug);
+            if (is_dir($photoDir)) {
+                $filelist = scandir($photoDir);
+                $photos = array_slice($filelist, 2); // Remove . and ..
             }
-
-            return view('meetings.show', compact('meeting', 'photos', 'upcomingEvents', 'pastEvents'));
         }
 
-        // Check if there's a page in the community area
-        $page = \App\Models\Page::where('slug', $slug)
-            ->where('area', 'community')
-            ->first();
+        // Variables for the layout
+        $page = $meeting->page;
+        $heading = $page->heading ?? $meeting->heading;
+        $headingpicture = $page?->heading_image_url;
+        $content = $page?->body; // Page content shown before meeting details
+        $area = 'community';
+        $slug = $meeting->slug;
 
-        if ($page) {
-            return app(\App\Http\Controllers\PageController::class)
-                ->show('community', $slug, app(\League\CommonMark\CommonMarkConverter::class));
-        }
-
-        // Neither meeting nor page found
-        abort(404);
+        return view('meetings.show', [
+            'meeting' => $meeting,
+            'page' => $page,
+            'photos' => $photos,
+            'upcomingEvents' => $upcomingEvents,
+            'pastEvents' => $pastEvents,
+            // Layout variables
+            'heading' => $heading,
+            'headingpicture' => $headingpicture,
+            'content' => $content,
+            'area' => $area,
+            'slug' => $slug,
+        ]);
     }
 
     /**

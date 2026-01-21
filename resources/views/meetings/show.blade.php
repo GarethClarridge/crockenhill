@@ -2,7 +2,12 @@
 
 @section('dynamic_content')
 
-{{-- Details --}}
+{{--
+  Note: The heading, headingpicture, and page content ($content) are passed to the view
+  and rendered by the layouts/page layout. We only render the meeting-specific details here.
+--}}
+
+{{-- Meeting Details Table --}}
 
 <div class="bg-cbc-pattern bg-cover my-12 px-6 md:px-16 py-12 text-white text-3xl font-display">
   <table>
@@ -83,8 +88,8 @@
 
 <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
   @foreach($upcomingEvents->take(6) as $event)
-    <x-calendar-event-card 
-      :event="$event" 
+    <x-calendar-event-card
+      :event="$event"
       :meeting="$meeting"
       :show-meeting-badge="false"
       description-limit="80"
@@ -112,7 +117,7 @@
       <x-calendar-event-compact :event="$event" />
     @endforeach
   </div>
-  
+
   @if($pastEvents->count() > 3)
     <div class="mt-3">
       <a href="/meetings/{{ $meeting->slug }}/events" wire:navigate class="text-sm text-blue-600 hover:text-blue-500">
@@ -125,7 +130,7 @@
 
 {{-- Safeguarding --}}
 
-@if ($meeting->type === 'ChildrenAndYoungPeople' || $meeting->slug === 'sunday-mornings')
+@if ($meeting->type->value === 'ChildrenAndYoungPeople' || $meeting->slug === 'sunday-mornings')
 <hr>
 <small class="prose">
   All activities at the church are carried out in accordance with our

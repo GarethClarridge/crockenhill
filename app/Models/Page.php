@@ -6,6 +6,7 @@ use App\Enums\PageArea;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -34,6 +35,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
  * @property-read ?string $route
+ * @property-read Meeting|null $meeting
  *
  * @method static \Database\Factories\PageFactory factory(...$parameters)
  * @method static Builder|Page newModelQuery()
@@ -108,6 +110,22 @@ class Page extends Model implements HasMedia, Sitemapable
     public function scopeIsNavigation(Builder $query, bool $isNavigation = true): Builder
     {
         return $query->where('navigation', $isNavigation);
+    }
+
+    /**
+     * Get the meeting associated with this page.
+     */
+    public function meeting(): HasOne
+    {
+        return $this->hasOne(Meeting::class);
+    }
+
+    /**
+     * Check if the page has an associated meeting.
+     */
+    public function hasMeeting(): bool
+    {
+        return $this->meeting()->exists();
     }
 
     /**

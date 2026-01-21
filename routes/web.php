@@ -50,8 +50,8 @@ Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.in
 Route::get('/calendar/uncategorized', [CalendarController::class, 'uncategorized'])->name('calendar.uncategorized');
 Route::get('/meetings/{meeting}/events', [CalendarController::class, 'eventsForMeeting'])->name('meetings.events');
 
-// Community meeting or page route (must be above catch-alls)
-Route::get('/community/{slug}', [MeetingController::class, 'showCommunityContent'])->name('community.meeting-or-page');
+// Community meetings - always loads a Meeting (which gets content from its related Page)
+Route::get('/community/{meeting:slug}', [MeetingController::class, 'show'])->name('meetings.show');
 
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
@@ -117,20 +117,23 @@ Route::get('verify-email', function () {
     return view('auth.verify-email');
 })->middleware('auth')->name('verification.notice');
 
-// Redirect old page admin routes to Filament
+// Redirect old admin routes to Filament
 Route::middleware('auth')->group(function () {
     Route::get('/admin', fn () => redirect('/admin/pages'));
     Route::get('/church/members/pages', fn () => redirect('/admin/pages'));
     Route::get('/church/members/pages/create', fn () => redirect('/admin/pages/create'));
     Route::get('/church/members/pages/{page}/edit', fn (Page $page) => redirect("/admin/pages/{$page->slug}/edit"));
+    // Redirect meeting admin routes to Filament
+    Route::get('/church/members/meetings', fn () => redirect('/admin/meetings'));
+    Route::get('/church/members/meetings/create', fn () => redirect('/admin/meetings/create'));
+    Route::get('/church/members/meetings/{meeting}/edit', fn (Meeting $meeting) => redirect("/admin/meetings/{$meeting->slug}/edit"));
 });
 
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
     Route::get('', MemberController::class)->name('memberHome');
     // Pages resource removed - now handled by Filament at /admin/pages
     Route::resource('sermons', SermonController::class);
-    // Manage meetings
-    Route::resource('meetings', MeetingController::class);
+    // Meetings resource removed - now handled by Filament at /admin/meetings
 
     // Calendar admin routes
     Route::get('calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('admin.calendar.uncategorized');
