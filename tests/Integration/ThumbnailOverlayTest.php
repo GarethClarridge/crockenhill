@@ -6,7 +6,6 @@ use App\Models\Sermon;
 use App\Services\ThumbnailGenerationService;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -71,7 +70,7 @@ class ThumbnailOverlayTest extends TestCase
     public function it_can_add_brand_overlay_when_image_exists()
     {
         // Skip if brand image doesn't exist
-        if (! Storage::disk('public_images')->exists('images/BrandOverlay.png')) {
+        if (! file_exists(public_path('images/BrandOverlay.png'))) {
             $this->markTestSkipped('Brand overlay image not found');
         }
 

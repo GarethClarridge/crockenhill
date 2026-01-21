@@ -171,7 +171,7 @@ return [
     |
     */
     'fallback' => [
-        'default_image' => env('THUMBNAIL_DEFAULT_IMAGE', 'images/default-sermon-thumbnail.jpg'),
+        'default_image' => env('THUMBNAIL_DEFAULT_IMAGE', 'images/default-sermon-thumbnail.webp'),
         'retry_attempts' => env('THUMBNAIL_RETRY_ATTEMPTS', 3),
         'use_default_on_failure' => env('THUMBNAIL_USE_DEFAULT', false),
         'skip_on_failure' => env('THUMBNAIL_SKIP_ON_FAILURE', true),

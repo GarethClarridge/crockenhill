@@ -12,8 +12,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Spatie\GoogleCalendar\Event;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -55,9 +59,10 @@ use Spatie\Sitemap\Tags\Url;
  *
  * @mixin \Eloquent
  */
-class Meeting extends Model implements Sitemapable
+class Meeting extends Model implements HasMedia, Sitemapable
 {
     use HasFactory;
+    use InteractsWithMedia;
 
     /**
      * The attributes that are mass assignable.
@@ -326,5 +331,95 @@ class Meeting extends Model implements Sitemapable
         }
 
         return $url;
+    }
+
+    /**
+     * Register media collections for meeting photos.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('photos')
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+    }
+
+    /**
+     * Register media conversions for meeting photos.
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumbnail')
+            ->width(400)
+            ->height(300)
+            ->sharpen(10)
+            ->format('webp')
+            ->nonQueued();
+
+        $this->addMediaConversion('gallery')
+            ->width(800)
+            ->height(600)
+            ->sharpen(10)
+            ->format('webp')
+            ->nonQueued();
+    }
+
+    /**
+     * Get all photos for this meeting (Media Library + legacy filesystem fallback).
+     *
+     * @return \Illuminate\Support\Collection<int, array{url: string, thumbnail: string, name: string}>
+     */
+    public function getPhotosAttribute(): \Illuminate\Support\Collection
+    {
+        // Check Media Library first
+        $mediaPhotos = $this->getMedia('photos');
+
+        if ($mediaPhotos->isNotEmpty()) {
+            return $mediaPhotos->map(fn (Media $media) => [
+                'url' => $media->getUrl('gallery'),
+                'thumbnail' => $media->getUrl('thumbnail'),
+                'name' => $media->name,
+            ]);
+        }
+
+        // Fallback to legacy filesystem photos
+        return $this->getLegacyPhotos();
+    }
+
+    /**
+     * Get legacy photos from the filesystem (for backward compatibility).
+     *
+     * @return \Illuminate\Support\Collection<int, array{url: string, thumbnail: string, name: string}>
+     */
+    private function getLegacyPhotos(): \Illuminate\Support\Collection
+    {
+        $directory = public_path("images/meetings/{$this->slug}");
+
+        if (! File::isDirectory($directory)) {
+            return collect();
+        }
+
+        return collect(File::files($directory))
+            ->filter(fn ($file) => in_array(
+                strtolower($file->getExtension()),
+                ['jpg', 'jpeg', 'png', 'webp', 'gif']
+            ))
+            ->map(fn ($file) => [
+                'url' => "/images/meetings/{$this->slug}/{$file->getFilename()}",
+                'thumbnail' => "/images/meetings/{$this->slug}/{$file->getFilename()}",
+                'name' => $file->getFilename(),
+            ]);
+    }
+
+    /**
+     * Check if meeting has any photos (Media Library or legacy).
+     */
+    public function hasPhotos(): bool
+    {
+        if ($this->getMedia('photos')->isNotEmpty()) {
+            return true;
+        }
+
+        $directory = public_path("images/meetings/{$this->slug}");
+
+        return File::isDirectory($directory) && count(File::files($directory)) > 0;
     }
 }

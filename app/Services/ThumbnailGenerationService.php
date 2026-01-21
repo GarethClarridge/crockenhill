@@ -150,7 +150,7 @@ class ThumbnailGenerationService
     {
         try {
             // Create temporary file for extracted frame
-            $frameFilename = 'frame_'.Str::uuid().'.jpg';
+            $frameFilename = 'frame_'.Str::uuid().'.webp';
             $tempFramePath = $this->tempPath.'/'.$frameFilename;
 
             // Ensure temp directory exists
@@ -243,7 +243,7 @@ class ThumbnailGenerationService
             $this->addTextOverlays($image, $sermon);
 
             // Save branded thumbnail to temp location
-            $thumbnailFilename = 'thumbnail_'.Str::uuid().'.jpg';
+            $thumbnailFilename = 'thumbnail_'.Str::uuid().'.webp';
             $tempThumbnailPath = $this->tempPath.'/'.$thumbnailFilename;
             $fullTempThumbnailPath = Storage::disk($this->tempDisk)->path($tempThumbnailPath);
 
@@ -277,7 +277,7 @@ class ThumbnailGenerationService
             $fullTempPath = Storage::disk($this->tempDisk)->path($thumbnailPath);
 
             // Generate final filename
-            $filename = 'sermon_'.$sermon->id.'_'.date('Y-m-d').'.jpg';
+            $filename = 'sermon_'.$sermon->id.'_'.date('Y-m-d').'.webp';
             $finalPath = $this->storagePath.'/'.$filename;
 
             // Ensure storage directory exists
@@ -426,15 +426,16 @@ class ThumbnailGenerationService
     {
         $brandImagePath = $this->config['overlay']['brand_image'];
 
-        // Check if brand image exists in public_images storage (following PageImageService pattern)
-        if (! Storage::disk('public_images')->exists($brandImagePath)) {
+        // Check if brand image exists (in public/ directory for static assets)
+        $fullBrandPath = public_path($brandImagePath);
+        if (! file_exists($fullBrandPath)) {
             Log::warning('Brand overlay image not found', ['path' => $brandImagePath]);
 
             return;
         }
 
         try {
-            $brandImageFullPath = Storage::disk('public_images')->path($brandImagePath);
+            $brandImageFullPath = $fullBrandPath;
             $brandOverlay = Image::make($brandImageFullPath);
 
             // Get thumbnail dimensions

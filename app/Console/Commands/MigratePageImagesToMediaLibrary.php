@@ -24,7 +24,7 @@ class MigratePageImagesToMediaLibrary extends Command
         $this->newLine();
 
         foreach ($pages as $page) {
-            $largePath = public_path("images/headings/large/{$page->slug}.jpg");
+            $largePath = public_path("images/headings/large/{$page->slug}.webp");
 
             // Skip if already has media library image
             if ($page->getFirstMedia('headings')) {

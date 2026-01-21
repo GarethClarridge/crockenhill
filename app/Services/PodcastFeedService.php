@@ -85,14 +85,14 @@ class PodcastFeedService
             'morning' => [
                 'title' => 'Sunday mornings at Crockenhill Baptist Church',
                 'description' => 'Sermons from Sunday mornings at Crockenhill Baptist Church',
-                'image' => '/images/podcast/MorningArtwork.jpg',
+                'image' => '/images/podcast/MorningArtwork.webp',
                 'route' => '/christ/sermons/morning',
                 'podcast_guid' => 'cbc-morning-sermons-a1b2c3d4-e5f6-7890-abcd-ef1234567890',
             ],
             'evening' => [
                 'title' => 'Sunday evenings at Crockenhill Baptist Church',
                 'description' => 'Sermons from Sunday evenings at Crockenhill Baptist Church',
-                'image' => '/images/podcast/EveningArtwork.jpg',
+                'image' => '/images/podcast/EveningArtwork.webp',
                 'route' => '/christ/sermons/evening',
                 'podcast_guid' => 'cbc-evening-sermons-f9e8d7c6-b5a4-3210-fedc-ba0987654321',
             ],

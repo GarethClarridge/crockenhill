@@ -137,7 +137,7 @@ class ViewServiceProvider extends ServiceProvider
                         $heading = $sermon->title;
 
                         // Heading picture
-                        $headingpicture = '/images/headings/large/'.$sermon_slug.'.jpg';
+                        $headingpicture = '/images/headings/large/'.$sermon_slug.'.webp';
 
                         // Find relevant links
                         $links = Page::where('area', $slug)
@@ -163,7 +163,7 @@ class ViewServiceProvider extends ServiceProvider
                     $heading = ucwords(str_replace('-', ' ', $slug));
 
                     // Heading picture
-                    $headingpicture = '/images/headings/large/'.$area.'.jpg';
+                    $headingpicture = '/images/headings/large/'.$area.'.webp';
 
                     // Find relevant links
                     $links = Page::where('area', $area)
@@ -191,7 +191,7 @@ class ViewServiceProvider extends ServiceProvider
                     }
 
                     // Heading picture
-                    $headingpicture = '/images/headings/large/'.$slug.'.jpg';
+                    $headingpicture = '/images/headings/large/'.$slug.'.webp';
 
                     // Links
                     if (request()->segment(2) == 'sermons') {
@@ -234,13 +234,13 @@ class ViewServiceProvider extends ServiceProvider
                         $content = htmlspecialchars_decode($page->body);
 
                         // Heading picture - prefer media library, fall back to legacy
-                        $headingpicture = $page->heading_image_url ?? '/images/headings/large/'.$slug.'.jpg';
+                        $headingpicture = $page->heading_image_url ?? '/images/headings/large/'.$slug.'.webp';
                     } else {
                         $description = null;
                         $heading = null;
 
                         // Heading picture - legacy path for non-page content
-                        $headingpicture = '/images/headings/large/'.$slug.'.jpg';
+                        $headingpicture = '/images/headings/large/'.$slug.'.webp';
                     }
 
                     // Links
@@ -303,7 +303,7 @@ class ViewServiceProvider extends ServiceProvider
                     }
 
                     // Heading picture
-                    $headingpicture = '/images/headings/large/'.$area.'.jpg';
+                    $headingpicture = '/images/headings/large/'.$area.'.webp';
 
                     // Links
                     $links = Page::where('area', $area)

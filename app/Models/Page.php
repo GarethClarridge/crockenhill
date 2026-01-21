@@ -221,17 +221,23 @@ class Page extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * Check if the page has a heading image (legacy or media library).
+     * Check if the page has a heading image (Media Library, new storage, or legacy).
      */
     public function hasImage(): bool
     {
-        // Check media library first
+        // Check Media Library first (preferred)
         if ($this->getFirstMedia('headings')) {
             return true;
         }
 
-        // Fallback to legacy file-based images
-        return Storage::disk('public_images')->exists('images/headings/large/'.$this->slug.'.jpg');
+        // Check new storage location (storage/app/public/pages/headings/)
+        if (Storage::disk('public')->exists("pages/headings/large/{$this->slug}.webp")) {
+            return true;
+        }
+
+        // Fallback to legacy public/images location
+        return file_exists(public_path("images/headings/large/{$this->slug}.webp"))
+            || file_exists(public_path("images/headings/large/{$this->slug}.webp"));
     }
 
     /**
@@ -261,10 +267,21 @@ class Page extends Model implements HasMedia, Sitemapable
             return $media->getUrl();
         }
 
-        // Fallback to legacy file-based images
-        $legacyPath = "/images/headings/large/{$this->slug}.jpg";
-        if (file_exists(public_path($legacyPath))) {
-            return $legacyPath;
+        // Check new storage location (storage/app/public/pages/headings/)
+        $newStoragePath = "pages/headings/large/{$this->slug}.webp";
+        if (Storage::disk('public')->exists($newStoragePath)) {
+            return Storage::disk('public')->url($newStoragePath);
+        }
+
+        // Fallback to legacy public/images location (check WebP first, then JPG)
+        $webpPath = "/images/headings/large/{$this->slug}.webp";
+        if (file_exists(public_path($webpPath))) {
+            return $webpPath;
+        }
+
+        $jpgPath = "/images/headings/large/{$this->slug}.webp";
+        if (file_exists(public_path($jpgPath))) {
+            return $jpgPath;
         }
 
         return null;
@@ -285,10 +302,21 @@ class Page extends Model implements HasMedia, Sitemapable
             return $media->getUrl();
         }
 
-        // Fallback to legacy file-based images (use large as fallback)
-        $legacyPath = "/images/headings/large/{$this->slug}.jpg";
-        if (file_exists(public_path($legacyPath))) {
-            return $legacyPath;
+        // Check new storage location
+        $newStoragePath = "pages/headings/large/{$this->slug}.webp";
+        if (Storage::disk('public')->exists($newStoragePath)) {
+            return Storage::disk('public')->url($newStoragePath);
+        }
+
+        // Fallback to legacy public/images location (check WebP first, then JPG)
+        $webpPath = "/images/headings/large/{$this->slug}.webp";
+        if (file_exists(public_path($webpPath))) {
+            return $webpPath;
+        }
+
+        $jpgPath = "/images/headings/large/{$this->slug}.webp";
+        if (file_exists(public_path($jpgPath))) {
+            return $jpgPath;
         }
 
         return null;
@@ -309,10 +337,21 @@ class Page extends Model implements HasMedia, Sitemapable
             return $media->getUrl();
         }
 
-        // Fallback to legacy file-based images (use small as fallback)
-        $legacyPath = "/images/headings/small/{$this->slug}.jpg";
-        if (file_exists(public_path($legacyPath))) {
-            return $legacyPath;
+        // Check new storage location
+        $newStoragePath = "pages/headings/small/{$this->slug}.webp";
+        if (Storage::disk('public')->exists($newStoragePath)) {
+            return Storage::disk('public')->url($newStoragePath);
+        }
+
+        // Fallback to legacy public/images location (check WebP first, then JPG)
+        $webpPath = "/images/headings/small/{$this->slug}.webp";
+        if (file_exists(public_path($webpPath))) {
+            return $webpPath;
+        }
+
+        $jpgPath = "/images/headings/small/{$this->slug}.webp";
+        if (file_exists(public_path($jpgPath))) {
+            return $jpgPath;
         }
 
         return null;
@@ -337,10 +376,21 @@ class Page extends Model implements HasMedia, Sitemapable
             return $media->getUrl();
         }
 
-        // Fallback to legacy file-based images
-        $legacyPath = "/images/headings/small/{$this->slug}.jpg";
-        if (file_exists(public_path($legacyPath))) {
-            return $legacyPath;
+        // Check new storage location
+        $newStoragePath = "pages/headings/small/{$this->slug}.webp";
+        if (Storage::disk('public')->exists($newStoragePath)) {
+            return Storage::disk('public')->url($newStoragePath);
+        }
+
+        // Fallback to legacy public/images location (check WebP first, then JPG)
+        $webpPath = "/images/headings/small/{$this->slug}.webp";
+        if (file_exists(public_path($webpPath))) {
+            return $webpPath;
+        }
+
+        $jpgPath = "/images/headings/small/{$this->slug}.webp";
+        if (file_exists(public_path($jpgPath))) {
+            return $jpgPath;
         }
 
         return null;
