@@ -9,6 +9,8 @@ Homestead.json
 Homestead.yaml
 .env
 .env.backup
+.env.backup2
+.env.prod
 .phpunit.result.cache
 *.mp3
 .DS_Store
