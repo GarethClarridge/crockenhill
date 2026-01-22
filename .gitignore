@@ -1,32 +1,54 @@
-/bower_components
+# Dependencies
 /node_modules
-/storage/*.key
 /vendor
-/.idea
-composer.lock
-package-lock.json
-Homestead.json
-Homestead.yaml
+/bower_components
+
+# Environment files
 .env
-.env.backup
-.env.backup2
-.env.prod
-.phpunit.result.cache
-*.mp3
+.env.*
+!.env.example
+
+# IDE and editor files
+/.idea
 .DS_Store
-artisan_serve.log
+
+# Laravel storage
 /storage/*
+!/storage/app/.gitignore
+!/storage/framework/.gitignore
+!/storage/logs/.gitignore
+
+# Laravel compiled/generated
+/public/hot
+/public/build
+/public/css/filament
+/public/js/filament
+/public/vendor
+/public/sitemap.xml
+
+# Public assets (compiled/uploaded)
 /public/images
 /public/media
 /public/scripts
 /public/styles
-/public/vendor
-/public/hot
-/storage/app/google-calendar/service-account-credentials.json
-livestream.mp4
-livestream2.mp4
-livestream3.mp4
-small.mp4
-/public/sitemap.xml
-/public/css/filament
-/public/js/filament
+
+# Test and cache files
+.phpunit.result.cache
+*.cache
+
+# Lock files
+composer.lock
+package-lock.json
+
+# Homestead
+Homestead.json
+Homestead.yaml
+
+# Media files (except test fixtures)
+*.mp3
+*.mp4
+!/tests/Integration/fixtures/*.mp4
+
+# Logs
+artisan_serve.log
+*.log
