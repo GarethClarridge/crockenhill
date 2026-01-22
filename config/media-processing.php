@@ -10,7 +10,7 @@ return [
             'description' => 'Audio sermon files',
         ],
         'video' => [
-            'max_file_size' => 1024 * 1024 * 1024, // 1GB (reasonable middle ground)
+            'max_file_size' => 1024 * 1024 * 1024, // 1GB
             'allowed_extensions' => ['mp4', 'mov', 'avi', 'mkv'],
             'allowed_mimes' => ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'],
             'queue' => 'video-processing',
@@ -27,55 +27,35 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | S3/DigitalOcean Spaces Storage Configuration
+    | Storage Configuration
     |--------------------------------------------------------------------------
-    |
-    | CRITICAL: This system uses sophisticated hybrid processing for S3-compatible
-    | storage (DigitalOcean Spaces). The system automatically detects S3-compatible
-    | disks and uses hybrid processing: local temp processing → cloud upload.
-    |
-    | - sermon_disk: Final storage (can be do_spaces, s3, or local)
-    | - temp_disk: MUST be 'local' for FFmpeg processing
-    | - storage_disk: General file storage
-    |
     */
     'storage' => [
-        // Main storage disk - can be S3-compatible (do_spaces) or local
-        'disk' => env('MEDIA_STORAGE_DISK', 'do_spaces'),
-        'sermon_disk' => env('SERMON_STORAGE_DISK', 'do_spaces'),
-
-        // Temporary processing - MUST be local for FFmpeg
+        'disk' => env('SERMON_STORAGE_DISK', 'public'),
+        'sermon_disk' => env('SERMON_STORAGE_DISK', 'public'),
         'temp_disk' => 'local',
-
-        // Storage paths
         'paths' => [
-            'audio' => env('MEDIA_AUDIO_PATH', 'sermons/audio'),
-            'video' => env('MEDIA_VIDEO_PATH', 'sermons/video'),
-            'temp' => env('MEDIA_TEMP_PATH', 'temp/media-processing'),
+            'audio' => 'sermons/audio',
+            'video' => 'sermons/video',
+            'temp' => 'temp/media-processing',
         ],
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | S3 Hybrid Processing Configuration
+    | S3 Hybrid Processing
     |--------------------------------------------------------------------------
-    |
-    | The system auto-detects S3-compatible disks and uses hybrid processing:
-    | 1. Process files locally in temp directory
-    | 2. Upload final results to S3-compatible storage
-    | 3. Clean up local temp files
-    |
     */
     's3_processing' => [
-        'upload_timeout' => env('S3_UPLOAD_TIMEOUT', 300), // 5 minutes
-        'retry_attempts' => env('S3_RETRY_ATTEMPTS', 3),
-        'retry_delay' => env('S3_RETRY_DELAY', 5), // seconds
-        'cleanup_temp_files' => env('S3_CLEANUP_TEMP', true),
-        'multipart_threshold' => env('S3_MULTIPART_THRESHOLD', 100 * 1024 * 1024), // 100MB
+        'upload_timeout' => 300,
+        'retry_attempts' => 3,
+        'retry_delay' => 5,
+        'cleanup_temp_files' => true,
+        'multipart_threshold' => 100 * 1024 * 1024,
     ],
 
     'processing' => [
-        'timeout' => 7200, // 2 hours
+        'timeout' => 7200,
         'retry_attempts' => 3,
         'retry_delay' => 60,
         'max_concurrent_jobs' => 2,
@@ -83,12 +63,8 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Email Notification Configuration
+    | Email Notifications
     |--------------------------------------------------------------------------
-    |
-    | Configure email notifications for processing events (success, failure, errors)
-    | Admin email receives all critical notifications about processing issues
-    |
     */
     'email' => [
         'admin_email' => env('LIVESTREAM_ADMIN_EMAIL', env('MAIL_FROM_ADDRESS')),
@@ -97,36 +73,33 @@ return [
     ],
 
     'transcription' => [
-        'service' => env('TRANSCRIPTION_SERVICE_TYPE', 'openai'),
+        'service' => env('TRANSCRIPTION_SERVICE_TYPE', 'mock'),
         'openai_api_key' => env('OPENAI_API_KEY'),
-        'max_file_size' => 25 * 1024 * 1024, // 25MB
+        'max_file_size' => 25 * 1024 * 1024,
         'timeout' => 300,
     ],
 
     'ffmpeg' => [
-        'ffmpeg_path' => env('FFMPEG_PATH', '/usr/local/bin/ffmpeg'),
-        'ffprobe_path' => env('FFPROBE_PATH', '/usr/local/bin/ffprobe'),
+        'ffmpeg_path' => env('FFMPEG_PATH', '/usr/bin/ffmpeg'),
+        'ffprobe_path' => env('FFPROBE_PATH', '/usr/bin/ffprobe'),
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Livestream Segmentation Configuration
+    | Livestream Segmentation
     |--------------------------------------------------------------------------
-    |
-    | RMS analysis and segmentation settings for livestream processing
-    |
     */
     'segmentation' => [
-        'rms_threshold' => (float) env('RMS_THRESHOLD', -45.0),
-        'min_section_duration' => (float) env('MIN_SECTION_DURATION', 60.0),
-        'min_sermon_duration' => (float) env('MIN_SERMON_DURATION', 300.0),
+        'rms_threshold' => -45.0,
+        'min_section_duration' => 60.0,
+        'min_sermon_duration' => 300.0,
         'adaptive_thresholds' => [
-            'enabled' => env('ADAPTIVE_THRESHOLDS_ENABLED', true),
-            'speech_percentile' => env('SPEECH_PERCENTILE', 30),
-            'fallback_enabled' => env('ADAPTIVE_FALLBACK_ENABLED', true),
-            'min_threshold' => (float) env('MIN_THRESHOLD', -80.0),
-            'max_threshold' => (float) env('MAX_THRESHOLD', -20.0),
-            'min_sample_count' => env('MIN_SAMPLE_COUNT', 1000),
+            'enabled' => true,
+            'speech_percentile' => 30,
+            'fallback_enabled' => true,
+            'min_threshold' => -80.0,
+            'max_threshold' => -20.0,
+            'min_sample_count' => 1000,
         ],
     ],
 
@@ -134,21 +107,18 @@ return [
     |--------------------------------------------------------------------------
     | Audio Extraction for Transcription
     |--------------------------------------------------------------------------
-    |
-    | Optimized audio extraction settings for transcription services
-    |
     */
     'audio_extraction' => [
         'transcription_optimized' => [
-            'bitrate' => 48, // kbps
-            'sample_rate' => 16000, // Hz
-            'channels' => 1, // mono
-            'max_file_size' => 25 * 1024 * 1024, // 25MB OpenAI Whisper limit
+            'bitrate' => 48,
+            'sample_rate' => 16000,
+            'channels' => 1,
+            'max_file_size' => 25 * 1024 * 1024,
         ],
         'fallback_compression' => [
-            'bitrate' => 32, // kbps
-            'sample_rate' => 16000, // Hz
-            'channels' => 1, // mono
+            'bitrate' => 32,
+            'sample_rate' => 16000,
+            'channels' => 1,
         ],
         'validation' => [
             'max_duration_minutes' => 150,
@@ -159,53 +129,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Visual Song Detection (Visual Analysis)
+    | Visual Song Detection
     |--------------------------------------------------------------------------
-    |
-    | Visual frame analysis for identifying songs in livestream recordings
-    | by detecting on-screen lyrics (white text boxes on dark backgrounds)
-    |
     */
     'visual_analysis' => [
-        // Master toggle
-        'enabled' => env('VISUAL_ANALYSIS_ENABLED', true),
-
-        // Frame sampling
-        'sample_interval_seconds' => env('VISUAL_SAMPLE_INTERVAL', 10),
-
-        // Visual classification thresholds
-        // Adjusted based on actual frame metrics (from debug logs):
-        // - Brightness: 0.492-0.543 (moderate - preacher + screen)
-        // - Contrast (YDIF): 0.000-0.046 (VERY low - FFmpeg metric unreliable)
-        // - Edge density (YHIGH): 0.514-0.922 (good - white lyric boxes)
-        // Strategy: Use brightness + edge density only, disable contrast requirement
-        'brightness_threshold' => env('VISUAL_BRIGHTNESS_THRESHOLD', 0.48),
-        'contrast_threshold' => env('VISUAL_CONTRAST_THRESHOLD', 0.0), // Disabled - FFmpeg YDIF not suitable
-        'edge_density_threshold' => env('VISUAL_EDGE_THRESHOLD', 0.75), // Require strong white pixels
-        'min_confidence' => env('VISUAL_MIN_CONFIDENCE', 0.35), // Lower minimum
-
-        // Clustering parameters
-        'min_song_duration' => env('MIN_SONG_DURATION', 60),
-        'max_gap_seconds' => env('MAX_SONG_GAP', 30),
-        'smoothing_window' => env('CLASSIFICATION_SMOOTHING', 3),
-
-        // Boundary refinement (dense sampling)
-        'dense_sample_interval' => env('VISUAL_DENSE_INTERVAL', 1), // Sample every 1 second for precise boundaries
-        'refinement_intro_buffer' => env('REFINEMENT_INTRO_BUFFER', 120), // Look 2min before cluster start
-        'refinement_outro_buffer' => env('REFINEMENT_OUTRO_BUFFER', 60),  // Look 1min after cluster end
-
-        // Boundary detection (RMS-based)
-        'intro_search_buffer' => env('SONG_INTRO_BUFFER', 120), // Look 2min before first visual sample
-        'outro_search_buffer' => env('SONG_OUTRO_BUFFER', 60),  // Look 1min after last visual sample
-        'quiet_section_tolerance' => env('QUIET_SECTION_TOLERANCE', 10), // Allow 10sec dips below threshold
-
-        // Per-song calibration
-        'calibration_speech_buffer' => env('CALIBRATION_SPEECH_BUFFER', 60), // Use 60sec of adjacent speech
-        'threshold_safety_floor' => env('THRESHOLD_FLOOR', -80.0),
-        'threshold_safety_ceiling' => env('THRESHOLD_CEILING', -20.0),
-
-        // Fallback behavior
-        'fallback_to_rms_on_failure' => env('VISUAL_FALLBACK_ENABLED', true),
-        'require_min_clusters' => env('MIN_SONG_CLUSTERS', 1), // Fail if no songs detected
+        'enabled' => true,
+        'sample_interval_seconds' => 10,
+        'brightness_threshold' => 0.48,
+        'contrast_threshold' => 0.0,
+        'edge_density_threshold' => 0.75,
+        'min_confidence' => 0.35,
+        'min_song_duration' => 60,
+        'max_gap_seconds' => 30,
+        'smoothing_window' => 3,
+        'dense_sample_interval' => 1,
+        'refinement_intro_buffer' => 120,
+        'refinement_outro_buffer' => 60,
+        'intro_search_buffer' => 120,
+        'outro_search_buffer' => 60,
+        'quiet_section_tolerance' => 10,
+        'calibration_speech_buffer' => 60,
+        'threshold_safety_floor' => -80.0,
+        'threshold_safety_ceiling' => -20.0,
+        'fallback_to_rms_on_failure' => true,
+        'require_min_clusters' => 1,
     ],
 ];
