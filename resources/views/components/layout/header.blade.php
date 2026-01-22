@@ -70,7 +70,7 @@
 
 </div>
 
-<div x-show="expanded" x-transition class="absolute z-10 backdrop-blur-sm bg-gradient-to-r from-green-100/80 to-emerald-100/80 w-screen font-display p-6 leading-loose text-lg" tabindex="-1" x-cloak>
+<div x-show="expanded" x-transition class="absolute z-30 backdrop-blur-sm bg-gradient-to-r from-green-100/80 to-emerald-100/80 w-screen font-display p-6 leading-loose text-lg" tabindex="-1" x-cloak>
   <ul class="grid grid-cols-3 text-center mt-3">
 
     <li class="">
