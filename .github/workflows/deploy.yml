@@ -67,6 +67,7 @@ jobs:
           echo "DB_HOST=127.0.0.1" >> .env
           echo "DB_DATABASE=testing" >> .env
           echo "DB_USERNAME=root" >> .env
+          echo "DB_PASSWORD=" >> .env
           echo "QUEUE_CONNECTION=sync" >> .env
           echo "TRANSCRIPTION_SERVICE_TYPE=mock" >> .env
 
