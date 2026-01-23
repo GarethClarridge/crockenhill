@@ -20,14 +20,12 @@
 
 # Laravel compiled/generated
 /public/hot
-/public/build
 /public/css/filament
 /public/js/filament
 /public/vendor
 /public/sitemap.xml
 
-# Public assets (compiled/uploaded)
-/public/images
+# Public assets (uploaded media only)
 /public/media
 /public/scripts
 /public/styles

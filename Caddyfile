@@ -1,0 +1,18 @@
+crockenhill.org, www.crockenhill.org {
+    # Reverse proxy to app container with extended timeouts for media processing
+    reverse_proxy app:80 {
+        transport http {
+            read_timeout 3700s
+            write_timeout 3700s
+        }
+    }
+
+    # Handle large uploads (2GB)
+    request_body {
+        max_size 2GB
+    }
+
+    # Redirect www to non-www
+    @www host www.crockenhill.org
+    redir @www https://crockenhill.org{uri} permanent
+}

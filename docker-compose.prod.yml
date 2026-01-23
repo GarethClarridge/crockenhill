@@ -1,0 +1,103 @@
+# Production Docker Compose - standalone file for the server
+# Usage: docker compose -f docker-compose.prod.yml up -d
+#
+# IMPORTANT: Replace OWNER with your GitHub username or organization name
+# Example: ghcr.io/garethclarridge/crockenhill:latest
+
+services:
+  caddy:
+    image: caddy:2
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+    networks:
+      - crockenhill
+
+  app:
+    image: ghcr.io/garethclarridge/crockenhill:${IMAGE_TAG:-latest}
+    restart: always
+    expose:
+      - "80"
+    env_file:
+      - .env.production
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      # Persist local storage (pages, temporary files - sermons are in Spaces)
+      - app-storage:/var/www/html/storage/app/public
+      # Persist logs for debugging (also captured by Docker logging below)
+      - app-logs:/var/www/html/storage/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    networks:
+      - crockenhill
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_DATABASE: '${DB_DATABASE}'
+      MYSQL_USER: '${DB_USERNAME}'
+      MYSQL_PASSWORD: '${DB_PASSWORD}'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # Use TCP check to avoid exposing password in process list
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks:
+      - crockenhill
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - crockenhill
+
+networks:
+  crockenhill:
+    driver: bridge
+
+volumes:
+  caddy-data:      # Let's Encrypt certificates
+  caddy-config:    # Caddy configuration cache
+  app-storage:     # Laravel storage (non-Spaces files)
+  app-logs:        # Laravel logs (persisted across container restarts)
+  mysql-data:      # Database persistence
+  redis-data:      # Queue/cache persistence
