@@ -43,8 +43,10 @@ jobs:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
 
-      - name: Create storage directories
-        run: mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+      - name: Prepare Laravel environment
+        run: |
+          cp .env.example .env
+          mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
 
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction
@@ -58,9 +60,8 @@ jobs:
       - name: Install and build frontend
         run: npm ci && npm run build
 
-      - name: Prepare Laravel
+      - name: Configure Laravel for testing
         run: |
-          cp .env.example .env
           php artisan key:generate
           echo "DB_HOST=127.0.0.1" >> .env
           echo "DB_DATABASE=testing" >> .env
