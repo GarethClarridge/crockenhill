@@ -43,6 +43,9 @@ jobs:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
 
+      - name: Create storage directories
+        run: mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction
 
