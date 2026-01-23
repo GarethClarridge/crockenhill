@@ -45,11 +45,12 @@ jobs:
 
       - name: Prepare Laravel environment
         run: |
-          cp .env.example .env
           mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+          cp .env.example .env
+          echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
 
       - name: Install PHP dependencies
-        run: composer install --prefer-dist --no-interaction --no-scripts
+        run: composer install --prefer-dist --no-interaction
 
       - name: Setup Node
         uses: actions/setup-node@v4
