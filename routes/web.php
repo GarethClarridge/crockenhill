@@ -65,9 +65,11 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
 
     // Podcast RSS feeds (must be before {service} catch-all)
+    // Exclude session middleware to allow Cache-Control: public headers
     Route::get('{service}/feed', [PodcastFeedController::class, 'show'])
         ->where('service', 'morning|evening')
-        ->name('podcast.feed');
+        ->name('podcast.feed')
+        ->withoutMiddleware([\Illuminate\Session\Middleware\StartSession::class]);
 
     Route::get('{service}', [SermonController::class, 'getService'])->where('service', 'morning|evening|other')->name('getService');
 

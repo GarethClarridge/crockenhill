@@ -44,17 +44,20 @@ jobs:
         key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
         restore-keys: |
           ${{ runner.os }}-php-
-    
+
+    - name: Prepare Laravel environment
+      run: |
+        mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+        cp .env.example .env
+        echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
+
     - name: Install dependencies
       run: composer install --prefer-dist --no-interaction
-    
+
     - name: Generate test fixtures
       run: |
         chmod +x tests/Integration/fixtures/generate_fixtures.sh
         cd tests/Integration/fixtures && ./generate_fixtures.sh
-    
-    - name: Copy environment file
-      run: cp .env.example .env
     
     - name: Generate application key
       run: php artisan key:generate
