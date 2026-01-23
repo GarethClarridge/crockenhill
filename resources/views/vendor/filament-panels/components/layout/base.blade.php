@@ -19,9 +19,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
         {{-- Site favicons --}}
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=GvJNbAA7Wv">
-        <link rel="icon" type="image/png" href="/favicon-32x32.png?v=GvJNbAA7Wv" sizes="32x32">
-        <link rel="icon" type="image/png" href="/favicon-16x16.png?v=GvJNbAA7Wv" sizes="16x16">
+        <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png?v=GvJNbAA7Wv">
+        <link rel="icon" type="image/png" href="/favicons/favicon-32x32.png?v=GvJNbAA7Wv" sizes="32x32">
+        <link rel="icon" type="image/png" href="/favicons/favicon-16x16.png?v=GvJNbAA7Wv" sizes="16x16">
         <link rel="shortcut icon" href="/favicon.ico?v=GvJNbAA7Wv">
         <meta name="theme-color" content="#16324f">
 

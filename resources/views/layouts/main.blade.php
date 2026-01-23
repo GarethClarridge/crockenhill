@@ -29,14 +29,14 @@
   @yield('meta_tags')
 
   {{-- Preload hints for critical resources --}}
-  <link rel="preload" as="image" href="/public/images/pattern.svg">
+  <link rel="preload" as="image" href="/svg/pattern.svg">
   @yield('preload')
 
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=GvJNbAA7Wv">
-  <link rel="icon" type="image/png" href="/favicon-32x32.png?v=GvJNbAA7Wv" sizes="32x32">
-  <link rel="icon" type="image/png" href="/favicon-16x16.png?v=GvJNbAA7Wv" sizes="16x16">
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png?v=GvJNbAA7Wv">
+  <link rel="icon" type="image/png" href="/favicons/favicon-32x32.png?v=GvJNbAA7Wv" sizes="32x32">
+  <link rel="icon" type="image/png" href="/favicons/favicon-16x16.png?v=GvJNbAA7Wv" sizes="16x16">
   <link rel="manifest" href="/manifest.json?v=GvJNbAA7Wv">
-  <link rel="mask-icon" href="/safari-pinned-tab.svg?v=GvJNbAA7Wv" color="#16324f">
+  <link rel="mask-icon" href="/favicons/safari-pinned-tab.svg?v=GvJNbAA7Wv" color="#16324f">
   <link rel="shortcut icon" href="/favicon.ico?v=GvJNbAA7Wv">
   <meta name="theme-color" content="#16324f">
 

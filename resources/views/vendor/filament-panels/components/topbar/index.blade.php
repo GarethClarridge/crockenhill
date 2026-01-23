@@ -13,7 +13,7 @@
     {{-- Site-branded header bar --}}
     <div class="bg-cbc-pattern bg-cover px-4 py-2 flex items-center justify-between">
         <a href="/" class="flex items-center gap-2 text-white">
-            <img src="/images/IconWhite.svg" class="h-8 w-auto" alt="CBC Logo">
+            <img src="/svg/IconWhite.svg" class="h-8 w-auto" alt="CBC Logo">
             <span class="font-display text-lg hidden sm:inline">Crockenhill Baptist Church</span>
         </a>
         <a href="/church/members" class="flex items-center gap-2 text-white text-sm hover:text-gray-200">

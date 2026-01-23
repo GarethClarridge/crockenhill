@@ -144,10 +144,11 @@ The Dockerfile uses multi-stage builds: Node stage compiles assets, final stage 
 project/
 ├── Dockerfile                    # Production image definition (new)
 ├── Caddyfile                     # SSL/reverse proxy config (new)
-├── docker-compose.yml            # Local development with Sail (existing, unchanged)
+├── docker-compose.yml            # Local development with Sail (updated for dev/prod parity)
 ├── docker-compose.prod.yml       # Production services (new, standalone)
 ├── docker/
 │   ├── 8.4/                      # Existing Sail config (unchanged)
+│   ├── php/php.ini               # Updated to match production limits
 │   └── production/               # New production configs
 │       ├── nginx.conf
 │       ├── php.ini
@@ -155,13 +156,13 @@ project/
 │       └── supervisord.conf
 ├── .github/
 │   └── workflows/
-│       ├── integration-tests.yml # Existing (unchanged)
+│       ├── integration-tests.yml # Updated to PHP 8.4
 │       └── deploy.yml            # New: build and deploy
 └── scripts/
     └── server-setup.sh           # One-time server provisioning
 ```
 
-**Key point**: The existing `docker-compose.yml` stays exactly as it is. Sail continues to work normally. Production uses a completely separate `docker-compose.prod.yml` file.
+**Key point**: The existing `docker-compose.yml` is updated to add Redis and use the same MySQL image as production, ensuring dev/prod parity. Production uses a separate `docker-compose.prod.yml` file.
 
 ### Dockerfile
 
@@ -251,6 +252,9 @@ RUN mkdir -p /run/php /var/log/supervisor \
     && mkdir -p storage/framework/{cache/data,sessions,views} storage/logs \
     && chown -R www:www storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
+
+# Create storage symlink (public/storage -> storage/app/public)
+RUN php artisan storage:link
 
 # Remove default nginx config
 RUN rm -f /etc/nginx/sites-enabled/default
@@ -465,8 +469,8 @@ decorate_workers_output = no
 **Process manager settings:**
 
 - `pm = dynamic` - Spawns workers as needed, kills idle ones
-- `pm.max_children = 15` - With 2GB memory limit per request, this allows ~30GB peak usage. Adjust based on your droplet size.
-- `request_terminate_timeout = 7200` - Kills requests after 2 hours if still running
+- `pm.max_children = 15` - With 512MB memory limit per worker, this allows ~7.5GB peak usage. Adjust based on your droplet size.
+- `request_terminate_timeout = 3600` - Kills requests after 1 hour if still running (matches PHP max_execution_time)
 
 ### docker/production/supervisord.conf
 
@@ -525,9 +529,64 @@ stopwaitsecs=3660
 - `--memory=512` - Worker restarts if it exceeds 512MB
 - `stopwaitsecs=3660` - Waits longer than max-time for graceful shutdown
 
-### docker-compose.yml (local development - unchanged)
+### docker-compose.yml (local development - updated for parity)
 
-Your existing `docker-compose.yml` stays exactly as it is. Sail continues to work with `sail up`.
+The development `docker-compose.yml` is updated to match production more closely:
+
+1. **Add Redis** - Production uses Redis for queues/cache, so development should too
+2. **Use same MySQL image** - Switch from `mysql/mysql-server:8.0` to `mysql:8.0` (Docker official image)
+3. **Add Redis config to .env.example** - Ensure local env uses Redis
+
+**Changes to docker-compose.yml:**
+
+```yaml
+services:
+  laravel.test:
+    # ... existing config ...
+    depends_on:
+      - mysql
+      - redis          # Added
+
+  mysql:
+    image: mysql:8.0   # Changed from mysql/mysql-server:8.0
+    # ... rest unchanged ...
+
+  redis:               # New service
+    image: redis:7-alpine
+    ports:
+      - '${FORWARD_REDIS_PORT:-6379}:6379'
+    volumes:
+      - sail-redis:/data
+    networks:
+      - sail
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  mailpit:
+    # ... unchanged ...
+
+volumes:
+  sail-mysql:
+    driver: local
+  sail-redis:          # New volume
+    driver: local
+```
+
+**Changes to .env.example:**
+
+```bash
+# Add these lines for Redis
+REDIS_HOST=redis
+REDIS_PORT=6379
+CACHE_DRIVER=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
+```
+
+This ensures that queue jobs behave identically in development and production.
 
 ### docker-compose.prod.yml (production - new)
 
@@ -536,6 +595,9 @@ This is a standalone file used only on the production server. It doesn't layer o
 ```yaml
 # Production Docker Compose - standalone file for the server
 # Usage: docker compose -f docker-compose.prod.yml up -d
+#
+# IMPORTANT: Replace OWNER with your GitHub username or organization name
+# Example: ghcr.io/garethclarridge/crockenhill:latest
 
 services:
   caddy:
@@ -554,7 +616,7 @@ services:
       - crockenhill
 
   app:
-    image: ghcr.io/your-username/crockenhill:${IMAGE_TAG:-latest}
+    image: ghcr.io/OWNER/crockenhill:${IMAGE_TAG:-latest}
     restart: always
     expose:
       - "80"
@@ -568,6 +630,8 @@ services:
     volumes:
       # Persist local storage (pages, temporary files - sermons are in Spaces)
       - app-storage:/var/www/html/storage/app/public
+      # Persist logs for debugging (also captured by Docker logging below)
+      - app-logs:/var/www/html/storage/logs
     logging:
       driver: "json-file"
       options:
@@ -589,7 +653,8 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
+      # Use TCP check to avoid exposing password in process list
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -628,6 +693,7 @@ volumes:
   caddy-data:      # Let's Encrypt certificates
   caddy-config:    # Caddy configuration cache
   app-storage:     # Laravel storage (non-Spaces files)
+  app-logs:        # Laravel logs (persisted across container restarts)
   mysql-data:      # Database persistence
   redis-data:      # Queue/cache persistence
 ```
@@ -638,9 +704,15 @@ Caddy handles SSL automatically - it obtains and renews Let's Encrypt certificat
 
 ```
 crockenhill.org, www.crockenhill.org {
-    reverse_proxy app:80
+    # Reverse proxy to app container with extended timeouts for media processing
+    reverse_proxy app:80 {
+        transport http {
+            read_timeout 3700s
+            write_timeout 3700s
+        }
+    }
 
-    # Handle large uploads (2GB, 1 hour timeout)
+    # Handle large uploads (2GB)
     request_body {
         max_size 2GB
     }
@@ -798,7 +870,18 @@ jobs:
             # Pull new image
             docker compose -f docker-compose.prod.yml pull
 
-            # Run migrations
+            # Backup database before migration (keeps last 5 backups)
+            BACKUP_FILE="backups/db-$(date +%Y%m%d-%H%M%S).sql"
+            mkdir -p backups
+            docker compose -f docker-compose.prod.yml exec -T mysql \
+              mysqldump -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" > "$BACKUP_FILE"
+            ls -t backups/*.sql | tail -n +6 | xargs -r rm
+
+            # Preview migrations (fail early if there's an issue)
+            docker compose -f docker-compose.prod.yml run --rm app \
+              php artisan migrate --pretend --force
+
+            # Run actual migrations
             docker compose -f docker-compose.prod.yml run --rm app \
               php artisan migrate --force
 
@@ -809,7 +892,7 @@ jobs:
             docker compose -f docker-compose.prod.yml exec -T app \
               php artisan optimize
 
-            # Cleanup
+            # Cleanup old images
             docker image prune -f
 
             # Health check
@@ -867,9 +950,23 @@ echo "5. Run: docker compose -f docker-compose.prod.yml up -d"
 
 ## Environment Variables
 
+### GitHub Environment Setup
+
+The deploy workflow uses a GitHub Environment for production deployments. This provides:
+- **Deployment protection rules** - Optional manual approval before deploying
+- **Environment-specific secrets** - Keep production credentials isolated
+- **Deployment history** - Track what was deployed and when
+
+**Setup steps:**
+
+1. Go to repository **Settings → Environments**
+2. Click **New environment** and name it `production`
+3. (Optional) Enable **Required reviewers** if you want manual approval before deploys
+4. Add the environment secrets (see below)
+
 ### GitHub Actions Secrets
 
-Configure these in repository Settings → Secrets and variables → Actions:
+Configure these in repository **Settings → Environments → production → Environment secrets**:
 
 | Secret | Value |
 |--------|-------|
@@ -877,14 +974,28 @@ Configure these in repository Settings → Secrets and variables → Actions:
 | `PROD_USER` | `deploy` |
 | `PROD_SSH_KEY` | Contents of deploy user's private key |
 
+**Note:** The `GITHUB_TOKEN` secret is automatically provided by GitHub Actions - no configuration needed.
+
 ### Production .env
 
-Create `/srv/crockenhill/.env.production` on the server:
+Create `/srv/crockenhill/.env.production` on the server.
+
+**Generate the APP_KEY first** (run locally or use an online generator):
+```bash
+# Option 1: Generate locally (requires PHP)
+php -r "echo 'base64:' . base64_encode(random_bytes(32)) . PHP_EOL;"
+
+# Option 2: Use your local Laravel installation
+cd /path/to/your/local/crockenhill
+php artisan key:generate --show
+```
+
+Then create the file with the generated key:
 
 ```bash
 APP_NAME="Crockenhill Baptist Church"
 APP_ENV=production
-APP_KEY=base64:generate-with-php-artisan-key-generate
+APP_KEY=base64:YOUR_GENERATED_KEY_HERE
 APP_DEBUG=false
 APP_URL=https://crockenhill.org
 
@@ -981,7 +1092,7 @@ docker compose -f docker-compose.prod.yml exec app php artisan optimize
 cd /srv/crockenhill
 
 # Find previous image tag (first 7 chars of commit SHA)
-docker images ghcr.io/your-username/crockenhill
+docker images ghcr.io/OWNER/crockenhill
 
 # Deploy specific version
 IMAGE_TAG=abc1234 docker compose -f docker-compose.prod.yml up -d
@@ -1017,6 +1128,87 @@ docker compose -f docker-compose.prod.yml exec app php artisan queue:monitor
 docker compose -f docker-compose.prod.yml ps
 ```
 
+### Uptime monitoring (recommended)
+
+Set up external uptime monitoring to get alerts when the site is down. Free options:
+
+- **[UptimeRobot](https://uptimerobot.com/)** - Free tier: 50 monitors, 5-minute checks
+- **[Healthchecks.io](https://healthchecks.io/)** - Free tier: 20 checks, good for cron jobs
+
+Configure to monitor `https://crockenhill.org/up` and alert via email or Slack.
+
+---
+
+## Backup & Restore
+
+### Backup Strategy
+
+The deployment uses a three-layer backup approach:
+
+| Layer | What's Backed Up | Frequency | Retention |
+|-------|------------------|-----------|-----------|
+| DigitalOcean Droplet Backups | Entire server (Docker volumes, configs) | Weekly | 4 weeks |
+| Pre-deployment DB dumps | MySQL database only | Every deploy | Last 5 |
+| DigitalOcean Spaces | Sermon audio/video files | Continuous (S3-compatible) | Indefinite |
+
+### Manual Database Backup
+
+```bash
+cd /srv/crockenhill
+
+# Create backup
+docker compose -f docker-compose.prod.yml exec -T mysql \
+  mysqldump -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" > backup.sql
+
+# Compress (optional)
+gzip backup.sql
+```
+
+### Database Restore
+
+```bash
+cd /srv/crockenhill
+
+# Stop app to prevent writes during restore
+docker compose -f docker-compose.prod.yml stop app
+
+# Restore from backup
+docker compose -f docker-compose.prod.yml exec -T mysql \
+  mysql -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" < backup.sql
+
+# Restart app
+docker compose -f docker-compose.prod.yml start app
+```
+
+### Full Disaster Recovery
+
+If the droplet is lost:
+
+1. Create a new droplet from the latest DigitalOcean backup, OR:
+2. Run `server-setup.sh` on a fresh droplet
+3. Copy `docker-compose.prod.yml`, `Caddyfile`, `.env.production` to `/srv/crockenhill/`
+4. Restore database from backup
+5. Run `docker compose -f docker-compose.prod.yml up -d`
+
+Sermon media files are safe in DigitalOcean Spaces and don't need restoration.
+
+### Migration Rollback
+
+If a migration causes issues:
+
+```bash
+cd /srv/crockenhill
+
+# Check migration status
+docker compose -f docker-compose.prod.yml exec app php artisan migrate:status
+
+# Rollback last batch
+docker compose -f docker-compose.prod.yml exec app php artisan migrate:rollback
+
+# Or rollback to specific batch
+docker compose -f docker-compose.prod.yml exec app php artisan migrate:rollback --step=2
+```
+
 ---
 
 ## Cost Summary
@@ -1034,21 +1226,47 @@ No infrastructure changes required. The deployment improvements are about proces
 
 ---
 
-## Additional Tasks
+## Completed Preparation Tasks
 
-### Update Sail php.ini to match production
+The following changes have been made to ensure dev/prod parity:
 
-The current `docker/php/php.ini` has 5GB/2-hour limits which exceed production. Update to match:
+| File | Change | Status |
+|------|--------|--------|
+| `.github/workflows/integration-tests.yml` | Updated to PHP 8.4, added `imagick` and `redis` extensions | ✅ Done |
+| `docker/php/php.ini` | Updated limits to match production (2GB uploads, 1hr timeouts, 512MB memory) | ✅ Done |
+| `.env.example` | Added Redis configuration, updated cache/session/queue drivers | ✅ Done |
+| `docker-compose.yml` | Added Redis service, changed MySQL image to `mysql:8.0` | ✅ Done |
 
-```ini
-[PHP]
-post_max_size = 2G
-upload_max_filesize = 2G
-max_execution_time = 3600
-max_input_time = 3600
-memory_limit = 512M
-max_input_vars = 3000
-variables_order = EGPCS
-```
+---
 
-This ensures local development mirrors production behaviour.
+## Remaining Tasks (Production Deployment)
+
+Before first deployment, you still need to:
+
+1. **Create the production files** (not yet in repo):
+   - `Dockerfile` - Copy from this plan
+   - `docker-compose.prod.yml` - Copy from this plan
+   - `Caddyfile` - Copy from this plan
+   - `docker/production/*` - nginx.conf, php.ini, php-fpm.conf, supervisord.conf
+   - `.github/workflows/deploy.yml` - Copy from this plan
+   - `scripts/server-setup.sh` - Copy from this plan
+
+2. **Set up GitHub Environment** for production deployments (see Environment Variables section)
+
+3. **Provision the DigitalOcean droplet** and run server-setup.sh
+
+4. **Rebuild Sail locally** to pick up the new Redis and MySQL changes:
+   ```bash
+   sail down
+   sail build --no-cache
+   sail up -d
+   ```
+
+5. **Update your local `.env`** if it still uses file-based cache/session:
+   ```bash
+   REDIS_HOST=redis
+   REDIS_PORT=6379
+   CACHE_DRIVER=redis
+   SESSION_DRIVER=redis
+   QUEUE_CONNECTION=redis
+   ```

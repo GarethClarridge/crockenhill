@@ -25,8 +25,9 @@ services:
             - sail
         depends_on:
             - mysql
+            - redis
     mysql:
-        image: 'mysql/mysql-server:8.0'
+        image: 'mysql:8.0'
         ports:
             - '${FORWARD_DB_PORT:-3306}:3306'
         environment:
@@ -49,6 +50,19 @@ services:
                 - '-p${DB_PASSWORD}'
             retries: 3
             timeout: 5s
+    redis:
+        image: 'redis:7-alpine'
+        ports:
+            - '${FORWARD_REDIS_PORT:-6379}:6379'
+        volumes:
+            - 'sail-redis:/data'
+        networks:
+            - sail
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 3s
+            retries: 3
     mailpit:
         image: axllent/mailpit:latest
         ports:
@@ -61,4 +75,6 @@ networks:
         driver: bridge
 volumes:
     sail-mysql:
+        driver: local
+    sail-redis:
         driver: local
