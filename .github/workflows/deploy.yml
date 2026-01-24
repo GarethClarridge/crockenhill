@@ -68,6 +68,7 @@ jobs:
           echo "DB_DATABASE=testing" >> .env
           echo "DB_USERNAME=root" >> .env
           echo "DB_PASSWORD=" >> .env
+          echo "SESSION_DRIVER=array" >> .env
           echo "QUEUE_CONNECTION=sync" >> .env
           echo "TRANSCRIPTION_SERVICE_TYPE=mock" >> .env
 
