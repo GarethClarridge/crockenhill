@@ -61,7 +61,9 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Application user
-RUN groupadd --gid 1000 www \
+RUN if getent passwd ubuntu; then userdel -r ubuntu; fi \
+    && if getent group ubuntu; then groupdel ubuntu; fi \
+    && groupadd --gid 1000 www \
     && useradd --uid 1000 --gid 1000 -m www
 
 # Copy built assets from previous stages
