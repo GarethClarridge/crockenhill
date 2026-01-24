@@ -43,7 +43,7 @@ Route::view('/community', 'full-width-pages.community')->name('community');
 Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
 
 // Meeting routes
-Route::resource('meetings', MeetingController::class);
+Route::resource('meetings', MeetingController::class)->except(['show']);
 
 // Calendar routes
 Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
