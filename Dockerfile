@@ -43,7 +43,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         gnupg curl ca-certificates zip unzip \
-        supervisor nginx ffmpeg \
+        supervisor nginx ffmpeg mysql-client \
     # PHP repository
     && mkdir -p /etc/apt/keyrings \
     && curl -sS 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xb8dc7e53946656efbce4c1dd71daeaab4ad4cab6' \
