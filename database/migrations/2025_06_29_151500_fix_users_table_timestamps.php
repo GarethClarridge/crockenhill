@@ -8,7 +8,7 @@ return new class extends Migration
     public function up()
     {
         // Store current sql_mode
-        $currentMode = DB::select('SELECT @@sql_mode as mode')[0]->mode;
+        $currentMode = DB::scalar('SELECT @@sql_mode');
 
         // Temporarily disable strict mode
         DB::statement("SET sql_mode = ''");
