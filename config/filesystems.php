@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'default' => 'local',
+    'default' => env('FILESYSTEM_DISK', 'local'),
 
     /*
     |--------------------------------------------------------------------------
@@ -72,9 +72,9 @@ return [
 
         'do_spaces' => [
             'driver' => 's3',
-            'key' => env('DO_SPACES_ACCESS_KEY_ID'),
-            'secret' => env('DO_SPACES_SECRET_ACCESS_KEY'),
-            'region' => env('DO_SPACES_DEFAULT_REGION', 'nyc3'),
+            'key' => env('DO_SPACES_KEY', env('DO_SPACES_ACCESS_KEY_ID')),
+            'secret' => env('DO_SPACES_SECRET', env('DO_SPACES_SECRET_ACCESS_KEY')),
+            'region' => env('DO_SPACES_REGION', env('DO_SPACES_DEFAULT_REGION', 'nyc3')),
             'bucket' => env('DO_SPACES_BUCKET'),
             'endpoint' => env('DO_SPACES_ENDPOINT', 'https://nyc3.digitaloceanspaces.com'),
             'use_path_style_endpoint' => false,

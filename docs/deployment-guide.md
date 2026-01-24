@@ -253,11 +253,13 @@ QUEUE_CONNECTION=redis
 
 # COPY FROM EXISTING .env
 FILESYSTEM_DISK=do_spaces
+SERMON_STORAGE_DISK=do_spaces
 DO_SPACES_KEY=your_existing_value
 DO_SPACES_SECRET=your_existing_value
 DO_SPACES_REGION=your_existing_value
 DO_SPACES_BUCKET=your_existing_value
 DO_SPACES_ENDPOINT=your_existing_value
+DO_SPACES_CDN_ENDPOINT=your_existing_value
 
 # COPY FROM EXISTING .env
 MAIL_MAILER=mailgun

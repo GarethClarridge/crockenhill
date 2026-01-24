@@ -31,8 +31,8 @@ return [
     |--------------------------------------------------------------------------
     */
     'storage' => [
-        'disk' => env('SERMON_STORAGE_DISK', 'public'),
-        'sermon_disk' => env('SERMON_STORAGE_DISK', 'public'),
+        'disk' => env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'public')),
+        'sermon_disk' => env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'public')),
         'temp_disk' => 'local',
         'paths' => [
             'audio' => 'sermons/audio',
