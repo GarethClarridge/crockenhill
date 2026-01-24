@@ -141,7 +141,10 @@ jobs:
             cd /srv/crockenhill
 
             # Pull new image
-            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml --env-file .env.production pull
+
+            # Start dependencies and wait for health
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d mysql redis
 
             # Source environment variables for the backup step
             if [ -f .env.production ]; then
@@ -149,10 +152,10 @@ jobs:
             fi
 
             # Backup database before migration (keeps last 5 backups)
-            if docker compose -f docker-compose.prod.yml ps mysql --format "{{.State}}" | grep -q "running"; then
+            if docker compose -f docker-compose.prod.yml --env-file .env.production ps mysql --format "{{.State}}" | grep -q "running"; then
               BACKUP_FILE="backups/db-$(date +%Y%m%d-%H%M%S).sql"
               mkdir -p backups
-              docker compose -f docker-compose.prod.yml exec -T mysql \
+              docker compose -f docker-compose.prod.yml --env-file .env.production exec -T mysql \
                 mysqldump -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" > "$BACKUP_FILE"
               ls -t backups/*.sql | tail -n +6 | xargs -r rm
             else
@@ -160,18 +163,18 @@ jobs:
             fi
 
             # Preview migrations (fail early if there's an issue)
-            docker compose -f docker-compose.prod.yml run --rm app \
+            docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \
               php artisan migrate --pretend --force
 
             # Run actual migrations
-            docker compose -f docker-compose.prod.yml run --rm app \
+            docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \
               php artisan migrate --force
 
-            # Restart services
-            docker compose -f docker-compose.prod.yml up -d
+            # Restart all services
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 
             # Clear caches and optimize
-            docker compose -f docker-compose.prod.yml exec -T app \
+            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
               php artisan optimize
 
             # Cleanup old images
