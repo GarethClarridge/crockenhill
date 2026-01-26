@@ -228,6 +228,8 @@ Paste the following, filling in values from your existing production `.env`:
 APP_NAME="Crockenhill Baptist Church"
 APP_ENV=production
 APP_DEBUG=false
+# During testing, set this to the IP address (e.g., http://123.123.123.123)
+# After DNS switch, change to https://crockenhill.org
 APP_URL=https://crockenhill.org
 
 # COPY FROM EXISTING .env - this must match or encrypted data will break
@@ -435,6 +437,9 @@ docker compose -f docker-compose.prod.yml restart caddy
 
 Visit `http://NEW_DROPLET_IP` in your browser (note: HTTP, not HTTPS).
 
+> [!TIP]
+> If links on the site redirect you to the real URL, make sure `APP_URL` in `.env.production` is set to `http://NEW_DROPLET_IP` and you have run `php artisan optimize`.
+
 Verify:
 - [ ] Homepage loads
 - [ ] Sermons page shows existing sermons (data from Spaces)
@@ -446,6 +451,11 @@ Verify:
 
 ```bash
 cd /srv/crockenhill
+# Also update APP_URL to the real domain
+nano .env.production
+# APP_URL=https://crockenhill.org
+
+docker compose -f docker-compose.prod.yml exec app php artisan optimize
 mv Caddyfile.production Caddyfile
 docker compose -f docker-compose.prod.yml restart caddy
 ```

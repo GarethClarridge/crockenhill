@@ -4,8 +4,8 @@
   '@context' => 'https://schema.org',
   '@type' => 'Church',
   'name' => 'Crockenhill Baptist Church',
-  '@id' => 'https://crockenhill.org',
-  'url' => 'https://crockenhill.org',
+  '@id' => config('app.url'),
+  'url' => config('app.url'),
   'logo' => asset('images/Primary.png'),
   'description' => 'An independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, and proclaiming Jesus Christ to all.',
   'address' => [

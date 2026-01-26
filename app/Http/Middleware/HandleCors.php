@@ -39,9 +39,10 @@ class HandleCors
     private function getAllowedOrigin(Request $request): string
     {
         $origin = $request->header('Origin');
+        $appUrl = config('app.url');
         $allowedOrigins = config('app.cors_allowed_origins', [
-            'https://crockenhill.org',
-            'https://www.crockenhill.org',
+            $appUrl,
+            str_replace('https://', 'https://www.', $appUrl),
         ]);
 
         // In development, allow localhost origins

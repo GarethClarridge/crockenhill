@@ -68,7 +68,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('"@type": "Church"', false);
         $response->assertSee('"name": "Crockenhill Baptist Church"', false);
-        $response->assertSee('"@id": "https://crockenhill.org"', false);
+        $response->assertSee('"@id": "' . config('app.url') . '"', false);
         $response->assertSee('"streetAddress": "Eynsford Road"', false);
         $response->assertSee('"postalCode": "BR8 8JS"', false);
         $response->assertSee('"latitude": "51.38349261524606"', false);
