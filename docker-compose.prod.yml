@@ -59,7 +59,7 @@ services:
       - mysql-data:/var/lib/mysql
     healthcheck:
       # Use TCP check to avoid exposing password in process list
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3

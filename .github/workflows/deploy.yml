@@ -150,13 +150,13 @@ jobs:
             echo "Waiting for MySQL to be healthy..."
             MAX_RETRIES=30
             COUNT=0
-            until [ $COUNT -ge $MAX_RETRIES ] || docker compose -f docker-compose.prod.yml --env-file .env.production ps mysql --format "{{.State}}" | grep -q "healthy"; do
+            until [ $COUNT -ge $MAX_RETRIES ] || docker compose -f docker-compose.prod.yml --env-file .env.production ps mysql --format "{{.Status}}" | grep -q "(healthy)"; do
               echo "MySQL is still starting... ($((COUNT+1))/$MAX_RETRIES)"
               sleep 2
               COUNT=$((COUNT+1))
             done
 
-            if ! docker compose -f docker-compose.prod.yml --env-file .env.production ps mysql --format "{{.State}}" | grep -q "healthy"; then
+            if ! docker compose -f docker-compose.prod.yml --env-file .env.production ps mysql --format "{{.Status}}" | grep -q "(healthy)"; then
               echo "MySQL failed to become healthy in time."
               docker compose -f docker-compose.prod.yml --env-file .env.production logs mysql
               exit 1
