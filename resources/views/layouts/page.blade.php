@@ -20,65 +20,50 @@
 
   <article>
 
-    @php
-      $hasHeadingPicture = isset($headingpicture) && $headingpicture && (
-        str_starts_with($headingpicture, 'http') ||
-        str_starts_with($headingpicture, '//') ||
-        file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture)
-      );
-    @endphp
-    @if ($hasHeadingPicture)
-    <x-h1-picture
-      :headingpicture="$headingpicture"
-      :headingpicture-mobile="$headingpictureMobile ?? null"
-      :headingpicture-tablet="$headingpictureTablet ?? null"
-    >
-      {{$heading}}
-    </x-h1-picture>
-    @else
-    <x-h1>
-      {{$heading}}
-    </x-h1>
-    @endif
+    {{-- Page Header --}}
+    <x-page-header
+      :heading="$heading"
+      :picture="$headingpicture ?? null"
+      :picture-mobile="$headingpictureMobile ?? null"
+      :picture-tablet="$headingpictureTablet ?? null"
+    />
 
-    <div class="mx-auto max-w-2xl xl:max-w-3xl px-12 md:px-6">
+    <x-content-wrapper>
 
+      {{-- Session Messages --}}
       @if (session('message'))
-      <x-session-message>
-        {{ session('message') }}
-      </x-session-message>
+        <x-session-message>
+          {{ session('message') }}
+        </x-session-message>
       @endif
 
-      <div class="inline-flex items-center justify-between w-full flex-wrap">
-        <x-breadcrumbs :$area :$heading />
+      {{-- Toolbar: Breadcrumbs + Edit Buttons --}}
+      <x-page-toolbar
+        :area="$area ?? null"
+        :heading="$heading"
+        :slug="$slug ?? null"
+        :editable="isset($page) || (isset($slug) && isset($area) && isset($content) && !empty($content))"
+      />
 
-        @if(isset($page) || (isset($slug) && isset($area) && isset($content) && !empty($content))) <x-edit-buttons :$slug /> @endif
-      </div>
-
+      {{-- Main Content --}}
       @if (isset ($content))
-      <div class="mt-6 prose lg:prose-xl">
-        {!! $content !!}
-      </div>
+        <div class="mt-6 prose lg:prose-xl">
+          {!! $content !!}
+        </div>
       @endif
 
+      {{-- Dynamic Content Slot --}}
       @yield('dynamic_content')
 
-    </div>
+    </x-content-wrapper>
 
+    {{-- Full Width Content Slot --}}
     @yield('full_width_content')
 
   </article>
 
-  @if (isset ($links))
-  <x-h2>
-    Related pages
-  </x-h2>
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 justify-center max-w-2xl lg:max-w-5xl xl:max-w-7xl mx-auto mt-6">
-    @foreach ($links as $link)
-    <x-page-card :page="$link" />
-    @endforeach
-  </div>
-  @endif
+  {{-- Related Pages --}}
+  <x-related-pages :links="$links ?? []" />
 
 </main>
 @stop

@@ -55,7 +55,7 @@ class SermonOpenGraphTest extends TestCase
 
         // Check Twitter Card meta tags
         $response->assertSee('<meta name="twitter:card" content="summary_large_image">', false);
-        $response->assertSee('<meta name="twitter:title" content="Test Sermon Title">', false);
+        $response->assertSee('<meta name="twitter:title" content="Test Sermon Title - Crockenhill Baptist Church">', false);
         $response->assertSee('<meta name="twitter:description"', false);
         $response->assertSee('<meta name="twitter:image"', false);
 
