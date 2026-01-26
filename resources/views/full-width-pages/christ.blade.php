@@ -7,21 +7,10 @@
 @section('meta_description', 'Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church.')
 
 @section('meta_tags')
-{{-- Open Graph meta tags --}}
-<meta property="og:title" content="Christ - Crockenhill Baptist Church">
-<meta property="og:description" content="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="{{ url()->current() }}">
-<meta property="og:site_name" content="Crockenhill Baptist Church">
-<meta property="og:image" content="{{ asset('images/Primary.png') }}">
-<meta property="og:image:width" content="800">
-<meta property="og:image:height" content="600">
-
-{{-- Twitter Card meta tags --}}
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Christ - Crockenhill Baptist Church">
-<meta name="twitter:description" content="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church.">
-<meta name="twitter:image" content="{{ asset('images/Primary.png') }}">
+<x-meta-tags
+    title="Christ"
+    description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church."
+/>
 @stop
 
 @section('content')

@@ -5,46 +5,19 @@ use Illuminate\Support\Str;
 @endphp
 
 @section('meta_tags')
-{{-- Open Graph meta tags for social media sharing --}}
-<meta property="og:title" content="{{ $sermon->title }} - Crockenhill Baptist Church">
-<meta property="og:description" content="{{ $sermon->meta_description }}">
-<meta property="og:type" content="article">
-<meta property="og:url" content="{{ request()->url() }}">
-<meta property="og:site_name" content="Crockenhill Baptist Church">
+<x-meta-tags
+    :title="$sermon->title"
+    :description="$sermon->meta_description"
+    type="article"
+    :image="$sermon->thumbnail_url && $sermon->hasThumbnail() ? $sermon->thumbnail_url : null"
+    :image-width="$sermon->thumbnail_url && $sermon->hasThumbnail() ? 1280 : 800"
+    :image-height="$sermon->thumbnail_url && $sermon->hasThumbnail() ? 720 : 600"
+    :image-alt="'Sermon: ' . $sermon->title"
+    :audio="$sermon->audio_url"
+    :video="$sermon->video_url"
+    :canonical="route('showSermon', $sermon->slug)"
+/>
 
-{{-- Audio/Video specific tags --}}
-@if($sermon->audio_url)
-<meta property="og:audio" content="{{ $sermon->audio_url }}">
-<meta property="og:audio:type" content="audio/mpeg">
-@endif
-
-@if($sermon->video_url)
-<meta property="og:video" content="{{ $sermon->video_url }}">
-<meta property="og:video:type" content="video/mp4">
-@endif
-
-{{-- Include thumbnail image if available, otherwise use fallback --}}
-@if($sermon->thumbnail_url && $sermon->hasThumbnail())
-<meta property="og:image" content="{{ $sermon->thumbnail_url }}">
-<meta property="og:image:width" content="1280">
-<meta property="og:image:height" content="720">
-@else
-<meta property="og:image" content="{{ asset('images/Primary.png') }}">
-<meta property="og:image:width" content="800">
-<meta property="og:image:height" content="600">
-@endif
-<meta property="og:image:alt" content="Sermon: {{ $sermon->title }}">
-
-{{-- Twitter Card meta tags --}}
-{{-- Note: 'player' card requires a secure iframe URL, defaulting to summary_large_image which works well with audio/video content linked --}}
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{ $sermon->title }}">
-<meta name="twitter:description" content="{{ $sermon->meta_description }}">
-@if($sermon->thumbnail_url && $sermon->hasThumbnail())
-<meta name="twitter:image" content="{{ $sermon->thumbnail_url }}">
-@else
-<meta name="twitter:image" content="{{ asset('images/Primary.png') }}">
-@endif
 {{-- JSON-LD Structured Data --}}
 @php
     $schema = [
@@ -82,9 +55,6 @@ use Illuminate\Support\Str;
 <script type="application/ld+json">
     {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
 </script>
-@section('canonical')
-<link rel="canonical" href="{{ route('showSermon', $sermon->slug) }}">
-@endsection
 @endsection
 
 @section('dynamic_content')
