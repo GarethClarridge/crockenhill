@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Global middleware (replicated from old Kernel)
         // Note: Some of these might have more modern equivalents in Laravel 12 (e.g., CheckForMaintenanceMode)
         $middleware->use([
+            \App\Http\Middleware\TrustProxies::class,
             \Illuminate\Foundation\Http\Middleware\CheckForMaintenanceMode::class,
             \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
             \App\Http\Middleware\TrimStrings::class, // Ensure this class exists and is correct

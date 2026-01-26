@@ -221,7 +221,7 @@ return [
     */
 
     'cors_allowed_origins' => [
-        'https://crockenhill.org',
-        'https://www.crockenhill.org',
+        env('APP_URL', 'https://crockenhill.org'),
+        str_replace('https://', 'https://www.', env('APP_URL', 'https://crockenhill.org')),
     ],
 ];
