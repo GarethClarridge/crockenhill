@@ -146,21 +146,33 @@ jobs:
             # Start dependencies and wait for health
             docker compose -f docker-compose.prod.yml --env-file .env.production up -d mysql redis
 
+            # Wait for MySQL to be healthy
+            echo "Waiting for MySQL to be healthy..."
+            MAX_RETRIES=30
+            COUNT=0
+            until [ $COUNT -ge $MAX_RETRIES ] || docker compose -f docker-compose.prod.yml --env-file .env.production ps mysql --format "{{.State}}" | grep -q "healthy"; do
+              echo "MySQL is still starting... ($((COUNT+1))/$MAX_RETRIES)"
+              sleep 2
+              COUNT=$((COUNT+1))
+            done
+
+            if ! docker compose -f docker-compose.prod.yml --env-file .env.production ps mysql --format "{{.State}}" | grep -q "healthy"; then
+              echo "MySQL failed to become healthy in time."
+              docker compose -f docker-compose.prod.yml --env-file .env.production logs mysql
+              exit 1
+            fi
+
             # Source environment variables for the backup step
             if [ -f .env.production ]; then
               export $(grep -E '^DB_(DATABASE|USERNAME|PASSWORD)=' .env.production | xargs)
             fi
 
             # Backup database before migration (keeps last 5 backups)
-            if docker compose -f docker-compose.prod.yml --env-file .env.production ps mysql --format "{{.State}}" | grep -q "running"; then
-              BACKUP_FILE="backups/db-$(date +%Y%m%d-%H%M%S).sql"
-              mkdir -p backups
-              docker compose -f docker-compose.prod.yml --env-file .env.production exec -T mysql \
-                mysqldump -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" > "$BACKUP_FILE"
-              ls -t backups/*.sql | tail -n +6 | xargs -r rm
-            else
-              echo "MySQL is not running, skipping pre-deploy backup."
-            fi
+            BACKUP_FILE="backups/db-$(date +%Y%m%d-%H%M%S).sql"
+            mkdir -p backups
+            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T mysql \
+              mysqldump -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" > "$BACKUP_FILE"
+            ls -t backups/*.sql | tail -n +6 | xargs -r rm
 
             # Preview migrations (fail early if there's an issue)
             docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \
