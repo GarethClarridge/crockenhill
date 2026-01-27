@@ -1,0 +1,61 @@
+# Dependencies (installed in build stages)
+/node_modules
+/vendor
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+/.idea
+.DS_Store
+
+# Laravel storage (production uses volumes)
+/storage/app/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+
+# Laravel compiled/generated
+/public/hot
+/public/build
+/public/css/filament
+/public/js/filament
+/public/vendor
+/public/sitemap.xml
+
+# Public media
+/public/media
+/public/storage
+
+# Test files
+/tests
+.phpunit.result.cache
+.phpunit.cache
+*.cache
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker files (don't need to copy themselves)
+docker-compose.yml
+docker-compose.prod.yml
+
+# Documentation
+*.md
+!README.md
+
+# Media files
+*.mp3
+*.mp4
+*.wav
+*.webm
+*.avi
+*.mov
+
+# Logs
+*.log
