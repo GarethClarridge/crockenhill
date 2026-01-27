@@ -87,6 +87,9 @@ RUN mkdir -p /run/php /var/log/supervisor \
     && chown -R www:www storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+# Clear bootstrap cache (may contain development-only references)
+RUN rm -f bootstrap/cache/*.php
+
 # Create storage symlink (public/storage -> storage/app/public)
 RUN php artisan storage:link
 
