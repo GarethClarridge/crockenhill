@@ -56,7 +56,7 @@ Route::get('/community/{meeting:slug}', [MeetingController::class, 'show'])->nam
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
-    Route::get('/upload', [SermonController::class, 'upload'])->name('sermonUpload');
+    Route::get('/upload', [SermonController::class, 'upload'])->name('sermon.upload');
     Route::post('/upload', [SermonController::class, 'processMedia'])->name('sermonPost');
     Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
     Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
@@ -117,13 +117,39 @@ Route::get('verify-email', function () {
     return view('auth.verify-email');
 })->middleware('auth')->name('verification.notice');
 
-// Redirect old admin routes to Filament
+// Admin routes (Mary UI + Livewire)
+Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', App\Livewire\Admin\Dashboard::class)->name('dashboard');
+
+    // Pages
+    Route::get('/pages', App\Livewire\Admin\Pages\ListPages::class)->name('pages.index');
+    Route::get('/pages/create', App\Livewire\Admin\Pages\CreatePage::class)->name('pages.create');
+    Route::get('/pages/{page:slug}/edit', App\Livewire\Admin\Pages\EditPage::class)->name('pages.edit');
+
+    // Meetings
+    Route::get('/meetings', App\Livewire\Admin\Meetings\ListMeetings::class)->name('meetings.index');
+    Route::get('/meetings/create', App\Livewire\Admin\Meetings\CreateMeeting::class)->name('meetings.create');
+    Route::get('/meetings/{meeting:slug}/edit', App\Livewire\Admin\Meetings\EditMeeting::class)->name('meetings.edit');
+
+    // Sermons
+    Route::get('/sermons', App\Livewire\Admin\Sermons\ListSermons::class)->name('sermons.index');
+    Route::get('/sermons/{sermon:slug}/edit', App\Livewire\Admin\Sermons\EditSermon::class)->name('sermons.edit');
+
+    // Calendar Events
+    Route::get('/calendar-events', App\Livewire\Admin\CalendarEvents\ListCalendarEvents::class)->name('calendar-events.index');
+    Route::get('/calendar-events/{calendarEvent}/edit', App\Livewire\Admin\CalendarEvents\EditCalendarEvent::class)->name('calendar-events.edit');
+
+    // Users
+    Route::get('/users', App\Livewire\Admin\Users\ListUsers::class)->name('users.index');
+    Route::get('/users/create', App\Livewire\Admin\Users\CreateUser::class)->name('users.create');
+    Route::get('/users/{user}/edit', App\Livewire\Admin\Users\EditUser::class)->name('users.edit');
+});
+
+// Redirect old admin routes to new admin
 Route::middleware('auth')->group(function () {
-    Route::get('/admin', fn () => redirect('/admin/pages'));
     Route::get('/church/members/pages', fn () => redirect('/admin/pages'));
     Route::get('/church/members/pages/create', fn () => redirect('/admin/pages/create'));
     Route::get('/church/members/pages/{page}/edit', fn (Page $page) => redirect("/admin/pages/{$page->slug}/edit"));
-    // Redirect meeting admin routes to Filament
     Route::get('/church/members/meetings', fn () => redirect('/admin/meetings'));
     Route::get('/church/members/meetings/create', fn () => redirect('/admin/meetings/create'));
     Route::get('/church/members/meetings/{meeting}/edit', fn (Meeting $meeting) => redirect("/admin/meetings/{$meeting->slug}/edit"));

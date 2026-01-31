@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -36,7 +34,7 @@ use Laravel\Sanctum\HasApiTokens;
  *
  * @mixin \Eloquent
  */
-class User extends Authenticatable implements FilamentUser, MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -78,12 +76,4 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         'password' => 'hashed', // Recommended for Laravel 10+ for automatic hashing
     ];
 
-    /**
-     * Determine if the user can access the Filament admin panel.
-     */
-    public function canAccessPanel(Panel $panel): bool
-    {
-        return Str::endsWith($this->email, '@crockenhill.org')
-            && $this->hasVerifiedEmail();
-    }
 }

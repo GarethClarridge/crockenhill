@@ -19,6 +19,26 @@
     </div>
   </div>
 
+  {{-- Admin Section --}}
+  @can('edit-pages')
+  <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
+    <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
+      <h3 class="text-lg font-medium text-gray-900 flex items-center">
+        <x-heroicon-o-cog-6-tooth class="h-5 w-5 mr-2 text-gray-500" />
+        Admin Dashboard
+      </h3>
+    </div>
+    <div class="p-4 space-y-2">
+      <x-button link="{{ route('admin.dashboard') }}">
+        <div class="flex items-center justify-center">
+          <x-heroicon-s-home class="h-5 w-5 mr-2" />
+          Go to Admin Dashboard
+        </div>
+      </x-button>
+    </div>
+  </div>
+  @endcan
+
   {{-- Sermons Section --}}
   @can('edit-sermons')
   <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
@@ -35,6 +55,13 @@
           Upload sermon
         </div>
       </x-button>
+
+      <x-button link="{{ route('admin.sermons.index') }}">
+        <div class="flex items-center justify-center">
+          <x-heroicon-s-pencil-square class="h-5 w-5 mr-2" />
+          Manage sermons
+        </div>
+      </x-button>
     </div>
   </div>
   @endcan
@@ -49,7 +76,7 @@
       </h3>
     </div>
     <div class="p-4 space-y-2">
-      <x-button link="/church/members/meetings">
+      <x-button link="{{ route('admin.meetings.index') }}">
         <div class="flex items-center justify-center">
           <x-heroicon-s-pencil-square class="h-5 w-5 mr-2" />
           Edit meetings
@@ -74,10 +101,10 @@
         </div>
       </x-button>
 
-      <x-button link="/church/members/calendar/uncategorized">
+      <x-button link="{{ route('admin.calendar-events.index') }}">
         <div class="flex items-center justify-center">
           <x-heroicon-s-tag class="h-5 w-5 mr-2" />
-          Categorise non-matching calendar events
+          Categorise calendar events
         </div>
       </x-button>
     </div>

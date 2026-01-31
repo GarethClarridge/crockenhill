@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Livewire\Admin\CalendarEvents;
+
+use App\Models\CalendarEvent;
+use App\Models\Meeting;
+use Livewire\Component;
+use Livewire\WithPagination;
+use Mary\Traits\Toast;
+
+class ListCalendarEvents extends Component
+{
+    use WithPagination, Toast;
+
+    public string $search = '';
+    public ?string $meetingFilter = null;
+    public bool $uncategorizedOnly = false;
+    public bool $upcomingOnly = true;
+
+    protected $queryString = ['search', 'meetingFilter', 'uncategorizedOnly', 'upcomingOnly'];
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function categorize(int $eventId, ?string $meetingSlug): void
+    {
+        CalendarEvent::find($eventId)?->update([
+            'meeting_slug' => $meetingSlug,
+            'is_categorized_automatically' => false,
+        ]);
+        $this->success('Event categorized');
+    }
+
+    public function render()
+    {
+        $events = CalendarEvent::query()
+            ->with('meeting.page')
+            ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")
+                ->orWhere('description', 'like', "%{$this->search}%"))
+            ->when($this->meetingFilter, fn ($q) => $q->where('meeting_slug', $this->meetingFilter))
+            ->when($this->uncategorizedOnly, fn ($q) => $q->whereNull('meeting_slug'))
+            ->when($this->upcomingOnly, fn ($q) => $q->upcoming())
+            ->orderBy('start_datetime', 'desc')
+            ->paginate(20);
+
+        $meetings = Meeting::with('page')->get()
+            ->mapWithKeys(fn ($m) => [$m->slug => $m->page->heading ?? $m->slug]);
+
+        $headers = [
+            ['key' => 'title', 'label' => 'Title'],
+            ['key' => 'datetime', 'label' => 'Date & Time'],
+            ['key' => 'meeting', 'label' => 'Meeting'],
+            ['key' => 'location', 'label' => 'Location'],
+            ['key' => 'status', 'label' => 'Status'],
+        ];
+
+        return view('livewire.admin.calendar-events.list-calendar-events', [
+            'events' => $events,
+            'meetings' => $meetings,
+            'headers' => $headers,
+        ])->layout('components.layouts.admin', ['title' => 'Calendar Events']);
+    }
+}
