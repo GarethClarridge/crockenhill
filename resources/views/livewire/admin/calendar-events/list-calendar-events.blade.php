@@ -1,85 +1,114 @@
 <div>
-    <x-mary-header title="Calendar Events" subtitle="Manage and categorize calendar events">
-        <x-slot:actions>
-            <x-mary-button label="Sync Calendar" icon="o-arrow-path"
-                link="{{ route('admin.calendar.sync') }}" class="btn-secondary" />
-        </x-slot:actions>
-    </x-mary-header>
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="font-display text-3xl">Calendar Events</h1>
+            <p class="text-gray-600">Manage and categorize calendar events</p>
+        </div>
+        <x-button link="{{ route('admin.calendar.sync') }}" variant="secondary" icon="arrow-path" inline>
+            Sync Calendar
+        </x-button>
+    </div>
 
     {{-- Filters --}}
     <div class="flex flex-wrap gap-4 mb-6">
-        <x-mary-input placeholder="Search events..." wire:model.live.debounce="search"
-            icon="o-magnifying-glass" clearable class="w-64" />
+        <x-input placeholder="Search events..." wire:model.live.debounce="search"
+            icon="magnifying-glass" clearable class="w-64" />
 
-        <x-mary-select placeholder="All Meetings" wire:model.live="meetingFilter"
-            :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])"
+        <x-select placeholder="All Meetings" wire:model.live="meetingFilter"
+            :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])->values()->toArray()"
             class="w-48" />
 
-        <x-mary-toggle label="Uncategorized Only" wire:model.live="uncategorizedOnly" />
-        <x-mary-toggle label="Upcoming Only" wire:model.live="upcomingOnly" />
+        <x-toggle label="Uncategorized Only" wire:model.live="uncategorizedOnly" />
+        <x-toggle label="Upcoming Only" wire:model.live="upcomingOnly" />
     </div>
 
     {{-- Table --}}
-    <x-mary-card>
-        <x-mary-table :headers="$headers" :rows="$events" striped>
-            @scope('cell_title', $event)
-                <div>
-                    <p class="font-medium">{{ $event->title }}</p>
-                    @if($event->speaker)
-                        <p class="text-sm text-base-content/60">Speaker: {{ $event->speaker }}</p>
-                    @endif
-                </div>
-            @endscope
-
-            @scope('cell_datetime', $event)
-                <div>
-                    <p class="font-medium">{{ $event->start_datetime->format('j M Y') }}</p>
-                    <p class="text-sm text-base-content/60">
-                        {{ $event->start_datetime->format('H:i') }} - {{ $event->end_datetime->format('H:i') }}
-                    </p>
-                </div>
-            @endscope
-
-            @scope('cell_meeting', $event)
-                @if($event->meeting_slug)
-                    <div>
-                        <x-mary-badge :value="$event->meeting->page?->heading ?? $event->meeting_slug"
-                            class="badge-success" />
-                        @if($event->is_categorized_automatically)
-                            <span class="text-xs text-base-content/60">(auto)</span>
-                        @endif
-                    </div>
-                @else
-                    <div class="flex gap-2 items-center">
-                        <x-mary-badge value="Uncategorized" class="badge-warning" />
-                        <x-mary-select
-                            wire:change="categorize({{ $event->id }}, $event.target.value)"
-                            :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])"
-                            placeholder="Categorize..."
-                            class="select-xs w-40"
-                        />
-                    </div>
-                @endif
-            @endscope
-
-            @scope('cell_location', $event)
-                <span class="text-sm">{{ $event->location ?? '-' }}</span>
-            @endscope
-
-            @scope('cell_status', $event)
-                <x-mary-badge :value="ucfirst($event->status)"
-                    class="{{ $event->status === 'confirmed' ? 'badge-success' : 'badge-ghost' }}" />
-            @endscope
-
-            @scope('actions', $event)
-                <div class="flex gap-1" role="group" aria-label="Actions for {{ $event->title }}">
-                    <x-mary-button icon="o-pencil" link="{{ route('admin.calendar-events.edit', $event) }}" class="btn-ghost btn-xs" aria-label="Edit event" />
-                </div>
-            @endscope
-        </x-mary-table>
+    <x-card>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        @foreach($headers as $header)
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {{ $header['label'] }}
+                            </th>
+                        @endforeach
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($events as $event)
+                        <tr class="hover:bg-gray-50">
+                            {{-- Title --}}
+                            <td class="px-4 py-3">
+                                <p class="font-medium">{{ $event->title }}</p>
+                                @if($event->speaker)
+                                    <p class="text-sm text-gray-500">Speaker: {{ $event->speaker }}</p>
+                                @endif
+                            </td>
+                            {{-- Date & Time --}}
+                            <td class="px-4 py-3">
+                                <p class="font-medium">{{ $event->start_datetime->format('j M Y') }}</p>
+                                <p class="text-sm text-gray-500">
+                                    {{ $event->start_datetime->format('H:i') }} - {{ $event->end_datetime->format('H:i') }}
+                                </p>
+                            </td>
+                            {{-- Meeting --}}
+                            <td class="px-4 py-3">
+                                @if($event->meeting_slug)
+                                    <div>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            {{ $event->meeting->page?->heading ?? $event->meeting_slug }}
+                                        </span>
+                                        @if($event->is_categorized_automatically)
+                                            <span class="text-xs text-gray-500">(auto)</span>
+                                        @endif
+                                    </div>
+                                @else
+                                    <div class="flex gap-2 items-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                            Uncategorized
+                                        </span>
+                                        <select wire:change="categorize({{ $event->id }}, $event.target.value)"
+                                            class="text-xs rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 w-40">
+                                            <option value="">Categorize...</option>
+                                            @foreach($meetings as $slug => $name)
+                                                <option value="{{ $slug }}">{{ $name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                @endif
+                            </td>
+                            {{-- Location --}}
+                            <td class="px-4 py-3">
+                                <span class="text-sm">{{ $event->location ?? '-' }}</span>
+                            </td>
+                            {{-- Status --}}
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $event->status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                                    {{ ucfirst($event->status) }}
+                                </span>
+                            </td>
+                            {{-- Actions --}}
+                            <td class="px-4 py-3 text-right">
+                                <div class="flex gap-1 justify-end" role="group" aria-label="Actions for {{ $event->title }}">
+                                    <x-button link="{{ route('admin.calendar-events.edit', $event) }}" variant="ghost" size="xs" icon="pencil" inline />
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-8 text-center text-gray-500">
+                                No events found.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
 
         <div class="mt-4">
             {{ $events->links() }}
         </div>
-    </x-mary-card>
+    </x-card>
 </div>

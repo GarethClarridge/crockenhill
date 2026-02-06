@@ -2,22 +2,27 @@
 
 namespace App\Livewire\Admin\Components;
 
+use App\Livewire\Traits\WithNotifications;
 use Exception;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Mary\Traits\Toast;
 use Spatie\MediaLibrary\HasMedia;
 
 class MediaUploadField extends Component
 {
-    use Toast, WithFileUploads;
+    use WithFileUploads, WithNotifications;
 
     public ?HasMedia $model = null;
+
     public string $collection = 'default';
+
     public $file;
+
     public bool $multiple = false;
+
     public string $accept = 'image/*';
+
     public int $maxSize = 2048; // KB
 
     public function updatedFile(): void
@@ -29,20 +34,22 @@ class MediaUploadField extends Component
 
     public function upload(): void
     {
-        if (!$this->file) {
+        if (! $this->file) {
             $this->error('No file selected');
+
             return;
         }
 
-        if (!$this->model) {
+        if (! $this->model) {
             $this->error('Cannot upload: model not set');
+
             return;
         }
 
         try {
             // Generate a unique filename using UUID to prevent path traversal and collisions
             $extension = $this->file->extension() ?: pathinfo($this->file->getClientOriginalName(), PATHINFO_EXTENSION);
-            $safeFilename = Str::uuid() . '.' . Str::lower($extension);
+            $safeFilename = Str::uuid().'.'.Str::lower($extension);
 
             $this->model
                 ->addMedia($this->file->getRealPath())
@@ -54,7 +61,7 @@ class MediaUploadField extends Component
             $this->success('Image uploaded successfully');
         } catch (Exception $e) {
             report($e);
-            $this->error('Upload failed: ' . $e->getMessage());
+            $this->error('Upload failed: '.$e->getMessage());
         }
     }
 
@@ -63,8 +70,9 @@ class MediaUploadField extends Component
         try {
             $media = $this->model?->media()->find($mediaId);
 
-            if (!$media) {
+            if (! $media) {
                 $this->error('Media not found');
+
                 return;
             }
 
@@ -73,7 +81,7 @@ class MediaUploadField extends Component
             $this->success('Image removed');
         } catch (Exception $e) {
             report($e);
-            $this->error('Failed to remove image: ' . $e->getMessage());
+            $this->error('Failed to remove image: '.$e->getMessage());
         }
     }
 

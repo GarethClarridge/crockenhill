@@ -3,36 +3,46 @@
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
+use App\Livewire\Traits\WithNotifications;
 use App\Models\Sermon;
 use Illuminate\Support\Str;
 use Livewire\Component;
-use Mary\Traits\Toast;
 
 class EditSermon extends Component
 {
-    use Toast;
+    use WithNotifications;
 
     public Sermon $sermon;
 
     public string $title = '';
+
     public string $slug = '';
+
     public string $date = '';
+
     public string $service = '';
+
     public string $preacher = '';
+
     public ?string $reference = null;
+
     public ?string $series = null;
+
     public ?string $summary = null;
+
     public array $points = [];
+
     public bool $showSummary = true;
+
     public bool $showPoints = true;
 
     protected function rules(): array
     {
         return [
             'title' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:sermons,slug,' . $this->sermon->id,
+            'slug' => 'required|string|max:255|unique:sermons,slug,'.$this->sermon->id,
             'date' => 'required|date',
-            'service' => ['required', 'string', 'in:' . implode(',', SermonService::values())],
+            'service' => ['required', 'string', 'in:'.implode(',', SermonService::values())],
             'preacher' => 'required|string|max:255',
             'reference' => 'nullable|string|max:255',
             'series' => 'nullable|string|max:255',
@@ -100,6 +110,6 @@ class EditSermon extends Component
     {
         return view('livewire.admin.sermons.edit-sermon', [
             'services' => SermonService::cases(),
-        ])->layout('components.layouts.admin', ['title' => 'Edit: ' . $this->sermon->title]);
+        ])->layout('layouts.admin', ['title' => 'Edit: '.$this->sermon->title, 'heading' => 'Edit Sermon']);
     }
 }

@@ -2,29 +2,34 @@
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
-use Mary\Traits\Toast;
 
 class EditUser extends Component
 {
-    use Toast;
+    use WithNotifications;
 
     public User $user;
 
     public string $name = '';
+
     public string $email = '';
+
     public string $password = '';
+
     public string $passwordConfirmation = '';
+
     public bool $isAdmin = false;
+
     public bool $changePassword = false;
 
     protected function rules(): array
     {
         $rules = [
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $this->user->id,
+            'email' => 'required|email|unique:users,email,'.$this->user->id,
             'isAdmin' => 'boolean',
         ];
 
@@ -46,8 +51,9 @@ class EditUser extends Component
 
     public function save(): void
     {
-        if ($this->user->id === auth()->id() && !$this->isAdmin) {
+        if ($this->user->id === auth()->id() && ! $this->isAdmin) {
             $this->error('Cannot remove your own admin status');
+
             return;
         }
 
@@ -76,6 +82,6 @@ class EditUser extends Component
         return view('livewire.admin.users.user-form', [
             'title' => 'Edit User',
             'isEditing' => true,
-        ])->layout('components.layouts.admin', ['title' => 'Edit: ' . $this->user->name]);
+        ])->layout('layouts.admin', ['title' => 'Edit: '.$this->user->name, 'heading' => 'Edit User']);
     }
 }

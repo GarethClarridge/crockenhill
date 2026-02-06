@@ -2,13 +2,13 @@
 
 namespace App\Livewire\Admin\Pages;
 
+use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
 use Livewire\Component;
-use Mary\Traits\Toast;
 
 class EditPage extends Component
 {
-    use Toast, PageForm;
+    use PageForm, WithNotifications;
 
     public Page $page;
 
@@ -40,6 +40,6 @@ class EditPage extends Component
         return view('livewire.admin.pages.page-form', [
             'title' => 'Edit Page',
             'areas' => $this->getAreaOptions(),
-        ])->layout('components.layouts.admin', ['title' => 'Edit: ' . $this->page->heading]);
+        ])->layout('layouts.admin', ['title' => 'Edit: '.$this->page->heading, 'heading' => 'Edit Page']);
     }
 }

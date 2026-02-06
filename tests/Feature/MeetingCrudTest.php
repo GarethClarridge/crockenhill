@@ -29,7 +29,7 @@ class MeetingCrudTest extends TestCase
         parent::setUp();
 
         // Disable CSRF protection for these form tests
-        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
 
         // Create admin user with unique email
         $this->adminUser = User::factory()->create([

@@ -3,24 +3,31 @@
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
+use App\Livewire\Traits\WithNotifications;
 use App\Models\Sermon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Mary\Traits\Toast;
 
 class ListSermons extends Component
 {
-    use WithPagination, Toast;
+    use WithNotifications, WithPagination;
 
     public string $search = '';
+
     public ?string $serviceFilter = null;
+
     public ?string $preacherFilter = null;
+
     public ?string $seriesFilter = null;
+
     public bool $hasVideoFilter = false;
+
     public bool $last12Months = true;
+
     public string $sortBy = 'date';
+
     public string $sortDirection = 'desc';
 
     protected $queryString = ['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'last12Months'];
@@ -109,6 +116,6 @@ class ListSermons extends Component
             'preachers' => $this->getPreachers(),
             'seriesList' => $this->getSeries(),
             'headers' => $headers,
-        ])->layout('components.layouts.admin', ['title' => 'Sermons']);
+        ])->layout('layouts.admin', ['title' => 'Sermons', 'heading' => 'Sermons']);
     }
 }

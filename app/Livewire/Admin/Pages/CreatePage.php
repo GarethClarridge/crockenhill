@@ -2,13 +2,13 @@
 
 namespace App\Livewire\Admin\Pages;
 
+use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
 use Livewire\Component;
-use Mary\Traits\Toast;
 
 class CreatePage extends Component
 {
-    use Toast, PageForm;
+    use PageForm, WithNotifications;
 
     public ?Page $page = null;
 
@@ -29,6 +29,6 @@ class CreatePage extends Component
         return view('livewire.admin.pages.page-form', [
             'title' => 'Create Page',
             'areas' => $this->getAreaOptions(),
-        ])->layout('components.layouts.admin', ['title' => 'Create Page']);
+        ])->layout('layouts.admin', ['title' => 'Create Page', 'heading' => 'Create Page']);
     }
 }

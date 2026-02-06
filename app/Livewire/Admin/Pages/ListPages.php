@@ -3,20 +3,25 @@
 namespace App\Livewire\Admin\Pages;
 
 use App\Enums\PageArea;
+use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Mary\Traits\Toast;
 
 class ListPages extends Component
 {
-    use WithPagination, Toast;
+    use WithNotifications, WithPagination;
 
     public string $search = '';
+
     public ?string $areaFilter = null;
+
     public ?bool $navigationFilter = null;
+
     public string $sortBy = 'updated_at';
+
     public string $sortDirection = 'desc';
+
     public array $selected = [];
 
     protected $queryString = ['search', 'areaFilter', 'navigationFilter'];
@@ -72,6 +77,6 @@ class ListPages extends Component
             'pages' => $pages,
             'headers' => $headers,
             'areas' => PageArea::cases(),
-        ])->layout('components.layouts.admin', ['title' => 'Pages']);
+        ])->layout('layouts.admin', ['title' => 'Pages', 'heading' => 'Pages']);
     }
 }

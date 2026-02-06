@@ -2,20 +2,25 @@
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
-use Mary\Traits\Toast;
 
 class CreateUser extends Component
 {
-    use Toast;
+    use WithNotifications;
 
     public string $name = '';
+
     public string $email = '';
+
     public string $password = '';
+
     public string $passwordConfirmation = '';
+
     public bool $isAdmin = false;
+
     public bool $sendVerification = true;
 
     protected function rules(): array
@@ -54,6 +59,6 @@ class CreateUser extends Component
         return view('livewire.admin.users.user-form', [
             'title' => 'Create User',
             'isEditing' => false,
-        ])->layout('components.layouts.admin', ['title' => 'Create User']);
+        ])->layout('layouts.admin', ['title' => 'Create User', 'heading' => 'Create User']);
     }
 }

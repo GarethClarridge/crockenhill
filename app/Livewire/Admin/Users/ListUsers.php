@@ -2,18 +2,19 @@
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
-use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Mary\Traits\Toast;
 
 class ListUsers extends Component
 {
-    use WithPagination, Toast;
+    use WithNotifications, WithPagination;
 
     public string $search = '';
+
     public ?bool $verifiedFilter = null;
+
     public ?bool $adminFilter = null;
 
     protected $queryString = ['search', 'verifiedFilter', 'adminFilter'];
@@ -36,6 +37,7 @@ class ListUsers extends Component
 
         if ($user->id === auth()->id()) {
             $this->error('Cannot delete yourself');
+
             return;
         }
 
@@ -50,10 +52,11 @@ class ListUsers extends Component
 
         if ($user->id === auth()->id()) {
             $this->error('Cannot modify your own admin status');
+
             return;
         }
 
-        $user->update(['is_admin' => !$user->is_admin]);
+        $user->update(['is_admin' => ! $user->is_admin]);
         $this->success($user->is_admin ? 'Admin granted' : 'Admin revoked');
     }
 
@@ -62,8 +65,7 @@ class ListUsers extends Component
         $users = User::query()
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%")
                 ->orWhere('email', 'like', "%{$this->search}%"))
-            ->when($this->verifiedFilter !== null, fn ($q) =>
-                $this->verifiedFilter
+            ->when($this->verifiedFilter !== null, fn ($q) => $this->verifiedFilter
                     ? $q->whereNotNull('email_verified_at')
                     : $q->whereNull('email_verified_at'))
             ->when($this->adminFilter !== null, fn ($q) => $q->where('is_admin', $this->adminFilter))
@@ -80,6 +82,6 @@ class ListUsers extends Component
         return view('livewire.admin.users.list-users', [
             'users' => $users,
             'headers' => $headers,
-        ])->layout('components.layouts.admin', ['title' => 'Users']);
+        ])->layout('layouts.admin', ['title' => 'Users', 'heading' => 'Users']);
     }
 }

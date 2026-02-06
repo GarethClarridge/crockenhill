@@ -1,22 +1,26 @@
 <div>
-    <x-mary-header title="Meetings" subtitle="Manage church meetings and events">
-        <x-slot:actions>
-            <x-mary-button label="Create Meeting" icon="o-plus" link="{{ route('admin.meetings.create') }}" class="btn-primary" />
-        </x-slot:actions>
-    </x-mary-header>
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="font-display text-3xl">Meetings</h1>
+            <p class="text-gray-600">Manage church meetings and events</p>
+        </div>
+        <x-button link="{{ route('admin.meetings.create') }}" variant="primary" icon="plus" inline>
+            Create Meeting
+        </x-button>
+    </div>
 
     {{-- Filters --}}
     <div class="flex flex-wrap gap-4 mb-6">
-        <x-mary-input placeholder="Search meetings..." wire:model.live.debounce="search" icon="o-magnifying-glass" clearable class="w-64" />
+        <x-input placeholder="Search meetings..." wire:model.live.debounce="search" icon="magnifying-glass" clearable class="w-64" />
 
-        <x-mary-select
+        <x-select
             placeholder="All Types"
             wire:model.live="typeFilter"
-            :options="collect($types)->map(fn($t) => ['id' => $t->value, 'name' => $t->label()])"
+            :options="collect($types)->map(fn($t) => ['id' => $t->value, 'name' => $t->label()])->toArray()"
             class="w-48"
         />
 
-        <x-mary-select
+        <x-select
             placeholder="Recurring"
             wire:model.live="recurringFilter"
             :options="[['id' => '1', 'name' => 'Recurring'], ['id' => '0', 'name' => 'One-time']]"
@@ -25,60 +29,84 @@
     </div>
 
     {{-- Table --}}
-    <x-mary-card>
-        <x-mary-table :headers="$headers" :rows="$meetings" striped>
-            @scope('cell_page', $meeting)
-                <div>
-                    <p class="font-medium">{{ $meeting->page?->heading ?? $meeting->slug }}</p>
-                    <p class="text-sm text-base-content/60">{{ $meeting->who }}</p>
-                </div>
-            @endscope
-
-            @scope('cell_schedule', $meeting)
-                <div>
-                    <p class="font-medium">{{ $meeting->day }}</p>
-                    @if($meeting->StartTime)
-                        <p class="text-sm text-base-content/60">
-                            {{ $meeting->StartTime->format('H:i') }}
-                            @if($meeting->EndTime)
-                                - {{ $meeting->EndTime->format('H:i') }}
-                            @endif
-                        </p>
-                    @endif
-                </div>
-            @endscope
-
-            @scope('cell_type', $meeting)
-                <x-mary-badge :value="$meeting->type->label()" class="badge-secondary" />
-            @endscope
-
-            @scope('cell_recurring', $meeting)
-                @if($meeting->is_recurring)
-                    <div class="flex items-center gap-2">
-                        <x-mary-icon name="o-arrow-path" class="w-4 h-4 text-info" />
-                        <span class="text-sm">{{ $meeting->frequency?->label() }}</span>
-                    </div>
-                @else
-                    <span class="text-sm text-base-content/30">One-time</span>
-                @endif
-            @endscope
-
-            @scope('cell_location', $meeting)
-                <span class="text-sm">{{ $meeting->location ?? '-' }}</span>
-            @endscope
-
-            @scope('actions', $meeting)
-                <div class="flex gap-1">
-                    <x-mary-button icon="o-eye" link="{{ route('meetings.show', $meeting) }}" external class="btn-ghost btn-xs" />
-                    <x-mary-button icon="o-pencil" link="{{ route('admin.meetings.edit', $meeting) }}" class="btn-ghost btn-xs" />
-                    <x-mary-button icon="o-trash" wire:click="delete({{ $meeting->id }})"
-                        wire:confirm="Delete '{{ $meeting->page?->heading ?? $meeting->slug }}'?" class="btn-ghost btn-xs text-error" />
-                </div>
-            @endscope
-        </x-mary-table>
+    <x-card>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        @foreach($headers as $header)
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {{ $header['label'] }}
+                            </th>
+                        @endforeach
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @forelse($meetings as $meeting)
+                        <tr class="hover:bg-gray-50">
+                            {{-- Meeting --}}
+                            <td class="px-4 py-3">
+                                <p class="font-medium">{{ $meeting->page?->heading ?? $meeting->slug }}</p>
+                                <p class="text-sm text-gray-500">{{ $meeting->who }}</p>
+                            </td>
+                            {{-- Schedule --}}
+                            <td class="px-4 py-3">
+                                <p class="font-medium">{{ $meeting->day }}</p>
+                                @if($meeting->StartTime)
+                                    <p class="text-sm text-gray-500">
+                                        {{ $meeting->StartTime->format('H:i') }}
+                                        @if($meeting->EndTime)
+                                            - {{ $meeting->EndTime->format('H:i') }}
+                                        @endif
+                                    </p>
+                                @endif
+                            </td>
+                            {{-- Type --}}
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    {{ $meeting->type->label() }}
+                                </span>
+                            </td>
+                            {{-- Recurring --}}
+                            <td class="px-4 py-3">
+                                @if($meeting->is_recurring)
+                                    <div class="flex items-center gap-2">
+                                        <x-heroicon-o-arrow-path class="w-4 h-4 text-blue-500" />
+                                        <span class="text-sm">{{ $meeting->frequency?->label() }}</span>
+                                    </div>
+                                @else
+                                    <span class="text-sm text-gray-300">One-time</span>
+                                @endif
+                            </td>
+                            {{-- Location --}}
+                            <td class="px-4 py-3">
+                                <span class="text-sm">{{ $meeting->location ?? '-' }}</span>
+                            </td>
+                            {{-- Actions --}}
+                            <td class="px-4 py-3 text-right">
+                                <div class="flex gap-1 justify-end">
+                                    <x-button link="{{ route('meetings.show', $meeting) }}" variant="ghost" size="xs" icon="eye" inline />
+                                    <x-button link="{{ route('admin.meetings.edit', $meeting) }}" variant="ghost" size="xs" icon="pencil" inline />
+                                    <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
+                                        wire:click="delete({{ $meeting->id }})"
+                                        wire:confirm="Delete '{{ $meeting->page?->heading ?? $meeting->slug }}'?" />
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-8 text-center text-gray-500">
+                                No meetings found.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
 
         <div class="mt-4">
             {{ $meetings->links() }}
         </div>
-    </x-mary-card>
+    </x-card>
 </div>

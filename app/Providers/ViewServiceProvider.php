@@ -30,13 +30,6 @@ class ViewServiceProvider extends ServiceProvider
      */
     public function boot(Request $request): void
     {
-        View::composer('includes.header', function ($view) {
-            $pages = Page::where('navigation', 1)
-                ->orderBy('slug')
-                ->get();
-            $view->with('pages', $pages);
-        });
-
         View::composer('includes.footer', function ($view) {
             // get the latest sermons
             $morning = Sermon::where('service', SermonService::MORNING->value)

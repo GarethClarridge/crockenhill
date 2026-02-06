@@ -117,9 +117,10 @@ Route::get('verify-email', function () {
     return view('auth.verify-email');
 })->middleware('auth')->name('verification.notice');
 
-// Admin routes (Mary UI + Livewire)
+// Admin routes (Livewire)
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', App\Livewire\Admin\Dashboard::class)->name('dashboard');
+    // Redirect /admin to members home - all admin functions accessible from there
+    Route::get('/', fn () => redirect('/church/members'))->name('dashboard');
 
     // Pages
     Route::get('/pages', App\Livewire\Admin\Pages\ListPages::class)->name('pages.index');

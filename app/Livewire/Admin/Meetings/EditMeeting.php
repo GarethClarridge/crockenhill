@@ -2,14 +2,14 @@
 
 namespace App\Livewire\Admin\Meetings;
 
+use App\Livewire\Traits\WithNotifications;
 use App\Models\Meeting;
 use App\Models\Page;
 use Livewire\Component;
-use Mary\Traits\Toast;
 
 class EditMeeting extends Component
 {
-    use Toast, MeetingForm;
+    use MeetingForm, WithNotifications;
 
     public Meeting $meeting;
 
@@ -39,8 +39,8 @@ class EditMeeting extends Component
         $this->meeting->update([
             'slug' => $validated['slug'],
             'type' => $validated['type'],
-            'StartTime' => $validated['startTime'] ? date('Y-m-d') . ' ' . $validated['startTime'] : null,
-            'EndTime' => $validated['endTime'] ? date('Y-m-d') . ' ' . $validated['endTime'] : null,
+            'StartTime' => $validated['startTime'] ? date('Y-m-d').' '.$validated['startTime'] : null,
+            'EndTime' => $validated['endTime'] ? date('Y-m-d').' '.$validated['endTime'] : null,
             'day' => $validated['day'],
             'location' => $validated['location'],
             'who' => $validated['who'],
@@ -58,7 +58,7 @@ class EditMeeting extends Component
 
     public function render()
     {
-        $pages = Page::orderBy('heading')->get()->mapWithKeys(fn ($p) => [$p->id => $p->heading]);
+        $pages = Page::orderBy('heading')->get()->map(fn ($p) => ['id' => $p->id, 'name' => $p->heading])->toArray();
 
         $pageTitle = $this->meeting->page->heading ?? $this->meeting->slug;
 
@@ -67,6 +67,6 @@ class EditMeeting extends Component
             'types' => $this->getTypeOptions(),
             'frequencies' => $this->getFrequencyOptions(),
             'pages' => $pages,
-        ])->layout('components.layouts.admin', ['title' => 'Edit: ' . $pageTitle]);
+        ])->layout('layouts.admin', ['title' => 'Edit: '.$pageTitle, 'heading' => 'Edit Meeting']);
     }
 }

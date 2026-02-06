@@ -2,23 +2,29 @@
 
 namespace App\Livewire\Admin\CalendarEvents;
 
+use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use Livewire\Component;
-use Mary\Traits\Toast;
 
 class EditCalendarEvent extends Component
 {
-    use Toast;
+    use WithNotifications;
 
     public CalendarEvent $calendarEvent;
 
     public string $title = '';
+
     public ?string $description = null;
+
     public ?string $speaker = null;
+
     public ?string $location = null;
+
     public string $startDatetime = '';
+
     public string $endDatetime = '';
+
     public ?string $meetingSlug = null;
 
     protected function rules(): array
@@ -71,6 +77,6 @@ class EditCalendarEvent extends Component
 
         return view('livewire.admin.calendar-events.edit-calendar-event', [
             'meetings' => $meetings,
-        ])->layout('components.layouts.admin', ['title' => 'Edit: ' . $this->calendarEvent->title]);
+        ])->layout('layouts.admin', ['title' => 'Edit: '.$this->calendarEvent->title, 'heading' => 'Edit Calendar Event']);
     }
 }

@@ -2,19 +2,22 @@
 
 namespace App\Livewire\Admin\CalendarEvents;
 
+use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Mary\Traits\Toast;
 
 class ListCalendarEvents extends Component
 {
-    use WithPagination, Toast;
+    use WithNotifications, WithPagination;
 
     public string $search = '';
+
     public ?string $meetingFilter = null;
+
     public bool $uncategorizedOnly = false;
+
     public bool $upcomingOnly = true;
 
     protected $queryString = ['search', 'meetingFilter', 'uncategorizedOnly', 'upcomingOnly'];
@@ -60,6 +63,6 @@ class ListCalendarEvents extends Component
             'events' => $events,
             'meetings' => $meetings,
             'headers' => $headers,
-        ])->layout('components.layouts.admin', ['title' => 'Calendar Events']);
+        ])->layout('layouts.admin', ['title' => 'Calendar Events', 'heading' => 'Calendar Events']);
     }
 }

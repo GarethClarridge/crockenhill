@@ -6,7 +6,6 @@ module.exports = {
   content: [
     "./resources/**/*.blade.php",
     "./resources/**/*.js",
-    "./vendor/robsontenorio/mary/src/View/Components/**/*.php",
   ],
   theme: {
     extend: {
@@ -22,24 +21,5 @@ module.exports = {
   plugins: [
     require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),
-    require('daisyui'),
   ],
-  daisyui: {
-    themes: [
-      {
-        crockenhill: {
-          "primary": "#0d9488",      // Teal (matching current theme)
-          "secondary": "#6366f1",
-          "accent": "#f59e0b",
-          "neutral": "#1f2937",
-          "base-100": "#ffffff",
-          "info": "#3b82f6",
-          "success": "#10b981",
-          "warning": "#f59e0b",
-          "error": "#ef4444",
-        },
-      },
-    ],
-  },
 }
-

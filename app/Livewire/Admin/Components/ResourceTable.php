@@ -2,17 +2,20 @@
 
 namespace App\Livewire\Admin\Components;
 
+use App\Livewire\Traits\WithNotifications;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Mary\Traits\Toast;
 
 abstract class ResourceTable extends Component
 {
-    use Toast, WithPagination;
+    use WithNotifications, WithPagination;
 
     public string $search = '';
+
     public string $sortBy = 'created_at';
+
     public string $sortDirection = 'desc';
+
     public array $selected = [];
 
     protected $queryString = ['search', 'sortBy', 'sortDirection'];
@@ -39,6 +42,7 @@ abstract class ResourceTable extends Component
     }
 
     abstract protected function getQuery();
+
     abstract protected function getHeaders(): array;
 
     public function deleteSelected(): void
@@ -48,6 +52,7 @@ abstract class ResourceTable extends Component
 
         if (empty($this->selected)) {
             $this->error('No items selected');
+
             return;
         }
 

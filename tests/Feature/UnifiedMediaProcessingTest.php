@@ -19,7 +19,7 @@ class UnifiedMediaProcessingTest extends TestCase
         parent::setUp();
 
         // Disable CSRF protection for these form tests
-        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
 
         // Mock the services to avoid actual video/audio processing in tests
         $this->mock(VideoSegmentationService::class, function ($mock) {
