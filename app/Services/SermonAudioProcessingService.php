@@ -13,6 +13,10 @@ use Illuminate\Support\Str;
 
 class SermonAudioProcessingService
 {
+    public function __construct(
+        private readonly MetadataExtractionService $metadataService
+    ) {}
+
     /**
      * Process a sermon audio file through the complete automation pipeline
      * Uses ProcessingPipelineBuilder for consistent job chain pattern (same as video processing)
@@ -38,8 +42,7 @@ class SermonAudioProcessingService
             $storedFilePath = $this->storeAudioFile($file, $metadata);
 
             // Extract ID3 metadata tags (title, artist/preacher, album/series, reference)
-            $metadataService = app(MetadataExtractionService::class);
-            $id3Metadata = $metadataService->extractId3Metadata($file);
+            $id3Metadata = $this->metadataService->extractId3Metadata($file);
 
             Log::info('Audio file stored, creating processing log', [
                 'processing_id' => $processingId,

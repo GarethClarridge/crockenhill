@@ -20,7 +20,13 @@ class MediaProcessingServiceProvider extends ServiceProvider
         $this->app->bind(\App\Contracts\VideoProcessingServiceInterface::class, \App\Services\VideoProcessingService::class);
 
         // Register supporting services that existing services depend on
-        $this->app->bind(\App\Services\LivestreamSegmentationService::class);
+        $this->app->bind(\App\Services\LivestreamSegmentationService::class, function ($app) {
+            return new \App\Services\LivestreamSegmentationService(
+                $app->make(\App\Contracts\VideoStorageServiceInterface::class),
+                $app->make(\App\Services\VideoSegmentationService::class),
+                $app->make(\App\Services\MetadataExtractionService::class)
+            );
+        });
         $this->app->bind(\App\Services\LivestreamStatusService::class);
         $this->app->bind(\App\Services\ProcessingLogService::class);
 
@@ -29,11 +35,17 @@ class MediaProcessingServiceProvider extends ServiceProvider
             return new UnifiedMediaProcessor(
                 $app->make(VideoProcessingService::class),
                 $app->make(SermonProcessingService::class),
-                $app->make(\App\Services\ProcessingPipelineBuilder::class)
+                $app->make(\App\Services\ProcessingPipelineBuilder::class),
+                $app->make(\App\Services\MetadataExtractionService::class)
             );
         });
 
         // Keep existing service registrations that work
+        $this->app->bind(\App\Services\SermonAudioProcessingService::class, function ($app) {
+            return new \App\Services\SermonAudioProcessingService(
+                $app->make(\App\Services\MetadataExtractionService::class)
+            );
+        });
         $this->app->bind(VideoProcessingService::class);
         $this->app->bind(SermonProcessingService::class);
     }

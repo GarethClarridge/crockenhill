@@ -19,7 +19,8 @@ class LivestreamSegmentationService
 {
     public function __construct(
         private VideoStorageServiceInterface $storageService,
-        private VideoSegmentationService $segmentationService
+        private VideoSegmentationService $segmentationService,
+        private MetadataExtractionService $metadataService
     ) {}
 
     /**
@@ -55,8 +56,7 @@ class LivestreamSegmentationService
             }
 
             // Extract date and service from video metadata BEFORE storing (to preserve file timestamps)
-            $metadataService = app(\App\Services\MetadataExtractionService::class);
-            $extractedDateTime = $metadataService->extractDateFromVideo($videoFile, $clientFileDate);
+            $extractedDateTime = $this->metadataService->extractDateFromVideo($videoFile, $clientFileDate);
 
             // Only use datetime for service detection if we have actual time information (not just date)
             // If the time is midnight (00:00:00), it likely means only the date was extracted
@@ -142,8 +142,7 @@ class LivestreamSegmentationService
             }
 
             // Extract date from video metadata BEFORE storing (to preserve file timestamps)
-            $metadataService = app(\App\Services\MetadataExtractionService::class);
-            $extractedDate = $metadataService->extractDateFromVideo($videoFile);
+            $extractedDate = $this->metadataService->extractDateFromVideo($videoFile);
 
             // Store the video file
             $storedPath = $this->storageService->storeUploadedVideo($videoFile);

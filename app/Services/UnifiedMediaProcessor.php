@@ -13,7 +13,8 @@ class UnifiedMediaProcessor
     public function __construct(
         private readonly VideoProcessingService $videoService,
         private readonly SermonProcessingService $sermonService,
-        private readonly ProcessingPipelineBuilder $pipelineBuilder
+        private readonly ProcessingPipelineBuilder $pipelineBuilder,
+        private readonly MetadataExtractionService $metadataService
     ) {}
 
     public function process(string $type, UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
@@ -158,8 +159,7 @@ class UnifiedMediaProcessor
             $processingId = \Illuminate\Support\Str::uuid()->toString();
 
             // Extract date and service from video metadata BEFORE storing (to preserve file timestamps)
-            $metadataService = app(MetadataExtractionService::class);
-            $extractedDateTime = $metadataService->extractDateFromVideo($file, $clientFileDate);
+            $extractedDateTime = $this->metadataService->extractDateFromVideo($file, $clientFileDate);
 
             // Only use datetime for service detection if we have actual time information (not just date)
             // If the time is midnight (00:00:00), it likely means only the date was extracted
