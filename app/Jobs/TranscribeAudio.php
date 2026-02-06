@@ -29,13 +29,14 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public MediaProcessingLog $processingLog
+        public MediaProcessingLog $processingLog,
+        private readonly TranscriptionServiceInterface $transcriptionService
     ) {}
 
     /**
      * Execute the job.
      */
-    public function handle(TranscriptionServiceInterface $transcriptionService): void
+    public function handle(): void
     {
         try {
             Log::info('Starting audio transcription', [
@@ -66,7 +67,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             ]);
 
             // Transcribe the audio file
-            $transcript = $transcriptionService->transcribe($audioFilePath);
+            $transcript = $this->transcriptionService->transcribe($audioFilePath);
 
             if (empty($transcript)) {
                 throw new \Exception('Transcription returned empty content');
@@ -77,7 +78,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
                 throw new \Exception("No sermon ID found in processing log: {$this->processingLog->processing_id}");
             }
 
-            $transcriptPath = $transcriptionService->storeTranscript(
+            $transcriptPath = $this->transcriptionService->storeTranscript(
                 $this->processingLog->sermon_id,
                 $transcript
             );
@@ -107,7 +108,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
 
             // Clean up any partial transcript files
             if ($this->processingLog->sermon_id) {
-                $transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
+                $this->transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
             }
 
             // Update processing log with error and log step failure
@@ -132,9 +133,8 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
 
         // Clean up any partial files
         try {
-            $transcriptionService = app(TranscriptionServiceInterface::class);
             if ($this->processingLog->sermon_id) {
-                $transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
+                $this->transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
             }
         } catch (\Exception $e) {
             Log::warning('Failed to cleanup after transcription failure', [

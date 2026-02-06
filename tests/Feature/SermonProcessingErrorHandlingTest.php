@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\TranscriptionServiceInterface;
 use App\Enums\ProcessingStatus;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\ProcessTranscriptWithAI;
@@ -71,14 +72,13 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'current_step' => 'sermon_record_created',
         ]);
 
-        $job = new TranscribeAudio($processingLog);
-
-        $mockTranscriptionService = $this->createMock(AudioTranscriptionService::class);
+        $mockTranscriptionService = $this->createMock(TranscriptionServiceInterface::class);
+        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('No audio file path found');
 
-        $job->handle($mockTranscriptionService);
+        $job->handle();
     }
 
     #[Test]
@@ -97,7 +97,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $processingLog->refresh();
         $this->assertNotNull($processingLog->stored_file_path);
 
-        $mockTranscriptionService = $this->createMock(AudioTranscriptionService::class);
+        $mockTranscriptionService = $this->createMock(TranscriptionServiceInterface::class);
         $mockTranscriptionService->expects($this->once())
             ->method('transcribe')
             ->with('path/to/nonexistent-audio.mp3')
@@ -108,12 +108,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $mockTranscriptionService->expects($this->never())
             ->method('cleanupOnFailure');
 
-        $job = new TranscribeAudio($processingLog);
+        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Audio file not found');
 
-        $job->handle($mockTranscriptionService);
+        $job->handle();
 
         // Verify processing log was updated with error
         $processingLog->refresh();
@@ -240,12 +240,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
             ->method('cleanupOnFailure')
             ->with($sermon->id);
 
-        $job = new TranscribeAudio($processingLog);
+        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Request timeout');
 
-        $job->handle($mockTranscriptionService);
+        $job->handle();
     }
 
     #[Test]
@@ -265,7 +265,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         ]);
 
         // Mock transcription service to simulate storage failure
-        $mockTranscriptionService = $this->createMock(AudioTranscriptionService::class);
+        $mockTranscriptionService = $this->createMock(TranscriptionServiceInterface::class);
         $mockTranscriptionService->expects($this->once())
             ->method('transcribe')
             ->willReturn('Test transcript content');
@@ -278,12 +278,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
             ->method('cleanupOnFailure')
             ->with($sermon->id);
 
-        $job = new TranscribeAudio($processingLog);
+        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Failed to write transcript to storage');
 
-        $job->handle($mockTranscriptionService);
+        $job->handle();
     }
 
     #[Test]

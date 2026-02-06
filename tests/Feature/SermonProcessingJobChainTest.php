@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\TranscriptionServiceInterface;
 use App\Data\SermonMetadata;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
@@ -185,10 +186,11 @@ class SermonProcessingJobChainTest extends TestCase
         Storage::put($transcriptPath, '# Sermon Transcript\n\nThis is a test transcript.');
 
         $this->app->instance(AudioTranscriptionService::class, $mockTranscriptionService);
+        $this->app->instance(TranscriptionServiceInterface::class, $mockTranscriptionService);
 
         // Create and execute the job
-        $job = new TranscribeAudio($processingLog);
-        $job->handle($mockTranscriptionService);
+        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
+        $job->handle();
 
         // Assert sermon was updated with transcript path
         $sermon->refresh();
@@ -219,7 +221,7 @@ class SermonProcessingJobChainTest extends TestCase
         ]);
 
         // Mock the transcription service to throw exception
-        $mockTranscriptionService = $this->createMock(AudioTranscriptionService::class);
+        $mockTranscriptionService = $this->createMock(TranscriptionServiceInterface::class);
         $mockTranscriptionService->expects($this->once())
             ->method('transcribe')
             ->willThrowException(new \Exception('Transcription failed'));
@@ -229,14 +231,15 @@ class SermonProcessingJobChainTest extends TestCase
             ->with($sermon->id);
 
         $this->app->instance(AudioTranscriptionService::class, $mockTranscriptionService);
+        $this->app->instance(TranscriptionServiceInterface::class, $mockTranscriptionService);
 
         // Create and execute the job
-        $job = new TranscribeAudio($processingLog);
+        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Transcription failed');
 
-        $job->handle($mockTranscriptionService);
+        $job->handle();
 
         // Assert processing log was marked as failed
         $processingLog->refresh();

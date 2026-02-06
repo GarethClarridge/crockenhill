@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\TranscriptionServiceInterface;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
@@ -25,6 +26,10 @@ use App\Models\MediaProcessingLog;
  */
 class ProcessingPipelineBuilder
 {
+    public function __construct(
+        private readonly TranscriptionServiceInterface $transcriptionService
+    ) {}
+
     /**
      * Build job pipeline for audio processing
      */
@@ -33,7 +38,7 @@ class ProcessingPipelineBuilder
         return [
             new ValidateAudioFile($log),
             new CreateSermonRecord($log),
-            new TranscribeAudio($log),
+            new TranscribeAudio($log, $this->transcriptionService),
             new ProcessTranscriptWithAI($log),
             new SendCompletionNotification($log),
             new CleanupTemporaryFiles($log),
@@ -49,7 +54,7 @@ class ProcessingPipelineBuilder
             new ValidateVideoFile($log),
             new ExtractAudioFromVideo($log),
             new CreateSermonRecord($log),
-            new TranscribeAudio($log),
+            new TranscribeAudio($log, $this->transcriptionService),
             new ProcessTranscriptWithAI($log),
             new GenerateThumbnail($log),
             new SendCompletionNotification($log),
@@ -78,7 +83,7 @@ class ProcessingPipelineBuilder
         // Continue with sermon extraction and processing
         $jobs[] = new ExtractSermon($log);
         $jobs[] = new SubmitToProcessing($log);
-        $jobs[] = new TranscribeAudio($log);
+        $jobs[] = new TranscribeAudio($log, $this->transcriptionService);
         $jobs[] = new ProcessTranscriptWithAI($log);
         $jobs[] = new GenerateThumbnail($log);
         $jobs[] = new CleanupTemporaryFiles($log);
