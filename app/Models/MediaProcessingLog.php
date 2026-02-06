@@ -96,23 +96,29 @@ class MediaProcessingLog extends Model
         'completed_at',
     ];
 
-    protected $casts = [
-        'status' => ProcessingStatus::class,
-        'ai_analysis' => 'array',
-        'processing_metadata' => 'array',
-        'rms_stats' => 'array',
-        'visual_samples' => 'array',
-        'song_clusters' => 'array',
-        'duration' => 'float',
-        'sermon_start_time' => 'float',
-        'sermon_end_time' => 'float',
-        'adaptive_threshold' => 'float',
-        'visual_sample_count' => 'integer',
-        'visual_processing_time' => 'float',
-        'file_size' => 'integer',
-        'started_at' => 'datetime',
-        'completed_at' => 'datetime',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     */
+    protected function casts(): array
+    {
+        return [
+            'status' => ProcessingStatus::class,
+            'ai_analysis' => 'array',
+            'processing_metadata' => 'array',
+            'rms_stats' => 'array',
+            'visual_samples' => 'array',
+            'song_clusters' => 'array',
+            'duration' => 'float',
+            'sermon_start_time' => 'float',
+            'sermon_end_time' => 'float',
+            'adaptive_threshold' => 'float',
+            'visual_sample_count' => 'integer',
+            'visual_processing_time' => 'float',
+            'file_size' => 'integer',
+            'started_at' => 'datetime',
+            'completed_at' => 'datetime',
+        ];
+    }
 
     // Relationships
 

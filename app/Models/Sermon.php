@@ -124,21 +124,22 @@ class Sermon extends Model implements Sitemapable
     ];
 
     /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
+     * Get the attributes that should be cast.
      */
-    protected $casts = [
-        'date' => 'date',
-        'points' => 'array', // Let Eloquent handle the casting to array for `points`
-        'service' => SermonService::class,
-        'segment_start_time' => 'float',
-        'segment_end_time' => 'float',
-        'thumbnail_generated_at' => 'datetime',
-        'thumbnail_metadata' => 'array',
-        'show_summary' => 'boolean',
-        'show_points' => 'boolean',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'date' => 'date',
+            'points' => 'array',
+            'service' => SermonService::class,
+            'segment_start_time' => 'float',
+            'segment_end_time' => 'float',
+            'thumbnail_generated_at' => 'datetime',
+            'thumbnail_metadata' => 'array',
+            'show_summary' => 'boolean',
+            'show_points' => 'boolean',
+        ];
+    }
 
     // Accessor for points is no longer strictly needed if 'points' => 'array' cast is used.
     // Eloquent's 'array' cast will handle JSON decode/encode.

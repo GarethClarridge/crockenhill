@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -66,14 +65,14 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
+     * Get the attributes that should be cast.
      */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'is_admin' => 'boolean',
-        'password' => 'hashed', // Recommended for Laravel 10+ for automatic hashing
-    ];
-
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'is_admin' => 'boolean',
+            'password' => 'hashed',
+        ];
+    }
 }

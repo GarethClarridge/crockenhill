@@ -36,11 +36,17 @@ class CalendarEvent extends Model
         'is_categorized_automatically',
     ];
 
-    protected $casts = [
-        'start_datetime' => 'datetime',
-        'end_datetime' => 'datetime',
-        'is_categorized_automatically' => 'boolean',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     */
+    protected function casts(): array
+    {
+        return [
+            'start_datetime' => 'datetime',
+            'end_datetime' => 'datetime',
+            'is_categorized_automatically' => 'boolean',
+        ];
+    }
 
     public function meeting(): BelongsTo
     {

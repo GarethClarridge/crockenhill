@@ -4,23 +4,35 @@ namespace App\Livewire\Admin\Meetings;
 
 use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
-use Illuminate\Support\Str;
 
 trait MeetingForm
 {
     public string $slug = '';
+
     public string $type = 'SundayAndBibleStudies';
+
     public string $startTime = '';
+
     public string $endTime = '';
+
     public string $day = '';
+
     public string $location = '';
+
     public string $who = '';
+
     public bool $pictures = false;
+
     public string $leadersPhone = '';
+
     public string $leadersEmail = '';
+
     public string $meetingDate = '';
+
     public bool $isRecurring = false;
+
     public ?string $frequency = null;
+
     public ?int $pageId = null;
 
     protected function rules(): array
@@ -28,8 +40,8 @@ trait MeetingForm
         $meetingId = isset($this->meeting) && $this->meeting->exists ? $this->meeting->id : '';
 
         return [
-            'slug' => 'required|string|max:255|alpha_dash|unique:meetings,slug,' . $meetingId,
-            'type' => ['required', 'string', 'in:' . implode(',', MeetingType::values())],
+            'slug' => 'required|string|max:255|alpha_dash|unique:meetings,slug,'.$meetingId,
+            'type' => ['required', 'string', 'in:'.implode(',', MeetingType::values())],
             'startTime' => 'nullable|date_format:H:i',
             'endTime' => 'nullable|date_format:H:i',
             'day' => 'required|string|max:255',
@@ -40,14 +52,14 @@ trait MeetingForm
             'leadersEmail' => 'nullable|email|max:255',
             'meetingDate' => 'nullable|date',
             'isRecurring' => 'boolean',
-            'frequency' => ['nullable', 'required_if:isRecurring,true', 'in:' . implode(',', MeetingFrequency::values())],
+            'frequency' => ['nullable', 'required_if:isRecurring,true', 'in:'.implode(',', MeetingFrequency::values())],
             'pageId' => 'nullable|exists:pages,id',
         ];
     }
 
     public function updatedIsRecurring(): void
     {
-        if (!$this->isRecurring) {
+        if (! $this->isRecurring) {
             $this->frequency = null;
         }
     }

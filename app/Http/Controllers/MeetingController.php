@@ -15,16 +15,6 @@ use Illuminate\Support\Facades\View;
 class MeetingController extends Controller
 {
     /**
-     * Instantiate a new controller instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        $this->middleware('auth')->except(['show', 'showCommunityContent']);
-    }
-
-    /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse

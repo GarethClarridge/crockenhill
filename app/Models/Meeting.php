@@ -87,19 +87,20 @@ class Meeting extends Model implements HasMedia, Sitemapable
     ];
 
     /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
+     * Get the attributes that should be cast.
      */
-    protected $casts = [
-        'pictures' => 'boolean',
-        'meeting_date' => 'datetime',
-        'is_recurring' => 'boolean',
-        'StartTime' => 'datetime:H:i:s',
-        'EndTime' => 'datetime:H:i:s',
-        'type' => MeetingType::class,
-        'frequency' => MeetingFrequency::class,
-    ];
+    protected function casts(): array
+    {
+        return [
+            'pictures' => 'boolean',
+            'meeting_date' => 'datetime',
+            'is_recurring' => 'boolean',
+            'StartTime' => 'datetime:H:i:s',
+            'EndTime' => 'datetime:H:i:s',
+            'type' => MeetingType::class,
+            'frequency' => MeetingFrequency::class,
+        ];
+    }
 
     protected $table = 'meetings';
 

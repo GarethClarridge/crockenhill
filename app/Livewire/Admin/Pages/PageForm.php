@@ -9,10 +9,15 @@ use League\CommonMark\CommonMarkConverter;
 trait PageForm
 {
     public string $heading = '';
+
     public string $slug = '';
+
     public string $area = 'church';
+
     public bool $navigation = false;
+
     public string $description = '';
+
     public string $markdown = '';
 
     protected function rules(): array
@@ -21,8 +26,8 @@ trait PageForm
 
         return [
             'heading' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|alpha_dash|unique:pages,slug,' . $pageId,
-            'area' => ['required', 'string', 'in:' . implode(',', PageArea::values())],
+            'slug' => 'required|string|max:255|alpha_dash|unique:pages,slug,'.$pageId,
+            'area' => ['required', 'string', 'in:'.implode(',', PageArea::values())],
             'navigation' => 'boolean',
             'description' => 'required|string|max:500',
             'markdown' => 'nullable|string',

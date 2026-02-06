@@ -52,18 +52,24 @@ class LivestreamSegment extends Model
         'calibration_method',
     ];
 
-    protected $casts = [
-        'metadata' => 'array',
-        'start_time' => 'float',
-        'end_time' => 'float',
-        'duration' => 'float',
-        'avg_rms' => 'float',
-        'peak_rms' => 'float',
-        'is_sermon_candidate' => 'boolean',
-        'segment_order' => 'integer',
-        'visual_confidence' => 'float',
-        'visual_sample_count' => 'integer',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     */
+    protected function casts(): array
+    {
+        return [
+            'metadata' => 'array',
+            'start_time' => 'float',
+            'end_time' => 'float',
+            'duration' => 'float',
+            'avg_rms' => 'float',
+            'peak_rms' => 'float',
+            'is_sermon_candidate' => 'boolean',
+            'segment_order' => 'integer',
+            'visual_confidence' => 'float',
+            'visual_sample_count' => 'integer',
+        ];
+    }
 
     public function processingLog(): BelongsTo
     {

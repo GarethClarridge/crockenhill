@@ -70,15 +70,15 @@ class Page extends Model implements HasMedia, Sitemapable
     ];
 
     /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
+     * Get the attributes that should be cast.
      */
-    protected $casts = [
-        'navigation' => 'boolean',
-        'area' => PageArea::class,
-        // 'admin' => 'string', // Or a custom cast if 'yes'/'no' needs specific handling
-    ];
+    protected function casts(): array
+    {
+        return [
+            'navigation' => 'boolean',
+            'area' => PageArea::class,
+        ];
+    }
 
     /**
      * Get the route key for the model.

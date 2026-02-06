@@ -26,15 +26,5 @@ class PasswordController extends Controller
     /** @phpstan-ignore-line */
     use ResetsPasswords;
 
-    /**
-     * Create a new password controller instance.
-     *
-     * @return void
-     */
     protected $redirectTo = '/church/members';
-
-    public function __construct()
-    {
-        $this->middleware('guest');
-    }
 }
