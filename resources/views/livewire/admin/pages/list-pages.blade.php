@@ -1,5 +1,5 @@
-<div>
-    <div class="flex justify-between items-center mb-6">
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
         <div>
             <h1 class="font-display text-3xl">Pages</h1>
             <p class="text-gray-600">Manage website pages</p>
@@ -10,7 +10,7 @@
     </div>
 
     {{-- Filters --}}
-    <div class="flex flex-wrap gap-4 mb-6">
+    <div class="flex flex-wrap gap-4">
         <x-input placeholder="Search pages..." wire:model.live.debounce="search" icon="magnifying-glass" clearable class="w-64" />
 
         <x-select

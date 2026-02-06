@@ -34,7 +34,7 @@ Church
     </p>
   </x-text>
 
-  <div class="px-6 grid grid-cols-1 gap-2 max-w-2xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 gap-6 max-w-2xl mx-auto mt-6">
     <x-button link="#when-do-we-meet">
       When do we meet?
     </x-button>
@@ -61,7 +61,7 @@ Church
     </p>
   </x-text>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'sunday-mornings')" />
 
@@ -250,7 +250,7 @@ Church
     Related pages
   </x-h2>
   <div class="px-12 md:px-6">
-    <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 justify-center mx-auto mt-6">
+    <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-center mx-auto mt-6">
       @foreach ($links as $link)
       <x-page-card :page="$link" />
       @endforeach

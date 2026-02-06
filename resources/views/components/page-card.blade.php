@@ -3,9 +3,8 @@
 ])
 
 @if ($page)
-<div class="relative max-w-full flex-1 px-4 mb-4">
-  <div class="rounded-lg shadow bg-white border-1 border-gray-300 p-0 m-2">
-    <div class="relative overflow-hidden">
+<div class="rounded-lg shadow bg-white border-1 border-gray-300 mb-4">
+  <div class="relative overflow-hidden">
       @if ($page->area == 'sermons')
       <a href="/christ/sermons/{{$page->slug}}" wire:navigate>
         @else
@@ -42,6 +41,5 @@
       <x-edit-buttons slug="{{$page->slug}}" />
 
     </div>
-  </div>
 </div>
 @endif

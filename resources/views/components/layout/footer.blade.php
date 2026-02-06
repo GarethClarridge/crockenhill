@@ -1,5 +1,5 @@
 <div class="text-center container mx-auto sm:px-4 max-w-full mx-auto sm:px-4">
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-1 my-5">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-5">
 
     <x-card heading="Catch up">
       <div class="p-2 mb-3">

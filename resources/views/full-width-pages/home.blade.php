@@ -6,9 +6,8 @@
 
 @section('meta_tags')
 <x-meta-tags
-    title="Crockenhill Baptist Church"
-    description="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all."
-/>
+  title="Crockenhill Baptist Church"
+  description="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all." />
 <x-schema.organization />
 @endsection
 
@@ -19,7 +18,7 @@
 
 @section('content')
 
-<main id="home" class="text-sm -mt-px">
+<main id="home" class="text-sm -mt-px text-center">
 
   {{-- Desktop Hero --}}
   <div class="full-width-head relative py-16 mb-16 hidden md:block overflow-hidden">
@@ -30,8 +29,7 @@
       class="absolute inset-0 w-full h-full object-cover object-right"
       width="1200"
       height="450"
-      fetchpriority="high"
-    >
+      fetchpriority="high">
     {{-- Gradient Overlay --}}
     <div class="absolute inset-0 bg-black/30"></div>
     {{-- Content --}}
@@ -67,8 +65,7 @@
       class="absolute inset-0 w-full h-full object-cover"
       width="600"
       height="800"
-      fetchpriority="high"
-    >
+      fetchpriority="high">
     {{-- Gradient Overlay --}}
     <div class="absolute inset-0 bg-black/20"></div>
     {{-- Content --}}
@@ -172,7 +169,7 @@
     </p>
   </x-text>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 gap-2 justify-center max-w-2xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 gap-6 justify-center max-w-2xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'sunday-evenings')" />
 

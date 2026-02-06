@@ -8,13 +8,12 @@ Community
 
 @section('meta_tags')
 <x-meta-tags
-    title="Community"
-    description="Join our community activities at Crockenhill Baptist Church. Meet local people, activities for children, and opportunities to learn about Jesus in Kent."
-/>
+  title="Community"
+  description="Join our community activities at Crockenhill Baptist Church. Meet local people, activities for children, and opportunities to learn about Jesus in Kent." />
 @stop
 
 @section('content')
-<main>
+<main class="text-center">
 
   <x-h1>
     Community
@@ -40,7 +39,7 @@ Community
     </p>
   </x-text>
 
-  <div class="px-6 grid grid-cols-1 gap-2 max-w-2xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 gap-6 max-w-2xl mx-auto mt-6">
     <x-button link="#i-want-to-meet-local-people">
       I want to meet local people
     </x-button>
@@ -56,7 +55,7 @@ Community
     I want to meet local people
   </x-h2>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'coffee-cup')" />
 
@@ -71,7 +70,7 @@ Community
     I've got children
   </x-h2>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'baby-talk')" />
 
@@ -86,7 +85,7 @@ Community
     I want to find out more about Jesus
   </x-h2>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'sunday-mornings')" />
 
@@ -101,7 +100,7 @@ Community
     Occasional events
   </x-h2>
 
-  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
+  <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 justify-center max-w-2xl lg:max-w-4xl mx-auto mt-6">
 
     <x-page-card :page="$pages->firstWhere('slug', 'carols-in-the-chequers')" />
 
