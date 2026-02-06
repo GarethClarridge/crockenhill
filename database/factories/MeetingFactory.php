@@ -22,8 +22,8 @@ class MeetingFactory extends Factory
                 'Adults',
                 'Occasional',
             ]),
-            'StartTime' => $this->faker->optional()->time('H:i:s'),
-            'EndTime' => $this->faker->optional()->time('H:i:s'),
+            'start_time' => $this->faker->optional()->time('H:i:s'),
+            'end_time' => $this->faker->optional()->time('H:i:s'),
             'location' => $this->faker->randomElement([
                 'Main Hall',
                 'Church Building',
@@ -39,8 +39,8 @@ class MeetingFactory extends Factory
                 'Seniors',
             ]),
             'pictures' => $this->faker->boolean(60),
-            'LeadersPhone' => $this->faker->optional()->numerify('##########'),
-            'LeadersEmail' => $this->faker->optional()->safeEmail(),
+            'leaders_phone' => $this->faker->optional()->numerify('##########'),
+            'leaders_email' => $this->faker->optional()->safeEmail(),
 
             'meeting_date' => $meetingDate,
             'day' => Carbon::parse($meetingDate)->format('l'),
@@ -55,7 +55,7 @@ class MeetingFactory extends Factory
             return [
                 'meeting_date' => $date,
                 'day' => $date->format('l'),
-                'StartTime' => $date->format('H:i:s'), // Ensure StartTime matches the specific time
+                'start_time' => $date->format('H:i:s'),
             ];
         });
     }
@@ -88,7 +88,7 @@ class MeetingFactory extends Factory
             return [
                 'meeting_date' => $date,
                 'day' => $date->format('l'),
-                'StartTime' => $date->format('H:i:s'),
+                'start_time' => $date->format('H:i:s'),
             ];
         });
     }
@@ -101,7 +101,7 @@ class MeetingFactory extends Factory
             return [
                 'meeting_date' => $date,
                 'day' => $date->format('l'),
-                'StartTime' => $date->format('H:i:s'),
+                'start_time' => $date->format('H:i:s'),
             ];
         });
     }

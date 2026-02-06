@@ -22,15 +22,15 @@
         </td>
       </tr>
       @endif
-      @if ($meeting->StartTime != '')
+      @if ($meeting->start_time != '')
       <tr class="md:leading-loose">
         <th scope="row" class="my-3 flex items-center">
           <x-heroicon-o-clock class="h-10 w-10 mr-2" />
         </th>
         <td>
-          {{ $meeting->StartTime ? date('g:ia', strtotime($meeting->StartTime)) : '' }}
-          @if ($meeting->EndTime != '')
-          - {{ $meeting->EndTime ? date('g:ia', strtotime($meeting->EndTime)) : '' }}
+          {{ $meeting->start_time ? date('g:ia', strtotime($meeting->start_time)) : '' }}
+          @if ($meeting->end_time != '')
+          - {{ $meeting->end_time ? date('g:ia', strtotime($meeting->end_time)) : '' }}
           @endif
         </td>
       </tr>
@@ -51,20 +51,20 @@
         <td>{{$meeting->who}}</td>
       </tr>
       @endif
-      @if ($meeting->LeadersPhone != '')
+      @if ($meeting->leaders_phone != '')
       <tr class="leading-relaxed md:leading-loose">
         <th scope="row" class="my-3 flex items-center">
           <x-heroicon-o-phone class="h-10 w-10 mr-2" />
         </th>
-        <td>{{$meeting->LeadersPhone}}</td>
+        <td>{{$meeting->leaders_phone}}</td>
       </tr>
       @endif
-      @if ($meeting->LeadersEmail != '')
+      @if ($meeting->leaders_email != '')
       <tr class="leading-relaxed md:leading-loose">
         <th scope="row" class="my-3 flex items-center">
           <x-heroicon-o-envelope class="h-10 w-10 mr-2" />
         </th>
-        <td>{{$meeting->LeadersEmail}}</td>
+        <td>{{$meeting->leaders_email}}</td>
       </tr>
       @endif
     </tbody>

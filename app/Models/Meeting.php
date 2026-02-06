@@ -28,14 +28,14 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?int $page_id
  * @property string $slug
  * @property MeetingType $type
- * @property ?Carbon $StartTime // Cast to datetime:H:i:s -> Carbon
- * @property ?Carbon $EndTime // Cast to datetime:H:i:s -> Carbon
+ * @property ?Carbon $start_time
+ * @property ?Carbon $end_time
  * @property string $day
  * @property ?string $location
  * @property string $who
  * @property bool $pictures
- * @property ?string $LeadersPhone
- * @property ?string $LeadersEmail
+ * @property ?string $leaders_phone
+ * @property ?string $leaders_email
  * @property ?Carbon $meeting_date
  * @property bool $is_recurring
  * @property ?MeetingFrequency $frequency
@@ -73,14 +73,14 @@ class Meeting extends Model implements HasMedia, Sitemapable
         'page_id',
         'slug',
         'type',
-        'StartTime',
-        'EndTime',
+        'start_time',
+        'end_time',
         'day',
         'location',
         'who',
         'pictures',
-        'LeadersPhone',
-        'LeadersEmail',
+        'leaders_phone',
+        'leaders_email',
         'meeting_date',
         'is_recurring',
         'frequency',
@@ -95,8 +95,8 @@ class Meeting extends Model implements HasMedia, Sitemapable
             'pictures' => 'boolean',
             'meeting_date' => 'datetime',
             'is_recurring' => 'boolean',
-            'StartTime' => 'datetime:H:i:s',
-            'EndTime' => 'datetime:H:i:s',
+            'start_time' => 'datetime:H:i:s',
+            'end_time' => 'datetime:H:i:s',
             'type' => MeetingType::class,
             'frequency' => MeetingFrequency::class,
         ];
@@ -174,9 +174,9 @@ class Meeting extends Model implements HasMedia, Sitemapable
     {
         if ($this->meeting_date) {
             $dateTime = $this->meeting_date;
-            // If StartTime is a Carbon instance (due to cast) and represents a valid time
-            if ($this->StartTime instanceof Carbon) {
-                $dateTime = $this->meeting_date->copy()->setTimeFrom($this->StartTime);
+            // If start_time is a Carbon instance (due to cast) and represents a valid time
+            if ($this->start_time instanceof Carbon) {
+                $dateTime = $this->meeting_date->copy()->setTimeFrom($this->start_time);
             }
 
             return $dateTime->format('F j, Y, g:i A');

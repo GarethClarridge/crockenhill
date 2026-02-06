@@ -53,11 +53,11 @@
                             {{-- Schedule --}}
                             <td class="px-4 py-3">
                                 <p class="font-medium">{{ $meeting->day }}</p>
-                                @if($meeting->StartTime)
+                                @if($meeting->start_time)
                                     <p class="text-sm text-gray-500">
-                                        {{ $meeting->StartTime->format('H:i') }}
-                                        @if($meeting->EndTime)
-                                            - {{ $meeting->EndTime->format('H:i') }}
+                                        {{ $meeting->start_time->format('H:i') }}
+                                        @if($meeting->end_time)
+                                            - {{ $meeting->end_time->format('H:i') }}
                                         @endif
                                     </p>
                                 @endif

@@ -58,24 +58,24 @@
 
       <div class="grid grid-cols-2 gap-4 mt-6">
         <div>
-          <label class="block" for="StartTime">Start Time</label>
-          <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" 
-                 id="StartTime" name="StartTime" type="time" value="{{ old('StartTime', $meeting->StartTime?->format('H:i')) }}">
+          <label class="block" for="start_time">Start Time</label>
+          <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                 id="start_time" name="start_time" type="time" value="{{ old('start_time', $meeting->start_time?->format('H:i')) }}">
         </div>
         <div>
-          <label class="block" for="EndTime">End Time</label>
-          <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" 
-                 id="EndTime" name="EndTime" type="time" value="{{ old('EndTime', $meeting->EndTime?->format('H:i')) }}">
+          <label class="block" for="end_time">End Time</label>
+          <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                 id="end_time" name="end_time" type="time" value="{{ old('end_time', $meeting->end_time?->format('H:i')) }}">
         </div>
       </div>
 
-      <label class="block mt-6" for="LeadersPhone">Leader's Phone</label>
-      <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" 
-             id="LeadersPhone" name="LeadersPhone" type="tel" value="{{ old('LeadersPhone', $meeting->LeadersPhone) }}" maxlength="10">
+      <label class="block mt-6" for="leaders_phone">Leader's Phone</label>
+      <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+             id="leaders_phone" name="leaders_phone" type="tel" value="{{ old('leaders_phone', $meeting->leaders_phone) }}" maxlength="10">
 
-      <label class="block mt-6" for="LeadersEmail">Leader's Email</label>
-      <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" 
-             id="LeadersEmail" name="LeadersEmail" type="email" value="{{ old('LeadersEmail', $meeting->LeadersEmail) }}" maxlength="50">
+      <label class="block mt-6" for="leaders_email">Leader's Email</label>
+      <input class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+             id="leaders_email" name="leaders_email" type="email" value="{{ old('leaders_email', $meeting->leaders_email) }}" maxlength="50">
 
       <p class="mt-6">Has Pictures</p>
       <div class="grid grid-cols-2 gap-3 pt-2">
@@ -150,13 +150,13 @@ if (document.getElementById('is_recurring').checked) {
 
 // Convert time format from H:i to H:i:s before form submission
 document.querySelector('form').addEventListener('submit', function(e) {
-  const startTime = document.getElementById('StartTime');
-  const endTime = document.getElementById('EndTime');
-  
+  const startTime = document.getElementById('start_time');
+  const endTime = document.getElementById('end_time');
+
   if (startTime.value && !startTime.value.includes(':00')) {
     startTime.value = startTime.value + ':00';
   }
-  
+
   if (endTime.value && !endTime.value.includes(':00')) {
     endTime.value = endTime.value + ':00';
   }

@@ -18,14 +18,14 @@ class EditMeeting extends Component
         $this->meeting = $meeting;
         $this->slug = $meeting->slug;
         $this->type = $meeting->type->value;
-        $this->startTime = $meeting->StartTime ? $meeting->StartTime->format('H:i') : '';
-        $this->endTime = $meeting->EndTime ? $meeting->EndTime->format('H:i') : '';
+        $this->startTime = $meeting->start_time ? $meeting->start_time->format('H:i') : '';
+        $this->endTime = $meeting->end_time ? $meeting->end_time->format('H:i') : '';
         $this->day = $meeting->day;
         $this->location = $meeting->location ?? '';
         $this->who = $meeting->who;
         $this->pictures = $meeting->pictures;
-        $this->leadersPhone = $meeting->LeadersPhone ?? '';
-        $this->leadersEmail = $meeting->LeadersEmail ?? '';
+        $this->leadersPhone = $meeting->leaders_phone ?? '';
+        $this->leadersEmail = $meeting->leaders_email ?? '';
         $this->meetingDate = $meeting->meeting_date ? $meeting->meeting_date->format('Y-m-d') : '';
         $this->isRecurring = $meeting->is_recurring;
         $this->frequency = $meeting->frequency?->value;
@@ -39,14 +39,14 @@ class EditMeeting extends Component
         $this->meeting->update([
             'slug' => $validated['slug'],
             'type' => $validated['type'],
-            'StartTime' => $validated['startTime'] ? date('Y-m-d').' '.$validated['startTime'] : null,
-            'EndTime' => $validated['endTime'] ? date('Y-m-d').' '.$validated['endTime'] : null,
+            'start_time' => $validated['startTime'] ? date('Y-m-d').' '.$validated['startTime'] : null,
+            'end_time' => $validated['endTime'] ? date('Y-m-d').' '.$validated['endTime'] : null,
             'day' => $validated['day'],
             'location' => $validated['location'],
             'who' => $validated['who'],
             'pictures' => $validated['pictures'],
-            'LeadersPhone' => $validated['leadersPhone'],
-            'LeadersEmail' => $validated['leadersEmail'],
+            'leaders_phone' => $validated['leadersPhone'],
+            'leaders_email' => $validated['leadersEmail'],
             'meeting_date' => $validated['meetingDate'],
             'is_recurring' => $validated['isRecurring'],
             'frequency' => $validated['frequency'],
