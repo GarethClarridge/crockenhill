@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\TranscriptionServiceInterface;
 use App\HealthChecks\OpenAIHealthCheck;
 use App\HealthChecks\SermonProcessingQueueHealthCheck;
@@ -11,7 +12,9 @@ use App\Models\Page;
 use App\Models\Sermon;
 use App\Observers\SitemapCacheObserver;
 use App\Services\AudioTranscriptionService;
+use App\Services\MockSermonAnalysisService;
 use App\Services\MockTranscriptionService;
+use App\Services\SermonAnalysisService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Http\Request;
@@ -186,6 +189,17 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind('path.public', function () {
             return base_path().'/public';
+        });
+
+        // Bind sermon analysis service based on environment configuration
+        $this->app->bind(SermonAnalysisInterface::class, function ($app) {
+            $serviceType = config('media-processing.analysis.service', 'openai');
+
+            if ($serviceType === 'mock') {
+                return $app->make(MockSermonAnalysisService::class);
+            }
+
+            return $app->make(SermonAnalysisService::class);
         });
 
         // Bind transcription service based on environment configuration

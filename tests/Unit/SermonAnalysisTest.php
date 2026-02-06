@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Services\BritishEnglishConverter;
 use App\Services\SermonAnalysisService;
 use Exception;
 use Tests\TestCase;
@@ -13,7 +14,8 @@ class SermonAnalysisTest extends TestCase
         config(['media-processing.analysis.openai_api_key' => 'test-api-key']);
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
-        $service = new SermonAnalysisService($logger);
+        $converter = app(BritishEnglishConverter::class);
+        $service = new SermonAnalysisService($logger, $converter);
         $this->assertInstanceOf(SermonAnalysisService::class, $service);
     }
 
@@ -26,6 +28,7 @@ class SermonAnalysisTest extends TestCase
         $this->expectExceptionMessage('OpenAI API key not configured for analysis service');
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
-        new SermonAnalysisService($logger);
+        $converter = app(BritishEnglishConverter::class);
+        new SermonAnalysisService($logger, $converter);
     }
 }

@@ -3,7 +3,9 @@
 namespace Tests\Unit\Services;
 
 use App\Services\AudioTranscriptionService;
+use App\Services\BritishEnglishConverter;
 use App\Services\MediaProcessingLogger;
+use App\Services\TranscriptStorageService;
 use FFMpeg\FFMpeg;
 use FFMpeg\Media\Audio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,7 +39,9 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
         $this->logger->shouldReceive('logApiCall')->andReturn(true);
         $this->logger->shouldReceive('logError')->andReturn(true);
 
-        $this->service = new AudioTranscriptionService($this->logger);
+        $storageService = app(TranscriptStorageService::class);
+        $converter = app(BritishEnglishConverter::class);
+        $this->service = new AudioTranscriptionService($this->logger, $storageService, $converter);
     }
 
     #[Test]

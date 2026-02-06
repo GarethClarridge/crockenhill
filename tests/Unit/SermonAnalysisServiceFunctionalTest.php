@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Sermon;
+use App\Services\BritishEnglishConverter;
 use App\Services\SermonAnalysisService;
 use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,7 +29,8 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         ]);
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
-        $this->service = new SermonAnalysisService($logger);
+        $converter = app(BritishEnglishConverter::class);
+        $this->service = new SermonAnalysisService($logger, $converter);
     }
 
     #[Test]
@@ -43,7 +45,8 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->expectExceptionMessage('OpenAI API key not configured');
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
-        new SermonAnalysisService($logger);
+        $converter = app(BritishEnglishConverter::class);
+        new SermonAnalysisService($logger, $converter);
     }
 
     #[Test]

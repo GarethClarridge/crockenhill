@@ -3,6 +3,8 @@
 namespace Tests\Unit;
 
 use App\Services\AudioTranscriptionService;
+use App\Services\BritishEnglishConverter;
+use App\Services\TranscriptStorageService;
 use Exception;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Exceptions\ErrorException;
@@ -29,7 +31,9 @@ class AudioTranscriptionServiceTest extends TestCase
         config(['media-processing.storage.sermon_disk' => 'local']);
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
-        $this->service = new AudioTranscriptionService($logger);
+        $storageService = app(TranscriptStorageService::class);
+        $converter = app(BritishEnglishConverter::class);
+        $this->service = new AudioTranscriptionService($logger, $storageService, $converter);
     }
 
     #[Test]
@@ -41,7 +45,9 @@ class AudioTranscriptionServiceTest extends TestCase
         $this->expectExceptionMessage('OpenAI API key not configured');
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
-        $service = new AudioTranscriptionService($logger);
+        $storageService = app(TranscriptStorageService::class);
+        $converter = app(BritishEnglishConverter::class);
+        $service = new AudioTranscriptionService($logger, $storageService, $converter);
 
         // The exception should be thrown when trying to transcribe, not during construction
         Storage::put('test-audio.mp3', 'fake audio content');
@@ -305,7 +311,8 @@ class AudioTranscriptionServiceTest extends TestCase
     #[Test]
     public function it_generates_correct_filename_for_sermon_id(): void
     {
-        $reflection = new \ReflectionClass($this->service);
+        $storageService = app(TranscriptStorageService::class);
+        $reflection = new \ReflectionClass($storageService);
         $method = $reflection->getMethod('getTranscriptFilename');
         $method->setAccessible(true);
 
@@ -316,7 +323,7 @@ class AudioTranscriptionServiceTest extends TestCase
         ];
 
         foreach ($testCases as $sermonId => $expectedFilename) {
-            $result = $method->invoke($this->service, $sermonId);
+            $result = $method->invoke($storageService, $sermonId);
             $this->assertEquals($expectedFilename, $result);
         }
     }

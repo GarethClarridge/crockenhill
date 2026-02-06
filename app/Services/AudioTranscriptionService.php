@@ -18,8 +18,6 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
     private const RETRY_DELAY_BASE = 2; // seconds
 
-    private const TRANSCRIPT_DIRECTORY = 'transcripts';
-
     // Chunking configuration for long audio files
     private const CHUNK_DURATION_MINUTES = 6; // 6 minutes per chunk to stay well under timeout
 
@@ -27,12 +25,11 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
     private const MIN_DURATION_FOR_CHUNKING = 420; // 7 minutes - only chunk files longer than this
 
-    protected SermonProcessingLogger $logger;
-
-    public function __construct(MediaProcessingLogger $logger)
-    {
-        $this->logger = $logger;
-    }
+    public function __construct(
+        private readonly MediaProcessingLogger $logger,
+        private readonly TranscriptStorageService $storageService,
+        private readonly BritishEnglishConverter $britishEnglishConverter
+    ) {}
 
     /**
      * Verify OpenAI API key is configured before making API calls
@@ -600,9 +597,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
      */
     private function applyBritishEnglishSpelling(string $text): string
     {
-        $converter = app(BritishEnglishConverter::class);
-
-        return $converter->convert($text);
+        return $this->britishEnglishConverter->convert($text);
     }
 
     /**
@@ -631,177 +626,72 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
      *
      * @throws Exception When storage fails
      */
+    /**
+     * Store transcript content (delegates to TranscriptStorageService)
+     *
+     * @param  int  $sermonId  The sermon ID
+     * @param  string  $transcript  The transcript content
+     * @return string The file path where transcript was stored
+     *
+     * @throws Exception When storage fails
+     */
     public function storeTranscript(int $sermonId, string $transcript): string
     {
-        $filename = $this->getTranscriptFilename($sermonId);
-        $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
-
-        try {
-            // Ensure transcript directory exists
-            if (! Storage::exists(self::TRANSCRIPT_DIRECTORY)) {
-                Storage::makeDirectory(self::TRANSCRIPT_DIRECTORY);
-                Log::info('Created transcript directory', ['directory' => self::TRANSCRIPT_DIRECTORY]);
-            }
-
-            // Store the transcript
-            $success = Storage::put($filePath, $transcript);
-
-            if (! $success) {
-                throw new Exception('Failed to write transcript to storage');
-            }
-
-            Log::info('Transcript stored successfully', [
-                'sermon_id' => $sermonId,
-                'file_path' => $filePath,
-                'size' => strlen($transcript),
-            ]);
-
-            return $filePath;
-        } catch (Exception $e) {
-            Log::error('Failed to store transcript', [
-                'sermon_id' => $sermonId,
-                'file_path' => $filePath,
-                'error' => $e->getMessage(),
-            ]);
-            throw new Exception("Failed to store transcript for sermon {$sermonId}: ".$e->getMessage());
-        }
+        return $this->storageService->storeTranscript($sermonId, $transcript);
     }
 
     /**
-     * Retrieve transcript content from storage
+     * Retrieve transcript content (delegates to TranscriptStorageService)
      *
      * @param  int  $sermonId  The sermon ID
      * @return string|null The transcript content or null if not found
      */
     public function getTranscript(int $sermonId): ?string
     {
-        $filename = $this->getTranscriptFilename($sermonId);
-        $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
-
-        if (! Storage::exists($filePath)) {
-            Log::info('Transcript file not found', [
-                'sermon_id' => $sermonId,
-                'file_path' => $filePath,
-            ]);
-
-            return null;
-        }
-
-        try {
-            $content = Storage::get($filePath);
-            Log::info('Transcript retrieved successfully', [
-                'sermon_id' => $sermonId,
-                'file_path' => $filePath,
-                'size' => strlen($content),
-            ]);
-
-            return $content;
-        } catch (Exception $e) {
-            Log::error('Failed to retrieve transcript', [
-                'sermon_id' => $sermonId,
-                'file_path' => $filePath,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
+        return $this->storageService->getTranscript($sermonId);
     }
 
     /**
-     * Check if transcript exists for a sermon
+     * Check if transcript exists (delegates to TranscriptStorageService)
      *
      * @param  int  $sermonId  The sermon ID
      * @return bool True if transcript exists
      */
     public function transcriptExists(int $sermonId): bool
     {
-        $filename = $this->getTranscriptFilename($sermonId);
-        $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
-
-        return Storage::exists($filePath);
+        return $this->storageService->transcriptExists($sermonId);
     }
 
     /**
-     * Delete transcript file for a sermon
+     * Delete transcript file (delegates to TranscriptStorageService)
      *
      * @param  int  $sermonId  The sermon ID
      * @return bool True if deleted or didn't exist
      */
     public function deleteTranscript(int $sermonId): bool
     {
-        $filename = $this->getTranscriptFilename($sermonId);
-        $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
-
-        if (! Storage::exists($filePath)) {
-            Log::info('Transcript file does not exist, nothing to delete', [
-                'sermon_id' => $sermonId,
-                'file_path' => $filePath,
-            ]);
-
-            return true;
-        }
-
-        try {
-            $success = Storage::delete($filePath);
-
-            if ($success) {
-                Log::info('Transcript deleted successfully', [
-                    'sermon_id' => $sermonId,
-                    'file_path' => $filePath,
-                ]);
-            } else {
-                Log::warning('Failed to delete transcript file', [
-                    'sermon_id' => $sermonId,
-                    'file_path' => $filePath,
-                ]);
-            }
-
-            return $success;
-        } catch (Exception $e) {
-            Log::error('Error deleting transcript', [
-                'sermon_id' => $sermonId,
-                'file_path' => $filePath,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
+        return $this->storageService->deleteTranscript($sermonId);
     }
 
     /**
-     * Clean up transcript files on processing failure
+     * Clean up transcript files on failure (delegates to TranscriptStorageService)
      *
      * @param  int  $sermonId  The sermon ID
      */
     public function cleanupOnFailure(int $sermonId): void
     {
-        Log::info('Cleaning up transcript files after processing failure', ['sermon_id' => $sermonId]);
-
-        $this->deleteTranscript($sermonId);
+        $this->storageService->cleanupOnFailure($sermonId);
     }
 
     /**
-     * Get the transcript filename for a sermon
-     *
-     * @param  int  $sermonId  The sermon ID
-     * @return string The filename
-     */
-    private function getTranscriptFilename(int $sermonId): string
-    {
-        return "sermon_{$sermonId}.md";
-    }
-
-    /**
-     * Get the full transcript file path for a sermon
+     * Get the full transcript file path (delegates to TranscriptStorageService)
      *
      * @param  int  $sermonId  The sermon ID
      * @return string The full file path
      */
     public function getTranscriptPath(int $sermonId): string
     {
-        $filename = $this->getTranscriptFilename($sermonId);
-
-        return self::TRANSCRIPT_DIRECTORY.'/'.$filename;
+        return $this->storageService->getTranscriptPath($sermonId);
     }
 
     /**

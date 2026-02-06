@@ -3,7 +3,9 @@
 namespace Tests\Unit\Services;
 
 use App\Services\AudioTranscriptionService;
+use App\Services\BritishEnglishConverter;
 use App\Services\MediaProcessingLogger;
+use App\Services\TranscriptStorageService;
 use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -38,7 +40,9 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         // Configure the service to use the same disk as our faked storage
         Config::set('media-processing.storage.sermon_disk', 'local');
 
-        $this->service = new AudioTranscriptionService($this->mockLogger);
+        $storageService = app(TranscriptStorageService::class);
+        $converter = app(BritishEnglishConverter::class);
+        $this->service = new AudioTranscriptionService($this->mockLogger, $storageService, $converter);
     }
 
     public function test_service_requires_openai_api_key(): void
@@ -46,7 +50,9 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         Config::set('media-processing.transcription.openai_api_key', '');
         Config::set('openai.api_key', '');
 
-        $service = new AudioTranscriptionService($this->mockLogger);
+        $storageService = app(TranscriptStorageService::class);
+        $converter = app(BritishEnglishConverter::class);
+        $service = new AudioTranscriptionService($this->mockLogger, $storageService, $converter);
 
         // Create a test file to trigger the validation in transcribe method
         $testFilePath = 'test_validation_audio.mp3';
