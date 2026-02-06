@@ -20,22 +20,11 @@ class SermonProcessingStepFactory extends Factory
         return [
             'processing_id' => Str::uuid(),
             'step' => $this->faker->randomElement(['transcription', 'analysis', 'segmentation', 'storage']),
-            'status' => 'pending',
+            'status' => 'started',
             'message' => null,
-            'started_at' => null,
+            'started_at' => now(),
             'completed_at' => null,
         ];
-    }
-
-    /**
-     * Indicate that the step is in progress.
-     */
-    public function started(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'status' => 'started',
-            'started_at' => now(),
-        ]);
     }
 
     /**
@@ -58,6 +47,18 @@ class SermonProcessingStepFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'status' => 'failed',
             'message' => $errorMessage,
+            'started_at' => now()->subHours(1),
+            'completed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Indicate that the step was cancelled.
+     */
+    public function cancelled(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'cancelled',
             'started_at' => now()->subHours(1),
             'completed_at' => now(),
         ]);
