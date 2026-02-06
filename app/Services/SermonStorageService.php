@@ -25,7 +25,7 @@ class SermonStorageService
 
             return [
                 'type' => 'legacy',
-                'disk' => config('media-processing.storage.legacy_disk', 'do_spaces'),
+                'disk' => config('media-processing.storage.legacy_disk', 'public'),
                 'path' => "legacy/sermons/{$filename}",
                 'original_path' => "media/sermons/{$filename}",
             ];
@@ -33,7 +33,7 @@ class SermonStorageService
             // Newer Laravel storage pattern
             return [
                 'type' => 'storage',
-                'disk' => config('media-processing.storage.sermon_disk', 'do_spaces'),
+                'disk' => config('media-processing.storage.sermon_disk', 'public'),
                 'path' => $sermon->audio_file_path,
                 'original_path' => $sermon->audio_file_path,
             ];
@@ -41,7 +41,7 @@ class SermonStorageService
             // Current media processing pattern
             return [
                 'type' => 'processing',
-                'disk' => config('media-processing.storage.sermon_disk', 'do_spaces'),
+                'disk' => config('media-processing.storage.sermon_disk', 'public'),
                 'path' => $sermon->audio_file_path,
                 'original_path' => $sermon->audio_file_path,
             ];

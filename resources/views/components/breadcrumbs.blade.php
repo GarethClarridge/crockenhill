@@ -1,3 +1,8 @@
+@props([
+'area',
+'heading',
+])
+
 @php
 use Illuminate\Support\Str;
 
@@ -57,16 +62,8 @@ return [
 @endphp
 
 <script type="application/ld+json">
-  {
-    !!json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!
-  }
+  {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
 </script>
-
-
-@props([
-'area',
-'heading',
-])
 
 <nav class="my-6" aria-label="Breadcrumb">
   <ol class="inline-flex items-center space-x-1 md:space-x-2">

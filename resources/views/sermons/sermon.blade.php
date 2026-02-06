@@ -51,9 +51,33 @@ use Illuminate\Support\Str;
             'encodingFormat' => 'audio/mpeg',
         ];
     }
+
+    // Build breadcrumb schema
+    $breadcrumbItems = [
+        ['name' => 'Home', 'item' => url('/')],
+        ['name' => 'Christ', 'item' => url('christ')],
+        ['name' => 'Sermons', 'item' => url('christ/sermons')],
+        ['name' => $sermon->title, 'item' => url()->current()],
+    ];
+
+    $breadcrumbList = [
+        '@context' => 'https://schema.org',
+        '@type' => 'BreadcrumbList',
+        'itemListElement' => array_map(function ($item, $index) {
+            return [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'name' => $item['name'],
+                'item' => $item['item'],
+            ];
+        }, $breadcrumbItems, array_keys($breadcrumbItems)),
+    ];
 @endphp
 <script type="application/ld+json">
     {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
+</script>
+<script type="application/ld+json">
+    {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
 </script>
 @endsection
 
@@ -191,7 +215,7 @@ use Illuminate\Support\Str;
     @endif
 
       @if (!empty($sermon->video_file_path))
-        <video src="{{ Storage::disk(config('media-processing.storage.sermon_disk', 'do_spaces'))->url($sermon->video_file_path) }}"
+        <video src="{{ Storage::disk(config('media-processing.storage.sermon_disk', 'public'))->url($sermon->video_file_path) }}"
                class="w-full max-h-96 rounded-lg my-12"
                controls
                @if($sermon->thumbnail_url && $sermon->hasThumbnail()) poster="{{ $sermon->thumbnail_url }}" @endif>
