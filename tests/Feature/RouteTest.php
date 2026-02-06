@@ -334,13 +334,13 @@ class RouteTest extends TestCase
         $meeting = \App\Models\Meeting::factory()->create([
             'slug' => 'test-meeting',
             'day' => 'Monday',
-            'StartTime' => '10:00:00',
-            'EndTime' => '11:00:00',
+            'start_time' => '10:00:00',
+            'end_time' => '11:00:00',
             'location' => 'Test Hall',
             'who' => 'Everyone',
             'pictures' => false,
-            'LeadersPhone' => '0123456789',
-            'LeadersEmail' => 'leader@example.com',
+            'leaders_phone' => '0123456789',
+            'leaders_email' => 'leader@example.com',
             'type' => 'Adults',
         ]);
 

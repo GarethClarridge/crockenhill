@@ -12,6 +12,7 @@ use App\Http\Controllers\PodcastFeedController;
 use App\Http\Controllers\SermonAssetController;
 use App\Http\Controllers\SermonController;
 use App\Http\Controllers\SitemapController;
+use App\Models\Meeting;
 use Illuminate\Support\Facades\Route;
 
 /*
