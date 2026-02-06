@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 class MockSermonAnalysisService implements SermonAnalysisInterface
 {
-    public function __construct(
-        private readonly MediaProcessingLogger $logger
-    ) {}
+    public function __construct() {}
 
     /**
      * Analyze sermon transcript using mock data generation

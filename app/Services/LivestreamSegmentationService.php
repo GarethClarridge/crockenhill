@@ -61,10 +61,10 @@ class LivestreamSegmentationService
             // Only use datetime for service detection if we have actual time information (not just date)
             // If the time is midnight (00:00:00), it likely means only the date was extracted
             if ($extractedDateTime->hour !== 0 || $extractedDateTime->minute !== 0 || $extractedDateTime->second !== 0) {
-                $extractedService = $metadataService->determineServiceFromTime($extractedDateTime);
+                $extractedService = $this->metadataService->determineServiceFromTime($extractedDateTime);
             } else {
                 // No time info available, fall back to filename-based detection
-                $extractedService = $metadataService->determineServiceFromFilename($videoFile->getClientOriginalName());
+                $extractedService = $this->metadataService->determineServiceFromFilename($videoFile->getClientOriginalName());
             }
 
             $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
