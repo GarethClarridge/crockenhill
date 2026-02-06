@@ -16,7 +16,7 @@ class SermonAssetController extends Controller
      */
     public function serveAudio(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
-        if (! $sermon->filename) {
+        if (! $sermon->audio_file_path) {
             abort(404, 'Audio file not found.');
         }
 
@@ -48,18 +48,18 @@ class SermonAssetController extends Controller
      */
     public function serveThumbnail(Sermon $sermon): BinaryFileResponse
     {
-        if (! $sermon->thumbnail_path) {
+        if (! $sermon->thumbnail_file_path) {
             abort(404, 'Thumbnail not found.');
         }
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
 
-        if (! Storage::disk($disk)->exists($sermon->thumbnail_path)) {
+        if (! Storage::disk($disk)->exists($sermon->thumbnail_file_path)) {
             abort(404, 'Thumbnail file not found.');
         }
 
-        $path = Storage::disk($disk)->path($sermon->thumbnail_path);
-        $name = basename($sermon->thumbnail_path);
+        $path = Storage::disk($disk)->path($sermon->thumbnail_file_path);
+        $name = basename($sermon->thumbnail_file_path);
 
         // Determine content type based on file extension
         $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));

@@ -184,7 +184,7 @@ use Illuminate\Support\Str;
     </div>
     @endif
 
-    @if ($sermon->filename)
+    @if ($sermon->audio_file_path)
       <audio src="{{ $sermon->audio_url }}" class="w-full rounded-lg my-12" controls>
         Your browser does not support the <code>audio</code> element.
       </audio>
