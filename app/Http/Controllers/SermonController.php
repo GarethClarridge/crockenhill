@@ -4,16 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\SermonService;
-use App\Http\Requests\UpdateSermonRequest;
 use App\Models\Page;
-use App\Models\Sermon; // Added for DB facade
-use Illuminate\Http\RedirectResponse; // Added for Storage facade
-use Illuminate\Http\Request; // Added for Form Request
-use Illuminate\Support\Carbon; // Added for Update Form Request
-use Illuminate\Support\Facades\DB; // Added for Post Form Request
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
+use App\Models\Sermon;
+use Illuminate\Support\Facades\DB as FacadesDB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -45,7 +38,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getAll()
+    public function getAll(): View
     {
         $sermons = Sermon::orderBy('date', 'desc')
             ->orderBy('service', 'asc')
@@ -86,89 +79,11 @@ class SermonController extends Controller
         ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Sermon $sermon): View
-    {
-        $this->authorize('update', $sermon);
-
-        $series = array_unique(\App\Models\Sermon::pluck('series')->all()); // Used FQCN for Sermon
-
-        // Breadcrumbs removed
-
-        return view('sermons.edit', [
-            'sermon' => $sermon,
-            'series' => $series,
-            'heading' => 'Edit this sermon',
-            'description' => '<meta name="description" content="Edit this sermon.">',
-            // 'breadcrumbs'   => $breadcrumbs, // Removed
-            'content' => '',
-        ]);
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Sermon $sermon, UpdateSermonRequest $request): RedirectResponse
-    {
-        // Gate check removed, handled by UpdateSermonRequest
-
-        $validatedData = $request->validated();
-
-        $sermon->title = $validatedData['title'];
-        $sermon->date = Carbon::parse($validatedData['date']);
-        $sermon->service = SermonService::from($validatedData['service']);
-        $sermon->slug = Str::slug($validatedData['title']); // Update slug if title changes
-        $sermon->series = $validatedData['series'] ?? null;
-        $sermon->reference = $validatedData['reference'] ?? null;
-        $sermon->preacher = $validatedData['preacher'];
-
-        // The 'points' attribute from $validatedData will be a JSON string or null.
-        // The Sermon model's $casts property will automatically convert this JSON string
-        // to an array when $sermon->points is assigned and saved.
-        // Update points only if the key exists in validated data (meaning it was submitted and passed validation)
-        if (array_key_exists('points', $validatedData)) {
-            // Explicitly decode JSON string to array here.
-            // If $validatedData['points'] is null, json_decode(null, true) is null.
-            // If $validatedData['points'] is a valid JSON string, it's decoded to an array.
-            $sermon->points = $validatedData['points'] ? json_decode($validatedData['points'], true) : null;
-        }
-
-        // Update summary if provided
-        if (array_key_exists('summary', $validatedData)) {
-            $sermon->summary = $validatedData['summary'];
-        }
-
-        // Update visibility toggles (checkboxes return '1' when checked, null when unchecked)
-        $sermon->show_summary = $request->has('show_summary');
-        $sermon->show_points = $request->has('show_points');
-
-        if ($sermon->save()) {
-            return redirect()->route('sermonIndex')->with('message', '"'.$sermon->title.'" successfully updated!');
-        } else {
-            // Log the failure or add more specific error handling
-            return redirect()->back()->withInput()->with('error', 'There was a problem saving the sermon. Please try again.');
-        }
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Sermon $sermon): RedirectResponse
-    {
-        $this->authorize('delete', $sermon);
-
-        $sermon->delete();
-
-        return redirect()->route('sermonIndex')->with('message', 'Sermon successfully deleted!');
-    }
-
     public function getPreachers(): View
     {
         $page = Page::where('slug', 'preachers')->first();
 
-        $preachers_with_counts = Sermon::select('preacher', DB::raw('COUNT(*) as sermons_count'))
+        $preachers_with_counts = Sermon::select('preacher', FacadesDB::raw('COUNT(*) as sermons_count'))
             ->groupBy('preacher')
             ->orderByDesc('sermons_count')
             ->orderBy('preacher', 'asc')
@@ -188,7 +103,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getPreacher($preacher)
+    public function getPreacher(string $preacher): View
     {
         $preacher_name = str_replace('-', ' ', Str::title($preacher));
         $sermons = Sermon::where('preacher', $preacher_name)
@@ -200,7 +115,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getSerieses()
+    public function getSerieses(): View
     {
         $series = Sermon::select('series')->distinct()->get();
 
@@ -209,7 +124,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getSeries($series)
+    public function getSeries(string $series): View
     {
         $series_name = str_replace('-', ' ', Str::title($series));
         $sermons = Sermon::where('series', $series_name)
@@ -221,7 +136,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getService($service)
+    public function getService(string $service): View
     {
         $sermons = Sermon::where('service', $service)
             ->orderBy('date', 'desc')
@@ -230,57 +145,6 @@ class SermonController extends Controller
         return view('sermons.service', [
             'sermons' => $sermons,
         ]);
-    }
-
-    /**
-     * Show the simple upload for creating a new resource.
-     */
-    public function upload(): View
-    {
-        $this->authorize('create', Sermon::class);
-
-        return view('sermons.upload', [
-            'heading' => 'Upload sermon',
-        ]);
-    }
-
-    /**
-     * Process media upload through unified processing service
-     */
-    public function processMedia(Request $request): RedirectResponse
-    {
-        $this->authorize('create', Sermon::class);
-
-        // Validate input
-        $request->validate([
-            'file' => 'required|file|mimes:mp3,wav,m4a,mp4,mov,avi,mkv|max:2097152',
-            'type' => 'required|in:audio,video,livestream',
-        ]);
-
-        try {
-            $file = $request->file('file');
-            $type = $request->input('type');
-
-            // Use unified media processor like API
-            $processor = app(\App\Services\UnifiedMediaProcessor::class);
-
-            $result = $processor->process($type, $file);
-
-            if ($result->success) {
-                return redirect()
-                    ->route('sermonIndex')
-                    ->with('message', "Processing started for \"{$file->getClientOriginalName()}\". Processing ID: {$result->processingId}");
-            } else {
-                return redirect()
-                    ->back()
-                    ->with('error', $result->message);
-            }
-
-        } catch (\Exception $e) {
-            return redirect()
-                ->back()
-                ->with('error', 'An error occurred during upload: '.$e->getMessage());
-        }
     }
 
     /**
@@ -294,112 +158,5 @@ class SermonController extends Controller
         }
 
         return $this->show($sermon);
-    }
-
-    /**
-     * Show the form for editing the specified resource with date validation.
-     */
-    public function editWithDate(int $year, int $month, Sermon $sermon): View
-    {
-        // Validate that the sermon's date matches the URL parameters
-        if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
-            abort(404, 'Sermon not found for the specified date.');
-        }
-
-        return $this->edit($sermon);
-    }
-
-    /**
-     * Update the specified resource in storage with date validation.
-     */
-    public function updateWithDate(int $year, int $month, Sermon $sermon, UpdateSermonRequest $request): RedirectResponse
-    {
-        // Validate that the sermon's date matches the URL parameters
-        if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
-            abort(404, 'Sermon not found for the specified date.');
-        }
-
-        return $this->update($sermon, $request);
-    }
-
-    /**
-     * Remove the specified resource from storage with date validation.
-     */
-    public function destroyWithDate(int $year, int $month, Sermon $sermon): RedirectResponse
-    {
-        // Validate that the sermon's date matches the URL parameters
-        if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
-            abort(404, 'Sermon not found for the specified date.');
-        }
-
-        return $this->destroy($sermon);
-    }
-
-    /**
-     * Serve audio file for a sermon
-     */
-    public function serveAudio(Sermon $sermon)
-    {
-        if (! $sermon->filename) {
-            abort(404, 'Audio file not found.');
-        }
-
-        $storageService = app(\App\Services\SermonStorageService::class);
-        $fileInfo = $storageService->getSermonFileInfo($sermon);
-
-        if (! Storage::disk($fileInfo['disk'])->exists($fileInfo['path'])) {
-            abort(404, 'Audio file not found.');
-        }
-
-        // For cloud storage, redirect to CDN URL for better performance
-        if ($fileInfo['disk'] === 'do_spaces' && config('filesystems.disks.do_spaces.cdn_endpoint')) {
-            return redirect($storageService->getPublicUrl($sermon));
-        }
-
-        // Fallback to Laravel serving (useful for private files or local storage)
-        $path = Storage::disk($fileInfo['disk'])->path($fileInfo['path']);
-        $name = basename($fileInfo['path']);
-
-        return response()->file($path, [
-            'Content-Type' => 'audio/mpeg',
-            'Content-Disposition' => 'inline; filename="'.$name.'"',
-            'Cache-Control' => 'public, max-age=3600',
-        ]);
-    }
-
-    /**
-     * Serve thumbnail image for a sermon
-     */
-    public function serveThumbnail(Sermon $sermon)
-    {
-        if (! $sermon->thumbnail_path) {
-            abort(404, 'Thumbnail not found.');
-        }
-
-        $disk = config('thumbnail-generation.storage.disk', 'public');
-
-        if (! Storage::disk($disk)->exists($sermon->thumbnail_path)) {
-            abort(404, 'Thumbnail file not found.');
-        }
-
-        $path = Storage::disk($disk)->path($sermon->thumbnail_path);
-        $name = basename($sermon->thumbnail_path);
-
-        // Determine content type based on file extension
-        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-        $contentType = match ($extension) {
-            'jpg', 'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'webp' => 'image/webp',
-            default => 'image/jpeg',
-        };
-
-        return response()->file($path, [
-            'Content-Type' => $contentType,
-            'Content-Disposition' => 'inline; filename="'.$name.'"',
-            'Cache-Control' => 'public, max-age=86400', // 24 hours cache for images
-            'ETag' => md5_file($path),
-            'Last-Modified' => gmdate('D, d M Y H:i:s', filemtime($path)).' GMT',
-        ]);
     }
 }

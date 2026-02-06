@@ -3,13 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CategorizeEventRequest;
 use App\Models\Meeting;
 use App\Services\CalendarService;
-use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
 
 class CalendarAdminController extends Controller
 {
-    public function uncategorizedEvents()
+    public function uncategorizedEvents(): View
     {
         $calendarService = app(CalendarService::class);
         $uncategorizedEvents = $calendarService->getUncategorizedEvents();
@@ -18,12 +20,9 @@ class CalendarAdminController extends Controller
         return view('admin.calendar.uncategorized', compact('uncategorizedEvents', 'meetings'));
     }
 
-    public function categorizeEvent(Request $request)
+    public function categorizeEvent(CategorizeEventRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'event_id' => 'required|integer|exists:calendar_events,id',
-            'meeting_slug' => 'required|string|exists:meetings,slug',
-        ]);
+        $validated = $request->validated();
 
         $calendarService = app(CalendarService::class);
         $event = $calendarService->manuallyCategorizeEvent(
@@ -34,7 +33,7 @@ class CalendarAdminController extends Controller
         return redirect()->back()->with('success', "Event '{$event->title}' categorized successfully");
     }
 
-    public function patternManagement()
+    public function patternManagement(): View
     {
         $patterns = config('calendar.meeting_patterns');
         $meetings = Meeting::orderBy('slug')->get();
@@ -42,7 +41,7 @@ class CalendarAdminController extends Controller
         return view('admin.calendar.patterns', compact('patterns', 'meetings'));
     }
 
-    public function syncCalendar()
+    public function syncCalendar(): RedirectResponse
     {
         try {
             $calendarService = app(CalendarService::class);

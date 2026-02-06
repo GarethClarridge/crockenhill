@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CalendarAdminController;
+use App\Http\Controllers\Admin\SermonAdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CalendarController;
 // Import all necessary controllers
@@ -8,14 +9,10 @@ use App\Http\Controllers\MeetingController; // Added this line
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PodcastFeedController;
+use App\Http\Controllers\SermonAssetController;
 use App\Http\Controllers\SermonController;
-use App\Models\Meeting;
-use App\Models\Page;
-use App\Models\Sermon;
-use Illuminate\Support\Facades\Cache;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
-use Spatie\Sitemap\Sitemap;
-use Spatie\Sitemap\Tags\Url;
 
 /*
 |--------------------------------------------------------------------------
@@ -58,8 +55,6 @@ Route::get('/community/{meeting:slug}', [MeetingController::class, 'show'])->nam
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
-    Route::get('/upload', [SermonController::class, 'upload'])->name('sermon.upload');
-    Route::post('/upload', [SermonController::class, 'processMedia'])->name('sermonPost');
     Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
     Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
     Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
@@ -77,27 +72,30 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/{year}/{month}/{sermon:slug}', [SermonController::class, 'showWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
         ->name('showSermonWithDate');
-    Route::get('/{year}/{month}/{sermon:slug}/edit', [SermonController::class, 'editWithDate'])
+    Route::get('/{year}/{month}/{sermon:slug}/edit', [SermonAdminController::class, 'editWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
+        ->middleware('auth')
         ->name('editSermonWithDate');
-    Route::post('/{year}/{month}/{sermon:slug}/edit', [SermonController::class, 'updateWithDate'])
+    Route::post('/{year}/{month}/{sermon:slug}/edit', [SermonAdminController::class, 'updateWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
+        ->middleware('auth')
         ->name('updateSermonWithDate');
-    Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonController::class, 'destroyWithDate'])
+    Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonAdminController::class, 'destroyWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
+        ->middleware('auth')
         ->name('destroySermonWithDate');
 
     // Audio serving route
-    Route::get('/{sermon:slug}/audio', [SermonController::class, 'serveAudio'])->name('serveSermonAudio');
+    Route::get('/{sermon:slug}/audio', [SermonAssetController::class, 'serveAudio'])->name('serveSermonAudio');
 
     // Thumbnail serving route
-    Route::get('/{sermon:slug}/thumbnail', [SermonController::class, 'serveThumbnail'])->name('serveSermonThumbnail');
+    Route::get('/{sermon:slug}/thumbnail', [SermonAssetController::class, 'serveThumbnail'])->name('serveSermonThumbnail');
 
     // Fallback slug-only routes
     Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');
-    Route::get('/{sermon:slug}/edit', [SermonController::class, 'edit'])->name('editSermon');
-    Route::post('/{sermon:slug}/edit', [SermonController::class, 'update'])->name('updateSermon');
-    Route::post('/{sermon:slug}/delete', [SermonController::class, 'destroy'])->name('destroySermon');
+    Route::get('/{sermon:slug}/edit', [SermonAdminController::class, 'edit'])->middleware('auth')->name('editSermon');
+    Route::post('/{sermon:slug}/edit', [SermonAdminController::class, 'update'])->middleware('auth')->name('updateSermon');
+    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware('auth')->name('destroySermon');
 });
 
 // Members routes
@@ -157,7 +155,6 @@ Route::middleware('auth')->group(function () {
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
     Route::get('', MemberController::class)->name('memberHome');
     // Pages resource removed - now handled by Filament at /admin/pages
-    Route::resource('sermons', SermonController::class);
     // Meetings resource removed - now handled by Filament at /admin/meetings
 
     // Calendar admin routes
@@ -167,48 +164,14 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
     Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
 
     // Unified media upload route (replaces smart-upload)
-    Route::get('sermon-upload', [SermonController::class, 'upload'])->name('admin.sermon-upload.create');
-    Route::post('sermon-upload', [SermonController::class, 'processMedia'])->name('admin.sermon-upload.store');
+    Route::get('sermon-upload', [SermonAdminController::class, 'upload'])->name('admin.sermon-upload.create');
+    Route::post('sermon-upload', [SermonAdminController::class, 'processMedia'])->name('admin.sermon-upload.store');
 });
 
 Route::get('phpinfo', fn () => phpinfo())->middleware('admin');
 
 // Sitemap route
-Route::get('/sitemap.xml', function () {
-    $sitemapPath = public_path('sitemap.xml');
-
-    $generateSitemap = function () use ($sitemapPath) {
-        Sitemap::create()
-            // Static high-priority URLs
-            ->add(Url::create('/')->setPriority(1.0)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/christ')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/church')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/community')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/calendar')->setPriority(0.5)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/christ/sermons')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY))
-
-            // Dynamic content via Sitemapable models
-            ->add(Sermon::all())
-            ->add(Page::where('admin', 'no')->get()) // Only include non-admin pages
-            ->add(Meeting::all())
-
-            ->writeToFile($sitemapPath);
-
-        return true;
-    };
-
-    // Laravel 12 flexible cache: fresh for 1 day, stale for 2 days
-    Cache::flexible('sitemap', [86400, 172800], $generateSitemap);
-
-    // Regenerate if file is missing (e.g., manually deleted)
-    if (! file_exists($sitemapPath)) {
-        $generateSitemap();
-    }
-
-    return response(file_get_contents($sitemapPath), 200, [
-        'Content-Type' => 'application/xml',
-    ]);
-})->name('sitemap');
+Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 
 // Permanent Redirects (fixed with absolute paths)
 // Specific whats-on/* redirects must come before general whats-on redirect

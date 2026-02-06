@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Services\CalendarService;
+use Illuminate\View\View;
 
 class CalendarController extends Controller
 {
-    public function index()
+    public function index(): View
     {
         $allEvents = CalendarEvent::with('meeting')
             ->upcoming()
@@ -21,7 +22,7 @@ class CalendarController extends Controller
         return view('calendar.index', compact('allEvents'));
     }
 
-    public function meetingsIndex()
+    public function meetingsIndex(): View
     {
         $meetings = Meeting::with([
             'calendarEvents' => function ($query) {
@@ -35,7 +36,7 @@ class CalendarController extends Controller
         return view('meetings.index', compact('meetings'));
     }
 
-    public function eventsForMeeting(Meeting $meeting)
+    public function eventsForMeeting(Meeting $meeting): View
     {
         $calendarService = app(CalendarService::class);
         $events = $calendarService->getEventsForMeeting($meeting->slug)
@@ -44,7 +45,7 @@ class CalendarController extends Controller
         return view('meetings.events', compact('meeting', 'events'));
     }
 
-    public function uncategorized()
+    public function uncategorized(): View
     {
         $calendarService = app(CalendarService::class);
         $uncategorizedEvents = $calendarService->getUncategorizedEvents()
