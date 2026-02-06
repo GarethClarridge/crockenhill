@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Data\SermonAnalysis;
 use App\Models\MediaProcessingLog;
-use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use App\Services\SermonAnalysisService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -32,7 +32,8 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        private MediaProcessingLog $processingLog
+        private MediaProcessingLog $processingLog,
+        private readonly SermonRepository $sermonRepository = new SermonRepository
     ) {}
 
     /**
@@ -193,13 +194,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
     private function getExistingSeries(): array
     {
-        return Sermon::whereNotNull('series')
-            ->where('series', '!=', '')
-            ->distinct()
-            ->pluck('series')
-            ->filter()
-            ->values()
-            ->toArray();
+        return $this->sermonRepository->getExistingSeries();
     }
 
     private function createFallbackAnalysis(): ?SermonAnalysis

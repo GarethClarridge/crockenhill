@@ -13,8 +13,6 @@ use Intervention\Image\Facades\Image;
 
 class ThumbnailGenerationService
 {
-    private VideoSegmentationService $videoService;
-
     private string $storageDisk;
 
     private string $storagePath;
@@ -25,9 +23,9 @@ class ThumbnailGenerationService
 
     private array $config;
 
-    public function __construct(VideoSegmentationService $videoService)
-    {
-        $this->videoService = $videoService;
+    public function __construct(
+        private readonly VideoSegmentationService $videoService
+    ) {
         $this->config = config('thumbnail-generation');
 
         $this->storageDisk = $this->config['storage']['disk'];

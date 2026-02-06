@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
-use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use OpenAI\Exceptions\ErrorException;
@@ -23,7 +23,8 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
     public function __construct(
         private readonly MediaProcessingLogger $logger,
-        private readonly BritishEnglishConverter $britishEnglishConverter
+        private readonly BritishEnglishConverter $britishEnglishConverter,
+        private readonly SermonRepository $sermonRepository
     ) {
         // Only verify OpenAI API key if using the OpenAI service
         $analysisService = config('media-processing.analysis.service', 'openai');
@@ -508,28 +509,14 @@ PROMPT;
      */
     private function getExistingSeries(): array
     {
-        try {
-            $series = Sermon::whereNotNull('series')
-                ->where('series', '!=', '')
-                ->distinct()
-                ->pluck('series')
-                ->filter()
-                ->values()
-                ->toArray();
+        $series = $this->sermonRepository->getExistingSeries();
 
-            Log::info('Retrieved existing series from database', [
-                'count' => count($series),
-                'series' => $series,
-            ]);
+        Log::info('Retrieved existing series from database', [
+            'count' => count($series),
+            'series' => $series,
+        ]);
 
-            return $series;
-        } catch (Exception $e) {
-            Log::warning('Failed to retrieve existing series from database', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
-        }
+        return $series;
     }
 
     /**

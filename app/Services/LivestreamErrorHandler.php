@@ -9,12 +9,9 @@ use Illuminate\Support\Facades\Mail;
 
 class LivestreamErrorHandler
 {
-    private LivestreamProcessingLogger $logger;
-
-    public function __construct(LivestreamProcessingLogger $logger)
-    {
-        $this->logger = $logger;
-    }
+    public function __construct(
+        private readonly LivestreamProcessingLogger $logger
+    ) {}
 
     public function handleProcessingFailure(string $processingId, \Throwable $exception, string $step = 'unknown'): void
     {

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Repositories\SermonRepository;
 use App\Services\BritishEnglishConverter;
 use App\Services\SermonAnalysisService;
 use Exception;
@@ -15,7 +16,8 @@ class SermonAnalysisTest extends TestCase
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
         $converter = app(BritishEnglishConverter::class);
-        $service = new SermonAnalysisService($logger, $converter);
+        $repository = app(SermonRepository::class);
+        $service = new SermonAnalysisService($logger, $converter, $repository);
         $this->assertInstanceOf(SermonAnalysisService::class, $service);
     }
 
@@ -29,6 +31,7 @@ class SermonAnalysisTest extends TestCase
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
         $converter = app(BritishEnglishConverter::class);
-        new SermonAnalysisService($logger, $converter);
+        $repository = app(SermonRepository::class);
+        new SermonAnalysisService($logger, $converter, $repository);
     }
 }

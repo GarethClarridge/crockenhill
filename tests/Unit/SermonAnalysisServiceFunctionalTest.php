@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use App\Services\BritishEnglishConverter;
 use App\Services\SermonAnalysisService;
 use Exception;
@@ -30,7 +31,8 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
         $converter = app(BritishEnglishConverter::class);
-        $this->service = new SermonAnalysisService($logger, $converter);
+        $repository = app(SermonRepository::class);
+        $this->service = new SermonAnalysisService($logger, $converter, $repository);
     }
 
     #[Test]
@@ -46,7 +48,8 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
 
         $logger = app(\App\Services\MediaProcessingLogger::class);
         $converter = app(BritishEnglishConverter::class);
-        new SermonAnalysisService($logger, $converter);
+        $repository = app(SermonRepository::class);
+        new SermonAnalysisService($logger, $converter, $repository);
     }
 
     #[Test]

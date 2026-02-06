@@ -13,12 +13,9 @@ class MockTranscriptionService implements TranscriptionServiceInterface
 
     private const DEFAULT_TRANSCRIPT_PATH = 'transcripts/sermon_7.md';
 
-    protected SermonProcessingLogger $logger;
-
-    public function __construct(MediaProcessingLogger $logger)
-    {
-        $this->logger = $logger;
-    }
+    public function __construct(
+        private readonly MediaProcessingLogger $logger
+    ) {}
 
     /**
      * Mock transcription that returns the sermon_7.md content

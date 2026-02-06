@@ -24,10 +24,9 @@ class VideoStorageService implements VideoStorageServiceInterface
 
     private string $audioPath;
 
-    private VideoExtractionService $videoExtractor;
-
-    public function __construct(VideoExtractionService $videoExtractor)
-    {
+    public function __construct(
+        private readonly VideoExtractionService $videoExtractor
+    ) {
         // Skip FFmpeg initialization in testing environment to prevent hangs
         if (! app()->environment('testing')) {
             $this->ffmpeg = FFMpeg::create([
@@ -41,7 +40,6 @@ class VideoStorageService implements VideoStorageServiceInterface
         $this->permanentDisk = config('media-processing.storage.sermon_disk', 'public');
         $this->videoPath = config('media-processing.storage.paths.video', 'sermons/videos');
         $this->audioPath = config('media-processing.storage.paths.audio', 'sermons/audio');
-        $this->videoExtractor = $videoExtractor;
     }
 
     public function storeUploadedVideo(UploadedFile $file): array
