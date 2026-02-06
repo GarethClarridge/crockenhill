@@ -87,8 +87,6 @@ class Sermon extends Model implements Sitemapable
 {
     use HasFactory;
 
-    protected $table = 'sermons';
-
     public $timestamps = false;
 
     /**

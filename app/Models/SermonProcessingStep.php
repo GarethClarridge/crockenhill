@@ -23,8 +23,6 @@ class SermonProcessingStep extends Model
 {
     use HasFactory;
 
-    protected $table = 'sermon_processing_steps';
-
     /**
      * The attributes that are mass assignable.
      */

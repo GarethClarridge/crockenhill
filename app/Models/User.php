@@ -38,11 +38,6 @@ class User extends Authenticatable implements MustVerifyEmail
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * The database table used by the model.
-     */
-    protected $table = 'users';
-
-    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>

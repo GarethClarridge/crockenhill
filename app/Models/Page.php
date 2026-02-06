@@ -51,8 +51,6 @@ class Page extends Model implements HasMedia, Sitemapable
     use HasFactory;
     use InteractsWithMedia;
 
-    protected $table = 'pages';
-
     /**
      * The attributes that are mass assignable.
      *

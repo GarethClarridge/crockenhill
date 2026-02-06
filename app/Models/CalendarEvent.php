@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -23,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class CalendarEvent extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'google_event_id',
         'meeting_slug',
@@ -53,17 +56,17 @@ class CalendarEvent extends Model
         return $this->belongsTo(Meeting::class, 'meeting_slug', 'slug');
     }
 
-    public function scopeUpcoming($query): Builder
+    public function scopeUpcoming(Builder $query): Builder
     {
         return $query->where('start_datetime', '>=', now());
     }
 
-    public function scopePast($query): Builder
+    public function scopePast(Builder $query): Builder
     {
         return $query->where('start_datetime', '<', now());
     }
 
-    public function scopeConfirmed($query): Builder
+    public function scopeConfirmed(Builder $query): Builder
     {
         return $query->where('status', 'confirmed');
     }

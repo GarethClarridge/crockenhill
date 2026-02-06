@@ -102,8 +102,6 @@ class Meeting extends Model implements HasMedia, Sitemapable
         ];
     }
 
-    protected $table = 'meetings';
-
     /**
      * Get the route key for the model.
      */
