@@ -466,7 +466,7 @@ class MediaUpload extends Component
         }
     }
 
-    private function handleUploadError(string $message): void
+    public function handleUploadError(string $message): void
     {
         $this->status = 'failed';
         $this->errorMessage = $message;

@@ -2,10 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Models\MediaProcessingLog;
 use App\Repositories\SermonRepository;
-use App\Services\SermonAnalysisService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -39,7 +39,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(SermonAnalysisService $analysisService): void
+    public function handle(SermonAnalysisInterface $analysisService): void
     {
         try {
             Log::info('Starting AI transcript processing', [

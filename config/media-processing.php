@@ -79,6 +79,12 @@ return [
         'timeout' => 300,
     ],
 
+    'analysis' => [
+        'service' => env('ANALYSIS_SERVICE', 'mock'),
+        'openai_api_key' => env('OPENAI_API_KEY'),
+        'model' => env('ANALYSIS_MODEL', 'gpt-3.5-turbo'),
+    ],
+
     'ffmpeg' => [
         'ffmpeg_path' => env('FFMPEG_PATH', '/usr/bin/ffmpeg'),
         'ffprobe_path' => env('FFPROBE_PATH', '/usr/bin/ffprobe'),

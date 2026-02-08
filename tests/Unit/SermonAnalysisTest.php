@@ -23,6 +23,7 @@ class SermonAnalysisTest extends TestCase
 
     public function test_service_throws_exception_without_api_key(): void
     {
+        config(['media-processing.analysis.service' => 'openai']);
         config(['media-processing.analysis.openai_api_key' => null]);
         config(['openai.api_key' => null]);
 

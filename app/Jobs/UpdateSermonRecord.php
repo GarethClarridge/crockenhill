@@ -2,10 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
-use App\Services\SermonAnalysisService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -37,7 +37,7 @@ class UpdateSermonRecord implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(SermonAnalysisService $analysisService): void
+    public function handle(SermonAnalysisInterface $analysisService): void
     {
         try {
             Log::info('Starting sermon record update', [
@@ -122,7 +122,7 @@ class UpdateSermonRecord implements ShouldQueue
     /**
      * Get existing analysis or generate new one if needed
      */
-    private function getOrGenerateAnalysis(Sermon $sermon, SermonAnalysisService $analysisService): SermonAnalysis
+    private function getOrGenerateAnalysis(Sermon $sermon, SermonAnalysisInterface $analysisService): SermonAnalysis
     {
         try {
             // Check if we have a transcript to work with

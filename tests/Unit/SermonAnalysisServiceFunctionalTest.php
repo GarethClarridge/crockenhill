@@ -39,6 +39,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     public function it_throws_exception_when_openai_api_key_not_configured(): void
     {
         config([
+            'media-processing.analysis.service' => 'openai',
             'media-processing.analysis.openai_api_key' => '',
             'openai.api_key' => '',
         ]);
