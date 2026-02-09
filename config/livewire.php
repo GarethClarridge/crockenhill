@@ -64,7 +64,7 @@ return [
     */
 
     'temporary_file_upload' => [
-        'disk' => null,        // Example: 'local', 's3'              | Default: 'default'
+        'disk' => 'local',     // Always upload temp files to local disk (not S3/Spaces)
         'rules' => 'file|max:5242880', // 5GB in KB - must be explicit or Livewire uses 12MB default
         'directory' => null,   // Example: 'tmp'                      | Default: 'livewire-tmp'
         'middleware' => null,  // Example: 'throttle:5,1'             | Default: 'throttle:60,1'
