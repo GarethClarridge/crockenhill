@@ -18,6 +18,22 @@ class SitemapTest extends TestCase
     // Seeding on every test is slow but ensures data isolation
     protected $seed = true;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Remove shared sitemap file and cache to prevent parallel test interference
+        @unlink(public_path('sitemap.xml'));
+        Cache::forget('sitemap');
+    }
+
+    protected function tearDown(): void
+    {
+        @unlink(public_path('sitemap.xml'));
+
+        parent::tearDown();
+    }
+
     #[Test]
     public function it_generates_sitemap_xml_successfully(): void
     {
