@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -43,6 +42,15 @@ class SendCompletionNotification implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
+            if (! config('media-processing.email.send_success_notifications')) {
+                Log::info('Success notifications disabled, skipping', [
+                    'processing_id' => $this->processingLog->processing_id,
+                ]);
+                $this->processingLog->updateStep('notification_skipped');
+
+                return;
+            }
+
             // Update processing log to indicate notification started
             $this->processingLog->updateStep('sending_notification');
 
@@ -55,7 +63,7 @@ class SendCompletionNotification implements ShouldQueue
             // Prepare notification data
             $notificationData = $this->prepareNotificationData($sermon, $this->processingLog);
 
-            // Send notifications to administrators
+            // Send notifications to administrator
             $this->sendNotifications($notificationData);
 
             // Update final processing log status
@@ -176,70 +184,54 @@ class SendCompletionNotification implements ShouldQueue
     }
 
     /**
-     * Send notifications to administrators
+     * Send notification to the configured admin email
      */
     private function sendNotifications(array $data): void
     {
-        // Get admin users (assuming they have a specific role or email)
-        $adminUsers = $this->getAdminUsers();
+        $adminEmail = $this->getAdminEmail();
 
-        if (empty($adminUsers)) {
-            Log::warning('No admin users found for notification', [
+        if ($adminEmail === null) {
+            Log::warning('No admin email configured for notification', [
                 'processing_id' => $this->processingLog->processing_id,
             ]);
 
             return;
         }
 
-        foreach ($adminUsers as $admin) {
-            try {
-                $this->sendEmailNotification($admin, $data);
-
-                Log::info('Notification sent to admin', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'admin_email' => $admin->email,
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Failed to send notification to admin', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'admin_email' => $admin->email,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-    }
-
-    /**
-     * Get admin users who should receive notifications
-     */
-    private function getAdminUsers(): array
-    {
         try {
-            // For now, get all users - in a real implementation, you'd filter by role
-            // This could be enhanced with a proper role system
-            $users = User::all();
+            $this->sendEmailNotification($adminEmail, $data);
 
-            // If no users in database, create a fallback notification
-            if ($users->isEmpty()) {
-                Log::info('No users found in database for notification');
-
-                return [];
-            }
-
-            return $users->all();
+            Log::info('Notification sent to admin', [
+                'processing_id' => $this->processingLog->processing_id,
+                'admin_email' => $adminEmail,
+            ]);
         } catch (\Exception $e) {
-            Log::error('Failed to retrieve admin users', [
+            Log::error('Failed to send notification to admin', [
+                'processing_id' => $this->processingLog->processing_id,
+                'admin_email' => $adminEmail,
                 'error' => $e->getMessage(),
             ]);
-
-            return [];
         }
     }
 
     /**
-     * Send email notification to admin user
+     * Get the admin email address from configuration
      */
-    private function sendEmailNotification(User $admin, array $data): void
+    private function getAdminEmail(): ?string
+    {
+        $email = config('media-processing.email.admin_email');
+
+        if (empty($email)) {
+            return null;
+        }
+
+        return $email;
+    }
+
+    /**
+     * Send email notification to admin
+     */
+    private function sendEmailNotification(string $adminEmail, array $data): void
     {
         $subject = $data['processing']['has_errors']
           ? "Sermon Processing Completed with Issues - {$data['sermon']['title']}"
@@ -247,25 +239,20 @@ class SendCompletionNotification implements ShouldQueue
 
         $message = $this->buildEmailMessage($data);
 
-        // For now, just log the notification content
-        // In a real implementation, you'd use Laravel's Mail facade
         Log::info('Email notification content', [
-            'to' => $admin->email,
+            'to' => $adminEmail,
             'subject' => $subject,
             'message' => $message,
         ]);
 
-        // Send email notification with error handling
-        // Note: Since this job itself is already queued, we send the email directly
-        // to avoid double-queueing. The job's retry logic handles email failures.
         try {
-            Mail::raw($message, function ($mail) use ($admin, $subject) {
-                $mail->to($admin->email)
+            Mail::raw($message, function ($mail) use ($adminEmail, $subject) {
+                $mail->to($adminEmail)
                     ->subject($subject);
             });
         } catch (\Exception $e) {
             Log::warning('Failed to send sermon completion email, continuing processing', [
-                'admin_email' => $admin->email,
+                'admin_email' => $adminEmail,
                 'processing_id' => $this->processingLog->processing_id,
                 'email_error' => $e->getMessage(),
             ]);

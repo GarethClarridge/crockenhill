@@ -13,6 +13,7 @@ use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\User;
 use App\Services\AudioTranscriptionService;
 use App\Services\MediaProcessingLogger;
 use App\Services\SermonAnalysisService;
@@ -385,6 +386,11 @@ class SermonProcessingJobChainTest extends TestCase
     {
         Mail::fake();
 
+        config([
+            'media-processing.email.send_success_notifications' => true,
+            'media-processing.email.admin_email' => 'admin@example.com',
+        ]);
+
         // Create completed sermon
         $sermon = Sermon::factory()->create([
             'title' => 'Completed Sermon',
@@ -409,6 +415,71 @@ class SermonProcessingJobChainTest extends TestCase
         $job->handle();
 
         // Assert processing log was updated
+        $processingLog->refresh();
+        $this->assertEquals('notification_sent', $processingLog->current_step);
+    }
+
+    #[Test]
+    public function it_skips_notification_when_success_notifications_disabled(): void
+    {
+        Mail::fake();
+
+        config(['media-processing.email.send_success_notifications' => false]);
+
+        $sermon = Sermon::factory()->create(['title' => 'Test Sermon']);
+
+        $processingLog = MediaProcessingLog::create([
+            'processing_id' => 'skip-test-id',
+            'processing_type' => 'audio',
+            'original_filename' => 'test-audio.mp3',
+            'status' => ProcessingStatus::PROCESSING,
+            'current_step' => 'updating_sermon_record',
+            'sermon_id' => $sermon->id,
+        ]);
+
+        $job = new SendCompletionNotification($processingLog);
+        $job->handle();
+
+        Mail::assertNothingSent();
+
+        $processingLog->refresh();
+        $this->assertEquals('notification_skipped', $processingLog->current_step);
+    }
+
+    #[Test]
+    public function it_sends_notification_only_to_configured_admin_email_not_all_users(): void
+    {
+        // Spy on Mail to count raw() calls
+        Mail::shouldReceive('raw')->once()->andReturnNull();
+
+        config([
+            'media-processing.email.send_success_notifications' => true,
+            'media-processing.email.admin_email' => 'admin@example.com',
+        ]);
+
+        // Create multiple users to ensure they don't all receive the email
+        User::factory()->count(5)->create();
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Test Sermon',
+            'slug' => 'test-sermon',
+            'series' => 'Test Series',
+            'reference' => 'John 3:16',
+            'points' => ['Point 1', 'Point 2'],
+        ]);
+
+        $processingLog = MediaProcessingLog::create([
+            'processing_id' => 'admin-only-test',
+            'processing_type' => 'audio',
+            'original_filename' => 'test-audio.mp3',
+            'status' => ProcessingStatus::PROCESSING,
+            'current_step' => 'updating_sermon_record',
+            'sermon_id' => $sermon->id,
+        ]);
+
+        $job = new SendCompletionNotification($processingLog);
+        $job->handle();
+
         $processingLog->refresh();
         $this->assertEquals('notification_sent', $processingLog->current_step);
     }
