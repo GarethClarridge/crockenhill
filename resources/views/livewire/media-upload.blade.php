@@ -12,6 +12,17 @@
             this.setupUploadListeners();
         },
 
+        resetUploadTimeout() {
+            clearTimeout(this.uploadTimeout);
+            this.uploadTimeout = setTimeout(() => {
+                console.error('Upload stalled - no progress for 5 minutes');
+                @this.call('handleUploadError', 'Upload stalled. Please check your connection and try again.');
+                if (Livewire.find(this.componentId)) {
+                    Livewire.find(this.componentId).cancelUpload('mediaFile');
+                }
+            }, 5 * 60 * 1000); // 5 minutes without progress
+        },
+
         setupUploadListeners() {
             // Livewire upload events
             window.addEventListener('livewire-upload-start', (event) => {
@@ -20,19 +31,15 @@
                     @this.set('isUploading', true);
                     @this.set('status', 'uploading');
 
-                    // Start 10-minute timeout for network disconnection detection
-                    this.uploadTimeout = setTimeout(() => {
-                        console.error('Upload timeout - network issue suspected');
-                        @this.call('handleUploadError', 'Upload timed out. Please check your connection and try again.');
-                        if (Livewire.find(this.componentId)) {
-                            Livewire.find(this.componentId).cancelUpload('mediaFile');
-                        }
-                    }, 10 * 60 * 1000); // 10 minutes
+                    this.resetUploadTimeout();
                 }
             });
 
             window.addEventListener('livewire-upload-progress', (event) => {
                 if (event.detail.id === this.componentId && event.detail.property === 'mediaFile') {
+                    // Reset stall timeout on every progress event
+                    this.resetUploadTimeout();
+
                     const now = Date.now();
 
                     // Throttle to max 2 updates per second
