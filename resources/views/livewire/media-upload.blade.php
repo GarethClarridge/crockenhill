@@ -36,25 +36,25 @@
             });
 
             window.addEventListener('livewire-upload-progress', (event) => {
-                if (event.detail.id === this.componentId && event.detail.property === 'mediaFile') {
-                    // Reset stall timeout on every progress event
-                    this.resetUploadTimeout();
+                // Livewire's progress event only contains { progress } in detail,
+                // unlike start/finish/error which include { id, property }.
+                // No component guard needed — only one upload runs at a time.
+                this.resetUploadTimeout();
 
-                    const now = Date.now();
+                const now = Date.now();
 
-                    // Throttle to max 2 updates per second
-                    if (now - this.lastProgressUpdate < this.progressThrottleMs) {
-                        return;
-                    }
-
-                    this.lastProgressUpdate = now;
-                    const progress = Math.round(event.detail.progress);
-                    const loaded = event.detail.loaded || 0;
-                    const total = event.detail.total || 0;
-
-                    console.log('Upload progress:', progress + '%', loaded, '/', total);
-                    @this.call('updateUploadProgress', progress, loaded, total);
+                // Throttle to max 2 updates per second
+                if (now - this.lastProgressUpdate < this.progressThrottleMs) {
+                    return;
                 }
+
+                this.lastProgressUpdate = now;
+                const progress = Math.round(event.detail.progress);
+                const loaded = event.detail.loaded || 0;
+                const total = event.detail.total || 0;
+
+                console.log('Upload progress:', progress + '%', loaded, '/', total);
+                @this.call('updateUploadProgress', progress, loaded, total);
             });
 
             window.addEventListener('livewire-upload-finish', (event) => {
