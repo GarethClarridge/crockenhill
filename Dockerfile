@@ -79,11 +79,13 @@ COPY docker/production/php.ini /etc/php/8.4/fpm/conf.d/99-app.ini
 COPY docker/production/php.ini /etc/php/8.4/cli/conf.d/99-app.ini
 COPY docker/production/php-fpm.conf /etc/php/8.4/fpm/pool.d/www.conf
 COPY docker/production/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/production/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Directories and permissions
 RUN mkdir -p /run/php /var/log/supervisor \
     && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
-    && mkdir -p storage/app/livewire-tmp \
+    && mkdir -p storage/app/livewire-tmp storage/app/temp \
     && chown -R www:www storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
@@ -101,4 +103,4 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -fsS http://localhost/up || exit 1
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["/usr/local/bin/entrypoint.sh"]

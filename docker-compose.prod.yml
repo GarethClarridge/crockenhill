@@ -35,6 +35,9 @@ services:
     volumes:
       # Persist local storage (pages, temporary files - sermons are in Spaces)
       - app-storage:/var/www/html/storage/app/public
+      # Temp storage for large file uploads (Livewire uploads + processing)
+      - app-temp:/var/www/html/storage/app/temp
+      - app-livewire-tmp:/var/www/html/storage/app/livewire-tmp
       # Persist logs for debugging (also captured by Docker logging below)
       - app-logs:/var/www/html/storage/logs
     logging:
@@ -98,6 +101,8 @@ volumes:
   caddy-data:      # Let's Encrypt certificates
   caddy-config:    # Caddy configuration cache
   app-storage:     # Laravel storage (non-Spaces files)
+  app-temp:        # Temp storage for large file uploads and processing
+  app-livewire-tmp: # Livewire temporary file uploads
   app-logs:        # Laravel logs (persisted across container restarts)
   mysql-data:      # Database persistence
   redis-data:      # Queue/cache persistence
