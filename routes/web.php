@@ -117,7 +117,7 @@ Route::get('verify-email', function () {
 // Admin routes (Livewire)
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     // Redirect /admin to members home - all admin functions accessible from there
-    Route::get('/', fn () => redirect('/church/members'))->name('dashboard');
+    Route::redirect('/', '/church/members')->name('dashboard');
 
     // Pages
     Route::get('/pages', App\Livewire\Admin\Pages\ListPages::class)->name('pages.index');
@@ -145,11 +145,11 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
 // Redirect old admin routes to new admin
 Route::middleware('auth')->group(function () {
-    Route::get('/church/members/pages', fn () => redirect('/admin/pages'));
-    Route::get('/church/members/pages/create', fn () => redirect('/admin/pages/create'));
+    Route::redirect('/church/members/pages', '/admin/pages');
+    Route::redirect('/church/members/pages/create', '/admin/pages/create');
+    Route::redirect('/church/members/meetings', '/admin/meetings');
+    Route::redirect('/church/members/meetings/create', '/admin/meetings/create');
     Route::get('/church/members/pages/{page}/edit', fn (Page $page) => redirect("/admin/pages/{$page->slug}/edit"));
-    Route::get('/church/members/meetings', fn () => redirect('/admin/meetings'));
-    Route::get('/church/members/meetings/create', fn () => redirect('/admin/meetings/create'));
     Route::get('/church/members/meetings/{meeting}/edit', fn (Meeting $meeting) => redirect("/admin/meetings/{$meeting->slug}/edit"));
 });
 
@@ -169,7 +169,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
     Route::post('sermon-upload', [SermonAdminController::class, 'processMedia'])->name('admin.sermon-upload.store');
 });
 
-Route::get('phpinfo', fn () => phpinfo())->middleware('admin');
+Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware('admin');
 
 // Sitemap route
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');

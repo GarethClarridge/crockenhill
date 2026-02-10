@@ -130,17 +130,18 @@ All three deprecated accessor/mutator pairs removed from Sermon.php:
 
 ### Priority 2 - Moderate Impact (formerly Priority 1 complete)
 
-#### 2.1 Remaining Route Closures
+#### 2.1 Route Cleanup - COMPLETED
 
-A few route closures remain in [web.php](routes/web.php):
+All route closures in [web.php](routes/web.php) have been optimized:
 
-| Location | Route | Recommendation |
-|----------|-------|----------------|
-| Line 109-111 | Password reset `reset-password/{token}` | Closure passes `$token` to view - could use `Route::view()` if token is passed as route parameter |
-| Line 120 | Admin dashboard redirect | Replace with `Route::redirect('admin', '/church/members')` |
-| Lines 148-154 | Admin redirect group (pages/meetings) | Replace closures with `Route::redirect()` where possible |
-| Line 172 | `phpinfo` route | Acceptable as closure; consider restricting to local environment |
-| Line 229-231 | `500` error test route | Acceptable as closure for testing |
+| Location | Route | Status |
+|----------|-------|--------|
+| Line 109-111 | Password reset `reset-password/{token}` | ✅ Kept as closure (requires parameter passing to view) |
+| Line 120 | Admin dashboard redirect | ✅ Changed to `Route::redirect('/', '/church/members')` |
+| Lines 148-151 | Admin redirect group (pages/meetings) | ✅ Converted 4 static redirects to `Route::redirect()` |
+| Line 152-153 | Admin redirects with model binding | ✅ Kept as closures (require dynamic slug extraction) |
+| Line 172 | `phpinfo` route | ✅ Added environment check: `app()->isLocal() ? phpinfo() : abort(404)` |
+| Lines 229-231 | `500` error test route | ✅ Kept as closure for testing |
 
 #### 2.3 Missing Return Type Declarations on Controller Methods
 
@@ -332,7 +333,7 @@ These areas are at or above Laravel 12 standards and need no changes:
 
 1. **Quick wins (30 mins):** ✅ **COMPLETED** — Added return types to 6 controller methods, removed unused `transcript_path` accessor, fixed 3x `.webp` fallback bug, added `BelongsTo` import to Sermon model
 2. **Deprecated accessor migration (1-2 hours):** ✅ **COMPLETED** — Updated `ThumbnailGenerationService`, `StandardProcessingResponse`, 3 test files to use `thumbnail_file_path`; updated 3 console commands to use `audio_file_path`; fixed broken raw SQL column references; removed all 3 deprecated accessor pairs from Sermon model
-3. **Route cleanup (30 mins):** Replace remaining closures with `Route::redirect()`, add environment check to phpinfo route
+3. **Route cleanup (30 mins):** ✅ **COMPLETED** — Replaced 4 static admin redirects with `Route::redirect()`, added `app()->isLocal()` check to phpinfo route, kept parameter-dependent closures as-is
 4. **Exception hierarchy (2-3 hours):** Create custom exception classes, incrementally replace generic `catch (\Exception)` blocks in the 4 largest services
 5. **Service extraction (ongoing):** Extract `AudioChunkingService`, `FrameExtractionService`, `RmsAnalysisService` from oversized services
 6. **Test coverage (ongoing):** Prioritise tests for core processing services, then jobs, then mailables
