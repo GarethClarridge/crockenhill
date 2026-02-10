@@ -6,6 +6,7 @@
         lastProgressUpdate: 0,
         progressThrottleMs: 500,
         uploadTimeout: null,
+        lastActivityTime: Date.now(),
 
         init() {
             this.componentId = @this.__instance.id;
@@ -14,13 +15,28 @@
 
         resetUploadTimeout() {
             clearTimeout(this.uploadTimeout);
+            this.lastActivityTime = Date.now();
+
+            const STALL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
             this.uploadTimeout = setTimeout(() => {
+                const elapsed = Date.now() - this.lastActivityTime;
+
+                // If elapsed time significantly exceeds the timeout,
+                // the device likely slept. Give the upload another chance.
+                if (elapsed > STALL_TIMEOUT_MS * 1.5) {
+                    console.warn('Device likely slept during upload. Resetting stall timer.');
+                    this.resetUploadTimeout();
+                    return;
+                }
+
+                // Genuine stall — no progress while device was awake
                 console.error('Upload stalled - no progress for 5 minutes');
                 @this.call('handleUploadError', 'Upload stalled. Please check your connection and try again.');
                 if (Livewire.find(this.componentId)) {
                     Livewire.find(this.componentId).cancelUpload('mediaFile');
                 }
-            }, 5 * 60 * 1000); // 5 minutes without progress
+            }, STALL_TIMEOUT_MS);
         },
 
         setupUploadListeners() {
