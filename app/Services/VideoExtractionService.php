@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\VideoProcessingException;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
@@ -29,11 +30,11 @@ class VideoExtractionService
         // Validate FFmpeg binary exists and is executable (skip in testing environment)
         if (! app()->environment('testing')) {
             if (! $ffmpegPath || ! file_exists($ffmpegPath) || ! is_executable($ffmpegPath)) {
-                throw new \Exception("FFmpeg binary not found or not executable at: {$ffmpegPath}");
+                throw new VideoProcessingException("FFmpeg binary not found or not executable at: {$ffmpegPath}");
             }
 
             if (! $ffprobePath || ! file_exists($ffprobePath) || ! is_executable($ffprobePath)) {
-                throw new \Exception("FFprobe binary not found or not executable at: {$ffprobePath}");
+                throw new VideoProcessingException("FFprobe binary not found or not executable at: {$ffprobePath}");
             }
         }
 
@@ -60,7 +61,7 @@ class VideoExtractionService
                     'ffprobe_path' => $ffprobePath,
                     'error' => $e->getMessage(),
                 ]);
-                throw new \Exception("Failed to initialize FFmpeg: {$e->getMessage()}");
+                throw new VideoProcessingException("Failed to initialize FFmpeg: {$e->getMessage()}", 0, $e);
             }
         }
 
@@ -140,7 +141,7 @@ class VideoExtractionService
 
             // Check if file was created - use appropriate method for temp disk
             if (! $this->fileExists($tempPath, $tempDisk)) {
-                throw new \Exception('Output file was not created: '.$tempPath);
+                throw new VideoProcessingException('Output file was not created: '.$tempPath);
             }
 
             Log::info('Video segment extracted with stream copy (original quality)', [
@@ -176,7 +177,7 @@ class VideoExtractionService
         $endTime = $segment->endTime ?? $segment->end_time ?? 0;
 
         if ($startTime >= $endTime) {
-            throw new \Exception('Invalid segment times: start time must be less than end time');
+            throw new VideoProcessingException('Invalid segment times: start time must be less than end time');
         }
 
         $duration = $endTime - $startTime;
@@ -242,7 +243,7 @@ class VideoExtractionService
                 'error_class' => get_class($e),
             ]);
 
-            throw new \Exception('Failed to extract video segment: '.$e->getMessage());
+            throw new VideoProcessingException('Failed to extract video segment: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -414,7 +415,7 @@ class VideoExtractionService
 
             // Validate input video exists
             if (! file_exists($inputVideoPath)) {
-                throw new \Exception("Input video file not found: {$inputVideoPath}");
+                throw new VideoProcessingException("Input video file not found: {$inputVideoPath}");
             }
 
             $config = config('media-processing.audio_extraction.transcription_optimized');
@@ -434,7 +435,7 @@ class VideoExtractionService
 
             // CRITICAL: Immediately check if FFmpeg actually created the file
             if (! file_exists($processingPath)) {
-                throw new \Exception("FFmpeg failed to create audio file at: {$processingPath}. Check FFmpeg installation and permissions.");
+                throw new VideoProcessingException("FFmpeg failed to create audio file at: {$processingPath}. Check FFmpeg installation and permissions.");
             }
 
             $validation = $this->validateAudioFileSize($processingPath);
@@ -635,7 +636,7 @@ class VideoExtractionService
         try {
             if (! is_dir($directory)) {
                 if (! mkdir($directory, 0755, true)) {
-                    throw new \Exception("Failed to create directory: {$directory}");
+                    throw new VideoProcessingException("Failed to create directory: {$directory}");
                 }
 
                 Log::info('Created directory for audio extraction', [
@@ -645,7 +646,7 @@ class VideoExtractionService
             }
 
             if (! is_writable($directory)) {
-                throw new \Exception("Directory is not writable: {$directory}");
+                throw new VideoProcessingException("Directory is not writable: {$directory}");
             }
         } catch (\Exception $e) {
             Log::error('Directory creation failed', [
@@ -654,7 +655,7 @@ class VideoExtractionService
                 'permanent_disk' => $this->permanentDisk,
                 'is_s3_disk' => $this->isS3Disk($this->permanentDisk),
             ]);
-            throw new \Exception("Directory operation failed for: {$directory}. Error: {$e->getMessage()}");
+            throw new VideoProcessingException("Directory operation failed for: {$directory}. Error: {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -682,7 +683,7 @@ class VideoExtractionService
             try {
                 $fileStream = fopen($localFilePath, 'r');
                 if (! $fileStream) {
-                    throw new \Exception("Unable to open local file for S3 upload: {$localFilePath}");
+                    throw new VideoProcessingException("Unable to open local file for S3 upload: {$localFilePath}");
                 }
 
                 $startTime = microtime(true);
@@ -691,12 +692,12 @@ class VideoExtractionService
                 fclose($fileStream);
 
                 if (! $success) {
-                    throw new \Exception("Failed to upload file to permanent storage: {$permanentPath}");
+                    throw new VideoProcessingException("Failed to upload file to permanent storage: {$permanentPath}");
                 }
 
                 // Verify file was uploaded successfully
                 if (! Storage::disk($this->permanentDisk)->exists($permanentPath)) {
-                    throw new \Exception("File upload appeared successful but file not found in storage: {$permanentPath}");
+                    throw new VideoProcessingException("File upload appeared successful but file not found in storage: {$permanentPath}");
                 }
 
                 if (config('media-processing.log_s3_operations', true)) {
@@ -726,7 +727,7 @@ class VideoExtractionService
                 ]);
 
                 if ($isLastAttempt) {
-                    throw new \Exception("Failed to upload file to S3 after {$maxRetries} attempts. Last error: {$e->getMessage()}");
+                    throw new VideoProcessingException("Failed to upload file to S3 after {$maxRetries} attempts. Last error: {$e->getMessage()}", 0, $e);
                 }
 
                 // Wait before retrying
@@ -735,7 +736,7 @@ class VideoExtractionService
         }
 
         // This should never be reached, but PHPStan requires it
-        throw new \Exception('Unexpected end of upload attempts');
+        throw new VideoProcessingException('Unexpected end of upload attempts');
     }
 
     /**

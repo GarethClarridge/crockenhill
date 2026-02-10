@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Data\LivestreamSegment;
+use App\Exceptions\SegmentationException;
 use FFMpeg\FFMpeg;
 use FFMpeg\FFProbe;
 use Illuminate\Support\Facades\Log;
@@ -77,7 +78,7 @@ class VideoSegmentationService
             }
 
             if (! $this->fileExists($fullRmsLogPath, $rmsLogPath) || $this->getFileSize($fullRmsLogPath, $rmsLogPath) === 0) {
-                throw new \Exception('Failed to generate RMS log file or file is empty');
+                throw new SegmentationException('Failed to generate RMS log file or file is empty');
             }
 
             Log::info('RMS log generated successfully', ['path' => $rmsLogPath, 'size' => $this->getFileSize($fullRmsLogPath, $rmsLogPath)]);
@@ -104,7 +105,7 @@ class VideoSegmentationService
             $fullRmsLogPath = Storage::disk($this->tempDisk)->path($rmsLogPath);
 
             if (! $this->fileExists($fullRmsLogPath, $rmsLogPath)) {
-                throw new \Exception('RMS log file not found: '.$fullRmsLogPath);
+                throw new SegmentationException('RMS log file not found: '.$fullRmsLogPath);
             }
 
             $logContent = $this->getFileContents($fullRmsLogPath, $rmsLogPath);
@@ -363,7 +364,7 @@ class VideoSegmentationService
         }
 
         // If fallback is disabled and adaptive failed, throw error
-        throw new \Exception('Adaptive threshold calculation failed and fallback is disabled: '.($adaptiveResult['error'] ?? 'unknown_error'));
+        throw new SegmentationException('Adaptive threshold calculation failed and fallback is disabled: '.($adaptiveResult['error'] ?? 'unknown_error'));
     }
 
     /**
@@ -683,7 +684,7 @@ class VideoSegmentationService
             $songRmsValues = $this->extractRmsForTimestamps($rmsData, $songCluster['samples']);
 
             if (empty($songRmsValues)) {
-                throw new \Exception('No RMS data found for song period');
+                throw new SegmentationException('No RMS data found for song period');
             }
 
             $songAvgRms = array_sum($songRmsValues) / count($songRmsValues);

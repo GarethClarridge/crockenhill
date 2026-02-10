@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\TranscriptionServiceInterface;
+use App\Exceptions\TranscriptionException;
 use Exception;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
@@ -298,7 +299,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             ]
         );
 
-        throw new Exception("Transcription failed after {$attempt} attempts: {$errorMessage}");
+        throw new TranscriptionException("Transcription failed after {$attempt} attempts: {$errorMessage}", 0, $lastException);
     }
 
     /**
@@ -344,7 +345,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                     unlink($compressedPath);
                 }
 
-                throw new Exception(
+                throw new TranscriptionException(
                     "Audio file still too large after compression: {$compressedSizeMB}MB (limit: {$maxSizeMB}MB). ".
                     'Consider using a shorter audio segment or manual compression.'
                 );
@@ -366,9 +367,11 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 'error' => $e->getMessage(),
             ]);
 
-            throw new Exception(
+            throw new TranscriptionException(
                 "Audio file too large ({$sizeMB}MB) and compression failed: {$e->getMessage()}. ".
-                "File size limit is {$maxSizeMB}MB. Please ensure audio is compressed for transcription before processing."
+                "File size limit is {$maxSizeMB}MB. Please ensure audio is compressed for transcription before processing.",
+                0,
+                $e
             );
         }
     }
@@ -717,7 +720,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
             return (float) $duration;
         } catch (Exception $e) {
-            throw new Exception('Failed to get audio duration: '.$e->getMessage());
+            throw new TranscriptionException('Failed to get audio duration: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -809,7 +812,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 $e,
                 ['duration' => $duration]
             );
-            throw new Exception('Chunked transcription failed: '.$e->getMessage());
+            throw new TranscriptionException('Chunked transcription failed: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -887,7 +890,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 );
 
             } catch (Exception $e) {
-                throw new Exception("Failed to create chunk {$chunkIndex}: ".$e->getMessage());
+                throw new TranscriptionException("Failed to create chunk {$chunkIndex}: ".$e->getMessage(), 0, $e);
             }
 
             $chunkIndex++;
@@ -1096,7 +1099,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             $audio->save($format, $compressedPath);
 
             if (! file_exists($compressedPath) || filesize($compressedPath) === 0) {
-                throw new Exception('Compressed audio file was not created or is empty');
+                throw new TranscriptionException('Compressed audio file was not created or is empty');
             }
 
             $this->logger->logFileOperation(
@@ -1125,7 +1128,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 unlink($compressedPath);
             }
 
-            throw new Exception("Failed to compress audio for transcription: {$e->getMessage()}");
+            throw new TranscriptionException("Failed to compress audio for transcription: {$e->getMessage()}", 0, $e);
         }
     }
 }
