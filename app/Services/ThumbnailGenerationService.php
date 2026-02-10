@@ -1026,9 +1026,12 @@ class ThumbnailGenerationService
 
             $localTempPath = Storage::disk($this->tempDisk)->path($tempVideoPath);
 
-            // Download S3 file to local temp
-            $videoContent = $diskInstance->get($videoPath);
-            Storage::disk($this->tempDisk)->put($tempVideoPath, $videoContent);
+            // Stream S3 file to local temp (avoids loading entire video into memory)
+            $stream = $diskInstance->readStream($videoPath);
+            Storage::disk($this->tempDisk)->writeStream($tempVideoPath, $stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
 
             return $localTempPath;
         }
