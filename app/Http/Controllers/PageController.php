@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Page;
+use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Support\Facades\View;
 use League\CommonMark\CommonMarkConverter;
 
@@ -18,10 +19,8 @@ class PageController extends Controller
 {
     /**
      * Display a generic page layout.
-     *
-     * @return \Illuminate\View\View
      */
-    public function showPage()
+    public function showPage(): ViewContract
     {
         return view('layouts/page');
     }
@@ -32,9 +31,8 @@ class PageController extends Controller
      * @param  string  $area  The area of the page.
      * @param  string  $slug  The slug of the page.
      * @param  \League\CommonMark\CommonMarkConverter  $converter  Service to convert markdown to HTML.
-     * @return \Illuminate\Contracts\View\View Returns the view for displaying the page.
      */
-    public function show(string $area, string $slug, CommonMarkConverter $converter)
+    public function show(string $area, string $slug, CommonMarkConverter $converter): ViewContract
     {
         $page = Page::where('slug', $slug)->where('area', $area)->first();
 

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory; // For scope return types
 // use Spatie\Feed\Feedable; // Not used in this file
 // use Spatie\Feed\FeedItem; // Not used in this file
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon; // For type hinting Carbon instances
 use Illuminate\Support\Str; // Added Enum import
@@ -62,7 +63,6 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $episode_image_url
  * @property-read ?string $transcript_url
  * @property-read string $filename (deprecated, use audio_file_path)
- * @property-read ?string $transcript_path (deprecated, use transcript_file_path)
  * @property-read ?string $thumbnail_path (deprecated, use thumbnail_file_path)
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
@@ -277,7 +277,7 @@ class Sermon extends Model implements Sitemapable
     /**
      * Get the livestream processing log for this sermon.
      */
-    public function livestreamProcessing(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function livestreamProcessing(): BelongsTo
     {
         return $this->belongsTo(MediaProcessingLog::class, 'livestream_processing_id');
     }
@@ -769,26 +769,6 @@ class Sermon extends Model implements Sitemapable
     public function setFilenameAttribute(?string $value): void
     {
         $this->attributes['audio_file_path'] = $value;
-    }
-
-    /**
-     * Backward compatibility accessor for 'transcript_path' (deprecated)
-     *
-     * @deprecated Use transcript_file_path instead
-     */
-    public function getTranscriptPathAttribute(): ?string
-    {
-        return $this->attributes['transcript_file_path'] ?? null;
-    }
-
-    /**
-     * Backward compatibility mutator for 'transcript_path' (deprecated)
-     *
-     * @deprecated Use transcript_file_path instead
-     */
-    public function setTranscriptPathAttribute(?string $value): void
-    {
-        $this->attributes['transcript_file_path'] = $value;
     }
 
     /**

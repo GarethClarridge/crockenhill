@@ -341,7 +341,7 @@ These areas are at or above Laravel 12 standards and need no changes:
 
 ## Suggested Refactoring Order
 
-1. **Quick wins (30 mins):** Add return types to 6 controller methods, remove unused `transcript_path` accessor, fix 3x `.webp` fallback bug, add `BelongsTo` import to Sermon model
+1. **Quick wins (30 mins):** ✅ **COMPLETED** — Added return types to 6 controller methods, removed unused `transcript_path` accessor, fixed 3x `.webp` fallback bug, added `BelongsTo` import to Sermon model
 2. **Deprecated accessor migration (1-2 hours):** Update `ThumbnailGenerationService` + `StandardProcessingResponse` + tests to use `thumbnail_file_path`, update console commands to use `audio_file_path`, then remove deprecated accessors
 3. **Route cleanup (30 mins):** Replace remaining closures with `Route::redirect()`, add environment check to phpinfo route
 4. **Exception hierarchy (2-3 hours):** Create custom exception classes, incrementally replace generic `catch (\Exception)` blocks in the 4 largest services

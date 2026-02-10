@@ -277,7 +277,7 @@ class Page extends Model implements HasMedia, Sitemapable
             return $webpPath;
         }
 
-        $jpgPath = "/images/headings/large/{$this->slug}.webp";
+        $jpgPath = "/images/headings/large/{$this->slug}.jpg";
         if (file_exists(public_path($jpgPath))) {
             return $jpgPath;
         }
@@ -312,7 +312,7 @@ class Page extends Model implements HasMedia, Sitemapable
             return $webpPath;
         }
 
-        $jpgPath = "/images/headings/large/{$this->slug}.webp";
+        $jpgPath = "/images/headings/large/{$this->slug}.jpg";
         if (file_exists(public_path($jpgPath))) {
             return $jpgPath;
         }
@@ -347,7 +347,7 @@ class Page extends Model implements HasMedia, Sitemapable
             return $webpPath;
         }
 
-        $jpgPath = "/images/headings/small/{$this->slug}.webp";
+        $jpgPath = "/images/headings/small/{$this->slug}.jpg";
         if (file_exists(public_path($jpgPath))) {
             return $jpgPath;
         }
@@ -386,7 +386,7 @@ class Page extends Model implements HasMedia, Sitemapable
             return $webpPath;
         }
 
-        $jpgPath = "/images/headings/small/{$this->slug}.webp";
+        $jpgPath = "/images/headings/small/{$this->slug}.jpg";
         if (file_exists(public_path($jpgPath))) {
             return $jpgPath;
         }

@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreMeetingRequest;
 use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Meeting;
+use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
@@ -16,10 +17,8 @@ class MeetingController extends Controller
 {
     /**
      * Display a listing of the resource.
-     *
-     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
-    public function index()
+    public function index(): ViewContract
     {
         $this->authorize('viewAny', Meeting::class);
         $meetings = Meeting::orderBy('meeting_date', 'desc')->get();
@@ -29,10 +28,8 @@ class MeetingController extends Controller
 
     /**
      * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
-    public function create()
+    public function create(): ViewContract
     {
         $this->authorize('create', Meeting::class);
 
@@ -55,10 +52,8 @@ class MeetingController extends Controller
 
     /**
      * Display the specified resource.
-     *
-     * @return \Illuminate\Contracts\View\View
      */
-    public function show(Meeting $meeting)
+    public function show(Meeting $meeting): ViewContract
     {
         // Eager load page and calendar events to avoid N+1 queries
         $meeting->load([
@@ -113,10 +108,8 @@ class MeetingController extends Controller
 
     /**
      * Show the form for editing the specified resource.
-     *
-     * @return \Illuminate\Contracts\View\View|\Illuminate\Http\RedirectResponse
      */
-    public function edit(Meeting $meeting)
+    public function edit(Meeting $meeting): ViewContract
     {
         $this->authorize('update', $meeting);
 
