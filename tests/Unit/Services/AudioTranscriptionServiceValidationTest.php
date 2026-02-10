@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Services\AudioChunkingService;
 use App\Services\AudioTranscriptionService;
 use App\Services\BritishEnglishConverter;
 use App\Services\MediaProcessingLogger;
@@ -42,7 +43,8 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
         $storageService = app(TranscriptStorageService::class);
         $converter = app(BritishEnglishConverter::class);
-        $this->service = new AudioTranscriptionService($this->mockLogger, $storageService, $converter);
+        $chunkingService = new AudioChunkingService($this->mockLogger);
+        $this->service = new AudioTranscriptionService($this->mockLogger, $storageService, $converter, $chunkingService);
     }
 
     public function test_service_requires_openai_api_key(): void
@@ -52,7 +54,8 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
         $storageService = app(TranscriptStorageService::class);
         $converter = app(BritishEnglishConverter::class);
-        $service = new AudioTranscriptionService($this->mockLogger, $storageService, $converter);
+        $chunkingService = new AudioChunkingService($this->mockLogger);
+        $service = new AudioTranscriptionService($this->mockLogger, $storageService, $converter, $chunkingService);
 
         // Create a test file to trigger the validation in transcribe method
         $testFilePath = 'test_validation_audio.mp3';

@@ -3,6 +3,7 @@
 namespace Tests\Performance;
 
 use App\Models\Sermon;
+use App\Services\FrameExtractionService;
 use App\Services\ThumbnailGenerationService;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +32,8 @@ class ThumbnailGenerationPerformanceTest extends TestCase
             'codec' => 'h264',
         ]);
 
-        $this->service = new ThumbnailGenerationService($videoService);
+        $frameExtractionService = new FrameExtractionService($videoService);
+        $this->service = new ThumbnailGenerationService($frameExtractionService);
     }
 
     #[Test]

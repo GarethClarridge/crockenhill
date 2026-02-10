@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Data\ThumbnailResult;
 use App\Models\Sermon;
-use FFMpeg\FFMpeg;
-use FFMpeg\FFProbe;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -23,8 +21,10 @@ class ThumbnailGenerationService
 
     private array $config;
 
+    private readonly FrameExtractionService $frameExtractionService;
+
     public function __construct(
-        private readonly VideoSegmentationService $videoService
+        ?FrameExtractionService $frameExtractionService = null
     ) {
         $this->config = config('thumbnail-generation');
 
@@ -32,6 +32,7 @@ class ThumbnailGenerationService
         $this->storagePath = $this->config['storage']['path'];
         $this->tempDisk = $this->config['processing']['temp_disk'];
         $this->tempPath = $this->config['processing']['temp_path'];
+        $this->frameExtractionService = $frameExtractionService ?? app(FrameExtractionService::class);
     }
 
     /**
@@ -53,36 +54,36 @@ class ThumbnailGenerationService
             }
 
             // Validate video file exists using storage-aware method
-            if (! $this->videoFileExists($videoPath, $disk)) {
+            if (! $this->frameExtractionService->videoFileExists($videoPath, $disk)) {
                 return ThumbnailResult::skipped('Video file not found: '.$videoPath);
             }
 
             // For S3 storage, we need to download the file temporarily for FFmpeg processing
-            $localVideoPath = $this->ensureLocalVideoPath($videoPath, $disk);
+            $localVideoPath = $this->frameExtractionService->ensureLocalVideoPath($videoPath, $disk);
 
             // Track if we downloaded a temp video for S3 processing
-            if ($disk && $this->isS3CompatibleDisk(Storage::disk($disk))) {
+            if ($disk && $this->frameExtractionService->isS3CompatibleDisk(Storage::disk($disk))) {
                 $tempVideoPath = $localVideoPath;
             }
 
             // Get video metadata
-            $metadata = $this->getVideoMetadata($localVideoPath);
+            $metadata = $this->frameExtractionService->getVideoMetadata($localVideoPath);
 
             // Check minimum duration requirement
             if ($metadata['duration'] < $this->config['extraction']['min_video_duration']) {
-                $this->cleanupDownloadedVideo($tempVideoPath);
+                $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
                 return ThumbnailResult::skipped('Video too short for thumbnail generation');
             }
 
             // Calculate optimal timestamp for frame extraction
-            $timestamp = $this->calculateOptimalTimestamp($metadata['duration']);
+            $timestamp = $this->frameExtractionService->calculateOptimalTimestamp($metadata['duration']);
 
             // Extract base frame from video
-            $baseFramePath = $this->extractBaseFrame($localVideoPath, $timestamp);
+            $baseFramePath = $this->frameExtractionService->extractBaseFrame($localVideoPath, $timestamp);
 
             if (! $baseFramePath) {
-                $this->cleanupDownloadedVideo($tempVideoPath);
+                $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
                 return ThumbnailResult::failed('Failed to extract frame from video');
             }
@@ -92,7 +93,7 @@ class ThumbnailGenerationService
 
             if (! $thumbnailPath) {
                 $this->cleanupTempFile($baseFramePath);
-                $this->cleanupDownloadedVideo($tempVideoPath);
+                $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
                 return ThumbnailResult::failed('Failed to create branded thumbnail');
             }
@@ -103,7 +104,7 @@ class ThumbnailGenerationService
             // Cleanup temporary files
             $this->cleanupTempFile($baseFramePath);
             $this->cleanupTempFile($thumbnailPath);
-            $this->cleanupDownloadedVideo($tempVideoPath);
+            $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
             if (! $finalPath) {
                 return ThumbnailResult::failed('Failed to store thumbnail');
@@ -125,7 +126,7 @@ class ThumbnailGenerationService
 
         } catch (\Exception $e) {
             // Cleanup temp video on exception
-            $this->cleanupDownloadedVideo($tempVideoPath);
+            $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
             Log::warning('Thumbnail generation failed, skipping', [
                 'sermon_id' => $sermon->id,
@@ -134,71 +135,6 @@ class ThumbnailGenerationService
             ]);
 
             return ThumbnailResult::skipped($e->getMessage());
-        }
-    }
-
-    /**
-     * Extract base frame from video at specified timestamp
-     *
-     * @param  string  $videoPath  Full path to video file
-     * @param  float  $timestamp  Timestamp in seconds
-     * @return string|null Path to extracted frame or null on failure
-     */
-    public function extractBaseFrame(string $videoPath, float $timestamp): ?string
-    {
-        try {
-            // Create temporary file for extracted frame
-            $frameFilename = 'frame_'.Str::uuid().'.webp';
-            $tempFramePath = $this->tempPath.'/'.$frameFilename;
-
-            // Ensure temp directory exists
-            Storage::disk($this->tempDisk)->makeDirectory($this->tempPath);
-
-            $fullTempPath = Storage::disk($this->tempDisk)->path($tempFramePath);
-
-            // Use FFmpeg to extract frame at specific timestamp
-            $command = [
-                $this->config['ffmpeg']['path'],
-                '-threads', (string) $this->config['ffmpeg']['threads'],
-                '-ss', (string) $timestamp, // Seek to timestamp
-                '-i', $videoPath,
-                '-vframes', '1', // Extract only one frame
-                '-q:v', '2', // High quality
-                '-y', // Overwrite output file
-                $fullTempPath,
-            ];
-
-            $process = new \Symfony\Component\Process\Process($command);
-            $process->setTimeout($this->config['ffmpeg']['timeout']);
-            $process->run();
-
-            if (! $process->isSuccessful()) {
-                Log::error('FFmpeg frame extraction failed', [
-                    'command' => implode(' ', $command),
-                    'error' => $process->getErrorOutput(),
-                ]);
-
-                return null;
-            }
-
-            if (! file_exists($fullTempPath) || filesize($fullTempPath) === 0) {
-                Log::error('Frame extraction produced no output', [
-                    'temp_path' => $fullTempPath,
-                ]);
-
-                return null;
-            }
-
-            return $tempFramePath;
-
-        } catch (\Exception $e) {
-            Log::error('Frame extraction exception', [
-                'video_path' => $videoPath,
-                'timestamp' => $timestamp,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
         }
     }
 
@@ -304,31 +240,6 @@ class ThumbnailGenerationService
 
             return null;
         }
-    }
-
-    /**
-     * Calculate optimal timestamp for frame extraction based on video duration
-     *
-     * @param  float  $duration  Video duration in seconds
-     * @return float Optimal timestamp in seconds
-     */
-    private function calculateOptimalTimestamp(float $duration): float
-    {
-        $startOffset = $this->config['extraction']['start_offset'];
-        $endBuffer = $this->config['extraction']['end_buffer'];
-        $fallbackPosition = $this->config['extraction']['fallback_position'];
-
-        // For very short videos, use fallback position (midpoint)
-        if ($duration <= ((float) $startOffset + (float) $endBuffer)) {
-            return $duration * $fallbackPosition;
-        }
-
-        // For longer videos, extract from start_offset seconds into the video
-        // but not closer than end_buffer seconds from the end
-        $maxTimestamp = $duration - $endBuffer;
-        $targetTimestamp = $startOffset;
-
-        return min($targetTimestamp, $maxTimestamp);
     }
 
     /**
@@ -703,36 +614,6 @@ class ThumbnailGenerationService
     }
 
     /**
-     * Get video metadata using FFProbe
-     *
-     * @param  string  $videoPath  Path to video file
-     * @return array Video metadata
-     */
-    private function getVideoMetadata(string $videoPath): array
-    {
-        try {
-            // Use existing VideoSegmentationService method
-            return $this->videoService->getVideoMetadata($videoPath);
-        } catch (\Exception $e) {
-            Log::error('Failed to get video metadata for thumbnail', [
-                'video_path' => $videoPath,
-                'error' => $e->getMessage(),
-            ]);
-
-            // Return default metadata to prevent failures
-            return [
-                'duration' => 0.0,
-                'width' => 1920,
-                'height' => 1080,
-                'format_name' => 'unknown',
-                'size' => 0,
-                'bit_rate' => 0,
-                'codec' => 'unknown',
-            ];
-        }
-    }
-
-    /**
      * Clean up temporary file
      *
      * @param  string  $tempPath  Path to temporary file
@@ -746,32 +627,6 @@ class ThumbnailGenerationService
         } catch (\Exception $e) {
             Log::warning('Failed to cleanup temp file', [
                 'temp_path' => $tempPath,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Clean up downloaded video file (for S3 processing)
-     *
-     * @param  string|null  $tempVideoPath  Absolute path to temporary video file
-     */
-    private function cleanupDownloadedVideo(?string $tempVideoPath): void
-    {
-        if (! $tempVideoPath) {
-            return;
-        }
-
-        try {
-            if ($this->config['processing']['cleanup_temp_files'] && file_exists($tempVideoPath)) {
-                unlink($tempVideoPath);
-                Log::debug('Cleaned up downloaded S3 video temp file', [
-                    'temp_video_path' => $tempVideoPath,
-                ]);
-            }
-        } catch (\Exception $e) {
-            Log::warning('Failed to cleanup downloaded video temp file', [
-                'temp_video_path' => $tempVideoPath,
                 'error' => $e->getMessage(),
             ]);
         }
@@ -979,81 +834,5 @@ class ThumbnailGenerationService
         $scale = max(0.5, min(2.0, $scale));
 
         return (int) ($baseFontSize * $scale);
-    }
-
-    /**
-     * Check if video file exists using storage-aware method
-     *
-     * @param  string  $videoPath  Path to video file
-     * @param  string|null  $disk  Storage disk name
-     * @return bool True if file exists
-     */
-    private function videoFileExists(string $videoPath, ?string $disk = null): bool
-    {
-        if ($disk) {
-            // For named disks (including S3), use Storage::exists()
-            return Storage::disk($disk)->exists($videoPath);
-        }
-
-        // For absolute local paths, use file_exists()
-        return file_exists($videoPath);
-    }
-
-    /**
-     * Ensure we have a local path for FFmpeg processing
-     * Downloads S3 files temporarily if needed
-     *
-     * @param  string  $videoPath  Original video path
-     * @param  string|null  $disk  Storage disk name
-     * @return string Local file path for FFmpeg
-     */
-    private function ensureLocalVideoPath(string $videoPath, ?string $disk = null): string
-    {
-        if (! $disk) {
-            // Already a local absolute path
-            return $videoPath;
-        }
-
-        $diskInstance = Storage::disk($disk);
-
-        // Check if this is an S3-compatible disk
-        if ($this->isS3CompatibleDisk($diskInstance)) {
-            // Download the file temporarily for FFmpeg processing
-            $tempVideoFilename = 'temp_video_'.Str::uuid().'.'.pathinfo($videoPath, PATHINFO_EXTENSION);
-            $tempVideoPath = $this->tempPath.'/'.$tempVideoFilename;
-
-            Storage::disk($this->tempDisk)->makeDirectory($this->tempPath);
-
-            $localTempPath = Storage::disk($this->tempDisk)->path($tempVideoPath);
-
-            // Stream S3 file to local temp (avoids loading entire video into memory)
-            $stream = $diskInstance->readStream($videoPath);
-            Storage::disk($this->tempDisk)->writeStream($tempVideoPath, $stream);
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-
-            return $localTempPath;
-        }
-
-        // For local disks, get the full path
-        return $diskInstance->path($videoPath);
-    }
-
-    /**
-     * Check if a disk uses S3-compatible storage
-     *
-     * @param  \Illuminate\Contracts\Filesystem\Filesystem  $disk
-     */
-    private function isS3CompatibleDisk($disk): bool
-    {
-        try {
-            $adapter = $disk->getAdapter();
-
-            return $adapter instanceof \League\Flysystem\AwsS3V3\AwsS3V3Adapter;
-        } catch (\Exception $e) {
-            // If we can't determine the adapter type, assume it's not S3
-            return false;
-        }
     }
 }

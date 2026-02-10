@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Data\ThumbnailResult;
 use App\Models\Sermon;
+use App\Services\FrameExtractionService;
 use App\Services\ThumbnailGenerationService;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,6 +16,8 @@ class ThumbnailGenerationServiceTest extends TestCase
     use RefreshDatabase;
 
     private ThumbnailGenerationService $service;
+
+    private FrameExtractionService $frameExtractionService;
 
     protected function setUp(): void
     {
@@ -32,7 +35,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             'codec' => 'h264',
         ]);
 
-        $this->service = new ThumbnailGenerationService($videoService);
+        $this->frameExtractionService = new FrameExtractionService($videoService);
+        $this->service = new ThumbnailGenerationService($this->frameExtractionService);
     }
 
     #[Test]
@@ -52,8 +56,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         config(['thumbnail-generation.enabled' => false]);
 
         // Recreate service with new config
-        $videoService = $this->createMock(VideoSegmentationService::class);
-        $this->service = new ThumbnailGenerationService($videoService);
+        $this->service = new ThumbnailGenerationService($this->frameExtractionService);
 
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon',
@@ -122,28 +125,24 @@ class ThumbnailGenerationServiceTest extends TestCase
     #[Test]
     public function it_calculates_optimal_timestamp_for_frame_extraction()
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('calculateOptimalTimestamp');
-        $method->setAccessible(true);
-
         // Test long video (30 minutes)
-        $timestamp = $method->invoke($this->service, 1800.0);
+        $timestamp = $this->frameExtractionService->calculateOptimalTimestamp(1800.0);
         $this->assertEquals(300.0, $timestamp); // Should be 300 seconds in (5 minutes)
 
         // Test medium video (10 minutes)
-        $timestamp = $method->invoke($this->service, 600.0);
+        $timestamp = $this->frameExtractionService->calculateOptimalTimestamp(600.0);
         $this->assertEquals(300.0, $timestamp); // Should be 300 seconds in (5 minutes)
 
         // Test short video (7 minutes) - above threshold (300+60=360)
-        $timestamp = $method->invoke($this->service, 420.0);
+        $timestamp = $this->frameExtractionService->calculateOptimalTimestamp(420.0);
         $this->assertEquals(300.0, $timestamp); // Should be 300 seconds in (start_offset)
 
         // Test very short video (6 minutes) - at threshold (300+60=360)
-        $timestamp = $method->invoke($this->service, 360.0);
+        $timestamp = $this->frameExtractionService->calculateOptimalTimestamp(360.0);
         $this->assertEquals(180.0, $timestamp); // Should be midpoint (50% of 360)
 
         // Test very short video (5 minutes) - below threshold
-        $timestamp = $method->invoke($this->service, 300.0);
+        $timestamp = $this->frameExtractionService->calculateOptimalTimestamp(300.0);
         $this->assertEquals(150.0, $timestamp); // Should be midpoint
     }
 
@@ -180,7 +179,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             'height' => 0,   // Invalid height
         ]);
 
-        $service = new ThumbnailGenerationService($videoService);
+        $frameService = new FrameExtractionService($videoService);
+        $service = new ThumbnailGenerationService($frameService);
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'test_video');

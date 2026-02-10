@@ -2,24 +2,16 @@
 
 namespace Tests\Unit\Services;
 
-use App\Services\AudioTranscriptionService;
-use App\Services\BritishEnglishConverter;
+use App\Services\AudioChunkingService;
 use App\Services\MediaProcessingLogger;
-use App\Services\TranscriptStorageService;
-use FFMpeg\FFMpeg;
-use FFMpeg\Media\Audio;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
-use OpenAI\Laravel\Facades\OpenAI;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AudioTranscriptionServiceChunkingTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private AudioTranscriptionService $service;
+    private AudioChunkingService $chunkingService;
 
     private MediaProcessingLogger $logger;
 
@@ -29,7 +21,7 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
 
         Storage::fake('local');
         config(['media-processing.transcription.openai_api_key' => 'test-key']);
-        config(['openai.api_key' => 'test-key']); // Add OpenAI Laravel package config
+        config(['openai.api_key' => 'test-key']);
         config(['media-processing.ffmpeg_path' => '/usr/bin/ffmpeg']);
         config(['media-processing.ffprobe_path' => '/usr/bin/ffprobe']);
 
@@ -39,51 +31,36 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
         $this->logger->shouldReceive('logApiCall')->andReturn(true);
         $this->logger->shouldReceive('logError')->andReturn(true);
 
-        $storageService = app(TranscriptStorageService::class);
-        $converter = app(BritishEnglishConverter::class);
-        $this->service = new AudioTranscriptionService($this->logger, $storageService, $converter);
+        $this->chunkingService = new AudioChunkingService($this->logger);
     }
 
     #[Test]
     public function it_detects_when_chunking_is_needed(): void
     {
-        // Create a mock audio file that's longer than MIN_DURATION_FOR_CHUNKING (7 minutes = 420 seconds)
-        $audioFilePath = 'long_audio.mp3';
-        Storage::put($audioFilePath, 'mock audio content');
+        // Duration longer than MIN_DURATION_FOR_CHUNKING (7 minutes = 420 seconds)
+        $this->assertTrue($this->chunkingService->needsChunking(2100.0)); // 35 minutes
+        $this->assertTrue($this->chunkingService->needsChunking(421.0));
 
-        $reflection = new \ReflectionClass($this->service);
-        $getDurationMethod = $reflection->getMethod('getAudioDuration');
-        $getDurationMethod->setAccessible(true);
-
-        // Mock FFMpeg to return a duration longer than the chunking threshold
-        $mockFFMpeg = Mockery::mock(FFMpeg::class);
-        $mockAudio = Mockery::mock(Audio::class);
-        $mockStreams = Mockery::mock();
-        $mockStream = Mockery::mock();
-
-        $mockFFMpeg->shouldReceive('open')->with(Mockery::any())->andReturn($mockAudio);
-        $mockAudio->shouldReceive('getStreams')->andReturn($mockStreams);
-        $mockStreams->shouldReceive('first')->andReturn($mockStream);
-        $mockStream->shouldReceive('get')->with('duration')->andReturn(2100.0); // 35 minutes
-
-        // We can't easily mock static FFMpeg::create(), so we'll test the logic separately
-        $this->assertTrue(2100.0 > 420); // Verify our test duration exceeds threshold
+        // Duration at or below threshold
+        $this->assertFalse($this->chunkingService->needsChunking(420.0));
+        $this->assertFalse($this->chunkingService->needsChunking(300.0));
     }
 
     #[Test]
     public function it_calculates_correct_chunk_boundaries(): void
     {
-        // Test chunk boundary calculations to match actual implementation
-        $chunkDurationSeconds = 6 * 60; // 360 seconds
-        $overlapSeconds = 15;
+        $chunkDurationSeconds = $this->chunkingService->getChunkDurationMinutes() * 60;
+        $overlapSeconds = $this->chunkingService->getChunkOverlapSeconds();
         $totalDuration = 2100; // 35 minutes
+
+        $this->assertEquals(360, $chunkDurationSeconds);
+        $this->assertEquals(15, $overlapSeconds);
 
         $expectedChunks = [];
         $currentTime = 0;
         $chunkIndex = 0;
 
         while ($currentTime < $totalDuration) {
-            // This matches the actual implementation in createAudioChunks
             $startTime = max(0, $currentTime - ($chunkIndex > 0 ? $overlapSeconds : 0));
             $endTime = min($totalDuration, $currentTime + $chunkDurationSeconds);
             $actualDuration = $endTime - $startTime;
@@ -99,7 +76,7 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
             ];
 
             $chunkIndex++;
-            $currentTime += ($chunkDurationSeconds - $overlapSeconds); // This moves forward by 345 seconds
+            $currentTime += ($chunkDurationSeconds - $overlapSeconds);
         }
 
         // Verify we get the expected number of chunks for a 35-minute file
@@ -111,23 +88,18 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
 
         // Verify second chunk calculation: currentTime = 345, so startTime = 345 - 15 = 330
         if (count($expectedChunks) > 1) {
-            $this->assertEquals(330, $expectedChunks[1]['start']); // 345 - 15 = 330
+            $this->assertEquals(330, $expectedChunks[1]['start']);
         }
     }
 
     #[Test]
     public function it_removes_overlapping_sentences_correctly(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $removeOverlapMethod = $reflection->getMethod('removeOverlapFromTranscript');
-        $removeOverlapMethod->setAccessible(true);
-
         $previousTranscript = 'This is the first sentence. This is the second sentence. This is the third sentence.';
         $currentTranscript = 'This is the third sentence. This is the fourth sentence. This is the fifth sentence.';
 
-        $result = $removeOverlapMethod->invoke($this->service, $currentTranscript, $previousTranscript);
+        $result = $this->chunkingService->removeOverlapFromTranscript($currentTranscript, $previousTranscript);
 
-        // Should remove the overlapping "This is the third sentence."
         $this->assertStringNotContainsString('This is the third sentence.', $result);
         $this->assertStringContainsString('This is the fourth sentence.', $result);
         $this->assertStringContainsString('This is the fifth sentence.', $result);
@@ -136,26 +108,17 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
     #[Test]
     public function it_handles_no_overlap_between_transcripts(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $removeOverlapMethod = $reflection->getMethod('removeOverlapFromTranscript');
-        $removeOverlapMethod->setAccessible(true);
-
         $previousTranscript = 'This is completely different content. No overlap here.';
         $currentTranscript = 'This is the start of new content. Totally different.';
 
-        $result = $removeOverlapMethod->invoke($this->service, $currentTranscript, $previousTranscript);
+        $result = $this->chunkingService->removeOverlapFromTranscript($currentTranscript, $previousTranscript);
 
-        // Should return the current transcript unchanged
         $this->assertEquals($currentTranscript, $result);
     }
 
     #[Test]
     public function it_normalizes_sentences_for_comparison_correctly(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $normalizeMethod = $reflection->getMethod('normalizeSentenceForComparison');
-        $normalizeMethod->setAccessible(true);
-
         $testCases = [
             'Hello, World!' => 'hello world',
             'This is a test... with punctuation?' => 'this is a test with punctuation',
@@ -164,7 +127,7 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
         ];
 
         foreach ($testCases as $input => $expected) {
-            $result = $normalizeMethod->invoke($this->service, $input);
+            $result = $this->chunkingService->normalizeSentenceForComparison($input);
             $this->assertEquals($expected, $result);
         }
     }
@@ -172,47 +135,42 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
     #[Test]
     public function it_matches_similar_sentences_with_tolerance(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $sentencesMatchMethod = $reflection->getMethod('sentencesMatch');
-        $sentencesMatchMethod->setAccessible(true);
-
         // Identical sentences should match
-        $sentences1 = ['This is a test sentence.'];
-        $sentences2 = ['This is a test sentence.'];
-        $this->assertTrue($sentencesMatchMethod->invoke($this->service, $sentences1, $sentences2));
+        $this->assertTrue($this->chunkingService->sentencesMatch(
+            ['This is a test sentence.'],
+            ['This is a test sentence.']
+        ));
 
         // Similar sentences with minor differences should match (>85% similarity)
-        $sentences1 = ['This is a test sentence.'];
-        $sentences2 = ['This is a test sentence!'];
-        $this->assertTrue($sentencesMatchMethod->invoke($this->service, $sentences1, $sentences2));
+        $this->assertTrue($this->chunkingService->sentencesMatch(
+            ['This is a test sentence.'],
+            ['This is a test sentence!']
+        ));
 
         // Very different sentences should not match
-        $sentences1 = ['This is completely different.'];
-        $sentences2 = ['Something totally unrelated here.'];
-        $this->assertFalse($sentencesMatchMethod->invoke($this->service, $sentences1, $sentences2));
+        $this->assertFalse($this->chunkingService->sentencesMatch(
+            ['This is completely different.'],
+            ['Something totally unrelated here.']
+        ));
 
         // Different number of sentences should not match
-        $sentences1 = ['First sentence.', 'Second sentence.'];
-        $sentences2 = ['First sentence.'];
-        $this->assertFalse($sentencesMatchMethod->invoke($this->service, $sentences1, $sentences2));
+        $this->assertFalse($this->chunkingService->sentencesMatch(
+            ['First sentence.', 'Second sentence.'],
+            ['First sentence.']
+        ));
     }
 
     #[Test]
     public function it_reassembles_transcripts_in_correct_order(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $reassembleMethod = $reflection->getMethod('reassembleTranscripts');
-        $reassembleMethod->setAccessible(true);
-
         $transcripts = [
             ['index' => 2, 'transcript' => 'Third chunk content. More content here.'],
             ['index' => 0, 'transcript' => 'First chunk content. Some content.'],
             ['index' => 1, 'transcript' => 'Some content. Second chunk content.'],
         ];
 
-        $result = $reassembleMethod->invoke($this->service, $transcripts, 'test-id');
+        $result = $this->chunkingService->reassembleTranscripts($transcripts, 'test-id');
 
-        // Should be reassembled in correct order (0, 1, 2)
         $this->assertStringContainsString('First chunk content', $result);
         $this->assertStringContainsString('Second chunk content', $result);
         $this->assertStringContainsString('Third chunk content', $result);
@@ -226,26 +184,18 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
     #[Test]
     public function it_handles_empty_transcripts_array(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $reassembleMethod = $reflection->getMethod('reassembleTranscripts');
-        $reassembleMethod->setAccessible(true);
-
-        $result = $reassembleMethod->invoke($this->service, [], 'test-id');
+        $result = $this->chunkingService->reassembleTranscripts([], 'test-id');
         $this->assertEquals('', $result);
     }
 
     #[Test]
     public function it_handles_single_transcript_chunk(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $reassembleMethod = $reflection->getMethod('reassembleTranscripts');
-        $reassembleMethod->setAccessible(true);
-
         $transcripts = [
             ['index' => 0, 'transcript' => 'Single chunk content.'],
         ];
 
-        $result = $reassembleMethod->invoke($this->service, $transcripts, 'test-id');
+        $result = $this->chunkingService->reassembleTranscripts($transcripts, 'test-id');
         $this->assertStringContainsString('Single chunk content', $result);
     }
 
@@ -262,12 +212,6 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
     #[Test]
     public function it_uses_correct_audio_settings_for_chunks(): void
     {
-        // Test that the chunking uses transcription-optimized settings
-        $expectedBitrate = 48; // kbps
-        $expectedSampleRate = 16000; // Hz
-        $expectedChannels = 1; // Mono
-
-        // These should match the settings in livestream-processing config
         $this->assertEquals(48, config('media-processing.audio_extraction.transcription_optimized.bitrate'));
         $this->assertEquals(16000, config('media-processing.audio_extraction.transcription_optimized.sample_rate'));
         $this->assertEquals(1, config('media-processing.audio_extraction.transcription_optimized.channels'));
@@ -276,10 +220,9 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
     #[Test]
     public function it_skips_chunks_that_are_too_short(): void
     {
-        // Test that chunks shorter than 30 seconds are skipped
-        $chunkDurationSeconds = 6 * 60; // 360 seconds
-        $totalDuration = 700; // About 11.67 minutes - this will create 2 chunks
-        $overlapSeconds = 15;
+        $chunkDurationSeconds = $this->chunkingService->getChunkDurationMinutes() * 60;
+        $overlapSeconds = $this->chunkingService->getChunkOverlapSeconds();
+        $totalDuration = 700;
 
         $currentTime = 0;
         $chunkIndex = 0;
@@ -291,19 +234,17 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
             $actualDuration = $endTime - $startTime;
 
             if ($actualDuration < 30) {
-                break; // Should skip this chunk
+                break;
             }
 
             $chunks[] = $actualDuration;
             $chunkIndex++;
-            $currentTime += ($chunkDurationSeconds - $overlapSeconds); // Move forward by 345
+            $currentTime += ($chunkDurationSeconds - $overlapSeconds);
         }
 
-        // First chunk: 0-360 = 360 seconds
-        // Second chunk: currentTime=345, startTime=345-15=330, endTime=min(700,345+360)=700, duration=700-330=370
         $this->assertEquals(2, count($chunks));
-        $this->assertEquals(360, $chunks[0]); // First chunk duration
-        $this->assertEquals(370, $chunks[1]); // Second chunk duration
+        $this->assertEquals(360, $chunks[0]);
+        $this->assertEquals(370, $chunks[1]);
     }
 
     #[Test]
@@ -311,19 +252,16 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
     {
         $tempDir = storage_path('app/temp');
 
-        // Ensure directory doesn't exist by removing it recursively
         if (is_dir($tempDir)) {
             $this->removeDirectoryRecursively($tempDir);
         }
 
         $this->assertFalse(is_dir($tempDir));
 
-        // Test the directory creation logic
         $chunkFilename = 'chunk_test_0.mp3';
         $chunkPath = storage_path("app/temp/{$chunkFilename}");
         $expectedTempDir = dirname($chunkPath);
 
-        // Simulate what createAudioChunks does
         if (! is_dir($expectedTempDir)) {
             mkdir($expectedTempDir, 0755, true);
         }
@@ -331,7 +269,6 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
         $this->assertTrue(is_dir($expectedTempDir));
         $this->assertEquals($tempDir, $expectedTempDir);
 
-        // Cleanup
         $this->removeDirectoryRecursively($tempDir);
     }
 
@@ -356,21 +293,16 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
     #[Test]
     public function it_logs_chunking_progress_correctly(): void
     {
-        // This test validates the expected logging call structure for chunked transcription
-        // Since we can't easily mock FFMpeg and OpenAI without extensive setup,
-        // we'll test the structure of expected logging calls
-
         $expectedLogCalls = [
             ['step' => 'audio_chunking', 'status' => 'started'],
-            ['step' => 'chunk_creation', 'status' => 'completed'], // Per chunk
-            ['step' => 'chunk_transcription', 'status' => 'started'], // Per chunk
-            ['step' => 'chunk_transcription', 'status' => 'completed'], // Per chunk
+            ['step' => 'chunk_creation', 'status' => 'completed'],
+            ['step' => 'chunk_transcription', 'status' => 'started'],
+            ['step' => 'chunk_transcription', 'status' => 'completed'],
             ['step' => 'chunk_cleanup', 'status' => 'completed'],
             ['step' => 'transcript_reassembly', 'status' => 'completed'],
             ['step' => 'audio_chunking', 'status' => 'completed'],
         ];
 
-        // Verify we have the expected structure
         $this->assertGreaterThan(5, count($expectedLogCalls));
         $this->assertEquals('audio_chunking', $expectedLogCalls[0]['step']);
         $this->assertEquals('started', $expectedLogCalls[0]['status']);

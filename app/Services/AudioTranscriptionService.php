@@ -5,8 +5,6 @@ namespace App\Services;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\TranscriptionException;
 use Exception;
-use FFMpeg\FFMpeg;
-use FFMpeg\Format\Audio\Mp3;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Exceptions\ErrorException;
@@ -19,17 +17,11 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
     private const RETRY_DELAY_BASE = 2; // seconds
 
-    // Chunking configuration for long audio files
-    private const CHUNK_DURATION_MINUTES = 6; // 6 minutes per chunk to stay well under timeout
-
-    private const CHUNK_OVERLAP_SECONDS = 15; // 15 seconds overlap to prevent word cutoffs
-
-    private const MIN_DURATION_FOR_CHUNKING = 420; // 7 minutes - only chunk files longer than this
-
     public function __construct(
         private readonly MediaProcessingLogger $logger,
         private readonly TranscriptStorageService $storageService,
-        private readonly BritishEnglishConverter $britishEnglishConverter
+        private readonly BritishEnglishConverter $britishEnglishConverter,
+        private readonly AudioChunkingService $chunkingService
     ) {}
 
     /**
@@ -139,9 +131,9 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
         try {
             // Check if file needs chunking based on duration
-            $duration = $this->getAudioDuration($processedFilePath);
+            $duration = $this->chunkingService->getAudioDuration($processedFilePath);
 
-            if ($duration > self::MIN_DURATION_FOR_CHUNKING) {
+            if ($this->chunkingService->needsChunking($duration)) {
                 $result = $this->transcribeWithChunking($processedFilePath, $processingId, $duration);
             } else {
                 $result = $this->transcribeFile($processedFilePath, $processingId);
@@ -333,7 +325,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
         try {
             // Attempt to compress the file
-            $compressedPath = $this->compressAudioForTranscription($filePath, $processingId);
+            $compressedPath = $this->chunkingService->compressAudioForTranscription($filePath, $processingId);
 
             $compressedSize = filesize($compressedPath);
             $compressedSizeMB = round($compressedSize / 1024 / 1024, 1);
@@ -698,33 +690,6 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     }
 
     /**
-     * Get audio duration in seconds using FFprobe
-     *
-     * @param  string  $filePath  Full path to the audio file
-     * @return float Duration in seconds
-     *
-     * @throws Exception When duration cannot be determined
-     */
-    private function getAudioDuration(string $filePath): float
-    {
-        try {
-            $ffmpeg = FFMpeg::create([
-                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
-                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
-                'timeout' => 60,
-                'ffmpeg.threads' => 1,
-            ]);
-
-            $audio = $ffmpeg->open($filePath);
-            $duration = $audio->getStreams()->first()->get('duration');
-
-            return (float) $duration;
-        } catch (Exception $e) {
-            throw new TranscriptionException('Failed to get audio duration: '.$e->getMessage(), 0, $e);
-        }
-    }
-
-    /**
      * Transcribe audio file using chunking for long files
      *
      * @param  string  $filePath  Full path to the audio file
@@ -736,20 +701,23 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
      */
     private function transcribeWithChunking(string $filePath, string $processingId, float $duration): string
     {
+        $chunkDurationSeconds = $this->chunkingService->getChunkDurationMinutes() * 60;
+        $overlapSeconds = $this->chunkingService->getChunkOverlapSeconds();
+
         $this->logger->logProcessingStep(
             $processingId,
             'audio_chunking',
             'started',
             [
                 'total_duration' => $duration,
-                'chunk_duration' => self::CHUNK_DURATION_MINUTES * 60,
-                'overlap_duration' => self::CHUNK_OVERLAP_SECONDS,
+                'chunk_duration' => $chunkDurationSeconds,
+                'overlap_duration' => $overlapSeconds,
             ]
         );
 
         try {
             // Create chunks
-            $chunks = $this->createAudioChunks($filePath, $processingId, $duration);
+            $chunks = $this->chunkingService->createAudioChunks($filePath, $processingId, $duration);
 
             // Transcribe each chunk
             $transcripts = [];
@@ -773,7 +741,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 $transcripts[] = [
                     'index' => $index,
                     'transcript' => $chunkTranscript,
-                    'start_time' => $index * (self::CHUNK_DURATION_MINUTES * 60 - self::CHUNK_OVERLAP_SECONDS),
+                    'start_time' => $index * ($chunkDurationSeconds - $overlapSeconds),
                 ];
 
                 $this->logger->logProcessingStep(
@@ -788,10 +756,11 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             }
 
             // Clean up chunk files
-            $this->cleanupChunkFiles($chunks, $processingId);
+            $this->chunkingService->cleanupChunkFiles($chunks, $processingId);
 
             // Reassemble transcripts with overlap handling
-            $finalTranscript = $this->reassembleTranscripts($transcripts, $processingId);
+            $reassembled = $this->chunkingService->reassembleTranscripts($transcripts, $processingId);
+            $finalTranscript = $this->formatAsMarkdown($reassembled);
 
             $this->logger->logProcessingStep(
                 $processingId,
@@ -813,322 +782,6 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 ['duration' => $duration]
             );
             throw new TranscriptionException('Chunked transcription failed: '.$e->getMessage(), 0, $e);
-        }
-    }
-
-    /**
-     * Create audio chunks from the original file
-     *
-     * @param  string  $filePath  Full path to the original audio file
-     * @param  string  $processingId  Processing ID for logging
-     * @param  float  $duration  Total duration in seconds
-     * @return array Array of chunk file paths
-     *
-     * @throws Exception When chunk creation fails
-     */
-    private function createAudioChunks(string $filePath, string $processingId, float $duration): array
-    {
-        $chunkDurationSeconds = self::CHUNK_DURATION_MINUTES * 60;
-        $overlapSeconds = self::CHUNK_OVERLAP_SECONDS;
-
-        $ffmpeg = FFMpeg::create([
-            'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
-            'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
-            'timeout' => 300,
-            'ffmpeg.threads' => 1,
-        ]);
-
-        $audio = $ffmpeg->open($filePath);
-        $chunks = [];
-        $chunkIndex = 0;
-        $currentTime = 0;
-
-        while ($currentTime < $duration) {
-            // Calculate chunk boundaries
-            $startTime = max(0, $currentTime - ($chunkIndex > 0 ? $overlapSeconds : 0));
-            $endTime = min($duration, $currentTime + $chunkDurationSeconds);
-            $actualDuration = $endTime - $startTime;
-
-            // Skip chunks that are too short
-            if ($actualDuration < 30) {
-                break;
-            }
-
-            // Create temporary chunk file
-            $chunkFilename = "chunk_{$processingId}_{$chunkIndex}.mp3";
-            $chunkPath = storage_path("app/temp/{$chunkFilename}");
-
-            // Ensure temp directory exists
-            $tempDir = dirname($chunkPath);
-            if (! is_dir($tempDir)) {
-                mkdir($tempDir, 0755, true);
-            }
-
-            try {
-                // Extract chunk with optimized settings for transcription
-                $format = new Mp3;
-                $format->setAudioKiloBitrate(48) // Match transcription-optimized bitrate
-                    ->setAudioChannels(1); // Mono
-
-                $audio->filters()->clip(\FFMpeg\Coordinate\TimeCode::fromSeconds($startTime),
-                    \FFMpeg\Coordinate\TimeCode::fromSeconds($actualDuration));
-                $audio->save($format, $chunkPath);
-
-                $chunks[] = $chunkPath;
-
-                $this->logger->logProcessingStep(
-                    $processingId,
-                    'chunk_creation',
-                    'completed',
-                    [
-                        'chunk_index' => $chunkIndex,
-                        'start_time' => $startTime,
-                        'duration' => $actualDuration,
-                        'file_size' => filesize($chunkPath),
-                        'chunk_path' => $chunkPath,
-                    ]
-                );
-
-            } catch (Exception $e) {
-                throw new TranscriptionException("Failed to create chunk {$chunkIndex}: ".$e->getMessage(), 0, $e);
-            }
-
-            $chunkIndex++;
-            $currentTime += ($chunkDurationSeconds - $overlapSeconds);
-        }
-
-        return $chunks;
-    }
-
-    /**
-     * Reassemble transcripts from chunks with overlap deduplication
-     *
-     * @param  array  $transcripts  Array of transcript data with indices and content
-     * @param  string  $processingId  Processing ID for logging
-     * @return string The reassembled transcript
-     */
-    private function reassembleTranscripts(array $transcripts, string $processingId): string
-    {
-        if (empty($transcripts)) {
-            return '';
-        }
-
-        // Sort by index to ensure correct order
-        usort($transcripts, fn ($a, $b) => $a['index'] <=> $b['index']);
-
-        $reassembled = '';
-        $previousTranscript = '';
-
-        foreach ($transcripts as $i => $transcriptData) {
-            $transcript = trim($transcriptData['transcript']);
-
-            if ($i === 0) {
-                // First chunk - use as-is
-                $reassembled = $transcript;
-            } else {
-                // Subsequent chunks - remove overlap with previous chunk
-                $deduplicated = $this->removeOverlapFromTranscript($transcript, $previousTranscript);
-                $reassembled .= "\n\n".$deduplicated;
-            }
-
-            $previousTranscript = $transcript;
-        }
-
-        $this->logger->logProcessingStep(
-            $processingId,
-            'transcript_reassembly',
-            'completed',
-            [
-                'chunk_count' => count($transcripts),
-                'final_length' => strlen($reassembled),
-            ]
-        );
-
-        return $this->formatAsMarkdown(trim($reassembled));
-    }
-
-    /**
-     * Remove overlapping content from the beginning of a transcript
-     *
-     * @param  string  $currentTranscript  Current chunk transcript
-     * @param  string  $previousTranscript  Previous chunk transcript
-     * @return string Transcript with overlap removed
-     */
-    private function removeOverlapFromTranscript(string $currentTranscript, string $previousTranscript): string
-    {
-        if (empty($previousTranscript) || empty($currentTranscript)) {
-            return $currentTranscript;
-        }
-
-        // Get last few sentences from previous transcript
-        $previousSentences = $this->splitIntoSentences($previousTranscript);
-        $currentSentences = $this->splitIntoSentences($currentTranscript);
-
-        if (empty($previousSentences) || empty($currentSentences)) {
-            return $currentTranscript;
-        }
-
-        // Look for overlap by comparing last sentences of previous with first sentences of current
-        $maxOverlapSentences = min(3, count($previousSentences), count($currentSentences));
-        $overlapFound = 0;
-
-        for ($i = 1; $i <= $maxOverlapSentences; $i++) {
-            $previousEnd = array_slice($previousSentences, -$i);
-            $currentStart = array_slice($currentSentences, 0, $i);
-
-            // Compare sentences with some tolerance for transcription variations
-            if ($this->sentencesMatch($previousEnd, $currentStart)) {
-                $overlapFound = $i;
-            }
-        }
-
-        // Remove overlapping sentences from current transcript
-        if ($overlapFound > 0) {
-            $remainingSentences = array_slice($currentSentences, $overlapFound);
-
-            return implode(' ', $remainingSentences);
-        }
-
-        return $currentTranscript;
-    }
-
-    /**
-     * Check if two arrays of sentences match with some tolerance
-     *
-     * @param  array  $sentences1  First set of sentences
-     * @param  array  $sentences2  Second set of sentences
-     * @return bool True if sentences match sufficiently
-     */
-    private function sentencesMatch(array $sentences1, array $sentences2): bool
-    {
-        if (count($sentences1) !== count($sentences2)) {
-            return false;
-        }
-
-        foreach ($sentences1 as $i => $sentence1) {
-            $sentence2 = $sentences2[$i];
-
-            // Normalize sentences for comparison
-            $norm1 = $this->normalizeSentenceForComparison($sentence1);
-            $norm2 = $this->normalizeSentenceForComparison($sentence2);
-
-            // Calculate similarity
-            $similarity = 0;
-            similar_text($norm1, $norm2, $similarity);
-
-            // Require 85% similarity to consider a match
-            if ($similarity < 85) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Normalize sentence for comparison by removing punctuation and extra spaces
-     *
-     * @param  string  $sentence  Sentence to normalize
-     * @return string Normalized sentence
-     */
-    private function normalizeSentenceForComparison(string $sentence): string
-    {
-        // Remove punctuation and convert to lowercase
-        $normalized = preg_replace('/[^\w\s]/', '', strtolower($sentence));
-        // Collapse multiple spaces
-        $normalized = preg_replace('/\s+/', ' ', $normalized);
-
-        return trim($normalized);
-    }
-
-    /**
-     * Clean up temporary chunk files
-     *
-     * @param  array  $chunkPaths  Array of chunk file paths
-     * @param  string  $processingId  Processing ID for logging
-     */
-    private function cleanupChunkFiles(array $chunkPaths, string $processingId): void
-    {
-        foreach ($chunkPaths as $chunkPath) {
-            if (file_exists($chunkPath)) {
-                unlink($chunkPath);
-            }
-        }
-
-        $this->logger->logProcessingStep(
-            $processingId,
-            'chunk_cleanup',
-            'completed',
-            ['cleaned_chunks' => count($chunkPaths)]
-        );
-    }
-
-    /**
-     * Compress audio file for transcription service using fallback compression settings
-     *
-     * @param  string  $inputPath  Path to the input audio file
-     * @param  string  $processingId  Processing ID for logging
-     * @return string Path to the compressed audio file
-     *
-     * @throws Exception When compression fails
-     */
-    private function compressAudioForTranscription(string $inputPath, string $processingId): string
-    {
-        $fallbackConfig = config('media-processing.audio_extraction.fallback_compression');
-        $compressedPath = storage_path('app/temp/'.basename($inputPath, '.mp3').'_compressed_'.time().'.mp3');
-
-        // Ensure temp directory exists
-        $tempDir = dirname($compressedPath);
-        if (! is_dir($tempDir)) {
-            mkdir($tempDir, 0755, true);
-        }
-
-        try {
-            $ffmpeg = FFMpeg::create([
-                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
-                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
-            ]);
-
-            $audio = $ffmpeg->open($inputPath);
-
-            $format = new Mp3;
-            $format->setAudioKiloBitrate($fallbackConfig['bitrate'] ?? 32);
-            $format->setAudioChannels($fallbackConfig['channels'] ?? 1);
-            // Note: Sample rate is handled by FFmpeg defaults for speech optimization
-
-            $audio->save($format, $compressedPath);
-
-            if (! file_exists($compressedPath) || filesize($compressedPath) === 0) {
-                throw new TranscriptionException('Compressed audio file was not created or is empty');
-            }
-
-            $this->logger->logFileOperation(
-                $processingId,
-                'audio_compression',
-                $compressedPath,
-                filesize($compressedPath)
-            );
-
-            Log::info('Fallback audio compression applied', [
-                'processing_id' => $processingId,
-                'input_path' => $inputPath,
-                'output_path' => $compressedPath,
-                'compression_settings' => [
-                    'bitrate_kbps' => $fallbackConfig['bitrate'] ?? 32,
-                    'channels' => $fallbackConfig['channels'] ?? 1,
-                    'purpose' => 'transcription_size_reduction',
-                ],
-            ]);
-
-            return $compressedPath;
-
-        } catch (\Exception $e) {
-            // Clean up failed compression attempt
-            if (file_exists($compressedPath)) {
-                unlink($compressedPath);
-            }
-
-            throw new TranscriptionException("Failed to compress audio for transcription: {$e->getMessage()}", 0, $e);
         }
     }
 }
