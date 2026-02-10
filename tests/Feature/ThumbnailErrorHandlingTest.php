@@ -63,7 +63,7 @@ class ThumbnailErrorHandlingTest extends TestCase
 
         // Verify sermon was not updated (no thumbnail data)
         $sermon->refresh();
-        $this->assertNull($sermon->thumbnail_path);
+        $this->assertNull($sermon->thumbnail_file_path);
         $this->assertNull($sermon->thumbnail_generated_at);
 
         // Cleanup
@@ -157,7 +157,7 @@ class ThumbnailErrorHandlingTest extends TestCase
 
         // Verify sermon was not updated
         $sermon->refresh();
-        $this->assertNull($sermon->thumbnail_path);
+        $this->assertNull($sermon->thumbnail_file_path);
 
         // Cleanup
         unlink($tempFile);
@@ -198,7 +198,7 @@ class ThumbnailErrorHandlingTest extends TestCase
 
         // Verify sermon was not updated
         $sermon->refresh();
-        $this->assertNull($sermon->thumbnail_path);
+        $this->assertNull($sermon->thumbnail_file_path);
 
         // Cleanup
         unlink($tempFile);
@@ -265,7 +265,7 @@ class ThumbnailErrorHandlingTest extends TestCase
 
         // Verify sermon was not updated
         $sermon->refresh();
-        $this->assertNull($sermon->thumbnail_path);
+        $this->assertNull($sermon->thumbnail_file_path);
 
         // Cleanup
         unlink($tempFile);
@@ -322,7 +322,7 @@ class ThumbnailErrorHandlingTest extends TestCase
 
         // Verify sermon was not updated after first failure
         $sermon->refresh();
-        $this->assertNull($sermon->thumbnail_path);
+        $this->assertNull($sermon->thumbnail_file_path);
 
         // Second job attempt (simulating retry)
         $job2 = new GenerateThumbnail($sermon->id, $tempFile);
@@ -330,7 +330,7 @@ class ThumbnailErrorHandlingTest extends TestCase
 
         // Verify sermon was updated after recovery
         $sermon->refresh();
-        $this->assertEquals('sermons/thumbnails/recovered.jpg', $sermon->thumbnail_path);
+        $this->assertEquals('sermons/thumbnails/recovered.jpg', $sermon->thumbnail_file_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
 
         // Cleanup

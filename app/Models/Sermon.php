@@ -62,8 +62,6 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read string $canonical_url
  * @property-read ?string $episode_image_url
  * @property-read ?string $transcript_url
- * @property-read string $filename (deprecated, use audio_file_path)
- * @property-read ?string $thumbnail_path (deprecated, use thumbnail_file_path)
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
  * @method static Builder|Sermon newModelQuery()
@@ -745,49 +743,5 @@ class Sermon extends Model implements Sitemapable
         // Generate a public URL to the transcript
         // This assumes transcripts are stored in a publicly accessible location
         return url("/christ/sermons/{$this->date->format('Y')}/{$this->date->format('m')}/{$this->slug}/transcript");
-    }
-
-    // ========================================================================
-    // Backward Compatibility Accessors (Deprecated - will be removed in future)
-    // ========================================================================
-
-    /**
-     * Backward compatibility accessor for 'filename' (deprecated)
-     *
-     * @deprecated Use audio_file_path instead
-     */
-    public function getFilenameAttribute(): ?string
-    {
-        return $this->attributes['audio_file_path'] ?? null;
-    }
-
-    /**
-     * Backward compatibility mutator for 'filename' (deprecated)
-     *
-     * @deprecated Use audio_file_path instead
-     */
-    public function setFilenameAttribute(?string $value): void
-    {
-        $this->attributes['audio_file_path'] = $value;
-    }
-
-    /**
-     * Backward compatibility accessor for 'thumbnail_path' (deprecated)
-     *
-     * @deprecated Use thumbnail_file_path instead
-     */
-    public function getThumbnailPathAttribute(): ?string
-    {
-        return $this->attributes['thumbnail_file_path'] ?? null;
-    }
-
-    /**
-     * Backward compatibility mutator for 'thumbnail_path' (deprecated)
-     *
-     * @deprecated Use thumbnail_file_path instead
-     */
-    public function setThumbnailPathAttribute(?string $value): void
-    {
-        $this->attributes['thumbnail_file_path'] = $value;
     }
 }

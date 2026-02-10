@@ -247,7 +247,7 @@ class StandardProcessingResponse
                     : null,
             ],
             'video' => [
-                'has_thumbnail' => $log->sermon && ! empty($log->sermon->thumbnail_path),
+                'has_thumbnail' => $log->sermon && ! empty($log->sermon->thumbnail_file_path),
                 'video_duration' => $log->duration,
             ],
             'audio' => [
@@ -259,9 +259,9 @@ class StandardProcessingResponse
         // Add thumbnail data if sermon exists
         $sermon = $log->sermon;
         if ($sermon instanceof \App\Models\Sermon) {
-            $metadata['thumbnail_generated'] = ! empty($sermon->thumbnail_path);
-            $metadata['thumbnail_url'] = $sermon->thumbnail_path
-                ? \Illuminate\Support\Facades\Storage::disk('public')->url($sermon->thumbnail_path)
+            $metadata['thumbnail_generated'] = ! empty($sermon->thumbnail_file_path);
+            $metadata['thumbnail_url'] = $sermon->thumbnail_file_path
+                ? \Illuminate\Support\Facades\Storage::disk('public')->url($sermon->thumbnail_file_path)
                 : null;
             $metadata['thumbnail_generated_at'] = $sermon->thumbnail_generated_at?->toISOString();
         }

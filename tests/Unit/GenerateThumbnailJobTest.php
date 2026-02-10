@@ -86,7 +86,7 @@ class GenerateThumbnailJobTest extends TestCase
 
         // Verify sermon was updated
         $sermon->refresh();
-        $this->assertEquals('sermons/thumbnails/test.jpg', $sermon->thumbnail_path);
+        $this->assertEquals('sermons/thumbnails/test.jpg', $sermon->thumbnail_file_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
         $this->assertEquals(['width' => 1280, 'height' => 720], $sermon->thumbnail_metadata);
 
@@ -121,7 +121,7 @@ class GenerateThumbnailJobTest extends TestCase
 
         // Verify sermon was NOT updated
         $sermon->refresh();
-        $this->assertNull($sermon->thumbnail_path);
+        $this->assertNull($sermon->thumbnail_file_path);
         $this->assertNull($sermon->thumbnail_generated_at);
         $this->assertNull($sermon->thumbnail_metadata);
 
@@ -208,7 +208,7 @@ class GenerateThumbnailJobTest extends TestCase
 
         // Verify sermon was NOT updated
         $sermon->refresh();
-        $this->assertNull($sermon->thumbnail_path);
+        $this->assertNull($sermon->thumbnail_file_path);
 
         // Cleanup
         unlink($tempFile);

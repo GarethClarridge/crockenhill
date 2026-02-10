@@ -50,20 +50,20 @@ class MigrateSermonStorageCommand extends Command
         switch ($pattern) {
             case 'legacy':
                 $sermons = $query->whereNotNull('filetype')
-                    ->whereRaw('filename NOT LIKE "%/%"')
+                    ->whereRaw('audio_file_path NOT LIKE "%/%"')
                     ->get();
                 $this->migrateLegacySermons($sermons, $targetDisk, $dryRun, $batchSize);
                 break;
 
             case 'storage':
-                $sermons = $query->whereRaw('filename LIKE "%/%"')
+                $sermons = $query->whereRaw('audio_file_path LIKE "%/%"')
                     ->whereNull('filetype')
                     ->get();
                 $this->migrateStorageSermons($sermons, $targetDisk, $dryRun, $batchSize);
                 break;
 
             case 'processing':
-                $sermons = $query->whereNotNull('transcript_path')
+                $sermons = $query->whereNotNull('transcript_file_path')
                     ->orWhereNotNull('video_file_path')
                     ->get();
                 $this->migrateProcessingSermons($sermons, $targetDisk, $dryRun, $batchSize);
@@ -77,8 +77,8 @@ class MigrateSermonStorageCommand extends Command
 
         if ($dryRun) {
             foreach ($sermons as $sermon) {
-                $sourcePath = "media/sermons/{$sermon->filename}.{$sermon->filetype}";
-                $targetPath = "legacy/sermons/{$sermon->filename}.{$sermon->filetype}";
+                $sourcePath = "media/sermons/{$sermon->audio_file_path}.{$sermon->filetype}";
+                $targetPath = "legacy/sermons/{$sermon->audio_file_path}.{$sermon->filetype}";
                 $this->line("Would migrate: {$sourcePath} → {$targetPath}");
             }
 
@@ -92,8 +92,8 @@ class MigrateSermonStorageCommand extends Command
         foreach ($chunks as $chunk) {
             foreach ($chunk as $sermon) {
                 try {
-                    $sourcePath = "media/sermons/{$sermon->filename}.{$sermon->filetype}";
-                    $targetPath = "legacy/sermons/{$sermon->filename}.{$sermon->filetype}";
+                    $sourcePath = "media/sermons/{$sermon->audio_file_path}.{$sermon->filetype}";
+                    $targetPath = "legacy/sermons/{$sermon->audio_file_path}.{$sermon->filetype}";
 
                     if (Storage::disk('public_images')->exists($sourcePath)) {
                         // Skip if already exists
@@ -111,7 +111,7 @@ class MigrateSermonStorageCommand extends Command
                         $uploadSuccessful = Storage::disk($targetDisk)->put($targetPath, $content);
 
                         if (! $uploadSuccessful) {
-                            $this->error("Upload failed: {$sermon->filename}.{$sermon->filetype}");
+                            $this->error("Upload failed: {$sermon->audio_file_path}.{$sermon->filetype}");
                             $progressBar->advance();
 
                             continue;
@@ -140,14 +140,14 @@ class MigrateSermonStorageCommand extends Command
                         if ($uploadVerified) {
                             $progressBar->advance();
                         } else {
-                            $this->error("Failed to verify upload after 5 attempts: {$sermon->filename}.{$sermon->filetype}");
+                            $this->error("Failed to verify upload after 5 attempts: {$sermon->audio_file_path}.{$sermon->filetype}");
                         }
                     } else {
                         $this->warn("Source file not found: {$sourcePath} on public_images disk");
                         $progressBar->advance();
                     }
                 } catch (Exception $e) {
-                    $this->error("Failed to migrate {$sermon->filename}: ".$e->getMessage());
+                    $this->error("Failed to migrate {$sermon->audio_file_path}: ".$e->getMessage());
                     $progressBar->advance();
                 }
             }
@@ -163,7 +163,7 @@ class MigrateSermonStorageCommand extends Command
 
         if ($dryRun) {
             foreach ($sermons as $sermon) {
-                $this->line("Would migrate storage sermon: {$sermon->filename}");
+                $this->line("Would migrate storage sermon: {$sermon->audio_file_path}");
             }
 
             return;
@@ -179,14 +179,14 @@ class MigrateSermonStorageCommand extends Command
                 try {
                     $sourceDisk = 'public'; // Current storage location
 
-                    if (Storage::disk($sourceDisk)->exists($sermon->filename)) {
-                        $content = Storage::disk($sourceDisk)->get($sermon->filename);
-                        Storage::disk($targetDisk)->put($sermon->filename, $content);
+                    if (Storage::disk($sourceDisk)->exists($sermon->audio_file_path)) {
+                        $content = Storage::disk($sourceDisk)->get($sermon->audio_file_path);
+                        Storage::disk($targetDisk)->put($sermon->audio_file_path, $content);
 
                         // Verify upload with retry for eventual consistency
                         $verified = false;
                         for ($attempt = 1; $attempt <= 3; $attempt++) {
-                            if (Storage::disk($targetDisk)->exists($sermon->filename)) {
+                            if (Storage::disk($targetDisk)->exists($sermon->audio_file_path)) {
                                 $verified = true;
                                 break;
                             }
@@ -198,14 +198,14 @@ class MigrateSermonStorageCommand extends Command
                         if ($verified) {
                             $progressBar->advance();
                         } else {
-                            $this->error("Failed to verify upload after 3 attempts: {$sermon->filename}");
+                            $this->error("Failed to verify upload after 3 attempts: {$sermon->audio_file_path}");
                         }
                     } else {
-                        $this->warn("Source file not found: {$sermon->filename}");
+                        $this->warn("Source file not found: {$sermon->audio_file_path}");
                         $progressBar->advance();
                     }
                 } catch (Exception $e) {
-                    $this->error("Failed to migrate storage sermon {$sermon->filename}: ".$e->getMessage());
+                    $this->error("Failed to migrate storage sermon {$sermon->audio_file_path}: ".$e->getMessage());
                     $progressBar->advance();
                 }
             }
@@ -221,7 +221,7 @@ class MigrateSermonStorageCommand extends Command
 
         if ($dryRun) {
             foreach ($sermons as $sermon) {
-                $this->line("Would migrate processing sermon: {$sermon->filename}");
+                $this->line("Would migrate processing sermon: {$sermon->audio_file_path}");
             }
 
             return;
@@ -240,10 +240,10 @@ class MigrateSermonStorageCommand extends Command
                     if ($moved) {
                         $progressBar->advance();
                     } else {
-                        $this->error("Failed to migrate processing sermon: {$sermon->filename}");
+                        $this->error("Failed to migrate processing sermon: {$sermon->audio_file_path}");
                     }
                 } catch (Exception $e) {
-                    $this->error("Failed to migrate processing sermon {$sermon->filename}: ".$e->getMessage());
+                    $this->error("Failed to migrate processing sermon {$sermon->audio_file_path}: ".$e->getMessage());
                     $progressBar->advance();
                 }
             }

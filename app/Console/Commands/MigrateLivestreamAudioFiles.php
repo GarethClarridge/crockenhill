@@ -22,8 +22,8 @@ class MigrateLivestreamAudioFiles extends Command
 
         // Find sermons with the livestream filename pattern: sermons/YYYY/MM/uuid.mp3
         // We use LIKE pattern matching since source_type might not be set correctly
-        $livestreamSermons = Sermon::whereNotNull('filename')
-            ->where('filename', 'LIKE', 'sermons/____/__/%.mp3') // Pattern: sermons/YYYY/MM/uuid.mp3
+        $livestreamSermons = Sermon::whereNotNull('audio_file_path')
+            ->where('audio_file_path', 'LIKE', 'sermons/____/__/%.mp3') // Pattern: sermons/YYYY/MM/uuid.mp3
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -42,7 +42,7 @@ class MigrateLivestreamAudioFiles extends Command
         $errors = [];
 
         foreach ($livestreamSermons as $sermon) {
-            $filename = $sermon->filename; // e.g., "sermons/2025/09/uuid.mp3"
+            $filename = $sermon->audio_file_path; // e.g., "sermons/2025/09/uuid.mp3"
             $sermonTitle = $sermon->title ?: "Sermon ID {$sermon->id}";
 
             // Debug info

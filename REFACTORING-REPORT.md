@@ -1,12 +1,12 @@
 # Refactoring Report - Crockenhill Baptist Church Website
 
-**Date:** February 2026 (Updated: February 9, 2026)
+**Date:** February 2026 (Updated: February 10, 2026)
 **Laravel Version:** 12.50.0 | **PHP Version:** 8.4.17
 **Reviewed By:** Claude Code
 
 ## Executive Summary
 
-Significant progress has been made since the initial review. The majority of Priority 1 items are complete - all models now use `casts()` methods, legacy middleware constructors are removed, the sitemap route is extracted to a controller, and the Meeting PascalCase columns are migrated. The controllers have been cleaned up with proper Form Requests and the SermonController has been split. The remaining work centres on deprecated Sermon accessors, missing controller return types, large service files, generic exception handling, and expanding test coverage.
+All Priority 1 items are now complete. All models use `casts()` methods, legacy middleware constructors are removed, the sitemap route is extracted to a controller, the Meeting PascalCase columns are migrated, controllers have proper Form Requests, the SermonController is split, and all deprecated Sermon accessors are removed. The remaining work centres on missing controller return types, large service files, generic exception handling, and expanding test coverage.
 
 **Overall Assessment:** Strong Laravel 12 compliance. Remaining work is moderate-impact cleanup and test coverage.
 
@@ -114,32 +114,21 @@ All 8 models now use the `casts()` method pattern:
 
 - ✅ `LivestreamProcessingFailedTest.php` exists with comprehensive coverage
 
+### 1.5 Sermon Model: Deprecated Backward-Compatibility Accessors - COMPLETED
+
+All three deprecated accessor/mutator pairs removed from Sermon.php:
+
+- ✅ `getTranscriptPathAttribute()` / `setTranscriptPathAttribute()` - removed (was unused)
+- ✅ `getThumbnailPathAttribute()` / `setThumbnailPathAttribute()` - removed after updating `ThumbnailGenerationService`, `StandardProcessingResponse`, and 3 test files to use `thumbnail_file_path` directly
+- ✅ `getFilenameAttribute()` / `setFilenameAttribute()` - removed after updating `MigrateSermonStorageCommand`, `VerifySermonStorageCommand`, and `MigrateLivestreamAudioFiles` to use `audio_file_path` directly
+- ✅ Bonus: fixed `MigrateSermonStorageCommand` raw SQL queries referencing non-existent `filename` column (now uses `audio_file_path`) and `transcript_path` column (now uses `transcript_file_path`)
+- ✅ All 670 tests pass
+
 ---
 
 ## Remaining Items
 
-### Priority 1 - High Impact
-
-#### 1.5 Sermon Model: Deprecated Backward-Compatibility Accessors
-
-**Status:** Cannot remove yet - still actively used in production code.
-
-Three deprecated accessor/mutator pairs at [Sermon.php:754-812](app/Models/Sermon.php#L754-L812):
-
-| Accessor | Maps To | Active Usage |
-|----------|---------|-------------|
-| `filename` / `setFilenameAttribute` | `audio_file_path` | Used in 3 console commands (MigrateSermonStorageCommand, VerifySermonStorageCommand, MigrateLivestreamAudioFiles) |
-| `transcript_path` / `setTranscriptPathAttribute` | `transcript_file_path` | **No usage found** - safe to remove |
-| `thumbnail_path` / `setThumbnailPathAttribute` | `thumbnail_file_path` | Used in ThumbnailGenerationService, StandardProcessingResponse, and 3 test files |
-
-**Action:**
-1. Remove `getTranscriptPathAttribute()` / `setTranscriptPathAttribute()` immediately (unused)
-2. Update `ThumbnailGenerationService`, `StandardProcessingResponse`, and related tests to use `thumbnail_file_path` directly, then remove the accessor
-3. Update the 3 console commands to use `audio_file_path` directly, then remove the accessor
-
----
-
-### Priority 2 - Moderate Impact
+### Priority 2 - Moderate Impact (formerly Priority 1 complete)
 
 #### 2.1 Remaining Route Closures
 
@@ -342,7 +331,7 @@ These areas are at or above Laravel 12 standards and need no changes:
 ## Suggested Refactoring Order
 
 1. **Quick wins (30 mins):** ✅ **COMPLETED** — Added return types to 6 controller methods, removed unused `transcript_path` accessor, fixed 3x `.webp` fallback bug, added `BelongsTo` import to Sermon model
-2. **Deprecated accessor migration (1-2 hours):** Update `ThumbnailGenerationService` + `StandardProcessingResponse` + tests to use `thumbnail_file_path`, update console commands to use `audio_file_path`, then remove deprecated accessors
+2. **Deprecated accessor migration (1-2 hours):** ✅ **COMPLETED** — Updated `ThumbnailGenerationService`, `StandardProcessingResponse`, 3 test files to use `thumbnail_file_path`; updated 3 console commands to use `audio_file_path`; fixed broken raw SQL column references; removed all 3 deprecated accessor pairs from Sermon model
 3. **Route cleanup (30 mins):** Replace remaining closures with `Route::redirect()`, add environment check to phpinfo route
 4. **Exception hierarchy (2-3 hours):** Create custom exception classes, incrementally replace generic `catch (\Exception)` blocks in the 4 largest services
 5. **Service extraction (ongoing):** Extract `AudioChunkingService`, `FrameExtractionService`, `RmsAnalysisService` from oversized services

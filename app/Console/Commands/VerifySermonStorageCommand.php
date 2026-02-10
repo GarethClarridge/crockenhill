@@ -45,7 +45,7 @@ class VerifySermonStorageCommand extends Command
                 $missing[] = [
                     'id' => $sermon->id,
                     'title' => $sermon->title,
-                    'filename' => $sermon->filename,
+                    'filename' => $sermon->audio_file_path,
                     'expected_path' => $fileInfo['path'],
                     'pattern' => $fileInfo['type'],
                 ];

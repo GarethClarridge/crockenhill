@@ -113,7 +113,7 @@ class SermonThumbnailTest extends TestCase
 
         $sermon = Sermon::create($data);
 
-        $this->assertEquals($data['thumbnail_file_path'], $sermon->thumbnail_path);
+        $this->assertEquals($data['thumbnail_file_path'], $sermon->thumbnail_file_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
         $this->assertEquals($data['thumbnail_metadata'], $sermon->thumbnail_metadata);
     }
@@ -265,7 +265,7 @@ class SermonThumbnailTest extends TestCase
             'thumbnail_metadata' => ['width' => 1920, 'height' => 1080],
         ]);
 
-        $this->assertEquals('sermons/thumbnails/updated.jpg', $sermon->thumbnail_path);
+        $this->assertEquals('sermons/thumbnails/updated.jpg', $sermon->thumbnail_file_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
         $this->assertEquals(['width' => 1920, 'height' => 1080], $sermon->thumbnail_metadata);
     }
@@ -285,7 +285,7 @@ class SermonThumbnailTest extends TestCase
             'thumbnail_metadata' => null,
         ]);
 
-        $this->assertNull($sermon->thumbnail_path);
+        $this->assertNull($sermon->thumbnail_file_path);
         $this->assertNull($sermon->thumbnail_generated_at);
         $this->assertNull($sermon->thumbnail_metadata);
         $this->assertFalse($sermon->hasThumbnail());

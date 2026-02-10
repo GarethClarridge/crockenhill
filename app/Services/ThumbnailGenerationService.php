@@ -795,13 +795,13 @@ class ThumbnailGenerationService
         $videoPath = $sermon->video_file_path;
 
         // Delete existing thumbnail if it exists
-        if ($sermon->thumbnail_path) {
+        if ($sermon->thumbnail_file_path) {
             try {
-                Storage::disk($this->storageDisk)->delete($sermon->thumbnail_path);
+                Storage::disk($this->storageDisk)->delete($sermon->thumbnail_file_path);
             } catch (\Exception $e) {
                 Log::warning('Failed to delete existing thumbnail', [
                     'sermon_id' => $sermon->id,
-                    'thumbnail_path' => $sermon->thumbnail_path,
+                    'thumbnail_file_path' => $sermon->thumbnail_file_path,
                     'error' => $e->getMessage(),
                 ]);
             }
