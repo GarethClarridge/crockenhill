@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 class MockSermonAnalysisService implements SermonAnalysisInterface
 {
-    public function __construct() {}
+    public function __construct(private readonly BritishEnglishConverter $britishEnglishConverter) {}
 
     /**
      * Analyze sermon transcript using mock data generation
@@ -439,8 +439,7 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
         }
 
         // Apply British English corrections
-        $converter = app(BritishEnglishConverter::class);
-        $summary = $converter->convert($summary);
+        $summary = $this->britishEnglishConverter->convert($summary);
 
         return ! empty(trim($summary)) ? $summary : null;
     }

@@ -78,8 +78,12 @@ class MeetingController extends Controller
         if ($meeting->pictures) {
             $photoDir = public_path('images/meetings/'.$meeting->slug);
             if (is_dir($photoDir)) {
-                $filelist = scandir($photoDir);
-                $photos = array_slice($filelist, 2); // Remove . and ..
+                $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                $pattern = implode(',', $allowed);
+                $photos = array_map(
+                    fn (string $path) => basename($path),
+                    glob("{$photoDir}/*.{$pattern}", GLOB_BRACE) ?: []
+                );
             }
         }
 

@@ -33,13 +33,12 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
      */
     public function __construct(
         private MediaProcessingLog $processingLog,
-        private readonly SermonRepository $sermonRepository = new SermonRepository
     ) {}
 
     /**
      * Execute the job.
      */
-    public function handle(SermonAnalysisInterface $analysisService): void
+    public function handle(SermonAnalysisInterface $analysisService, SermonRepository $sermonRepository): void
     {
         try {
             Log::info('Starting AI transcript processing', [
@@ -78,7 +77,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             ]);
 
             // Get existing series for matching
-            $existingSeries = $this->getExistingSeries();
+            $existingSeries = $sermonRepository->getExistingSeries();
 
             // Perform comprehensive AI analysis
             $analysis = $analysisService->analyzeSermon($transcript, $existingSeries);
@@ -190,11 +189,6 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 throw $e;
             }
         }
-    }
-
-    private function getExistingSeries(): array
-    {
-        return $this->sermonRepository->getExistingSeries();
     }
 
     private function createFallbackAnalysis(): ?SermonAnalysis

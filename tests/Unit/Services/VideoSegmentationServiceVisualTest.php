@@ -17,7 +17,7 @@ class VideoSegmentationServiceVisualTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
-        $this->service = new VideoSegmentationService;
+        $this->service = $this->app->make(VideoSegmentationService::class);
     }
 
     #[Test]

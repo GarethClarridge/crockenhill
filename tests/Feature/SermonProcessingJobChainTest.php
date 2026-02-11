@@ -190,8 +190,8 @@ class SermonProcessingJobChainTest extends TestCase
         $this->app->instance(TranscriptionServiceInterface::class, $mockTranscriptionService);
 
         // Create and execute the job
-        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
-        $job->handle();
+        $job = new TranscribeAudio($processingLog);
+        $job->handle($mockTranscriptionService);
 
         // Assert sermon was updated with transcript path
         $sermon->refresh();
@@ -235,12 +235,12 @@ class SermonProcessingJobChainTest extends TestCase
         $this->app->instance(TranscriptionServiceInterface::class, $mockTranscriptionService);
 
         // Create and execute the job
-        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
+        $job = new TranscribeAudio($processingLog);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Transcription failed');
 
-        $job->handle();
+        $job->handle($mockTranscriptionService);
 
         // Assert processing log was marked as failed
         $processingLog->refresh();
@@ -283,7 +283,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Create and execute the job
         $job = new ProcessTranscriptWithAI($processingLog);
-        $job->handle($mockAnalysisService);
+        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
 
         // Assert processing log was updated
         $processingLog->refresh();
@@ -325,7 +325,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Create and execute the job
         $job = new ProcessTranscriptWithAI($processingLog);
-        $job->handle($mockAnalysisService);
+        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
 
         // Assert processing log shows fallback was used
         $processingLog->refresh();

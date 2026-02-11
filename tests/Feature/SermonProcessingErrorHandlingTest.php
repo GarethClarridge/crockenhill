@@ -73,12 +73,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
         ]);
 
         $mockTranscriptionService = $this->createMock(TranscriptionServiceInterface::class);
-        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
+        $job = new TranscribeAudio($processingLog);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('No audio file path found');
 
-        $job->handle();
+        $job->handle($mockTranscriptionService);
     }
 
     #[Test]
@@ -108,12 +108,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $mockTranscriptionService->expects($this->never())
             ->method('cleanupOnFailure');
 
-        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
+        $job = new TranscribeAudio($processingLog);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Audio file not found');
 
-        $job->handle();
+        $job->handle($mockTranscriptionService);
 
         // Verify processing log was updated with error
         $processingLog->refresh();
@@ -139,7 +139,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $job = new ProcessTranscriptWithAI($processingLog);
 
         // Should not throw exception - applies graceful degradation instead
-        $job->handle($mockAnalysisService);
+        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
 
         // Verify graceful degradation was applied
         $processingLog->refresh();
@@ -170,7 +170,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             ->willThrowException(new \Exception('AI service unavailable'));
 
         $job = new ProcessTranscriptWithAI($processingLog);
-        $job->handle($mockAnalysisService);
+        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
 
         // Should not throw exception due to graceful degradation
         $processingLog->refresh();
@@ -240,12 +240,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
             ->method('cleanupOnFailure')
             ->with($sermon->id);
 
-        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
+        $job = new TranscribeAudio($processingLog);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Request timeout');
 
-        $job->handle();
+        $job->handle($mockTranscriptionService);
     }
 
     #[Test]
@@ -278,12 +278,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
             ->method('cleanupOnFailure')
             ->with($sermon->id);
 
-        $job = new TranscribeAudio($processingLog, $mockTranscriptionService);
+        $job = new TranscribeAudio($processingLog);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Failed to write transcript to storage');
 
-        $job->handle();
+        $job->handle($mockTranscriptionService);
     }
 
     #[Test]
@@ -308,7 +308,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             ->willThrowException(new \Exception('Rate limit exceeded. Please try again later.'));
 
         $job = new ProcessTranscriptWithAI($processingLog);
-        $job->handle($mockAnalysisService);
+        $job->handle($mockAnalysisService, $this->app->make(\App\Repositories\SermonRepository::class));
 
         // Should apply graceful degradation
         $processingLog->refresh();

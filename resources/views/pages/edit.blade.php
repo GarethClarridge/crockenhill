@@ -7,8 +7,8 @@
 @section('dynamic_content')
 
   <form class="" action="/church/members/pages/{{$page->slug}}" method="post" enctype="multipart/form-data">
-    <input type="hidden" name="_method" value="PUT">
-    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+    @method('PUT')
+    @csrf
 
     <div>
       @if (count($errors) > 0)
@@ -31,50 +31,28 @@
 
           <label class="block mt-6" for="area">Website section</label>
           <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" name="area" value="{{$page->area}}">
-            @if ($page->area == 'christ')
-              <option value="christ" selected>Christ</option>
-            @else
-              <option value="christ">Christ</option>
-            @endif
-
-            @if ($page->area == 'church')
-              <option value="church" selected>Church</option>
-            @else
-              <option value="church">Church</option>
-            @endif
-
-            @if ($page->area == 'community')
-              <option value="community" selected>Community</option>
-            @else
-              <option value="community">Community</option>
-            @endif
+            <option value="christ" @selected($page->area == 'christ')>Christ</option>
+            <option value="church" @selected($page->area == 'church')>Church</option>
+            <option value="community" @selected($page->area == 'community')>Community</option>
           </select>
           
             <p class="mt-6">Appears in navigation</p>
             <div class="grid grid-cols-2 gap-3 pt-2">
               <div class="h-full flex items-center pl-4 bg-gray-300 rounded">
-                @if ($page->navigation)
-                  <input checked id="navigation-radio-1" type="radio" value="yes" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
-                @else 
-                  <input id="navigation-radio-1" type="radio" value="yes" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
-                @endif
-                  <label for="navigation-radio-1" class="w-full py-4 ml-2 text-sm font-medium text-gray-900">
-                    Yes
-                  </label>
+                <input @checked($page->navigation) id="navigation-radio-1" type="radio" value="yes" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
+                <label for="navigation-radio-1" class="w-full py-4 ml-2 text-sm font-medium text-gray-900">
+                  Yes
+                </label>
               </div>
               <div class="h-full flex items-center pl-4 bg-gray-300 rounded">
-                @if ($page->navigation)
-                  <input id="navigation-radio-2" type="radio" value="no" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
-                @else
-                  <input checked id="navigation-radio-2" type="radio" value="no" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
-                @endif
-                  <label for="navigation-radio-2" class="w-full py-4 ml-2 text-sm font-medium text-gray-900">
-                    No
-                  </label>
+                <input @checked(! $page->navigation) id="navigation-radio-2" type="radio" value="no" name="navigation-radio" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-400 focus:ring-blue-500 focus:ring-2">
+                <label for="navigation-radio-2" class="w-full py-4 ml-2 text-sm font-medium text-gray-900">
+                  No
+                </label>
               </div>
             </div>
 
-          @if (isset ($headingpicture) && file_exists($_SERVER['DOCUMENT_ROOT'] . $headingpicture))
+          @if (isset($headingpicture) && file_exists(public_path($headingpicture)))
             <div>
               <p class="mt-6 mb-1">Heading image</p>
               <img src="{{$headingpicture}}" alt="{{$headingpicture}}" class="max-w-full h-auto" id="headingpicture">

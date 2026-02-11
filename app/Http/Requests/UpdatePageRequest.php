@@ -15,21 +15,18 @@ class UpdatePageRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return bool
      */
-    public function authorize()
+    public function authorize(): bool
     {
-        // Assuming the route parameter for the page model is 'page'
         return $this->user()->can('update', $this->route('page'));
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array
+     * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             'heading' => 'required|string|max:255',

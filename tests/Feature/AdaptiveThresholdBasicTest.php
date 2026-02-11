@@ -107,7 +107,7 @@ class AdaptiveThresholdBasicTest extends TestCase
         Config::set('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
 
         // Should not throw exception
-        $service = new VideoSegmentationService;
+        $service = $this->app->make(VideoSegmentationService::class);
         $this->assertInstanceOf(VideoSegmentationService::class, $service);
     }
 

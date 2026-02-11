@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 
 class SermonSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         // Create some specific sermons
         $sermons = [
@@ -20,7 +20,7 @@ class SermonSeeder extends Seeder
                 'reference' => 'Luke 2:1-20',
                 'preacher' => 'Mark Drury',
                 'series' => 'Christmas Messages',
-                'filename' => 'christmas-2024-morning.mp3',
+                'audio_file_path' => 'christmas-2024-morning.mp3',
                 'points' => '1. The historical reality\n2. The divine purpose\n3. The eternal significance',
             ],
             [
@@ -31,7 +31,7 @@ class SermonSeeder extends Seeder
                 'reference' => '1 John 1:5-10',
                 'preacher' => 'Mark Drury',
                 'series' => '1 John',
-                'filename' => '1-john-walking-in-light.mp3',
+                'audio_file_path' => '1-john-walking-in-light.mp3',
                 'points' => '1. God is light\n2. Fellowship with God\n3. Confession and forgiveness',
             ],
             [
@@ -42,7 +42,7 @@ class SermonSeeder extends Seeder
                 'reference' => 'Psalm 100',
                 'preacher' => 'Guest Speaker',
                 'series' => 'Special Events',
-                'filename' => 'special-2024-other.mp3',
+                'audio_file_path' => 'special-2024-other.mp3',
                 'points' => '1. Praise\n2. Thanksgiving',
             ],
         ];

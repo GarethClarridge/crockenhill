@@ -17,7 +17,8 @@ class MediaUploadField extends Component
 
     public string $collection = 'default';
 
-    public $file;
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public mixed $file = null;
 
     public bool $multiple = false;
 
@@ -85,7 +86,7 @@ class MediaUploadField extends Component
         }
     }
 
-    public function render()
+    public function render(): \Illuminate\View\View
     {
         $existingMedia = $this->model?->getMedia($this->collection) ?? collect();
 

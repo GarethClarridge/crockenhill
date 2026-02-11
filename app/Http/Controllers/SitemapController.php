@@ -20,7 +20,13 @@ class SitemapController extends Controller
             $sitemapService->generate();
         }
 
-        return response(file_get_contents($sitemapService->getFilePath()), 200, [
+        $content = file_get_contents($sitemapService->getFilePath());
+
+        if ($content === false) {
+            abort(500, 'Sitemap file could not be read.');
+        }
+
+        return response($content, 200, [
             'Content-Type' => 'application/xml',
         ]);
     }

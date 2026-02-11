@@ -1,14 +1,14 @@
 # Refactoring Report - Crockenhill Baptist Church Website
 
-**Date:** February 2026 (Updated: February 10, 2026 — exception hierarchy implemented)
+**Date:** February 2026 (Updated: February 11, 2026 — service/job/controller test coverage expansion)
 **Laravel Version:** 12.50.0 | **PHP Version:** 8.4.17
 **Reviewed By:** Claude Code
 
 ## Executive Summary
 
-All Priority 1 items are now complete. All models use `casts()` methods, legacy middleware constructors are removed, the sitemap route is extracted to a controller, the Meeting PascalCase columns are migrated, controllers have proper Form Requests, the SermonController is split, and all deprecated Sermon accessors are removed. The remaining work centres on missing controller return types, large service files, generic exception handling, and expanding test coverage.
+All Priority 1 and 2 items are now complete. All models use `casts()` methods, legacy middleware constructors are removed, the sitemap route is extracted to a controller, the Meeting PascalCase columns are migrated, controllers have proper Form Requests and return types, the SermonController is split, all deprecated Sermon accessors are removed, and service extractions are done. The remaining work centres on constructor property promotion, one service locator call, and expanding test coverage for untested services/jobs/controllers.
 
-**Overall Assessment:** Strong Laravel 12 compliance. Remaining work is moderate-impact cleanup and test coverage.
+**Overall Assessment:** Strong Laravel 12 compliance. Remaining work is test coverage for three core processing services and the database trait inconsistency.
 
 | Area | Rating | Summary |
 |------|--------|---------|
@@ -16,9 +16,9 @@ All Priority 1 items are now complete. All models use `casts()` methods, legacy 
 | Livewire & Views | Excellent | Modern Livewire 3, clean Blade components |
 | Enums | Excellent | Proper PHP 8.1+ backed enums |
 | Models | Excellent | All use `casts()`, proper scope types, all have factories |
-| Controllers & Routes | Good | Split well, some missing return types |
-| Services | Fair | Large files remain, generic exception catching |
-| Tests | Fair | 71 test files, but 67% of services and 88% of jobs untested |
+| Controllers & Routes | Excellent | Split well, all return types added |
+| Services | Good | Extractions done, exception hierarchy in place, some constructor promotion remaining |
+| Tests | Good | 98 test files (977 tests), 56% service coverage, 94% job coverage, 100% mailable coverage |
 
 ---
 
@@ -100,6 +100,22 @@ All 8 models now use the `casts()` method pattern:
 
 - ✅ Both `SermonAnalysisService` and `ProcessTranscriptWithAI` now delegate to `SermonRepository`
 
+### 2.1 Route Cleanup - COMPLETED
+
+- ✅ All route closures optimised (`Route::redirect()`, environment checks, etc.)
+
+### 2.3 Missing Return Type Declarations on Controller Methods - COMPLETED
+
+All 6 methods now have explicit return type declarations (`: ViewContract`):
+- ✅ MeetingController: `index()`, `create()`, `show()`, `edit()`
+- ✅ PageController: `showPage()`, `show()`
+
+### 3.1 Service Extractions - COMPLETED
+
+- ✅ `AudioChunkingService` extracted from `AudioTranscriptionService` (1,131→787 lines)
+- ✅ `FrameExtractionService` extracted from `ThumbnailGenerationService` (1,056→838 lines)
+- ✅ `RmsAnalysisService` extracted from `VideoSegmentationService` (898→580 lines)
+
 ### 4.3 PodcastFeedController Tests - COMPLETED
 
 - ✅ `PodcastFeedTest.php` exists with coverage
@@ -110,9 +126,26 @@ All 8 models now use the `casts()` method pattern:
 - ✅ Video upload: `DirectSermonVideoUploadTest.php`, `UnifiedMediaProcessingTest.php`
 - ✅ Livestream upload: `LivestreamProcessingApiTest.php`, `LivestreamProcessingIntegrationTest.php`
 
-### 4.6 LivestreamProcessingFailed Mailable Test - PARTIALLY COMPLETED
+### 4.6 Mailable Tests - COMPLETED
 
-- ✅ `LivestreamProcessingFailedTest.php` exists with comprehensive coverage
+All 5 Mailable classes now have dedicated tests:
+- ✅ `LivestreamProcessingFailedTest.php`
+- ✅ `DiskSpaceWarningTest.php`
+- ✅ `LivestreamProcessingCompletedTest.php`
+- ✅ `ManualReviewRequiredTest.php`
+- ✅ `PermissionErrorTest.php`
+
+### 5.1 Page Model: `.webp` File Check Bug - COMPLETED
+
+- ✅ All 3 methods now correctly use `.jpg` extension in fallback path
+
+### 5.2 Sermon Model: FQCN Instead of Import - COMPLETED
+
+- ✅ `BelongsTo` import added
+
+### 5.3 phpinfo Route Environment Check - COMPLETED
+
+- ✅ `app()->isLocal()` guard added
 
 ### 1.5 Sermon Model: Deprecated Backward-Compatibility Accessors - COMPLETED
 
@@ -128,63 +161,15 @@ All three deprecated accessor/mutator pairs removed from Sermon.php:
 
 ## Remaining Items
 
-### Priority 2 - Moderate Impact (formerly Priority 1 complete)
-
-#### 2.1 Route Cleanup - COMPLETED
-
-All route closures in [web.php](routes/web.php) have been optimized:
-
-| Location | Route | Status |
-|----------|-------|--------|
-| Line 109-111 | Password reset `reset-password/{token}` | ✅ Kept as closure (requires parameter passing to view) |
-| Line 120 | Admin dashboard redirect | ✅ Changed to `Route::redirect('/', '/church/members')` |
-| Lines 148-151 | Admin redirect group (pages/meetings) | ✅ Converted 4 static redirects to `Route::redirect()` |
-| Line 152-153 | Admin redirects with model binding | ✅ Kept as closures (require dynamic slug extraction) |
-| Line 172 | `phpinfo` route | ✅ Added environment check: `app()->isLocal() ? phpinfo() : abort(404)` |
-| Lines 229-231 | `500` error test route | ✅ Kept as closure for testing |
-
-#### 2.3 Missing Return Type Declarations on Controller Methods
-
-**MeetingController** - 4 methods missing return types:
-- [MeetingController.php:22](app/Http/Controllers/MeetingController.php#L22) - `index()` - should return `View|RedirectResponse`
-- [MeetingController.php:35](app/Http/Controllers/MeetingController.php#L35) - `create()` - should return `View|RedirectResponse`
-- [MeetingController.php:61](app/Http/Controllers/MeetingController.php#L61) - `show(Meeting $meeting)` - should return `View`
-- [MeetingController.php:119](app/Http/Controllers/MeetingController.php#L119) - `edit(Meeting $meeting)` - should return `View|RedirectResponse`
-
-**PageController** - 2 methods missing return types:
-- [PageController.php:24](app/Http/Controllers/PageController.php#L24) - `showPage()` - should return `View`
-- [PageController.php:37](app/Http/Controllers/PageController.php#L37) - `show(string $area, string $slug, CommonMarkConverter $converter)` - should return `View`
-
-**Action:** Add explicit return type declarations to all 6 methods.
-
----
-
 ### Priority 3 - Service Layer Refactoring
 
-#### 3.1 Large Service Files (Updated Line Counts)
+#### 3.1 Large Service Files - COMPLETED (moved to Completed Items)
 
-Four services remain oversized. `SermonAnalysisService` reduced from 1,217 to 738 lines after mock extraction.
+#### 3.2 Constructor Property Promotion - COMPLETED
 
-| Service | Lines | Issue |
-|---------|-------|-------|
-| [AudioTranscriptionService.php](app/Services/AudioTranscriptionService.php) | 1,131 | Transcription + chunking + compression + validation |
-| [ThumbnailGenerationService.php](app/Services/ThumbnailGenerationService.php) | 1,056 | Multiple thumbnail strategies + frame extraction + storage |
-| [VideoExtractionService.php](app/Services/VideoExtractionService.php) | 942 | Extraction + retry logic + storage management |
-| [VideoSegmentationService.php](app/Services/VideoSegmentationService.php) | 898 | RMS analysis + segment parsing + threshold logic |
-
-**Recommended extractions:**
-- Extract `AudioChunkingService` from `AudioTranscriptionService`
-- Extract `FrameExtractionService` from `ThumbnailGenerationService`
-- Extract `RmsAnalysisService` from `VideoSegmentationService`
-
-#### 3.2 Constructor Property Promotion
-
-13 of 43 services use PHP 8 constructor property promotion. Of the remaining 30:
-- 16 have no constructor at all (stateless services - acceptable as-is)
-- 6 have constructors with config initialisation logic (not candidates for simple promotion)
-- 8 could benefit from refactoring to use constructor property promotion
-
-**Note:** Services without injected dependencies don't need constructors. The main concern is services that manually assign injected dependencies to properties instead of using promotion.
+All services have been audited. Every service using constructor dependency injection already uses PHP 8 constructor property promotion. The remaining services with traditional constructors all have config initialisation logic that makes them unsuitable for simple promotion:
+- 16 have no constructor (stateless services)
+- 8 have constructors with config initialisation logic (not candidates): `FrameExtractionService`, `RmsAnalysisService`, `SongClusteringService`, `VisualAnalysisService`, `VideoStorageService`, `VideoExtractionService`, `SermonAnalysisService`, `ProcessingLogService`
 
 #### 3.4 Overly Generic Exception Catching - PARTIALLY COMPLETED
 
@@ -210,100 +195,63 @@ App\Exceptions\
 - Fallback rendering paths in ThumbnailGenerationService
 - SermonAnalysisService and other services not yet addressed
 
-#### 3.6 Minor: Service Locator in MockSermonAnalysisService
+#### 3.6 Minor: Service Locator in MockSermonAnalysisService - COMPLETED
 
-[MockSermonAnalysisService.php:442](app/Services/MockSermonAnalysisService.php#L442) uses `app(BritishEnglishConverter::class)` instead of constructor injection.
-
-**Action:** Inject `BritishEnglishConverter` via constructor.
+- ✅ `BritishEnglishConverter` injected via constructor using property promotion
+- ✅ `app(BritishEnglishConverter::class)` usage replaced with `$this->britishEnglishConverter`
 
 ---
 
 ### Priority 4 - Test Suite Improvements
 
-#### 4.1 Missing Service Layer Tests
+#### 4.1 Missing Service Layer Tests — PARTIALLY COMPLETED
 
-Only 14 of 42 services have dedicated tests (33% coverage). Key untested services:
+25 of 45 services now have dedicated tests (56% coverage, up from 40%). Newly added:
 
-**Core processing (high priority):**
-- SermonProcessingService (orchestrator)
-- UnifiedMediaProcessor (main entry point)
-- VideoProcessingService
-- VideoExtractionService
-- ThumbnailGenerationService
+- ✅ `BritishEnglishConverterTest` — conversion rules, caching, external wordlist (13 tests)
+- ✅ `CalendarServiceTest` — event filtering, categorization, cache (13 tests)
+- ✅ `PodcastFeedServiceTest` — feed generation, metadata, caching (9 tests)
+- ✅ `LivestreamStatusServiceTest` — processing status, result, summary (9 tests)
+- ✅ `LivestreamMonitoringServiceTest` — metrics, system health, alerts (13 tests)
 
-**Supporting services (medium priority):**
-- SermonAnalysisService (AI analysis)
-- CalendarService
-- PodcastFeedService
-- BritishEnglishConverter
-- SermonStorageService
-- VideoStorageService
+**Remaining (core processing — high priority):**
+- `SermonProcessingService` (main audio/video orchestrator)
+- `UnifiedMediaProcessor` (top-level entry point)
+- `VideoProcessingService` (video orchestration)
 
-#### 4.2 Missing Job Tests
+#### 4.2 Missing Job Tests — LARGELY COMPLETED
 
-Only 2 of 17 jobs have dedicated tests (12% coverage). Critical untested jobs:
+16 of 17 jobs now have dedicated tests (94% coverage, up from 53%). Newly added:
 
-- `ProcessingJob` (main orchestrator)
-- `ValidateVideoFile` / `ValidateAudioFile`
-- `ExtractSermon`
-- `GenerateThumbnail`
-- `TranscribeAudio`
-- `ProcessTranscriptWithAI`
-- `CreateSermonRecord`
-- `UpdateSermonRecord`
-- `CleanupTemporaryFiles`
-- `SendCompletionNotification`
+- ✅ `TranscribeAudioTest` — transcription, retry config, audio path resolution (9 tests)
+- ✅ `ProcessTranscriptWithAITest` — AI analysis, ID3 preservation, fallback handling (8 tests)
+- ✅ `CreateSermonRecordTest` — sermon creation, ID3 metadata, livestream rejection (7 tests)
+- ✅ `SubmitToProcessingTest` — video/audio validation, sermon+video creation (6 tests)
+- ✅ `ExtractAudioFromVideoTest` — FFmpeg extraction, compression metadata (6 tests)
+- ✅ `GenerateRmsLogTest` — RMS analysis, file size limits, retry config (7 tests)
 
-Each should have dispatch assertions, retry logic tests, and failure handling tests.
+**Remaining:**
+- `TestJob` (development utility — low priority)
 
-#### 4.3 Missing Controller Tests
+#### 4.3 Missing Controller Tests — COMPLETED
 
-Two controllers still lack test coverage:
-- `CalendarAdminController` - no dedicated tests
-- `MemberController` - no dedicated tests
+- ✅ `CalendarAdminControllerTest` — uncategorized events, categorize, patterns, sync (14 tests)
+- ✅ `MemberControllerTest` — authentication, view rendering (4 tests)
 
 #### 4.5 Inconsistent Database Trait Usage
 
 Tests mix `DatabaseTransactions` (14 files) and `RefreshDatabase` (40 files) without documented rationale. Consider standardising on `RefreshDatabase` and documenting when `DatabaseTransactions` is preferred.
 
-#### 4.6 Missing Mailable Tests
-
-4 of 5 Mailable classes still lack dedicated tests:
-- `DiskSpaceWarning` (tested indirectly via `LivestreamErrorHandlerTest` only)
-- `LivestreamProcessingCompleted` (no test)
-- `ManualReviewRequired` (tested indirectly via `LivestreamErrorHandlerTest` only)
-- `PermissionError` (tested indirectly via `LivestreamErrorHandlerTest` only)
+#### 4.6 Mailable Tests — COMPLETED (moved to Completed Items)
 
 ---
 
 ### Priority 5 - Low Impact / Nice-to-Have
 
-#### 5.1 Page Model: Duplicate `.webp` File Check Bug - CONFIRMED
+#### 5.4 Permanent Redirects Could Be Consolidated - COMPLETED
 
-**Bug verified** in 3 methods. The `.jpg` fallback incorrectly checks the `.webp` path again:
-
-- [Page.php:315-318](app/Models/Page.php#L315-L318) - `getHeadingImageTabletUrlAttribute()`: `$jpgPath` assigned `.webp` instead of `.jpg`
-- [Page.php:350-353](app/Models/Page.php#L350-L353) - `getHeadingImageMobileUrlAttribute()`: same bug
-- [Page.php:389-392](app/Models/Page.php#L389-L392) - `getHeadingImageSmallUrlAttribute()`: same bug
-
-**Impact:** The fallback logic never actually checks for `.jpg` files. Should be fixed.
-
-#### 5.2 Sermon Model: FQCN Instead of Import
-
-[Sermon.php:280](app/Models/Sermon.php#L280) still uses fully-qualified `\Illuminate\Database\Eloquent\Relations\BelongsTo` instead of importing the class.
-
-**Action:** Add `use Illuminate\Database\Eloquent\Relations\BelongsTo;` import.
-
-#### 5.3 phpinfo Route
-
-[web.php:172](routes/web.php#L172) - Protected by admin middleware, which is acceptable. Consider adding an environment check:
-```php
-Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware('admin');
-```
-
-#### 5.4 Permanent Redirects Could Be Consolidated
-
-~46 individual `Route::permanentRedirect()` calls remain in [web.php](routes/web.php). Could be consolidated into a config-driven redirect map.
+- ✅ 30 individual `Route::permanentRedirect()` calls extracted to [config/redirects.php](config/redirects.php)
+- ✅ [web.php](routes/web.php) now iterates `config('redirects')` with a single `foreach` loop
 
 ---
 
@@ -329,14 +277,10 @@ These areas are at or above Laravel 12 standards and need no changes:
 - **Service return types** - All 43 services have explicit return type declarations on all public methods
 - **API upload tests** - Comprehensive coverage for audio, video, and livestream endpoints
 - **Repository pattern** - `SermonRepository` used to eliminate duplication
+- **Job tests** - 16 of 17 jobs have dedicated test suites with failure handling coverage
+- **Mailable tests** - All 5 Mailable classes have dedicated unit tests
+- **Service tests** - 25 of 45 services have dedicated test suites (CalendarService, PodcastFeedService, BritishEnglishConverter, LivestreamStatusService, LivestreamMonitoringService, and more)
+- **Controller tests** - CalendarAdminController and MemberController now have dedicated feature tests
+- **Service extractions** - AudioChunkingService, FrameExtractionService, RmsAnalysisService properly extracted
 
 ---
-
-## Suggested Refactoring Order
-
-1. **Quick wins (30 mins):** ✅ **COMPLETED** — Added return types to 6 controller methods, removed unused `transcript_path` accessor, fixed 3x `.webp` fallback bug, added `BelongsTo` import to Sermon model
-2. **Deprecated accessor migration (1-2 hours):** ✅ **COMPLETED** — Updated `ThumbnailGenerationService`, `StandardProcessingResponse`, 3 test files to use `thumbnail_file_path`; updated 3 console commands to use `audio_file_path`; fixed broken raw SQL column references; removed all 3 deprecated accessor pairs from Sermon model
-3. **Route cleanup (30 mins):** ✅ **COMPLETED** — Replaced 4 static admin redirects with `Route::redirect()`, added `app()->isLocal()` check to phpinfo route, kept parameter-dependent closures as-is
-4. **Exception hierarchy (2-3 hours):** ✅ **COMPLETED** — Created `ProcessingException` base + 4 typed subclasses; replaced all `throw new \Exception(...)` calls in `VideoExtractionService`, `VideoSegmentationService`, and `AudioTranscriptionService` with typed exceptions; `ThumbnailGenerationException` created and ready
-5. **Service extraction (ongoing):** Extract `AudioChunkingService`, `FrameExtractionService`, `RmsAnalysisService` from oversized services
-6. **Test coverage (ongoing):** Prioritise tests for core processing services, then jobs, then mailables

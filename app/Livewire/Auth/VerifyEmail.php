@@ -9,7 +9,7 @@ class VerifyEmail extends Component
 {
     public $resent = false;
 
-    public function resend()
+    public function resend(): void
     {
         if (Auth::user()) {
             Auth::user()->sendEmailVerificationNotification();
@@ -17,7 +17,7 @@ class VerifyEmail extends Component
         }
     }
 
-    public function render()
+    public function render(): \Illuminate\View\View
     {
         return view('livewire.auth.verify-email');
     }

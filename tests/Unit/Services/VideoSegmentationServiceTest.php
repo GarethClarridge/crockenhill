@@ -23,7 +23,7 @@ class VideoSegmentationServiceTest extends TestCase
         $this->mockFFProbe = Mockery::mock(FFProbe::class);
 
         // Create service instance and inject the mock
-        $this->service = new VideoSegmentationService;
+        $this->service = $this->app->make(VideoSegmentationService::class);
 
         // Use reflection to set the private ffprobe property
         $reflection = new \ReflectionClass($this->service);

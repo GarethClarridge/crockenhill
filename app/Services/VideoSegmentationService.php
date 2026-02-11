@@ -20,7 +20,7 @@ class VideoSegmentationService
 
     private readonly RmsAnalysisService $rmsAnalysisService;
 
-    public function __construct(?RmsAnalysisService $rmsAnalysisService = null)
+    public function __construct(RmsAnalysisService $rmsAnalysisService)
     {
         // Skip FFProbe initialization in testing environment to prevent hangs
         if (! app()->environment('testing')) {
@@ -29,7 +29,7 @@ class VideoSegmentationService
             ]);
         }
 
-        $this->rmsAnalysisService = $rmsAnalysisService ?? app(RmsAnalysisService::class);
+        $this->rmsAnalysisService = $rmsAnalysisService;
         $this->minSermonDuration = config('media-processing.segmentation.min_sermon_duration', 300.0);
         $this->tempDisk = config('media-processing.storage.temp_disk', 'local');
     }

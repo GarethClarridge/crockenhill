@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Sermon;
+use App\Services\SermonStorageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SermonAssetController extends Controller
 {
+    public function __construct(private readonly SermonStorageService $storageService) {}
+
     /**
      * Serve audio file for a sermon
      */
@@ -20,7 +23,7 @@ class SermonAssetController extends Controller
             abort(404, 'Audio file not found.');
         }
 
-        $storageService = app(\App\Services\SermonStorageService::class);
+        $storageService = $this->storageService;
         $fileInfo = $storageService->getSermonFileInfo($sermon);
 
         if (! Storage::disk($fileInfo['disk'])->exists($fileInfo['path'])) {
