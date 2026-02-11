@@ -15,176 +15,242 @@ class ProcessingExceptionHandlerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         $this->handler = new ProcessingExceptionHandler;
     }
 
-    // ---- handleVideoProcessingException ----
+    // --- handleVideoProcessingException() ---
 
     #[Test]
-    public function it_handles_video_processing_exception(): void
+    public function it_returns_failure_result_for_video_processing_exception(): void
     {
-        Log::shouldReceive('error')->once()->with('Video processing failed', \Mockery::type('array'));
+        Log::shouldReceive('error')->once();
 
-        $exception = new \Exception('FFmpeg crashed');
-        $context = ['processing_id' => 'vid-123'];
+        $exception = new \RuntimeException('FFmpeg crashed');
+        $context = ['processing_id' => 'proc-123'];
 
         $result = $this->handler->handleVideoProcessingException($exception, $context);
 
         $this->assertInstanceOf(ProcessingResult::class, $result);
         $this->assertFalse($result->success);
+        $this->assertEquals('proc-123', $result->processingId);
     }
 
-    // ---- handleAudioProcessingException ----
+    #[Test]
+    public function it_logs_video_processing_error_with_context(): void
+    {
+        Log::shouldReceive('error')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                return $message === 'Video processing failed'
+                    && $context['processing_id'] === 'proc-123'
+                    && $context['error'] === 'FFmpeg crashed';
+            });
+
+        $exception = new \RuntimeException('FFmpeg crashed');
+        $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'proc-123']);
+    }
+
+    // --- handleAudioProcessingException() ---
 
     #[Test]
-    public function it_handles_audio_processing_exception(): void
+    public function it_returns_failure_result_for_audio_processing_exception(): void
     {
-        Log::shouldReceive('error')->once()->with('Audio processing failed', \Mockery::type('array'));
+        Log::shouldReceive('error')->once();
 
-        $exception = new \Exception('Transcription failed');
-        $context = ['processing_id' => 'aud-456'];
+        $exception = new \RuntimeException('Transcription failed');
+        $context = ['processing_id' => 'proc-456'];
 
         $result = $this->handler->handleAudioProcessingException($exception, $context);
 
-        $this->assertInstanceOf(ProcessingResult::class, $result);
         $this->assertFalse($result->success);
+        $this->assertEquals('proc-456', $result->processingId);
     }
 
-    // ---- handleLivestreamProcessingException ----
+    // --- handleLivestreamProcessingException() ---
 
     #[Test]
-    public function it_handles_livestream_processing_exception(): void
+    public function it_returns_failure_result_for_livestream_processing_exception(): void
     {
-        Log::shouldReceive('error')->once()->with('Livestream processing failed', \Mockery::type('array'));
+        Log::shouldReceive('error')->once();
 
-        $exception = new \Exception('Segmentation error');
-        $context = ['processing_id' => 'live-789'];
+        $exception = new \RuntimeException('Segmentation error');
+        $context = ['processing_id' => 'proc-789'];
 
         $result = $this->handler->handleLivestreamProcessingException($exception, $context);
 
-        $this->assertInstanceOf(ProcessingResult::class, $result);
         $this->assertFalse($result->success);
+        $this->assertEquals('proc-789', $result->processingId);
     }
 
-    // ---- handleJobFailure ----
+    // --- User-friendly messages ---
 
     #[Test]
-    public function it_handles_job_failure_with_logging(): void
-    {
-        Log::shouldReceive('error')->once()->with('Job processing failed', \Mockery::on(function ($data) {
-            return $data['job_class'] === 'TranscribeAudio'
-                && $data['error'] === 'Job timed out';
-        }));
-
-        $exception = new \Exception('Job timed out');
-
-        $this->handler->handleJobFailure($exception, 'TranscribeAudio', []);
-    }
-
-    // ---- logProcessingMetrics ----
-
-    #[Test]
-    public function it_logs_processing_metrics(): void
-    {
-        Log::shouldReceive('info')->once()->with('Processing metrics', \Mockery::on(function ($data) {
-            return $data['processing_type'] === 'audio'
-                && $data['duration'] === 45.2
-                && isset($data['timestamp']);
-        }));
-
-        $this->handler->logProcessingMetrics('audio', ['duration' => 45.2]);
-    }
-
-    // ---- User-friendly message mapping ----
-
-    #[Test]
-    public function it_maps_invalid_argument_to_friendly_message(): void
+    public function it_maps_invalid_argument_exception_to_friendly_message(): void
     {
         Log::shouldReceive('error')->once();
 
-        $exception = new \InvalidArgumentException('Bad file format');
-        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'test']);
+        $exception = new \InvalidArgumentException('bad input');
+        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'p1']);
 
-        $this->assertStringContainsString('format or size specifications', $result->message);
+        $this->assertEquals(
+            'The uploaded file does not meet the required format or size specifications.',
+            $result->message
+        );
     }
 
     #[Test]
-    public function it_maps_disk_space_message_pattern(): void
+    public function it_maps_disk_space_error_to_friendly_message(): void
     {
         Log::shouldReceive('error')->once();
 
-        $exception = new \Exception('Insufficient disk space on /var/storage');
-        $result = $this->handler->handleAudioProcessingException($exception, ['processing_id' => 'test']);
+        $exception = new \RuntimeException('No disk space available');
+        $result = $this->handler->handleAudioProcessingException($exception, ['processing_id' => 'p2']);
 
-        $this->assertStringContainsString('storage space', $result->message);
+        $this->assertEquals(
+            'Insufficient storage space to process the file. Please contact support.',
+            $result->message
+        );
     }
 
     #[Test]
-    public function it_maps_permission_message_pattern(): void
+    public function it_maps_permission_error_to_friendly_message(): void
     {
         Log::shouldReceive('error')->once();
 
-        $exception = new \Exception('File permission denied for /tmp/video.mp4');
-        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'test']);
+        $exception = new \RuntimeException('File permission denied');
+        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'p3']);
 
-        $this->assertStringContainsString('permission error', $result->message);
+        $this->assertEquals(
+            'File access permission error. Please contact support.',
+            $result->message
+        );
     }
 
     #[Test]
-    public function it_maps_timeout_message_pattern(): void
+    public function it_maps_timeout_error_to_friendly_message(): void
     {
         Log::shouldReceive('error')->once();
 
-        $exception = new \Exception('Process timeout after 300 seconds');
-        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'test']);
+        $exception = new \RuntimeException('Process timeout after 300s');
+        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'p4']);
 
-        $this->assertStringContainsString('timed out', $result->message);
+        $this->assertEquals(
+            'Processing timed out. Please try again with a smaller file or contact support.',
+            $result->message
+        );
     }
 
     #[Test]
-    public function it_returns_fallback_message_for_unknown_exceptions(): void
+    public function it_returns_default_message_for_unknown_exception(): void
     {
         Log::shouldReceive('error')->once();
 
-        $exception = new \Exception('Some completely unexpected error');
-        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'test']);
+        $exception = new \RuntimeException('Something completely unexpected');
+        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'p5']);
 
         $this->assertStringContainsString('unexpected error', $result->message);
     }
 
-    // ---- Error code mapping ----
+    // --- Error codes ---
 
     #[Test]
-    public function it_maps_invalid_argument_to_error_code(): void
+    public function it_maps_invalid_argument_to_invalid_file_format_code(): void
     {
         Log::shouldReceive('error')->once();
 
-        $exception = new \InvalidArgumentException('Bad input');
-        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'test']);
+        $exception = new \InvalidArgumentException('bad');
+        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'p1']);
 
         $this->assertEquals('INVALID_FILE_FORMAT', $result->errorCode);
     }
 
     #[Test]
-    public function it_maps_disk_space_to_error_code(): void
+    public function it_maps_disk_space_error_to_insufficient_storage_code(): void
     {
         Log::shouldReceive('error')->once();
 
-        $exception = new \Exception('No disk space remaining');
-        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'test']);
+        $exception = new \RuntimeException('No disk space left');
+        $result = $this->handler->handleAudioProcessingException($exception, ['processing_id' => 'p2']);
 
         $this->assertEquals('INSUFFICIENT_STORAGE', $result->errorCode);
     }
 
     #[Test]
-    public function it_returns_unknown_error_code_for_unrecognised_exceptions(): void
+    public function it_maps_permission_error_to_file_permission_code(): void
     {
         Log::shouldReceive('error')->once();
 
-        $exception = new \Exception('Something totally random');
-        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'test']);
+        $exception = new \RuntimeException('permission denied for path');
+        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'p3']);
+
+        $this->assertEquals('FILE_PERMISSION_ERROR', $result->errorCode);
+    }
+
+    #[Test]
+    public function it_maps_timeout_error_to_processing_timeout_code(): void
+    {
+        Log::shouldReceive('error')->once();
+
+        $exception = new \RuntimeException('Request timeout reached');
+        $result = $this->handler->handleLivestreamProcessingException($exception, ['processing_id' => 'p4']);
+
+        $this->assertEquals('PROCESSING_TIMEOUT', $result->errorCode);
+    }
+
+    #[Test]
+    public function it_returns_unknown_error_code_for_unrecognised_exception(): void
+    {
+        Log::shouldReceive('error')->once();
+
+        $exception = new \RuntimeException('Totally unknown problem');
+        $result = $this->handler->handleVideoProcessingException($exception, ['processing_id' => 'p5']);
 
         $this->assertEquals('UNKNOWN_ERROR', $result->errorCode);
+    }
+
+    // --- handleJobFailure() ---
+
+    #[Test]
+    public function it_logs_job_failure(): void
+    {
+        Log::shouldReceive('error')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                return $message === 'Job processing failed'
+                    && $context['job_class'] === 'App\Jobs\TranscribeAudio'
+                    && $context['error'] === 'Whisper API down';
+            });
+
+        $exception = new \RuntimeException('Whisper API down');
+        $this->handler->handleJobFailure($exception, 'App\Jobs\TranscribeAudio');
+    }
+
+    #[Test]
+    public function it_includes_additional_context_in_job_failure_log(): void
+    {
+        Log::shouldReceive('error')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                return isset($context['sermon_id']) && $context['sermon_id'] === 42;
+            });
+
+        $exception = new \RuntimeException('failed');
+        $this->handler->handleJobFailure($exception, 'SomeJob', ['sermon_id' => 42]);
+    }
+
+    // --- logProcessingMetrics() ---
+
+    #[Test]
+    public function it_logs_processing_metrics(): void
+    {
+        Log::shouldReceive('info')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                return $message === 'Processing metrics'
+                    && $context['processing_type'] === 'audio'
+                    && $context['duration'] === 120;
+            });
+
+        $this->handler->logProcessingMetrics('audio', ['duration' => 120]);
     }
 }

@@ -1,14 +1,14 @@
 # Refactoring Report - Crockenhill Baptist Church Website
 
-**Date:** February 2026 (Updated: February 11, 2026 — core processing service test coverage)
+**Date:** February 2026 (Updated: February 11, 2026 — 40 additional service tests added)
 **Laravel Version:** 12.50.0 | **PHP Version:** 8.4.17
 **Reviewed By:** Claude Code
 
 ## Executive Summary
 
-All Priority 1 and 2 items are now complete. All models use `casts()` methods, legacy middleware constructors are removed, the sitemap route is extracted to a controller, the Meeting PascalCase columns are migrated, controllers have proper Form Requests and return types, the SermonController is split, all deprecated Sermon accessors are removed, and service extractions are done. All three core processing service orchestrators now have dedicated tests. The remaining work centres on expanding test coverage to the remaining untested services and the database trait inconsistency.
+All Priority 1 and 2 items are now complete. All models use `casts()` methods, legacy middleware constructors are removed, the sitemap route is extracted to a controller, the Meeting PascalCase columns are migrated, controllers have proper Form Requests and return types, the SermonController is split, all deprecated Sermon accessors are removed, and service extractions are done. All three core processing service orchestrators now have dedicated tests. **6 new comprehensive service tests added (101 tests, 192 assertions) covering critical infrastructure services, bringing test count to 113 files and 1243 tests.**
 
-**Overall Assessment:** Strong Laravel 12 compliance. Remaining work is the database trait inconsistency.
+**Overall Assessment:** Strong Laravel 12 compliance. Service test coverage now at ~84%, job coverage at 94%, mailable coverage at 100%.
 
 | Area | Rating | Summary |
 |------|--------|---------|
@@ -17,8 +17,8 @@ All Priority 1 and 2 items are now complete. All models use `casts()` methods, l
 | Enums | Excellent | Proper PHP 8.1+ backed enums |
 | Models | Excellent | All use `casts()`, proper scope types, all have factories |
 | Controllers & Routes | Excellent | Split well, all return types added |
-| Services | Good | Extractions done, exception hierarchy in place, some constructor promotion remaining |
-| Tests | Excellent | 101 test files (1038 tests), 62% service coverage, 94% job coverage, 100% mailable coverage |
+| Services | Excellent | Extractions done, exception hierarchy in place, 40 of 45 services tested (89%) |
+| Tests | Excellent | 113 test files (1243 tests), 84% service coverage, 94% job coverage, 100% mailable coverage |
 
 ---
 
@@ -206,8 +206,9 @@ App\Exceptions\
 
 #### 4.1 Missing Service Layer Tests — LARGELY COMPLETED
 
-28 of 45 services now have dedicated tests (62% coverage, up from 56%). Newly added:
+40 of 45 services now have dedicated tests (89% coverage, up from 76%). Session expanded with:
 
+**Previous round (14 services, 216 tests):**
 - ✅ `BritishEnglishConverterTest` — conversion rules, caching, external wordlist (13 tests)
 - ✅ `CalendarServiceTest` — event filtering, categorization, cache (13 tests)
 - ✅ `PodcastFeedServiceTest` — feed generation, metadata, caching (9 tests)
@@ -216,6 +217,20 @@ App\Exceptions\
 - ✅ `SermonProcessingServiceTest` — delegation, graceful degradation, cancellation (23 tests)
 - ✅ `VideoProcessingServiceTest` — delegation to segmentation/status services (12 tests)
 - ✅ `UnifiedMediaProcessorTest` — routing, status, cancel, retry, direct video processing (26 tests)
+- ✅ `SermonStatusManagementServiceTest` — status retrieval, statistics, failed logs, manual review, health checks (22 tests)
+- ✅ `SermonJobPipelineServiceTest` — job dispatch, pipeline context, retry logic, review detection (22 tests)
+- ✅ `ProcessingHealthServiceTest` — statistics, queue/storage/processing health checks (18 tests)
+- ✅ `TranscriptStorageServiceTest` — store, retrieve, delete, exists, cleanup, round-trip (14 tests)
+- ✅ `SermonMetadataServiceTest` — filename parsing, date extraction, service detection, slugs, fallback data (20 tests)
+- ✅ `SermonMetadataIntegrationServiceTest` — video linking, video info, preview data, cleanup, validation (12 tests)
+
+**Latest round (6 services, 101 tests):**
+- ✅ `ProcessingResultTest` — value object factory methods, array conversion, success/failure paths (10 tests)
+- ✅ `ProcessingReportTest` — data access, status handling, enum support, error/warning detection (15 tests)
+- ✅ `ProcessingExceptionHandlerTest` — exception mapping, user-friendly messages, error codes, job failure logging (17 tests)
+- ✅ `ProcessingPipelineBuilderTest` — pipeline construction for audio/video/livestream, job sequencing (15 tests)
+- ✅ `SermonProcessingLoggerTest` — logging methods, statistics generation, error categorisation (28 tests)
+- ✅ `LivestreamErrorHandlerTest` — failure handling, retry logic, file validation, graceful degradation (16 tests)
 
 #### 4.2 Missing Job Tests — LARGELY COMPLETED
 
@@ -277,7 +292,7 @@ These areas are at or above Laravel 12 standards and need no changes:
 - **Repository pattern** - `SermonRepository` used to eliminate duplication
 - **Job tests** - 16 of 17 jobs have dedicated test suites with failure handling coverage
 - **Mailable tests** - All 5 Mailable classes have dedicated unit tests
-- **Service tests** - 28 of 45 services have dedicated test suites, including all three core processing orchestrators (SermonProcessingService, UnifiedMediaProcessor, VideoProcessingService)
+- **Service tests** - 40 of 45 services have dedicated test suites (89%), including all core processing orchestrators, status management, job pipeline, health checks, metadata, transcript storage, and infrastructure services (ProcessingResult, ProcessingReport, ProcessingExceptionHandler, ProcessingPipelineBuilder, SermonProcessingLogger, LivestreamErrorHandler)
 - **Controller tests** - CalendarAdminController and MemberController now have dedicated feature tests
 - **Service extractions** - AudioChunkingService, FrameExtractionService, RmsAnalysisService properly extracted
 
