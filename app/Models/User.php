@@ -50,7 +50,7 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * The attributes excluded from the model's JSON form.
+     * The attributes that should be hidden for serialization.
      *
      * @var list<string>
      */
