@@ -7,7 +7,7 @@ use App\Models\Sermon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 
 class ThumbnailGenerationService
 {
@@ -151,22 +151,19 @@ class ThumbnailGenerationService
             $fullBaseFramePath = Storage::disk($this->tempDisk)->path($baseFramePath);
 
             // Load base image using Intervention Image (following PageImageService pattern)
-            $image = Image::make($fullBaseFramePath);
+            $image = Image::read($fullBaseFramePath);
 
             // Get target size from config
             $targetWidth = $this->config['sizes']['web']['width'];
             $targetHeight = $this->config['sizes']['web']['height'];
 
             // Resize image to target dimensions
-            $image->resize($targetWidth, $targetHeight, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            });
+            $image->scaleDown($targetWidth, $targetHeight);
 
             // If image doesn't fill target dimensions, add letterboxing
             if ($image->width() !== $targetWidth || $image->height() !== $targetHeight) {
-                $canvas = Image::canvas($targetWidth, $targetHeight, '#000000');
-                $canvas->insert($image, 'center');
+                $canvas = Image::create($targetWidth, $targetHeight)->fill('#000000');
+                $canvas->place($image, 'center');
                 $image = $canvas;
             }
 
@@ -183,7 +180,7 @@ class ThumbnailGenerationService
 
             // Save with quality setting (following PageImageService pattern)
             $quality = $this->config['sizes']['web']['quality'];
-            $image->save($fullTempThumbnailPath, $quality);
+            $image->toWebp(quality: $quality)->save($fullTempThumbnailPath);
 
             return $tempThumbnailPath;
 
@@ -345,20 +342,17 @@ class ThumbnailGenerationService
 
         try {
             $brandImageFullPath = $fullBrandPath;
-            $brandOverlay = Image::make($brandImageFullPath);
+            $brandOverlay = Image::read($brandImageFullPath);
 
             // Get thumbnail dimensions
             $thumbnailWidth = $image->width();
             $thumbnailHeight = $image->height();
 
             // Stretch brand overlay to fit the entire thumbnail
-            $brandOverlay->resize($thumbnailWidth, $thumbnailHeight, function ($constraint) {
-                // Don't maintain aspect ratio - stretch to fill exactly
-                $constraint->upsize();
-            });
+            $brandOverlay->resize($thumbnailWidth, $thumbnailHeight);
 
             // Insert the stretched brand overlay as the background at full size
-            $image->insert($brandOverlay, 'top-left', 0, 0); // Insert at top-left position
+            $image->place($brandOverlay, 'top-left', 0, 0); // Insert at top-left position
 
         } catch (\Exception $e) {
             Log::warning('Failed to add brand overlay', [
@@ -406,9 +400,9 @@ class ThumbnailGenerationService
                 $font->size($fontSize);
                 $font->color($fontColor);
                 $font->align('center');    // Center horizontally
-                $font->valign('center');   // Center vertically
+                $font->valign('middle');   // Center vertically
                 if ($fontPath && file_exists($fontPath)) {
-                    $font->file($fontPath);
+                    $font->filename($fontPath);
                 }
             });
 
@@ -456,7 +450,7 @@ class ThumbnailGenerationService
                     $font->align('center');    // Center each line individually
                     $font->valign('top');      // Top alignment for precise positioning
                     if ($fontPath && file_exists($fontPath)) {
-                        $font->file($fontPath);
+                        $font->filename($fontPath);
                     }
                 });
             }
@@ -511,7 +505,7 @@ class ThumbnailGenerationService
                     $font->align('center');    // Center each line individually
                     $font->valign('top');      // Top alignment for precise positioning
                     if ($fontPath && file_exists($fontPath)) {
-                        $font->file($fontPath);
+                        $font->filename($fontPath);
                     }
                 });
             }
@@ -760,9 +754,10 @@ class ThumbnailGenerationService
             $bgColor = $bgConfig['color'];
 
             // Draw solid rectangle background
-            $image->rectangle($x, $y, $x + $bgWidth, $y + $bgHeight, function ($draw) use ($bgColor) {
+            $image->drawRectangle($x, $y, function ($draw) use ($bgColor, $bgWidth, $bgHeight) {
+                $draw->size($bgWidth, $bgHeight);
                 $draw->background($bgColor);
-                $draw->border(0, 'transparent'); // No border
+                $draw->border('transparent', 0); // No border
             });
 
         } catch (\Exception $e) {

@@ -12,7 +12,6 @@ This file provides guidance to Claude Code when working with this Laravel church
 
 **Tech Stack**: TALL (Tailwind, Alpine.js, Livewire, Laravel) + FFmpeg for media processing
 **Storage**: Hybrid local/cloud system with DigitalOcean Spaces integration
-**Current Branch**: media-refactor
 
 ## Architecture Highlights
 
@@ -30,6 +29,8 @@ This file provides guidance to Claude Code when working with this Laravel church
 - **VideoExtractionService**: S3-aware extraction with hybrid processing (local→cloud)
 - **VideoStorageService**: S3-compatible operations with local fallback
 - **SermonStorageService**: Multi-pattern file detection and CDN URL generation
+- **ThumbnailGenerationService**: Branded thumbnail generation from sermon video frames
+- **PageImageService**: Image processing and storage for page heading images
 
 ### Processing Pipelines
 1. **Audio**: Direct transcription and AI analysis → sermon record
@@ -51,21 +52,22 @@ This file provides guidance to Claude Code when working with this Laravel church
 ### Essential Commands
 ```bash
 # Frontend
-npm run dev          # Development with hot reload
-npm run build        # Production build
+vendor/bin/sail npm run dev    # Development with hot reload
+vendor/bin/sail npm run build  # Production build
 
 # Backend (Laravel Sail)
-sail up              # Start development server
-sail artisan migrate # Run migrations
-sail artisan db:seed # Seed with sample data + mock transcripts
+vendor/bin/sail up -d                  # Start development server
+vendor/bin/sail artisan migrate        # Run migrations
+vendor/bin/sail artisan db:seed        # Seed with sample data + mock transcripts
 
-# Testing
-sail artisan test --parallel  # Fast parallel execution
-sail artisan test             # Sequential (slower)
+# Testing — always run in parallel for speed
+vendor/bin/sail artisan test --parallel --compact          # All tests
+vendor/bin/sail artisan test --compact tests/Path/To/Test  # Single file
+vendor/bin/sail artisan test --compact --filter=testName   # Single test
 
-# Code Quality
-sail composer phpstan         # Static analysis (currently 0 errors)
-sail composer exec pint       # Code formatting
+# Code Quality — run both before finishing any change
+vendor/bin/sail composer phpstan       # Static analysis (must stay at 0 errors)
+vendor/bin/sail bin pint --dirty       # Auto-fix formatting on changed files
 ```
 
 ### Email Configuration
@@ -110,9 +112,11 @@ All emails use `Mail::queue()` for async delivery. Queue driver (`QUEUE_DRIVER`)
 - `email.send_failure_notifications` - Failure emails (default: true)
 
 ### Testing Strategy
-- **Feature Tests**: HTTP routes, integration tests
+- **Always run in parallel**: `--parallel` is mandatory for speed; use `--compact` for clean output
+- **Feature Tests**: HTTP routes, integration tests (most tests should be feature tests)
 - **Unit Tests**: Models, services, request validation
-- **Parallel Optimized**: 60-70% faster execution, reduced memory usage
+- **Coverage**: Every new feature or bug fix must have accompanying tests covering happy path, failure paths, and edge cases
+- **Minimum viable run**: Filter to the affected file/test name rather than running everything
 - **Key Files**: `SermonPagesTest.php`, `SermonTest.php`, `MeetingTest.php`
 
 ### File Locations
@@ -149,32 +153,25 @@ All emails use `Mail::queue()` for async delivery. Queue driver (`QUEUE_DRIVER`)
 - `MeetingType`: regular, special, event types
 - `MeetingFrequency`: daily, weekly, monthly, annually
 
-## Current Focus
+## Current State
 
-### Recent Improvements (December 2024)
-- **ProcessingStatusContract**: Unified API responses across all processing types
-- **S3/Spaces Integration**: Full hybrid processing with automatic storage detection
-- **Enhanced Error Handling**: Standardized responses and graceful fallback
-- **Test Optimization**: 60-70% faster execution with parallel processing
-
-### Current State
-- ✅ **Code Quality**: All PHPStan errors resolved (20→0), full type safety
+- ✅ **Code Quality**: PHPStan at 0 errors — must stay that way; run after every change
+- ✅ **Formatting**: Pint enforced — run `vendor/bin/sail bin pint --dirty` before committing
+- ✅ **Testing**: Parallel test suite; high coverage across models, services, and HTTP routes
 - ✅ **S3 Storage**: Production-ready hybrid processing with retry logic
-- ✅ **Testing**: Optimized parallel execution with automatic seeding
-- ✅ **API Consistency**: Unified response format across all processing endpoints
-
-### Active Development Areas
-- Media processing pipeline refinements
-- Storage migration utilities
-- Performance optimization for large video files
+- ✅ **API Consistency**: Unified response format via `ProcessingStatusContract`
+- ✅ **Image Processing**: `intervention/image-laravel` (v1.x) used throughout — not the legacy `intervention/image` v2
 
 ## Development Notes
 
 - **Transcription**: Uses OpenAI Whisper API (production) or mock service (development)
 - **Video Processing**: Requires FFmpeg for segmentation and analysis
 - **Authentication**: Livewire 3 components in `app/Livewire/Auth/`
-- **Image Processing**: Intervention Image library via `PageImageService`
+- **Image Processing**: `intervention/image-laravel` v1.x via `Image` facade — use `Image::read()`, not `Image::make()`
+- **Thumbnails**: `ThumbnailGenerationService` generates branded WebP thumbnails from video frames using FFmpeg + Intervention Image
+- **Image Utilities**: `images:convert-to-webp` and `images:migrate-to-storage` artisan commands for image migrations
 - **Environment**: Configure via `TRANSCRIPTION_SERVICE_TYPE`, storage disk settings
+- **Boost**: Use the `search-docs` MCP tool for all Laravel/package documentation lookups before writing code
 
 ===
 

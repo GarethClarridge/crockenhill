@@ -7,7 +7,7 @@ use App\Models\Page;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 
 class MigrateImagesToStorage extends Command
 {
@@ -237,10 +237,10 @@ class MigrateImagesToStorage extends Command
             $isConvertible = in_array($extension, $convertibleFormats, true);
 
             if ($this->convertWebp && $isConvertible) {
-                $image = Image::make($sourcePath);
+                $image = Image::read($sourcePath);
                 $webpPath = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $targetPath);
 
-                Storage::disk('public')->put($webpPath, $image->encode('webp', $this->webpQuality));
+                Storage::disk('public')->put($webpPath, (string) $image->toWebp(quality: $this->webpQuality));
 
                 $finalPath = Storage::disk('public')->path($webpPath);
                 $this->stats['size_after'] += File::size($finalPath);

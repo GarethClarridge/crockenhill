@@ -6,7 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 
 class ConvertJpgToWebp extends Command
 {
@@ -119,16 +119,15 @@ class ConvertJpgToWebp extends Command
                     $this->convertedFiles[$jpgPath] = $webpPath;
                 } else {
                     // Convert using Intervention Image
-                    $image = Image::make($jpgPath);
-                    $image->encode('webp', $this->quality);
-
                     // Ensure directory exists
                     $dir = dirname($webpPath);
                     if (! File::isDirectory($dir)) {
                         File::makeDirectory($dir, 0755, true);
                     }
 
-                    $image->save($webpPath);
+                    Image::read($jpgPath)
+                        ->toWebp(quality: $this->quality)
+                        ->save($webpPath);
                     $this->convertedFiles[$jpgPath] = $webpPath;
 
                     // Log size savings
