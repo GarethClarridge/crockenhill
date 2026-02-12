@@ -4,7 +4,7 @@
             <h1 class="font-display text-3xl">Sermons</h1>
             <p class="text-gray-600">Manage sermon recordings</p>
         </div>
-        <x-button link="{{ route('sermon.upload') }}" variant="primary" icon="cloud-arrow-up" inline>
+        <x-button link="{{ route('admin.sermon-upload.create') }}" variant="primary" icon="cloud-arrow-up" inline>
             Upload Sermon
         </x-button>
     </div>

@@ -293,7 +293,7 @@ class MediaUpload extends Component
             return;
         }
 
-        $fullTempPath = storage_path('app/'.$this->tempFilePath);
+        $fullTempPath = \Illuminate\Support\Facades\Storage::disk('local')->path($this->tempFilePath);
 
         try {
             // Reconstruct the uploaded file from stored temp file
