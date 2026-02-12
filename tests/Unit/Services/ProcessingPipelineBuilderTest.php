@@ -2,7 +2,6 @@
 
 namespace Tests\Unit\Services;
 
-use App\Contracts\TranscriptionServiceInterface;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
@@ -33,8 +32,7 @@ class ProcessingPipelineBuilderTest extends TestCase
     {
         parent::setUp();
 
-        $transcriptionService = $this->createMock(TranscriptionServiceInterface::class);
-        $this->builder = new ProcessingPipelineBuilder($transcriptionService);
+        $this->builder = new ProcessingPipelineBuilder;
     }
 
     // --- buildAudioPipeline() ---

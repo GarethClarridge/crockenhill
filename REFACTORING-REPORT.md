@@ -223,14 +223,22 @@ App\Exceptions\
 - ✅ `TranscriptStorageServiceTest` — store, retrieve, delete, exists, cleanup, round-trip (14 tests)
 - ✅ `SermonMetadataServiceTest` — filename parsing, date extraction, service detection, slugs, fallback data (20 tests)
 - ✅ `SermonMetadataIntegrationServiceTest` — video linking, video info, preview data, cleanup, validation (12 tests)
-
-**Latest round (6 services, 101 tests):**
 - ✅ `ProcessingResultTest` — value object factory methods, array conversion, success/failure paths (10 tests)
 - ✅ `ProcessingReportTest` — data access, status handling, enum support, error/warning detection (15 tests)
 - ✅ `ProcessingExceptionHandlerTest` — exception mapping, user-friendly messages, error codes, job failure logging (17 tests)
 - ✅ `ProcessingPipelineBuilderTest` — pipeline construction for audio/video/livestream, job sequencing (15 tests)
 - ✅ `SermonProcessingLoggerTest` — logging methods, statistics generation, error categorisation (28 tests)
 - ✅ `LivestreamErrorHandlerTest` — failure handling, retry logic, file validation, graceful degradation (16 tests)
+
+**Remaining Untested Services (5 services, ~1,600 lines)** 
+The 5 remaining services are primarily FFmpeg/media processing wrappers that are tested indirectly through job tests:
+- AudioExtractionService (162 lines)
+- AudioChunkingService (364 lines)
+- RmsAnalysisService (328 lines)
+- FrameExtractionService (217 lines)
+- LivestreamSegmentationService (378 lines)
+
+These are lower priority as they're integration wrappers around external tools (FFmpeg) tested through higher-level job tests.
 
 #### 4.2 Missing Job Tests — LARGELY COMPLETED
 

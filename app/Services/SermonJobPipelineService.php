@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Contracts\TranscriptionServiceInterface;
 use App\Enums\ProcessingStatus;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
@@ -110,8 +109,7 @@ class SermonJobPipelineService
             case 'transcribing_audio':
             case 'transcribing_audio_failed':
                 if ($sermonId) {
-                    $transcriptionService = app(TranscriptionServiceInterface::class);
-                    TranscribeAudio::dispatch($processingLog, $transcriptionService)
+                    TranscribeAudio::dispatch($processingLog)
                         ->onQueue(config('media-processing.processing.queue', 'default'));
                 }
                 break;
