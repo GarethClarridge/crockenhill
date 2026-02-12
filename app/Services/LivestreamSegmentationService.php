@@ -145,7 +145,7 @@ class LivestreamSegmentationService
             $extractedDate = $this->metadataService->extractDateFromVideo($videoFile);
 
             // Store the video file
-            $storedPath = $this->storageService->storeUploadedVideo($videoFile);
+            $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
 
             Log::info('Extracted date from direct video file', [
                 'processing_id' => $processingId,
@@ -158,7 +158,7 @@ class LivestreamSegmentationService
                 'processing_id' => $processingId,
                 'processing_type' => 'livestream',
                 'original_filename' => $videoFile->getClientOriginalName(),
-                'source_file_path' => $storedPath,
+                'source_file_path' => $uploadResult['temp_path'],
                 'status' => 'processing',
                 'current_step' => 'initiated',
                 'processing_metadata' => [
