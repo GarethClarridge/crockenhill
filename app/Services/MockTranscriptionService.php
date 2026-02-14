@@ -40,10 +40,6 @@ class MockTranscriptionService implements TranscriptionServiceInterface
             ]
         );
 
-        // Simulate some processing time (1-3 seconds)
-        $mockProcessingTime = rand(1, 3);
-        sleep($mockProcessingTime);
-
         // Try to load the default transcript
         $transcript = $this->loadDefaultTranscript();
 

@@ -30,6 +30,11 @@
         <env name="CACHE_PREFIX" value="test_process"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="QUEUE_DRIVER" value="sync"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="TRANSCRIPTION_MAX_RETRIES" value="1"/>
+        <env name="TRANSCRIPTION_RETRY_DELAY_BASE" value="0"/>
+        <env name="ANALYSIS_MAX_RETRIES" value="1"/>
+        <env name="ANALYSIS_RETRY_DELAY_BASE" value="0"/>
 
         <!-- Storage Configuration for Tests -->
         <env name="DO_SPACES_ACCESS_KEY_ID" value="test_access_key"/>

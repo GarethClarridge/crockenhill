@@ -77,12 +77,16 @@ return [
         'openai_api_key' => env('OPENAI_API_KEY'),
         'max_file_size' => 25 * 1024 * 1024,
         'timeout' => 300,
+        'max_retries' => env('TRANSCRIPTION_MAX_RETRIES', 3),
+        'retry_delay_base' => env('TRANSCRIPTION_RETRY_DELAY_BASE', 2),
     ],
 
     'analysis' => [
         'service' => env('ANALYSIS_SERVICE', 'mock'),
         'openai_api_key' => env('OPENAI_API_KEY'),
         'model' => env('ANALYSIS_MODEL', 'gpt-3.5-turbo'),
+        'max_retries' => env('ANALYSIS_MAX_RETRIES', 3),
+        'retry_delay_base' => env('ANALYSIS_RETRY_DELAY_BASE', 2),
     ],
 
     'ffmpeg' => [

@@ -13,9 +13,9 @@ use OpenAI\Laravel\Facades\OpenAI;
 
 class AudioTranscriptionService implements TranscriptionServiceInterface
 {
-    private const MAX_RETRIES = 3;
+    private const DEFAULT_MAX_RETRIES = 3;
 
-    private const RETRY_DELAY_BASE = 2; // seconds
+    private const DEFAULT_RETRY_DELAY_BASE = 2; // seconds
 
     public function __construct(
         private readonly MediaProcessingLogger $logger,
@@ -56,6 +56,22 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 throw new \Exception("Failed to create directory: {$directory}");
             }
         }
+    }
+
+    /**
+     * Resolve retry count from configuration.
+     */
+    private function maxRetries(): int
+    {
+        return max(1, (int) config('media-processing.transcription.max_retries', self::DEFAULT_MAX_RETRIES));
+    }
+
+    /**
+     * Resolve retry delay base (seconds) from configuration.
+     */
+    private function retryDelayBase(): int
+    {
+        return max(0, (int) config('media-processing.transcription.retry_delay_base', self::DEFAULT_RETRY_DELAY_BASE));
     }
 
     /**
@@ -164,10 +180,12 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
      */
     private function transcribeFile(string $filePath, string $processingId = 'unknown'): string
     {
+        $maxRetries = $this->maxRetries();
+        $retryDelayBase = $this->retryDelayBase();
         $attempt = 0;
         $lastException = null;
 
-        while ($attempt < self::MAX_RETRIES) {
+        while ($attempt < $maxRetries) {
             $attempt++;
             $apiStartTime = microtime(true);
             try {
@@ -265,15 +283,18 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             }
 
             // Wait before retry with exponential backoff
-            if ($attempt < self::MAX_RETRIES) {
-                $delay = self::RETRY_DELAY_BASE ** $attempt;
+            if ($attempt < $maxRetries) {
+                $delay = $retryDelayBase > 0 ? $retryDelayBase ** $attempt : 0;
                 $this->logger->logProcessingStep(
                     $processingId,
                     'retry_delay',
                     'waiting',
                     ['delay_seconds' => $delay, 'next_attempt' => $attempt + 1]
                 );
-                sleep($delay);
+
+                if ($delay > 0) {
+                    sleep($delay);
+                }
             }
         }
 

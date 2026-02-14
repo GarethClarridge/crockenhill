@@ -8,13 +8,15 @@ use Illuminate\Support\Str;
 
 class UserFactory extends Factory
 {
+    protected static ?string $password;
+
     public function definition()
     {
         return [
             'name' => $this->faker->name(),
             'email' => $this->faker->unique()->safeEmail(),
             // 'email_verified_at' => now(), // Reverted: column does not exist
-            'password' => Hash::make('password'), // Always hash the password
+            'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
     }
