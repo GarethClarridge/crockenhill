@@ -218,36 +218,41 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_sanitizes_user_input_in_logs(): void
     {
-        // Mock the SermonProcessingService to avoid actual processing
-        $mockService = $this->createMock(\App\Services\SermonProcessingService::class);
+        // Mock the unified media processor to keep this test focused on logging behavior.
+        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
         $mockResult = \App\Services\ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Sermon processing initiated successfully'
         );
-        $mockService->method('processSermon')->willReturn($mockResult);
-        $this->app->instance(\App\Services\SermonProcessingService::class, $mockService);
+        $mockProcessor->method('process')->willReturn($mockResult);
+        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
 
         \Illuminate\Support\Facades\Log::spy();
 
         $maliciousFilename = "test\n[MALICIOUS LOG ENTRY]\nsermon.mp3";
-        $file = UploadedFile::fake()->create($maliciousFilename, 1024, 'audio/mpeg');
+        $file = UploadedFile::fake()->create($maliciousFilename, 64, 'audio/mpeg');
 
         $response = $this->actingAs($this->user)
             ->postJson('/api/media/audio', [
                 'file' => $file,
             ]);
 
-        // Verify that either log was called (if upload processed) or system rejected malicious input
-        // Either behavior is acceptable for security
-        if ($response->status() === 202) {
-            \Illuminate\Support\Facades\Log::shouldHaveReceived('info')
-                ->with('Media upload initiated', \Mockery::on(function ($context) use ($maliciousFilename) {
-                    // Verify the filename is logged but doesn't break log structure
-                    return isset($context['audio_file_path']) &&
-                      $context['audio_file_path'] === $maliciousFilename;
-                }));
-        }
-        // If status is 500, the system rejected the malicious content early, which is also good
+        $response->assertStatus(202)
+            ->assertJson([
+                'success' => true,
+                'processing_id' => 'test-uuid-123',
+            ]);
+
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')
+            ->once()
+            ->with('Media upload initiated', \Mockery::on(function ($context) {
+                if (! isset($context['filename'])) {
+                    return false;
+                }
+
+                return ! str_contains($context['filename'], "\n")
+                    && ! str_contains($context['filename'], "\r");
+            }));
     }
 
     #[Test]

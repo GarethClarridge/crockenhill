@@ -15,9 +15,12 @@ class SermonPagesTest extends TestCase
 {
     use DatabaseTransactions;
 
+    private int $initialOutputBufferLevel;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->initialOutputBufferLevel = ob_get_level();
 
         // Clear any existing sermons to ensure test isolation
         Sermon::query()->delete();
@@ -38,6 +41,16 @@ class SermonPagesTest extends TestCase
             'service' => SermonService::OTHER->value,
             'slug' => 'other-test-sermon',
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        // Guard against leaked output buffers in rendered views/components.
+        while (ob_get_level() > $this->initialOutputBufferLevel) {
+            ob_end_clean();
+        }
+
+        parent::tearDown();
     }
 
     public function test_sermon_index_page_renders(): void

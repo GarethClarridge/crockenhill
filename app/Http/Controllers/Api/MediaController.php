@@ -47,7 +47,7 @@ class MediaController extends Controller implements ProcessingStatusContract
             Log::info('Media upload initiated', [
                 'type' => $type,
                 'user_id' => $request->user()?->id,
-                'filename' => $file->getClientOriginalName(),
+                'filename' => $this->sanitizeForLog($file->getClientOriginalName()),
                 'size' => $file->getSize(),
             ]);
 
@@ -193,5 +193,15 @@ class MediaController extends Controller implements ProcessingStatusContract
         }
 
         return false;
+    }
+
+    /**
+     * Sanitize user-controlled strings before writing to logs.
+     */
+    private function sanitizeForLog(string $value): string
+    {
+        $withoutControlChars = str_replace(["\r", "\n", "\t"], ' ', $value);
+
+        return trim((string) preg_replace('/\s+/', ' ', $withoutControlChars));
     }
 }

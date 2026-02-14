@@ -32,6 +32,7 @@
 
 # Test and cache files
 .phpunit.result.cache
+/.phpunit.cache/
 *.cache
 
 # Lock files
