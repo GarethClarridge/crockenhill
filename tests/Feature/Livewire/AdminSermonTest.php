@@ -3,6 +3,7 @@
 namespace Tests\Feature\Livewire;
 
 use App\Livewire\Admin\Sermons\ListSermons;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,7 +27,7 @@ class AdminSermonTest extends TestCase
     public function it_renders_successfully()
     {
         $this->actingAs($this->admin);
-        
+
         Livewire::test(ListSermons::class)
             ->assertStatus(200)
             ->assertSee('Sermons');
@@ -46,7 +47,7 @@ class AdminSermonTest extends TestCase
     public function it_can_search_sermons()
     {
         $this->actingAs($this->admin);
-        
+
         Sermon::factory()->create(['title' => 'Searchable Title', 'date' => now()]);
         Sermon::factory()->create(['title' => 'Other Sermon', 'date' => now()]);
 
@@ -60,12 +61,15 @@ class AdminSermonTest extends TestCase
     public function it_can_filter_by_preacher()
     {
         $this->actingAs($this->admin);
-        
-        Sermon::factory()->create(['preacher' => 'John Doe', 'title' => 'Sermon A', 'date' => now()]);
-        Sermon::factory()->create(['preacher' => 'Jane Smith', 'title' => 'Sermon B', 'date' => now()]);
+
+        $johnDoe = Preacher::factory()->create(['name' => 'John Doe']);
+        $janeSmith = Preacher::factory()->create(['name' => 'Jane Smith']);
+
+        Sermon::factory()->create(['preacher' => 'John Doe', 'preacher_id' => $johnDoe->id, 'title' => 'Sermon A', 'date' => now()]);
+        Sermon::factory()->create(['preacher' => 'Jane Smith', 'preacher_id' => $janeSmith->id, 'title' => 'Sermon B', 'date' => now()]);
 
         Livewire::test(ListSermons::class)
-            ->set('preacherFilter', 'John Doe')
+            ->set('preacherFilter', $johnDoe->id)
             ->assertSee('Sermon A')
             ->assertDontSee('Sermon B');
     }
@@ -74,7 +78,7 @@ class AdminSermonTest extends TestCase
     public function it_can_delete_a_sermon()
     {
         $this->actingAs($this->admin);
-        
+
         $sermon = Sermon::factory()->create();
 
         Livewire::test(ListSermons::class)

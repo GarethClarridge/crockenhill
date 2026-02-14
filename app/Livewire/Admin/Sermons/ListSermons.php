@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
 use App\Livewire\Traits\WithNotifications;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -18,11 +19,13 @@ class ListSermons extends Component
 
     public ?string $serviceFilter = null;
 
-    public ?string $preacherFilter = null;
+    public ?int $preacherFilter = null;
 
     public ?string $seriesFilter = null;
 
     public bool $hasVideoFilter = false;
+
+    public bool $needsReviewFilter = false;
 
     public bool $last12Months = true;
 
@@ -30,7 +33,7 @@ class ListSermons extends Component
 
     public string $sortDirection = 'desc';
 
-    protected $queryString = ['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'last12Months'];
+    protected $queryString = ['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months'];
 
     public function mount(): void
     {
@@ -51,23 +54,21 @@ class ListSermons extends Component
         $sermon->delete();
 
         // Clear cache when sermon is deleted
-        Cache::forget('sermon_preachers');
+        Cache::forget('admin_preacher_list');
         Cache::forget('sermon_series');
 
         $this->success('Sermon deleted');
     }
 
     /**
-     * Get cached list of preachers for filter dropdown.
+     * Get active preachers for filter dropdown, keyed by id.
+     *
+     * @return Collection<int, string>
      */
     protected function getPreachers(): Collection
     {
-        return Cache::remember('sermon_preachers', now()->addHours(24), function () {
-            return Sermon::distinct()
-                ->pluck('preacher')
-                ->filter()
-                ->sort()
-                ->values();
+        return Cache::remember('admin_preacher_list', now()->addHours(24), function () {
+            return Preacher::active()->orderBy('name')->pluck('name', 'id');
         });
     }
 
@@ -89,13 +90,15 @@ class ListSermons extends Component
     public function render()
     {
         $query = Sermon::query()
+            ->with('preacherProfile')
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")
                 ->orWhere('preacher', 'like', "%{$this->search}%")
                 ->orWhere('reference', 'like', "%{$this->search}%"))
             ->when($this->serviceFilter, fn ($q) => $q->where('service', $this->serviceFilter))
-            ->when($this->preacherFilter, fn ($q) => $q->where('preacher', $this->preacherFilter))
+            ->when($this->preacherFilter, fn ($q) => $q->where('preacher_id', $this->preacherFilter))
             ->when($this->seriesFilter, fn ($q) => $q->where('series', $this->seriesFilter))
             ->when($this->hasVideoFilter, fn ($q) => $q->whereNotNull('video_file_path'))
+            ->when($this->needsReviewFilter, fn ($q) => $q->where('needs_preacher_review', true))
             ->when($this->last12Months, fn ($q) => $q->where('date', '>=', now()->subYear()))
             ->orderBy($this->sortBy, $this->sortDirection);
 

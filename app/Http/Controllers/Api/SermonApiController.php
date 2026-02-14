@@ -15,7 +15,7 @@ class SermonApiController extends Controller
      */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Sermon::query();
+        $query = Sermon::query()->with('preacherProfile');
 
         // Search functionality
         if ($request->has('search')) {
@@ -36,6 +36,11 @@ class SermonApiController extends Controller
         // Filter by preacher if provided
         if ($request->has('preacher')) {
             $query->byPreacher($request->get('preacher'));
+        }
+
+        // Filter by preacher_id if provided
+        if ($request->has('preacher_id')) {
+            $query->where('preacher_id', $request->get('preacher_id'));
         }
 
         // Filter by series if provided
@@ -69,6 +74,8 @@ class SermonApiController extends Controller
      */
     public function show(Sermon $sermon): SermonResource
     {
+        $sermon->load('preacherProfile');
+
         return new SermonResource($sermon);
     }
 }

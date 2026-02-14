@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use App\Services\SermonStorageService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -12,6 +13,8 @@ use Tests\TestCase;
 
 class ServiceResiliencyTest extends TestCase
 {
+    use RefreshDatabase;
+
     #[Test]
     public function it_handles_openai_timeout_gracefully(): void
     {

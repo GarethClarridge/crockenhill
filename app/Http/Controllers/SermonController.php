@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Page;
+use App\Models\Preacher;
 use App\Models\Sermon;
-use Illuminate\Support\Facades\DB as FacadesDB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -83,34 +83,28 @@ class SermonController extends Controller
     {
         $page = Page::where('slug', 'preachers')->first();
 
-        $preachers_with_counts = Sermon::select('preacher', FacadesDB::raw('COUNT(*) as sermons_count'))
-            ->groupBy('preacher')
+        $preachers = Preacher::active()
+            ->withCount('sermons')
             ->orderByDesc('sermons_count')
-            ->orderBy('preacher', 'asc')
+            ->orderBy('name')
             ->get();
 
-        $preacher_array = [];
-        foreach ($preachers_with_counts as $preacher_data) {
-            /** @phpstan-ignore-next-line */
-            $preacher_array[$preacher_data->preacher] = [$preacher_data->sermons_count, $preacher_data->preacher];
-        }
-
         return view('sermons.preachers', [
-            'preachers' => $preacher_array,
+            'preachers' => $preachers,
             'heading' => 'Preachers',
             'description' => '<meta name="description" content="Preachers at Crockenhill Baptist Church.">',
-            'content' => $page ? $page->body : '', // Add a check for $page
+            'content' => $page ? $page->body : '',
         ]);
     }
 
-    public function getPreacher(string $preacher): View
+    public function getPreacher(Preacher $preacher): View
     {
-        $preacher_name = str_replace('-', ' ', Str::title($preacher));
-        $sermons = Sermon::where('preacher', $preacher_name)
+        $sermons = $preacher->sermons()
             ->orderBy('date', 'desc')
             ->get();
 
         return view('sermons.preacher', [
+            'preacher' => $preacher,
             'sermons' => $sermons,
         ]);
     }

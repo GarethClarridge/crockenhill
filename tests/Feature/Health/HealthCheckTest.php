@@ -5,6 +5,7 @@ namespace Tests\Feature\Health;
 use App\HealthChecks\OpenAIHealthCheck;
 use App\HealthChecks\SermonProcessingQueueHealthCheck;
 use App\HealthChecks\StorageHealthCheck;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -14,6 +15,8 @@ use Tests\TestCase;
 
 class HealthCheckTest extends TestCase
 {
+    use RefreshDatabase;
+
     #[Test]
     public function it_reports_openai_health_success(): void
     {

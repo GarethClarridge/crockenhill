@@ -2,16 +2,15 @@
 
 namespace App\Models;
 
+use App\Enums\PreacherSource;
 use App\Enums\SermonService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory; // For scope return types
-// use Spatie\Feed\Feedable; // Not used in this file
-// use Spatie\Feed\FeedItem; // Not used in this file
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon; // For type hinting Carbon instances
-use Illuminate\Support\Str; // Added Enum import
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Spatie\Sitemap\Tags\Url;
 
@@ -27,6 +26,10 @@ use Spatie\Sitemap\Tags\Url;
  * @property string $slug
  * @property ?string $reference
  * @property string $preacher
+ * @property ?int $preacher_id
+ * @property ?PreacherSource $preacher_source
+ * @property ?float $preacher_confidence
+ * @property bool $needs_preacher_review
  * @property ?string $series
  * @property ?array $points
  * @property ?string $summary
@@ -78,6 +81,7 @@ use Spatie\Sitemap\Tags\Url;
  * @method static Builder|Sermon processingInProgress()
  * @method static Builder|Sermon withThumbnail()
  * @method static Builder|Sermon forPodcast()
+ * @method static Builder|Sermon needsPreacherReview()
  *
  * @mixin \Eloquent
  */
@@ -102,7 +106,11 @@ class Sermon extends Model implements Sitemapable
         'series',
         'reference',
         'preacher',
-        'points', // Stored as JSON string, handled by accessor/mutator potentially
+        'preacher_id',
+        'preacher_source',
+        'preacher_confidence',
+        'needs_preacher_review',
+        'points',
         'summary', // AI-generated sermon summary
         'meta_description', // SEO meta description (auto-generated if empty)
         'show_summary', // Toggle to show/hide AI-generated summary
@@ -134,6 +142,9 @@ class Sermon extends Model implements Sitemapable
             'thumbnail_metadata' => 'array',
             'show_summary' => 'boolean',
             'show_points' => 'boolean',
+            'preacher_source' => PreacherSource::class,
+            'preacher_confidence' => 'float',
+            'needs_preacher_review' => 'boolean',
         ];
     }
 
@@ -189,6 +200,10 @@ class Sermon extends Model implements Sitemapable
 
     public function getPreacherUrlAttribute(): ?string
     {
+        if ($this->relationLoaded('preacherProfile') && $this->preacherProfile) {
+            return '/christ/sermons/preachers/'.$this->preacherProfile->slug;
+        }
+
         return $this->preacher ? '/christ/sermons/preachers/'.Str::slug($this->preacher) : null;
     }
 
@@ -210,6 +225,19 @@ class Sermon extends Model implements Sitemapable
     public function scopeByPreacher(Builder $query, string $preacherName): Builder
     {
         return $query->where('preacher', $preacherName);
+    }
+
+    public function scopeNeedsPreacherReview(Builder $query): Builder
+    {
+        return $query->where('needs_preacher_review', true);
+    }
+
+    /**
+     * @return BelongsTo<Preacher, $this>
+     */
+    public function preacherProfile(): BelongsTo
+    {
+        return $this->belongsTo(Preacher::class, 'preacher_id');
     }
 
     /**
@@ -568,7 +596,8 @@ class Sermon extends Model implements Sitemapable
         }
 
         // Auto-generate from available content
-        $description = "Listen to '{$this->title}' by {$this->preacher}";
+        $preacherName = $this->preacherProfile->name ?? $this->preacher;
+        $description = "Listen to '{$this->title}' by {$preacherName}";
         $description .= " preached on {$this->human_date}";
 
         if ($this->reference) {
@@ -680,9 +709,10 @@ class Sermon extends Model implements Sitemapable
             $parts[] = "A sermon on {$this->reference}";
         }
 
-        if ($this->preacher) {
+        $preacherName = $this->preacherProfile->name ?? $this->preacher;
+        if ($preacherName) {
             $prefix = empty($parts) ? 'A sermon from' : 'from';
-            $parts[] = "{$prefix} {$this->preacher}";
+            $parts[] = "{$prefix} {$preacherName}";
         }
 
         if ($this->series) {

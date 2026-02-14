@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Admin\Sermons;
 
+use App\Enums\PreacherSource;
 use App\Enums\SermonService;
 use App\Livewire\Traits\WithNotifications;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -23,6 +25,8 @@ class EditSermon extends Component
     public string $service = '';
 
     public string $preacher = '';
+
+    public ?int $preacherId = null;
 
     public ?string $reference = null;
 
@@ -44,6 +48,7 @@ class EditSermon extends Component
             'date' => 'required|date',
             'service' => ['required', 'string', 'in:'.implode(',', SermonService::values())],
             'preacher' => 'required|string|max:255',
+            'preacherId' => 'nullable|integer|exists:preachers,id',
             'reference' => 'nullable|string|max:255',
             'series' => 'nullable|string|max:255',
             'summary' => 'nullable|string',
@@ -60,7 +65,8 @@ class EditSermon extends Component
         $this->slug = $sermon->slug;
         $this->date = $sermon->date->format('Y-m-d');
         $this->service = $sermon->service->value;
-        $this->preacher = $sermon->preacher;
+        $this->preacher = $sermon->preacherProfile->name ?? $sermon->preacher;
+        $this->preacherId = $sermon->preacher_id;
         $this->reference = $sermon->reference;
         $this->series = $sermon->series;
         $this->summary = $sermon->summary;
@@ -89,12 +95,22 @@ class EditSermon extends Component
     {
         $validated = $this->validate();
 
+        // If a preacher_id is selected, use it; otherwise look up or create by name
+        if ($validated['preacherId']) {
+            $preacher = Preacher::find($validated['preacherId']);
+        } else {
+            $preacher = Preacher::where('slug', Str::slug($validated['preacher']))->first();
+        }
+
         $this->sermon->update([
             'title' => $validated['title'],
             'slug' => $validated['slug'],
             'date' => $validated['date'],
             'service' => $validated['service'],
-            'preacher' => $validated['preacher'],
+            'preacher' => $preacher ? $preacher->name : $validated['preacher'],
+            'preacher_id' => $preacher?->id,
+            'preacher_source' => $preacher ? PreacherSource::MANUAL->value : null,
+            'needs_preacher_review' => false,
             'reference' => $validated['reference'],
             'series' => $validated['series'],
             'summary' => $validated['summary'],
@@ -110,6 +126,7 @@ class EditSermon extends Component
     {
         return view('livewire.admin.sermons.edit-sermon', [
             'services' => SermonService::cases(),
+            'preachers' => Preacher::active()->orderBy('name')->pluck('name', 'id'),
         ])->layout('layouts.admin', ['title' => 'Edit: '.$this->sermon->title, 'heading' => 'Edit Sermon']);
     }
 }

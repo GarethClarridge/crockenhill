@@ -28,7 +28,7 @@ use Illuminate\Support\Str;
         'datePublished' => $sermon->date->toIso8601String(),
         'author' => [
             '@type' => 'Person',
-            'name' => $sermon->preacher,
+            'name' => $sermon->preacherProfile->name ?? $sermon->preacher,
         ],
     ];
 
@@ -118,7 +118,7 @@ use Illuminate\Support\Str;
         <div>
           <dt class="sr-only">Preacher</dt>
           <dd class="text-gray-900 font-medium">
-            <a href="/christ/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">{{ $sermon->preacher }}</a>
+            <a href="/christ/sermons/{{ $sermon->preacher_url }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
           </dd>
         </div>
       </div>

@@ -481,7 +481,7 @@ class SermonCreationServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_uses_preacher_override_when_provided(): void
+    public function it_uses_id3_preacher_when_provided(): void
     {
         $log = MediaProcessingLog::factory()->create([
             'processing_metadata' => [],
@@ -492,16 +492,19 @@ class SermonCreationServiceTest extends TestCase
             audioFilePath: 'audio/test.mp3',
             originalFilename: '2024-03-15-sermon.mp3',
             sourceType: 'audio_upload',
-            preacher: 'John Smith',
+            id3Preacher: 'John Smith',
         );
 
         $sermon = $this->service->createSermon($log, $options);
 
         $this->assertEquals('John Smith', $sermon->preacher);
+        $this->assertEquals(\App\Enums\PreacherSource::ID3, $sermon->preacher_source);
+        $this->assertFalse($sermon->needs_preacher_review);
+        $this->assertNotNull($sermon->preacher_id);
     }
 
     #[Test]
-    public function it_uses_default_preacher_when_not_provided(): void
+    public function it_defaults_to_visiting_speaker_when_preacher_not_provided(): void
     {
         $log = MediaProcessingLog::factory()->create([
             'processing_metadata' => [],
@@ -516,7 +519,10 @@ class SermonCreationServiceTest extends TestCase
 
         $sermon = $this->service->createSermon($log, $options);
 
-        $this->assertEquals('Mark Drury', $sermon->preacher);
+        $this->assertEquals('Visiting Speaker', $sermon->preacher);
+        $this->assertEquals(\App\Enums\PreacherSource::DEFAULT, $sermon->preacher_source);
+        $this->assertTrue($sermon->needs_preacher_review);
+        $this->assertNotNull($sermon->preacher_id);
     }
 
     #[Test]

@@ -92,7 +92,7 @@ class SermonProcessingJobChainTest extends TestCase
             'audio_file_path' => $storedFilePath,
             'date' => '2024-01-15',
             'service' => SermonService::MORNING->value,
-            'preacher' => 'Mark Drury',
+            'preacher' => 'Visiting Speaker',
         ]);
 
         // Assert processing log was updated
@@ -707,7 +707,7 @@ class SermonProcessingJobChainTest extends TestCase
             'audio_file_path' => $storedFilePath,
             'date' => '2024-01-15',
             'service' => SermonService::EVENING->value,
-            'preacher' => 'Mark Drury',
+            'preacher' => 'Visiting Speaker',
         ]);
 
         $this->assertDatabaseHas('media_processing_logs', [

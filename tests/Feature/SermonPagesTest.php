@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonService;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
@@ -81,10 +82,12 @@ class SermonPagesTest extends TestCase
 
     public function test_sermon_preacher_page_renders(): void
     {
-        $sermon = Sermon::first();
-        $response = $this->get('/christ/sermons/preachers/'.Str::slug($sermon->preacher));
+        $preacher = Preacher::factory()->create(['name' => 'Test Preacher', 'slug' => 'test-preacher']);
+        Sermon::factory()->create(['preacher' => 'Test Preacher', 'preacher_id' => $preacher->id]);
+
+        $response = $this->get('/christ/sermons/preachers/test-preacher');
         $response->assertStatus(200);
-        $response->assertSee($sermon->preacher);
+        $response->assertSee('Test Preacher');
     }
 
     public function test_sermon_series_page_renders(): void

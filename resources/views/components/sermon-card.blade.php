@@ -27,7 +27,7 @@
     @if ($sermon->preacher != null)
     <li class="my-2 flex items-center">
       <x-heroicon-o-user class="h-5 w-5 mr-2" />
-      <a href="/christ/sermons/preachers/{{ \Illuminate\Support\Str::slug($sermon->preacher) }}" wire:navigate>{{ $sermon->preacher }}</a>
+      <a href="/christ/sermons/{{ $sermon->preacher_url }}" wire:navigate>{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
     </li>
     @endif
     @if ($sermon->series != null)

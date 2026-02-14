@@ -19,7 +19,7 @@
             class="w-40" />
 
         <x-select placeholder="Preacher" wire:model.live="preacherFilter"
-            :options="$preachers->map(fn($p) => ['id' => $p, 'name' => $p])->toArray()"
+            :options="$preachers->map(fn($name, $id) => ['id' => $id, 'name' => $name])->values()->toArray()"
             class="w-48" />
 
         <x-select placeholder="Series" wire:model.live="seriesFilter"
@@ -27,6 +27,7 @@
             class="w-48" />
 
         <x-toggle label="Has Video" wire:model.live="hasVideoFilter" />
+        <x-toggle label="Needs Review" wire:model.live="needsReviewFilter" />
         <x-toggle label="Last 12 Months" wire:model.live="last12Months" />
     </div>
 
@@ -70,7 +71,10 @@
                             </td>
                             {{-- Preacher --}}
                             <td class="px-4 py-3">
-                                <span class="text-sm">{{ $sermon->preacher }}</span>
+                                <span class="text-sm">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</span>
+                                @if($sermon->needs_preacher_review)
+                                    <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Review</span>
+                                @endif
                             </td>
                             {{-- Series --}}
                             <td class="px-4 py-3">

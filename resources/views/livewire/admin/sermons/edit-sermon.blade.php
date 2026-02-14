@@ -28,7 +28,12 @@
                             required />
                     </div>
 
-                    <x-input label="Preacher" wire:model="preacher" required />
+                    <x-select label="Preacher" wire:model.live="preacherId"
+                        :options="$preachers->map(fn($name, $id) => ['id' => $id, 'name' => $name])->values()->toArray()"
+                        placeholder="Select a preacher..." />
+
+                    <x-input label="Or enter preacher name" wire:model="preacher"
+                        hint="Used when preacher is not in the list above" />
 
                     <x-input label="Bible Reference" wire:model="reference"
                         placeholder="e.g., John 3:16-21" />

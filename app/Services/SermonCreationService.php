@@ -3,8 +3,11 @@
 namespace App\Services;
 
 use App\Data\SermonCreationOptions;
+use App\Enums\PreacherSource;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
+use App\Models\Preacher;
+use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -47,11 +50,11 @@ class SermonCreationService
         // Generate unique slug
         $slug = $this->generateUniqueSlug($title, $sermonDate);
 
-        // Determine preacher using cascading priority: ID3 → explicit override → AI → default
-        $preacher = $options->id3Preacher
-            ?? $options->preacher
-            ?? ($options->aiAnalysis['preacher'] ?? null)
-            ?? 'Mark Drury';
+        // Determine preacher: ID3 → default "Visiting Speaker"
+        $preacherName = $options->id3Preacher ?? 'Visiting Speaker';
+        $preacherSource = $options->id3Preacher ? PreacherSource::ID3 : PreacherSource::DEFAULT;
+        $needsReview = $preacherSource === PreacherSource::DEFAULT;
+        $preacherModel = $this->resolvePreacher($preacherName);
 
         // Build sermon data
         $sermonData = [
@@ -61,7 +64,11 @@ class SermonCreationService
             'date' => $sermonDate,
             'service' => $service,
             'slug' => $slug,
-            'preacher' => $preacher,
+            'preacher' => $preacherModel->name,
+            'preacher_id' => $preacherModel->id,
+            'preacher_source' => $preacherSource->value,
+            'preacher_confidence' => null,
+            'needs_preacher_review' => $needsReview,
             'source_type' => $options->sourceType,
             'duration' => $options->duration,
         ];
@@ -99,6 +106,42 @@ class SermonCreationService
         }
 
         return Sermon::create($sermonData);
+    }
+
+    /**
+     * Resolve a preacher name to a canonical Preacher model.
+     * Looks up via PreacherAlias, then by slug. Creates the record on the fly if not found.
+     */
+    private function resolvePreacher(string $name): Preacher
+    {
+        $normalizedName = strtolower(trim($name));
+
+        $alias = PreacherAlias::where('alias', $normalizedName)->first();
+
+        if ($alias) {
+            return $alias->preacher;
+        }
+
+        $slug = Str::slug($name);
+        $preacher = Preacher::where('slug', $slug)->first();
+
+        if ($preacher) {
+            return $preacher;
+        }
+
+        // Create new Preacher and alias on the fly
+        $preacher = Preacher::create([
+            'name' => Str::title(trim($name)),
+            'slug' => $slug,
+            'is_active' => true,
+        ]);
+
+        PreacherAlias::create([
+            'preacher_id' => $preacher->id,
+            'alias' => $normalizedName,
+        ]);
+
+        return $preacher;
     }
 
     /**

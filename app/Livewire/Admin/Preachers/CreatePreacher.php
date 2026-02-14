@@ -1,0 +1,62 @@
+<?php
+
+namespace App\Livewire\Admin\Preachers;
+
+use App\Livewire\Traits\WithNotifications;
+use App\Models\Preacher;
+use Illuminate\Support\Str;
+use Livewire\Component;
+
+class CreatePreacher extends Component
+{
+    use WithNotifications;
+
+    public string $name = '';
+
+    public string $slug = '';
+
+    public ?string $bio = null;
+
+    public bool $isActive = true;
+
+    public function mount(): void
+    {
+        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+    }
+
+    protected function rules(): array
+    {
+        return [
+            'name' => 'required|string|max:255|unique:preachers,name',
+            'slug' => 'required|string|max:255|unique:preachers,slug',
+            'bio' => 'nullable|string',
+            'isActive' => 'boolean',
+        ];
+    }
+
+    public function updatedName(): void
+    {
+        $this->slug = Str::slug($this->name);
+    }
+
+    public function save(): void
+    {
+        $validated = $this->validate();
+
+        Preacher::create([
+            'name' => $validated['name'],
+            'slug' => $validated['slug'],
+            'bio' => $validated['bio'],
+            'is_active' => $validated['isActive'],
+        ]);
+
+        $this->success('Preacher created', redirectTo: route('admin.preachers.index'));
+    }
+
+    public function render()
+    {
+        return view('livewire.admin.preachers.preacher-form', [
+            'title' => 'Create Preacher',
+        ])->layout('layouts.admin', ['title' => 'Create Preacher', 'heading' => 'Create Preacher']);
+    }
+}

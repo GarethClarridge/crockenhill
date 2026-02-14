@@ -74,4 +74,13 @@ class SermonFactory extends Factory
             ];
         });
     }
+
+    public function withPreacher(\App\Models\Preacher $preacher): Factory
+    {
+        return $this->state(fn () => [
+            'preacher' => $preacher->name,
+            'preacher_id' => $preacher->id,
+            'preacher_source' => 'manual',
+        ]);
+    }
 }

@@ -58,7 +58,7 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
     Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
     Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
-    Route::get('preachers/{preacher}', [SermonController::class, 'getPreacher'])->name('getPreacher');
+    Route::get('preachers/{preacher:slug}', [SermonController::class, 'getPreacher'])->name('getPreacher');
     Route::get('series', [SermonController::class, 'getSerieses'])->name('getSerieses');
     Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
 
@@ -132,6 +132,11 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     // Sermons
     Route::get('/sermons', App\Livewire\Admin\Sermons\ListSermons::class)->name('sermons.index');
     Route::get('/sermons/{sermon:slug}/edit', App\Livewire\Admin\Sermons\EditSermon::class)->name('sermons.edit');
+
+    // Preachers
+    Route::get('/preachers', App\Livewire\Admin\Preachers\ListPreachers::class)->name('preachers.index');
+    Route::get('/preachers/create', App\Livewire\Admin\Preachers\CreatePreacher::class)->name('preachers.create');
+    Route::get('/preachers/{preacher:slug}/edit', App\Livewire\Admin\Preachers\EditPreacher::class)->name('preachers.edit');
 
     // Calendar Events
     Route::get('/calendar-events', App\Livewire\Admin\CalendarEvents\ListCalendarEvents::class)->name('calendar-events.index');
