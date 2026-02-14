@@ -78,8 +78,11 @@ jobs:
       - name: PHPStan
         run: composer phpstan
 
-      - name: Tests
-        run: php artisan test --parallel
+      - name: Tests (Core)
+        run: php artisan test --parallel --exclude-group=dedicated
+
+      - name: Tests (Dedicated)
+        run: php artisan test --group=dedicated
 
   build:
     name: Build & Push

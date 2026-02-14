@@ -9,6 +9,7 @@ use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -473,11 +474,12 @@ class PodcastFeedTest extends TestCase
     }
 
     #[Test]
+    #[Group('dedicated')]
+    #[Group('cache-headers')]
     public function feed_includes_cache_control_header(): void
     {
-        // TODO: Fix cache header test - session middleware overrides headers in CI
-        // The controller sets Cache-Control: public, max-age=3600 but middleware overwrites it
-        $this->markTestSkipped('Cache headers overridden by session middleware in CI environment');
+        // Validate controller-level cache headers without middleware overrides.
+        $this->withoutMiddleware();
 
         Sermon::factory()->create([
             'service' => SermonService::MORNING->value,

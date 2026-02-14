@@ -7,6 +7,7 @@ use App\Services\ProcessingResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class DirectSermonVideoUploadTest extends TestCase
@@ -230,10 +231,11 @@ class DirectSermonVideoUploadTest extends TestCase
     /**
      * Test rate limiting on video uploads
      */
+    #[Group('dedicated')]
+    #[Group('rate-limit')]
     public function test_video_upload_rate_limiting(): void
     {
-        // Skip this test when throttling is disabled for parallel test stability
-        $this->markTestSkipped('Rate limiting is disabled in testing environment to prevent parallel test race conditions');
+        $this->withMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
 
         // Create a unique user for rate limiting test
         $testUser = User::factory()->create([

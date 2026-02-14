@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class LivestreamProcessingApiTest extends TestCase
@@ -361,10 +362,11 @@ class LivestreamProcessingApiTest extends TestCase
         $this->assertIsString($currentStep);
     }
 
+    #[Group('dedicated')]
+    #[Group('rate-limit')]
     public function test_api_rate_limiting()
     {
-        // Skip this test when throttling is disabled for parallel test stability
-        $this->markTestSkipped('Rate limiting is disabled in testing environment to prevent parallel test race conditions');
+        $this->withMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
 
         // Mock the service to ensure we can test rate limiting behavior
         $mockService = $this->createMock(\App\Services\VideoProcessingService::class);
