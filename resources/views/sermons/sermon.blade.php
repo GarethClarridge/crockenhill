@@ -118,7 +118,7 @@ use Illuminate\Support\Str;
         <div>
           <dt class="sr-only">Preacher</dt>
           <dd class="text-gray-900 font-medium">
-            <a href="/christ/sermons/{{ $sermon->preacher_url }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
+            <a href="{{ $sermon->preacher_url }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
           </dd>
         </div>
       </div>

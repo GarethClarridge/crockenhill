@@ -526,6 +526,29 @@ class SermonCreationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_defaults_to_visiting_speaker_when_id3_preacher_is_blank(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [],
+            'original_filename' => '2024-03-15-sermon.mp3',
+        ]);
+
+        $options = new SermonCreationOptions(
+            audioFilePath: 'audio/test.mp3',
+            originalFilename: '2024-03-15-sermon.mp3',
+            sourceType: 'audio_upload',
+            id3Preacher: '   ',
+        );
+
+        $sermon = $this->service->createSermon($log, $options);
+
+        $this->assertEquals('Visiting Speaker', $sermon->preacher);
+        $this->assertEquals(\App\Enums\PreacherSource::DEFAULT, $sermon->preacher_source);
+        $this->assertTrue($sermon->needs_preacher_review);
+        $this->assertNotNull($sermon->preacher_id);
+    }
+
+    #[Test]
     public function it_uses_date_override_when_provided(): void
     {
         $log = MediaProcessingLog::factory()->create([

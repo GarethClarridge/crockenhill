@@ -103,6 +103,21 @@ class SermonPagesTest extends TestCase
         $response->assertSee('Test Preacher');
     }
 
+    public function test_sermon_show_page_uses_single_preacher_url_prefix(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Test Preacher', 'slug' => 'test-preacher']);
+        $sermon = Sermon::factory()->create([
+            'preacher' => 'Test Preacher',
+            'preacher_id' => $preacher->id,
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('href="/christ/sermons/preachers/test-preacher"', false);
+        $response->assertDontSee('/christ/sermons//christ/sermons/preachers/', false);
+    }
+
     public function test_sermon_series_page_renders(): void
     {
         $sermon = Sermon::first();

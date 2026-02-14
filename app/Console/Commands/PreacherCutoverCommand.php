@@ -29,10 +29,12 @@ class PreacherCutoverCommand extends Command
         $aliasMap = $this->loadAliasMap();
 
         // Step 1: Read distinct preacher strings
-        $rawNames = Sermon::whereNotNull('preacher')
-            ->where('preacher', '!=', '')
-            ->distinct()
-            ->pluck('preacher');
+        $rawNames = Sermon::query()
+            ->whereNotNull('preacher')
+            ->pluck('preacher')
+            ->filter(fn ($name) => $this->normalizeName($name) !== '')
+            ->unique()
+            ->values();
 
         $this->info("Found {$rawNames->count()} distinct preacher strings.");
 
@@ -93,7 +95,7 @@ class PreacherCutoverCommand extends Command
                     continue;
                 }
 
-                $rawAlias = strtolower(trim($rawName));
+                $rawAlias = $this->normalizeName($rawName);
                 if ($rawAlias !== $normalizedKey) {
                     PreacherAlias::firstOrCreate(
                         ['alias' => $rawAlias],
@@ -139,7 +141,7 @@ class PreacherCutoverCommand extends Command
             }
 
             // Look up via alias
-            $alias = PreacherAlias::where('alias', strtolower($preacherString))->first();
+            $alias = PreacherAlias::where('alias', $this->normalizeName($preacherString))->first();
             $preacher = $alias?->preacher;
 
             if (! $preacher) {
@@ -195,6 +197,10 @@ class PreacherCutoverCommand extends Command
         foreach ($rawNames as $rawName) {
             $normalized = $this->normalizeName($rawName);
 
+            if ($normalized === '') {
+                continue;
+            }
+
             // Check alias map first
             if (isset($aliasMap[$normalized])) {
                 $canonicalMap[$normalized] = $aliasMap[$normalized];
@@ -210,7 +216,7 @@ class PreacherCutoverCommand extends Command
 
             // Use the normalized form as canonical
             if (! isset($canonicalMap[$normalized])) {
-                $canonicalMap[$normalized] = Str::title(trim($rawName));
+                $canonicalMap[$normalized] = Str::title($this->normalizeWhitespace($rawName));
             }
         }
 
@@ -219,10 +225,16 @@ class PreacherCutoverCommand extends Command
 
     private function normalizeName(string $name): string
     {
-        $name = trim($name);
-        $name = preg_replace('/\s+/', ' ', $name) ?? $name;
+        $name = $this->normalizeWhitespace($name);
 
         return strtolower($name);
+    }
+
+    private function normalizeWhitespace(string $name): string
+    {
+        $name = trim($name);
+
+        return preg_replace('/\s+/', ' ', $name) ?? $name;
     }
 
     /**

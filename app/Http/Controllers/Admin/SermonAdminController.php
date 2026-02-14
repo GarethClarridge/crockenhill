@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\PreacherSource;
 use App\Enums\SermonService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProcessMediaRequest;
 use App\Http\Requests\UpdateSermonRequest;
+use App\Models\Preacher;
+use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
@@ -52,7 +55,12 @@ class SermonAdminController extends Controller
         $sermon->slug = Str::slug($validatedData['title']); // Update slug if title changes
         $sermon->series = $validatedData['series'] ?? null;
         $sermon->reference = $validatedData['reference'] ?? null;
-        $sermon->preacher = $validatedData['preacher'];
+        $resolvedPreacher = $this->resolvePreacher($validatedData['preacher']);
+        $sermon->preacher = $resolvedPreacher->name;
+        $sermon->preacher_id = $resolvedPreacher->id;
+        $sermon->preacher_source = PreacherSource::MANUAL;
+        $sermon->preacher_confidence = null;
+        $sermon->needs_preacher_review = false;
 
         // The 'points' attribute from $validatedData will be a JSON string or null.
         // The Sermon model's $casts property will automatically convert this JSON string
@@ -176,5 +184,45 @@ class SermonAdminController extends Controller
         }
 
         return $this->destroy($sermon);
+    }
+
+    private function resolvePreacher(string $name): Preacher
+    {
+        $normalizedName = $this->normalizePreacherAlias($name);
+
+        if ($normalizedName === '') {
+            $normalizedName = 'visiting speaker';
+            $name = 'Visiting Speaker';
+        }
+
+        $alias = PreacherAlias::where('alias', $normalizedName)->first();
+        if ($alias) {
+            return $alias->preacher;
+        }
+
+        $canonicalName = Str::title($this->normalizeWhitespace($name));
+        $slug = Str::slug($canonicalName);
+
+        $preacher = Preacher::firstOrCreate(
+            ['slug' => $slug],
+            ['name' => $canonicalName, 'is_active' => true]
+        );
+
+        $existingAlias = PreacherAlias::firstOrCreate(
+            ['alias' => $normalizedName],
+            ['preacher_id' => $preacher->id]
+        );
+
+        return $existingAlias->preacher;
+    }
+
+    private function normalizePreacherAlias(string $name): string
+    {
+        return strtolower($this->normalizeWhitespace($name));
+    }
+
+    private function normalizeWhitespace(string $value): string
+    {
+        return trim(preg_replace('/\s+/', ' ', $value) ?? $value);
     }
 }

@@ -4,6 +4,8 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * @mixin \App\Models\Sermon
@@ -30,6 +32,11 @@ class SermonResource extends JsonResource
                 'id' => $this->preacherProfile->id,
                 'name' => $this->preacherProfile->name,
                 'slug' => $this->preacherProfile->slug,
+                'image_url' => $this->preacherProfile->image_path
+                    ? (Str::startsWith($this->preacherProfile->image_path, ['http://', 'https://', '/'])
+                        ? $this->preacherProfile->image_path
+                        : Storage::disk('public')->url($this->preacherProfile->image_path))
+                    : null,
             ] : null),
             'preacher_source' => $this->preacher_source,
             'preacher_confidence' => $this->preacher_confidence,

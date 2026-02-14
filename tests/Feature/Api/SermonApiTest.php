@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
@@ -74,6 +75,34 @@ class SermonApiTest extends TestCase
                     'id' => $sermon->id,
                     'title' => 'Test Sermon',
                     'thumbnail_url' => Storage::disk('public')->url('sermons/thumbnails/test-thumbnail.jpg'),
+                ],
+            ]);
+    }
+
+    public function test_api_includes_preacher_details_image_url_when_preacher_is_loaded(): void
+    {
+        $preacher = Preacher::factory()->create([
+            'name' => 'Test Preacher',
+            'slug' => 'test-preacher',
+            'image_path' => 'preachers/test-preacher.jpg',
+        ]);
+
+        $sermon = Sermon::factory()->create([
+            'preacher' => 'Test Preacher',
+            'preacher_id' => $preacher->id,
+        ]);
+
+        $response = $this->getJson("/api/sermons/{$sermon->id}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'data' => [
+                    'preacher_details' => [
+                        'id' => $preacher->id,
+                        'name' => 'Test Preacher',
+                        'slug' => 'test-preacher',
+                        'image_url' => Storage::disk('public')->url('preachers/test-preacher.jpg'),
+                    ],
                 ],
             ]);
     }
