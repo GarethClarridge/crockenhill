@@ -59,10 +59,19 @@ class SermonSeeder extends Seeder
         ];
 
         foreach ($sermons as $sermon) {
-            Sermon::create($sermon);
+            Sermon::updateOrCreate(
+                ['slug' => $sermon['slug']],
+                $sermon
+            );
         }
 
-        // Create additional random sermons
-        Sermon::factory(25)->create();
+        // Keep a stable baseline of additional random sermons.
+        $targetRandomSermons = 25;
+        $seededSlugs = array_column($sermons, 'slug');
+        $existingRandomSermons = Sermon::whereNotIn('slug', $seededSlugs)->count();
+
+        if ($existingRandomSermons < $targetRandomSermons) {
+            Sermon::factory($targetRandomSermons - $existingRandomSermons)->create();
+        }
     }
 }

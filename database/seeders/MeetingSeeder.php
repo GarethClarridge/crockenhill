@@ -197,7 +197,10 @@ class MeetingSeeder extends Seeder
         ];
 
         foreach ($meetings as $meeting) {
-            Meeting::create($meeting);
+            Meeting::updateOrCreate(
+                ['slug' => $meeting['slug']],
+                $meeting
+            );
         }
     }
 }
