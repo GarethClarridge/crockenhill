@@ -40,6 +40,16 @@ class MediaProcessingServiceProvider extends ServiceProvider
             );
         });
 
+        // Register speaker identification service (provider-switchable via config)
+        $this->app->bind(\App\Contracts\SpeakerIdentificationInterface::class, function ($app) {
+            $provider = config('media-processing.speaker_identification.provider', 'null');
+
+            return match ($provider) {
+                'resemblyzer' => $app->make(\App\Services\ResemblyzerSpeakerIdentificationService::class),
+                default => $app->make(\App\Services\NullSpeakerIdentificationService::class),
+            };
+        });
+
         // Keep existing service registrations that work
         $this->app->bind(\App\Services\SermonAudioProcessingService::class, function ($app) {
             return new \App\Services\SermonAudioProcessingService(

@@ -11,6 +11,7 @@ use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
+use App\Jobs\IdentifySpeaker;
 use App\Jobs\PerformVisualAnalysis;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
@@ -33,6 +34,7 @@ class ProcessingPipelineBuilder
         return [
             new ValidateAudioFile($log),
             new CreateSermonRecord($log),
+            new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
             new SendCompletionNotification($log),
@@ -49,6 +51,7 @@ class ProcessingPipelineBuilder
             new ValidateVideoFile($log),
             new ExtractAudioFromVideo($log),
             new CreateSermonRecord($log),
+            new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
             new GenerateThumbnail($log),
@@ -78,6 +81,7 @@ class ProcessingPipelineBuilder
         // Continue with sermon extraction and processing
         $jobs[] = new ExtractSermon($log);
         $jobs[] = new SubmitToProcessing($log);
+        $jobs[] = new IdentifySpeaker($log);
         $jobs[] = new TranscribeAudio($log);
         $jobs[] = new ProcessTranscriptWithAI($log);
         $jobs[] = new GenerateThumbnail($log);

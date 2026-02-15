@@ -44,6 +44,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && apt-get install -y --no-install-recommends \
         gnupg curl ca-certificates zip unzip \
         supervisor nginx ffmpeg mysql-client \
+        python3 python3-pip \
     # PHP repository
     && mkdir -p /etc/apt/keyrings \
     && curl -sS 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xb8dc7e53946656efbce4c1dd71daeaab4ad4cab6' \
@@ -57,6 +58,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
         php8.4-mysql php8.4-sqlite3 php8.4-gd \
         php8.4-curl php8.4-mbstring php8.4-xml php8.4-zip \
         php8.4-bcmath php8.4-intl php8.4-redis php8.4-imagick \
+    # Speaker identification runtime dependencies
+    && pip3 install --no-cache-dir --break-system-packages resemblyzer \
     # Cleanup
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 

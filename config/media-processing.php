@@ -89,6 +89,25 @@ return [
         'retry_delay_base' => env('ANALYSIS_RETRY_DELAY_BASE', 2),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Speaker Identification
+    |--------------------------------------------------------------------------
+    */
+    'speaker_identification' => [
+        'enabled' => env('SPEAKER_IDENTIFICATION_ENABLED', false),
+        'mode' => env('SPEAKER_IDENTIFICATION_MODE', 'shadow'),
+        'provider' => env('SPEAKER_IDENTIFICATION_PROVIDER', 'null'),
+        'model_version' => env('SPEAKER_MODEL_VERSION', 'v1.0'),
+        'queue' => 'speaker-identification',
+        'accept_threshold' => (float) env('SPEAKER_ACCEPT_THRESHOLD', 0.75),
+        'margin_threshold' => (float) env('SPEAKER_MARGIN_THRESHOLD', 0.10),
+        'min_duration' => (int) env('SPEAKER_MIN_DURATION', 30),
+        'extraction_duration' => (int) env('SPEAKER_EXTRACTION_DURATION', 60),
+        'python_path' => env('SPEAKER_PYTHON_PATH', 'python3'),
+        'script_path' => env('SPEAKER_SCRIPT_PATH', base_path('scripts/extract_embedding.py')),
+    ],
+
     'ffmpeg' => [
         'ffmpeg_path' => env('FFMPEG_PATH', '/usr/bin/ffmpeg'),
         'ffprobe_path' => env('FFPROBE_PATH', '/usr/bin/ffprobe'),

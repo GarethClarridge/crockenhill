@@ -1,0 +1,292 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Contracts\SpeakerIdentificationInterface;
+use App\Data\SpeakerMatchResult;
+use App\Enums\PreacherSource;
+use App\Models\MediaProcessingLog;
+use App\Models\Preacher;
+use App\Models\Sermon;
+use App\Models\SpeakerProfile;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+
+class IdentifySpeaker extends ProcessingJob implements ShouldQueue
+{
+    use InteractsWithQueue, Queueable, SerializesModels;
+
+    /**
+     * Speaker identification is best-effort: one attempt only.
+     */
+    public int $tries = 1;
+
+    /**
+     * Allow up to 5 minutes for embedding extraction.
+     */
+    public int $timeout = 300;
+
+    public function __construct(
+        private MediaProcessingLog $processingLog
+    ) {
+        $this->onQueue(config('media-processing.speaker_identification.queue', 'speaker-identification'));
+    }
+
+    public function handle(SpeakerIdentificationInterface $speakerService): void
+    {
+        $refreshedLog = $this->processingLog->fresh();
+
+        if (! $refreshedLog) {
+            Log::warning('IdentifySpeaker: processing log not found', [
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+
+            return;
+        }
+
+        $this->processingLog = $refreshedLog;
+        $this->initializeStepLogging($this->processingLog->processing_id);
+
+        if ($this->isCancelled()) {
+            Log::info('IdentifySpeaker job cancelled', [
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+
+            return;
+        }
+
+        try {
+            $this->logStepStart('identifying_speaker', 'Starting speaker identification');
+
+            // Gate 1: Feature flag
+            if (! config('media-processing.speaker_identification.enabled', false)) {
+                $this->storeDecision('skipped', 'Speaker identification disabled');
+                $this->logStepComplete('identifying_speaker', 'Skipped: feature disabled');
+
+                return;
+            }
+
+            // Gate 2: Sermon must exist
+            if (! $this->processingLog->sermon_id) {
+                $this->storeDecision('skipped', 'No sermon record yet');
+                $this->logStepComplete('identifying_speaker', 'Skipped: no sermon record');
+
+                return;
+            }
+
+            $sermon = Sermon::find($this->processingLog->sermon_id);
+
+            if (! $sermon) {
+                $this->storeDecision('skipped', 'Sermon record not found');
+                $this->logStepComplete('identifying_speaker', 'Skipped: sermon not found');
+
+                return;
+            }
+
+            // Gate 3: Skip if preacher already identified from ID3 tags
+            if ($sermon->preacher_source === PreacherSource::ID3) {
+                $this->storeDecision('skipped_id3', 'Preacher assigned from ID3 tag');
+                $this->logStepComplete('identifying_speaker', 'Skipped: ID3 preacher present');
+
+                return;
+            }
+
+            // Gate 4: Audio must be long enough for reliable identification
+            $minDuration = (int) config('media-processing.speaker_identification.min_duration', 30);
+
+            if ($sermon->duration !== null && $sermon->duration < $minDuration) {
+                $this->storeDecision('skipped_short', "Audio too short ({$sermon->duration}s < {$minDuration}s)");
+                $this->logStepComplete('identifying_speaker', 'Skipped: audio too short');
+
+                return;
+            }
+
+            // Gate 5: Need at least one active speaker profile to compare against
+            $provider = (string) config('media-processing.speaker_identification.provider', 'null');
+            $modelVersion = (string) config('media-processing.speaker_identification.model_version', '');
+
+            $profilesQuery = SpeakerProfile::active()->with('preacher');
+
+            if ($provider !== '' && $provider !== 'null') {
+                $profilesQuery->where('provider', $provider);
+
+                if ($modelVersion !== '') {
+                    $profilesQuery->where('model_version', $modelVersion);
+                }
+            }
+
+            /** @var \Illuminate\Database\Eloquent\Collection<int, SpeakerProfile> $profiles */
+            $profiles = $profilesQuery->get();
+
+            if ($profiles->isEmpty()) {
+                $reason = 'No active speaker profiles';
+                if ($provider !== '' && $provider !== 'null') {
+                    $reason = "No active speaker profiles for provider '{$provider}'";
+                    if ($modelVersion !== '') {
+                        $reason .= " and model version '{$modelVersion}'";
+                    }
+                }
+
+                $this->storeDecision('skipped_no_profiles', $reason);
+                $this->logStepComplete('identifying_speaker', 'Skipped: no active profiles');
+
+                return;
+            }
+
+            // Resolve the audio file path
+            $audioPath = $this->resolveAudioPath();
+
+            // Run identification
+            $result = $speakerService->identify($audioPath, $profiles);
+
+            $mode = config('media-processing.speaker_identification.mode', 'shadow');
+
+            if ($result->errored) {
+                $this->storeDecision('error', $result->reason ?? 'Speaker identification failed', $result->toLogArray());
+
+                Log::error('IdentifySpeaker: provider error', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'sermon_id' => $sermon->id,
+                    'reason' => $result->reason,
+                ]);
+            } elseif ($result->matched && $mode === 'enforce') {
+                $this->applyMatch($sermon, $result);
+                $this->storeDecision('matched', 'Preacher identified and assigned', $result->toLogArray());
+
+                Log::info('IdentifySpeaker: preacher assigned', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'sermon_id' => $sermon->id,
+                    'preacher_id' => $result->matchedPreacherId,
+                    'preacher_name' => $result->matchedPreacherName,
+                    'top_score' => $result->topScore,
+                ]);
+            } elseif ($result->matched && $mode === 'shadow') {
+                // Shadow mode: record confidence but don't change preacher assignment
+                $sermon->update(['preacher_confidence' => $result->topScore]);
+                $this->storeDecision('shadow_match', 'Match found (shadow mode, not applied)', $result->toLogArray());
+
+                Log::info('IdentifySpeaker: shadow match (not applied)', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'sermon_id' => $sermon->id,
+                    'would_assign_preacher_id' => $result->matchedPreacherId,
+                    'top_score' => $result->topScore,
+                ]);
+            } else {
+                if ($mode === 'enforce') {
+                    $this->applyNoMatchFallback($sermon, $result);
+                } elseif ($result->topScore !== null) {
+                    $sermon->update(['preacher_confidence' => $result->topScore]);
+                }
+
+                $this->storeDecision('no_match', $result->reason ?? 'Below threshold', $result->toLogArray());
+
+                Log::info('IdentifySpeaker: no match', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'sermon_id' => $sermon->id,
+                    'reason' => $result->reason,
+                    'top_score' => $result->topScore,
+                ]);
+            }
+
+            $this->logStepComplete('identifying_speaker', "Speaker identification completed: {$mode}");
+
+        } catch (\Throwable $e) {
+            // Non-blocking: log but do NOT re-throw so the pipeline chain continues
+            Log::error('IdentifySpeaker job failed (non-blocking)', [
+                'processing_id' => $this->processingLog->processing_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->storeDecision('error', $e->getMessage());
+            $this->logStepFailed('identifying_speaker', $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle a permanent job failure.
+     * Non-blocking: we intentionally do not mark the processing log as failed.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('IdentifySpeaker job failed permanently (non-blocking)', [
+            'processing_id' => $this->processingLog->processing_id,
+            'error' => $exception->getMessage(),
+        ]);
+
+        $this->storeDecision('error', 'Job failed: '.$exception->getMessage());
+    }
+
+    private function applyMatch(Sermon $sermon, SpeakerMatchResult $result): void
+    {
+        $sermon->update([
+            'preacher_id' => $result->matchedPreacherId,
+            'preacher' => $result->matchedPreacherName,
+            'preacher_source' => PreacherSource::SPEAKER_MODEL->value,
+            'preacher_confidence' => $result->topScore,
+            'needs_preacher_review' => false,
+        ]);
+    }
+
+    private function applyNoMatchFallback(Sermon $sermon, SpeakerMatchResult $result): void
+    {
+        $fallbackPreacher = Preacher::query()
+            ->where('slug', 'visiting-speaker')
+            ->orWhereRaw('LOWER(name) = ?', ['visiting speaker'])
+            ->first();
+
+        if (! $fallbackPreacher) {
+            $fallbackPreacher = Preacher::create([
+                'name' => 'Visiting Speaker',
+                'slug' => 'visiting-speaker',
+                'is_active' => true,
+            ]);
+        }
+
+        $sermon->update([
+            'preacher_id' => $fallbackPreacher->id,
+            'preacher' => $fallbackPreacher->name,
+            'preacher_source' => PreacherSource::DEFAULT->value,
+            'preacher_confidence' => $result->topScore,
+            'needs_preacher_review' => true,
+        ]);
+    }
+
+    private function resolveAudioPath(): string
+    {
+        $path = match ($this->processingLog->processing_type) {
+            'audio' => $this->processingLog->source_file_path,
+            'video', 'livestream' => $this->processingLog->audio_file_path,
+            default => throw new \Exception("Unknown processing type: {$this->processingLog->processing_type}"),
+        };
+
+        if (empty($path)) {
+            throw new \Exception('No audio file path found in processing log');
+        }
+
+        return $path;
+    }
+
+    /**
+     * Store speaker identification decision in processing_metadata.
+     *
+     * @param  array<string, mixed>  $details
+     */
+    private function storeDecision(string $outcome, ?string $reason = null, array $details = []): void
+    {
+        $current = $this->processingLog->processing_metadata ?? [];
+
+        $current['speaker_identification'] = array_merge(
+            [
+                'outcome' => $outcome,
+                'reason' => $reason,
+                'decided_at' => now()->toISOString(),
+            ],
+            $details
+        );
+
+        $this->processingLog->update(['processing_metadata' => $current]);
+    }
+}

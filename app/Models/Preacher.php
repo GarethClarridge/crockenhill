@@ -71,6 +71,14 @@ class Preacher extends Model
         return $this->hasMany(PreacherAlias::class);
     }
 
+    /**
+     * @return HasMany<SpeakerProfile, $this>
+     */
+    public function speakerProfiles(): HasMany
+    {
+        return $this->hasMany(SpeakerProfile::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

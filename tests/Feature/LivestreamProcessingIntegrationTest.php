@@ -102,6 +102,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
             \App\Jobs\AnalyzeSegments::class,
             \App\Jobs\ExtractSermon::class,
             \App\Jobs\SubmitToProcessing::class,
+            \App\Jobs\IdentifySpeaker::class,
             \App\Jobs\TranscribeAudio::class,              // UNIFIED JOB
             \App\Jobs\ProcessTranscriptWithAI::class,      // UNIFIED JOB
             \App\Jobs\GenerateThumbnail::class,
