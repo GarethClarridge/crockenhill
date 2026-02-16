@@ -54,26 +54,6 @@ class VideoProcessingServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_delegates_process_directly_to_segmentation_service(): void
-    {
-        $file = UploadedFile::fake()->create('sermon-video.mp4', 2048);
-        $expectedResult = ProcessingResult::success(
-            processingId: 'direct-123',
-            message: 'Direct video processing started'
-        );
-
-        $this->segmentationService
-            ->method('processDirectly')
-            ->with($file)
-            ->willReturn($expectedResult);
-
-        $result = $this->service->processDirectly($file);
-
-        $this->assertTrue($result->success);
-        $this->assertEquals('direct-123', $result->processingId);
-    }
-
-    #[Test]
     public function it_delegates_process_with_segmentation(): void
     {
         $file = UploadedFile::fake()->create('livestream.mp4', 5120);

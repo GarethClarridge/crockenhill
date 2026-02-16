@@ -5,8 +5,6 @@ namespace App\Services;
 use App\Contracts\VideoStorageServiceInterface;
 use App\Data\LivestreamProcessingResult;
 use App\Jobs\CleanupTemporaryFiles;
-use App\Jobs\GenerateThumbnail;
-use App\Jobs\SubmitToProcessing;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
 use Illuminate\Http\UploadedFile;
@@ -22,14 +20,6 @@ class LivestreamSegmentationService
         private VideoSegmentationService $segmentationService,
         private MetadataExtractionService $metadataService
     ) {}
-
-    /**
-     * Process video directly without segmentation (for sermon-only videos)
-     */
-    public function processDirectly(UploadedFile $videoFile): ProcessingResult
-    {
-        return $this->startProcessingDirectly($videoFile);
-    }
 
     /**
      * Process video with segmentation (for livestream videos)
@@ -123,82 +113,6 @@ class LivestreamSegmentationService
             ]);
 
             throw $e;
-        }
-    }
-
-    public function startProcessingDirectly(UploadedFile $videoFile): ProcessingResult
-    {
-        try {
-            $processingId = Str::uuid()->toString();
-
-            Log::info('Starting direct video processing', [
-                'processing_id' => $processingId,
-                'original_filename' => $videoFile->getClientOriginalName(),
-                'file_size' => $videoFile->getSize(),
-            ]);
-
-            if (! $this->storageService->validateStorageSpace($videoFile->getSize())) {
-                throw new \Exception('Insufficient storage space for processing');
-            }
-
-            // Extract date from video metadata BEFORE storing (to preserve file timestamps)
-            $extractedDate = $this->metadataService->extractDateFromVideo($videoFile);
-
-            // Store the video file
-            $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
-
-            Log::info('Extracted date from direct video file', [
-                'processing_id' => $processingId,
-                'original_filename' => $videoFile->getClientOriginalName(),
-                'extracted_date' => $extractedDate->toDateString(),
-            ]);
-
-            // Create processing log
-            $processingLog = MediaProcessingLog::create([
-                'processing_id' => $processingId,
-                'processing_type' => 'livestream',
-                'original_filename' => $videoFile->getClientOriginalName(),
-                'source_file_path' => $uploadResult['temp_path'],
-                'status' => 'processing',
-                'current_step' => 'initiated',
-                'processing_metadata' => [
-                    'processing_mode' => 'direct_sermon',
-                    'extracted_date' => $extractedDate->toDateString(),
-                    'date_extraction_method' => 'video_metadata_or_filename',
-                ],
-            ]);
-
-            // For direct processing, skip segmentation and go straight to sermon processing
-            $jobs = [
-                new SubmitToProcessing($processingLog),
-                new GenerateThumbnail($processingLog),
-                new CleanupTemporaryFiles($processingLog),
-            ];
-
-            // Chain the jobs for direct processing
-            Bus::chain($jobs)->dispatch();
-
-            Log::info('Direct video processing jobs dispatched', [
-                'processing_id' => $processingId,
-                'job_count' => count($jobs),
-            ]);
-
-            return ProcessingResult::success(
-                processingId: $processingId,
-                message: 'Direct video processing initiated successfully'
-            );
-
-        } catch (\Exception $e) {
-            Log::error('Failed to start direct video processing', [
-                'error' => $e->getMessage(),
-                'original_filename' => $videoFile->getClientOriginalName(),
-            ]);
-
-            return ProcessingResult::failure(
-                processingId: $processingId,
-                message: 'Failed to initiate direct video processing: '.$e->getMessage(),
-                errorCode: 'VIDEO_PROCESSING_FAILED'
-            );
         }
     }
 

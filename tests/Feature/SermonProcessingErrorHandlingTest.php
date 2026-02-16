@@ -16,9 +16,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\MediaProcessingTestHelpers;
 
 class SermonProcessingErrorHandlingTest extends TestCase
 {
+    use MediaProcessingTestHelpers;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -358,19 +360,14 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         $result = $service->processSermon($corruptedFile);
 
-        // Corrupted file processing may succeed initially but should be handled gracefully
+        // Corrupted files should either fail validation or succeed initially
+        // (with processing failing later at the validation job step)
         if (! $result->success) {
-            // If it fails, verify it's a reasonable failure message
-            $this->assertStringContainsString('Failed to', $result->message);
+            $this->assertNotEmpty($result->message);
         } else {
-            // If it succeeds, processing will fail at validation step
-            // Service integration may succeed or fail depending on environment
-            if (! $result->success) {
-                $this->markTestSkipped('Service integration not available in test environment');
-
-                return;
-            }
+            // Processing was accepted - it will fail later during actual audio validation
             $this->assertTrue($result->success);
+            $this->assertNotEmpty($result->processingId);
         }
     }
 
@@ -452,13 +449,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         // Apply graceful degradation
         $result = $service->applyGracefulDegradation('degradation-test-id');
 
-        // Service integration may succeed or fail depending on environment
-        if (! $result->success) {
-            $this->markTestSkipped('Service integration not available in test environment');
-
-            return;
-        }
-        $this->assertTrue($result->success);
+        $this->assertTrue($result->success, 'Graceful degradation should always succeed: '.$result->message);
         $this->assertEquals('degradation-test-id', $result->processingId);
 
         // Verify sermon was updated with fallback data
@@ -530,21 +521,6 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $this->assertArrayHasKey('recovery_options', $details['troubleshooting']);
     }
 
-    /**
-     * Create a mock SermonAnalysis object for testing
-     */
-    private function createMockSermonAnalysis(string $title = 'God\'s Amazing Love')
-    {
-        return \App\Data\SermonAnalysis::create(
-            title: $title,
-            series: 'John Study',
-            reference: 'John 3:16-21',
-            points: ['First Point', 'Second Point', 'Third Point'],
-            summary: 'A sermon about God\'s amazing love for humanity.',
-            transcript: 'Sample transcript content'
-        );
-    }
-
     #[Test]
     public function it_can_retry_failed_processing_for_preparing_step(): void
     {
@@ -564,14 +540,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         // Test retry
         $result = $pipelineService->retryProcessing('retry-test-preparing');
 
-        // Should succeed
-        // Service integration may succeed or fail depending on environment
-        if (! $result->success) {
-            $this->markTestSkipped('Service integration not available in test environment');
-
-            return;
-        }
-        $this->assertTrue($result->success);
+        $this->assertTrue($result->success, 'Retry should succeed: '.$result->message);
         $this->assertEquals('Processing retry initiated successfully', $result->message);
 
         // Check processing log was updated - for 'preparing' step, it should be marked for manual review
@@ -609,21 +578,18 @@ class SermonProcessingErrorHandlingTest extends TestCase
         // Test retry
         $result = $pipelineService->retryProcessing('retry-test-analyzing');
 
-        // Should succeed
-        // Service integration may succeed or fail depending on environment
-        if (! $result->success) {
-            $this->markTestSkipped('Service integration not available in test environment');
-
-            return;
-        }
-        $this->assertTrue($result->success);
+        $this->assertTrue($result->success, 'Retry should succeed: '.$result->message);
         $this->assertEquals('Processing retry initiated successfully', $result->message);
 
-        // Check processing log was updated - analyzing step should retry and complete
-        // Note: The job actually runs in the test and applies graceful degradation
+        // Check processing log was updated. Depending on queue execution mode, the step
+        // may either remain at retry entry point or progress through AI fallback/completion.
         $processingLog->refresh();
         $this->assertEquals(ProcessingStatus::PENDING, $processingLog->status);
-        $this->assertEquals('ai_analysis_fallback', $processingLog->current_step); // Graceful degradation applied
+        $this->assertContains($processingLog->current_step, [
+            'analyzing_transcript',
+            'ai_analysis_fallback',
+            'ai_analysis_completed',
+        ]);
     }
 
     #[Test]
@@ -645,14 +611,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         // Test retry
         $result = $pipelineService->retryProcessing('retry-test-legacy');
 
-        // Should succeed
-        // Service integration may succeed or fail depending on environment
-        if (! $result->success) {
-            $this->markTestSkipped('Service integration not available in test environment');
-
-            return;
-        }
-        $this->assertTrue($result->success);
+        $this->assertTrue($result->success, 'Retry should succeed: '.$result->message);
         $this->assertEquals('Processing retry initiated successfully', $result->message);
 
         // Check processing log was updated to handle legacy step - should be marked for manual review

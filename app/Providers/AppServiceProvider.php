@@ -89,64 +89,7 @@ class AppServiceProvider extends ServiceProvider
     protected function configureRateLimiting(): void
     {
         RateLimiter::for('api', function (Request $request) {
-            if ($request->is('api/livestreams/processing/*/status') &&
-                ! config('media-processing.rate_limiting.enabled', true)) {
-                return Limit::none();
-            }
-
-            if ($request->is('api/livestreams/processing/*/status')) {
-                return Limit::perMinute(config('media-processing.rate_limiting.status.per_minute', 60))
-                    ->by($request->user()?->id ?: $request->ip());
-            }
-
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
-        });
-
-        RateLimiter::for('sermon-upload', function (Request $request) {
-            return [
-                Limit::perMinute(5)->by($request->user()?->id ?: $request->ip()),
-                Limit::perHour(20)->by($request->user()?->id ?: $request->ip()),
-            ];
-        });
-
-        RateLimiter::for('sermon-retry', function (Request $request) {
-            return [
-                Limit::perMinute(2)->by($request->user()?->id ?: $request->ip()),
-                Limit::perHour(10)->by($request->user()?->id ?: $request->ip()),
-            ];
-        });
-
-        RateLimiter::for('sermon-video-upload', function (Request $request) {
-            return [
-                Limit::perMinute(1)->by($request->user()?->id ?: $request->ip()),
-                Limit::perHour(5)->by($request->user()?->id ?: $request->ip()),
-            ];
-        });
-
-        RateLimiter::for('livestream-upload', function (Request $request) {
-            if (! config('media-processing.rate_limiting.enabled', true)) {
-                return Limit::none();
-            }
-
-            return [
-                Limit::perMinute(config('media-processing.rate_limiting.upload.per_minute', 1))
-                    ->by($request->user()?->id ?: $request->ip()),
-                Limit::perHour(config('media-processing.rate_limiting.upload.per_hour', 5))
-                    ->by($request->user()?->id ?: $request->ip()),
-            ];
-        });
-
-        RateLimiter::for('livestream-retry', function (Request $request) {
-            if (! config('media-processing.rate_limiting.enabled', true)) {
-                return Limit::none();
-            }
-
-            return [
-                Limit::perMinute(config('media-processing.rate_limiting.retry.per_minute', 1))
-                    ->by($request->user()?->id ?: $request->ip()),
-                Limit::perHour(config('media-processing.rate_limiting.retry.per_hour', 3))
-                    ->by($request->user()?->id ?: $request->ip()),
-            ];
         });
 
         RateLimiter::for('media-upload', function (Request $request) {

@@ -56,9 +56,6 @@ class UnifiedMediaProcessingTest extends TestCase
             $mock->shouldReceive('processWithSegmentation')->andReturn(
                 \App\Services\ProcessingResult::success('livestream-id', 'Livestream processing started')
             );
-            $mock->shouldReceive('processDirectly')->andReturn(
-                \App\Services\ProcessingResult::success('video-id', 'Video processing started')
-            );
         });
     }
 

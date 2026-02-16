@@ -8,11 +8,19 @@ use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Tests\TestCase;
 
 class SermonAdminControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+    }
 
     public function test_update_resolves_and_persists_canonical_preacher_fields(): void
     {

@@ -195,65 +195,6 @@ class LivestreamSegmentationServiceTest extends TestCase
         $this->assertTrue($result->success);
     }
 
-    // ---- startProcessingDirectly ----
-
-    #[Test]
-    public function it_returns_failure_result_when_direct_processing_fails(): void
-    {
-        $file = UploadedFile::fake()->create('sermon.mp4', 50000, 'video/mp4');
-
-        $this->storageService->shouldReceive('validateStorageSpace')->andReturn(false);
-
-        $result = $this->service->startProcessingDirectly($file);
-
-        $this->assertInstanceOf(ProcessingResult::class, $result);
-        $this->assertFalse($result->success);
-        $this->assertEquals('VIDEO_PROCESSING_FAILED', $result->errorCode);
-    }
-
-    #[Test]
-    public function it_creates_processing_log_for_direct_processing(): void
-    {
-        $file = UploadedFile::fake()->create('sermon.mp4', 50000, 'video/mp4');
-
-        $this->storageService->shouldReceive('validateStorageSpace')->andReturn(true);
-        $this->metadataService->shouldReceive('extractDateFromVideo')
-            ->andReturn(Carbon::parse('2024-06-15'));
-        $this->storageService->shouldReceive('storeUploadedVideo')
-            ->andReturn($this->mockUploadResult('sermon.mp4'));
-
-        $result = $this->service->startProcessingDirectly($file);
-
-        $this->assertTrue($result->success);
-        $this->assertDatabaseHas('media_processing_logs', [
-            'processing_type' => 'livestream',
-            'status' => 'processing',
-            'current_step' => 'initiated',
-            'source_file_path' => 'livestream/temp/test.mp4',
-        ]);
-    }
-
-    #[Test]
-    public function it_dispatches_correct_jobs_for_direct_processing(): void
-    {
-        $file = UploadedFile::fake()->create('sermon.mp4', 50000, 'video/mp4');
-
-        $this->storageService->shouldReceive('validateStorageSpace')->andReturn(true);
-        $this->metadataService->shouldReceive('extractDateFromVideo')
-            ->andReturn(Carbon::parse('2024-06-15'));
-        $this->storageService->shouldReceive('storeUploadedVideo')
-            ->andReturn($this->mockUploadResult('sermon.mp4'));
-
-        $result = $this->service->startProcessingDirectly($file);
-
-        $this->assertTrue($result->success);
-        Bus::assertChained([
-            \App\Jobs\SubmitToProcessing::class,
-            \App\Jobs\GenerateThumbnail::class,
-            \App\Jobs\CleanupTemporaryFiles::class,
-        ]);
-    }
-
     // ---- retryProcessing ----
 
     #[Test]

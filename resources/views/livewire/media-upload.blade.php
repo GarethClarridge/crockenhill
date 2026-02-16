@@ -355,11 +355,6 @@
                         <div>
                             <p class="text-sm text-green-800 font-medium">Success!</p>
                             <p class="text-sm text-green-700">{{ $successMessage }}</p>
-                            @if(isset($processingDetails['sermon_url']))
-                                <a href="{{ $processingDetails['sermon_url'] }}" class="text-sm text-green-600 hover:text-green-800 underline">
-                                    View processed sermon →
-                                </a>
-                            @endif
                         </div>
                     </div>
                 </div>
@@ -398,8 +393,8 @@
                 @endif
 
                 @if($status === 'completed')
-                    <a href="{{ $processingDetails['sermon_url'] ?? '/christ/sermons' }}" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200">
-                        {{ isset($processingDetails['sermon_url']) ? 'View Sermon' : 'View All Sermons' }}
+                    <a href="/christ/sermons" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200">
+                        View All Sermons
                     </a>
                 @endif
             </div>

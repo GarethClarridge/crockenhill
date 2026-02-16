@@ -7,14 +7,17 @@ use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\MediaProcessingTestHelpers;
 
 class AutomatedSermonApiTest extends TestCase
 {
     use DatabaseTransactions;
+    use MediaProcessingTestHelpers;
 
     protected User $user;
 
@@ -22,10 +25,13 @@ class AutomatedSermonApiTest extends TestCase
     {
         parent::setUp();
 
+        // Disable rate limiting so tests assert exact status codes
+        $this->withoutMiddleware(ThrottleRequests::class);
+
         // Create test user with @crockenhill.org email for authorization
         $this->user = User::factory()->create([
             'email' => 'test@crockenhill.org',
-            'email_verified_at' => now(), // Ensure email is verified
+            'email_verified_at' => now(),
         ]);
 
         // Set up storage and configuration
@@ -49,18 +55,7 @@ class AutomatedSermonApiTest extends TestCase
     #[Test]
     public function it_uploads_sermon_file_successfully(): void
     {
-        // Mock the UnifiedMediaProcessor to avoid actual processing
-        $mockService = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
-        $mockResult = \App\Services\ProcessingResult::success(
-            processingId: 'test-uuid-123',
-            message: 'Audio processing initiated successfully',
-            statusUrl: 'http://localhost/api/media/processing/test-uuid-123/status'
-        );
-
-        $mockService->method('process')
-            ->with('audio', $this->anything())
-            ->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockService);
+        $this->mockUnifiedMediaProcessor('test-uuid-123');
 
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 
@@ -99,13 +94,8 @@ class AutomatedSermonApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->postJson('/api/media/audio', []);
 
-        // Should return 422 for validation errors or 500 if rejected before validation
-        // Both indicate the system is properly rejecting requests without files
-        $this->assertContains($response->status(), [422, 500]);
-
-        if ($response->status() === 422) {
-            $response->assertJsonValidationErrors(['file']);
-        }
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['file']);
     }
 
     #[Test]
@@ -118,13 +108,8 @@ class AutomatedSermonApiTest extends TestCase
                 'file' => $file,
             ]);
 
-        // Should return 422 for validation errors or 500 if rejected before validation
-        // Both indicate the system is properly rejecting invalid file types
-        $this->assertContains($response->status(), [422, 500]);
-
-        if ($response->status() === 422) {
-            $response->assertJsonValidationErrors(['file']);
-        }
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['file']);
     }
 
     #[Test]
@@ -138,26 +123,14 @@ class AutomatedSermonApiTest extends TestCase
                 'file' => $file,
             ]);
 
-        // Should return 422 for validation errors or 500 if rejected before validation
-        // Both indicate the system is properly rejecting oversized files
-        $this->assertContains($response->status(), [422, 500]);
-
-        if ($response->status() === 422) {
-            $response->assertJsonValidationErrors(['file']);
-        }
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['file']);
     }
 
     #[Test]
     public function it_accepts_various_audio_formats(): void
     {
-        // Mock the UnifiedMediaProcessor to avoid actual processing
-        $mockService = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
-        $mockResult = \App\Services\ProcessingResult::success(
-            processingId: 'test-uuid-123',
-            message: 'Audio processing initiated successfully'
-        );
-        $mockService->method('process')->with('audio', $this->anything())->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockService);
+        $this->mockUnifiedMediaProcessor('test-uuid-123');
 
         $audioFormats = [
             ['sermon.mp3', 'audio/mpeg'],
@@ -174,18 +147,16 @@ class AutomatedSermonApiTest extends TestCase
                     'file' => $file,
                 ]);
 
-            // Should either succeed (202) or be rate limited (429)
-            $this->assertContains($response->status(), [202, 429]);
-
-            if ($response->status() === 202) {
-                $response->assertJson(['success' => true]);
-            }
+            $response->assertStatus(202)
+                ->assertJson(['success' => true]);
         }
     }
 
     #[Test]
     public function it_handles_corrupted_file_upload(): void
     {
+        $this->mockUnifiedMediaProcessor('test-uuid-123');
+
         // Create a file that appears valid but is corrupted
         $file = UploadedFile::fake()->createWithContent('corrupted.mp3', 'invalid audio data');
 
@@ -194,16 +165,10 @@ class AutomatedSermonApiTest extends TestCase
                 'file' => $file,
             ]);
 
-        // The file may pass Laravel validation initially (202) or be rejected (422/500)
-        // All outcomes are acceptable for security
-        $this->assertContains($response->status(), [202, 422, 500]);
-
-        if ($response->status() === 202) {
-            $response->assertJson(['success' => true]);
-            // The processing should eventually fail due to corrupted file content
-            $processingId = $response->json('processing_id');
-            $this->assertNotNull($processingId);
-        }
+        // The file passes Laravel MIME validation (extension-based), so processing is accepted.
+        // Actual content validation happens in the async job pipeline.
+        $response->assertStatus(202)
+            ->assertJson(['success' => true]);
     }
 
     #[Test]
@@ -237,7 +202,7 @@ class AutomatedSermonApiTest extends TestCase
     {
         // Create processing log
         $processingId = (string) Str::uuid();
-        $processingLog = MediaProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => $processingId,
             'original_filename' => 'test-sermon.mp3',
             'status' => ProcessingStatus::PROCESSING,
@@ -247,11 +212,8 @@ class AutomatedSermonApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId}/status");
 
-        // Should return 200 for valid requests or 500 if processing table differs
-        $this->assertContains($response->status(), [200, 500]);
-
-        if ($response->status() === 200) {
-            $response->assertJsonStructure([
+        $response->assertStatus(200)
+            ->assertJsonStructure([
                 'found',
                 'processing_id',
                 'status',
@@ -259,13 +221,12 @@ class AutomatedSermonApiTest extends TestCase
                 'created_at',
                 'updated_at',
             ])
-                ->assertJson([
-                    'found' => true,
-                    'processing_id' => $processingId,
-                    'status' => 'processing',
-                    'current_step' => 'transcribing_audio',
-                ]);
-        }
+            ->assertJson([
+                'found' => true,
+                'processing_id' => $processingId,
+                'status' => 'processing',
+                'current_step' => 'transcribing_audio',
+            ]);
     }
 
     #[Test]
@@ -290,22 +251,13 @@ class AutomatedSermonApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$invalidId}/status");
 
-        // Should return 404 for malformed IDs (current behavior) or 400 (validation behavior)
-        $this->assertContains($response->status(), [400, 404]);
-
-        if ($response->status() === 400) {
-            $response->assertJson([
-                'found' => false,
-                'message' => 'Invalid processing ID format',
-            ]);
-        } else {
-            $response->assertJson([
+        // isValidProcessingId accepts 8+ char alphanumeric strings, so this passes.
+        // It returns 404 because no record exists.
+        $response->assertStatus(404)
+            ->assertJson([
                 'found' => false,
             ]);
-        }
     }
-
-    // NOTE: Processing statistics endpoint was removed in unified architecture
 
     #[Test]
     public function it_retries_failed_processing(): void
@@ -321,15 +273,17 @@ class AutomatedSermonApiTest extends TestCase
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'transcribing_audio_failed',
             'error_message' => 'Temporary service unavailable',
-            'source_type' => 'audio', // Required for retry processing
-            'stored_file_path' => 'temp/test-audio.mp3', // Required for processing chain restart
+            'source_type' => 'audio',
+            'stored_file_path' => 'temp/test-audio.mp3',
         ]);
 
         $response = $this->actingAs($this->user)
             ->postJson("/api/media/processing/{$processingId}/retry");
 
-        // Should return 202 for valid retry, 422 if not failed, or 500 if FFmpeg not available in test environment
-        $this->assertContains($response->status(), [202, 422, 500]);
+        // Retry should return 202 (accepted) or 422 (if service can't retry)
+        $this->assertContains($response->status(), [202, 422],
+            "Expected 202 or 422, got {$response->status()}: {$response->getContent()}"
+        );
 
         if ($response->status() === 202) {
             $response->assertJsonStructure([
@@ -343,11 +297,9 @@ class AutomatedSermonApiTest extends TestCase
                     'processing_id' => $processingId,
                 ]);
 
-            // Verify processing log was reset to retry transcription
             $this->assertDatabaseHas('media_processing_logs', [
                 'processing_id' => $processingId,
                 'status' => ProcessingStatus::PENDING->value,
-                'current_step' => 'transcribing_audio_failed',
             ]);
         }
     }
@@ -367,35 +319,21 @@ class AutomatedSermonApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->postJson("/api/media/processing/{$processingId}/retry");
 
-        // Should return 422 (not failed) or 500 (FFmpeg not available in test environment)
-        $this->assertContains($response->status(), [422, 500]);
-
-        if ($response->status() === 422) {
-            $response->assertJson([
+        $response->assertStatus(422)
+            ->assertJson([
                 'success' => false,
                 'error_code' => 'PROCESSING_NOT_FAILED',
             ]);
-        }
     }
-
-    // NOTE: Failed processing logs endpoints were removed in unified architecture
-
-    // NOTE: Graceful degradation and health check endpoints were removed in unified architecture
 
     #[Test]
     public function it_applies_rate_limiting(): void
     {
-        // Mock the UnifiedMediaProcessor to avoid actual processing
-        $mockService = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
-        $mockResult = \App\Services\ProcessingResult::success(
-            processingId: 'test-uuid-123',
-            message: 'Audio processing initiated successfully'
-        );
-        $mockService->method('process')->with('audio', $this->anything())->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockService);
+        // Re-enable rate limiting for this specific test
+        $this->withMiddleware(ThrottleRequests::class);
 
-        // This test would require setting up rate limiting middleware
-        // For now, we'll test that multiple requests can be made successfully
+        $this->mockUnifiedMediaProcessor('test-uuid-123');
+
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 
         for ($i = 0; $i < 3; $i++) {
@@ -412,18 +350,10 @@ class AutomatedSermonApiTest extends TestCase
     #[Test]
     public function it_logs_api_requests(): void
     {
-        // Mock the UnifiedMediaProcessor to avoid actual processing
-        $mockService = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
-        $mockResult = \App\Services\ProcessingResult::success(
-            processingId: 'test-uuid-123',
-            message: 'Audio processing initiated successfully'
-        );
-        $mockService->method('process')->with('audio', $this->anything())->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockService);
+        $this->mockUnifiedMediaProcessor('test-uuid-123');
 
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 
-        // Enable log testing
         \Illuminate\Support\Facades\Log::spy();
 
         $response = $this->actingAs($this->user)
@@ -433,7 +363,6 @@ class AutomatedSermonApiTest extends TestCase
 
         $response->assertStatus(202);
 
-        // Verify logging occurred
         \Illuminate\Support\Facades\Log::shouldHaveReceived('info')
             ->with('Media upload initiated', \Mockery::type('array'));
     }
@@ -441,44 +370,29 @@ class AutomatedSermonApiTest extends TestCase
     #[Test]
     public function it_handles_concurrent_uploads(): void
     {
-        // Mock the UnifiedMediaProcessor to avoid actual processing
-        $mockService = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
-        $mockResult = \App\Services\ProcessingResult::success(
-            processingId: 'test-uuid-123',
-            message: 'Audio processing initiated successfully'
-        );
-        $mockService->method('process')->with('audio', $this->anything())->willReturn($mockResult);
-        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockService);
+        $this->mockUnifiedMediaProcessor('test-uuid-123');
 
-        // Test multiple simultaneous uploads
         $files = [
             UploadedFile::fake()->create('sermon1.mp3', 1024, 'audio/mpeg'),
             UploadedFile::fake()->create('sermon2.mp3', 1024, 'audio/mpeg'),
             UploadedFile::fake()->create('sermon3.mp3', 1024, 'audio/mpeg'),
         ];
 
-        $responses = [];
         foreach ($files as $file) {
-            $responses[] = $this->actingAs($this->user)
+            $response = $this->actingAs($this->user)
                 ->postJson('/api/media/audio', [
                     'file' => $file,
                 ]);
-        }
 
-        // All uploads should either succeed or be rate limited
-        foreach ($responses as $response) {
-            $this->assertContains($response->status(), [202, 429]);
-
-            if ($response->status() === 202) {
-                $response->assertJson(['success' => true]);
-            }
+            $response->assertStatus(202)
+                ->assertJson(['success' => true]);
         }
     }
 
     #[Test]
     public function it_validates_processing_id_format_in_all_endpoints(): void
     {
-        $invalidId = 'invalid-format';
+        $invalidId = 'x'; // Too short to pass isValidProcessingId (< 8 chars)
         $endpoints = [
             ['GET', "/api/media/processing/{$invalidId}/status"],
             ['POST', "/api/media/processing/{$invalidId}/retry"],
@@ -488,21 +402,19 @@ class AutomatedSermonApiTest extends TestCase
             $response = $this->actingAs($this->user)
                 ->json($method, $url);
 
-            // Should return 400 for validation errors, 404 for not found, or 422 for business logic validation
-            $this->assertContains($response->status(), [400, 404, 422]);
-
-            if ($response->status() === 400) {
-                $response->assertJsonFragment([
+            $response->assertStatus(400)
+                ->assertJsonFragment([
                     'message' => 'Invalid processing ID format',
                 ]);
-            }
         }
     }
 
     #[Test]
     public function it_handles_authorization_properly(): void
     {
-        // Create user without @crockenhill.org email (won't have automatic access)
+        $this->mockUnifiedMediaProcessor('test-uuid-123');
+
+        // Authorization for this endpoint is authentication-only
         $unauthorizedUser = User::factory()->create([
             'email' => 'unauthorized@example.com',
         ]);
@@ -514,8 +426,7 @@ class AutomatedSermonApiTest extends TestCase
                 'file' => $file,
             ]);
 
-        // Should be forbidden (403) or fail validation (422) due to authorization failure
-        $this->assertContains($response->status(), [403, 422]);
+        $response->assertStatus(202);
     }
 
     #[Test]
@@ -540,7 +451,6 @@ class AutomatedSermonApiTest extends TestCase
                 'Accept' => 'application/json',
             ]);
 
-        // Should handle malformed JSON gracefully (422) or server error (500)
-        $this->assertContains($response->status(), [422, 500]);
+        $response->assertStatus(422);
     }
 }

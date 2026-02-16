@@ -6,6 +6,7 @@ use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerEmbeddingResult;
 use App\Data\SpeakerMatchResult;
 use App\Enums\PreacherSource;
+use App\Enums\ProcessingStatus;
 use App\Enums\SampleSource;
 use App\Jobs\IdentifySpeaker;
 use App\Models\MediaProcessingLog;
@@ -350,6 +351,9 @@ class SpeakerIdentificationTest extends TestCase
         $log = MediaProcessingLog::factory()->audio()->create([
             'sermon_id' => $sermon->id,
             'source_file_path' => 'sermons/audio/test.mp3',
+            'status' => ProcessingStatus::PENDING,
+            'current_step' => 'identifying_speaker',
+            'error_message' => null,
         ]);
 
         $matchResult = SpeakerMatchResult::matched($profile->load('preacher'), 0.90, 0.70, [$profile->id => 0.90]);

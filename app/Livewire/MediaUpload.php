@@ -77,8 +77,6 @@ class MediaUpload extends Component
 
     public bool $uploadCancelled = false;     // Track if user cancelled upload
 
-    public array $processingDetails = [];
-
     public ?string $errorMessage = null;
 
     public ?string $successMessage = null;
@@ -510,7 +508,6 @@ class MediaUpload extends Component
         $this->status = 'idle';
         $this->currentStep = '';
         $this->progressPercentage = 0;
-        $this->processingDetails = [];
         $this->errorMessage = null;
         $this->successMessage = null;
     }
