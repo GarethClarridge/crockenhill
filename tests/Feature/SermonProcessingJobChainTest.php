@@ -751,5 +751,4 @@ class SermonProcessingJobChainTest extends TestCase
         $processingLog->refresh();
         $this->assertEquals(ProcessingStatus::COMPLETED, $processingLog->status);
     }
-
 }

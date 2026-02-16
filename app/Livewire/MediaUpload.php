@@ -6,6 +6,7 @@ namespace App\Livewire;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaValidationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -88,24 +89,26 @@ class MediaUpload extends Component
 
     protected array $rules = [
         'mediaType' => 'required|in:audio,video,livestream',
-        'mediaFile' => 'required|file|mimes:mp3,wav,m4a,mp4,mov,avi,mkv|max:5242880', // 5GB in KB
+        'mediaFile' => 'required|file',
     ];
 
     protected function getDynamicMessages(): array
     {
-        $maxSizeMB = match ($this->mediaType) {
-            'audio' => config('media-processing.processing.max_file_size', 100 * 1024 * 1024) / (1024 * 1024),
-            'video', 'livestream' => 2048, // 2GB in MB
-            default => 100
-        };
+        $validation = app(MediaValidationService::class);
+        $maxSize = in_array($this->mediaType, $validation->supportedTypes(), true)
+            ? $validation->maxFileSizeForDisplay($this->mediaType)
+            : '100MB';
+        $extensions = in_array($this->mediaType, $validation->supportedTypes(), true)
+            ? $validation->allowedExtensionsForDisplay($this->mediaType)
+            : 'MP3, WAV, M4A, MP4, MOV, AVI, MKV';
 
         return [
             'mediaType.required' => 'Please select a media type.',
             'mediaType.in' => 'Invalid media type selected.',
             'mediaFile.required' => 'Please select a file to upload.',
             'mediaFile.file' => 'The uploaded item must be a file.',
-            'mediaFile.mimes' => 'Invalid file type. Supported formats: MP3, WAV, M4A, MP4, MOV, AVI, MKV.',
-            'mediaFile.max' => "File size cannot exceed {$maxSizeMB}MB.",
+            'mediaFile.mimes' => "Invalid file type. Supported formats: {$extensions}.",
+            'mediaFile.max' => "File size cannot exceed {$maxSize}.",
         ];
     }
 
@@ -232,23 +235,20 @@ class MediaUpload extends Component
 
     protected function getDynamicRules(): array
     {
+        $validation = app(MediaValidationService::class);
+
+        $fileRules = in_array($this->mediaType, $validation->supportedTypes(), true)
+            ? $validation->rulesForType($this->mediaType)
+            : ['file' => 'required|file'];
+
+        // Map 'file' key to 'mediaFile' for Livewire property name
         $rules = $this->rules;
+        $rules['mediaFile'] = $fileRules['file'];
 
-        // Set file size limits based on media type
-        $maxSizeKB = match ($this->mediaType) {
-            'audio' => (config('media-processing.processing.max_file_size', 100 * 1024 * 1024) / 1024), // 100MB default
-            'video', 'livestream' => 5 * 1024 * 1024, // 5GB for video files (5GB in KB)
-            default => 100 * 1024 // 100MB default
-        };
-
-        $this->logInfo('MediaUpload: Dynamic rules calculation', [
+        $this->logInfo('MediaUpload: Dynamic rules from config', [
             'media_type' => $this->mediaType,
-            'max_size_kb' => $maxSizeKB,
-            'max_size_mb' => $maxSizeKB / 1024,
-            'max_size_gb' => $maxSizeKB / 1024 / 1024,
+            'rules' => $rules['mediaFile'],
         ]);
-
-        $rules['mediaFile'] .= '|max:'.(int) $maxSizeKB;
 
         return $rules;
     }
@@ -524,6 +524,22 @@ class MediaUpload extends Component
 
     public function render()
     {
-        return view('livewire.media-upload');
+        $validation = app(MediaValidationService::class);
+
+        $maxFileSize = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
+            ? $validation->maxFileSizeForDisplay($this->mediaType)
+            : null;
+        $maxFileSizeBytes = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
+            ? $validation->maxFileSizeBytes($this->mediaType)
+            : null;
+        $acceptAttribute = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
+            ? $validation->acceptAttribute($this->mediaType)
+            : '';
+
+        return view('livewire.media-upload', [
+            'maxFileSize' => $maxFileSize,
+            'maxFileSizeBytes' => $maxFileSizeBytes,
+            'acceptAttribute' => $acceptAttribute,
+        ]);
     }
 }

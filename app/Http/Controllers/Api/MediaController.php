@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Contracts\ProcessingStatusContract;
 use App\Data\StandardProcessingResponse;
 use App\Http\Controllers\Controller;
+use App\Services\MediaValidationService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ use Illuminate\Support\Facades\Log;
 class MediaController extends Controller implements ProcessingStatusContract
 {
     public function __construct(
-        private readonly UnifiedMediaProcessor $mediaProcessor
+        private readonly UnifiedMediaProcessor $mediaProcessor,
+        private readonly MediaValidationService $validation
     ) {}
 
     /**
@@ -32,14 +34,7 @@ class MediaController extends Controller implements ProcessingStatusContract
             ], 400);
         }
 
-        // Dynamic validation based on type
-        $config = config("media-processing.types.{$type}");
-        $maxSizeKB = $config['max_file_size'] / 1024;
-        $allowedExtensions = implode(',', $config['allowed_extensions']);
-
-        $request->validate([
-            'file' => "required|file|mimes:{$allowedExtensions}|max:{$maxSizeKB}",
-        ]);
+        $request->validate($this->validation->rulesForType($type));
 
         try {
             $file = $request->file('file');

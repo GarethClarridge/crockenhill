@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\MediaValidationService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ProcessMediaRequest extends FormRequest
@@ -21,8 +22,15 @@ class ProcessMediaRequest extends FormRequest
      */
     public function rules(): array
     {
+        $type = $this->input('type', 'audio');
+        $validation = app(MediaValidationService::class);
+
+        $fileRules = in_array($type, $validation->supportedTypes(), true)
+            ? $validation->rulesForType($type)
+            : ['file' => 'required|file'];
+
         return [
-            'file' => 'required|file|mimes:mp3,wav,m4a,mp4,mov,avi,mkv|max:2097152',
+            ...$fileRules,
             'type' => 'required|in:audio,video,livestream',
         ];
     }
@@ -34,11 +42,21 @@ class ProcessMediaRequest extends FormRequest
      */
     public function messages(): array
     {
+        $type = $this->input('type', 'audio');
+        $validation = app(MediaValidationService::class);
+
+        $maxSize = in_array($type, $validation->supportedTypes(), true)
+            ? $validation->maxFileSizeForDisplay($type)
+            : '100MB';
+        $extensions = in_array($type, $validation->supportedTypes(), true)
+            ? $validation->allowedExtensionsForDisplay($type)
+            : 'MP3, WAV, M4A, MP4, MOV, AVI, MKV';
+
         return [
             'file.required' => 'Please select a media file to upload.',
             'file.file' => 'The uploaded item must be a valid file.',
-            'file.mimes' => 'The file must be an audio or video file (mp3, wav, m4a, mp4, mov, avi, mkv).',
-            'file.max' => 'The file size must not exceed 2GB.',
+            'file.mimes' => "Invalid file type. Supported formats: {$extensions}.",
+            'file.max' => "The file size must not exceed {$maxSize}.",
             'type.required' => 'Please specify the media type.',
             'type.in' => 'The media type must be audio, video, or livestream.',
         ];

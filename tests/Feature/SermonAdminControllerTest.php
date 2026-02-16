@@ -7,8 +7,8 @@ use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class SermonAdminControllerTest extends TestCase

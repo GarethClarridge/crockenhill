@@ -200,7 +200,7 @@
                                 <p class="text-sm text-gray-500">Ready to upload</p>
                             @else
                                 <p class="text-lg text-gray-600 mb-2">Drop your file here or click to browse</p>
-                                <p class="text-sm text-gray-500">Maximum file size: 5GB</p>
+                                <p class="text-sm text-gray-500">Maximum file size: {{ $maxFileSize ?? 'N/A' }}</p>
                             @endif
                         </div>
 
@@ -219,12 +219,12 @@
                             type="file"
                             id="media-file"
                             class="sr-only"
-                            accept="{{ $mediaType === 'audio' ? '.mp3,.wav,.m4a' : '.mp4,.mov,.avi,.mkv' }}"
+                            accept="{{ $acceptAttribute }}"
                             x-on:change="
                                 if($event.target.files[0]) {
                                     console.log('File selected:', $event.target.files[0].name, 'Size:', $event.target.files[0].size);
-                                    if($event.target.files[0].size > 5*1024*1024*1024) {
-                                        alert('File too large! Max 5GB allowed.');
+                                    if($event.target.files[0].size > {{ $maxFileSizeBytes ?? 0 }}) {
+                                        alert('File too large! Max {{ $maxFileSize ?? 'N/A' }} allowed.');
                                         return false;
                                     }
                                     // Extract file modification date
