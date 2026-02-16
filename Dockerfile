@@ -58,8 +58,12 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
         php8.4-mysql php8.4-sqlite3 php8.4-gd \
         php8.4-curl php8.4-mbstring php8.4-xml php8.4-zip \
         php8.4-bcmath php8.4-intl php8.4-redis php8.4-imagick \
+    # Build tools required for resemblyzer's native extension (webrtcvad)
+    && apt-get install -y --no-install-recommends \
+        build-essential python3-dev \
     # Speaker identification runtime dependencies
     && pip3 install --no-cache-dir --break-system-packages resemblyzer \
+    && apt-get purge -y --auto-remove build-essential python3-dev \
     # Cleanup
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
