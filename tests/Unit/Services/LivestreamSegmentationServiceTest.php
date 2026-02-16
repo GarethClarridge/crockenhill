@@ -261,7 +261,7 @@ class LivestreamSegmentationServiceTest extends TestCase
         $this->assertTrue($result);
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => 'cancel-test-123',
-            'status' => 'failed',
+            'status' => 'cancelled',
         ]);
     }
 

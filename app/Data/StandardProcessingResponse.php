@@ -134,6 +134,14 @@ class StandardProcessingResponse
     }
 
     /**
+     * Check if processing was cancelled
+     */
+    public function isCancelled(): bool
+    {
+        return $this->found && $this->status === 'cancelled';
+    }
+
+    /**
      * Check if processing is in progress
      */
     public function isInProgress(): bool
@@ -294,7 +302,7 @@ class StandardProcessingResponse
             return 100;
         }
 
-        if ($log->isFailed()) {
+        if ($log->isFailed() || $log->isCancelled()) {
             return 0;
         }
 

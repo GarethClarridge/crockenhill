@@ -156,7 +156,7 @@ class LivestreamSegmentationService
             throw new \Exception('Cannot cancel completed processing');
         }
 
-        $processingLog->markAsFailed('Processing cancelled by user');
+        $processingLog->markAsCancelled('Processing cancelled by user');
 
         // Clean up temporary files - collect paths from processing log
         $tempFiles = [];

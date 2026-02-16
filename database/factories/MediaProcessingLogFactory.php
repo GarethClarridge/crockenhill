@@ -134,4 +134,17 @@ class MediaProcessingLogFactory extends Factory
             'sermon_id' => null,
         ]);
     }
+
+    /**
+     * Indicate that the processing was cancelled.
+     */
+    public function cancelled(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => ProcessingStatus::CANCELLED,
+            'current_step' => 'cancelled',
+            'error_message' => 'Processing cancelled by user',
+            'sermon_id' => null,
+        ]);
+    }
 }

@@ -413,7 +413,7 @@ class SermonProcessingServiceTest extends TestCase
         $this->assertTrue($result);
 
         $log->refresh();
-        $this->assertEquals(ProcessingStatus::FAILED, $log->status);
+        $this->assertEquals(ProcessingStatus::CANCELLED, $log->status);
         $this->assertEquals('cancelled', $log->current_step);
         $this->assertEquals('Processing cancelled by user', $log->error_message);
     }
@@ -428,7 +428,7 @@ class SermonProcessingServiceTest extends TestCase
         $this->assertTrue($result);
 
         $log->refresh();
-        $this->assertEquals(ProcessingStatus::FAILED, $log->status);
+        $this->assertEquals(ProcessingStatus::CANCELLED, $log->status);
     }
 
     #[Test]

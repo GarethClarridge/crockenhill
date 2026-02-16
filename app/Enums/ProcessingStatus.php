@@ -8,6 +8,7 @@ enum ProcessingStatus: string
     case PROCESSING = 'processing';
     case COMPLETED = 'completed';
     case FAILED = 'failed';
+    case CANCELLED = 'cancelled';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum ProcessingStatus: string
             self::PROCESSING => 'Processing',
             self::COMPLETED => 'Completed',
             self::FAILED => 'Failed',
+            self::CANCELLED => 'Cancelled',
         };
     }
 
@@ -29,6 +31,11 @@ enum ProcessingStatus: string
         return $this === self::FAILED;
     }
 
+    public function isCancelled(): bool
+    {
+        return $this === self::CANCELLED;
+    }
+
     public function isInProgress(): bool
     {
         return $this === self::PROCESSING;
@@ -37,5 +44,13 @@ enum ProcessingStatus: string
     public function isPending(): bool
     {
         return $this === self::PENDING;
+    }
+
+    /**
+     * Whether the item can be retried (failed or cancelled).
+     */
+    public function isRetryable(): bool
+    {
+        return $this === self::FAILED || $this === self::CANCELLED;
     }
 }

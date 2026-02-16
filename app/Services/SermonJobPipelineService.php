@@ -309,10 +309,10 @@ class SermonJobPipelineService
                 'updated_at' => $processingLog->updated_at,
             ]);
 
-            if (! $processingLog->isFailed()) {
+            if (! $processingLog->status->isRetryable()) {
                 return ProcessingResult::failure(
                     processingId: $processingId,
-                    message: 'Processing is not in failed state',
+                    message: 'Processing is not in failed or cancelled state',
                     errorCode: 'PROCESSING_NOT_FAILED'
                 );
             }

@@ -339,7 +339,7 @@
                 
                 <div class="w-full bg-gray-200 rounded-full h-3">
                     <div 
-                        class="h-3 rounded-full transition-all duration-500 ease-out {{ $status === 'failed' ? 'bg-red-500' : ($status === 'completed' ? 'bg-green-500' : 'bg-blue-500') }}"
+                        class="h-3 rounded-full transition-all duration-500 ease-out {{ $status === 'failed' ? 'bg-red-500' : ($status === 'cancelled' ? 'bg-gray-400' : ($status === 'completed' ? 'bg-green-500' : 'bg-blue-500')) }}"
                         style="width: {{ $progressPercentage }}%"
                     ></div>
                 </div>

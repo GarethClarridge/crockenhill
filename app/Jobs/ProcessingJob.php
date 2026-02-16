@@ -124,11 +124,19 @@ abstract class ProcessingJob
             return false;
         }
 
+        // Check if any processing steps have been cancelled
         $cancelledSteps = SermonProcessingStep::where('processing_id', $this->processingId)
             ->where('status', 'cancelled')
             ->count();
 
-        return $cancelledSteps > 0;
+        if ($cancelledSteps > 0) {
+            return true;
+        }
+
+        // Also check the main processing log for CANCELLED status
+        $log = \App\Models\MediaProcessingLog::where('processing_id', $this->processingId)->first();
+
+        return $log?->isCancelled() ?? false;
     }
 
     /**

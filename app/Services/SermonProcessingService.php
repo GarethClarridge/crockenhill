@@ -179,9 +179,8 @@ class SermonProcessingService implements SermonProcessingServiceInterface
                 return false;
             }
 
-            // Mark as failed with cancellation message
             $processingLog->update([
-                'status' => \App\Enums\ProcessingStatus::FAILED,
+                'status' => \App\Enums\ProcessingStatus::CANCELLED,
                 'error_message' => 'Processing cancelled by user',
                 'current_step' => 'cancelled',
             ]);

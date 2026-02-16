@@ -230,6 +230,21 @@ class MediaProcessingLog extends Model
         ]);
     }
 
+    public function markAsCancelled(?string $message = null): bool
+    {
+        return $this->update([
+            'status' => ProcessingStatus::CANCELLED,
+            'current_step' => 'cancelled',
+            'error_message' => $message ?? 'Processing cancelled by user',
+            'completed_at' => now(),
+        ]);
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === ProcessingStatus::CANCELLED;
+    }
+
     public function updateStep(string $step): bool
     {
         return $this->update(['current_step' => $step]);

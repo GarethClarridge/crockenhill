@@ -464,7 +464,7 @@ class MediaUpload extends Component
 
     public function checkProcessingStatus(): void
     {
-        if (! $this->processingId || $this->status === 'completed' || $this->status === 'failed') {
+        if (! $this->processingId || in_array($this->status, ['completed', 'failed', 'cancelled'])) {
             return;
         }
 
@@ -481,6 +481,10 @@ class MediaUpload extends Component
                 if ($statusResponse->status === 'failed') {
                     $this->errorMessage = $statusResponse->errorMessage ?? 'Processing failed';
                     $this->currentStep = 'Processing failed';
+                    $this->progressPercentage = 0;
+                } elseif ($statusResponse->status === 'cancelled') {
+                    $this->errorMessage = 'Processing was cancelled.';
+                    $this->currentStep = 'Processing cancelled';
                     $this->progressPercentage = 0;
                 } elseif ($statusResponse->status === 'completed') {
                     $this->successMessage = 'Processing completed successfully!';
