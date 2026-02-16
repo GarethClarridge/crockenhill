@@ -7,6 +7,7 @@ use App\Models\Sermon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Laravel\Facades\Image;
 
 class ThumbnailGenerationService
@@ -242,10 +243,10 @@ class ThumbnailGenerationService
     /**
      * Add text overlays to thumbnail image
      *
-     * @param  \Intervention\Image\Image  $image  The image to modify
+     * @param  ImageInterface  $image  The image to modify
      * @param  Sermon  $sermon  The sermon model
      */
-    private function addTextOverlays($image, Sermon $sermon): void
+    private function addTextOverlays(ImageInterface $image, Sermon $sermon): void
     {
         $fontConfig = $this->config['overlay']['font'];
         $bgConfig = $this->config['overlay']['background'];
@@ -326,9 +327,9 @@ class ThumbnailGenerationService
     /**
      * Add brand overlay to thumbnail image, stretched to fit the whole thumbnail
      *
-     * @param  \Intervention\Image\Image  $image  The image to modify
+     * @param  ImageInterface  $image  The image to modify
      */
-    private function addBrandOverlay($image): void
+    private function addBrandOverlay(ImageInterface $image): void
     {
         $brandImagePath = $this->config['overlay']['brand_image'];
 
@@ -365,7 +366,7 @@ class ThumbnailGenerationService
     /**
      * Add text with background to image
      *
-     * @param  \Intervention\Image\Image  $image  The image to modify
+     * @param  ImageInterface  $image  The image to modify
      * @param  string  $text  Text to add
      * @param  int  $x  X position (center of text area)
      * @param  int  $y  Y position (center of text area)
@@ -373,7 +374,7 @@ class ThumbnailGenerationService
      * @param  string  $fontColor  Font color
      * @param  array  $bgConfig  Background configuration
      */
-    private function addTextWithBackground($image, string $text, int $x, int $y, int $fontSize, string $fontColor, array $bgConfig): void
+    private function addTextWithBackground(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor, array $bgConfig): void
     {
         try {
             // Get font path for Oswald font (following accessibility requirements)
@@ -420,14 +421,14 @@ class ThumbnailGenerationService
     /**
      * Add text without background to image
      *
-     * @param  \Intervention\Image\Image  $image  The image to modify
+     * @param  ImageInterface  $image  The image to modify
      * @param  string  $text  Text to add
      * @param  int  $x  X position (center of text)
      * @param  int  $y  Y position (top of text for title, center for others)
      * @param  int  $fontSize  Font size
      * @param  string  $fontColor  Font color
      */
-    private function addTextWithoutBackground($image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
+    private function addTextWithoutBackground(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
     {
         try {
             // Get font path for Oswald font
@@ -469,14 +470,14 @@ class ThumbnailGenerationService
     /**
      * Add text without background to image with vertical centering
      *
-     * @param  \Intervention\Image\Image  $image  The image to modify
+     * @param  ImageInterface  $image  The image to modify
      * @param  string  $text  Text to add
      * @param  int  $x  X position (center of text)
      * @param  int  $y  Y position (center of entire text block)
      * @param  int  $fontSize  Font size
      * @param  string  $fontColor  Font color
      */
-    private function addTextWithoutBackgroundCentered($image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
+    private function addTextWithoutBackgroundCentered(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
     {
         try {
             // Get font path for Oswald font
@@ -734,13 +735,13 @@ class ThumbnailGenerationService
     /**
      * Add white background rectangle for text accessibility
      *
-     * @param  \Intervention\Image\Image  $image  The image to modify
+     * @param  ImageInterface  $image  The image to modify
      * @param  int  $x  X position
      * @param  int  $y  Y position
      * @param  array  $textBounds  Text dimensions
      * @param  array  $bgConfig  Background configuration
      */
-    private function addTextBackground($image, int $x, int $y, array $textBounds, array $bgConfig): void
+    private function addTextBackground(ImageInterface $image, int $x, int $y, array $textBounds, array $bgConfig): void
     {
         try {
             // Use separate horizontal and vertical padding if available
@@ -770,14 +771,14 @@ class ThumbnailGenerationService
     /**
      * Add fallback text without background styling
      *
-     * @param  \Intervention\Image\Image  $image  The image to modify
+     * @param  ImageInterface  $image  The image to modify
      * @param  string  $text  Text to add
      * @param  int  $x  X position
      * @param  int  $y  Y position
      * @param  int  $fontSize  Font size
      * @param  string  $fontColor  Font color
      */
-    private function addFallbackText($image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
+    private function addFallbackText(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
     {
         try {
             // Add text with white stroke for readability
