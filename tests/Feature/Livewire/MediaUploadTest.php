@@ -90,9 +90,7 @@ class MediaUploadTest extends TestCase
     public function it_starts_processing_after_successful_upload()
     {
         $this->actingAs($this->admin);
-        
-        // Mock UUID to be predictable
-        \Illuminate\Support\Str::createUuidsUsing(fn () => \Symfony\Component\Uid\Uuid::fromString('00000000-0000-0000-0000-000000000000'));
+
         $expectedId = '00000000-0000-0000-0000-000000000000';
 
         Storage::fake('local');
@@ -104,23 +102,7 @@ class MediaUploadTest extends TestCase
         $mockProcessor->expects($this->once())
             ->method('process')
             ->willReturn($mockResult);
-            
-        $mockStatusResponse = \App\Data\StandardProcessingResponse::withLogs(
-            processingId: $expectedId,
-            status: 'completed',
-            currentStep: 'Done',
-            progressPercentage: 100,
-            errorMessage: null,
-            sermonId: 1,
-            sermonUrl: 'http://example.com/sermon',
-            startedAt: now(),
-            updatedAt: now(),
-            estimatedCompletion: null,
-            logs: \App\Data\ProcessingLogCollection::empty(),
-            metrics: []
-        );
-        $mockProcessor->method('getStatus')->willReturn($mockStatusResponse);
-            
+
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         $test = Livewire::test(MediaUpload::class)
@@ -132,11 +114,9 @@ class MediaUploadTest extends TestCase
             $this->fail($test->get('errorMessage'));
         }
 
-        $test->assertSet('status', 'completed')
-            ->assertSet('processingId', $expectedId);
-            
-        // Reset UUID factory
-        \Illuminate\Support\Str::createUuidsNormally();
+        $test->assertSet('status', 'processing')
+            ->assertSet('processingId', $expectedId)
+            ->assertSet('successMessage', 'Upload complete. Processing has started.');
     }
 
     #[Test]

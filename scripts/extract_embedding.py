@@ -44,7 +44,8 @@ def extract(audio_path: str, duration: float) -> None:
     duration_used = len(wav_segment) / sample_rate
 
     try:
-        encoder = VoiceEncoder()
+        # Keep stdout reserved for JSON so the caller can decode reliably.
+        encoder = VoiceEncoder(verbose=False)
         embedding = encoder.embed_utterance(wav_segment)
     except Exception as e:
         print(f"Failed to extract embedding: {e}", file=sys.stderr)

@@ -9,7 +9,6 @@ use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -200,18 +199,6 @@ class MediaUpload extends Component
             $this->progressPercentage = 5;
             $this->errorMessage = null;
 
-            // Create a processing record
-            $processingId = Str::uuid()->toString();
-            $log = MediaProcessingLog::create([
-                'processing_id' => $processingId,
-                'processing_type' => $this->mediaType,
-                'status' => ProcessingStatus::PENDING,
-                'original_filename' => $this->originalFileName,
-                'current_step' => 'preparing',
-            ]);
-
-            $this->processingId = $processingId;
-
             // Store file data for processing
             $tempFilePath = $this->mediaFile->store('temp/livewire-upload', 'local');
             $this->tempFilePath = $tempFilePath;
@@ -226,7 +213,7 @@ class MediaUpload extends Component
             $this->startProcessing();
 
             $this->logInfo('Media processing started', [
-                'processing_id' => $processingId,
+                'processing_id' => $this->processingId,
                 'media_type' => $this->mediaType,
                 'user_id' => Auth::id(),
             ]);
@@ -283,7 +270,7 @@ class MediaUpload extends Component
             'media_type' => $this->mediaType,
         ]);
 
-        if (! $this->processingId || ! $this->tempFilePath) {
+        if (! $this->tempFilePath) {
             $this->logError('Missing processing data', [
                 'processing_id' => $this->processingId,
                 'temp_file_path' => $this->tempFilePath,
@@ -319,9 +306,6 @@ class MediaUpload extends Component
                 true // Mark as test to avoid validation errors
             );
 
-            // Get the log record
-            $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
-
             $this->logInfo('Processing with file date', [
                 'file_modified_date' => $this->fileModifiedDate,
                 'original_filename' => $this->originalFileName,
@@ -334,22 +318,18 @@ class MediaUpload extends Component
 
             // Update UI to show completion
             if ($result->success) {
-                $this->status = 'completed';
-                $this->currentStep = 'Processing completed!';
-                $this->progressPercentage = 100;
-                $this->successMessage = 'Your media has been processed successfully.';
-
-                // Get the sermon URL from the processing status
-                $statusResponse = app(\App\Services\UnifiedMediaProcessor::class)->getStatus($this->processingId);
-                if ($statusResponse->sermonUrl) {
-                    $this->processingDetails['sermon_url'] = $statusResponse->sermonUrl;
-                }
+                $this->processingId = $result->processingId;
+                $this->status = ProcessingStatus::PROCESSING->value;
+                $this->currentStep = 'Processing started';
+                $this->progressPercentage = 10;
+                $this->successMessage = 'Upload complete. Processing has started.';
             } else {
+                $this->processingId = $result->processingId;
                 $this->status = 'failed';
                 $this->errorMessage = $result->message;
             }
 
-            $this->logInfo('Media processing completed', [
+            $this->logInfo('Media processing initiated', [
                 'processing_id' => $this->processingId,
                 'media_type' => $this->mediaType,
                 'user_id' => Auth::id(),

@@ -51,9 +51,14 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
                 return SpeakerEmbeddingResult::failed('Extraction script failed: '.$result->errorOutput());
             }
 
-            $output = json_decode($result->output(), true);
+            $output = $this->decodeExtractionOutput($result->output());
 
             if (! is_array($output) || ! isset($output['embedding']) || ! is_array($output['embedding'])) {
+                Log::warning('Speaker embedding extraction returned invalid output', [
+                    'audio_path' => $audioPath,
+                    'stdout_snippet' => mb_substr(trim($result->output()), 0, 500),
+                ]);
+
                 return SpeakerEmbeddingResult::failed('Invalid extraction script output');
             }
 
@@ -219,5 +224,34 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
         $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
 
         return Storage::disk($sermonDisk)->path($audioPath);
+    }
+
+    /**
+     * Parse extraction script output, tolerating informational lines before JSON.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function decodeExtractionOutput(string $rawOutput): ?array
+    {
+        $decoded = json_decode($rawOutput, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        $lines = preg_split('/\R/', trim($rawOutput)) ?: [];
+
+        foreach (array_reverse($lines) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            $decoded = json_decode($line, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return null;
     }
 }

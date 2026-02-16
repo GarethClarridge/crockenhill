@@ -80,7 +80,7 @@ class SermonAudioProcessingService
                         'error_message' => 'Audio processing failed: '.$e->getMessage(),
                     ]);
                 })
-                ->onQueue('sermon-processing')
+                ->onQueue(config('media-processing.types.audio.queue', 'audio-processing'))
                 ->dispatch();
 
             Log::info('Audio processing jobs dispatched', [

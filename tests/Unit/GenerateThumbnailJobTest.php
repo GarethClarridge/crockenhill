@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Data\ThumbnailResult;
 use App\Jobs\GenerateThumbnail;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,6 +55,17 @@ class GenerateThumbnailJobTest extends TestCase
         // When config is null, Laravel's config helper returns the default value
         $expectedQueue = config('thumbnail-generation.queue.name', 'thumbnails');
         $this->assertEquals($expectedQueue, $job->queue);
+    }
+
+    #[Test]
+    public function it_does_not_override_queue_for_processing_log_constructor()
+    {
+        config(['thumbnail-generation.queue.name' => 'custom-thumbnails']);
+
+        $log = MediaProcessingLog::factory()->video()->create();
+        $job = new GenerateThumbnail($log);
+
+        $this->assertNull($job->queue);
     }
 
     #[Test]
@@ -234,11 +246,11 @@ class GenerateThumbnailJobTest extends TestCase
         $retryUntil = $job->retryUntil();
 
         $this->assertInstanceOf(\DateTime::class, $retryUntil);
-        // Should be approximately 5 minutes from now
+        // Should be approximately 24 hours from now
         $this->assertEqualsWithDelta(
-            now()->addMinutes(5)->timestamp,
+            now()->addDay()->timestamp,
             $retryUntil->getTimestamp(),
-            60 // Allow 1 minute tolerance
+            120 // Allow 2 minute tolerance
         );
     }
 

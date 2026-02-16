@@ -109,8 +109,12 @@ class GenerateThumbnail implements ShouldQueue
             throw new \InvalidArgumentException('GenerateThumbnail expects ($sermonId, $videoPath), ($sermonId, $videoPath, $disk), or ($processingLog)');
         }
 
-        // Set job to dedicated thumbnails queue for non-critical work
-        $this->onQueue(config('thumbnail-generation.queue.name', 'thumbnails'));
+        // Legacy/direct dispatch uses a dedicated queue.
+        // Chain-based dispatch (processing log constructor) inherits chain queue
+        // to prevent the pipeline stalling when a dedicated thumbnail worker is absent.
+        if (! $this->processingLog) {
+            $this->onQueue(config('thumbnail-generation.queue.name', 'thumbnails'));
+        }
     }
 
     /**
@@ -340,7 +344,8 @@ class GenerateThumbnail implements ShouldQueue
      */
     public function retryUntil(): \DateTime
     {
-        // Don't retry - single attempt only
-        return now()->addMinutes(5);
+        // Keep expiry comfortably beyond normal queue wait times so a delayed
+        // thumbnail job does not fail the main processing chain pre-emptively.
+        return now()->addDay();
     }
 }

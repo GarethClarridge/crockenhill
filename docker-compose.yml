@@ -26,6 +26,34 @@ services:
         depends_on:
             - mysql
             - redis
+    queue.worker:
+        build:
+            context: './docker/8.4'
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: 'sail-8.4/app'
+        restart: unless-stopped
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+        volumes:
+            - '.:/var/www/html'
+            - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
+        command: >
+            php artisan queue:work redis
+            --queue=video-processing,audio-processing,sermon-processing,livestream-processing,speaker-identification,thumbnails,default
+            --sleep=1
+            --tries=3
+            --timeout=7200
+        networks:
+            - sail
+        depends_on:
+            - mysql
+            - redis
     mysql:
         image: 'mysql:8.0'
         ports:

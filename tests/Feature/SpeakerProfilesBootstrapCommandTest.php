@@ -1,0 +1,118 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Contracts\SpeakerIdentificationInterface;
+use App\Data\SpeakerEmbeddingResult;
+use App\Enums\SampleSource;
+use App\Models\Preacher;
+use App\Models\Sermon;
+use App\Models\SpeakerProfile;
+use App\Models\SpeakerSample;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class SpeakerProfilesBootstrapCommandTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_bootstrap_creates_profile_and_backfill_samples(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $preacher = Preacher::factory()->create(['name' => 'Mark Drury', 'slug' => 'mark-drury']);
+        Sermon::factory()->count(2)->withPreacher($preacher)->create();
+
+        $embedding = array_fill(0, 256, 0.1);
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->method('extractEmbedding')
+            ->willReturn(SpeakerEmbeddingResult::success($embedding, 60.0));
+        $mockService->method('updateProfile')
+            ->willReturnCallback(function (SpeakerProfile $profile, array $approvedEmbeddings): SpeakerProfile {
+                $profile->update([
+                    'centroid_embedding' => $approvedEmbeddings[0],
+                    'sample_count' => count($approvedEmbeddings),
+                ]);
+
+                return $profile->fresh() ?? $profile;
+            });
+
+        $this->instance(SpeakerIdentificationInterface::class, $mockService);
+
+        $this->artisan('speaker-profiles:bootstrap --min-sermons=2 --max-sermons=2')
+            ->assertSuccessful();
+
+        $profile = SpeakerProfile::where('preacher_id', $preacher->id)->first();
+        $this->assertNotNull($profile);
+        $this->assertEquals('resemblyzer', $profile->provider);
+        $this->assertEquals('v1.0', $profile->model_version);
+        $this->assertEquals(2, $profile->sample_count);
+
+        $samples = SpeakerSample::where('speaker_profile_id', $profile->id)->get();
+        $this->assertCount(2, $samples);
+        $this->assertTrue($samples->every(fn (SpeakerSample $sample) => $sample->approved));
+        $this->assertTrue($samples->every(fn (SpeakerSample $sample) => $sample->source === SampleSource::Backfill));
+    }
+
+    public function test_bootstrap_is_idempotent_for_profile_and_samples(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $preacher = Preacher::factory()->create(['name' => 'Mark Drury', 'slug' => 'mark-drury']);
+        Sermon::factory()->count(2)->withPreacher($preacher)->create();
+
+        $embedding = array_fill(0, 256, 0.2);
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->method('extractEmbedding')
+            ->willReturn(SpeakerEmbeddingResult::success($embedding, 60.0));
+        $mockService->method('updateProfile')
+            ->willReturnCallback(function (SpeakerProfile $profile, array $approvedEmbeddings): SpeakerProfile {
+                $profile->update([
+                    'centroid_embedding' => $approvedEmbeddings[0],
+                    'sample_count' => count($approvedEmbeddings),
+                ]);
+
+                return $profile->fresh() ?? $profile;
+            });
+
+        $this->instance(SpeakerIdentificationInterface::class, $mockService);
+
+        $this->artisan('speaker-profiles:bootstrap --min-sermons=2 --max-sermons=2')
+            ->assertSuccessful();
+        $this->artisan('speaker-profiles:bootstrap --min-sermons=2 --max-sermons=2')
+            ->assertSuccessful();
+
+        $this->assertEquals(1, SpeakerProfile::where('preacher_id', $preacher->id)->count());
+        $this->assertEquals(2, SpeakerSample::count());
+    }
+
+    public function test_bootstrap_dry_run_makes_no_changes(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $preacher = Preacher::factory()->create();
+        Sermon::factory()->count(3)->withPreacher($preacher)->create();
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->expects($this->never())->method('extractEmbedding');
+        $mockService->expects($this->never())->method('updateProfile');
+        $this->instance(SpeakerIdentificationInterface::class, $mockService);
+
+        $this->artisan('speaker-profiles:bootstrap --dry-run --min-sermons=2 --max-sermons=3')
+            ->assertSuccessful();
+
+        $this->assertEquals(0, SpeakerProfile::count());
+        $this->assertEquals(0, SpeakerSample::count());
+    }
+}
