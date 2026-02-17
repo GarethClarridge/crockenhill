@@ -37,6 +37,13 @@ class SitemapService
 
     public function getFilePath(): string
     {
+        // In parallel test runs each worker gets a unique token, preventing race conditions
+        // when multiple processes write to the same file simultaneously.
+        $token = env('TEST_TOKEN');
+        if (app()->environment('testing') && $token !== null) {
+            return public_path("sitemap-test-{$token}.xml");
+        }
+
         return public_path('sitemap.xml');
     }
 
