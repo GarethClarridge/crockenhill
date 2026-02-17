@@ -1,23 +1,27 @@
 {
   "public/images/homepage/christmas2023.webp": {
-    "file": "assets/christmas2023-s2-ECYC9-mla121eo.webp",
+    "file": "assets/christmas2023-s2-ECYC9-mlr6coxa.webp",
     "src": "public/images/homepage/christmas2023.webp"
   },
   "resources/css/app.scss": {
-    "file": "assets/app-X6c-llXU-mla121eo.css",
+    "file": "assets/app-DtuyttZU-mlr6coxa.css",
     "src": "resources/css/app.scss",
-    "isEntry": true
+    "isEntry": true,
+    "name": "app",
+    "names": [
+      "app.css"
+    ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CABxZpxW-mla121eo.js",
+    "file": "assets/app-C_0Zbz2x-mlr6coxa.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "css": [
-      "assets/app-X6c-llXU-mla121eo.css"
+      "assets/app-DtuyttZU-mlr6coxa.css"
     ],
     "assets": [
-      "assets/christmas2023-s2-ECYC9-mla121eo.webp"
+      "assets/christmas2023-s2-ECYC9-mlr6coxa.webp"
     ]
   }
 }
