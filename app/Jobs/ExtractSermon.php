@@ -6,6 +6,7 @@ use App\Data\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
+use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
 
 class ExtractSermon implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use DetectsStorageType, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
@@ -211,24 +212,6 @@ class ExtractSermon implements ShouldQueue
 
         // For local paths, use file_exists
         return file_exists($fullPath);
-    }
-
-    /**
-     * Check if a path is an S3 URL
-     */
-    private function isS3Path(string $path): bool
-    {
-        return str_starts_with($path, 'http://') || str_starts_with($path, 'https://');
-    }
-
-    /**
-     * Check if the disk is S3-compatible (DigitalOcean Spaces, AWS S3, etc.)
-     */
-    private function isS3Disk(string $diskName): bool
-    {
-        $diskConfig = config("filesystems.disks.{$diskName}");
-
-        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
     }
 
     /**

@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Contracts\AudioExtractionServiceInterface;
 use App\Models\MediaProcessingLog;
+use App\Traits\DetectsStorageType;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\Log;
  */
 class ValidateAudioFile implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use DetectsStorageType, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -137,16 +138,6 @@ class ValidateAudioFile implements ShouldQueue
                 ]);
             }
         }
-    }
-
-    /**
-     * Check if a disk is S3-compatible
-     */
-    private function isS3Disk(string $diskName): bool
-    {
-        $diskConfig = config("filesystems.disks.{$diskName}");
-
-        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
     }
 
     public function failed(\Throwable $exception): void

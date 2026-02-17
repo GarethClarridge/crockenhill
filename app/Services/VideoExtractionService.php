@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\VideoProcessingException;
+use App\Traits\DetectsStorageType;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
@@ -14,6 +15,8 @@ use Illuminate\Support\Str;
 
 class VideoExtractionService
 {
+    use DetectsStorageType;
+
     private ?FFMpeg $ffmpeg;
 
     private string $tempDisk;
@@ -22,8 +25,9 @@ class VideoExtractionService
 
     private string $audioPath;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly AudioCompressionService $audioCompressor
+    ) {
         $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
         $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
 
@@ -381,249 +385,20 @@ class VideoExtractionService
     }
 
     /**
-     * Extract optimized audio from segment with compression validation
+     * Extract optimized audio from segment with compression validation.
+     * Delegates to AudioCompressionService; passes its own S3 upload handler.
      */
     public function extractOptimizedAudio(
         string $inputVideoPath,
         object $segment,
         ?string $outputFilename = null
     ): array {
-        try {
-            $startTime = $segment->startTime ?? $segment->start_time ?? 0;
-            $endTime = $segment->endTime ?? $segment->end_time ?? 0;
-            $duration = $endTime - $startTime;
-
-            $outputFilename = $outputFilename ?: Str::uuid().'_sermon_optimized.mp3';
-
-            // Get processing paths based on storage type
-            $pathInfo = $this->getProcessingOutputPath($outputFilename);
-            $processingPath = $pathInfo['processing_path'];
-            $permanentPath = $pathInfo['permanent_path'];
-            $useS3Processing = $pathInfo['use_temp_processing'];
-
-            Log::info('Starting FFmpeg audio extraction', [
-                'input_path' => $inputVideoPath,
-                'processing_path' => $processingPath,
-                'permanent_path' => $permanentPath,
-                'use_s3_processing' => $useS3Processing,
-                'permanent_disk' => $this->permanentDisk,
-                'start_time' => $startTime,
-                'duration' => $duration,
-                'segment_start' => $segment->startTime ?? 'not_set',
-                'segment_end' => $segment->endTime ?? 'not_set',
-            ]);
-
-            // Validate input video exists
-            if (! file_exists($inputVideoPath)) {
-                throw new VideoProcessingException("Input video file not found: {$inputVideoPath}");
-            }
-
-            $config = config('media-processing.audio_extraction.transcription_optimized');
-            $fallbackConfig = config('media-processing.audio_extraction.fallback_compression');
-
-            /** @var \FFMpeg\Media\Video $video */
-            $video = $this->ffmpeg->open($inputVideoPath);
-
-            $format = new Mp3;
-            $format->setAudioKiloBitrate($config['bitrate']);
-            $format->setAudioChannels($config['channels']);
-
-            $startTimeCode = TimeCode::fromSeconds($startTime);
-            $durationTimeCode = TimeCode::fromSeconds($duration);
-
-            $video->clip($startTimeCode, $durationTimeCode)->save($format, $processingPath);
-
-            // CRITICAL: Immediately check if FFmpeg actually created the file
-            if (! file_exists($processingPath)) {
-                throw new VideoProcessingException("FFmpeg failed to create audio file at: {$processingPath}. Check FFmpeg installation and permissions.");
-            }
-
-            $validation = $this->validateAudioFileSize($processingPath);
-
-            Log::info('FFmpeg audio extraction verification', [
-                'processing_path' => $processingPath,
-                'permanent_path' => $permanentPath,
-                'file_exists' => true, // File guaranteed to exist by check on line 413
-                'file_size' => filesize($processingPath),
-                'validation_passed' => $validation['valid'],
-                'start_time' => $startTime,
-                'duration' => $duration,
-            ]);
-
-            if (! $validation['valid']) {
-                Log::info('Audio file too large, applying fallback compression', [
-                    'original_size' => $validation['file_size'],
-                    'max_size' => $validation['max_size'],
-                    'processing_path' => $processingPath,
-                ]);
-
-                $compressionResult = $this->compressAudioForTranscription($processingPath, $fallbackConfig);
-                $fallbackPath = $compressionResult['compressed_path'];
-                $compressedRelativePath = $compressionResult['relative_path'];
-                $finalValidation = $this->validateAudioFileSize($fallbackPath);
-
-                Log::info('Fallback compression completed', [
-                    'processing_path' => $processingPath,
-                    'compressed_path' => $compressedRelativePath,
-                    'original_size' => $validation['file_size'],
-                    'final_size' => $finalValidation['file_size'],
-                    'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
-                    'valid_for_transcription' => $finalValidation['valid'],
-                ]);
-
-                // Handle S3 upload if needed, use compressed file
-                $finalPath = $permanentPath;
-                $finalLocalPath = $fallbackPath;
-                if ($useS3Processing) {
-                    $this->uploadToPermanentStorage($fallbackPath, $permanentPath);
-                    // Clean up temporary files
-                    $this->cleanupTemporaryFile($processingPath); // Original uncompressed temp file
-                    $this->cleanupTemporaryFile($fallbackPath); // Compressed temp file
-                    Log::info('S3 upload completed and temp files cleaned up', [
-                        'permanent_path' => $permanentPath,
-                        'compressed_used' => true,
-                    ]);
-                } else {
-                    $finalLocalPath = $fallbackPath;
-                }
-
-                return [
-                    'audio_path' => $finalPath,
-                    'full_path' => $useS3Processing ? Storage::disk($this->permanentDisk)->url($finalPath) : $finalLocalPath,
-                    'original_size' => $validation['file_size'],
-                    'final_size' => $finalValidation['file_size'],
-                    'compression_applied' => true,
-                    'compression_ratio' => $validation['file_size'] / $finalValidation['file_size'],
-                    'valid_for_transcription' => $finalValidation['valid'],
-                ];
-            }
-
-            // Handle S3 upload if needed, use original file
-            $finalPath = $permanentPath;
-            $finalLocalPath = $processingPath;
-            if ($useS3Processing) {
-                $this->uploadToPermanentStorage($processingPath, $permanentPath);
-                // Clean up temporary file
-                $this->cleanupTemporaryFile($processingPath);
-                Log::info('S3 upload completed and temp file cleaned up', [
-                    'permanent_path' => $permanentPath,
-                    'compressed_used' => false,
-                ]);
-            } else {
-                $finalLocalPath = $processingPath;
-            }
-
-            Log::info('Optimized audio extracted from segment without compression', [
-                'input_path' => $inputVideoPath,
-                'final_path' => $finalPath,
-                'processing_path' => $processingPath,
-                'file_size' => $validation['file_size'],
-                'file_size_mb' => round($validation['file_size'] / 1024 / 1024, 1),
-                'start_time' => $startTime,
-                'duration' => $duration,
-                'valid_for_transcription' => $validation['valid'],
-                'uploaded_to_s3' => $useS3Processing,
-            ]);
-
-            return [
-                'audio_path' => $finalPath,
-                'full_path' => $useS3Processing ? Storage::disk($this->permanentDisk)->url($finalPath) : $finalLocalPath,
-                'original_size' => $validation['file_size'],
-                'final_size' => $validation['file_size'],
-                'compression_applied' => false,
-                'compression_ratio' => 1.0,
-                'valid_for_transcription' => $validation['valid'],
-            ];
-
-        } catch (\Exception $e) {
-            // Enhanced error logging with system diagnostics
-            $diagnostics = $this->getSystemDiagnostics();
-
-            Log::error('Failed to extract optimized audio from segment', [
-                'error' => $e->getMessage(),
-                'input_path' => $inputVideoPath,
-                'processing_path' => $processingPath ?? 'not_set',
-                'permanent_path' => $permanentPath ?? 'not_set',
-                'segment_start' => $startTime,
-                'segment_duration' => $duration,
-                'input_file_exists' => $this->inputFileExists($inputVideoPath),
-                'input_file_size' => $this->getInputFileSize($inputVideoPath),
-                'output_directory_exists' => isset($processingPath) ? is_dir(dirname($processingPath)) : false,
-                'output_directory_writable' => isset($processingPath) ? is_writable(dirname($processingPath)) : false,
-                'system_diagnostics' => $diagnostics,
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
-        }
-    }
-
-    /**
-     * Validate audio file size for transcription services
-     */
-    private function validateAudioFileSize(string $audioPath): array
-    {
-        $fileSize = $this->getLocalFileSize($audioPath);
-        $maxSize = config('media-processing.audio_extraction.transcription_optimized.max_file_size');
-
-        return [
-            'valid' => $fileSize <= $maxSize && $fileSize > 0,
-            'file_size' => $fileSize,
-            'max_size' => $maxSize,
-            'size_mb' => round($fileSize / 1024 / 1024, 1),
-            'max_size_mb' => round($maxSize / 1024 / 1024, 1),
-        ];
-    }
-
-    /**
-     * Apply fallback compression to audio file
-     */
-    private function compressAudioForTranscription(string $inputPath, array $compressionSettings): array
-    {
-        $compressedPath = str_replace('.mp3', '_compressed.mp3', $inputPath);
-
-        try {
-            $audio = $this->ffmpeg->open($inputPath);
-
-            $format = new Mp3;
-            $format->setAudioKiloBitrate($compressionSettings['bitrate']);
-            $format->setAudioChannels($compressionSettings['channels']);
-
-            $audio->save($format, $compressedPath);
-
-            unlink($inputPath);
-
-            // Calculate relative path for database storage
-            $diskPath = Storage::disk($this->permanentDisk)->path('');
-            $relativePath = $compressedPath;
-
-            if (str_starts_with($compressedPath, $diskPath)) {
-                $relativePath = str_replace($diskPath, '', $compressedPath);
-                $relativePath = ltrim($relativePath, '/');
-            }
-
-            Log::info('Applied fallback compression to audio file', [
-                'original_path' => $inputPath,
-                'compressed_path' => $compressedPath,
-                'relative_path' => $relativePath,
-                'bitrate' => $compressionSettings['bitrate'],
-                'channels' => $compressionSettings['channels'],
-            ]);
-
-            return [
-                'compressed_path' => $compressedPath,
-                'relative_path' => $relativePath,
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Failed to apply fallback compression', [
-                'error' => $e->getMessage(),
-                'input_path' => $inputPath,
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            throw $e;
-        }
+        return $this->audioCompressor->extractOptimizedAudio(
+            $inputVideoPath,
+            $segment,
+            $outputFilename,
+            fn (string $localFilePath, string $permanentPath): string => $this->uploadToPermanentStorage($localFilePath, $permanentPath)
+        );
     }
 
     /**
@@ -657,16 +432,6 @@ class VideoExtractionService
             ]);
             throw new VideoProcessingException("Directory operation failed for: {$directory}. Error: {$e->getMessage()}", 0, $e);
         }
-    }
-
-    /**
-     * Check if the permanent disk is S3-compatible (DigitalOcean Spaces, AWS S3, etc.)
-     */
-    private function isS3Disk(string $diskName): bool
-    {
-        $diskConfig = config("filesystems.disks.{$diskName}");
-
-        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
     }
 
     /**
@@ -807,35 +572,6 @@ class VideoExtractionService
         }
     }
 
-    private function getSystemDiagnostics(): array
-    {
-        $diagnostics = [
-            'php_version' => PHP_VERSION,
-            'memory_limit' => ini_get('memory_limit'),
-            'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 1).'MB',
-            'ffmpeg_path' => config('media-processing.ffmpeg.ffmpeg_path'),
-            'ffprobe_path' => config('media-processing.ffmpeg.ffprobe_path'),
-            'permanent_disk' => $this->permanentDisk,
-            'permanent_disk_type' => $this->isS3Disk($this->permanentDisk) ? 's3' : 'local',
-            'audio_path' => $this->audioPath,
-        ];
-
-        // Only try to get disk space for local disks
-        if (! $this->isS3Disk($this->permanentDisk)) {
-            try {
-                $diskSpace = disk_free_space(Storage::disk($this->permanentDisk)->path(''));
-                $diagnostics['disk_free_space'] = $diskSpace ?
-                    round($diskSpace / 1024 / 1024 / 1024, 1).'GB' : 'unknown';
-            } catch (\Exception $e) {
-                $diagnostics['disk_free_space'] = 'unavailable';
-            }
-        } else {
-            $diagnostics['disk_free_space'] = 'not_applicable_s3';
-        }
-
-        return $diagnostics;
-    }
-
     /**
      * Check if file exists on specified disk (S3-aware)
      */
@@ -862,62 +598,6 @@ class VideoExtractionService
         }
 
         return file_exists($filePath) ? filesize($filePath) : 0;
-    }
-
-    /**
-     * Check if input file exists (handles both local paths and storage paths)
-     */
-    private function inputFileExists(string $inputPath): bool
-    {
-        // For local file paths, use file_exists
-        if (str_starts_with($inputPath, '/') || str_contains($inputPath, ':\\')) {
-            return file_exists($inputPath);
-        }
-
-        // For storage paths, check all relevant disks
-        $tempDisk = config('media-processing.storage.temp_disk');
-        if (Storage::disk($tempDisk)->exists($inputPath)) {
-            return true;
-        }
-
-        $sermonDisk = config('media-processing.storage.sermon_disk');
-        if (Storage::disk($sermonDisk)->exists($inputPath)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Get input file size (handles both local paths and storage paths)
-     */
-    private function getInputFileSize(string $inputPath): int
-    {
-        // For local file paths, use filesize
-        if (str_starts_with($inputPath, '/') || str_contains($inputPath, ':\\')) {
-            return file_exists($inputPath) ? filesize($inputPath) : 0;
-        }
-
-        // For storage paths, check all relevant disks
-        $tempDisk = config('media-processing.storage.temp_disk');
-        if (Storage::disk($tempDisk)->exists($inputPath)) {
-            try {
-                return Storage::disk($tempDisk)->size($inputPath);
-            } catch (\Exception $e) {
-                // Fallback to other disk if first fails
-            }
-        }
-
-        $sermonDisk = config('media-processing.storage.sermon_disk');
-        if (Storage::disk($sermonDisk)->exists($inputPath)) {
-            try {
-                return Storage::disk($sermonDisk)->size($inputPath);
-            } catch (\Exception $e) {
-                return 0;
-            }
-        }
-
-        return 0;
     }
 
     /**

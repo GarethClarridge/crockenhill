@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Data\LivestreamSegment;
 use App\Exceptions\SegmentationException;
+use App\Traits\DetectsStorageType;
 use FFMpeg\FFProbe;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +12,8 @@ use Illuminate\Support\Str;
 
 class VideoSegmentationService
 {
+    use DetectsStorageType;
+
     /** @phpstan-ignore-next-line property.unusedType (nullable for testing environment) */
     private ?FFProbe $ffprobe;
 
@@ -383,16 +386,6 @@ class VideoSegmentationService
         }
 
         return file_get_contents($fullPath);
-    }
-
-    /**
-     * Check if the disk is S3-compatible (DigitalOcean Spaces, AWS S3, etc.)
-     */
-    private function isS3Disk(string $diskName): bool
-    {
-        $diskConfig = config("filesystems.disks.{$diskName}");
-
-        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
     }
 
     /**

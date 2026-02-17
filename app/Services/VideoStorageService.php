@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Contracts\VideoStorageServiceInterface;
 use App\Data\LivestreamSegment;
+use App\Exceptions\VideoProcessingException;
+use App\Traits\DetectsStorageType;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use Illuminate\Http\UploadedFile;
@@ -13,6 +15,8 @@ use Illuminate\Support\Str;
 
 class VideoStorageService implements VideoStorageServiceInterface
 {
+    use DetectsStorageType;
+
     /** @phpstan-ignore-next-line property.unusedType (nullable for testing environment) */
     private ?FFMpeg $ffmpeg;
 
@@ -25,7 +29,8 @@ class VideoStorageService implements VideoStorageServiceInterface
     private string $audioPath;
 
     public function __construct(
-        private readonly VideoExtractionService $videoExtractor
+        private readonly VideoExtractionService $videoExtractor,
+        private readonly AudioCompressionService $audioCompressor
     ) {
         // Skip FFmpeg initialization in testing environment to prevent hangs
         if (! app()->environment('testing')) {
@@ -96,7 +101,12 @@ class VideoStorageService implements VideoStorageServiceInterface
         LivestreamSegment $segment,
         ?string $outputFilename = null
     ): array {
-        return $this->videoExtractor->extractOptimizedAudio($inputVideoPath, $segment, $outputFilename);
+        return $this->audioCompressor->extractOptimizedAudio(
+            $inputVideoPath,
+            $segment,
+            $outputFilename,
+            fn (string $localFilePath, string $permanentPath): string => $this->uploadToPermanentStorage($localFilePath, $permanentPath)
+        );
     }
 
     public function moveToSermonStorage(string $tempVideoPath, string $sermonSlug): array
@@ -292,13 +302,71 @@ class VideoStorageService implements VideoStorageServiceInterface
     }
 
     /**
-     * Check if the permanent disk is S3-compatible (DigitalOcean Spaces, AWS S3, etc.)
+     * Upload a local file to permanent S3 storage with exponential-backoff retry.
      */
-    private function isS3Disk(string $diskName): bool
+    public function uploadToPermanentStorage(string $localFilePath, string $permanentPath): string
     {
-        $diskConfig = config("filesystems.disks.{$diskName}");
+        $s3Config = config('media-processing.s3_processing');
+        $maxRetries = $s3Config['retry_attempts'] ?? 3;
+        $retryDelay = $s3Config['retry_delay'] ?? 5;
 
-        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $fileStream = fopen($localFilePath, 'r');
+                if (! $fileStream) {
+                    throw new VideoProcessingException("Unable to open local file for S3 upload: {$localFilePath}");
+                }
+
+                $startTime = microtime(true);
+                try {
+                    $success = Storage::disk($this->permanentDisk)->put($permanentPath, $fileStream);
+                } finally {
+                    fclose($fileStream);
+                }
+                $uploadTime = microtime(true) - $startTime;
+
+                if (! $success) {
+                    throw new VideoProcessingException("Failed to upload file to permanent storage: {$permanentPath}");
+                }
+
+                if (! Storage::disk($this->permanentDisk)->exists($permanentPath)) {
+                    throw new VideoProcessingException("File upload appeared successful but file not found in storage: {$permanentPath}");
+                }
+
+                if (config('media-processing.log_s3_operations', true)) {
+                    Log::info('File uploaded to permanent S3 storage', [
+                        'local_path' => $localFilePath,
+                        'permanent_path' => $permanentPath,
+                        'permanent_disk' => $this->permanentDisk,
+                        'upload_time_seconds' => round($uploadTime, 2),
+                        'attempt' => $attempt,
+                    ]);
+                }
+
+                return $permanentPath;
+
+            } catch (\Exception $e) {
+                $isLastAttempt = ($attempt === $maxRetries);
+
+                Log::error('S3 upload attempt failed', [
+                    'error' => $e->getMessage(),
+                    'local_path' => $localFilePath,
+                    'permanent_path' => $permanentPath,
+                    'permanent_disk' => $this->permanentDisk,
+                    'attempt' => $attempt,
+                    'max_retries' => $maxRetries,
+                    'is_last_attempt' => $isLastAttempt,
+                ]);
+
+                if ($isLastAttempt) {
+                    throw new VideoProcessingException("Failed to upload file to S3 after {$maxRetries} attempts. Last error: {$e->getMessage()}", 0, $e);
+                }
+
+                sleep($retryDelay * $attempt); // Exponential backoff
+            }
+        }
+
+        throw new VideoProcessingException('Unexpected end of upload attempts');
     }
 
     private function ensureDirectoryExists(string $directory): void

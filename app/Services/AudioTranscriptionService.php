@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Exceptions\TranscriptionException;
+use App\Traits\DetectsStorageType;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -13,6 +14,8 @@ use OpenAI\Laravel\Facades\OpenAI;
 
 class AudioTranscriptionService implements TranscriptionServiceInterface
 {
+    use DetectsStorageType;
+
     private const DEFAULT_MAX_RETRIES = 3;
 
     private const DEFAULT_RETRY_DELAY_BASE = 2; // seconds
@@ -34,16 +37,6 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         if (empty(config('media-processing.transcription.openai_api_key'))) {
             throw new Exception('OpenAI API key not configured for transcription service');
         }
-    }
-
-    /**
-     * Check if the disk is S3-compatible (DigitalOcean Spaces, AWS S3, etc.)
-     */
-    private function isS3Disk(string $diskName): bool
-    {
-        $diskConfig = config("filesystems.disks.{$diskName}");
-
-        return isset($diskConfig['driver']) && $diskConfig['driver'] === 's3';
     }
 
     /**

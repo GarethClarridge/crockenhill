@@ -288,26 +288,14 @@ class MediaUpload extends Component
 
         try {
             // Reconstruct the uploaded file from stored temp file
-
-            // Detect mime type from file extension since we can't rely on Livewire's temp file
-            $extension = pathinfo($this->originalFileName, PATHINFO_EXTENSION);
-            $mimeType = match (strtolower($extension)) {
-                'mp3' => 'audio/mpeg',
-                'wav' => 'audio/wav',
-                'm4a' => 'audio/mp4',
-                'mp4' => 'video/mp4',
-                'mov' => 'video/quicktime',
-                'avi' => 'video/x-msvideo',
-                'mkv' => 'video/x-matroska',
-                default => 'application/octet-stream',
-            };
+            $mimeType = mime_content_type($fullTempPath) ?: 'application/octet-stream';
 
             $originalFile = new \Illuminate\Http\UploadedFile(
                 $fullTempPath,
                 $this->originalFileName,
                 $mimeType,
                 null,
-                true // Mark as test to avoid validation errors
+                true // Mark as already-validated to skip upload validation
             );
 
             $this->logInfo('Processing with file date', [

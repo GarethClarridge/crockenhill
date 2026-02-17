@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Exceptions\VideoProcessingException;
+use App\Services\AudioCompressionService;
 use App\Services\VideoExtractionService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -42,7 +43,7 @@ class VideoExtractionServiceTest extends TestCase
             'upload_timeout' => 300,
         ]);
 
-        $this->service = new VideoExtractionService;
+        $this->service = new VideoExtractionService(new AudioCompressionService);
     }
 
     // ---- Constructor and instantiation ----
@@ -106,80 +107,8 @@ class VideoExtractionServiceTest extends TestCase
         $this->service->extractSegmentAsUpload('/nonexistent/video.mp4', $segment);
     }
 
-    // ---- validateAudioFileSize tests ----
-
-    #[Test]
-    public function it_validates_audio_file_within_size_limit(): void
-    {
-        $method = $this->getPrivateMethod('validateAudioFileSize');
-
-        // Create a small temp file
-        $tempFile = tempnam(sys_get_temp_dir(), 'test_audio');
-        file_put_contents($tempFile, str_repeat('x', 1024)); // 1KB
-
-        $result = $method->invoke($this->service, $tempFile);
-
-        $this->assertTrue($result['valid']);
-        $this->assertEquals(1024, $result['file_size']);
-        $this->assertEquals(25 * 1024 * 1024, $result['max_size']);
-
-        unlink($tempFile);
-    }
-
-    #[Test]
-    public function it_rejects_audio_file_exceeding_size_limit(): void
-    {
-        $method = $this->getPrivateMethod('validateAudioFileSize');
-
-        // Temporarily set a very small max size
-        Config::set('media-processing.audio_extraction.transcription_optimized.max_file_size', 100);
-        $service = new VideoExtractionService;
-        $validateMethod = (new \ReflectionClass($service))->getMethod('validateAudioFileSize');
-        $validateMethod->setAccessible(true);
-
-        $tempFile = tempnam(sys_get_temp_dir(), 'test_audio');
-        file_put_contents($tempFile, str_repeat('x', 200)); // 200 bytes > 100 limit
-
-        $result = $validateMethod->invoke($service, $tempFile);
-
-        $this->assertFalse($result['valid']);
-
-        unlink($tempFile);
-    }
-
-    #[Test]
-    public function it_rejects_zero_byte_audio_file(): void
-    {
-        $method = $this->getPrivateMethod('validateAudioFileSize');
-
-        $tempFile = tempnam(sys_get_temp_dir(), 'test_audio');
-        // File exists but is empty (0 bytes)
-
-        $result = $method->invoke($this->service, $tempFile);
-
-        $this->assertFalse($result['valid']);
-        $this->assertEquals(0, $result['file_size']);
-
-        unlink($tempFile);
-    }
-
-    #[Test]
-    public function it_returns_size_in_megabytes(): void
-    {
-        $method = $this->getPrivateMethod('validateAudioFileSize');
-
-        $tempFile = tempnam(sys_get_temp_dir(), 'test_audio');
-        file_put_contents($tempFile, str_repeat('x', 1024 * 1024)); // 1MB
-
-        $result = $method->invoke($this->service, $tempFile);
-
-        $this->assertEqualsWithDelta(1.0, $result['size_mb'], 0.1);
-        $this->assertEqualsWithDelta(25.0, $result['max_size_mb'], 0.1);
-
-        unlink($tempFile);
-    }
-
-    // ---- isS3Disk tests ----
+    // ---- isS3Disk tests (via DetectsStorageType trait) ----
+    // Full coverage is in DetectsStorageTypeTest; these just verify the trait is wired up.
 
     #[Test]
     public function it_detects_s3_compatible_disks(): void
@@ -223,7 +152,7 @@ class VideoExtractionServiceTest extends TestCase
     {
         Config::set('filesystems.disks.public', ['driver' => 's3']);
         Config::set('media-processing.storage.sermon_disk', 'public');
-        $service = new VideoExtractionService;
+        $service = new VideoExtractionService(new AudioCompressionService);
 
         $method = (new \ReflectionClass($service))->getMethod('getProcessingOutputPath');
         $method->setAccessible(true);
@@ -234,26 +163,6 @@ class VideoExtractionServiceTest extends TestCase
         $this->assertEquals('sermons/audio/test_audio.mp3', $result['permanent_path']);
         // Processing path should be a local temp path
         $this->assertStringContainsString('temp', $result['processing_path']);
-    }
-
-    // ---- getSystemDiagnostics tests ----
-
-    #[Test]
-    public function it_returns_system_diagnostics_structure(): void
-    {
-        $method = $this->getPrivateMethod('getSystemDiagnostics');
-
-        $diagnostics = $method->invoke($this->service);
-
-        $this->assertArrayHasKey('php_version', $diagnostics);
-        $this->assertArrayHasKey('memory_limit', $diagnostics);
-        $this->assertArrayHasKey('memory_usage', $diagnostics);
-        $this->assertArrayHasKey('ffmpeg_path', $diagnostics);
-        $this->assertArrayHasKey('ffprobe_path', $diagnostics);
-        $this->assertArrayHasKey('permanent_disk', $diagnostics);
-        $this->assertArrayHasKey('permanent_disk_type', $diagnostics);
-        $this->assertArrayHasKey('audio_path', $diagnostics);
-        $this->assertEquals(PHP_VERSION, $diagnostics['php_version']);
     }
 
     // ---- fileExists tests ----
@@ -295,33 +204,6 @@ class VideoExtractionServiceTest extends TestCase
 
         $size = $method->invoke($this->service, '/nonexistent/file.txt', 'local');
         $this->assertEquals(0, $size);
-    }
-
-    // ---- inputFileExists tests ----
-
-    #[Test]
-    public function it_detects_local_absolute_path_files(): void
-    {
-        $method = $this->getPrivateMethod('inputFileExists');
-
-        $tempFile = tempnam(sys_get_temp_dir(), 'test');
-        file_put_contents($tempFile, 'test');
-
-        $this->assertTrue($method->invoke($this->service, $tempFile));
-        $this->assertFalse($method->invoke($this->service, '/nonexistent/absolute/path.mp4'));
-
-        unlink($tempFile);
-    }
-
-    #[Test]
-    public function it_checks_storage_disks_for_relative_paths(): void
-    {
-        $method = $this->getPrivateMethod('inputFileExists');
-
-        Storage::disk('local')->put('temp/test_input.mp4', 'test content');
-
-        $this->assertTrue($method->invoke($this->service, 'temp/test_input.mp4'));
-        $this->assertFalse($method->invoke($this->service, 'nonexistent/path.mp4'));
     }
 
     // ---- getLocalFileSize tests ----
