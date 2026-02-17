@@ -2,15 +2,21 @@
 
 @php
 $modelName = $attributes->wire('model')->value();
+$id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : null));
 $hasError = $modelName && $errors->has($modelName);
 $inputClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-green-500 focus:ring-green-500'
     . ($icon ? ' pl-10' : '')
     . ($hasError ? ' border-red-300' : ' border-gray-300');
+
+$describedBy = [];
+if ($hint) $describedBy[] = $id . '-hint';
+if ($hasError) $describedBy[] = $id . '-error';
+$describedBy = implode(' ', $describedBy);
 @endphp
 
 <div>
     @if($label)
-        <label class="block text-sm font-medium text-gray-700 mb-1">
+        <label @if($id) for="{{ $id }}" @endif class="block text-sm font-medium text-gray-700 mb-1">
             {{ $label }}
             @if($required) <span class="text-red-500">*</span> @endif
         </label>
@@ -23,10 +29,16 @@ $inputClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-green
             </div>
         @endif
 
-        <input {{ $attributes->merge(['type' => 'text', 'class' => $inputClasses]) }} />
+        <input
+            @if($id) id="{{ $id }}" @endif
+            {{ $attributes->merge(['type' => 'text', 'class' => $inputClasses]) }}
+            @if($hasError) aria-invalid="true" @endif
+            @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
+        />
 
         @if($clearable && $modelName)
             <button type="button"
+                aria-label="Clear input"
                 wire:click="$set('{{ $modelName }}', '')"
                 class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                 x-show="$wire.{{ $modelName }}">
@@ -36,12 +48,12 @@ $inputClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-green
     </div>
 
     @if($hint)
-        <p class="mt-1 text-sm text-gray-500">{{ $hint }}</p>
+        <p @if($id) id="{{ $id }}-hint" @endif class="mt-1 text-sm text-gray-500">{{ $hint }}</p>
     @endif
 
     @if($modelName)
         @error($modelName)
-            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+            <p @if($id) id="{{ $id }}-error" @endif class="mt-1 text-sm text-red-600">{{ $message }}</p>
         @enderror
     @endif
 </div>
