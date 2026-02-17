@@ -15,9 +15,10 @@ return new class extends Migration
         // Fix any zero-date timestamps from old records that MySQL strict mode rejects
         // when adding foreign key constraints. Temporarily disable NO_ZERO_DATE so the
         // zero-date literal in the WHERE clause is accepted even in strict-mode environments.
+        // Use a fallback timestamp rather than NULL because created_at/updated_at are NOT NULL.
         DB::statement("SET SESSION sql_mode = REPLACE(REPLACE(@@SESSION.sql_mode, 'NO_ZERO_DATE,', ''), ',NO_ZERO_DATE', '')");
-        DB::statement("UPDATE sermons SET created_at = NULL WHERE created_at = '0000-00-00 00:00:00'");
-        DB::statement("UPDATE sermons SET updated_at = NULL WHERE updated_at = '0000-00-00 00:00:00'");
+        DB::statement("UPDATE sermons SET created_at = NOW() WHERE created_at = '0000-00-00 00:00:00'");
+        DB::statement("UPDATE sermons SET updated_at = NOW() WHERE updated_at = '0000-00-00 00:00:00'");
         DB::statement('SET SESSION sql_mode = @@GLOBAL.sql_mode');
 
         Schema::table('sermons', function (Blueprint $table) {
