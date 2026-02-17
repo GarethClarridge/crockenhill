@@ -46,7 +46,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
-        'is_admin', // Added is_admin to fillable if it can be mass assigned
     ];
 
     /**

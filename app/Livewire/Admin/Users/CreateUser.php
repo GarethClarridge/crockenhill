@@ -39,13 +39,16 @@ class CreateUser extends Component
     {
         $validated = $this->validate();
 
-        $user = User::create([
+        $user = new User([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'is_admin' => $validated['isAdmin'],
-            'email_verified_at' => $this->sendVerification ? null : now(),
         ]);
+
+        // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
+        $user->is_admin = $validated['isAdmin'];
+        $user->email_verified_at = $this->sendVerification ? null : now();
+        $user->save();
 
         if ($this->sendVerification) {
             $user->sendEmailVerificationNotification();
