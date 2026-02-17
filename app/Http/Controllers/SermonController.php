@@ -24,7 +24,9 @@ class SermonController extends Controller
             ->pluck('date');
 
         if ($distinct_dates->isNotEmpty()) {
-            $latest_sermons = Sermon::whereIn('date', $distinct_dates)
+            // Eager load preacherProfile to prevent N+1 queries in sermon-card components
+            $latest_sermons = Sermon::with('preacherProfile')
+                ->whereIn('date', $distinct_dates)
                 ->orderBy('date', 'desc')
                 ->orderBy('service', 'asc')
                 ->get()
@@ -40,7 +42,9 @@ class SermonController extends Controller
 
     public function getAll(): View
     {
-        $sermons = Sermon::orderBy('date', 'desc')
+        // Eager load preacherProfile to prevent N+1 queries in sermon-card components
+        $sermons = Sermon::with('preacherProfile')
+            ->orderBy('date', 'desc')
             ->orderBy('service', 'asc')
             ->get()
             ->groupBy(function ($sermon) {
@@ -121,7 +125,9 @@ class SermonController extends Controller
     public function getSeries(string $series): View
     {
         $series_name = str_replace('-', ' ', Str::title($series));
-        $sermons = Sermon::where('series', $series_name)
+        // Eager load preacherProfile to prevent N+1 queries in sermon-card components
+        $sermons = Sermon::with('preacherProfile')
+            ->where('series', $series_name)
             ->orderBy('date', 'desc')
             ->get();
 
@@ -132,7 +138,9 @@ class SermonController extends Controller
 
     public function getService(string $service): View
     {
-        $sermons = Sermon::where('service', $service)
+        // Eager load preacherProfile to prevent N+1 queries in sermon-card components
+        $sermons = Sermon::with('preacherProfile')
+            ->where('service', $service)
             ->orderBy('date', 'desc')
             ->get();
 
