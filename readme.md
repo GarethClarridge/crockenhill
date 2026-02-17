@@ -1,27 +1,110 @@
-## Laravel PHP Framework
+# Crockenhill Baptist Church Website
 
-[![Build Status](https://travis-ci.org/laravel/framework.svg)](https://travis-ci.org/laravel/framework)
-[![Total Downloads](https://poser.pugx.org/laravel/framework/d/total.svg)](https://packagist.org/packages/laravel/framework)
-[![Latest Stable Version](https://poser.pugx.org/laravel/framework/v/stable.svg)](https://packagist.org/packages/laravel/framework)
-[![Latest Unstable Version](https://poser.pugx.org/laravel/framework/v/unstable.svg)](https://packagist.org/packages/laravel/framework)
-[![License](https://poser.pugx.org/laravel/framework/license.svg)](https://packagist.org/packages/laravel/framework)
+A modern, Laravel-based church management system and website for Crockenhill Baptist Church. This project handles static content, sermon management with AI-powered features, meeting scheduling, and automated media processing.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable, creative experience to be truly fulfilling. Laravel attempts to take the pain out of development by easing common tasks used in the majority of web projects, such as authentication, routing, sessions, queueing, and caching.
+## Features
 
-Laravel is accessible, yet powerful, providing powerful tools needed for large, robust applications. A superb inversion of control container, expressive migration system, and tightly integrated unit testing support give you the tools you need to build any application with which you are tasked.
+- **Sermon Management**:
+    - Audio and video sermon uploads.
+    - Automated transcription using OpenAI Whisper.
+    - AI-powered sermon analysis (series detection, Bible reference extraction, key points).
+    - Branded thumbnail generation from video frames.
+    - Automated podcast feed generation.
+- **Media Processing**:
+    - Automated livestream segmentation and sermon extraction.
+    - Hybrid local/cloud processing with S3-compatible storage (DigitalOcean Spaces).
+    - RMS analysis for video segmentation.
+- **Meeting & Events**:
+    - Full meeting management with recurring support.
+    - Google Calendar integration.
+- **Content Management**:
+    - Page management organized by areas (Christ, Church, Community, Members).
+    - Support for static and dynamic content.
+- **Members Area**:
+    - Authenticated area for church members.
+- **Sitemap & SEO**:
+    - Automated sitemap generation.
+    - SEO-friendly URL structures and metadata.
 
-## Official Documentation
+## Tech Stack
 
-Documentation for the framework can be found on the [Laravel website](http://laravel.com/docs).
+- **Backend**: Laravel 12, PHP 8.4
+- **Frontend**: Livewire 3, Tailwind CSS 3, Alpine.js 3 (TALL stack)
+- **Media Processing**: FFmpeg, Intervention Image
+- **AI**: OpenAI PHP Laravel (Whisper, GPT)
+- **Storage**: DigitalOcean Spaces / S3
+- **Development**: Laravel Sail (Docker)
 
-## Contributing
+## Requirements
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](http://laravel.com/docs/contributions).
+- Docker & Docker Compose
+- PHP 8.4 (for local development without Docker)
+- Composer
 
-## Security Vulnerabilities
+## Getting Started (Development)
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell at taylor@laravel.com. All security vulnerabilities will be promptly addressed.
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/crockenhill/crockenhill.git
+   cd crockenhill
+   ```
 
-### License
+2. **Install dependencies**:
+   ```bash
+   docker run --rm \
+       -u "$(id -u):$(id -g)" \
+       -v "$(pwd):/var/www/html" \
+       -w /var/www/html \
+       laravelsail/php84-composer:latest \
+       composer install --ignore-platform-reqs
+   ```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT)
+3. **Setup environment**:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. **Start the development environment**:
+   ```bash
+   ./vendor/bin/sail up -d
+   ```
+
+5. **Generate app key**:
+   ```bash
+   ./vendor/bin/sail artisan key:generate
+   ```
+
+6. **Run migrations and seeders**:
+   ```bash
+   ./vendor/bin/sail artisan migrate --seed
+   ```
+
+7. **Compile assets**:
+   ```bash
+   ./vendor/bin/sail npm run dev
+   ```
+
+## Testing
+
+The project has a comprehensive test suite with over 1,200 tests.
+
+```bash
+# Run all tests in parallel
+./vendor/bin/sail artisan test --parallel --compact
+
+# Run a specific test file
+./vendor/bin/sail artisan test --compact tests/Feature/SermonTest.php
+```
+
+## Documentation
+
+Detailed documentation can be found in the `docs/` directory:
+
+- [Architecture Overview](docs/architecture/)
+- [Deployment Guide](docs/deployment-guide.md)
+- [Media Processing Architecture](docs/video-processing-architecture.md)
+- [SEO Setup Guide](docs/SEO_SETUP_GUIDE.md)
+
+## License
+
+The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
