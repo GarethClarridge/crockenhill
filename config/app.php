@@ -120,4 +120,6 @@ return [
         env('APP_URL', 'https://crockenhill.org'),
         str_replace('https://', 'https://www.', env('APP_URL', 'https://crockenhill.org')),
     ],
+
+    'test_token' => env('TEST_TOKEN'),
 ];

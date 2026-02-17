@@ -39,7 +39,7 @@ class SitemapService
     {
         // In parallel test runs each worker gets a unique token, preventing race conditions
         // when multiple processes write to the same file simultaneously.
-        $token = env('TEST_TOKEN');
+        $token = config('app.test_token');
         if (app()->environment('testing') && $token !== null) {
             return public_path("sitemap-test-{$token}.xml");
         }
