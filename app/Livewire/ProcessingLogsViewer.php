@@ -75,13 +75,6 @@ class ProcessingLogsViewer extends Component
     public function fetchLogs(): void
     {
         try {
-            if (! app()->runningUnitTests()) {
-                Log::debug('ProcessingLogsViewer: Fetching logs', [
-                    'processing_id' => $this->processingId,
-                    'log_limit' => $this->logLimit,
-                ]);
-            }
-
             // Find the appropriate controller to handle this processing ID
             $controller = $this->findControllerForProcessingId($this->processingId);
 
@@ -135,14 +128,6 @@ class ProcessingLogsViewer extends Component
                 }
 
                 $this->lastFetch = now();
-
-                if (! app()->runningUnitTests()) {
-                    Log::debug('ProcessingLogsViewer: Logs fetched successfully', [
-                        'processing_id' => $this->processingId,
-                        'log_count' => count($this->logs),
-                        'status' => $response->status,
-                    ]);
-                }
             } else {
                 if (! app()->runningUnitTests()) {
                     Log::warning('ProcessingLogsViewer: Processing record not found', [
