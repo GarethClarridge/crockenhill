@@ -22,11 +22,19 @@ return new class extends Migration
         DB::statement('SET SESSION sql_mode = @@GLOBAL.sql_mode');
 
         Schema::table('sermons', function (Blueprint $table) {
-            $table->foreignId('preacher_id')->nullable()->after('preacher')
-                ->constrained('preachers')->nullOnDelete();
-            $table->string('preacher_source', 20)->nullable()->after('preacher_id');
-            $table->float('preacher_confidence')->nullable()->after('preacher_source');
-            $table->boolean('needs_preacher_review')->default(false)->after('preacher_confidence');
+            if (! Schema::hasColumn('sermons', 'preacher_id')) {
+                $table->foreignId('preacher_id')->nullable()->after('preacher')
+                    ->constrained('preachers')->nullOnDelete();
+            }
+            if (! Schema::hasColumn('sermons', 'preacher_source')) {
+                $table->string('preacher_source', 20)->nullable()->after('preacher_id');
+            }
+            if (! Schema::hasColumn('sermons', 'preacher_confidence')) {
+                $table->float('preacher_confidence')->nullable()->after('preacher_source');
+            }
+            if (! Schema::hasColumn('sermons', 'needs_preacher_review')) {
+                $table->boolean('needs_preacher_review')->default(false)->after('preacher_confidence');
+            }
         });
     }
 
