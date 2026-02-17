@@ -422,7 +422,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         $this->assertFalse($result->success);
         $this->assertEquals('PROCESSING_NOT_FAILED', $result->errorCode);
-        $this->assertStringContainsString('not in failed state', $result->message);
+        $this->assertStringContainsString('not in failed or cancelled state', $result->message);
     }
 
     #[Test]
@@ -641,7 +641,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
 
         // Should fail
         $this->assertFalse($result->success);
-        $this->assertEquals('Processing is not in failed state', $result->message);
+        $this->assertEquals('Processing is not in failed or cancelled state', $result->message);
         $this->assertEquals('PROCESSING_NOT_FAILED', $result->errorCode);
     }
 

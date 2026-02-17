@@ -310,7 +310,7 @@ class MediaUpload extends Component
             ]);
 
             // Start the actual processing
-            $processor = app(\App\Services\UnifiedMediaProcessor::class);
+            $processor = $this->getProcessor();
 
             $result = $processor->process($this->mediaType, $originalFile, $this->fileModifiedDate);
 
@@ -425,7 +425,7 @@ class MediaUpload extends Component
 
         try {
             // Use the unified media processor to cancel processing
-            $processor = app(\App\Services\UnifiedMediaProcessor::class);
+            $processor = $this->getProcessor();
             $result = $processor->cancel($this->processingId);
 
             if ($result['success']) {
@@ -470,7 +470,7 @@ class MediaUpload extends Component
 
         try {
             // Use the unified media processor to get status
-            $processor = app(\App\Services\UnifiedMediaProcessor::class);
+            $processor = $this->getProcessor();
             $statusResponse = $processor->getStatus($this->processingId);
 
             if ($statusResponse->found) {
@@ -504,6 +504,11 @@ class MediaUpload extends Component
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function getProcessor(): \App\Services\UnifiedMediaProcessor
+    {
+        return app(\App\Services\UnifiedMediaProcessor::class);
     }
 
     private function resetProcessingState(): void

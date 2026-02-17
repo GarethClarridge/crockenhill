@@ -3,14 +3,12 @@
 namespace Tests\Unit\Services;
 
 use App\Contracts\VideoStorageServiceInterface;
-use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Services\LivestreamSegmentationService;
-use App\Services\MetadataExtractionService;
+use App\Services\ProcessingInitiator;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
 use App\Services\VideoSegmentationService;
-use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -30,7 +28,9 @@ class LivestreamSegmentationServiceTest extends TestCase
 
     private VideoSegmentationService|Mockery\MockInterface $segmentationService;
 
-    private MetadataExtractionService|Mockery\MockInterface $metadataService;
+    private ProcessingPipelineBuilder|Mockery\MockInterface $pipelineBuilder;
+
+    private ProcessingInitiator|Mockery\MockInterface $processingInitiator;
 
     protected function setUp(): void
     {
@@ -44,12 +44,14 @@ class LivestreamSegmentationServiceTest extends TestCase
 
         $this->storageService = Mockery::mock(VideoStorageServiceInterface::class);
         $this->segmentationService = Mockery::mock(VideoSegmentationService::class);
-        $this->metadataService = Mockery::mock(MetadataExtractionService::class);
+        $this->pipelineBuilder = Mockery::mock(ProcessingPipelineBuilder::class);
+        $this->processingInitiator = Mockery::mock(ProcessingInitiator::class);
 
         $this->service = new LivestreamSegmentationService(
             $this->storageService,
             $this->segmentationService,
-            $this->metadataService,
+            $this->pipelineBuilder,
+            $this->processingInitiator,
         );
     }
 
@@ -80,20 +82,9 @@ class LivestreamSegmentationServiceTest extends TestCase
         ];
     }
 
-    private function setupLivestreamMocks(string $filename = 'video.mp4', ?Carbon $dateTime = null): void
+    private function setupLivestreamMocks(string $filename = 'video.mp4'): void
     {
-        $dateTime = $dateTime ?? Carbon::parse('2024-01-14 10:30:00');
-
         $this->storageService->shouldReceive('validateStorageSpace')->andReturn(true);
-        $this->metadataService->shouldReceive('extractDateFromVideo')->andReturn($dateTime);
-
-        if ($dateTime->hour !== 0 || $dateTime->minute !== 0 || $dateTime->second !== 0) {
-            $this->metadataService->shouldReceive('determineServiceFromTime')
-                ->andReturn(SermonService::MORNING);
-        } else {
-            $this->metadataService->shouldReceive('determineServiceFromFilename')
-                ->andReturn(SermonService::MORNING);
-        }
 
         $this->storageService->shouldReceive('storeUploadedVideo')
             ->andReturn($this->mockUploadResult($filename));
@@ -101,12 +92,16 @@ class LivestreamSegmentationServiceTest extends TestCase
         $this->segmentationService->shouldReceive('getVideoMetadata')
             ->andReturn($this->mockVideoMetadata());
 
-        $pipelineBuilder = Mockery::mock(ProcessingPipelineBuilder::class);
-        $pipelineBuilder->shouldReceive('buildLivestreamPipeline')
+        // ProcessingInitiator handles metadata extraction and log creation
+        $this->processingInitiator->shouldReceive('initiateProcessing')
+            ->andReturnUsing(function () {
+                return MediaProcessingLog::factory()->livestream()->pending()->create();
+            });
+
+        $this->pipelineBuilder->shouldReceive('buildLivestreamPipeline')
             ->andReturn([new \App\Jobs\CleanupTemporaryFiles(
                 MediaProcessingLog::factory()->livestream()->pending()->make()
             )]);
-        $this->app->instance(ProcessingPipelineBuilder::class, $pipelineBuilder);
     }
 
     // ---- Instantiation ----
@@ -154,10 +149,6 @@ class LivestreamSegmentationServiceTest extends TestCase
         $file = UploadedFile::fake()->create('video.mp4', 50000, 'video/mp4');
 
         $this->storageService->shouldReceive('validateStorageSpace')->andReturn(true);
-        $this->metadataService->shouldReceive('extractDateFromVideo')
-            ->andReturn(Carbon::parse('2024-01-14 10:30:00'));
-        $this->metadataService->shouldReceive('determineServiceFromTime')
-            ->andReturn(SermonService::MORNING);
         $this->storageService->shouldReceive('storeUploadedVideo')
             ->andReturn($this->mockUploadResult());
         $this->segmentationService->shouldReceive('validateVideoFile')->andReturn(false);
@@ -169,12 +160,40 @@ class LivestreamSegmentationServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_falls_back_to_filename_detection_when_time_is_midnight(): void
+    public function it_delegates_metadata_extraction_to_processing_initiator(): void
     {
         $file = UploadedFile::fake()->create('2024-01-14_morning.mp4', 50000, 'video/mp4');
 
-        // Midnight time triggers filename-based detection
-        $this->setupLivestreamMocks('2024-01-14_morning.mp4', Carbon::parse('2024-01-14 00:00:00'));
+        // Set up storage/segmentation mocks
+        $this->storageService->shouldReceive('validateStorageSpace')->andReturn(true);
+        $this->storageService->shouldReceive('storeUploadedVideo')
+            ->andReturn($this->mockUploadResult('2024-01-14_morning.mp4'));
+        $this->segmentationService->shouldReceive('validateVideoFile')->andReturn(true);
+        $this->segmentationService->shouldReceive('getVideoMetadata')
+            ->andReturn($this->mockVideoMetadata());
+
+        // Expect ProcessingInitiator to be called with livestream type and additional data
+        $this->processingInitiator->shouldReceive('initiateProcessing')
+            ->once()
+            ->with(
+                Mockery::type(UploadedFile::class),
+                'livestream',
+                null,
+                Mockery::on(function (array $data) {
+                    return isset($data['source_file_path'])
+                        && isset($data['file_size'])
+                        && isset($data['duration'])
+                        && isset($data['processing_metadata']);
+                })
+            )
+            ->andReturnUsing(function () {
+                return MediaProcessingLog::factory()->livestream()->pending()->create();
+            });
+
+        $this->pipelineBuilder->shouldReceive('buildLivestreamPipeline')
+            ->andReturn([new \App\Jobs\CleanupTemporaryFiles(
+                MediaProcessingLog::factory()->livestream()->pending()->make()
+            )]);
 
         $result = $this->service->startProcessing($file);
 
@@ -207,12 +226,10 @@ class LivestreamSegmentationServiceTest extends TestCase
             'processing_metadata' => ['file_format' => 'mp4'],
         ]);
 
-        $pipelineBuilder = Mockery::mock(ProcessingPipelineBuilder::class);
-        $pipelineBuilder->shouldReceive('buildLivestreamPipeline')
+        $this->pipelineBuilder->shouldReceive('buildLivestreamPipeline')
             ->andReturn([new \App\Jobs\CleanupTemporaryFiles(
                 MediaProcessingLog::factory()->livestream()->pending()->make()
             )]);
-        $this->app->instance(ProcessingPipelineBuilder::class, $pipelineBuilder);
 
         $result = $this->service->retryProcessing('retry-test-123');
 
@@ -237,7 +254,7 @@ class LivestreamSegmentationServiceTest extends TestCase
         ]);
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Only failed processing can be retried');
+        $this->expectExceptionMessage('Only failed or cancelled processing can be retried');
 
         $this->service->retryProcessing('pending-test-123');
     }

@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Services\ProcessingResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -34,25 +33,7 @@ class DirectSermonVideoUploadTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        // Mock video services to avoid FFmpeg dependency in tests
-        $this->mockVideoServices();
-    }
-
-    protected function mockVideoServices(): void
-    {
-        $successResult = ProcessingResult::success(
-            processingId: 'test-processing-id-123',
-            message: 'Sermon video processing initiated successfully',
-            statusUrl: '/api/sermons/processing/test-processing-id-123/status'
-        );
-
-        // Mock VideoProcessingService for direct service calls
-        $mockVideoProcessing = $this->createMock(\App\Services\VideoProcessingService::class);
-        $mockVideoProcessing->method('processWithSegmentation')
-            ->willReturn($successResult);
-        $this->app->instance(\App\Services\VideoProcessingService::class, $mockVideoProcessing);
-
-        // Also mock UnifiedMediaProcessor
+        // Mock the unified processor to avoid FFmpeg dependency in tests
         $this->mockUnifiedMediaProcessor('test-processing-id-123');
     }
 

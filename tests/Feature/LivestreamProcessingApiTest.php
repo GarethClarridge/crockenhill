@@ -369,13 +369,13 @@ class LivestreamProcessingApiTest extends TestCase
         $this->withMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
 
         // Mock the service to ensure we can test rate limiting behavior
-        $mockService = $this->createMock(\App\Services\VideoProcessingService::class);
+        $mockService = $this->createMock(\App\Services\LivestreamSegmentationService::class);
         $mockResult = \App\Services\ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Livestream processing initiated successfully'
         );
         $mockService->method('processWithSegmentation')->willReturn($mockResult);
-        $this->app->instance(\App\Services\VideoProcessingService::class, $mockService);
+        $this->app->instance(\App\Services\LivestreamSegmentationService::class, $mockService);
 
         $user = User::factory()->create();
         $videoFile = UploadedFile::fake()->create('test.mp4', 1000, 'video/mp4');
@@ -456,7 +456,7 @@ class LivestreamProcessingApiTest extends TestCase
     public function test_api_handles_concurrent_uploads()
     {
         // Mock the service to avoid rate limiting issues
-        $mockService = $this->createMock(\App\Services\VideoProcessingService::class);
+        $mockService = $this->createMock(\App\Services\LivestreamSegmentationService::class);
         $mockService->method('processWithSegmentation')
             ->willReturnOnConsecutiveCalls(
                 \App\Services\ProcessingResult::success(
@@ -468,7 +468,7 @@ class LivestreamProcessingApiTest extends TestCase
                     message: 'Processing started'
                 )
             );
-        $this->app->instance(\App\Services\VideoProcessingService::class, $mockService);
+        $this->app->instance(\App\Services\LivestreamSegmentationService::class, $mockService);
 
         $user = User::factory()->create();
 

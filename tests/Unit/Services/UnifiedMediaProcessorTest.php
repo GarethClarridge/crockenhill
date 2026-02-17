@@ -5,12 +5,13 @@ namespace Tests\Unit\Services;
 use App\Data\LivestreamProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
-use App\Services\MetadataExtractionService;
+use App\Services\LivestreamSegmentationService;
+use App\Services\ProcessingInitiator;
+use App\Services\ProcessingLogService;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
 use App\Services\SermonProcessingService;
 use App\Services\UnifiedMediaProcessor;
-use App\Services\VideoProcessingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -23,28 +24,32 @@ class UnifiedMediaProcessorTest extends TestCase
 
     private UnifiedMediaProcessor $processor;
 
-    private VideoProcessingService $videoService;
+    private LivestreamSegmentationService $livestreamService;
 
     private SermonProcessingService $sermonService;
 
     private ProcessingPipelineBuilder $pipelineBuilder;
 
-    private MetadataExtractionService $metadataService;
+    private ProcessingLogService $processingLogService;
+
+    private ProcessingInitiator $processingInitiator;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->videoService = $this->createMock(VideoProcessingService::class);
+        $this->livestreamService = $this->createMock(LivestreamSegmentationService::class);
         $this->sermonService = $this->createMock(SermonProcessingService::class);
         $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
-        $this->metadataService = $this->createMock(MetadataExtractionService::class);
+        $this->processingLogService = $this->createMock(ProcessingLogService::class);
+        $this->processingInitiator = $this->createMock(ProcessingInitiator::class);
 
         $this->processor = new UnifiedMediaProcessor(
-            $this->videoService,
+            $this->livestreamService,
             $this->sermonService,
             $this->pipelineBuilder,
-            $this->metadataService
+            $this->processingLogService,
+            $this->processingInitiator
         );
     }
 
@@ -91,7 +96,7 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
-    public function it_routes_livestream_to_video_processing_service(): void
+    public function it_routes_livestream_to_livestream_segmentation_service(): void
     {
         $file = UploadedFile::fake()->create('livestream.mp4', 5120);
         $expectedResult = ProcessingResult::success(
@@ -99,7 +104,7 @@ class UnifiedMediaProcessorTest extends TestCase
             message: 'Livestream processing started'
         );
 
-        $this->videoService
+        $this->livestreamService
             ->method('processWithSegmentation')
             ->with($file, null)
             ->willReturn($expectedResult);
@@ -228,11 +233,11 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
-    public function it_cancels_livestream_processing_via_video_service(): void
+    public function it_cancels_livestream_processing_via_livestream_service(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->processing()->create();
 
-        $this->videoService
+        $this->livestreamService
             ->method('cancelProcessing')
             ->with($log->processing_id)
             ->willReturn(true);
@@ -308,7 +313,7 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
-    public function it_retries_livestream_processing_via_video_service(): void
+    public function it_retries_livestream_processing_via_livestream_service(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->failed()->create();
         $livestreamResult = new LivestreamProcessingResult(
@@ -320,7 +325,7 @@ class UnifiedMediaProcessorTest extends TestCase
             errorMessage: null
         );
 
-        $this->videoService
+        $this->livestreamService
             ->method('retryProcessing')
             ->with($log->processing_id)
             ->willReturn($livestreamResult);
@@ -345,7 +350,7 @@ class UnifiedMediaProcessorTest extends TestCase
             errorMessage: 'Retry failed: storage unavailable'
         );
 
-        $this->videoService
+        $this->livestreamService
             ->method('retryProcessing')
             ->with($log->processing_id)
             ->willReturn($livestreamResult);
@@ -385,24 +390,20 @@ class UnifiedMediaProcessorTest extends TestCase
     // --- processDirectVideo() (tested via process('video', ...)) ---
 
     #[Test]
-    public function it_processes_direct_video_with_time_based_service_detection(): void
+    public function it_processes_direct_video_via_processing_initiator(): void
     {
         Bus::fake();
 
         $file = UploadedFile::fake()->create('2026-01-15_morning.mp4', 2048);
 
-        // Datetime with actual time info (not midnight)
-        $extractedDateTime = \Carbon\Carbon::create(2026, 1, 15, 10, 30, 0);
+        $processingLog = MediaProcessingLog::factory()->video()->pending()->create([
+            'original_filename' => '2026-01-15_morning.mp4',
+            'current_step' => 'video_processing_initiated',
+        ]);
 
-        $this->metadataService
-            ->method('extractDateFromVideo')
-            ->with($file, null)
-            ->willReturn($extractedDateTime);
-
-        $this->metadataService
-            ->method('determineServiceFromTime')
-            ->with($extractedDateTime)
-            ->willReturn(\App\Enums\SermonService::MORNING);
+        $this->processingInitiator
+            ->method('initiateProcessing')
+            ->willReturn($processingLog);
 
         $this->pipelineBuilder
             ->method('buildDirectVideoPipeline')
@@ -415,48 +416,20 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
-    public function it_processes_direct_video_with_filename_based_service_detection(): void
-    {
-        Bus::fake();
-
-        $file = UploadedFile::fake()->create('evening-sermon.mp4', 2048);
-
-        // Datetime with midnight time (only date extracted)
-        $extractedDateTime = \Carbon\Carbon::create(2026, 1, 15, 0, 0, 0);
-
-        $this->metadataService
-            ->method('extractDateFromVideo')
-            ->willReturn($extractedDateTime);
-
-        $this->metadataService
-            ->method('determineServiceFromFilename')
-            ->with('evening-sermon.mp4')
-            ->willReturn(\App\Enums\SermonService::EVENING);
-
-        $this->pipelineBuilder
-            ->method('buildDirectVideoPipeline')
-            ->willReturn([new \App\Jobs\TestJob]);
-
-        $result = $this->processor->process('video', $file);
-
-        $this->assertTrue($result->success);
-    }
-
-    #[Test]
     public function it_creates_processing_log_for_direct_video(): void
     {
         Bus::fake();
 
         $file = UploadedFile::fake()->create('sermon-video.mp4', 2048);
-        $extractedDateTime = \Carbon\Carbon::create(2026, 2, 10, 11, 0, 0);
 
-        $this->metadataService
-            ->method('extractDateFromVideo')
-            ->willReturn($extractedDateTime);
+        $processingLog = MediaProcessingLog::factory()->video()->pending()->create([
+            'original_filename' => 'sermon-video.mp4',
+            'current_step' => 'video_processing_initiated',
+        ]);
 
-        $this->metadataService
-            ->method('determineServiceFromTime')
-            ->willReturn(\App\Enums\SermonService::MORNING);
+        $this->processingInitiator
+            ->method('initiateProcessing')
+            ->willReturn($processingLog);
 
         $this->pipelineBuilder
             ->method('buildDirectVideoPipeline')
@@ -477,8 +450,8 @@ class UnifiedMediaProcessorTest extends TestCase
     {
         $file = UploadedFile::fake()->create('bad-video.mp4', 2048);
 
-        $this->metadataService
-            ->method('extractDateFromVideo')
+        $this->processingInitiator
+            ->method('initiateProcessing')
             ->willThrowException(new \RuntimeException('Cannot read video metadata'));
 
         $result = $this->processor->process('video', $file);
@@ -494,15 +467,20 @@ class UnifiedMediaProcessorTest extends TestCase
         Bus::fake();
 
         $file = UploadedFile::fake()->create('2026-02-10.mp4', 2048);
-        $extractedDateTime = \Carbon\Carbon::create(2026, 2, 10, 18, 30, 0);
 
-        $this->metadataService
-            ->method('extractDateFromVideo')
-            ->willReturn($extractedDateTime);
+        $processingLog = MediaProcessingLog::factory()->video()->pending()->create([
+            'original_filename' => '2026-02-10.mp4',
+            'processing_metadata' => [
+                'extracted_date' => '2026-02-10',
+                'extracted_service' => 'evening',
+                'date_extraction_method' => 'video_metadata_or_filename',
+                'service_extraction_method' => 'datetime_timestamp',
+            ],
+        ]);
 
-        $this->metadataService
-            ->method('determineServiceFromTime')
-            ->willReturn(\App\Enums\SermonService::EVENING);
+        $this->processingInitiator
+            ->method('initiateProcessing')
+            ->willReturn($processingLog);
 
         $this->pipelineBuilder
             ->method('buildDirectVideoPipeline')

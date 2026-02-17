@@ -10,14 +10,14 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 class LivestreamSegmentationService
 {
     public function __construct(
         private VideoStorageServiceInterface $storageService,
         private VideoSegmentationService $segmentationService,
-        private MetadataExtractionService $metadataService
+        private ProcessingPipelineBuilder $pipelineBuilder,
+        private ProcessingInitiator $processingInitiator
     ) {}
 
     /**
@@ -31,10 +31,7 @@ class LivestreamSegmentationService
     public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null): ProcessingResult
     {
         try {
-            $processingId = Str::uuid()->toString();
-
             Log::info('Starting livestream processing', [
-                'processing_id' => $processingId,
                 'original_filename' => $videoFile->getClientOriginalName(),
                 'file_size' => $videoFile->getSize(),
                 'client_file_date' => $clientFileDate,
@@ -42,18 +39,6 @@ class LivestreamSegmentationService
 
             if (! $this->storageService->validateStorageSpace($videoFile->getSize())) {
                 throw new \Exception('Insufficient storage space for processing');
-            }
-
-            // Extract date and service from video metadata BEFORE storing (to preserve file timestamps)
-            $extractedDateTime = $this->metadataService->extractDateFromVideo($videoFile, $clientFileDate);
-
-            // Only use datetime for service detection if we have actual time information (not just date)
-            // If the time is midnight (00:00:00), it likely means only the date was extracted
-            if ($extractedDateTime->hour !== 0 || $extractedDateTime->minute !== 0 || $extractedDateTime->second !== 0) {
-                $extractedService = $this->metadataService->determineServiceFromTime($extractedDateTime);
-            } else {
-                // No time info available, fall back to filename-based detection
-                $extractedService = $this->metadataService->determineServiceFromFilename($videoFile->getClientOriginalName());
             }
 
             $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
@@ -64,44 +49,33 @@ class LivestreamSegmentationService
 
             $metadata = $this->segmentationService->getVideoMetadata($uploadResult['full_path']);
 
-            Log::info('Extracted metadata from livestream video file', [
-                'processing_id' => $processingId,
-                'original_filename' => $uploadResult['original_filename'],
-                'extracted_date' => $extractedDateTime->toDateString(),
-                'extracted_datetime' => $extractedDateTime->toDateTimeString(),
-                'extracted_service' => $extractedService->value,
-            ]);
-
-            $processingLog = MediaProcessingLog::create([
-                'processing_id' => $processingId,
-                'processing_type' => 'livestream',
-                'status' => 'pending',
-                'original_filename' => $uploadResult['original_filename'],
-                'source_file_path' => $uploadResult['temp_path'],
-                'file_size' => $uploadResult['file_size'],
-                'duration' => $metadata['duration'],
-                'processing_metadata' => [
-                    'upload_time' => now()->toISOString(),
-                    'format_details' => $metadata,
-                    'mime_type' => $uploadResult['mime_type'],
-                    'file_format' => pathinfo($uploadResult['original_filename'], PATHINFO_EXTENSION),
-                    'extracted_date' => $extractedDateTime->toDateString(),
-                    'extracted_datetime' => $extractedDateTime->toDateTimeString(),
-                    'extracted_service' => $extractedService->value,
-                    'date_extraction_method' => 'video_metadata_or_filename',
-                    'service_extraction_method' => 'datetime_timestamp',
-                ],
-            ]);
+            // Create processing log via shared initiator with livestream-specific data
+            $processingLog = $this->processingInitiator->initiateProcessing(
+                $videoFile,
+                'livestream',
+                $clientFileDate,
+                [
+                    'source_file_path' => $uploadResult['temp_path'],
+                    'file_size' => $uploadResult['file_size'],
+                    'duration' => $metadata['duration'],
+                    'processing_metadata' => [
+                        'upload_time' => now()->toISOString(),
+                        'format_details' => $metadata,
+                        'mime_type' => $uploadResult['mime_type'],
+                        'file_format' => pathinfo($uploadResult['original_filename'], PATHINFO_EXTENSION),
+                    ],
+                ]
+            );
 
             $this->dispatchProcessingJobs($processingLog);
 
             Log::info('Livestream processing initiated', [
-                'processing_id' => $processingId,
+                'processing_id' => $processingLog->processing_id,
                 'log_id' => $processingLog->id,
             ]);
 
             return ProcessingResult::success(
-                processingId: $processingId,
+                processingId: $processingLog->processing_id,
                 message: 'Livestream processing initiated successfully'
             );
 
@@ -125,8 +99,8 @@ class LivestreamSegmentationService
             throw new \Exception('Processing record not found');
         }
 
-        if (! $processingLog->isFailed()) {
-            throw new \Exception('Only failed processing can be retried');
+        if (! $processingLog->status->isRetryable()) {
+            throw new \Exception('Only failed or cancelled processing can be retried');
         }
 
         $processingLog->update([
@@ -185,8 +159,7 @@ class LivestreamSegmentationService
     private function dispatchProcessingJobs(MediaProcessingLog $processingLog): void
     {
         $processingId = $processingLog->processing_id;
-        $pipelineBuilder = app(ProcessingPipelineBuilder::class);
-        $jobs = $pipelineBuilder->buildLivestreamPipeline($processingLog);
+        $jobs = $this->pipelineBuilder->buildLivestreamPipeline($processingLog);
 
         Bus::chain($jobs)
             ->catch(fn (\Throwable $e) => $this->handleProcessingFailure($processingId, $e))

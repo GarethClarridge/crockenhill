@@ -30,6 +30,17 @@ class ProcessingLogsApiTest extends TestCase
             'password' => bcrypt('password'),
         ]);
 
+        // Create unique log file for this test to avoid parallel test conflicts
+        $testId = uniqid('test_', true);
+        $this->originalLogFile = storage_path("logs/laravel-{$testId}.log");
+        File::put($this->originalLogFile, '');
+
+        // Bind custom ProcessingLogService with unique log file
+        // Must happen before any HTTP requests so the DI-resolved service uses this file
+        $this->app->bind(\App\Services\ProcessingLogService::class, function () {
+            return new \App\Services\ProcessingLogService($this->originalLogFile);
+        });
+
         // Check if logs feature is supported in unified architecture
         $testResponse = $this->actingAs($this->user)
             ->getJson('/api/media/processing/test-id/status?include_logs=true');
@@ -37,16 +48,6 @@ class ProcessingLogsApiTest extends TestCase
         if ($testResponse->status() === 500) {
             $this->markTestSkipped('Logs feature not supported in unified MediaController');
         }
-
-        // Create unique log file for this test to avoid parallel test conflicts
-        $testId = uniqid('test_', true);
-        $this->originalLogFile = storage_path("logs/laravel-{$testId}.log");
-        File::put($this->originalLogFile, '');
-
-        // Bind custom ProcessingLogService with unique log file
-        $this->app->bind(\App\Services\ProcessingLogService::class, function () {
-            return new \App\Services\ProcessingLogService($this->originalLogFile);
-        });
     }
 
     protected function tearDown(): void

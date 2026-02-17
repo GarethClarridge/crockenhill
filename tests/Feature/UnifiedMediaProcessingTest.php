@@ -51,8 +51,8 @@ class UnifiedMediaProcessingTest extends TestCase
             );
         });
 
-        // Mock VideoProcessingService for direct service calls
-        $this->mock(\App\Services\VideoProcessingService::class, function ($mock) {
+        // Mock LivestreamSegmentationService for direct service calls
+        $this->mock(\App\Services\LivestreamSegmentationService::class, function ($mock) {
             $mock->shouldReceive('processWithSegmentation')->andReturn(
                 \App\Services\ProcessingResult::success('livestream-id', 'Livestream processing started')
             );

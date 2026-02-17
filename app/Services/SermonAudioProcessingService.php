@@ -14,7 +14,8 @@ use Illuminate\Support\Str;
 class SermonAudioProcessingService
 {
     public function __construct(
-        private readonly MetadataExtractionService $metadataService
+        private readonly MetadataExtractionService $metadataService,
+        private readonly ProcessingPipelineBuilder $pipelineBuilder
     ) {}
 
     /**
@@ -64,8 +65,7 @@ class SermonAudioProcessingService
             ]);
 
             // Build and dispatch job chain using ProcessingPipelineBuilder (same as video processing)
-            $pipelineBuilder = app(ProcessingPipelineBuilder::class);
-            $jobs = $pipelineBuilder->buildAudioPipeline($processingLog);
+            $jobs = $this->pipelineBuilder->buildAudioPipeline($processingLog);
 
             Log::info('Audio processing pipeline created', [
                 'processing_id' => $processingId,
@@ -151,8 +151,7 @@ class SermonAudioProcessingService
             ]);
 
             // Create pipeline and dispatch jobs
-            $pipelineBuilder = app(ProcessingPipelineBuilder::class);
-            $jobs = $pipelineBuilder->buildAudioPipeline($processingLog);
+            $jobs = $this->pipelineBuilder->buildAudioPipeline($processingLog);
 
             Log::info('Sermon processing pipeline created', [
                 'processing_id' => $processingId,
