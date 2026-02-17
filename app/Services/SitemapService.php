@@ -26,8 +26,9 @@ class SitemapService
             ->add(Url::create('/christ/sermons')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY))
 
             // Dynamic content via Sitemapable models
-            ->add(Sermon::all())
-            ->add(Page::where('admin', 'no')->get())
+            // Eager load relationships to prevent N+1 queries during sitemap generation
+            ->add(Sermon::with('preacherProfile')->get())
+            ->add(Page::with('media')->where('admin', 'no')->get())
             ->add(Meeting::all())
 
             ->writeToFile($sitemapPath);
