@@ -82,6 +82,8 @@ class MediaUpload extends Component
 
     public ?string $successMessage = null;
 
+    public ?string $cancelledMessage = null;
+
     // UI state
     public bool $showUploadForm = true;
 
@@ -152,6 +154,8 @@ class MediaUpload extends Component
         $this->uploadCancelled = false;
         $this->status = 'uploading';
         $this->errorMessage = null;
+        $this->successMessage = null;
+        $this->cancelledMessage = null;
         $this->uploadProgress = 0;
         $this->uploadedBytes = null;
         $this->totalBytes = null;
@@ -199,6 +203,8 @@ class MediaUpload extends Component
             $this->currentStep = 'Preparing for processing...';
             $this->progressPercentage = 5;
             $this->errorMessage = null;
+            $this->successMessage = null;
+            $this->cancelledMessage = null;
 
             // Store file data for processing
             $tempFilePath = $this->mediaFile->store('temp/livewire-upload', 'local');
@@ -321,10 +327,13 @@ class MediaUpload extends Component
                 $this->currentStep = 'Processing started';
                 $this->progressPercentage = 10;
                 $this->successMessage = 'Upload complete. Processing has started.';
+                $this->cancelledMessage = null;
             } else {
                 $this->processingId = $result->processingId;
                 $this->status = 'failed';
                 $this->errorMessage = $result->message;
+                $this->successMessage = null;
+                $this->cancelledMessage = null;
             }
 
             $this->logInfo('Media processing initiated', [
@@ -349,6 +358,8 @@ class MediaUpload extends Component
 
             $this->status = 'failed';
             $this->errorMessage = 'Processing failed: '.$e->getMessage();
+            $this->successMessage = null;
+            $this->cancelledMessage = null;
         } finally {
             // Always clean up the Livewire temp file, regardless of success or failure
             if (file_exists($fullTempPath)) {
@@ -431,7 +442,10 @@ class MediaUpload extends Component
             if ($result['success']) {
                 $this->status = 'cancelled';
                 $this->currentStep = 'Processing cancelled';
-                $this->errorMessage = 'Processing was cancelled by user.';
+                $this->errorMessage = null;
+                $this->successMessage = null;
+                $this->cancelledMessage = 'Processing was cancelled by user.';
+                $this->progressPercentage = 0;
             } else {
                 $this->handleProcessingError($result['message']);
             }
@@ -448,6 +462,8 @@ class MediaUpload extends Component
     {
         $this->status = 'failed';
         $this->errorMessage = $message;
+        $this->successMessage = null;
+        $this->cancelledMessage = null;
         $this->showUploadForm = true;
         $this->showProcessingStatus = true;
 
@@ -459,6 +475,8 @@ class MediaUpload extends Component
     {
         $this->status = 'failed';
         $this->errorMessage = $message;
+        $this->successMessage = null;
+        $this->cancelledMessage = null;
         $this->currentStep = 'Processing failed';
     }
 
@@ -480,14 +498,20 @@ class MediaUpload extends Component
 
                 if ($statusResponse->status === 'failed') {
                     $this->errorMessage = $statusResponse->errorMessage ?? 'Processing failed';
+                    $this->successMessage = null;
+                    $this->cancelledMessage = null;
                     $this->currentStep = 'Processing failed';
                     $this->progressPercentage = 0;
                 } elseif ($statusResponse->status === 'cancelled') {
-                    $this->errorMessage = 'Processing was cancelled.';
+                    $this->errorMessage = null;
+                    $this->successMessage = null;
+                    $this->cancelledMessage = 'Processing was cancelled.';
                     $this->currentStep = 'Processing cancelled';
                     $this->progressPercentage = 0;
                 } elseif ($statusResponse->status === 'completed') {
+                    $this->errorMessage = null;
                     $this->successMessage = 'Processing completed successfully!';
+                    $this->cancelledMessage = null;
                     $this->currentStep = 'Processing completed!';
                     $this->progressPercentage = 100;
                 }
@@ -519,6 +543,7 @@ class MediaUpload extends Component
         $this->progressPercentage = 0;
         $this->errorMessage = null;
         $this->successMessage = null;
+        $this->cancelledMessage = null;
     }
 
     private function resetUploadState(): void
@@ -538,6 +563,9 @@ class MediaUpload extends Component
         $maxFileSize = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
             ? $validation->maxFileSizeForDisplay($this->mediaType)
             : null;
+        $allowedExtensions = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
+            ? $validation->allowedExtensionsForDisplay($this->mediaType)
+            : null;
         $maxFileSizeBytes = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
             ? $validation->maxFileSizeBytes($this->mediaType)
             : null;
@@ -547,6 +575,7 @@ class MediaUpload extends Component
 
         return view('livewire.media-upload', [
             'maxFileSize' => $maxFileSize,
+            'allowedExtensions' => $allowedExtensions,
             'maxFileSizeBytes' => $maxFileSizeBytes,
             'acceptAttribute' => $acceptAttribute,
         ]);

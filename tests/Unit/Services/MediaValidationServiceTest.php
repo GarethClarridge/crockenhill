@@ -107,6 +107,31 @@ class MediaValidationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_allowed_extensions_raw_values(): void
+    {
+        $this->assertEquals(['mp3', 'wav', 'm4a', 'mp4'], $this->service->allowedExtensions('audio'));
+        $this->assertEquals(['mp4', 'mov', 'avi', 'mkv'], $this->service->allowedExtensions('video'));
+        $this->assertEquals(['mp4', 'mov', 'avi', 'mkv', 'webm'], $this->service->allowedExtensions('livestream'));
+    }
+
+    #[Test]
+    public function it_returns_allowed_mime_types_raw_values(): void
+    {
+        $this->assertEquals(
+            ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/m4a'],
+            $this->service->allowedMimes('audio')
+        );
+        $this->assertEquals(
+            ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'],
+            $this->service->allowedMimes('video')
+        );
+        $this->assertEquals(
+            ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'],
+            $this->service->allowedMimes('livestream')
+        );
+    }
+
+    #[Test]
     public function it_returns_supported_types(): void
     {
         $this->assertEquals(['audio', 'video', 'livestream'], $this->service->supportedTypes());

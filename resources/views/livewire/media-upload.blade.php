@@ -144,9 +144,9 @@
                     required
                 >
                     <option value="">Select media type...</option>
-                    <option value="audio">📄 Audio Only (MP3, WAV, M4A)</option>
-                    <option value="video">🎬 Sermon Video (MP4, MOV, AVI, MKV)</option>
-                    <option value="livestream">📺 Full Livestream (MP4, MOV, AVI, MKV)</option>
+                    <option value="audio">📄 Audio Only</option>
+                    <option value="video">🎬 Sermon Video</option>
+                    <option value="livestream">📺 Full Livestream</option>
                 </select>
                 @error('mediaType')
                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -201,6 +201,7 @@
                             @else
                                 <p class="text-lg text-gray-600 mb-2">Drop your file here or click to browse</p>
                                 <p class="text-sm text-gray-500">Maximum file size: {{ $maxFileSize ?? 'N/A' }}</p>
+                                <p class="text-sm text-gray-500">Accepted formats: {{ $allowedExtensions ?? 'N/A' }}</p>
                             @endif
                         </div>
 
@@ -369,6 +370,20 @@
                         <div>
                             <p class="text-sm text-red-800 font-medium">Processing Error</p>
                             <p class="text-sm text-red-700">{{ $errorMessage }}</p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            @if($cancelledMessage)
+                <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
+                    <div class="flex">
+                        <svg class="w-5 h-5 text-gray-500 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v4a1 1 0 102 0V7zm-1 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" clip-rule="evenodd" />
+                        </svg>
+                        <div>
+                            <p class="text-sm text-gray-800 font-medium">Processing Cancelled</p>
+                            <p class="text-sm text-gray-700">{{ $cancelledMessage }}</p>
                         </div>
                     </div>
                 </div>

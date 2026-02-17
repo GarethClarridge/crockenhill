@@ -15,7 +15,8 @@ class SermonAudioProcessingService
 {
     public function __construct(
         private readonly MetadataExtractionService $metadataService,
-        private readonly ProcessingPipelineBuilder $pipelineBuilder
+        private readonly ProcessingPipelineBuilder $pipelineBuilder,
+        private readonly MediaValidationService $mediaValidation
     ) {}
 
     /**
@@ -210,28 +211,21 @@ class SermonAudioProcessingService
     public function validateAudioFile(UploadedFile $file): void
     {
         // Check file size
-        $maxSize = config('media-processing.processing.max_file_size', 100 * 1024 * 1024);
+        $maxSize = $this->mediaValidation->maxFileSizeBytes('audio');
         if ($file->getSize() > $maxSize) {
             $maxSizeMB = round($maxSize / (1024 * 1024));
             throw new \InvalidArgumentException("File size exceeds maximum limit of {$maxSizeMB}MB");
         }
 
         // Check MIME type
-        $allowedMimeTypes = config('media-processing.processing.allowed_mime_types', [
-            'audio/mpeg',
-            'audio/mp3',
-            'audio/wav',
-            'audio/x-wav',
-            'audio/mp4',
-            'audio/m4a',
-        ]);
+        $allowedMimeTypes = $this->mediaValidation->allowedMimes('audio');
 
         if (! in_array($file->getMimeType(), $allowedMimeTypes)) {
             throw new \InvalidArgumentException('Invalid file type. Only audio files are allowed.');
         }
 
         // Check file extension
-        $allowedExtensions = config('media-processing.processing.allowed_extensions', ['mp3', 'wav', 'm4a', 'mp4']);
+        $allowedExtensions = $this->mediaValidation->allowedExtensions('audio');
         $extension = strtolower($file->getClientOriginalExtension());
 
         if (! in_array($extension, $allowedExtensions)) {

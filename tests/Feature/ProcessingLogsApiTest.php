@@ -40,14 +40,6 @@ class ProcessingLogsApiTest extends TestCase
         $this->app->bind(\App\Services\ProcessingLogService::class, function () {
             return new \App\Services\ProcessingLogService($this->originalLogFile);
         });
-
-        // Check if logs feature is supported in unified architecture
-        $testResponse = $this->actingAs($this->user)
-            ->getJson('/api/media/processing/test-id/status?include_logs=true');
-
-        if ($testResponse->status() === 500) {
-            $this->markTestSkipped('Logs feature not supported in unified MediaController');
-        }
     }
 
     protected function tearDown(): void
@@ -63,16 +55,6 @@ class ProcessingLogsApiTest extends TestCase
     #[Test]
     public function processing_status_includes_logs_when_requested(): void
     {
-        // Quick check if logs feature is supported
-        $testResponse = $this->actingAs($this->user)
-            ->getJson('/api/media/processing/test-id/status?include_logs=true');
-
-        if ($testResponse->status() === 500) {
-            $this->markTestSkipped('Logs feature not supported in unified MediaController');
-
-            return;
-        }
-
         $processingId = Str::uuid()->toString();
 
         // Create a sermon processing log
@@ -97,29 +79,22 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId}/status");
 
-        // Should return 200 for valid requests or 500 if logs feature not supported
-        $this->assertContains($response->status(), [200, 500]);
-
-        if ($response->status() === 200) {
-            $response->assertJsonStructure([
+        $response->assertStatus(200)
+            ->assertJsonStructure([
                 'found',
                 'processing_id',
                 'status',
                 'current_step',
                 'progress_percentage',
             ])
-                ->assertJsonMissing(['recent_logs', 'performance_metrics']);
-        }
+            ->assertJsonMissing(['recent_logs', 'performance_metrics']);
 
         // Test getting status with logs via query parameter
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId}/status?include_logs=true&log_limit=10");
 
-        // Should return 200 with logs or 500 if logs feature not supported
-        $this->assertContains($response->status(), [200, 500]);
-
-        if ($response->status() === 200) {
-            $response->assertJsonStructure([
+        $response->assertStatus(200)
+            ->assertJsonStructure([
                 'found',
                 'processing_id',
                 'status',
@@ -133,15 +108,11 @@ class ProcessingLogsApiTest extends TestCase
                 'performance_metrics',
             ]);
 
-            $data = $response->json();
-            $this->assertTrue($data['found']);
-            $this->assertEquals($processingId, $data['processing_id']);
-            $this->assertGreaterThanOrEqual(3, count($data['recent_logs']['entries'])); // Allow for more entries due to mount() logs
-            $this->assertNotNull($data['performance_metrics']);
-        } else {
-            // If feature not supported, just verify the status
-            return;
-        }
+        $data = $response->json();
+        $this->assertTrue($data['found']);
+        $this->assertEquals($processingId, $data['processing_id']);
+        $this->assertGreaterThanOrEqual(3, count($data['recent_logs']['entries'])); // Allow for more entries due to mount() logs
+        $this->assertNotNull($data['performance_metrics']);
 
         // Verify log entries contain our expected entries (allowing for additional entries from test execution)
         $entries = $data['recent_logs']['entries'];
@@ -181,15 +152,7 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId}/status?include_logs=true&log_limit=3");
 
-        // Should return 200 for full feature support or 500 if logs feature not supported
-        $this->assertContains($response->status(), [200, 500]);
-
-        if ($response->status() === 500) {
-            // Logs feature not supported in unified architecture
-            $this->markTestSkipped('Logs feature not supported in unified MediaController');
-
-            return;
-        }
+        $response->assertStatus(200);
 
         $data = $response->json();
         $entries = $data['recent_logs']['entries'];
@@ -279,9 +242,7 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$invalidId}/status");
 
-        // Laravel returns 404 for routes that don't match properly, which is expected behavior
-        // This test validates that invalid processing IDs don't cause system errors
-        $this->assertContains($response->status(), [400, 404]);
+        $response->assertStatus(404);
     }
 
     #[Test]
@@ -302,7 +263,7 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
-        $this->assertContains($response->status(), [200, 500]);
+        $response->assertStatus(200);
 
         $data = $response->json();
         $this->assertTrue($data['found']);
@@ -333,7 +294,7 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
-        $this->assertContains($response->status(), [200, 500]);
+        $response->assertStatus(200);
 
         $data = $response->json();
         $metrics = $data['performance_metrics'];
@@ -377,7 +338,7 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId1}/status?include_logs=true");
 
-        $this->assertContains($response->status(), [200, 500]);
+        $response->assertStatus(200);
 
         $data = $response->json();
         $this->assertEquals($processingId1, $data['processing_id']);
@@ -416,7 +377,7 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
-        $this->assertContains($response->status(), [200, 500]);
+        $response->assertStatus(200);
 
         $data = $response->json();
         // Should only include the valid entries
@@ -434,9 +395,7 @@ class ProcessingLogsApiTest extends TestCase
 
         $response = $this->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
-        // Laravel may return 404 for unauthenticated requests to protected routes
-        // This test validates that unauthenticated requests don't succeed (neither 200 nor 202)
-        $this->assertContains($response->status(), [401, 404]);
+        $response->assertStatus(401);
     }
 
     #[Test]
@@ -463,7 +422,7 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$processingId}/status?include_logs=true");
 
-        $this->assertContains($response->status(), [200, 500]);
+        $response->assertStatus(200);
 
         $data = $response->json();
         $summary = $data['recent_logs']['summary'];

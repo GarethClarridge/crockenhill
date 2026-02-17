@@ -97,39 +97,27 @@ class AutomatedSermonApiSecurityTest extends TestCase
                 'file' => $maliciousFile,
             ]);
 
-        // Should be rejected due to content validation or pass validation but fail at processing
-        // 500 is also acceptable as it indicates the system rejected the malicious content
-        $this->assertContains($response->status(), [400, 422, 202, 500]);
-
-        if ($response->status() === 400) {
-            $response->assertJson([
-                'success' => false,
-                'error_code' => 'INVALID_FILE',
+        $response->assertStatus(202)
+            ->assertJson([
+                'success' => true,
             ]);
-        }
     }
 
     #[Test]
     public function it_prevents_path_traversal_attacks(): void
     {
         // Try to upload file with path traversal in name
-        $file = UploadedFile::fake()->create('../../../etc/passwd.mp3', 1024, 'audio/mpeg');
+        $file = UploadedFile::fake()->create('../../../etc/passwd.mp3', 64, 'audio/mpeg');
 
         $response = $this->actingAs($this->user)
             ->postJson('/api/media/audio', [
                 'file' => $file,
             ]);
 
-        // Should handle safely without path traversal
-        // 500 is also acceptable as it indicates the system rejected the malicious content
-        $this->assertContains($response->status(), [202, 400, 422, 500]);
-
-        if ($response->status() === 202) {
-            // If upload succeeds, verify the file was stored safely with sanitized filename
-            $this->assertDatabaseHas('media_processing_logs', [
-                'original_filename' => 'passwd.mp3', // Path traversal components should be removed
-            ]);
-        }
+        $response->assertStatus(202);
+        $this->assertDatabaseHas('media_processing_logs', [
+            'original_filename' => 'passwd.mp3', // Path traversal components should be removed
+        ]);
     }
 
     #[Test]
@@ -140,19 +128,11 @@ class AutomatedSermonApiSecurityTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$maliciousId}/status");
 
-        // Should return 404 for malformed IDs (current behavior) or 400 (validation behavior)
-        $this->assertContains($response->status(), [400, 404]);
-
-        if ($response->status() === 400) {
-            $response->assertJson([
+        $response->assertStatus(400)
+            ->assertJson([
                 'found' => false,
                 'message' => 'Invalid processing ID format',
             ]);
-        } else {
-            $response->assertJson([
-                'found' => false,
-            ]);
-        }
     }
 
     #[Test]
@@ -190,29 +170,22 @@ class AutomatedSermonApiSecurityTest extends TestCase
                 'file' => $largeFile,
             ]);
 
-        // Should return 422 for validation errors or 500 if rejected before validation
-        // Both indicate the system is properly rejecting oversized files
-        $this->assertContains($response->status(), [422, 500]);
-
-        if ($response->status() === 422) {
-            $response->assertJsonValidationErrors(['file']);
-        }
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['file']);
     }
 
     #[Test]
     public function it_prevents_zip_bomb_attacks(): void
     {
         // Create a file that could be a compressed bomb
-        $suspiciousFile = UploadedFile::fake()->create('suspicious.mp3', 1024, 'audio/mpeg');
+        $suspiciousFile = UploadedFile::fake()->create('suspicious.mp3', 64, 'audio/mpeg');
 
         $response = $this->actingAs($this->user)
             ->postJson('/api/media/audio', [
                 'file' => $suspiciousFile,
             ]);
 
-        // Should handle normally but with proper validation
-        // 500 is also acceptable as it indicates the system rejected the malicious content
-        $this->assertContains($response->status(), [202, 400, 422, 500]);
+        $response->assertStatus(202);
     }
 
     #[Test]
@@ -301,8 +274,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
             ->getJson("/api/media/processing/{$fakeId}/status");
         $time2 = microtime(true) - $start2;
 
-        // Both responses should be successful or handle gracefully
-        $this->assertContains($response1->status(), [200, 500]);
+        $response1->assertStatus(200);
         $response2->assertStatus(404);
 
         // Response times should be similar (within reasonable bounds)
@@ -339,30 +311,15 @@ class AutomatedSermonApiSecurityTest extends TestCase
                 ->postJson("/api/media/processing/{$processingId}/retry");
         }
 
-        // All should succeed with mocked service, or handle gracefully
-        $successCount = 0;
-        $statusCodes = [];
         foreach ($responses as $response) {
-            $statusCodes[] = $response->status();
-            if ($response->status() === 202) {
-                $successCount++;
-            } else {
-                // Should return appropriate error, not crash - allow any reasonable error code
-                $this->assertContains($response->status(), [400, 401, 403, 404, 409, 422, 429, 500]);
-            }
+            $response->assertStatus(202);
         }
-
-        // At least one should succeed or all should fail gracefully
-        $this->assertTrue(
-            $successCount >= 1 || count($statusCodes) === 3,
-            'Expected at least one success or all graceful failures, got status codes: '.implode(', ', $statusCodes)
-        );
     }
 
     #[Test]
     public function it_validates_content_type_headers(): void
     {
-        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
+        $file = UploadedFile::fake()->create('sermon.mp3', 64, 'audio/mpeg');
 
         // Try with incorrect content type
         $response = $this->actingAs($this->user)
@@ -373,9 +330,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
                 'Accept' => 'application/json',
             ]);
 
-        // Should handle gracefully - Laravel accepts different content types for file uploads
-        // 500 is also acceptable as it indicates the system rejected the malicious content
-        $this->assertContains($response->status(), [202, 400, 422, 500]);
+        $response->assertStatus(202);
     }
 
     #[Test]
@@ -404,9 +359,8 @@ class AutomatedSermonApiSecurityTest extends TestCase
             ])
             ->post('/api/media/audio', []);
 
-        // Should handle gracefully without crashing
-        // 500 is also acceptable as it indicates the system rejected the malicious content
-        $this->assertContains($response->status(), [400, 422, 500]);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['file']);
     }
 
     #[Test]
@@ -421,22 +375,14 @@ class AutomatedSermonApiSecurityTest extends TestCase
         $mockService->method('processSermon')->willReturn($mockResult);
         $this->app->instance(\App\Services\SermonProcessingService::class, $mockService);
 
-        // This would test rate limiting if implemented
-        // For now, verify multiple requests don't cause issues
-        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
-
-        $responses = [];
         for ($i = 0; $i < 5; $i++) {
-            $responses[] = $this->actingAs($this->user)
+            $file = UploadedFile::fake()->create("sermon-{$i}.mp3", 64, 'audio/mpeg');
+
+            $response = $this->actingAs($this->user)
                 ->postJson('/api/media/audio', [
                     'file' => $file,
                 ]);
-        }
-
-        // All should either succeed or be rate limited gracefully
-        // 422 is acceptable for validation errors, 500 is also acceptable as it indicates the system rejected the malicious content
-        foreach ($responses as $response) {
-            $this->assertContains($response->status(), [202, 422, 429, 500]);
+            $response->assertStatus(202);
         }
     }
 
@@ -445,19 +391,15 @@ class AutomatedSermonApiSecurityTest extends TestCase
     {
         // Try to trigger various error conditions and verify they don't leak sensitive info
         $testCases = [
-            ['invalid-uuid', [400, 404]], // Either validation or not found is acceptable
-            [(string) Str::uuid(), 404], // Non-existent ID
+            ['invalid id!', 400],
+            [(string) Str::uuid(), 404],
         ];
 
         foreach ($testCases as [$processingId, $expectedStatus]) {
             $response = $this->actingAs($this->user)
                 ->getJson("/api/media/processing/{$processingId}/status");
 
-            if (is_array($expectedStatus)) {
-                $this->assertContains($response->status(), $expectedStatus);
-            } else {
-                $response->assertStatus($expectedStatus);
-            }
+            $response->assertStatus($expectedStatus);
 
             // Verify response doesn't contain sensitive information
             $content = $response->getContent();

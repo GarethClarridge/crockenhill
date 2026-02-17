@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaValidationService;
 use App\Services\MetadataExtractionService;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\SermonAudioProcessingService;
@@ -26,6 +27,8 @@ class SermonAudioProcessingServiceTest extends TestCase
 
     private ProcessingPipelineBuilder $pipelineBuilder;
 
+    private MediaValidationService $mediaValidationService;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,17 +36,22 @@ class SermonAudioProcessingServiceTest extends TestCase
         // Mock dependencies
         $this->metadataService = $this->createMock(MetadataExtractionService::class);
         $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
+        $this->mediaValidationService = new MediaValidationService;
 
-        $this->service = new SermonAudioProcessingService($this->metadataService, $this->pipelineBuilder);
+        $this->service = new SermonAudioProcessingService(
+            $this->metadataService,
+            $this->pipelineBuilder,
+            $this->mediaValidationService
+        );
 
         // Setup storage fakes
         Storage::fake('public');
         Storage::fake('local');
 
         // Setup config defaults
-        Config::set('media-processing.processing.max_file_size', 10 * 1024 * 1024); // 10MB
-        Config::set('media-processing.processing.allowed_mime_types', ['audio/mpeg', 'audio/mp3']);
-        Config::set('media-processing.processing.allowed_extensions', ['mp3']);
+        Config::set('media-processing.types.audio.max_file_size', 10 * 1024 * 1024); // 10MB
+        Config::set('media-processing.types.audio.allowed_mimes', ['audio/mpeg', 'audio/mp3']);
+        Config::set('media-processing.types.audio.allowed_extensions', ['mp3']);
         Config::set('media-processing.storage.sermon_disk', 'public');
     }
 

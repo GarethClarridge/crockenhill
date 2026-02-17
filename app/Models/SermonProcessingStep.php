@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProcessingStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -91,7 +92,7 @@ class SermonProcessingStep extends Model
     public function markAsCancelled(?string $message = null): bool
     {
         return $this->update([
-            'status' => 'cancelled',
+            'status' => ProcessingStatus::CANCELLED->value,
             'message' => $message ?? 'Cancelled by user',
             'completed_at' => now(),
         ]);
@@ -126,6 +127,6 @@ class SermonProcessingStep extends Model
      */
     public function isCancelled(): bool
     {
-        return $this->status === 'cancelled';
+        return $this->status === ProcessingStatus::CANCELLED->value;
     }
 }

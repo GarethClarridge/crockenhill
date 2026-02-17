@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Livewire;
 
+use App\Data\StandardProcessingResponse;
 use App\Livewire\MediaUpload;
 use App\Models\User;
 use App\Services\ProcessingResult;
@@ -154,6 +155,61 @@ class MediaUploadTest extends TestCase
             ->assertSet('isUploading', false)
             ->assertSet('uploadCancelled', true)
             ->assertSet('status', 'idle');
+    }
+
+    #[Test]
+    public function it_handles_processing_cancellation_without_treating_it_as_failure(): void
+    {
+        $this->actingAs($this->admin);
+
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor->expects($this->once())
+            ->method('cancel')
+            ->with('proc-123')
+            ->willReturn([
+                'success' => true,
+                'message' => 'Processing cancelled successfully',
+            ]);
+
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
+
+        Livewire::test(MediaUpload::class)
+            ->set('processingId', 'proc-123')
+            ->set('status', 'processing')
+            ->call('cancelProcessing')
+            ->assertSet('status', 'cancelled')
+            ->assertSet('currentStep', 'Processing cancelled')
+            ->assertSet('errorMessage', null)
+            ->assertSet('cancelledMessage', 'Processing was cancelled by user.');
+    }
+
+    #[Test]
+    public function it_updates_to_cancelled_state_when_polling_processing_status(): void
+    {
+        $this->actingAs($this->admin);
+
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor->expects($this->once())
+            ->method('getStatus')
+            ->with('proc-456')
+            ->willReturn(StandardProcessingResponse::found(
+                processingId: 'proc-456',
+                status: 'cancelled',
+                currentStep: 'cancelled',
+                progressPercentage: 42
+            ));
+
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
+
+        Livewire::test(MediaUpload::class)
+            ->set('processingId', 'proc-456')
+            ->set('status', 'processing')
+            ->call('checkProcessingStatus')
+            ->assertSet('status', 'cancelled')
+            ->assertSet('currentStep', 'Processing cancelled')
+            ->assertSet('progressPercentage', 0)
+            ->assertSet('errorMessage', null)
+            ->assertSet('cancelledMessage', 'Processing was cancelled.');
     }
 
     #[Test]

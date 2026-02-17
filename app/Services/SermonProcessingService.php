@@ -179,11 +179,7 @@ class SermonProcessingService implements SermonProcessingServiceInterface
                 return false;
             }
 
-            $processingLog->update([
-                'status' => \App\Enums\ProcessingStatus::CANCELLED,
-                'error_message' => 'Processing cancelled by user',
-                'current_step' => 'cancelled',
-            ]);
+            $processingLog->markAsCancelled('Processing cancelled by user');
 
             $this->logger->logProcessingCompletion($processingId, false, 'Processing cancelled by user');
 

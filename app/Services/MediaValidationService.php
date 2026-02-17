@@ -80,6 +80,26 @@ class MediaValidationService
     /**
      * @return array<string>
      */
+    public function allowedExtensions(string $type): array
+    {
+        $this->assertValidType($type);
+
+        return config("media-processing.types.{$type}.allowed_extensions", []);
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function allowedMimes(string $type): array
+    {
+        $this->assertValidType($type);
+
+        return config("media-processing.types.{$type}.allowed_mimes", []);
+    }
+
+    /**
+     * @return array<string>
+     */
     public function supportedTypes(): array
     {
         return self::SUPPORTED_TYPES;
