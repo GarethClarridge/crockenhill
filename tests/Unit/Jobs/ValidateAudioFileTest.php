@@ -2,9 +2,9 @@
 
 namespace Tests\Unit\Jobs;
 
-use App\Contracts\AudioExtractionServiceInterface;
 use App\Jobs\ValidateAudioFile;
 use App\Models\MediaProcessingLog;
+use App\Services\AudioExtractionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -39,7 +39,7 @@ class ValidateAudioFileTest extends TestCase
             'original_filename' => 'sermon-2026-01-05.mp3',
         ]);
 
-        $mockExtractor = $this->createMock(AudioExtractionServiceInterface::class);
+        $mockExtractor = $this->createMock(AudioExtractionService::class);
         $mockExtractor->expects($this->once())
             ->method('validateAudioFile')
             ->with($this->anything());
@@ -63,7 +63,7 @@ class ValidateAudioFileTest extends TestCase
             'stored_file_path' => null,
         ]);
 
-        $mockExtractor = $this->createMock(AudioExtractionServiceInterface::class);
+        $mockExtractor = $this->createMock(AudioExtractionService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('error')->once();
@@ -87,7 +87,7 @@ class ValidateAudioFileTest extends TestCase
             'original_filename' => 'test.mp3',
         ]);
 
-        $mockExtractor = $this->createMock(AudioExtractionServiceInterface::class);
+        $mockExtractor = $this->createMock(AudioExtractionService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('error')->once();
@@ -121,7 +121,7 @@ class ValidateAudioFileTest extends TestCase
             'original_filename' => 'sermon.mp3',
         ]);
 
-        $mockExtractor = $this->createMock(AudioExtractionServiceInterface::class);
+        $mockExtractor = $this->createMock(AudioExtractionService::class);
         $mockExtractor->expects($this->once())
             ->method('validateAudioFile')
             ->willThrowException(new \Exception('Audio file is too short'));
@@ -166,7 +166,7 @@ class ValidateAudioFileTest extends TestCase
             'original_filename' => 'remote-audio.mp3',
         ]);
 
-        $mockExtractor = $this->createMock(AudioExtractionServiceInterface::class);
+        $mockExtractor = $this->createMock(AudioExtractionService::class);
         $mockExtractor->expects($this->once())
             ->method('validateAudioFile')
             ->with($this->anything());
@@ -198,7 +198,7 @@ class ValidateAudioFileTest extends TestCase
             'original_filename' => 'missing.mp3',
         ]);
 
-        $mockExtractor = $this->createMock(AudioExtractionServiceInterface::class);
+        $mockExtractor = $this->createMock(AudioExtractionService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('error')->once();

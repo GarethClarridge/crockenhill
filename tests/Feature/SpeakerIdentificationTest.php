@@ -6,7 +6,6 @@ use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerEmbeddingResult;
 use App\Data\SpeakerMatchResult;
 use App\Enums\PreacherSource;
-use App\Enums\ProcessingStatus;
 use App\Enums\SampleSource;
 use App\Jobs\IdentifySpeaker;
 use App\Models\MediaProcessingLog;
@@ -229,7 +228,7 @@ class SpeakerIdentificationTest extends TestCase
     {
         config(['media-processing.speaker_identification.enabled' => false]);
 
-        $log = MediaProcessingLog::factory()->audio()->create([
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
             'sermon_id' => Sermon::factory()->create()->id,
         ]);
 
@@ -248,7 +247,7 @@ class SpeakerIdentificationTest extends TestCase
     {
         config(['media-processing.speaker_identification.enabled' => true]);
 
-        $log = MediaProcessingLog::factory()->audio()->create(['sermon_id' => null]);
+        $log = MediaProcessingLog::factory()->audio()->pending()->create(['sermon_id' => null]);
 
         $this->instance(SpeakerIdentificationInterface::class, new NullSpeakerIdentificationService);
 
@@ -268,7 +267,7 @@ class SpeakerIdentificationTest extends TestCase
             'preacher_source' => PreacherSource::ID3->value,
         ]);
 
-        $log = MediaProcessingLog::factory()->audio()->create(['sermon_id' => $sermon->id]);
+        $log = MediaProcessingLog::factory()->audio()->pending()->create(['sermon_id' => $sermon->id]);
 
         $this->instance(SpeakerIdentificationInterface::class, new NullSpeakerIdentificationService);
 
@@ -292,7 +291,7 @@ class SpeakerIdentificationTest extends TestCase
             'duration' => 20.0,
         ]);
 
-        $log = MediaProcessingLog::factory()->audio()->create(['sermon_id' => $sermon->id]);
+        $log = MediaProcessingLog::factory()->audio()->pending()->create(['sermon_id' => $sermon->id]);
 
         $this->instance(SpeakerIdentificationInterface::class, new NullSpeakerIdentificationService);
 
@@ -348,12 +347,9 @@ class SpeakerIdentificationTest extends TestCase
             'duration' => 300.0,
         ]);
 
-        $log = MediaProcessingLog::factory()->audio()->create([
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
             'sermon_id' => $sermon->id,
             'source_file_path' => 'sermons/audio/test.mp3',
-            'status' => ProcessingStatus::PENDING,
-            'current_step' => 'identifying_speaker',
-            'error_message' => null,
         ]);
 
         $matchResult = SpeakerMatchResult::matched($profile->load('preacher'), 0.90, 0.70, [$profile->id => 0.90]);
@@ -393,7 +389,7 @@ class SpeakerIdentificationTest extends TestCase
             'duration' => 300.0,
         ]);
 
-        $log = MediaProcessingLog::factory()->audio()->create([
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
             'sermon_id' => $sermon->id,
             'source_file_path' => 'sermons/audio/test.mp3',
         ]);
@@ -432,7 +428,7 @@ class SpeakerIdentificationTest extends TestCase
             'duration' => 300.0,
         ]);
 
-        $log = MediaProcessingLog::factory()->audio()->create([
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
             'sermon_id' => $sermon->id,
             'source_file_path' => 'sermons/audio/test.mp3',
         ]);
@@ -479,7 +475,7 @@ class SpeakerIdentificationTest extends TestCase
             'needs_preacher_review' => true,
         ]);
 
-        $log = MediaProcessingLog::factory()->audio()->create([
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
             'sermon_id' => $sermon->id,
             'source_file_path' => 'sermons/audio/test.mp3',
         ]);
@@ -521,7 +517,7 @@ class SpeakerIdentificationTest extends TestCase
             'duration' => 300.0,
         ]);
 
-        $log = MediaProcessingLog::factory()->audio()->create([
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
             'sermon_id' => $sermon->id,
             'source_file_path' => 'sermons/audio/test.mp3',
         ]);
@@ -554,7 +550,7 @@ class SpeakerIdentificationTest extends TestCase
             'duration' => 300.0,
         ]);
 
-        $log = MediaProcessingLog::factory()->audio()->create([
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
             'sermon_id' => $sermon->id,
             'source_file_path' => 'sermons/audio/test.mp3',
         ]);

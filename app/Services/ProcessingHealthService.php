@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Contracts\ProcessingHealthServiceInterface;
 use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
  * Extracted from SermonProcessingService to follow Single Responsibility Principle.
  * Provides health monitoring capabilities for the media processing system.
  */
-class ProcessingHealthService implements ProcessingHealthServiceInterface
+class ProcessingHealthService
 {
     /**
      * Get processing statistics and metrics

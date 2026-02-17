@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Contracts\AudioExtractionServiceInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -15,7 +14,7 @@ use Illuminate\Support\Str;
  * Extracted from VideoProcessingService to follow Single Responsibility Principle.
  * Handles all audio-related operations including extraction from video and compression.
  */
-class AudioExtractionService implements AudioExtractionServiceInterface
+class AudioExtractionService
 {
     /**
      * Extract audio from video file optimized for transcription

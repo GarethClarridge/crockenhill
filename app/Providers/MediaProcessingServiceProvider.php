@@ -12,15 +12,10 @@ class MediaProcessingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Register core service interfaces that existing services depend on
-        $this->app->bind(\App\Contracts\VideoStorageServiceInterface::class, \App\Services\VideoStorageService::class);
-        $this->app->bind(\App\Contracts\AudioExtractionServiceInterface::class, \App\Services\AudioExtractionService::class);
-        $this->app->bind(\App\Contracts\SermonProcessingServiceInterface::class, \App\Services\SermonProcessingService::class);
-
         // Register supporting services that existing services depend on
         $this->app->bind(\App\Services\LivestreamSegmentationService::class, function ($app) {
             return new \App\Services\LivestreamSegmentationService(
-                $app->make(\App\Contracts\VideoStorageServiceInterface::class),
+                $app->make(\App\Services\VideoStorageService::class),
                 $app->make(\App\Services\VideoSegmentationService::class),
                 $app->make(\App\Services\ProcessingPipelineBuilder::class),
                 $app->make(\App\Services\ProcessingInitiator::class)

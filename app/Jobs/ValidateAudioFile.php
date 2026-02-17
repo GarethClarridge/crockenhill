@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Contracts\AudioExtractionServiceInterface;
 use App\Models\MediaProcessingLog;
+use App\Services\AudioExtractionService;
 use App\Traits\DetectsStorageType;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -29,7 +29,7 @@ class ValidateAudioFile implements ShouldQueue
         private MediaProcessingLog $processingLog
     ) {}
 
-    public function handle(AudioExtractionServiceInterface $audioExtractor): void
+    public function handle(AudioExtractionService $audioExtractor): void
     {
         Log::info('Validating audio file', [
             'processing_id' => $this->processingLog->processing_id,

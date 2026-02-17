@@ -2,13 +2,13 @@
 
 namespace Tests\Unit\Services;
 
-use App\Contracts\VideoStorageServiceInterface;
 use App\Models\MediaProcessingLog;
 use App\Services\LivestreamSegmentationService;
 use App\Services\ProcessingInitiator;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
 use App\Services\VideoSegmentationService;
+use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -24,7 +24,7 @@ class LivestreamSegmentationServiceTest extends TestCase
 
     private LivestreamSegmentationService $service;
 
-    private VideoStorageServiceInterface|Mockery\MockInterface $storageService;
+    private VideoStorageService|Mockery\MockInterface $storageService;
 
     private VideoSegmentationService|Mockery\MockInterface $segmentationService;
 
@@ -42,7 +42,7 @@ class LivestreamSegmentationServiceTest extends TestCase
         Config::set('media-processing.queue.name', 'default');
         Config::set('media-processing.email.admin_email', 'admin@test.com');
 
-        $this->storageService = Mockery::mock(VideoStorageServiceInterface::class);
+        $this->storageService = Mockery::mock(VideoStorageService::class);
         $this->segmentationService = Mockery::mock(VideoSegmentationService::class);
         $this->pipelineBuilder = Mockery::mock(ProcessingPipelineBuilder::class);
         $this->processingInitiator = Mockery::mock(ProcessingInitiator::class);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Contracts\SermonMetadataServiceInterface;
 use App\Data\SermonMetadata;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
@@ -18,7 +17,7 @@ use Illuminate\Support\Str;
  * Extracted from SermonProcessingService to follow Single Responsibility Principle.
  * Manages metadata extraction, fallback generation, and slug creation.
  */
-class SermonMetadataService implements SermonMetadataServiceInterface
+class SermonMetadataService
 {
     /**
      * Extract metadata from filename using various patterns

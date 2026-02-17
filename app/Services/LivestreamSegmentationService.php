@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Contracts\VideoStorageServiceInterface;
 use App\Data\LivestreamProcessingResult;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
@@ -14,7 +13,7 @@ use Illuminate\Support\Facades\Mail;
 class LivestreamSegmentationService
 {
     public function __construct(
-        private VideoStorageServiceInterface $storageService,
+        private VideoStorageService $storageService,
         private VideoSegmentationService $segmentationService,
         private ProcessingPipelineBuilder $pipelineBuilder,
         private ProcessingInitiator $processingInitiator

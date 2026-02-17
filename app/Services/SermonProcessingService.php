@@ -2,11 +2,10 @@
 
 namespace App\Services;
 
-use App\Contracts\SermonProcessingServiceInterface;
 use App\Data\StandardProcessingResponse;
 use Illuminate\Http\UploadedFile;
 
-class SermonProcessingService implements SermonProcessingServiceInterface
+class SermonProcessingService
 {
     public function __construct(
         private SermonAudioProcessingService $audioProcessingService,

@@ -49,15 +49,6 @@ class AudioExtractionServiceTest extends TestCase
         $this->assertInstanceOf(AudioExtractionService::class, $this->service);
     }
 
-    #[Test]
-    public function it_implements_audio_extraction_service_interface(): void
-    {
-        $this->assertInstanceOf(
-            \App\Contracts\AudioExtractionServiceInterface::class,
-            $this->service
-        );
-    }
-
     // ---- validateAudioFile ----
 
     #[Test]

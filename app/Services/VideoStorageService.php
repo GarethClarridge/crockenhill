@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Contracts\VideoStorageServiceInterface;
 use App\Data\LivestreamSegment;
 use App\Exceptions\VideoProcessingException;
 use App\Traits\DetectsStorageType;
@@ -13,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class VideoStorageService implements VideoStorageServiceInterface
+class VideoStorageService
 {
     use DetectsStorageType;
 
