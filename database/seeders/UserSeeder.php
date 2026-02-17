@@ -13,15 +13,13 @@ class UserSeeder extends Seeder
         $adminEmail = 'admin@crockenhill.org';
 
         // Ensure the admin user exists and stays up to date without duplicate key errors.
-        User::updateOrCreate(
-            ['email' => $adminEmail],
-            [
-                'name' => 'Admin User',
-                'password' => Hash::make('password'),
-                'is_admin' => true,
-                'email_verified_at' => now(),
-            ]
-        );
+        // Using firstOrNew and explicit assignment to bypass mass-assignment protection on is_admin.
+        $admin = User::firstOrNew(['email' => $adminEmail]);
+        $admin->name = 'Admin User';
+        $admin->password = Hash::make('password');
+        $admin->is_admin = true;
+        $admin->email_verified_at = now();
+        $admin->save();
 
         // Keep a stable baseline of seeded non-admin users.
         $targetRegularUsers = 9;

@@ -56,7 +56,10 @@ class ListUsers extends Component
             return;
         }
 
-        $user->update(['is_admin' => ! $user->is_admin]);
+        // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
+        $user->is_admin = ! $user->is_admin;
+        $user->save();
+
         $this->success($user->is_admin ? 'Admin granted' : 'Admin revoked');
     }
 

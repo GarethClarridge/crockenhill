@@ -59,17 +59,17 @@ class EditUser extends Component
 
         $validated = $this->validate();
 
-        $data = [
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'is_admin' => $validated['isAdmin'],
-        ];
+        $this->user->name = $validated['name'];
+        $this->user->email = $validated['email'];
+
+        // Set sensitive attributes via explicit assignment to bypass mass-assignment protection
+        $this->user->is_admin = $validated['isAdmin'];
 
         if ($this->changePassword) {
-            $data['password'] = Hash::make($validated['password']);
+            $this->user->password = Hash::make($validated['password']);
         }
 
-        $this->user->update($data);
+        $this->user->save();
 
         $this->success('User updated');
         $this->changePassword = false;
