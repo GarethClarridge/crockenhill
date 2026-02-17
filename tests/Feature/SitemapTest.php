@@ -239,20 +239,21 @@ class SitemapTest extends TestCase
     #[Test]
     public function sitemap_uses_flexible_caching(): void
     {
+        $sitemapService = app(\App\Services\SitemapService::class);
+        $filePath = $sitemapService->getFilePath();
+
         // Clear cache
         Cache::forget('sitemap');
 
         // First request should generate sitemap
         $response1 = $this->get('/sitemap.xml');
-        $this->assertFileExists(public_path('sitemap.xml'));
+        $this->assertFileExists($filePath);
 
-        // Modify the sitemap file slightly to detect if it's regenerated
-        $originalContent = file_get_contents(public_path('sitemap.xml'));
-        $modificationTime1 = filemtime(public_path('sitemap.xml'));
+        $modificationTime1 = filemtime($filePath);
 
         // Second request should serve cached version (no sleep needed - filemtime is precise enough)
         $response2 = $this->get('/sitemap.xml');
-        $modificationTime2 = filemtime(public_path('sitemap.xml'));
+        $modificationTime2 = filemtime($filePath);
 
         // File modification time should be the same (cached)
         $this->assertEquals($modificationTime1, $modificationTime2);
@@ -261,12 +262,15 @@ class SitemapTest extends TestCase
     #[Test]
     public function sitemap_file_is_created_in_public_directory(): void
     {
+        $sitemapService = app(\App\Services\SitemapService::class);
+
         Cache::forget('sitemap');
 
         $this->get('/sitemap.xml');
 
-        $this->assertFileExists(public_path('sitemap.xml'));
-        $this->assertGreaterThan(0, filesize(public_path('sitemap.xml')));
+        $filePath = $sitemapService->getFilePath();
+        $this->assertFileExists($filePath);
+        $this->assertGreaterThan(0, filesize($filePath));
     }
 
     #[Test]
