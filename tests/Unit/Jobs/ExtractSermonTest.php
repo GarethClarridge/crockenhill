@@ -27,6 +27,22 @@ class ExtractSermonTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['status' => 'cancelled']);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+
+        Log::shouldReceive('info')->once()->with('ExtractSermon job skipped: processing cancelled', \Mockery::any());
+
+        $job = new ExtractSermon($log);
+        $job->handle($mockExtractor, $mockStorage);
+    }
+
+    #[Test]
     public function it_throws_when_sermon_times_missing(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([

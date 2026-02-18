@@ -30,6 +30,14 @@ class PerformVisualAnalysis implements ShouldQueue
         SongClusteringService $clusteringService
     ): void {
         try {
+            if ($this->processingLog->isCancelled()) {
+                Log::info('PerformVisualAnalysis job skipped: processing cancelled', [
+                    'processing_id' => $this->processingLog->processing_id,
+                ]);
+
+                return;
+            }
+
             // Check if visual analysis is enabled
             if (! config('media-processing.visual_analysis.enabled', true)) {
                 Log::info('Visual analysis is disabled, skipping', [

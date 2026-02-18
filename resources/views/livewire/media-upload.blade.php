@@ -4,7 +4,7 @@
         fileModifiedDate: null,
         componentId: null,
         lastProgressUpdate: 0,
-        progressThrottleMs: 500,
+        progressThrottleMs: 5000,
         uploadTimeout: null,
         lastActivityTime: Date.now(),
 

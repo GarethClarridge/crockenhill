@@ -87,6 +87,21 @@ class PerformVisualAnalysisTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_when_processing_is_cancelled(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->create(['status' => 'cancelled']);
+
+        $mockVisualService = Mockery::mock(VisualAnalysisService::class);
+        $mockClusteringService = Mockery::mock(SongClusteringService::class);
+
+        $mockVisualService->shouldNotReceive('analyzeVideo');
+        $mockClusteringService->shouldNotReceive('clusterSongPeriods');
+
+        $job = new PerformVisualAnalysis($processingLog);
+        $job->handle($mockVisualService, $mockClusteringService);
+    }
+
+    #[Test]
     public function it_skips_when_visual_analysis_is_disabled(): void
     {
         Config::set('media-processing.visual_analysis.enabled', false);

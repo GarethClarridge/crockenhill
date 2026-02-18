@@ -174,6 +174,20 @@ class GenerateRmsLogTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['status' => 'cancelled']);
+
+        $mockService = $this->createMock(VideoSegmentationService::class);
+        $mockService->expects($this->never())->method('generateRmsLog');
+
+        Log::shouldReceive('info')->once()->with('GenerateRmsLog job skipped: processing cancelled', \Mockery::any());
+
+        $job = new GenerateRmsLog($log);
+        $job->handle($mockService);
+    }
+
+    #[Test]
     public function it_succeeds_when_file_exists_immediately(): void
     {
         config(['media-processing.storage.temp_disk' => 'local']);
