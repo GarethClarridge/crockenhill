@@ -210,17 +210,19 @@ class VisualAnalysisService
 
         try {
             $duration = $endTime - $startTime;
-            $frameRate = 60; // Default, could probe for actual framerate
-            $frameInterval = $sampleInterval * $frameRate;
 
-            // FFmpeg command with seek and duration for region extraction
+            // Use -ss before -i for fast keyframe seek, then -t to limit duration.
+            // fps=1/N as a video filter is much faster than the select filter approach
+            // because FFmpeg can seek between frames rather than decoding all of them.
             $command = [
                 config('media-processing.ffmpeg.ffmpeg_path'),
-                '-ss', (string) $startTime, // Seek to start time
+                '-ss', (string) $startTime, // Fast seek before input (keyframe accurate)
                 '-t', (string) $duration,   // Duration of region
+                '-skip_frame', 'noref',
                 '-threads', 'auto',
                 '-i', $videoPath,
-                '-vf', "select='not(mod(n\\,{$frameInterval}))',signalstats,metadata=mode=print:file={$fullMetricsLogPath}",
+                '-vf', "fps=1/{$sampleInterval},signalstats,metadata=mode=print:file={$fullMetricsLogPath}",
+                '-vsync', 'vfr',
                 '-f', 'null',
                 '-',
             ];
@@ -290,20 +292,17 @@ class VisualAnalysisService
         chmod($fullMetricsLogPath, 0644);
 
         try {
-            // Calculate frame selection for sampling interval
-            // Assuming 60fps, select every N frames where N = interval * 60
-            $frameRate = 60; // Default, could probe for actual framerate
-            $frameInterval = $sampleInterval * $frameRate;
-
-            // FFmpeg command to extract frame statistics
-            // Using signalstats filter for brightness and contrast
-            // Using convolution for edge detection
+            // Use -r 1/N as an input option so FFmpeg seeks between keyframes
+            // rather than decoding every frame. This is dramatically faster than
+            // the select filter which requires decoding all frames to count them.
             $command = [
                 config('media-processing.ffmpeg.ffmpeg_path'),
                 '-progress', 'pipe:1',
+                '-skip_frame', 'noref',   // Skip non-reference frames during decode
                 '-threads', 'auto',
                 '-i', $videoPath,
-                '-vf', "select='not(mod(n\\,{$frameInterval}))',signalstats,metadata=mode=print:file={$fullMetricsLogPath}",
+                '-vf', "fps=1/{$sampleInterval},signalstats,metadata=mode=print:file={$fullMetricsLogPath}",
+                '-vsync', 'vfr',
                 '-f', 'null',
                 '-',
             ];
