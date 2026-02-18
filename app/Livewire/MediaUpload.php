@@ -70,10 +70,6 @@ class MediaUpload extends Component
     // Upload progress tracking
     public int $uploadProgress = 0;           // 0-100 percentage
 
-    public ?int $uploadedBytes = null;        // Bytes uploaded so far
-
-    public ?int $totalBytes = null;           // Total file size in bytes
-
     public bool $isUploading = false;         // Track if upload is in progress
 
     public bool $uploadCancelled = false;     // Track if user cancelled upload
@@ -157,8 +153,6 @@ class MediaUpload extends Component
         $this->successMessage = null;
         $this->cancelledMessage = null;
         $this->uploadProgress = 0;
-        $this->uploadedBytes = null;
-        $this->totalBytes = null;
 
         $this->logInfo('MediaUpload: File upload started', [
             'media_type' => $this->mediaType,
@@ -390,8 +384,6 @@ class MediaUpload extends Component
         // Reset to idle state
         $this->status = 'idle';
         $this->uploadProgress = 0;
-        $this->uploadedBytes = null;
-        $this->totalBytes = null;
         $this->mediaFile = null;
         $this->errorMessage = null;
 
@@ -399,21 +391,13 @@ class MediaUpload extends Component
         // calling Livewire.find(componentId).cancelUpload('mediaFile')
     }
 
-    public function updateUploadProgress(int $progress, int $loaded, int $total): void
+    public function updateUploadProgress(int $progress): void
     {
         if ($this->uploadCancelled) {
             return; // Ignore updates after cancellation
         }
 
         $this->uploadProgress = $progress;
-        $this->uploadedBytes = $loaded;
-        $this->totalBytes = $total;
-
-        $this->logDebug('Upload progress updated', [
-            'progress' => $progress,
-            'loaded_mb' => round($loaded / 1024 / 1024, 2),
-            'total_mb' => round($total / 1024 / 1024, 2),
-        ]);
     }
 
     public function cancelProcessing(): void
@@ -544,8 +528,6 @@ class MediaUpload extends Component
         $this->isUploading = false;
         $this->uploadCancelled = false;
         $this->uploadProgress = 0;
-        $this->uploadedBytes = null;
-        $this->totalBytes = null;
         $this->mediaFile = null;
     }
 

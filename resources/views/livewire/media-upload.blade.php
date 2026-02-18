@@ -66,11 +66,9 @@
 
                 this.lastProgressUpdate = now;
                 const progress = Math.round(event.detail.progress);
-                const loaded = event.detail.loaded || 0;
-                const total = event.detail.total || 0;
 
-                console.log('Upload progress:', progress + '%', loaded, '/', total);
-                @this.call('updateUploadProgress', progress, loaded, total);
+                console.log('Upload progress:', progress + '%');
+                @this.call('updateUploadProgress', progress);
             });
 
             window.addEventListener('livewire-upload-finish', (event) => {
@@ -279,9 +277,6 @@
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-blue-700">
                                 {{ $uploadProgress }}%
-                                @if($uploadedBytes && $totalBytes)
-                                    <span x-text="'(' + formatBytes({{ $uploadedBytes }}) + ' / ' + formatBytes({{ $totalBytes }}) + ')'"></span>
-                                @endif
                             </span>
                             <span class="text-blue-600 text-xs">
                                 Processing will start automatically when upload completes

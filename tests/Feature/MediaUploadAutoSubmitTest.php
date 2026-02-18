@@ -46,9 +46,7 @@ class MediaUploadAutoSubmitTest extends TestCase
             ->assertSet('status', 'idle')
             ->assertSet('isUploading', false)
             ->assertSet('uploadCancelled', false)
-            ->assertSet('uploadProgress', 0)
-            ->assertSet('uploadedBytes', null)
-            ->assertSet('totalBytes', null);
+            ->assertSet('uploadProgress', 0);
     }
 
     #[Test]
@@ -56,16 +54,11 @@ class MediaUploadAutoSubmitTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        $uploaded = 500 * 1024 * 1024; // 500MB
-        $total = 1024 * 1024 * 1024; // 1GB
-
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'audio')
             ->set('isUploading', true)
-            ->call('updateUploadProgress', 50, $uploaded, $total)
-            ->assertSet('uploadProgress', 50)
-            ->assertSet('uploadedBytes', $uploaded)
-            ->assertSet('totalBytes', $total);
+            ->call('updateUploadProgress', 50)
+            ->assertSet('uploadProgress', 50);
     }
 
     #[Test]
@@ -77,10 +70,8 @@ class MediaUploadAutoSubmitTest extends TestCase
             ->set('mediaType', 'audio')
             ->set('isUploading', true)
             ->set('uploadCancelled', true)
-            ->call('updateUploadProgress', 50, 500 * 1024 * 1024, 1024 * 1024 * 1024)
-            ->assertSet('uploadProgress', 0)
-            ->assertSet('uploadedBytes', null)
-            ->assertSet('totalBytes', null);
+            ->call('updateUploadProgress', 50)
+            ->assertSet('uploadProgress', 0);
     }
 
     #[Test]
@@ -98,8 +89,6 @@ class MediaUploadAutoSubmitTest extends TestCase
             ->assertSet('uploadCancelled', true)
             ->assertSet('status', 'idle')
             ->assertSet('uploadProgress', 0)
-            ->assertSet('uploadedBytes', null)
-            ->assertSet('totalBytes', null)
             ->assertSet('mediaFile', null)
             ->assertSet('errorMessage', null);
     }
@@ -153,14 +142,10 @@ class MediaUploadAutoSubmitTest extends TestCase
             ->set('mediaType', 'audio')
             ->set('isUploading', true)
             ->set('uploadProgress', 75)
-            ->set('uploadedBytes', 750 * 1024 * 1024)
-            ->set('totalBytes', 1024 * 1024 * 1024)
             ->call('retryUpload')
             ->assertSet('isUploading', false)
             ->assertSet('uploadCancelled', false)
             ->assertSet('uploadProgress', 0)
-            ->assertSet('uploadedBytes', null)
-            ->assertSet('totalBytes', null)
             ->assertSet('mediaFile', null)
             ->assertSet('showUploadForm', true)
             ->assertSet('showProcessingStatus', false);
@@ -195,16 +180,10 @@ class MediaUploadAutoSubmitTest extends TestCase
     {
         $this->actingAs($this->user);
 
-        // Test with a 2GB file at 75% upload
-        $uploaded = (int) (2 * 1024 * 1024 * 1024 * 0.75); // 1.5GB
-        $total = 2 * 1024 * 1024 * 1024; // 2GB
-
         Livewire::test(MediaUpload::class)
             ->set('mediaType', 'livestream')
             ->set('isUploading', true)
-            ->call('updateUploadProgress', 75, $uploaded, $total)
-            ->assertSet('uploadProgress', 75)
-            ->assertSet('uploadedBytes', $uploaded)
-            ->assertSet('totalBytes', $total);
+            ->call('updateUploadProgress', 75)
+            ->assertSet('uploadProgress', 75);
     }
 }
