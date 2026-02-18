@@ -27,7 +27,7 @@ class GenerateRmsLog implements ShouldQueue
     public function handle(VideoSegmentationService $segmentationService): void
     {
         try {
-            if ($this->processingLog->isCancelled()) {
+            if ($this->processingLog->fresh()->isCancelled()) {
                 Log::info('GenerateRmsLog job skipped: processing cancelled', [
                     'processing_id' => $this->processingLog->processing_id,
                 ]);

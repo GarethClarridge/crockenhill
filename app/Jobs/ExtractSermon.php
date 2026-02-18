@@ -29,7 +29,7 @@ class ExtractSermon implements ShouldQueue
     public function handle(VideoExtractionService $videoExtractor, VideoStorageService $storageService): void
     {
         try {
-            if ($this->processingLog->isCancelled()) {
+            if ($this->processingLog->fresh()->isCancelled()) {
                 Log::info('ExtractSermon job skipped: processing cancelled', [
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
