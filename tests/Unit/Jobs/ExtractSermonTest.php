@@ -27,23 +27,6 @@ class ExtractSermonTest extends TestCase
     }
 
     #[Test]
-    public function it_has_correct_retry_until_time(): void
-    {
-        $log = MediaProcessingLog::factory()->livestream()->create();
-
-        $job = new ExtractSermon($log);
-
-        $retryUntil = $job->retryUntil();
-
-        $this->assertInstanceOf(\DateTime::class, $retryUntil);
-        $this->assertEqualsWithDelta(
-            now()->addHours(1)->timestamp,
-            $retryUntil->getTimestamp(),
-            60
-        );
-    }
-
-    #[Test]
     public function it_throws_when_sermon_times_missing(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([

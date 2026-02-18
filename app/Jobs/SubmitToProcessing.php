@@ -233,9 +233,4 @@ class SubmitToProcessing implements ShouldQueue
 
         // Cleanup will be handled by the chain failure handler
     }
-
-    public function retryUntil(): \DateTime
-    {
-        return now()->addHours(2);
-    }
 }

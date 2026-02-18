@@ -25,7 +25,6 @@ class SubmitToProcessingTest extends TestCase
 
         $this->assertEquals(3, $job->tries);
         $this->assertEquals(1800, $job->timeout);
-        $this->assertInstanceOf(\DateTime::class, $job->retryUntil());
     }
 
     #[Test]
@@ -127,17 +126,5 @@ class SubmitToProcessingTest extends TestCase
 
         $log->refresh();
         $this->assertEquals('failed', $log->status->value);
-    }
-
-    #[Test]
-    public function retry_until_returns_two_hours_in_future(): void
-    {
-        $log = MediaProcessingLog::factory()->livestream()->pending()->make();
-        $job = new SubmitToProcessing($log);
-
-        $retryUntil = $job->retryUntil();
-
-        $this->assertInstanceOf(\DateTime::class, $retryUntil);
-        $this->assertGreaterThan(now()->addHour()->timestamp, $retryUntil->getTimestamp());
     }
 }

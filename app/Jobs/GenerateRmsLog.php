@@ -37,8 +37,21 @@ class GenerateRmsLog implements ShouldQueue
             $videoPath = Storage::disk(config('media-processing.storage.temp_disk'))
                 ->path($this->processingLog->source_file_path);
 
+            // Wait for file to be available (handles async upload/storage delays)
+            $maxAttempts = 5;
+            $attempt = 0;
+            while (! file_exists($videoPath) && $attempt < $maxAttempts) {
+                $attempt++;
+                Log::warning('Video file not yet available, waiting...', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'attempt' => $attempt,
+                    'expected_path' => $videoPath,
+                ]);
+                sleep(2); // Wait 2 seconds before retrying
+            }
+
             if (! file_exists($videoPath)) {
-                throw new \Exception('Video file not found: '.$videoPath);
+                throw new \Exception('Video file not found after waiting: '.$videoPath);
             }
 
             // Use livestream-specific file size limit since this job is only used for livestream processing
@@ -88,10 +101,5 @@ class GenerateRmsLog implements ShouldQueue
         );
 
         // Cleanup will be handled by the chain failure handler
-    }
-
-    public function retryUntil(): \DateTime
-    {
-        return now()->addHours(2);
     }
 }

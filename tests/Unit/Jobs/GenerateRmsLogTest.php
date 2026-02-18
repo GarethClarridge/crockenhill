@@ -23,19 +23,6 @@ class GenerateRmsLogTest extends TestCase
 
         $this->assertEquals(3, $job->tries);
         $this->assertEquals(3600, $job->timeout);
-        $this->assertInstanceOf(\DateTime::class, $job->retryUntil());
-    }
-
-    #[Test]
-    public function retry_until_returns_two_hours_in_future(): void
-    {
-        $log = MediaProcessingLog::factory()->livestream()->pending()->make();
-        $job = new GenerateRmsLog($log);
-
-        $retryUntil = $job->retryUntil();
-
-        $this->assertInstanceOf(\DateTime::class, $retryUntil);
-        $this->assertGreaterThan(now()->addHour()->timestamp, $retryUntil->getTimestamp());
     }
 
     #[Test]
@@ -52,12 +39,13 @@ class GenerateRmsLogTest extends TestCase
         $mockService = $this->createMock(VideoSegmentationService::class);
 
         Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->atLeast()->once(); // For file waiting attempts
         Log::shouldReceive('error')->atLeast()->once();
 
         $job = new GenerateRmsLog($log);
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessageMatches('/Video file not found/');
+        $this->expectExceptionMessageMatches('/Video file not found after waiting/');
 
         $job->handle($mockService);
     }
@@ -183,5 +171,37 @@ class GenerateRmsLogTest extends TestCase
         $log->refresh();
         $this->assertEquals('failed', $log->status->value);
         $this->assertStringContainsString('RMS log generation failed after', $log->error_message);
+    }
+
+    #[Test]
+    public function it_succeeds_when_file_exists_immediately(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['media-processing.types.livestream.max_file_size' => 2147483648]);
+
+        $tempDir = storage_path('app');
+        $videoFilename = 'test-immediate-'.uniqid().'.mp4';
+        $absolutePath = $tempDir.'/'.$videoFilename;
+        file_put_contents($absolutePath, 'fake-video-content');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'source_file_path' => $videoFilename,
+            'file_size' => 1024,
+        ]);
+
+        $mockService = $this->createMock(VideoSegmentationService::class);
+        $mockService->expects($this->once())
+            ->method('generateRmsLog')
+            ->willReturn('rms-logs/'.$log->processing_id.'.json');
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new GenerateRmsLog($log);
+        $job->handle($mockService);
+
+        $log->refresh();
+        $this->assertEquals('rms-logs/'.$log->processing_id.'.json', $log->rms_log_path);
+
+        @unlink($absolutePath);
     }
 }

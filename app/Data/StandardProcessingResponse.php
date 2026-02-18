@@ -309,12 +309,14 @@ class StandardProcessingResponse
         // Simple progress calculation based on common steps
         $stepProgress = match ($log->current_step) {
             'audio_processing_initiated', 'video_processing_initiated' => 10,
+            'visual_analysis' => 10,
             'validating' => 15,
+            'rms_generation' => 20,
             'extracting_audio' => 25,
-            'generating_rms' => 20,
+            'segmentation' => 30,
             'analyzing_segments' => 40,
-            'extracting_sermon' => 50,
-            'creating_sermon' => 60,
+            'extraction', 'extracting_sermon' => 50,
+            'sermon_creation', 'creating_sermon' => 60,
             'transcribing_audio', 'transcription_completed' => 70,
             'analyzing_transcript', 'ai_analysis_completed' => 85,
             'generating_thumbnail' => 90,

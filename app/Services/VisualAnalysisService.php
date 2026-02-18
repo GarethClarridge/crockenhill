@@ -36,9 +36,10 @@ class VisualAnalysisService
     /**
      * Analyze video for song periods using visual frame analysis
      *
+     * @param  ?\Closure(float $currentTime): void  $progressCallback
      * @return array<array{timestamp: float, classification: string, confidence: float, brightness: float, contrast: float, edge_density: float}>
      */
-    public function analyzeVideo(string $videoPath, ?int $sampleInterval = null): array
+    public function analyzeVideo(string $videoPath, ?int $sampleInterval = null, ?\Closure $progressCallback = null): array
     {
         $interval = $sampleInterval ?? $this->sampleInterval;
 
@@ -49,7 +50,7 @@ class VisualAnalysisService
             ]);
 
             // Extract frame metrics using FFmpeg
-            $metrics = $this->extractFrameMetrics($videoPath, $interval);
+            $metrics = $this->extractFrameMetrics($videoPath, $interval, $progressCallback);
 
             if (empty($metrics)) {
                 throw new \Exception('No frame metrics extracted from video');
@@ -271,9 +272,10 @@ class VisualAnalysisService
     /**
      * Extract frame metrics using FFmpeg signalstats filter
      *
+     * @param  ?\Closure(float $currentTime): void  $progressCallback
      * @return array<array{timestamp: float, brightness: float, contrast: float, edge_density: float}>
      */
-    public function extractFrameMetrics(string $videoPath, int $sampleInterval): array
+    public function extractFrameMetrics(string $videoPath, int $sampleInterval, ?\Closure $progressCallback = null): array
     {
         $metricsLogPath = 'temp/visual_metrics_'.Str::uuid().'.log';
         $fullMetricsLogPath = Storage::disk($this->tempDisk)->path($metricsLogPath);
@@ -298,6 +300,7 @@ class VisualAnalysisService
             // Using convolution for edge detection
             $command = [
                 config('media-processing.ffmpeg.ffmpeg_path'),
+                '-progress', 'pipe:1',
                 '-threads', 'auto',
                 '-i', $videoPath,
                 '-vf', "select='not(mod(n\\,{$frameInterval}))',signalstats,metadata=mode=print:file={$fullMetricsLogPath}",
@@ -307,7 +310,24 @@ class VisualAnalysisService
 
             $process = new Process($command);
             $process->setTimeout(3600); // 1 hour timeout
-            $process->run();
+
+            $lastReportedTime = 0.0;
+            $process->run(function (string $type, string $data) use ($progressCallback, &$lastReportedTime): void {
+                if ($progressCallback === null) {
+                    return;
+                }
+
+                // Parse FFmpeg progress output for time position
+                if (preg_match('/out_time_us=(\d+)/', $data, $matches)) {
+                    $currentTime = (float) $matches[1] / 1_000_000;
+
+                    // Only report every 60 seconds of video time to avoid log spam
+                    if ($currentTime - $lastReportedTime >= 60.0) {
+                        $lastReportedTime = $currentTime;
+                        $progressCallback($currentTime);
+                    }
+                }
+            });
 
             if (! $process->isSuccessful()) {
                 throw new \Exception('FFmpeg frame extraction failed: '.$process->getErrorOutput());

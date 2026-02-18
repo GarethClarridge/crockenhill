@@ -225,11 +225,6 @@ class AnalyzeSegments implements ShouldQueue
         // Cleanup will be handled by the chain failure handler
     }
 
-    public function retryUntil(): \DateTime
-    {
-        return now()->addHours(1);
-    }
-
     /**
      * Get visual clusters from processing log
      */

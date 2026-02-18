@@ -38,6 +38,17 @@ class PerformVisualAnalysis implements ShouldQueue
                 return;
             }
 
+            // Idempotency check: skip if visual analysis already completed
+            if ($this->processingLog->visual_sample_count !== null) {
+                Log::info('Visual analysis already completed, skipping re-run', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'sample_count' => $this->processingLog->visual_sample_count,
+                    'cluster_count' => count($this->processingLog->song_clusters ?? []),
+                ]);
+
+                return;
+            }
+
             Log::info('Starting visual analysis', [
                 'processing_id' => $this->processingLog->processing_id,
                 'log_id' => $this->processingLog->id,
@@ -49,14 +60,48 @@ class PerformVisualAnalysis implements ShouldQueue
             $videoPath = Storage::disk(config('media-processing.storage.temp_disk'))
                 ->path($this->processingLog->source_file_path);
 
+            // Wait for file to be available (handles async upload/storage delays)
+            $maxAttempts = 5;
+            $attempt = 0;
+            while (! file_exists($videoPath) && $attempt < $maxAttempts) {
+                $attempt++;
+                Log::warning('Video file not yet available, waiting...', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'attempt' => $attempt,
+                    'expected_path' => $videoPath,
+                ]);
+                sleep(2); // Wait 2 seconds before retrying
+            }
+
             if (! file_exists($videoPath)) {
-                throw new \Exception('Video file not found: '.$videoPath);
+                throw new \Exception('Video file not found after waiting: '.$videoPath);
             }
 
             $startTime = microtime(true);
+            $videoDuration = $this->processingLog->duration;
 
-            // Perform visual analysis
-            $visualSamples = $visualService->analyzeVideo($videoPath);
+            // Perform visual analysis with progress reporting
+            $progressCallback = function (float $currentTime) use ($videoDuration): void {
+                $percentage = $videoDuration > 0
+                    ? min(99, (int) round(($currentTime / $videoDuration) * 100))
+                    : 0;
+
+                Log::info('Visual analysis progress', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'position' => gmdate('H:i:s', (int) $currentTime),
+                    'duration' => gmdate('H:i:s', (int) $videoDuration),
+                    'percentage' => $percentage.'%',
+                ]);
+
+                $this->processingLog->update([
+                    'processing_metadata' => array_merge(
+                        $this->processingLog->processing_metadata ?? [],
+                        ['visual_analysis_progress' => $percentage]
+                    ),
+                ]);
+            };
+
+            $visualSamples = $visualService->analyzeVideo($videoPath, null, $progressCallback);
 
             if (empty($visualSamples)) {
                 Log::warning('No visual samples extracted, will fallback to RMS-only', [
@@ -188,10 +233,5 @@ class PerformVisualAnalysis implements ShouldQueue
         $this->processingLog->markAsFailed(
             'Visual analysis failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
-    }
-
-    public function retryUntil(): \DateTime
-    {
-        return now()->addHours(2);
     }
 }

@@ -111,6 +111,31 @@ class PerformVisualAnalysisTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_when_visual_analysis_already_completed(): void
+    {
+        Config::set('media-processing.visual_analysis.enabled', true);
+
+        $processingLog = MediaProcessingLog::factory()->create([
+            'status' => 'processing',
+            'visual_sample_count' => 42,
+        ]);
+
+        $mockVisualService = Mockery::mock(VisualAnalysisService::class);
+        $mockClusteringService = Mockery::mock(SongClusteringService::class);
+
+        // Services should not be called since analysis is already done
+        $mockVisualService->shouldNotReceive('analyzeVideo');
+        $mockClusteringService->shouldNotReceive('clusterSongPeriods');
+
+        $job = new PerformVisualAnalysis($processingLog);
+        $job->handle($mockVisualService, $mockClusteringService);
+
+        // Verify sample count was not changed
+        $processingLog->refresh();
+        $this->assertEquals(42, $processingLog->visual_sample_count);
+    }
+
+    #[Test]
     public function it_handles_no_visual_samples_gracefully(): void
     {
         Storage::fake('local');
