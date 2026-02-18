@@ -32,6 +32,8 @@ class GenerateRmsLog implements ShouldQueue
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
 
+                $this->batch()?->cancel();
+
                 return;
             }
 
