@@ -8,30 +8,34 @@ use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerEmbeddingResult;
 use App\Data\SpeakerMatchResult;
 use App\Models\SpeakerProfile;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationInterface
 {
     public function extractEmbedding(string $audioPath): SpeakerEmbeddingResult
     {
-        $absolutePath = $this->resolveAbsolutePath($audioPath);
-
-        if (! file_exists($absolutePath)) {
-            return SpeakerEmbeddingResult::failed("Audio file not found: {$absolutePath}");
-        }
+        $preparedAudio = $this->prepareAudioForExtraction($audioPath);
+        $absolutePath = $preparedAudio['absolute_path'];
+        $tempLocalPath = $preparedAudio['temp_local_path'];
 
         $pythonPath = config('media-processing.speaker_identification.python_path', 'python3');
         $scriptPath = config('media-processing.speaker_identification.script_path');
         $duration = config('media-processing.speaker_identification.extraction_duration', 60);
 
-        if (! $scriptPath || ! file_exists($scriptPath)) {
-            return SpeakerEmbeddingResult::failed("Extraction script not found: {$scriptPath}");
-        }
-
         try {
+            if (! file_exists($absolutePath)) {
+                return SpeakerEmbeddingResult::failed("Audio file not found: {$audioPath}");
+            }
+
+            if (! $scriptPath || ! file_exists($scriptPath)) {
+                return SpeakerEmbeddingResult::failed("Extraction script not found: {$scriptPath}");
+            }
+
             $result = Process::timeout(120)->run([
                 $pythonPath,
                 $scriptPath,
@@ -73,6 +77,10 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
             ]);
 
             return SpeakerEmbeddingResult::failed('Extraction exception: '.$e->getMessage());
+        } finally {
+            if ($tempLocalPath !== null && Storage::disk('local')->exists($tempLocalPath)) {
+                Storage::disk('local')->delete($tempLocalPath);
+            }
         }
     }
 
@@ -219,11 +227,70 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
         return $centroid;
     }
 
-    private function resolveAbsolutePath(string $audioPath): string
+    /**
+     * @return array{absolute_path:string,temp_local_path:string|null}
+     */
+    private function prepareAudioForExtraction(string $audioPath): array
     {
-        $sermonDisk = config('media-processing.storage.sermon_disk', 'public');
+        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+        $sermonFilesystem = Storage::disk($sermonDisk);
 
-        return Storage::disk($sermonDisk)->path($audioPath);
+        if ($this->usesRemoteStorage($sermonDisk)) {
+            return $this->downloadRemoteAudioToLocalTemp($sermonFilesystem, $audioPath);
+        }
+
+        return [
+            'absolute_path' => $sermonFilesystem->path($audioPath),
+            'temp_local_path' => null,
+        ];
+    }
+
+    /**
+     * @return array{absolute_path:string,temp_local_path:string|null}
+     */
+    private function downloadRemoteAudioToLocalTemp(FilesystemAdapter $filesystem, string $audioPath): array
+    {
+        if (! $filesystem->exists($audioPath)) {
+            return [
+                'absolute_path' => '',
+                'temp_local_path' => null,
+            ];
+        }
+
+        $extension = pathinfo($audioPath, PATHINFO_EXTENSION);
+        $tempLocalPath = 'temp/speaker-identification/'.Str::uuid().($extension ? ".{$extension}" : '.mp3');
+
+        Storage::disk('local')->makeDirectory(dirname($tempLocalPath));
+
+        $stream = $filesystem->readStream($audioPath);
+        if (! is_resource($stream)) {
+            return [
+                'absolute_path' => '',
+                'temp_local_path' => null,
+            ];
+        }
+
+        $written = Storage::disk('local')->writeStream($tempLocalPath, $stream);
+        fclose($stream);
+
+        if ($written === false) {
+            return [
+                'absolute_path' => '',
+                'temp_local_path' => null,
+            ];
+        }
+
+        return [
+            'absolute_path' => Storage::disk('local')->path($tempLocalPath),
+            'temp_local_path' => $tempLocalPath,
+        ];
+    }
+
+    private function usesRemoteStorage(string $disk): bool
+    {
+        $driver = (string) config("filesystems.disks.{$disk}.driver", 'local');
+
+        return $driver === 's3';
     }
 
     /**

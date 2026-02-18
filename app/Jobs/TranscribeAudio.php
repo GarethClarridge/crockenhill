@@ -8,6 +8,7 @@ use App\Models\Sermon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
@@ -66,7 +67,10 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             ]);
 
             // Transcribe the audio file
-            $transcript = $transcriptionService->transcribe($audioFilePath);
+            $transcript = $transcriptionService->transcribe(
+                $audioFilePath,
+                $this->processingLog->processing_id
+            );
 
             if (empty($transcript)) {
                 throw new \Exception('Transcription returned empty content');
@@ -172,5 +176,17 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
     {
         // Exponential backoff: 1 minute, 5 minutes, 15 minutes
         return [60, 300, 900];
+    }
+
+    /**
+     * Prevent duplicate workers from transcribing the same processing item at once.
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping('transcribe-audio-'.$this->processingLog->processing_id))
+                ->releaseAfter(30)
+                ->expireAfter($this->timeout + 120),
+        ];
     }
 }

@@ -7,6 +7,7 @@ use App\Jobs\TranscribeAudio;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -39,7 +40,7 @@ class TranscribeAudioTest extends TestCase
         $mockService = $this->createMock(TranscriptionServiceInterface::class);
         $mockService->expects($this->once())
             ->method('transcribe')
-            ->with('sermons/audio/test.mp3')
+            ->with('sermons/audio/test.mp3', 'test-proc-123')
             ->willReturn('This is the sermon transcript content.');
 
         $mockService->expects($this->once())
@@ -72,7 +73,7 @@ class TranscribeAudioTest extends TestCase
         $mockService = $this->createMock(TranscriptionServiceInterface::class);
         $mockService->expects($this->once())
             ->method('transcribe')
-            ->with('sermons/audio/sermon.mp3')
+            ->with('sermons/audio/sermon.mp3', $log->processing_id)
             ->willReturn('Transcript content.');
         $mockService->expects($this->once())
             ->method('storeTranscript')
@@ -97,7 +98,7 @@ class TranscribeAudioTest extends TestCase
         $mockService = $this->createMock(TranscriptionServiceInterface::class);
         $mockService->expects($this->once())
             ->method('transcribe')
-            ->with('sermons/audio/extracted.mp3')
+            ->with('sermons/audio/extracted.mp3', $log->processing_id)
             ->willReturn('Transcript content.');
         $mockService->expects($this->once())
             ->method('storeTranscript')
@@ -141,6 +142,7 @@ class TranscribeAudioTest extends TestCase
         $mockService = $this->createMock(TranscriptionServiceInterface::class);
         $mockService->expects($this->once())
             ->method('transcribe')
+            ->with('sermons/audio/test.mp3', $log->processing_id)
             ->willReturn('');
         $mockService->expects($this->once())
             ->method('cleanupOnFailure');
@@ -166,6 +168,7 @@ class TranscribeAudioTest extends TestCase
         $mockService = $this->createMock(TranscriptionServiceInterface::class);
         $mockService->expects($this->once())
             ->method('transcribe')
+            ->with('sermons/audio/test.mp3', $log->processing_id)
             ->willThrowException(new \Exception('Transcription API unavailable'));
         $mockService->expects($this->never())
             ->method('cleanupOnFailure'); // sermon_id is null
@@ -232,5 +235,19 @@ class TranscribeAudioTest extends TestCase
 
         $log->refresh();
         $this->assertEquals('failed', $log->status->value);
+    }
+
+    #[Test]
+    public function it_applies_without_overlapping_middleware_per_processing_id(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->pending()->make([
+            'processing_id' => 'proc-lock-123',
+        ]);
+
+        $job = new TranscribeAudio($log);
+        $middleware = $job->middleware();
+
+        $this->assertCount(1, $middleware);
+        $this->assertInstanceOf(WithoutOverlapping::class, $middleware[0]);
     }
 }

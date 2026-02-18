@@ -8,6 +8,7 @@ use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\Format\Audio\Mp3;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class AudioChunkingService
 {
@@ -67,6 +68,7 @@ class AudioChunkingService
     {
         $chunkDurationSeconds = self::CHUNK_DURATION_MINUTES * 60;
         $overlapSeconds = self::CHUNK_OVERLAP_SECONDS;
+        $chunkRunId = (string) Str::uuid();
 
         $ffmpeg = FFMpeg::create([
             'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
@@ -89,7 +91,7 @@ class AudioChunkingService
                 break;
             }
 
-            $chunkFilename = "chunk_{$processingId}_{$chunkIndex}.mp3";
+            $chunkFilename = "chunk_{$processingId}_{$chunkRunId}_{$chunkIndex}.mp3";
             $chunkPath = storage_path("app/temp/{$chunkFilename}");
 
             $tempDir = dirname($chunkPath);

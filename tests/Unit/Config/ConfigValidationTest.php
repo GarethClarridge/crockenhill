@@ -35,4 +35,14 @@ class ConfigValidationTest extends TestCase
     {
         $this->assertNotEmpty(config('media-processing.types.audio.queue'), 'media-processing.types.audio.queue is not set');
     }
+
+    #[Test]
+    public function it_configures_queue_retry_after_for_long_running_jobs(): void
+    {
+        $redisRetryAfter = (int) config('queue.connections.redis.retry_after', 0);
+        $databaseRetryAfter = (int) config('queue.connections.database.retry_after', 0);
+
+        $this->assertGreaterThanOrEqual(1800, $redisRetryAfter, 'Redis retry_after must exceed transcription timeout');
+        $this->assertGreaterThanOrEqual(1800, $databaseRetryAfter, 'Database retry_after must exceed transcription timeout');
+    }
 }
