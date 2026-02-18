@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\LivestreamProcessingResult;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
+use Illuminate\Bus\Batch;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -158,11 +159,22 @@ class LivestreamSegmentationService
     private function dispatchProcessingJobs(MediaProcessingLog $processingLog): void
     {
         $processingId = $processingLog->processing_id;
-        $jobs = $this->pipelineBuilder->buildLivestreamPipeline($processingLog);
+        $queueName = config('media-processing.queue.name', 'default');
 
-        Bus::chain($jobs)
-            ->catch(fn (\Throwable $e) => $this->handleProcessingFailure($processingId, $e))
-            ->onQueue(config('media-processing.queue.name', 'default'))
+        $parallelJobs = $this->pipelineBuilder->buildLivestreamParallelJobs($processingLog);
+        $chainJobs = $this->pipelineBuilder->buildLivestreamChainJobs($processingLog);
+
+        Bus::batch($parallelJobs)
+            ->then(function (Batch $batch) use ($chainJobs, $processingId, $queueName): void {
+                Bus::chain($chainJobs)
+                    ->catch(fn (\Throwable $e) => $this->handleProcessingFailure($processingId, $e))
+                    ->onQueue($queueName)
+                    ->dispatch();
+            })
+            ->catch(function (Batch $batch, \Throwable $e) use ($processingId): void {
+                $this->handleProcessingFailure($processingId, $e);
+            })
+            ->onQueue($queueName)
             ->dispatch();
     }
 

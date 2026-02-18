@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\MediaProcessingLog;
 use App\Services\SongClusteringService;
 use App\Services\VisualAnalysisService;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 
 class PerformVisualAnalysis implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use Batchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
@@ -80,8 +81,14 @@ class PerformVisualAnalysis implements ShouldQueue
             $startTime = microtime(true);
             $videoDuration = $this->processingLog->duration;
 
-            // Perform visual analysis with progress reporting
-            $progressCallback = function (float $currentTime) use ($videoDuration): void {
+            // Perform visual analysis with progress reporting (throttled to one DB write per 30s)
+            $lastProgressUpdate = 0.0;
+            $progressCallback = function (float $currentTime) use ($videoDuration, &$lastProgressUpdate): void {
+                if ($currentTime - $lastProgressUpdate < 30.0) {
+                    return;
+                }
+                $lastProgressUpdate = $currentTime;
+
                 $percentage = $videoDuration > 0
                     ? min(99, (int) round(($currentTime / $videoDuration) * 100))
                     : 0;

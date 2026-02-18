@@ -10,6 +10,7 @@ use App\Services\LivestreamProcessingLogger;
 use App\Services\LivestreamSegmentationService;
 use App\Services\VideoSegmentationService;
 use App\Services\VideoStorageService;
+use Illuminate\Bus\PendingBatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -94,20 +95,14 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $processing = MediaProcessingLog::where('processing_id', $result->processingId)->first();
         $this->assertTrue(Storage::exists($processing->source_file_path));
 
-        // Verify job chain was dispatched with unified processing jobs
-        // Note: PerformVisualAnalysis runs first if visual analysis is enabled
-        Bus::assertChained([
-            \App\Jobs\PerformVisualAnalysis::class,        // NEW: Visual analysis
-            \App\Jobs\GenerateRmsLog::class,
-            \App\Jobs\AnalyzeSegments::class,
-            \App\Jobs\ExtractSermon::class,
-            \App\Jobs\SubmitToProcessing::class,
-            \App\Jobs\IdentifySpeaker::class,
-            \App\Jobs\TranscribeAudio::class,              // UNIFIED JOB
-            \App\Jobs\ProcessTranscriptWithAI::class,      // UNIFIED JOB
-            \App\Jobs\GenerateThumbnail::class,
-            \App\Jobs\CleanupTemporaryFiles::class,
-        ]);
+        // Verify PerformVisualAnalysis and GenerateRmsLog are dispatched as a batch (parallel phase)
+        Bus::assertBatched(function (PendingBatch $batch) {
+            $classes = $batch->jobs->map(fn ($job) => get_class($job))->all();
+
+            return in_array(\App\Jobs\PerformVisualAnalysis::class, $classes)
+                && in_array(\App\Jobs\GenerateRmsLog::class, $classes)
+                && count($classes) === 2;
+        });
     }
 
     public function test_segmentation_analysis_integration()

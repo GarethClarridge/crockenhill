@@ -29,4 +29,20 @@ abstract class TestCase extends BaseTestCase
         // race conditions in parallel test execution
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
     }
+
+    /**
+     * Clean up per-worker sitemap files written during parallel test runs.
+     */
+    protected function tearDown(): void
+    {
+        $token = config('app.test_token');
+        if ($token !== null) {
+            $path = public_path("sitemap-test-{$token}.xml");
+            if (file_exists($path)) {
+                unlink($path);
+            }
+        }
+
+        parent::tearDown();
+    }
 }

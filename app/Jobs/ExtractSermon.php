@@ -107,9 +107,9 @@ class ExtractSermon implements ShouldQueue
 
             // DEFENSIVE: Verify audio file actually exists before storing path in database
             $audioFullPath = $audioExtractionResult['full_path'];
-            $fileExists = $this->verifyAudioFileExists($storageService, $sermonAudioPath, $audioFullPath);
+            $audioFileExists = $this->verifyAudioFileExists($storageService, $sermonAudioPath, $audioFullPath);
 
-            if (! $fileExists) {
+            if (! $audioFileExists) {
                 throw new \Exception("Audio extraction claimed success but file does not exist: {$audioFullPath}");
             }
 
@@ -117,7 +117,7 @@ class ExtractSermon implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
                 'audio_path' => $sermonAudioPath,
                 'full_path' => $audioFullPath,
-                'file_exists' => $fileExists,
+                'file_exists' => $audioFileExists,
                 'verification_method' => $this->isS3Path($audioFullPath) ? 's3_storage' : 'local_filesystem',
             ]);
 
@@ -157,7 +157,7 @@ class ExtractSermon implements ShouldQueue
                 'final_audio_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
                 'compression_ratio' => $audioExtractionResult['compression_ratio'],
                 'valid_for_transcription' => $audioExtractionResult['valid_for_transcription'],
-                'file_exists_check' => $this->verifyAudioFileExists($storageService, $sermonAudioPath, $audioExtractionResult['full_path']),
+                'file_exists_check' => $audioFileExists,
             ]);
 
             // Job chain will automatically proceed to next job

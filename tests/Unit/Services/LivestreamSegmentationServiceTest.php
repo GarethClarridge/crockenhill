@@ -98,10 +98,11 @@ class LivestreamSegmentationServiceTest extends TestCase
                 return MediaProcessingLog::factory()->livestream()->pending()->create();
             });
 
-        $this->pipelineBuilder->shouldReceive('buildLivestreamPipeline')
-            ->andReturn([new \App\Jobs\CleanupTemporaryFiles(
-                MediaProcessingLog::factory()->livestream()->pending()->make()
-            )]);
+        $dummyLog = MediaProcessingLog::factory()->livestream()->pending()->make();
+        $this->pipelineBuilder->shouldReceive('buildLivestreamParallelJobs')
+            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
+        $this->pipelineBuilder->shouldReceive('buildLivestreamChainJobs')
+            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
     }
 
     // ---- Instantiation ----
@@ -190,10 +191,11 @@ class LivestreamSegmentationServiceTest extends TestCase
                 return MediaProcessingLog::factory()->livestream()->pending()->create();
             });
 
-        $this->pipelineBuilder->shouldReceive('buildLivestreamPipeline')
-            ->andReturn([new \App\Jobs\CleanupTemporaryFiles(
-                MediaProcessingLog::factory()->livestream()->pending()->make()
-            )]);
+        $dummyLog = MediaProcessingLog::factory()->livestream()->pending()->make();
+        $this->pipelineBuilder->shouldReceive('buildLivestreamParallelJobs')
+            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
+        $this->pipelineBuilder->shouldReceive('buildLivestreamChainJobs')
+            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
 
         $result = $this->service->startProcessing($file);
 
@@ -226,10 +228,11 @@ class LivestreamSegmentationServiceTest extends TestCase
             'processing_metadata' => ['file_format' => 'mp4'],
         ]);
 
-        $this->pipelineBuilder->shouldReceive('buildLivestreamPipeline')
-            ->andReturn([new \App\Jobs\CleanupTemporaryFiles(
-                MediaProcessingLog::factory()->livestream()->pending()->make()
-            )]);
+        $dummyLog = MediaProcessingLog::factory()->livestream()->pending()->make();
+        $this->pipelineBuilder->shouldReceive('buildLivestreamParallelJobs')
+            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
+        $this->pipelineBuilder->shouldReceive('buildLivestreamChainJobs')
+            ->andReturn([new \App\Jobs\CleanupTemporaryFiles($dummyLog)]);
 
         $result = $this->service->retryProcessing('retry-test-123');
 

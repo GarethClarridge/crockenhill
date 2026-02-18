@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Services\VideoSegmentationService;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
 
 class GenerateRmsLog implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use Batchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 

@@ -61,32 +61,40 @@ class ProcessingPipelineBuilder
     }
 
     /**
-     * Build job pipeline for livestream processing (unified with audio/video)
+     * Jobs to run in parallel at the start of the livestream pipeline.
+     * Always includes RMS generation; includes visual analysis if enabled.
+     *
+     * @return non-empty-list<object>
      */
-    public function buildLivestreamPipeline(MediaProcessingLog $log): array
+    public function buildLivestreamParallelJobs(MediaProcessingLog $log): array
     {
         $jobs = [];
 
-        // Visual analysis (if enabled) - runs before RMS analysis
         if (config('media-processing.visual_analysis.enabled', true)) {
             $jobs[] = new PerformVisualAnalysis($log);
         }
 
-        // RMS generation (always needed for segmentation)
         $jobs[] = new GenerateRmsLog($log);
 
-        // Segment analysis (uses visual results if available, falls back to RMS-only)
-        $jobs[] = new AnalyzeSegments($log);
-
-        // Continue with sermon extraction and processing
-        $jobs[] = new ExtractSermon($log);
-        $jobs[] = new SubmitToProcessing($log);
-        $jobs[] = new IdentifySpeaker($log);
-        $jobs[] = new TranscribeAudio($log);
-        $jobs[] = new ProcessTranscriptWithAI($log);
-        $jobs[] = new GenerateThumbnail($log);
-        $jobs[] = new CleanupTemporaryFiles($log);
-
         return $jobs;
+    }
+
+    /**
+     * Sequential jobs that run after the parallel phase completes.
+     *
+     * @return non-empty-list<object>
+     */
+    public function buildLivestreamChainJobs(MediaProcessingLog $log): array
+    {
+        return [
+            new AnalyzeSegments($log),
+            new ExtractSermon($log),
+            new SubmitToProcessing($log),
+            new IdentifySpeaker($log),
+            new TranscribeAudio($log),
+            new ProcessTranscriptWithAI($log),
+            new GenerateThumbnail($log),
+            new CleanupTemporaryFiles($log),
+        ];
     }
 }

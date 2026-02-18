@@ -109,52 +109,73 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertContains(GenerateThumbnail::class, $jobClasses);
     }
 
-    // --- buildLivestreamPipeline() ---
+    // --- buildLivestreamParallelJobs() ---
 
     #[Test]
-    public function it_builds_livestream_pipeline_with_visual_analysis_enabled(): void
+    public function it_builds_livestream_parallel_jobs_with_visual_analysis_enabled(): void
     {
         config(['media-processing.visual_analysis.enabled' => true]);
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
-        $jobs = $this->builder->buildLivestreamPipeline($log);
+        $jobs = $this->builder->buildLivestreamParallelJobs($log);
 
         $jobClasses = array_map(fn ($job) => get_class($job), $jobs);
         $this->assertContains(PerformVisualAnalysis::class, $jobClasses);
         $this->assertContains(GenerateRmsLog::class, $jobClasses);
-        $this->assertContains(AnalyzeSegments::class, $jobClasses);
+        $this->assertCount(2, $jobs);
     }
 
     #[Test]
-    public function it_excludes_visual_analysis_when_disabled(): void
+    public function it_excludes_visual_analysis_from_parallel_jobs_when_disabled(): void
     {
         config(['media-processing.visual_analysis.enabled' => false]);
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
-        $jobs = $this->builder->buildLivestreamPipeline($log);
+        $jobs = $this->builder->buildLivestreamParallelJobs($log);
 
         $jobClasses = array_map(fn ($job) => get_class($job), $jobs);
         $this->assertNotContains(PerformVisualAnalysis::class, $jobClasses);
+        $this->assertCount(1, $jobs);
     }
 
     #[Test]
-    public function it_always_includes_rms_generation_in_livestream_pipeline(): void
+    public function it_always_includes_rms_generation_in_parallel_jobs(): void
     {
         config(['media-processing.visual_analysis.enabled' => false]);
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
-        $jobs = $this->builder->buildLivestreamPipeline($log);
+        $jobs = $this->builder->buildLivestreamParallelJobs($log);
 
         $jobClasses = array_map(fn ($job) => get_class($job), $jobs);
         $this->assertContains(GenerateRmsLog::class, $jobClasses);
     }
 
+    // --- buildLivestreamChainJobs() ---
+
     #[Test]
-    public function it_includes_sermon_extraction_in_livestream_pipeline(): void
+    public function it_builds_livestream_chain_jobs_with_correct_sequence(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
-        $jobs = $this->builder->buildLivestreamPipeline($log);
+        $jobs = $this->builder->buildLivestreamChainJobs($log);
+
+        $this->assertCount(8, $jobs);
+        $this->assertInstanceOf(AnalyzeSegments::class, $jobs[0]);
+        $this->assertInstanceOf(ExtractSermon::class, $jobs[1]);
+        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[2]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[3]);
+        $this->assertInstanceOf(TranscribeAudio::class, $jobs[4]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[5]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[6]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[7]);
+    }
+
+    #[Test]
+    public function it_includes_sermon_extraction_in_livestream_chain_jobs(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $jobs = $this->builder->buildLivestreamChainJobs($log);
 
         $jobClasses = array_map(fn ($job) => get_class($job), $jobs);
         $this->assertContains(ExtractSermon::class, $jobClasses);
@@ -162,15 +183,33 @@ class ProcessingPipelineBuilderTest extends TestCase
     }
 
     #[Test]
-    public function it_includes_cleanup_as_last_step_in_livestream_pipeline(): void
+    public function it_includes_cleanup_as_last_step_in_livestream_chain_jobs(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
-        $jobs = $this->builder->buildLivestreamPipeline($log);
+        $jobs = $this->builder->buildLivestreamChainJobs($log);
 
         $lastJob = end($jobs);
         $this->assertInstanceOf(CleanupTemporaryFiles::class, $lastJob);
     }
+
+    #[Test]
+    public function it_includes_identify_speaker_after_submit_to_processing_in_livestream_chain_jobs(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $jobs = $this->builder->buildLivestreamChainJobs($log);
+        $classes = array_map(fn ($job) => get_class($job), $jobs);
+
+        $submitPos = array_search(SubmitToProcessing::class, $classes);
+        $identifyPos = array_search(IdentifySpeaker::class, $classes);
+        $transcribePos = array_search(TranscribeAudio::class, $classes);
+
+        $this->assertGreaterThan($submitPos, $identifyPos, 'IdentifySpeaker must come after SubmitToProcessing');
+        $this->assertGreaterThan($identifyPos, $transcribePos, 'TranscribeAudio must come after IdentifySpeaker');
+    }
+
+    // --- Shared pipeline checks ---
 
     #[Test]
     public function it_ends_with_cleanup_in_audio_pipeline(): void
@@ -194,8 +233,6 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(CleanupTemporaryFiles::class, $lastJob);
     }
 
-    // --- Pipeline structure comparisons ---
-
     #[Test]
     public function video_pipeline_has_more_jobs_than_audio_pipeline(): void
     {
@@ -217,7 +254,10 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $audioPipeline = $this->builder->buildAudioPipeline($audioLog);
         $videoPipeline = $this->builder->buildDirectVideoPipeline($videoLog);
-        $livestreamPipeline = $this->builder->buildLivestreamPipeline($livestreamLog);
+        $livestreamPipeline = array_merge(
+            $this->builder->buildLivestreamParallelJobs($livestreamLog),
+            $this->builder->buildLivestreamChainJobs($livestreamLog),
+        );
 
         foreach ([$audioPipeline, $videoPipeline, $livestreamPipeline] as $pipeline) {
             $classes = array_map(fn ($job) => get_class($job), $pipeline);
@@ -234,7 +274,10 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $audioPipeline = $this->builder->buildAudioPipeline($audioLog);
         $videoPipeline = $this->builder->buildDirectVideoPipeline($videoLog);
-        $livestreamPipeline = $this->builder->buildLivestreamPipeline($livestreamLog);
+        $livestreamPipeline = array_merge(
+            $this->builder->buildLivestreamParallelJobs($livestreamLog),
+            $this->builder->buildLivestreamChainJobs($livestreamLog),
+        );
 
         foreach ([$audioPipeline, $videoPipeline, $livestreamPipeline] as $pipeline) {
             $classes = array_map(fn ($job) => get_class($job), $pipeline);
@@ -251,7 +294,10 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $audioPipeline = $this->builder->buildAudioPipeline($audioLog);
         $videoPipeline = $this->builder->buildDirectVideoPipeline($videoLog);
-        $livestreamPipeline = $this->builder->buildLivestreamPipeline($livestreamLog);
+        $livestreamPipeline = array_merge(
+            $this->builder->buildLivestreamParallelJobs($livestreamLog),
+            $this->builder->buildLivestreamChainJobs($livestreamLog),
+        );
 
         foreach ([$audioPipeline, $videoPipeline, $livestreamPipeline] as $pipeline) {
             $classes = array_map(fn ($job) => get_class($job), $pipeline);
@@ -288,22 +334,6 @@ class ProcessingPipelineBuilderTest extends TestCase
         $transcribePos = array_search(TranscribeAudio::class, $classes);
 
         $this->assertGreaterThan($createPos, $identifyPos, 'IdentifySpeaker must come after CreateSermonRecord');
-        $this->assertGreaterThan($identifyPos, $transcribePos, 'TranscribeAudio must come after IdentifySpeaker');
-    }
-
-    #[Test]
-    public function it_includes_identify_speaker_after_submit_to_processing_in_livestream_pipeline(): void
-    {
-        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
-
-        $jobs = $this->builder->buildLivestreamPipeline($log);
-        $classes = array_map(fn ($job) => get_class($job), $jobs);
-
-        $submitPos = array_search(SubmitToProcessing::class, $classes);
-        $identifyPos = array_search(IdentifySpeaker::class, $classes);
-        $transcribePos = array_search(TranscribeAudio::class, $classes);
-
-        $this->assertGreaterThan($submitPos, $identifyPos, 'IdentifySpeaker must come after SubmitToProcessing');
         $this->assertGreaterThan($identifyPos, $transcribePos, 'TranscribeAudio must come after IdentifySpeaker');
     }
 }
