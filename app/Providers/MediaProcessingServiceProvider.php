@@ -25,15 +25,7 @@ class MediaProcessingServiceProvider extends ServiceProvider
         $this->app->bind(\App\Services\ProcessingLogService::class);
 
         // Register the unified processor
-        $this->app->bind(UnifiedMediaProcessor::class, function ($app) {
-            return new UnifiedMediaProcessor(
-                $app->make(\App\Services\LivestreamSegmentationService::class),
-                $app->make(SermonProcessingService::class),
-                $app->make(\App\Services\ProcessingPipelineBuilder::class),
-                $app->make(\App\Services\ProcessingLogService::class),
-                $app->make(\App\Services\ProcessingInitiator::class)
-            );
-        });
+        $this->app->bind(UnifiedMediaProcessor::class);
 
         // Register speaker identification service (provider-switchable via config)
         $this->app->bind(\App\Contracts\SpeakerIdentificationInterface::class, function ($app) {

@@ -480,6 +480,9 @@ class MediaUpload extends Component
             $statusResponse = $processor->getStatus($this->processingId);
 
             if ($statusResponse->found) {
+                $previousStatus = $this->status;
+                $previousProgress = $this->progressPercentage;
+
                 $this->status = $statusResponse->status;
                 $this->currentStep = $statusResponse->currentStep ?? $this->currentStep;
                 $this->progressPercentage = $statusResponse->progressPercentage ?? $this->progressPercentage;
@@ -504,11 +507,13 @@ class MediaUpload extends Component
                     $this->progressPercentage = 100;
                 }
 
-                $this->logDebug('Processing status updated', [
-                    'processing_id' => $this->processingId,
-                    'status' => $statusResponse->status,
-                    'progress' => $statusResponse->progressPercentage,
-                ]);
+                if ($this->status !== $previousStatus || $this->progressPercentage !== $previousProgress) {
+                    $this->logDebug('Processing status updated', [
+                        'processing_id' => $this->processingId,
+                        'status' => $statusResponse->status,
+                        'progress' => $statusResponse->progressPercentage,
+                    ]);
+                }
             }
         } catch (\Exception $e) {
             $this->logError('Failed to check processing status', [
