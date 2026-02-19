@@ -9,6 +9,7 @@ use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -70,6 +71,7 @@ class ProcessingInitiator
             'processing_id' => $processingId,
             'processing_type' => $processingType,
             'original_filename' => $file->getClientOriginalName(),
+            'owner_user_id' => Auth::id(),
             'status' => ProcessingStatus::PENDING,
             'current_step' => "{$processingType}_processing_initiated",
             'processing_metadata' => array_merge($baseMetadata, $extraMetadata),

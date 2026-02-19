@@ -8,6 +8,7 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 
@@ -64,6 +65,7 @@ class SermonJobPipelineService
         $logData = [
             'processing_id' => $processingId,
             'original_filename' => $originalFilename,
+            'owner_user_id' => Auth::id(),
             'status' => ProcessingStatus::PENDING,
             'current_step' => 'initiated_from_livestream',
         ];

@@ -6,6 +6,7 @@ use App\Data\SermonMetadata;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -57,6 +58,7 @@ class SermonAudioProcessingService
                 'processing_id' => $processingId,
                 'processing_type' => 'audio',
                 'original_filename' => $file->getClientOriginalName(),
+                'owner_user_id' => Auth::id(),
                 'source_file_path' => $storedFilePath,
                 'status' => ProcessingStatus::PENDING,
                 'current_step' => 'audio_processing_initiated',
@@ -276,6 +278,7 @@ class SermonAudioProcessingService
             'processing_id' => $processingId,
             'processing_type' => 'audio',
             'original_filename' => $originalFilename,
+            'owner_user_id' => Auth::id(),
             'status' => \App\Enums\ProcessingStatus::PENDING,
             'current_step' => 'initiated_from_livestream',
         ];
