@@ -53,7 +53,7 @@ $describedBy = implode(' ', $describedBy);
 
     @if($modelName)
         @error($modelName)
-            <p @if($id) id="{{ $id }}-error" @endif class="mt-1 text-sm text-red-600">{{ $message }}</p>
+            <p @if($id) id="{{ $id }}-error" @endif class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
         @enderror
     @endif
 </div>
