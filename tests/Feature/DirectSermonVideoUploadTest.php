@@ -31,6 +31,7 @@ class DirectSermonVideoUploadTest extends TestCase
         $this->user = User::factory()->create([
             'email' => 'test@crockenhill.org',
             'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
 
         // Mock the unified processor to avoid FFmpeg dependency in tests
@@ -139,6 +140,7 @@ class DirectSermonVideoUploadTest extends TestCase
         $testUser = User::factory()->create([
             'email' => 'rate-limit-test@crockenhill.org',
             'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
 
         $videoFile = UploadedFile::fake()->create('test-sermon.mp4', 100 * 1024, 'video/mp4');

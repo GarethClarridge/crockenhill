@@ -66,6 +66,7 @@ class UnifiedMediaProcessingTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@crockenhill.org',
             'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
         Sanctum::actingAs($user, ['*']);
 
@@ -88,6 +89,7 @@ class UnifiedMediaProcessingTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@crockenhill.org',
             'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
         Sanctum::actingAs($user, ['*']);
 
@@ -110,6 +112,7 @@ class UnifiedMediaProcessingTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@crockenhill.org',
             'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
         Sanctum::actingAs($user, ['*']);
 

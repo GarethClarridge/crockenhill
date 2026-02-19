@@ -41,7 +41,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         ]);
 
         // Create authenticated user
-        $user = \App\Models\User::factory()->create();
+        $user = \App\Models\User::factory()->create(['is_admin' => true]);
 
         $response = $this->actingAs($user, 'sanctum')
             ->getJson("/api/media/processing/{$processingId}/status");
@@ -81,7 +81,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         ]);
 
         // Create authenticated user
-        $user = \App\Models\User::factory()->create();
+        $user = \App\Models\User::factory()->create(['is_admin' => true]);
 
         $response = $this->actingAs($user, 'sanctum')
             ->getJson("/api/media/processing/{$processingId}/status");
@@ -107,7 +107,7 @@ class ProcessingStatusThumbnailTest extends TestCase
         ]);
 
         // Create authenticated user
-        $user = \App\Models\User::factory()->create();
+        $user = \App\Models\User::factory()->create(['is_admin' => true]);
 
         $response = $this->actingAs($user, 'sanctum')
             ->getJson("/api/media/processing/{$processingId}/status");
