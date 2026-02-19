@@ -5,7 +5,7 @@
 @stop
 
 @section('content')
-<main class="mb-3">
+<main id="main-content" class="mb-3">
 
   <article>
 
