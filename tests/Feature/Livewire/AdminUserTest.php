@@ -7,6 +7,7 @@ use App\Livewire\Admin\Users\EditUser;
 use App\Livewire\Admin\Users\ListUsers;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -14,6 +15,12 @@ use Tests\TestCase;
 class AdminUserTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Mail::fake();
+    }
 
     #[Test]
     public function list_users_component_renders_successfully_for_admin(): void
