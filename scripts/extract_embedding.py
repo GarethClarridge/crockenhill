@@ -17,6 +17,9 @@ import sys
 
 
 def extract(audio_path: str, duration: float) -> None:
+    import os
+    os.environ.setdefault("LIBROSA_CACHE_LEVEL", "0")
+
     try:
         from resemblyzer import VoiceEncoder, preprocess_wav
         import numpy as np
