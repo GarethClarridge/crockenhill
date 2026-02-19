@@ -18,7 +18,7 @@
 
 @section('content')
 
-<main id="home" class="text-sm -mt-px text-center">
+<main id="main-content" class="text-sm -mt-px text-center">
 
   {{-- Desktop Hero --}}
   <div class="full-width-head relative py-16 mb-16 hidden md:block overflow-hidden">

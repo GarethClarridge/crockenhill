@@ -147,7 +147,7 @@
                     <option value="livestream">📺 Full Livestream</option>
                 </select>
                 @error('mediaType')
-                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    <p class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
                 @enderror
 
                 {{-- Dynamic descriptions based on selection --}}
@@ -243,7 +243,7 @@
                     </div>
                     
                     @error('mediaFile')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        <p class="mt-1 text-sm text-red-600" role="alert">{{ $message }}</p>
                     @enderror
                 </div>
 

@@ -14,7 +14,7 @@ Church
 @stop
 
 @section('content')
-<main class="text-center">
+<main id="main-content" class="text-center">
 
   <x-h1>
     Church
