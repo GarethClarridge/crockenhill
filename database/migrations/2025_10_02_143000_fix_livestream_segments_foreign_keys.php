@@ -29,10 +29,7 @@ return new class extends Migration
             })
             ->delete();
 
-        Schema::table('livestream_segments', function (Blueprint $table): void {
-            $table->dropForeign(['processing_id']);
-            $table->dropForeign(['media_processing_log_id']);
-        });
+        $this->dropLivestreamSegmentForeignKeys();
 
         Schema::table('livestream_segments', function (Blueprint $table): void {
             // Add foreign key to media_processing_logs.processing_id
@@ -58,10 +55,7 @@ return new class extends Migration
             return;
         }
 
-        Schema::table('livestream_segments', function (Blueprint $table): void {
-            $table->dropForeign(['processing_id']);
-            $table->dropForeign(['media_processing_log_id']);
-        });
+        $this->dropLivestreamSegmentForeignKeys();
 
         // Only restore old foreign keys if the old table exists
         if (Schema::hasTable('livestream_processing_logs')) {
@@ -77,6 +71,35 @@ return new class extends Migration
                     ->on('livestream_processing_logs')
                     ->onDelete('cascade');
             });
+        }
+    }
+
+    private function dropLivestreamSegmentForeignKeys(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            Schema::table('livestream_segments', function (Blueprint $table): void {
+                $table->dropForeign(['processing_id']);
+                $table->dropForeign(['media_processing_log_id']);
+            });
+
+            return;
+        }
+
+        $constraints = DB::select(
+            "SELECT DISTINCT CONSTRAINT_NAME
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'livestream_segments'
+              AND REFERENCED_TABLE_NAME IS NOT NULL
+              AND COLUMN_NAME IN ('processing_id', 'processing_log_id', 'media_processing_log_id')"
+        );
+
+        foreach ($constraints as $constraint) {
+            if (isset($constraint->CONSTRAINT_NAME) && is_string($constraint->CONSTRAINT_NAME)) {
+                Schema::table('livestream_segments', function (Blueprint $table) use ($constraint): void {
+                    $table->dropForeign($constraint->CONSTRAINT_NAME);
+                });
+            }
         }
     }
 };
