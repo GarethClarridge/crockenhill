@@ -12,38 +12,29 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Clean up orphaned segments that reference non-existent processing logs
-        DB::statement('
-            DELETE FROM livestream_segments
-            WHERE processing_id NOT IN (SELECT processing_id FROM media_processing_logs)
-        ');
+        DB::table('livestream_segments')
+            ->whereNotIn('processing_id', function ($query): void {
+                $query->select('processing_id')->from('media_processing_logs');
+            })
+            ->delete();
 
-        DB::statement('
-            DELETE FROM livestream_segments
-            WHERE media_processing_log_id NOT IN (SELECT id FROM media_processing_logs)
-        ');
+        DB::table('livestream_segments')
+            ->whereNotIn('media_processing_log_id', function ($query): void {
+                $query->select('id')->from('media_processing_logs');
+            })
+            ->delete();
 
-        // Get existing foreign keys
-        $foreignKeys = DB::select("
-            SELECT CONSTRAINT_NAME
-            FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'livestream_segments'
-            AND CONSTRAINT_TYPE = 'FOREIGN KEY'
-        ");
-
-        Schema::table('livestream_segments', function (Blueprint $table) use ($foreignKeys) {
-            // Drop old foreign keys only if they exist
-            foreach ($foreignKeys as $fk) {
-                if (str_contains($fk->CONSTRAINT_NAME, 'processing_id') ||
-                    str_contains($fk->CONSTRAINT_NAME, 'processing_log_id') ||
-                    str_contains($fk->CONSTRAINT_NAME, 'media_processing_log_id')) {
-                    $table->dropForeign($fk->CONSTRAINT_NAME);
-                }
-            }
+        Schema::table('livestream_segments', function (Blueprint $table): void {
+            $table->dropForeign(['processing_id']);
+            $table->dropForeign(['media_processing_log_id']);
         });
 
-        Schema::table('livestream_segments', function (Blueprint $table) {
+        Schema::table('livestream_segments', function (Blueprint $table): void {
             // Add foreign key to media_processing_logs.processing_id
             $table->foreign('processing_id')
                 ->references('processing_id')
@@ -63,28 +54,18 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Get existing foreign keys
-        $foreignKeys = DB::select("
-            SELECT CONSTRAINT_NAME
-            FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'livestream_segments'
-            AND CONSTRAINT_TYPE = 'FOREIGN KEY'
-        ");
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
 
-        Schema::table('livestream_segments', function (Blueprint $table) use ($foreignKeys) {
-            // Drop foreign keys only if they exist
-            foreach ($foreignKeys as $fk) {
-                if (str_contains($fk->CONSTRAINT_NAME, 'processing_id') ||
-                    str_contains($fk->CONSTRAINT_NAME, 'media_processing_log_id')) {
-                    $table->dropForeign($fk->CONSTRAINT_NAME);
-                }
-            }
+        Schema::table('livestream_segments', function (Blueprint $table): void {
+            $table->dropForeign(['processing_id']);
+            $table->dropForeign(['media_processing_log_id']);
         });
 
         // Only restore old foreign keys if the old table exists
         if (Schema::hasTable('livestream_processing_logs')) {
-            Schema::table('livestream_segments', function (Blueprint $table) {
+            Schema::table('livestream_segments', function (Blueprint $table): void {
                 // Restore old foreign keys
                 $table->foreign('processing_id')
                     ->references('processing_id')
