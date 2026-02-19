@@ -44,7 +44,10 @@ class PodcastFeedService
     }
 
     /**
-     * Fetch sermons from database and enrich for feed
+     * Fetch sermons from database and enrich for feed.
+     *
+     * Performance Optimization: Eager loads 'preacherProfile' to prevent N+1 queries
+     * when generating the podcast summary for each sermon in the feed.
      *
      * @return Collection<int, Sermon>
      */
@@ -54,6 +57,7 @@ class PodcastFeedService
         $limit = config('podcast.items_limit', 100);
 
         return Sermon::forPodcast()
+            ->with('preacherProfile')
             ->forService($serviceType)
             ->limit($limit)
             ->get()

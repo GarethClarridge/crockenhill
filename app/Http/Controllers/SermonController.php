@@ -24,7 +24,9 @@ class SermonController extends Controller
             ->pluck('date');
 
         if ($distinct_dates->isNotEmpty()) {
-            // Eager load preacherProfile to prevent N+1 queries in sermon-card components
+            /**
+             * Performance Optimization: Eager load preacherProfile to prevent N+1 queries in sermon-card components
+             */
             $latest_sermons = Sermon::with('preacherProfile')
                 ->whereIn('date', $distinct_dates)
                 ->orderBy('date', 'desc')
@@ -42,7 +44,9 @@ class SermonController extends Controller
 
     public function getAll(): View
     {
-        // Eager load preacherProfile to prevent N+1 queries in sermon-card components
+        /**
+         * Performance Optimization: Eager load preacherProfile to prevent N+1 queries in sermon-card components
+         */
         $sermons = Sermon::with('preacherProfile')
             ->orderBy('date', 'desc')
             ->orderBy('service', 'asc')
@@ -101,9 +105,16 @@ class SermonController extends Controller
         ]);
     }
 
+    /**
+     * Display sermons for a specific preacher.
+     *
+     * Performance Optimization: Eager loads 'preacherProfile' to prevent N+1 queries
+     * when displaying sermon cards that access the preacher's name.
+     */
     public function getPreacher(Preacher $preacher): View
     {
         $sermons = $preacher->sermons()
+            ->with('preacherProfile')
             ->orderBy('date', 'desc')
             ->get();
 
@@ -125,7 +136,9 @@ class SermonController extends Controller
     public function getSeries(string $series): View
     {
         $series_name = str_replace('-', ' ', Str::title($series));
-        // Eager load preacherProfile to prevent N+1 queries in sermon-card components
+        /**
+         * Performance Optimization: Eager load preacherProfile to prevent N+1 queries in sermon-card components
+         */
         $sermons = Sermon::with('preacherProfile')
             ->where('series', $series_name)
             ->orderBy('date', 'desc')
@@ -138,7 +151,9 @@ class SermonController extends Controller
 
     public function getService(string $service): View
     {
-        // Eager load preacherProfile to prevent N+1 queries in sermon-card components
+        /**
+         * Performance Optimization: Eager load preacherProfile to prevent N+1 queries in sermon-card components
+         */
         $sermons = Sermon::with('preacherProfile')
             ->where('service', $service)
             ->orderBy('date', 'desc')
