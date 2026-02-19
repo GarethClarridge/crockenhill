@@ -30,6 +30,9 @@ class ViewServiceProvider extends ServiceProvider
      */
     public function boot(Request $request): void
     {
+        /**
+         * Provide the latest morning and evening sermons to the footer.
+         */
         View::composer('includes.footer', function ($view) {
             // get the latest sermons
             $morning = Sermon::where('service', SermonService::MORNING->value)
@@ -51,6 +54,10 @@ class ViewServiceProvider extends ServiceProvider
             $view->with('photos', $photos);
         });
 
+        /**
+         * Performance Optimization: Eager load 'media' relationship on Page queries
+         * used for related links and page cards to prevent N+1 query issues.
+         */
         View::composer('layouts/page', function ($view) {
             // User
             $user = Auth::user();
@@ -66,13 +73,17 @@ class ViewServiceProvider extends ServiceProvider
                 $headingpicture = $page->heading_image_url;
                 $area = $page->area->value;
                 $slug = $page->slug;
-                $links = Page::where('area', $area)
+
+                // Eager load media to prevent N+1 queries in page-card components
+                $links = Page::with('media')
+                    ->where('area', $area)
                     ->where('slug', '!=', $slug)
                     ->where('slug', '!=', 'privacy-policy')
                     ->where('admin', '!=', 'yes')
                     ->orderBy(DB::raw('RAND()'))
                     ->take(5)
                     ->get();
+
                 $view->with([
                     'description' => $description,
                     'heading' => $heading,
@@ -132,8 +143,9 @@ class ViewServiceProvider extends ServiceProvider
                         // Heading picture
                         $headingpicture = '/images/headings/large/'.$sermon_slug.'.webp';
 
-                        // Find relevant links
-                        $links = Page::where('area', $slug)
+                        // Find relevant links - eager load media for page-cards
+                        $links = Page::with('media')
+                            ->where('area', $slug)
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', 'homepage')
                             ->orderBy(DB::raw('RAND()'))
@@ -158,8 +170,9 @@ class ViewServiceProvider extends ServiceProvider
                     // Heading picture
                     $headingpicture = '/images/headings/large/'.$area.'.webp';
 
-                    // Find relevant links
-                    $links = Page::where('area', $area)
+                    // Find relevant links - eager load media for page-cards
+                    $links = Page::with('media')
+                        ->where('area', $area)
                         ->where('slug', '!=', $area)
                         ->where('slug', '!=', 'homepage')
                         ->orderBy(DB::raw('RAND()'))
@@ -186,22 +199,25 @@ class ViewServiceProvider extends ServiceProvider
                     // Heading picture
                     $headingpicture = '/images/headings/large/'.$slug.'.webp';
 
-                    // Links
+                    // Links - eager load media for page-cards
                     if (request()->segment(2) == 'sermons') {
-                        $links = Page::where('area', 'sermons')
+                        $links = Page::with('media')
+                            ->where('area', 'sermons')
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', $area)
                             ->orderBy('slug', 'asc')
                             ->get();
                     } elseif (request()->segment(2) == 'members') {
-                        $links = Page::where('area', 'sermons')
+                        $links = Page::with('media')
+                            ->where('area', 'sermons')
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', $area)
                             ->where('admin', '!=', 'yes')
                             ->orderBy('slug', 'asc')
                             ->get();
                     } else {
-                        $links = Page::where('area', $area)
+                        $links = Page::with('media')
+                            ->where('area', $area)
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', $area)
                             ->where('slug', '!=', 'privacy-policy')
@@ -236,16 +252,18 @@ class ViewServiceProvider extends ServiceProvider
                         $headingpicture = '/images/headings/large/'.$slug.'.webp';
                     }
 
-                    // Links
+                    // Links - eager load media for page-cards
                     if (request()->segment(2) == 'sermons') {
-                        $links = Page::where('area', 'sermons')
+                        $links = Page::with('media')
+                            ->where('area', 'sermons')
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', $area)
                             ->where('admin', '!=', 'yes')
                             ->orderBy('slug', 'asc')
                             ->get();
                     } elseif (request()->segment(2) == 'members') {
-                        $links = Page::where('area', 'sermons')
+                        $links = Page::with('media')
+                            ->where('area', 'sermons')
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', $area)
                             ->where('admin', '!=', 'yes')
@@ -254,14 +272,16 @@ class ViewServiceProvider extends ServiceProvider
                     } elseif (request()->segment(1) == 'community') {
                         // Community pages - meetings now pass page data directly from controller
                         // This block is now only used for non-meeting community pages
-                        $links = Page::where('area', $area)
+                        $links = Page::with('media')
+                            ->where('area', $area)
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', $area)
                             ->where('admin', '!=', 'yes')
                             ->orderBy('slug', 'asc')
                             ->get();
                     } else {
-                        $links = Page::where('area', $area)
+                        $links = Page::with('media')
+                            ->where('area', $area)
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', $area)
                             ->where('slug', '!=', 'privacy-policy')
@@ -298,8 +318,9 @@ class ViewServiceProvider extends ServiceProvider
                     // Heading picture
                     $headingpicture = '/images/headings/large/'.$area.'.webp';
 
-                    // Links
-                    $links = Page::where('area', $area)
+                    // Links - eager load media for page-cards
+                    $links = Page::with('media')
+                        ->where('area', $area)
                         ->where('slug', '!=', $area)
                         ->where('slug', '!=', 'privacy-policy')
                         ->where('admin', '!=', 'yes')
@@ -320,22 +341,33 @@ class ViewServiceProvider extends ServiceProvider
             }
         });
 
+        /**
+         * Performance Optimization: Eager load 'media' relationship for Page models
+         * in home and community pages to prevent N+1 query issues in page-card components.
+         */
         View::composer(['full-width-pages.home', 'full-width-pages.community'], function ($view) {
-            $pages = Page::all();
+            // Eager load media for components (like page-cards) that use images
+            $pages = Page::with('media')->get();
 
             $view->with([
                 'pages' => $pages,
             ]);
         });
 
+        /**
+         * Performance Optimization: Eager load 'media' relationship for Page models
+         * in church page to prevent N+1 query issues in page-card components.
+         */
         View::composer('full-width-pages.church', function ($view) {
-            $links = Page::where('area', 'church')
+            // Eager load media for page-cards
+            $links = Page::with('media')
+                ->where('area', 'church')
                 ->where('slug', '!=', 'privacy-policy')
                 ->where('slug', '!=', 'safeguarding-policy')
                 ->where('admin', '!=', 'yes')
                 ->get();
 
-            $pages = Page::all();
+            $pages = Page::with('media')->get();
 
             $view->with([
                 'pages' => $pages,
