@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Livewire;
 
+use App\Enums\PreacherSource;
+use App\Livewire\Admin\Sermons\EditSermon;
 use App\Livewire\Admin\Sermons\ListSermons;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -86,5 +88,77 @@ class AdminSermonTest extends TestCase
             ->assertDispatched('notify');
 
         $this->assertModelMissing($sermon);
+    }
+
+    #[Test]
+    public function edit_form_shows_review_banner_when_preacher_review_needed()
+    {
+        $this->actingAs($this->admin);
+
+        $sermon = Sermon::factory()->create([
+            'needs_preacher_review' => true,
+            'preacher_source' => PreacherSource::DEFAULT,
+            'preacher_confidence' => null,
+            'show_summary' => true,
+            'show_points' => true,
+        ]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $sermon])
+            ->assertSee('Preacher review required')
+            ->assertSee('No speaker could be automatically identified');
+    }
+
+    #[Test]
+    public function edit_form_shows_confidence_score_when_ai_identified_speaker()
+    {
+        $this->actingAs($this->admin);
+
+        $sermon = Sermon::factory()->create([
+            'needs_preacher_review' => true,
+            'preacher_source' => PreacherSource::SPEAKER_MODEL,
+            'preacher_confidence' => 0.73,
+            'show_summary' => true,
+            'show_points' => true,
+        ]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $sermon])
+            ->assertSee('Preacher review required')
+            ->assertSee('73%');
+    }
+
+    #[Test]
+    public function edit_form_does_not_show_review_banner_when_no_review_needed()
+    {
+        $this->actingAs($this->admin);
+
+        $preacher = Preacher::factory()->create();
+        $sermon = Sermon::factory()->withPreacher($preacher)->create([
+            'needs_preacher_review' => false,
+            'show_summary' => true,
+            'show_points' => true,
+        ]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $sermon])
+            ->assertDontSee('Preacher review required');
+    }
+
+    #[Test]
+    public function saving_edit_form_clears_preacher_review_flag()
+    {
+        $this->actingAs($this->admin);
+
+        $preacher = Preacher::factory()->create(['name' => 'John Doe']);
+        $sermon = Sermon::factory()->create([
+            'needs_preacher_review' => true,
+            'preacher_source' => PreacherSource::DEFAULT,
+            'show_summary' => true,
+            'show_points' => true,
+        ]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $sermon])
+            ->set('preacherId', $preacher->id)
+            ->call('save');
+
+        $this->assertFalse($sermon->fresh()->needs_preacher_review);
     }
 }

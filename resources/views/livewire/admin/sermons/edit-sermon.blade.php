@@ -28,6 +28,23 @@
                             required />
                     </div>
 
+                    @if($sermon->needs_preacher_review)
+                        <div class="rounded-md bg-amber-50 border border-amber-200 p-4">
+                            <div class="flex gap-3">
+                                <x-heroicon-o-exclamation-triangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                                <div class="text-sm text-amber-800">
+                                    <p class="font-medium mb-1">Preacher review required</p>
+                                    @if($sermon->preacher_source === \App\Enums\PreacherSource::SPEAKER_MODEL && $sermon->preacher_confidence !== null)
+                                        <p>The AI identified a speaker with {{ round($sermon->preacher_confidence * 100) }}% confidence. Please verify and confirm or correct the assignment below.</p>
+                                    @else
+                                        <p>No speaker could be automatically identified. Please assign the correct preacher below.</p>
+                                    @endif
+                                    <p class="mt-1 text-amber-600">Saving this form will clear the review flag.</p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     <x-select label="Preacher" wire:model.live="preacherId"
                         :options="$preachers->map(fn($name, $id) => ['id' => $id, 'name' => $name])->values()->toArray()"
                         placeholder="Select a preacher..." />

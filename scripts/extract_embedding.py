@@ -16,10 +16,11 @@ import json
 import os
 import sys
 
-# Disable librosa's joblib function-level caching before any imports.
-# On system-wide Python installs (e.g. Ubuntu's dist-packages), librosa's
-# cache decorator cannot locate source files and raises "no locator available".
-os.environ.setdefault("LIBROSA_CACHE_LEVEL", "0")
+# Numba JIT-compiles some librosa functions with cache=True, which requires it
+# to locate the source .py file to write a cache alongside it. On system-wide
+# Python installs (e.g. Ubuntu's dist-packages) Numba cannot resolve the file
+# path and raises "no locator available". Point it at a writable temp dir.
+os.environ.setdefault("NUMBA_CACHE_DIR", "/tmp/numba_cache")
 
 
 def extract(audio_path: str, duration: float) -> None:
