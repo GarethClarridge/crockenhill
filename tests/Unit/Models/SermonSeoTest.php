@@ -81,6 +81,8 @@ class SermonSeoTest extends TestCase
             'preacher' => 'John Smith',
             'summary' => 'This is a comprehensive summary about the grace of God and how it impacts our daily lives through faith and obedience.',
             'meta_description' => null,
+            'reference' => null,
+            'series' => null,
         ]);
 
         $metaDescription = $sermon->meta_description;
