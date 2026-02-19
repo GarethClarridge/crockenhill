@@ -243,7 +243,10 @@ use Illuminate\Support\Str;
 
     <div id="transcript-content" class="p-6 max-h-96 overflow-y-auto hidden">
       <div class="prose prose-gray max-w-none">
-        {!! Str::markdown($sermon->transcript) !!}
+        {!! Str::markdown($sermon->transcript, [
+          'html_input' => 'strip',
+          'allow_unsafe_links' => false,
+        ]) !!}
       </div>
     </div>
     
