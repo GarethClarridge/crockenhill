@@ -13,13 +13,16 @@ Errors are written to stderr with a non-zero exit code.
 
 import argparse
 import json
+import os
 import sys
+
+# Disable librosa's joblib function-level caching before any imports.
+# On system-wide Python installs (e.g. Ubuntu's dist-packages), librosa's
+# cache decorator cannot locate source files and raises "no locator available".
+os.environ.setdefault("LIBROSA_CACHE_LEVEL", "0")
 
 
 def extract(audio_path: str, duration: float) -> None:
-    import os
-    os.environ.setdefault("LIBROSA_CACHE_LEVEL", "0")
-
     try:
         from resemblyzer import VoiceEncoder, preprocess_wav
         import numpy as np
