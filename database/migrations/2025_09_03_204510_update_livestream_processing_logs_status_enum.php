@@ -10,6 +10,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         // For MySQL, we need to alter the enum to include new status values
         DB::statement("ALTER TABLE livestream_processing_logs MODIFY COLUMN status ENUM(
             'pending', 
@@ -32,6 +36,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         // Revert back to the original enum values
         DB::statement("ALTER TABLE livestream_processing_logs MODIFY COLUMN status ENUM(
             'pending', 
