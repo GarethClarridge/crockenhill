@@ -12,10 +12,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (DB::getDriverName() !== 'mysql') {
-            return;
-        }
-
         // Clean up orphaned segments that reference non-existent processing logs
         DB::statement('
             DELETE FROM livestream_segments
@@ -67,10 +63,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (DB::getDriverName() !== 'mysql') {
-            return;
-        }
-
         // Get existing foreign keys
         $foreignKeys = DB::select("
             SELECT CONSTRAINT_NAME

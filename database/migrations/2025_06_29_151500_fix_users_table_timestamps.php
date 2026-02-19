@@ -7,10 +7,6 @@ return new class extends Migration
 {
     public function up()
     {
-        if (DB::getDriverName() !== 'mysql') {
-            return;
-        }
-
         // Store current sql_mode
         $currentMode = DB::scalar('SELECT @@sql_mode');
 
@@ -33,10 +29,6 @@ return new class extends Migration
 
     public function down()
     {
-        if (DB::getDriverName() !== 'mysql') {
-            return;
-        }
-
         DB::statement('ALTER TABLE users MODIFY created_at TIMESTAMP NOT NULL');
         DB::statement('ALTER TABLE users MODIFY updated_at TIMESTAMP NOT NULL');
     }

@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -13,10 +12,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sermons', function (Blueprint $table) {
-            // Drop index first to avoid SQLite issues
-            if (DB::getDriverName() === 'sqlite') {
-                $table->dropIndex('sermons_source_type_index');
-            }
             // Modify the existing source_type enum to include video_upload
             $table->dropColumn('source_type');
         });
