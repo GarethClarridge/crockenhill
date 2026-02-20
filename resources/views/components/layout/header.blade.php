@@ -37,7 +37,7 @@
     </ul>
   </div>
 
-  <button class="inline-block align-right select-none font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline ms-4 text-right flex items-center justify-end" type="button" role="button" aria-label="Navigation" @click="expanded = ! expanded">
+  <button class="inline-block align-right select-none font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline ms-4 text-right flex items-center justify-end" type="button" role="button" aria-label="Navigation" @click="expanded = ! expanded" :aria-expanded="expanded" aria-controls="mobile-menu">
     <x-heroicon-m-bars-3 class="h-6 w-6" />
   </button>
 
@@ -68,7 +68,7 @@
 
 </div>
 
-<div x-show="expanded" x-transition class="absolute z-30 backdrop-blur-sm bg-gradient-to-r from-green-100/80 to-emerald-100/80 w-screen font-display p-6 leading-loose text-lg" tabindex="-1" x-cloak>
+<div x-show="expanded" x-transition id="mobile-menu" class="absolute z-30 backdrop-blur-sm bg-gradient-to-r from-green-100/80 to-emerald-100/80 w-screen font-display p-6 leading-loose text-lg" tabindex="-1" x-cloak>
   <ul class="grid grid-cols-3 text-center mt-3">
 
     <li class="">
