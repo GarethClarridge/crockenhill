@@ -57,6 +57,8 @@ class ListPages extends Component
     public function render()
     {
         $pages = Page::query()
+            ->select(['id', 'slug', 'heading', 'description', 'area', 'navigation', 'updated_at'])
+            ->with(['media', 'meeting'])
             ->when($this->search, fn ($q) => $q->where('heading', 'like', "%{$this->search}%")
                 ->orWhere('description', 'like', "%{$this->search}%"))
             ->when($this->areaFilter, fn ($q) => $q->where('area', $this->areaFilter))
