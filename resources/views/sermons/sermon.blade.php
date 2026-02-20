@@ -237,7 +237,7 @@ use Illuminate\Support\Str;
           :aria-expanded="expanded"
           aria-controls="transcript-content">
           <span x-text="expanded ? 'Hide Transcript' : 'Show Full Transcript'">Show Full Transcript</span>
-          <x-heroicon-o-chevron-down class="h-4 w-4 inline ml-1 transition-transform duration-200" :class="expanded ? 'rotate-180' : ''" />
+          <x-heroicon-o-chevron-down class="h-4 w-4 inline ml-1 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" />
         </button>
       </div>
 
