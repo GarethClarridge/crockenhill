@@ -73,19 +73,8 @@ class MeetingController extends Controller
             ->limit(3)
             ->get();
 
-        // Photos logic
-        $photos = [];
-        if ($meeting->pictures) {
-            $photoDir = public_path('images/meetings/'.$meeting->slug);
-            if (is_dir($photoDir)) {
-                $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                $pattern = implode(',', $allowed);
-                $photos = array_map(
-                    fn (string $path) => basename($path),
-                    glob("{$photoDir}/*.{$pattern}", GLOB_BRACE) ?: []
-                );
-            }
-        }
+        // Use canonical photo discovery from the model (media library + legacy fallback).
+        $photos = $meeting->photos;
 
         // Variables for the layout
         $page = $meeting->page;

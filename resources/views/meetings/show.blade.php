@@ -71,11 +71,11 @@
   </table>
 </div>
 
-@if (!empty($photos))
+@if ($photos->isNotEmpty())
 <div class="flex flex-wrap ">
   @foreach ($photos as $photo)
   <div class="md:w-1/2 pr-4 pl-4">
-    <img src="/images/meetings/{{$meeting->slug}}/{{$photo}}" width="100%" alt="">
+    <img src="{{ $photo['url'] }}" width="100%" alt="{{ $photo['name'] }}">
   </div>
   @endforeach
 </div>

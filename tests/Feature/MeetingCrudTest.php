@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Meeting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -85,6 +87,41 @@ class MeetingCrudTest extends TestCase
         $response->assertViewHas('meeting');
         $response->assertViewHas('photos');
         $response->assertViewHas('page');
+    }
+
+    #[Test]
+    public function test_meeting_show_loads_legacy_jpeg_photos(): void
+    {
+        $meeting = Meeting::factory()->create([
+            'slug' => 'legacy-photo-meeting',
+        ]);
+
+        $photoDirectory = public_path("images/meetings/{$meeting->slug}");
+        $photoFile = "{$photoDirectory}/legacy-photo.jpeg";
+
+        File::ensureDirectoryExists($photoDirectory);
+        File::put($photoFile, 'test-image-content');
+
+        try {
+            $response = $this->get("/community/{$meeting->slug}");
+
+            $response->assertStatus(200);
+            $response->assertViewHas('photos', function (mixed $photos) use ($meeting): bool {
+                if (! ($photos instanceof Collection)) {
+                    return false;
+                }
+
+                return $photos->contains(function (mixed $photo) use ($meeting): bool {
+                    if (! is_array($photo)) {
+                        return false;
+                    }
+
+                    return $photo['url'] === "/images/meetings/{$meeting->slug}/legacy-photo.jpeg";
+                });
+            });
+        } finally {
+            File::deleteDirectory($photoDirectory);
+        }
     }
 
     #[Test]
