@@ -3,43 +3,35 @@
 ])
 
 @if ($page)
-<div class="rounded-lg shadow bg-white border-1 border-gray-300 mb-4">
-  <div class="relative overflow-hidden bg-slate-200 aspect-video">
-      @if ($page->area == 'sermons')
-      <a href="/christ/sermons/{{$page->slug}}" wire:navigate>
-        @else
-        <a href="/{{$page->area}}/{{$page->slug}}" wire:navigate>
-          @endif
-          <img class="w-full h-full rounded-t-lg object-cover brightness-75 contrast-75 hover:scale-110 transition-all duration-500" src="{{ $page->heading_image_small_url ?? '/images/headings/small/default.webp' }}" alt="{{ $page->heading }}" onerror="this.onerror=null;this.src='/images/headings/small/default.webp';" loading="lazy" width="300" height="169">
-          <h5 class="leading-normal align-middle absolute top-1/3 left-0 right-0 text-white font-display text-2xl text-center">
+@php
+    $pageArea = $page->area instanceof \App\Enums\PageArea
+        ? $page->area->value
+        : (string) $page->area;
+
+    $pageUrl = $pageArea === 'sermons'
+        ? '/christ/sermons/'.$page->slug
+        : '/'.$pageArea.'/'.$page->slug;
+@endphp
+<div class="group mb-4 flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+    <a class="relative block aspect-video overflow-hidden bg-slate-200" href="{{ $pageUrl }}" wire:navigate>
+        <img class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115" src="{{ $page->heading_image_small_url ?? '/images/headings/small/default.webp' }}" alt="{{ $page->heading }}" onerror="this.onerror=null;this.src='/images/headings/small/default.webp';" loading="lazy" width="300" height="169">
+        <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent"></div>
+        <h5 class="absolute inset-x-5 top-1/2 -translate-y-1/2 text-center font-display text-3xl leading-[0.95] text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.45)] sm:text-4xl">
             {{ $page->heading }}
-          </h5>
-        </a>
+        </h5>
+    </a>
+
+    <div class="flex flex-1 items-center justify-center px-6 py-5">
+        <p class="mx-auto max-w-[30ch] text-center text-slate-700">
+            {{ $page->description }}
+        </p>
     </div>
 
-    <div class="p-6 prose text-center">
-      <p>
-        {{ $page->description }}
-      </p>
+    <a class="mt-auto flex w-full items-center justify-between gap-3 bg-[linear-gradient(120deg,#249a97_0%,#1d686a_55%,#145557_100%)] px-6 py-3.5 text-left font-normal text-white no-underline transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d686a] focus-visible:ring-offset-2" href="{{ $pageUrl }}" wire:navigate aria-label="Learn about {{ $page->heading }}">
+        <span>Learn about {{ $page->heading }}</span>
+        <x-heroicon-s-arrow-right-circle class="h-6 w-6 shrink-0 text-white/90" />
+    </a>
 
-      @if ($page->area == 'sermons')
-      <x-button link="/christ/sermons/{{$page->slug}}" size="sm">
-        <div class="flex items-center justify-center">
-          Learn about {{ $page->heading }}
-          <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
-        </div>
-      </x-button>
-      @else
-      <x-button link="/{{$page->area}}/{{$page->slug}}" size="sm">
-        <div class="flex items-center justify-center">
-          Learn about {{ $page->heading }}
-          <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
-        </div>
-      </x-button>
-      @endif
-
-      <x-edit-buttons slug="{{$page->slug}}" />
-
-    </div>
+    <x-edit-buttons slug="{{ $page->slug }}" />
 </div>
 @endif

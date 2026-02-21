@@ -39,4 +39,16 @@ class HomepageContentTest extends TestCase
         $this->assertSame(1, substr_count($content, 'href="#strengthening-believers"'));
         $this->assertSame(1, substr_count($content, 'href="#proclaiming-jesus-christ-to-all"'));
     }
+
+    #[Test]
+    public function homepage_renders_full_width_page_card_footer_ctas(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertStatus(200);
+
+        $content = (string) $response->getContent();
+
+        $this->assertGreaterThanOrEqual(2, substr_count($content, 'aria-label="Learn about '));
+    }
 }
