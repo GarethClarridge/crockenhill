@@ -75,15 +75,15 @@ Route::group(['prefix' => 'christ/sermons'], function () {
         ->name('showSermonWithDate');
     Route::get('/{year}/{month}/{sermon:slug}/edit', [SermonAdminController::class, 'editWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->middleware('auth')
+        ->middleware(['auth', 'admin'])
         ->name('editSermonWithDate');
     Route::post('/{year}/{month}/{sermon:slug}/edit', [SermonAdminController::class, 'updateWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->middleware('auth')
+        ->middleware(['auth', 'admin'])
         ->name('updateSermonWithDate');
     Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonAdminController::class, 'destroyWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->middleware('auth')
+        ->middleware(['auth', 'admin'])
         ->name('destroySermonWithDate');
 
     // Audio serving route
@@ -94,9 +94,9 @@ Route::group(['prefix' => 'christ/sermons'], function () {
 
     // Fallback slug-only routes
     Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');
-    Route::get('/{sermon:slug}/edit', [SermonAdminController::class, 'edit'])->middleware('auth')->name('editSermon');
-    Route::post('/{sermon:slug}/edit', [SermonAdminController::class, 'update'])->middleware('auth')->name('updateSermon');
-    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware('auth')->name('destroySermon');
+    Route::get('/{sermon:slug}/edit', [SermonAdminController::class, 'edit'])->middleware(['auth', 'admin'])->name('editSermon');
+    Route::post('/{sermon:slug}/edit', [SermonAdminController::class, 'update'])->middleware(['auth', 'admin'])->name('updateSermon');
+    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'admin'])->name('destroySermon');
 });
 
 // Members routes
@@ -160,18 +160,19 @@ Route::middleware('auth')->group(function () {
 
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
     Route::get('', MemberController::class)->name('memberHome');
-    // Pages resource removed - now handled by Filament at /admin/pages
-    // Meetings resource removed - now handled by Filament at /admin/meetings
 
-    // Calendar admin routes
-    Route::get('calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('admin.calendar.uncategorized');
-    Route::post('calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('admin.calendar.categorize');
-    Route::get('calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('admin.calendar.patterns');
-    Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
+    // Admin-only routes within members area
+    Route::middleware('admin')->group(function () {
+        // Calendar admin routes
+        Route::get('calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('admin.calendar.uncategorized');
+        Route::post('calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('admin.calendar.categorize');
+        Route::get('calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('admin.calendar.patterns');
+        Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
 
-    // Unified media upload route (replaces smart-upload)
-    Route::get('sermon-upload', [SermonAdminController::class, 'upload'])->name('admin.sermon-upload.create');
-    Route::post('sermon-upload', [SermonAdminController::class, 'processMedia'])->name('admin.sermon-upload.store');
+        // Unified media upload route (replaces smart-upload)
+        Route::get('sermon-upload', [SermonAdminController::class, 'upload'])->name('admin.sermon-upload.create');
+        Route::post('sermon-upload', [SermonAdminController::class, 'processMedia'])->name('admin.sermon-upload.store');
+    });
 });
 
 Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware('admin');

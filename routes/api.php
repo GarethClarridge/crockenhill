@@ -21,24 +21,24 @@ Route::prefix('sermons')->name('api.sermons.')->middleware('cors')->group(functi
         ->name('show');
 });
 
-// Unified media processing endpoints
-Route::prefix('media')->name('api.media.')->group(function () {
+// Unified media processing endpoints - restricted to admins
+Route::prefix('media')->name('api.media.')->middleware(['auth:sanctum', 'admin'])->group(function () {
     // Upload endpoints for each type
     Route::post('{type}', [MediaController::class, 'upload'])
         ->where('type', 'audio|video|livestream')
-        ->middleware(['cors', 'auth:sanctum', 'throttle:media-upload'])
+        ->middleware(['cors', 'throttle:media-upload'])
         ->name('upload');
+
+    // Processing management routes
+    Route::get('processing/{processingId}/status', [MediaController::class, 'status'])
+        ->middleware('throttle:api')
+        ->name('processing.status');
+
+    Route::delete('processing/{processingId}', [MediaController::class, 'cancel'])
+        ->middleware('throttle:api')
+        ->name('processing.cancel');
+
+    Route::post('processing/{processingId}/retry', [MediaController::class, 'retry'])
+        ->middleware('throttle:media-retry')
+        ->name('processing.retry');
 });
-
-// Processing management routes - defined separately to avoid nested group issues
-Route::get('media/processing/{processingId}/status', [MediaController::class, 'status'])
-    ->middleware(['auth:sanctum', 'throttle:api'])
-    ->name('api.media.processing.status');
-
-Route::delete('media/processing/{processingId}', [MediaController::class, 'cancel'])
-    ->middleware(['auth:sanctum', 'throttle:api'])
-    ->name('api.media.processing.cancel');
-
-Route::post('media/processing/{processingId}/retry', [MediaController::class, 'retry'])
-    ->middleware(['auth:sanctum', 'throttle:media-retry'])
-    ->name('api.media.processing.retry');

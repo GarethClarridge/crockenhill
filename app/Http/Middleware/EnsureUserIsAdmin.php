@@ -11,9 +11,9 @@ class EnsureUserIsAdmin
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next): \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+    public function handle(Request $request, Closure $next): \Symfony\Component\HttpFoundation\Response
     {
         if (! Auth::check() || ! Auth::user()->is_admin) {
             abort(403, 'Unauthorized action.');
