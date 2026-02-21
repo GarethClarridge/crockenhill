@@ -1,416 +1,277 @@
-# Comprehensive Project Review
+# Comprehensive Project Review (Updated)
 
 Date: February 21, 2026  
 Project: Crockenhill Laravel 12 (TALL stack)
 
 ## Executive Summary
 
-The codebase has strong foundations (Laravel 12 conventions in many areas, broad automated test coverage, passing static analysis, and meaningful security hardening), but maintainability risk is high due to architectural sprawl and incomplete migration away from legacy patterns.
+The project has solid foundations and meaningful recent improvements, but several high-impact maintainability and operational risks remain. The biggest issues are health-check coupling to external OpenAI availability, a hidden failing test suite excluded from default runs, an outdated schema dump strategy, and accumulated frontend/component complexity that works but is increasingly hard to reason about.
 
-The largest risks to simplicity and long-term reliability are:
+Current overall assessment:
 
-1. Queue routing mismatch for livestream-audio jobs (can strand production jobs).
-2. Over-centralized presentation logic in `ViewServiceProvider` (382 lines, mixed concerns, repeated query patterns).
-3. Incomplete service refactor around media processing (duplicated orchestration and retry logic).
-4. Mixed frontend architecture (Tailwind + legacy SCSS + large inline Alpine logic + large Livewire component classes).
-5. Stale code and legacy artifacts (dead container bindings, outdated Filament references/assets, backup files, placeholder health-check internals).
-
-Overall assessment:
-
-- Runtime correctness: **Good**, with a few concrete correctness bugs.
-- Security posture: **Improved**, with a few hardening inconsistencies.
-- Simplicity/maintainability: **Needs focused refactor cycles**.
-- TALL alignment: **Moderate** (good adoption, but uneven execution).
+| Area | Assessment |
+|---|---|
+| Runtime correctness | Good |
+| Operational resilience | Needs improvement |
+| Simplicity and maintainability | Moderate risk |
+| TALL alignment | Moderate (good direction, uneven consistency) |
+| Quality gates | Mostly green, with a meaningful blind spot |
 
 ## Scope and Method
 
-This review covered architecture, code quality, maintainability, and TALL best-practice alignment across routing, providers, controllers, Livewire components, services, models, frontend assets, and deployment configuration.
+This review covered architecture, code quality, maintainability, and TALL best-practice alignment across Laravel bootstrapping, routes, services, Livewire, Blade, tests, and deployment configuration.
 
-Verification commands run via Sail:
+Validation commands run (via Sail):
 
-1. `./vendor/bin/sail composer phpstan` -> **0 errors**.
-2. `./vendor/bin/sail artisan test --parallel --compact` -> **OK (1579 tests, 4590 assertions)**.
-3. `./vendor/bin/sail bin pint --dirty` -> **PASS (no changes required)**.
+1. `./vendor/bin/sail artisan test --parallel --compact` -> PASS (`1622` tests, `4783` assertions)
+2. `./vendor/bin/sail composer phpstan` -> PASS (`0` errors)
+3. `./vendor/bin/sail bin pint --dirty` -> PASS
+4. `./vendor/bin/sail artisan test --compact tests/Feature/ProcessingLogsViewerTest.php` -> FAIL (`5` failed, `10` passed)
 
-## Current Strengths
+## Strengths
 
-1. Media-processing API access control is significantly improved:
-   - `app/Http/Middleware/EnsureMediaProcessingAccess.php:21-33`
-   - `routes/api.php:30-36,42-47,51-56,60-65`
-2. Processing log visibility has owner-scoped access for non-admin users:
-   - `app/Models/MediaProcessingLog.php:190-197`
-   - `app/Services/UnifiedMediaProcessor.php:169-176`
-3. Safe markdown rendering is centralized:
-   - `app/Services/SafeMarkdownRenderer.php:14-17`
-   - `config/markdown.php:13-16`
-4. Quality gates are already part of day-to-day workflow and are currently green.
+1. Media processing is now centralized behind a unified entrypoint:
+   - `app/Http/Controllers/Api/MediaController.php:54`
+   - `app/Services/UnifiedMediaProcessor.php:33`
+2. Safe markdown rendering is centralized and used in admin page flows:
+   - `app/Services/SafeMarkdownRenderer.php:14`
+   - `app/Livewire/Admin/Pages/CreatePage.php:24`
+   - `app/Livewire/Admin/Pages/EditPage.php:35`
+3. API media processing routes are protected by Sanctum ability + custom middleware:
+   - `routes/api.php:28`
+   - `routes/api.php:40`
+4. Static analysis and formatting pipelines are healthy (currently no phpstan or pint drift).
 
 ## Findings (Prioritized)
 
 ### Critical
 
-#### C1. Queue mismatch can leave livestream-related job chains unprocessed
+#### C1. `/up` health endpoint is coupled to external OpenAI availability
 
 Evidence:
+- Container healthcheck probes `/up`: `Dockerfile:110`
+- Health route is wired through Laravel health diagnostics: `bootstrap/app.php:13`
+- `AppServiceProvider` throws exceptions on health check errors: `app/Providers/AppServiceProvider.php:44`
+- OpenAI health check performs live network request to `api.openai.com`: `app/HealthChecks/OpenAIHealthCheck.php:39`
+- Missing OpenAI key is treated as `error`: `app/HealthChecks/OpenAIHealthCheck.php:27`
 
-- Livestream audio chains are dispatched to `livestream-audio`:
-  - `app/Services/SermonAudioProcessingService.php:318,335`
-  - `app/Services/SermonJobPipelineService.php:36,53`
-- Worker queues do **not** include `livestream-audio`:
-  - `docker/production/supervisord.conf:30`
-  - `docker-compose.yml:48`
-
-Impact:
-
-- Real production jobs can remain queued indefinitely.
-- Operational failures present as "stuck processing" instead of explicit failures.
+Why this matters:
+- A third-party outage, network issue, or missing API key can mark the whole app unhealthy.
+- This can trigger avoidable restart loops and production instability.
 
 Recommendation:
+1. Keep `/up` strictly for local liveness/readiness (DB, cache, queue connectivity, disk writability).
+2. Move third-party dependency checks (OpenAI) to a separate diagnostics endpoint/job and report degraded state without failing liveness.
+3. Add alerting for external dependency degradation instead of process restarts.
 
-1. Standardize queue names in config and code (`config/media-processing.php` as single source).
-2. Add startup checks/tests validating dispatched queues are consumed by workers.
-3. Add alerting for queue age/length per queue.
+#### C2. A failing test suite is excluded from `phpunit.xml`
 
----
+Evidence:
+- Excluded test file: `phpunit.xml:15`
+- Exclusion rationale says polling hangs, but current failures are behavior drift assertions:
+  - `tests/Feature/ProcessingLogsViewerTest.php:106`
+  - `tests/Feature/ProcessingLogsViewerTest.php:190`
+  - `tests/Feature/ProcessingLogsViewerTest.php:227`
+  - `tests/Feature/ProcessingLogsViewerTest.php:294`
+  - `tests/Feature/ProcessingLogsViewerTest.php:347`
+- The component now fetches logs through `MediaController` contract, not direct log-file parsing assumptions used in the excluded test:
+  - `app/Livewire/ProcessingLogsViewer.php:92`
+  - `tests/Feature/Livewire/ProcessingLogsViewerTest.php:66`
+
+Why this matters:
+- Default green runs can hide regressions in an important operational UI.
+- Team confidence in “all green” is overstated.
+
+Recommendation:
+1. Decide one canonical Processing Logs Viewer test approach.
+2. Remove or rewrite `tests/Feature/ProcessingLogsViewerTest.php` to match current architecture.
+3. Re-enable coverage in the default suite once reconciled.
 
 ### High
 
-#### H1. Concrete photo-loading bug in meeting controller
+#### H1. Schema dump strategy is stale and creates migration risk
 
 Evidence:
+- Schema dump migration inserts stop at migration id `17`: `database/schema/mysql-schema.sql:245`
+- Current migration chain continues through February 2026, e.g.:
+  - `database/migrations/2026_02_19_120000_add_owner_user_id_to_media_processing_logs_table.php:1`
 
-- `glob` pattern is malformed for brace expansion:
-  - `app/Http/Controllers/MeetingController.php:82-86`
-  - Current pattern builds `*.jpg,jpeg,png,...` instead of `*.{jpg,jpeg,png,...}`.
-
-Impact:
-
-- Meeting photo discovery can silently fail.
+Why this matters:
+- A stale schema baseline increases risk of environment-specific migration behavior and harder-to-debug test bootstrap issues.
+- The project now has substantial schema evolution beyond the dumped state.
 
 Recommendation:
+1. Regenerate `database/schema/mysql-schema.sql` from current migrations.
+2. Add CI guard: fail if latest migration file is newer than dump marker.
+3. Alternatively remove schema dump usage and rely on full migration replay in CI for determinism.
 
-1. Fix the glob pattern immediately.
-2. Prefer using `Meeting::getPhotosAttribute()` instead of duplicate filesystem scanning in controller:
-   - `app/Models/Meeting.php:365-409`
-
-#### H2. View composition is over-centralized and brittle
+#### H2. `LayoutPageComposer` remains a central complexity hotspot
 
 Evidence:
+- Large composer with broad responsibilities: `app/View/Composers/LayoutPageComposer.php:15` (330 lines)
+- Route-segment-based branching and mixed data-fetching/presentation logic:
+  - `app/View/Composers/LayoutPageComposer.php:62`
+  - `app/View/Composers/LayoutPageComposer.php:72`
+  - `app/View/Composers/LayoutPageComposer.php:136`
+- Query shaping and link assembly logic co-located with view concerns:
+  - `app/View/Composers/LayoutPageComposer.php:224`
+  - `app/View/Composers/LayoutPageComposer.php:273`
 
-- Single provider contains broad routing/page assembly concerns:
-  - `app/Providers/ViewServiceProvider.php` (382 lines)
-- Route-segment branching and repeated query logic:
-  - `app/Providers/ViewServiceProvider.php:103-334`
-- Full table scans for pages in composers:
-  - `app/Providers/ViewServiceProvider.php:352-355,374`
-- Suspicious copy/paste query mismatch (`members` branch querying `sermons` area):
-  - `app/Providers/ViewServiceProvider.php:215-216,269-270`
-
-Impact:
-
-- High cognitive load and regression risk for any page-related change.
-- Hard to test reliably; hidden coupling to URL structure.
+Why this matters:
+- High regression risk for page routing/content changes.
+- Hard to test in isolation and hard to onboard into.
 
 Recommendation:
+1. Split into focused presenter/composer classes per page type.
+2. Move route-specific content loading into controllers/query objects.
+3. Keep composer layer thin: final view decoration only.
 
-1. Split into dedicated composers/view models per page type.
-2. Move data selection into controllers/services with explicit contracts.
-3. Introduce query objects or small page-data assemblers.
-
-#### H3. Partial refactor left duplicated orchestration logic
+#### H3. Frontend class hygiene drift (legacy/non-Tailwind utility classes)
 
 Evidence:
+- Invalid/legacy classes in header component:
+  - `resources/views/components/layout/header.blade.php:3` (`w-100`)
+  - `resources/views/components/layout/header.blade.php:16` (`text-l`, `fill-white`)
+  - `resources/views/components/layout/header.blade.php:40` (`align-right`, `whitespace-no-wrap`)
+- Similar legacy utility patterns in auth/admin templates:
+  - `resources/views/livewire/auth/login.blade.php:21`
+  - `resources/views/components/admin-actions.blade.php:36`
 
-- Duplicate retry/manual-review heuristics in two services:
-  - `app/Services/SermonJobPipelineService.php:153-218`
-  - `app/Services/SermonStatusManagementService.php:268-333`
-- Duplicate queue routing logic:
-  - `app/Services/SermonJobPipelineService.php:35-37`
-  - `app/Services/SermonAudioProcessingService.php:317-319`
-
-Impact:
-
-- Inconsistent behavior over time and difficult bug fixing.
+Why this matters:
+- Styling behavior becomes implicit and brittle.
+- Blocks a clean Tailwind-first system and increases CSS/debug overhead.
 
 Recommendation:
+1. Normalize non-standard classes to valid Tailwind v3 equivalents.
+2. Add a lint/check step for known legacy class tokens.
+3. Continue migration toward component-layer Tailwind patterns only.
 
-1. Create one canonical orchestration service for processing state transitions.
-2. Keep domain rules (retry/manual-review) in one policy-like class.
-3. Keep dispatch concerns and status concerns separated but not duplicated.
-
-#### H4. Frontend architecture is fragmented (TALL misalignment)
+#### H4. Public API pagination is unbounded by request input
 
 Evidence:
+- `per_page` is passed directly to `paginate(...)`: `app/Http/Controllers/Api/SermonApiController.php:67`
 
-- Tailwind and legacy SCSS systems are mixed in one pipeline:
-  - `resources/css/app.scss:1-13`
-  - `resources/css/cbc/_home.scss` (large legacy partial)
-- Very large Livewire component and heavy client logic in blade:
-  - `app/Livewire/MediaUpload.php` (558 lines)
-  - `resources/views/livewire/media-upload.blade.php:1-125`
-- Comment/behavior drift in upload throttling:
-  - `resources/views/livewire/media-upload.blade.php:7,62`
-
-Impact:
-
-- Slower onboarding, harder debugging, blurred server/client state boundaries.
+Why this matters:
+- Large `per_page` values can cause avoidable query/memory pressure.
 
 Recommendation:
-
-1. Split `MediaUpload` into smaller Livewire components (form, progress, status).
-2. Move complex Alpine logic into dedicated JS modules and keep blade declarative.
-3. Define a migration plan from legacy SCSS to Tailwind component patterns.
-
----
+1. Validate and clamp `per_page` (for example min 1, max 100).
+2. Add focused API tests for upper/lower pagination bounds.
 
 ### Medium
 
-#### M1. Dead container binding references missing class
+#### M1. Unused service abstractions increase cognitive load
 
 Evidence:
+- `ProcessingHealthService` appears unused in runtime code:
+  - `app/Services/ProcessingHealthService.php:17`
+- `LivestreamMonitoringService` appears unused in runtime code:
+  - `app/Services/LivestreamMonitoringService.php:9`
+- Search across `app/` returns only class definitions for these services.
 
-- Binding references non-existent class:
-  - `app/Providers/AppServiceProvider.php:128-131`
-- No implementation exists in `app/Services`.
-
-Impact:
-
-- Latent runtime failure if resolved; unnecessary confusion for maintainers.
+Why this matters:
+- Maintenance burden grows around code paths that do not affect production behavior.
+- Tests may provide confidence for logic that is not executed in real flows.
 
 Recommendation:
+1. Remove or integrate these services into actual runtime paths.
+2. Keep only one canonical monitoring/health service surface.
 
-1. Remove obsolete binding.
-2. Add a small provider test/assertion for core bindings.
-
-#### M2. Health checks/troubleshooting return placeholders in production path
+#### M2. Legacy processing method appears unreferenced by runtime flows
 
 Evidence:
+- `processSermonAudio(...)` exists and is wrapper-wired:
+  - `app/Services/SermonAudioProcessingService.php:118`
+  - `app/Services/SermonProcessingService.php:29`
+- Unified runtime path uses `processSermon(...)` for `audio` type:
+  - `app/Services/UnifiedMediaProcessor.php:43`
+- No controller/runtime callsites found for `processSermonAudio(...)` outside wrappers/tests.
 
-- Log extraction explicitly placeholder:
-  - `app/Services/SermonStatusManagementService.php:340-349`
-- Queue health always reports healthy with note:
-  - `app/Services/SermonStatusManagementService.php:448-457`
-
-Impact:
-
-- Operational diagnosis can be misleading during incidents.
+Why this matters:
+- Orphaned paths and tests make future changes harder and risk divergence.
 
 Recommendation:
+1. Remove or formally reattach this path to a real endpoint/use case.
+2. Keep one canonical audio entry flow and one test strategy for it.
 
-1. Replace placeholder responses with real queue metrics and failed-job signals.
-2. Integrate structured log lookup (or remove the feature until implemented).
-
-#### M3. Asset versioning uses non-deterministic timestamps
+#### M3. Livewire component and Blade script complexity is still high
 
 Evidence:
+- `MediaUpload\Form` is large and multi-responsibility: `app/Livewire/MediaUpload/Form.php:23` (577 lines)
+- `ProcessingLogsViewer` Blade includes large inline Alpine controller script:
+  - `resources/views/livewire/processing-logs-viewer.blade.php:248`
 
-- Build ID seeded from `Date.now()` and appended to all filenames:
-  - `vite.config.mjs:5,24-30`
-
-Impact:
-
-- Cache busts every build regardless of content changes.
-- Harder reproducible builds and less efficient CDN caching.
+Why this matters:
+- Server/client responsibilities are harder to reason about.
+- UI regressions become more likely as features expand.
 
 Recommendation:
+1. Split Livewire components by concern (form input, upload state, processing status).
+2. Move inline Alpine scripts into versioned JS modules.
+3. Keep Blade mostly declarative and state-light.
 
-1. Remove timestamp suffix and rely on content hash.
-2. Keep deterministic outputs for stable deploys and rollback analysis.
-
-#### M4. Security/hardening defaults are inconsistent
+#### M4. Route file still contains legacy comments/noise and broad catch-all coupling
 
 Evidence:
+- Legacy comment artifacts in imports: `routes/web.php:8`
+- Broad catch-all routes depend heavily on order:
+  - `routes/web.php:188`
+  - `routes/web.php:189`
 
-- Proxy trust set to wildcard:
-  - `bootstrap/app.php:20`
-- Custom CORS middleware fallback behavior and credentialed responses:
-  - `app/Http/Middleware/HandleCors.php:22,33,43-46,63`
-- CORS middleware applied to media upload route but not status/cancel/retry routes:
-  - `routes/api.php:30-36` vs `routes/api.php:42-47,51-56,60-65`
-
-Impact:
-
-- Harder to reason about request trust and cross-origin behavior.
-- Potential misconfiguration risk in production environments.
+Why this matters:
+- Route behavior remains fragile to future additions.
+- Signal-to-noise is reduced for maintainers.
 
 Recommendation:
+1. Remove stale comments and keep route files clean.
+2. Split web routes by domain area for readability and safer evolution.
+3. Add explicit route-level tests for catch-all precedence.
 
-1. Restrict trusted proxies to known infrastructure.
-2. Move to standard Laravel CORS config/middleware unless custom behavior is essential.
-3. Keep CORS policy consistent across related API endpoints.
-
-#### M5. Timezone choice may cause schedule drift for UK-local operations
+#### M5. Static analysis strictness is moderate but not yet high
 
 Evidence:
+- PHPStan configured at level 5: `phpstan.neon:11`
 
-- App timezone is `GMT`:
-  - `config/app.php:66`
-- Scheduler tasks rely on app timezone:
-  - `bootstrap/app.php:15-18`
-
-Impact:
-
-- If business intent is UK local time, DST (BST) behavior may not match expectations.
+Why this matters:
+- Current state is stable, but stricter levels would catch more maintainability issues earlier.
 
 Recommendation:
+1. Raise by one level per sprint with baseline burn-down.
+2. Keep rule exceptions tightly scoped and time-boxed.
 
-1. If operational intent is local UK time, set `Europe/London`.
-2. Add tests/assertions around schedule timing assumptions.
+## TALL Stack Alignment Notes
 
-#### M6. Legacy/stale artifacts are creating architectural noise
+What is working:
+- Livewire-first admin patterns are established.
+- `wire:model.live` is used where real-time behavior is intended.
+- Tailwind component layering is now dominant in app styles.
 
-Evidence:
+Where to improve:
+- Reduce large component classes and inline Alpine scripts.
+- Remove legacy class vocabulary from Blade templates.
+- Keep source-of-truth state server-side, with Alpine used for minimal client interactivity.
 
-- Filament references in comments even though Filament packages are not present:
-  - `routes/web.php:163-164`
-  - `app/Http/Controllers/PageController.php:15-16`
-  - no `filament/*` packages in `composer.json`/`composer.lock`
-- 53 tracked Filament vendor override blade files under `resources/views/vendor/filament-panels/`.
-- Backup template tracked in repo:
-  - `resources/views/sermons/sermon.blade.php.backup`
+## Recommended Implementation Plan
 
-Impact:
+### Phase 1 (Immediate: 1-3 days)
 
-- Confusing system boundaries and upgrade/migration uncertainty.
+1. Decouple `/up` from OpenAI external checks.
+2. Reconcile `ProcessingLogsViewer` tests (remove or rewrite excluded suite).
+3. Clamp API `per_page` and add regression tests.
+4. Clean invalid legacy utility classes in shared layout/auth components.
 
-Recommendation:
+### Phase 2 (Short term: 1 sprint)
 
-1. Remove stale comments/assets not part of active runtime architecture.
-2. Archive migration remnants in a separate branch or docs appendix.
-3. Enforce a "no backup/generated artifacts" policy in git.
+1. Refactor `LayoutPageComposer` into smaller presenter/composer units.
+2. Remove or integrate unused monitoring services and dead processing paths.
+3. Regenerate schema dump and add CI freshness guard.
 
-#### M7. Type-safety and signature consistency are uneven
+### Phase 3 (Medium term: 2-3 sprints)
 
-Evidence:
+1. Split large Livewire components (`MediaUpload`, log viewer concerns).
+2. Move inline Alpine scripts to dedicated JS modules.
+3. Increment PHPStan strictness level and keep it green.
 
-- `app` contains 211 PHP files; 55 declare strict types (156 do not).
-- Example older components lack strict types/explicit typing:
-  - `app/Livewire/Auth/Register.php:1,26,41`
-  - `app/Livewire/Auth/VerifyEmail.php:10`
+## Conclusion
 
-Impact:
-
-- Inconsistent coding model and increased runtime/type ambiguity.
-
-Recommendation:
-
-1. Add strict types incrementally per module.
-2. Enforce explicit return/property types for touched files.
-3. Add CI rule for new/modified files to meet typing baseline.
-
-#### M8. Livewire test coverage still has blind spots
-
-Evidence:
-
-- Components with no direct test references include:
-  - `app/Livewire/Admin/Meetings/ListMeetings.php`
-  - `app/Livewire/Admin/Meetings/CreateMeeting.php`
-  - `app/Livewire/Admin/Meetings/EditMeeting.php`
-  - `app/Livewire/Admin/CalendarEvents/ListCalendarEvents.php`
-  - `app/Livewire/Admin/CalendarEvents/EditCalendarEvent.php`
-  - `app/Livewire/Admin/Pages/CreatePage.php`
-  - `app/Livewire/Admin/Pages/EditPage.php`
-
-Impact:
-
-- Refactors in admin flows risk behavior regressions without fast detection.
-
-Recommendation:
-
-1. Add focused Livewire tests for untested admin CRUD components.
-2. Prioritize components with most business impact and highest churn.
-
----
-
-### Low
-
-#### L1. Duplicate file existence check in `Page::hasImage()`
-
-Evidence:
-
-- Duplicate `.webp` check appears twice:
-  - `app/Models/Page.php:237-238`
-
-Impact:
-
-- Likely intended jpg/webp fallback was missed; minor correctness issue.
-
-Recommendation:
-
-1. Replace duplicate check with intended fallback (e.g., jpg).
-2. Add a unit test for legacy heading-image fallback behavior.
-
-#### L2. Minor repo hygiene issues
-
-Evidence:
-
-- Temporary/commentary artifacts in core files:
-  - `routes/web.php:8` (`// Added this line`)
-
-Impact:
-
-- Low direct risk, but contributes to long-term maintainability drift.
-
-Recommendation:
-
-1. Remove transient comments during routine cleanup.
-2. Keep core framework files concise and intention-revealing.
-
-## TALL Alignment Review
-
-### Laravel
-
-- Good: modern bootstrap usage (`bootstrap/app.php`) and broad use of policies/gates.
-- Needs work: large providers/services with mixed responsibilities reduce Laravel convention clarity.
-
-### Livewire
-
-- Good: substantial Livewire adoption in admin and upload flows.
-- Needs work: component size and responsibility boundaries (e.g., `MediaUpload`) should be reduced.
-
-### Alpine
-
-- Good: used for UI interaction where needed.
-- Needs work: very large inline `x-data` blobs should become module-backed and testable.
-
-### Tailwind
-
-- Good: Tailwind is active and used across many views.
-- Needs work: legacy SCSS system remains heavily coupled, causing a mixed styling model.
-
-## Recommended Roadmap
-
-### 0-2 Weeks (Quick Wins)
-
-1. Fix queue mismatch for `livestream-audio`.
-2. Fix meeting photo glob bug.
-3. Remove dead `Registrar` binding.
-4. Fix `Page::hasImage()` duplicate fallback check.
-5. Remove backup file and stale "Added this line" comments.
-
-### 2-6 Weeks (Stabilization)
-
-1. Break `ViewServiceProvider` into dedicated composers/view models.
-2. Consolidate processing retry/manual-review logic into one canonical service.
-3. Replace placeholder health-check internals with real metrics.
-4. Make Vite output deterministic (drop timestamp suffix).
-5. Add missing Livewire tests for meetings/calendar/pages admin components.
-
-### 6-12 Weeks (Architecture Simplification)
-
-1. Refactor `MediaUpload` into smaller Livewire components + isolated JS modules.
-2. Establish a formal legacy-retirement plan for SCSS and old image fallbacks.
-3. Tighten proxy/CORS/session/timezone operational defaults with environment-specific config.
-4. Introduce module-level architecture boundaries for media processing (ingest, orchestration, status, recovery).
-
-## Suggested Engineering Standards Going Forward
-
-1. New/changed files must use strict types and explicit return types.
-2. No new controller/provider methods > ~80 lines without extraction rationale.
-3. One authoritative implementation per domain rule (no duplicated retry/status policy logic).
-4. No stale framework references (e.g., Filament) unless runtime dependency exists.
-5. Keep quality gates mandatory: tests, phpstan, pint.
-
-## Final Note
-
-The project is in a healthy operational state today, but maintainability pressure is clearly accumulating in a few hotspots. Addressing the critical queue issue and then systematically reducing architectural concentration (providers/services/components) will produce the highest return for reliability and developer velocity.
+The project is in a workable and improving state, but maintainability pressure is concentrated in a few central hotspots. Addressing the critical and high items above will materially improve simplicity, operational safety, and long-term TALL consistency without requiring a broad rewrite.
