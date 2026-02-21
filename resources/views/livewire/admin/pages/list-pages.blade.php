@@ -123,11 +123,12 @@
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">
                                 <div class="flex gap-1 justify-end" role="group" aria-label="Actions for {{ $page->heading }}">
-                                    <x-button link="{{ route('pages.showPublic', ['area' => $page->area->value, 'slug' => $page->slug]) }}" variant="ghost" size="xs" icon="eye" inline />
-                                    <x-button link="{{ route('admin.pages.edit', $page) }}" variant="ghost" size="xs" icon="pencil" inline />
+                                    <x-button link="{{ route('pages.showPublic', ['area' => $page->area->value, 'slug' => $page->slug]) }}" variant="ghost" size="xs" icon="eye" inline aria-label="View page: {{ $page->heading }}" />
+                                    <x-button link="{{ route('admin.pages.edit', $page) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit page: {{ $page->heading }}" />
                                     <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                         wire:click="delete({{ $page->id }})"
-                                        wire:confirm="Delete '{{ $page->heading }}'?" />
+                                        wire:confirm="Delete '{{ $page->heading }}'?"
+                                        aria-label="Delete page: {{ $page->heading }}" />
                                 </div>
                             </td>
                         </tr>
