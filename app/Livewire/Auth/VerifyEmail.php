@@ -1,23 +1,30 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Auth;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class VerifyEmail extends Component
 {
-    public $resent = false;
+    public bool $resent = false;
 
     public function resend(): void
     {
-        if (Auth::user()) {
-            Auth::user()->sendEmailVerificationNotification();
-            $this->resent = true;
+        $user = Auth::user();
+
+        if ($user === null) {
+            return;
         }
+
+        $user->sendEmailVerificationNotification();
+        $this->resent = true;
     }
 
-    public function render(): \Illuminate\View\View
+    public function render(): View
     {
         return view('livewire.auth.verify-email');
     }

@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Livewire;
 
+use App\Enums\PageArea;
+use App\Livewire\Admin\Pages\CreatePage;
+use App\Livewire\Admin\Pages\EditPage;
 use App\Livewire\Admin\Pages\ListPages;
 use App\Models\Page;
 use App\Models\User;
@@ -19,11 +22,14 @@ class AdminPageTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->admin = User::factory()->crockenhillAdmin()->create(['is_admin' => true]);
+        $this->admin = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => now(),
+        ]);
     }
 
     #[Test]
-    public function it_renders_successfully()
+    public function it_renders_successfully(): void
     {
         $this->actingAs($this->admin);
 
@@ -33,7 +39,7 @@ class AdminPageTest extends TestCase
     }
 
     #[Test]
-    public function it_can_search_pages()
+    public function it_can_search_pages(): void
     {
         $this->actingAs($this->admin);
 
@@ -47,7 +53,7 @@ class AdminPageTest extends TestCase
     }
 
     #[Test]
-    public function it_can_filter_by_area()
+    public function it_can_filter_by_area(): void
     {
         $this->actingAs($this->admin);
 
@@ -61,7 +67,7 @@ class AdminPageTest extends TestCase
     }
 
     #[Test]
-    public function it_can_delete_a_page()
+    public function it_can_delete_a_page(): void
     {
         $this->actingAs($this->admin);
 
@@ -75,7 +81,7 @@ class AdminPageTest extends TestCase
     }
 
     #[Test]
-    public function it_can_delete_multiple_pages()
+    public function it_can_delete_multiple_pages(): void
     {
         $this->actingAs($this->admin);
 
@@ -94,7 +100,7 @@ class AdminPageTest extends TestCase
     }
 
     #[Test]
-    public function it_can_sort_pages()
+    public function it_can_sort_pages(): void
     {
         $this->actingAs($this->admin);
 
@@ -109,7 +115,7 @@ class AdminPageTest extends TestCase
     }
 
     #[Test]
-    public function it_resets_invalid_sort_input_to_safe_defaults()
+    public function it_resets_invalid_sort_input_to_safe_defaults(): void
     {
         $this->actingAs($this->admin);
 
@@ -121,5 +127,122 @@ class AdminPageTest extends TestCase
             ->assertSet('sortBy', 'updated_at')
             ->assertSet('sortDirection', 'desc')
             ->assertSee('Alpha');
+    }
+
+    #[Test]
+    public function admin_can_create_page_and_convert_markdown_to_safe_html(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreatePage::class)
+            ->set('heading', 'About Crockenhill')
+            ->set('description', 'Information about our church and mission.')
+            ->set('area', PageArea::CHURCH->value)
+            ->set('navigation', true)
+            ->set('markdown', '# Welcome to Crockenhill')
+            ->call('save')
+            ->assertRedirect(route('admin.pages.index'));
+
+        $page = Page::query()->where('slug', 'about-crockenhill')->firstOrFail();
+
+        $this->assertSame('About Crockenhill', $page->heading);
+        $this->assertSame(PageArea::CHURCH, $page->area);
+        $this->assertTrue($page->navigation);
+        $this->assertStringContainsString('<h1>Welcome to Crockenhill</h1>', $page->body);
+    }
+
+    #[Test]
+    public function create_page_preserves_manual_slug_when_heading_changes(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreatePage::class)
+            ->set('slug', 'custom-manual-slug')
+            ->set('heading', 'Brand New Heading')
+            ->assertSet('slug', 'custom-manual-slug');
+    }
+
+    #[Test]
+    public function create_page_validates_required_fields(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreatePage::class)
+            ->set('heading', '')
+            ->set('slug', '')
+            ->set('description', '')
+            ->call('save')
+            ->assertHasErrors(['heading', 'slug', 'description']);
+    }
+
+    #[Test]
+    public function edit_page_mounts_existing_values(): void
+    {
+        $this->actingAs($this->admin);
+
+        $page = Page::factory()->create([
+            'heading' => 'Existing Page',
+            'slug' => 'existing-page',
+            'area' => PageArea::COMMUNITY->value,
+            'navigation' => true,
+            'description' => 'Existing page description.',
+            'markdown' => 'Existing markdown',
+        ]);
+
+        Livewire::test(EditPage::class, ['page' => $page])
+            ->assertSet('heading', 'Existing Page')
+            ->assertSet('slug', 'existing-page')
+            ->assertSet('area', PageArea::COMMUNITY->value)
+            ->assertSet('navigation', true)
+            ->assertSet('description', 'Existing page description.')
+            ->assertSet('markdown', 'Existing markdown');
+    }
+
+    #[Test]
+    public function admin_can_update_page_from_edit_component(): void
+    {
+        $this->actingAs($this->admin);
+
+        $page = Page::factory()->create([
+            'heading' => 'Old Heading',
+            'slug' => 'old-heading',
+            'area' => PageArea::CHURCH->value,
+            'navigation' => false,
+            'description' => 'Old description.',
+            'markdown' => '# Old Markdown',
+        ]);
+
+        Livewire::test(EditPage::class, ['page' => $page])
+            ->set('heading', 'Updated Heading')
+            ->set('slug', 'updated-heading')
+            ->set('area', PageArea::MEMBERS->value)
+            ->set('navigation', true)
+            ->set('description', 'Updated page description.')
+            ->set('markdown', '## Updated Markdown')
+            ->call('save')
+            ->assertDispatched('notify', type: 'success', message: 'Page updated');
+
+        $page->refresh();
+
+        $this->assertSame('Updated Heading', $page->heading);
+        $this->assertSame('updated-heading', $page->slug);
+        $this->assertSame(PageArea::MEMBERS, $page->area);
+        $this->assertTrue($page->navigation);
+        $this->assertSame('Updated page description.', $page->description);
+        $this->assertStringContainsString('<h2>Updated Markdown</h2>', $page->body);
+    }
+
+    #[Test]
+    public function edit_page_validates_slug_uniqueness(): void
+    {
+        $this->actingAs($this->admin);
+
+        $existing = Page::factory()->create(['slug' => 'existing-slug']);
+        $editable = Page::factory()->create(['slug' => 'editable-slug']);
+
+        Livewire::test(EditPage::class, ['page' => $editable])
+            ->set('slug', $existing->slug)
+            ->call('save')
+            ->assertHasErrors(['slug' => ['unique']]);
     }
 }
