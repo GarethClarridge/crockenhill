@@ -32,8 +32,9 @@ class SermonJobPipelineService
             'source_type' => $livestreamMetadata['source_type'] ?? 'unknown',
         ]);
 
-        // For livestream audio, use a different queue to avoid conflicts
-        $queueName = $this->isLivestreamAudio($livestreamMetadata) ? 'livestream-audio' : 'default';
+        $queueName = $this->isLivestreamAudio($livestreamMetadata)
+            ? $this->livestreamAudioQueue()
+            : $this->defaultQueue();
 
         Bus::chain($jobs)
             ->catch(function (\Throwable $e) use ($processingLog) {
@@ -112,7 +113,7 @@ class SermonJobPipelineService
             case 'transcribing_audio_failed':
                 if ($sermonId) {
                     TranscribeAudio::dispatch($processingLog)
-                        ->onQueue(config('media-processing.processing.queue', 'default'));
+                        ->onQueue($this->processingQueue());
                 }
                 break;
 
@@ -120,7 +121,7 @@ class SermonJobPipelineService
             case 'analyzing_transcript_failed':
                 if ($sermonId) {
                     ProcessTranscriptWithAI::dispatch($processingLog)
-                        ->onQueue(config('media-processing.processing.queue', 'default'));
+                        ->onQueue($this->processingQueue());
                 }
                 break;
 
@@ -128,7 +129,7 @@ class SermonJobPipelineService
             case 'updating_sermon_record_failed':
                 if ($sermonId) {
                     UpdateSermonRecord::dispatch($sermonId)
-                        ->onQueue(config('media-processing.processing.queue', 'default'));
+                        ->onQueue($this->processingQueue());
                 }
                 break;
 
@@ -136,7 +137,7 @@ class SermonJobPipelineService
             case 'notification_failed':
                 if ($sermonId) {
                     SendCompletionNotification::dispatch($processingLog)
-                        ->onQueue(config('media-processing.processing.queue', 'default'));
+                        ->onQueue($this->processingQueue());
                 }
                 break;
 
@@ -262,6 +263,24 @@ class SermonJobPipelineService
     {
         return isset($metadata['source_type']) &&
                in_array($metadata['source_type'], ['livestream', 'video_upload']);
+    }
+
+    private function livestreamAudioQueue(): string
+    {
+        return (string) config(
+            'media-processing.queues.livestream_audio',
+            config('media-processing.types.audio.queue', 'audio-processing')
+        );
+    }
+
+    private function defaultQueue(): string
+    {
+        return (string) config('media-processing.queues.default', config('media-processing.processing.queue', 'default'));
+    }
+
+    private function processingQueue(): string
+    {
+        return (string) config('media-processing.queues.processing', $this->defaultQueue());
     }
 
     /**

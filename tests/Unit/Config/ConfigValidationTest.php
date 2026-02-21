@@ -34,6 +34,7 @@ class ConfigValidationTest extends TestCase
     public function it_has_media_processing_config(): void
     {
         $this->assertNotEmpty(config('media-processing.types.audio.queue'), 'media-processing.types.audio.queue is not set');
+        $this->assertNotEmpty(config('media-processing.queues.livestream_audio'), 'media-processing.queues.livestream_audio is not set');
     }
 
     #[Test]

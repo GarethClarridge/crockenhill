@@ -83,7 +83,7 @@ class SermonAudioProcessingService
                         'error_message' => 'Audio processing failed: '.$e->getMessage(),
                     ]);
                 })
-                ->onQueue(config('media-processing.types.audio.queue', 'audio-processing'))
+                ->onQueue($this->audioQueue())
                 ->dispatch();
 
             Log::info('Audio processing jobs dispatched', [
@@ -314,8 +314,9 @@ class SermonAudioProcessingService
             'source_type' => $livestreamMetadata['source_type'] ?? 'unknown',
         ]);
 
-        // For livestream audio, use a different queue to avoid conflicts
-        $queueName = $this->isLivestreamAudio($livestreamMetadata) ? 'livestream-audio' : 'default';
+        $queueName = $this->isLivestreamAudio($livestreamMetadata)
+            ? $this->livestreamAudioQueue()
+            : $this->defaultQueue();
 
         \Illuminate\Support\Facades\Bus::chain($jobs)
             ->catch(function (\Throwable $e) use ($processingLog) {
@@ -343,5 +344,20 @@ class SermonAudioProcessingService
     {
         return isset($metadata['source_type']) &&
                in_array($metadata['source_type'], ['livestream', 'video_upload']);
+    }
+
+    private function audioQueue(): string
+    {
+        return (string) config('media-processing.queues.audio', config('media-processing.types.audio.queue', 'audio-processing'));
+    }
+
+    private function livestreamAudioQueue(): string
+    {
+        return (string) config('media-processing.queues.livestream_audio', $this->audioQueue());
+    }
+
+    private function defaultQueue(): string
+    {
+        return (string) config('media-processing.queues.default', config('media-processing.processing.queue', 'default'));
     }
 }

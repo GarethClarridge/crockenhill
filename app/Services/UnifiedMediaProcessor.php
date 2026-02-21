@@ -206,7 +206,7 @@ class UnifiedMediaProcessor
                         'error_message' => 'Video processing failed: '.$e->getMessage(),
                     ]);
                 })
-                ->onQueue('video-processing')
+                ->onQueue((string) config('media-processing.queues.video', config('media-processing.types.video.queue', 'video-processing')))
                 ->dispatch();
 
             return ProcessingResult::success(

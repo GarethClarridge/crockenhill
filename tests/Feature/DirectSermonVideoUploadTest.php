@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ApiTokenAbility;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 use Tests\Traits\MediaProcessingTestHelpers;
@@ -40,12 +42,13 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_successful_video_upload(): void
     {
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
         $videoFile = UploadedFile::fake()->create('test-sermon.mp4', 100 * 1024, 'video/mp4');
 
-        $response = $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/media/video', [
-                'file' => $videoFile,
-            ]);
+        $response = $this->postJson('/api/media/video', [
+            'file' => $videoFile,
+        ]);
 
         $response->assertStatus(202)
             ->assertJsonStructure([
@@ -61,12 +64,13 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_with_invalid_format(): void
     {
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
         $invalidFile = UploadedFile::fake()->create('document.txt', 1024, 'text/plain');
 
-        $response = $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/media/video', [
-                'file' => $invalidFile,
-            ]);
+        $response = $this->postJson('/api/media/video', [
+            'file' => $invalidFile,
+        ]);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['file']);
@@ -74,13 +78,14 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_with_oversized_file(): void
     {
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
         // Create a fake video file larger than the limit (3GB, which exceeds 1GB limit)
         $largeFile = UploadedFile::fake()->create('large-sermon.mp4', 3 * 1024 * 1024, 'video/mp4');
 
-        $response = $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/media/video', [
-                'file' => $largeFile,
-            ]);
+        $response = $this->postJson('/api/media/video', [
+            'file' => $largeFile,
+        ]);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['file']);
@@ -99,8 +104,9 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_requires_file(): void
     {
-        $response = $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/media/video', []);
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
+        $response = $this->postJson('/api/media/video', []);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['file']);
@@ -108,6 +114,8 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_supports_various_formats(): void
     {
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
         $formats = [
             ['mp4', 'video/mp4'],
             ['mov', 'video/quicktime'],
@@ -118,10 +126,9 @@ class DirectSermonVideoUploadTest extends TestCase
         foreach ($formats as [$extension, $mimeType]) {
             $videoFile = UploadedFile::fake()->create("test-sermon.{$extension}", 100 * 1024, $mimeType);
 
-            $response = $this->actingAs($this->user, 'sanctum')
-                ->postJson('/api/media/video', [
-                    'file' => $videoFile,
-                ]);
+            $response = $this->postJson('/api/media/video', [
+                'file' => $videoFile,
+            ]);
 
             $response->assertStatus(202)
                 ->assertJson([
@@ -142,14 +149,14 @@ class DirectSermonVideoUploadTest extends TestCase
             'email_verified_at' => now(),
             'is_admin' => true,
         ]);
+        Sanctum::actingAs($testUser, [ApiTokenAbility::MEDIA_PROCESS->value]);
 
         $videoFile = UploadedFile::fake()->create('test-sermon.mp4', 100 * 1024, 'video/mp4');
 
         // First upload
-        $response = $this->actingAs($testUser, 'sanctum')
-            ->postJson('/api/media/video', [
-                'file' => $videoFile,
-            ]);
+        $response = $this->postJson('/api/media/video', [
+            'file' => $videoFile,
+        ]);
 
         if ($response->status() === 429) {
             $response->assertStatus(429);
@@ -162,22 +169,22 @@ class DirectSermonVideoUploadTest extends TestCase
         // Second upload should be rate limited (1 per minute limit)
         $videoFile2 = UploadedFile::fake()->create('test-sermon-2.mp4', 100 * 1024, 'video/mp4');
 
-        $response = $this->actingAs($testUser, 'sanctum')
-            ->postJson('/api/media/video', [
-                'file' => $videoFile2,
-            ]);
+        $response = $this->postJson('/api/media/video', [
+            'file' => $videoFile2,
+        ]);
 
         $response->assertStatus(429);
     }
 
     public function test_video_upload_returns_correct_structure(): void
     {
+        Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
         $videoFile = UploadedFile::fake()->create('test-sermon.mp4', 100 * 1024, 'video/mp4');
 
-        $response = $this->actingAs($this->user, 'sanctum')
-            ->postJson('/api/media/video', [
-                'file' => $videoFile,
-            ]);
+        $response = $this->postJson('/api/media/video', [
+            'file' => $videoFile,
+        ]);
 
         $response->assertStatus(202)
             ->assertJsonStructure([
