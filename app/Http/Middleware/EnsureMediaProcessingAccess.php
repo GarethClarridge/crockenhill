@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\ApiTokenAbility;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,8 +28,8 @@ class EnsureMediaProcessingAccess
 
         // Session-authenticated first-party clients have no bearer token;
         // ability checks apply when a PAT is used.
-        if ($request->bearerToken() !== null && ! $user->tokenCan('media:process')) {
-            abort(403, 'Missing required token ability: media:process');
+        if ($request->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::MEDIA_PROCESS->value)) {
+            abort(403, 'Missing required token ability: '.ApiTokenAbility::MEDIA_PROCESS->value);
         }
 
         return $next($request);

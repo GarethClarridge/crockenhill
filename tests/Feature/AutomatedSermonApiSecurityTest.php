@@ -185,6 +185,27 @@ class AutomatedSermonApiSecurityTest extends TestCase
     }
 
     #[Test]
+    public function it_rejects_api_tokens_without_media_process_ability_for_management_endpoints(): void
+    {
+        $forbiddenToken = $this->user->createToken('forbidden-management-token', ['read:only'])->plainTextToken;
+        $processingId = (string) Str::uuid();
+
+        $endpoints = [
+            ['GET', "/api/media/processing/{$processingId}/status"],
+            ['POST', "/api/media/processing/{$processingId}/retry"],
+            ['DELETE', "/api/media/processing/{$processingId}"],
+        ];
+
+        foreach ($endpoints as [$method, $url]) {
+            $response = $this
+                ->withHeader('Authorization', 'Bearer '.$forbiddenToken)
+                ->json($method, $url);
+
+            $response->assertStatus(403);
+        }
+    }
+
+    #[Test]
     public function it_validates_file_mime_type_strictly(): void
     {
         $mockResult = \App\Services\ProcessingResult::success(

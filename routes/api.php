@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ApiTokenAbility;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\SermonApiController;
 use Illuminate\Http\Request;
@@ -26,19 +27,40 @@ Route::prefix('media')->name('api.media.')->group(function () {
     // Upload endpoints for each type
     Route::post('{type}', [MediaController::class, 'upload'])
         ->where('type', 'audio|video|livestream')
-        ->middleware(['cors', 'auth:sanctum', 'media.process', 'throttle:media-upload'])
+        ->middleware([
+            'cors',
+            'auth:sanctum',
+            'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
+            'media.process',
+            'throttle:media-upload',
+        ])
         ->name('upload');
 });
 
 // Processing management routes - defined separately to avoid nested group issues
 Route::get('media/processing/{processingId}/status', [MediaController::class, 'status'])
-    ->middleware(['auth:sanctum', 'media.process', 'throttle:api'])
+    ->middleware([
+        'auth:sanctum',
+        'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
+        'media.process',
+        'throttle:api',
+    ])
     ->name('api.media.processing.status');
 
 Route::delete('media/processing/{processingId}', [MediaController::class, 'cancel'])
-    ->middleware(['auth:sanctum', 'media.process', 'throttle:api'])
+    ->middleware([
+        'auth:sanctum',
+        'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
+        'media.process',
+        'throttle:api',
+    ])
     ->name('api.media.processing.cancel');
 
 Route::post('media/processing/{processingId}/retry', [MediaController::class, 'retry'])
-    ->middleware(['auth:sanctum', 'media.process', 'throttle:media-retry'])
+    ->middleware([
+        'auth:sanctum',
+        'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
+        'media.process',
+        'throttle:media-retry',
+    ])
     ->name('api.media.processing.retry');
