@@ -38,6 +38,19 @@ class CalendarAdminControllerTest extends TestCase
     }
 
     #[Test]
+    public function it_forbids_non_admin_user_for_uncategorized_events(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => false,
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->get('/church/members/calendar/uncategorized');
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
     public function it_shows_uncategorized_events_page_for_authenticated_user(): void
     {
         config(['calendar.uncategorized_slug' => 'uncategorized']);
@@ -95,6 +108,22 @@ class CalendarAdminControllerTest extends TestCase
         ]);
 
         $response->assertRedirect('/login');
+    }
+
+    #[Test]
+    public function it_forbids_non_admin_user_for_categorize_event(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => false,
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->post('/church/members/calendar/categorize', [
+            'event_id' => 1,
+            'meeting_slug' => 'sunday-morning',
+        ]);
+
+        $response->assertForbidden();
     }
 
     #[Test]
@@ -172,6 +201,19 @@ class CalendarAdminControllerTest extends TestCase
     }
 
     #[Test]
+    public function it_forbids_non_admin_user_for_pattern_management(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => false,
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->get('/church/members/calendar/patterns');
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
     public function it_shows_pattern_management_page(): void
     {
         $this->actingAs($this->adminUser);
@@ -191,6 +233,19 @@ class CalendarAdminControllerTest extends TestCase
         $response = $this->post('/church/members/calendar/sync');
 
         $response->assertRedirect('/login');
+    }
+
+    #[Test]
+    public function it_forbids_non_admin_user_for_sync_calendar(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => false,
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->post('/church/members/calendar/sync');
+
+        $response->assertForbidden();
     }
 
     #[Test]

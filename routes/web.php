@@ -164,10 +164,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
     // Meetings resource removed - now handled by Filament at /admin/meetings
 
     // Calendar admin routes
-    Route::get('calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('admin.calendar.uncategorized');
-    Route::post('calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('admin.calendar.categorize');
-    Route::get('calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('admin.calendar.patterns');
-    Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
+    Route::middleware('admin')->group(function () {
+        Route::get('calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('admin.calendar.uncategorized');
+        Route::post('calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('admin.calendar.categorize');
+        Route::get('calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('admin.calendar.patterns');
+        Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
+    });
 
     // Unified media upload route (replaces smart-upload)
     Route::get('sermon-upload', [SermonAdminController::class, 'upload'])->name('admin.sermon-upload.create');
