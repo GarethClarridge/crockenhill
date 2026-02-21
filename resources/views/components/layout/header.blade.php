@@ -37,13 +37,13 @@
     </ul>
   </div>
 
-  <button class="ms-4 flex items-center justify-end rounded px-3 py-1 text-right align-right font-normal leading-normal no-underline select-none whitespace-no-wrap lg:hidden" type="button" role="button" aria-label="Navigation" @click="expanded = ! expanded">
-    <x-heroicon-m-bars-3 class="h-7 w-7" />
+  <button class="ms-4 flex items-center justify-end rounded px-3 py-1 text-right align-right font-normal leading-normal no-underline select-none whitespace-no-wrap lg:hidden" type="button" role="button" aria-label="Navigation" @click="expanded = ! expanded" :aria-expanded="expanded" aria-controls="mobile-menu">
+    <x-heroicon-m-bars-3 class="h-6 w-6" />
   </button>
 
 </div>
 
-<div x-show="expanded" x-transition class="absolute z-30 w-screen bg-gradient-to-r from-green-100/80 to-emerald-100/80 p-6 font-display text-lg leading-loose backdrop-blur-sm" tabindex="-1" x-cloak>
+<div x-show="expanded" x-transition id="mobile-menu" class="absolute z-30 w-screen bg-gradient-to-r from-green-100/80 to-emerald-100/80 p-6 font-display text-lg leading-loose backdrop-blur-sm" tabindex="-1" x-cloak>
   <ul class="mt-3 grid grid-cols-1 gap-8 text-center md:grid-cols-3">
 
     <li>

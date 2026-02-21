@@ -15,3 +15,7 @@
 - `ViewServiceProvider`: Reduced queries for every page with related links from 6 to 2.
 - Added mandatory PHPDoc explaining these optimizations.
 **Action:** Be cautious when removing view composers during optimization as they may be required by legacy templates not easily found by grep. Always add descriptive PHPDoc to explain why an eager load was added.
+
+## 2026-02-20 - Admin Page List N+1 and Memory Optimization
+**Learning:** The 'ListPages' admin component was fetching full 'body' and 'markdown' columns for every row and performing N+1 queries for 'media' and 'meeting' relationships.
+**Action:** Use 'select()' to exclude large columns and 'with()' to eager load relationships in Livewire list components. This reduced query count from 22 to 4 for 10 items.

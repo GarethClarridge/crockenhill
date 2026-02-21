@@ -225,31 +225,38 @@ use Illuminate\Support\Str;
 
     {{-- Transcript Section --}}
     @if ($sermon->hasTranscript())
-    <div class="mt-6 py-6 border-b border-gray-200">
+    <div x-data="{ expanded: false }" class="mt-6 py-6 border-b border-gray-200">
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-gray-900 flex items-center">
           <x-heroicon-o-document-text class="h-5 w-5 mr-2" />
           Automated transcript (may contain errors)
         </h2>
         <button
-          class="text-sm text-gray-600 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1"
-          onclick="toggleTranscript()"
-          id="transcript-toggle-btn">
-          <span id="transcript-toggle-text">Show Full Transcript</span>
-          <x-heroicon-o-chevron-down class="h-4 w-4 inline ml-1" id="transcript-chevron" />
+          class="text-sm text-gray-600 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1 flex items-center"
+          @click="expanded = !expanded"
+          :aria-expanded="expanded"
+          aria-controls="transcript-content">
+          <span x-text="expanded ? 'Hide Transcript' : 'Show Full Transcript'">Show Full Transcript</span>
+          <x-heroicon-o-chevron-down class="h-4 w-4 inline ml-1 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" />
         </button>
       </div>
-    </div>
 
-    <div id="transcript-content" class="p-6 max-h-96 overflow-y-auto hidden">
-      <div class="prose prose-gray max-w-none">
-        {!! Str::markdown($sermon->transcript, [
-          'html_input' => 'strip',
-          'allow_unsafe_links' => false,
-        ]) !!}
+      <div id="transcript-content"
+           x-show="expanded"
+           x-cloak
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 transform -translate-y-2"
+           x-transition:enter-end="opacity-100 transform translate-y-0"
+           class="p-6 max-h-96 overflow-y-auto">
+        <div class="prose prose-gray max-w-none text-gray-700">
+          {!! Str::markdown($sermon->transcript, [
+            'html_input' => 'strip',
+            'allow_unsafe_links' => false,
+          ]) !!}
+        </div>
       </div>
     </div>
-    
+    @endif
   </div>
   {{-- Admin Actions --}}
   @can ('edit-sermons')
@@ -309,24 +316,6 @@ use Illuminate\Support\Str;
   </div>
   @endcan
 
-  <script>
-    function toggleTranscript() {
-      const content = document.getElementById('transcript-content');
-      const toggleText = document.getElementById('transcript-toggle-text');
-      const chevron = document.getElementById('transcript-chevron');
-
-      if (content.classList.contains('hidden')) {
-        content.classList.remove('hidden');
-        toggleText.textContent = 'Hide Transcript';
-        chevron.style.transform = 'rotate(180deg)';
-      } else {
-        content.classList.add('hidden');
-        toggleText.textContent = 'Show Full Transcript';
-        chevron.style.transform = 'rotate(0deg)';
-      }
-    }
-  </script>
-  @endif
 
 </section>
 

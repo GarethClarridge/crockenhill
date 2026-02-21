@@ -98,11 +98,12 @@
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">
                                 <div class="flex gap-1 justify-end">
-                                    <x-button link="{{ route('showSermon', $sermon) }}" variant="ghost" size="xs" icon="eye" inline />
-                                    <x-button link="{{ route('admin.sermons.edit', $sermon) }}" variant="ghost" size="xs" icon="pencil" inline />
+                                    <x-button link="{{ route('showSermon', $sermon) }}" variant="ghost" size="xs" icon="eye" inline aria-label="View sermon: {{ $sermon->title }}" />
+                                    <x-button link="{{ route('admin.sermons.edit', $sermon) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit sermon: {{ $sermon->title }}" />
                                     <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                         wire:click="delete({{ $sermon->id }})"
-                                        wire:confirm="Delete this sermon?" />
+                                        wire:confirm="Delete this sermon?"
+                                        aria-label="Delete sermon: {{ $sermon->title }}" />
                                 </div>
                             </td>
                         </tr>

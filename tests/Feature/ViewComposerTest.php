@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\SermonService;
 use App\Models\Page;
 use App\Models\Sermon;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\View;
 use PHPUnit\Framework\Attributes\Test;
@@ -21,18 +20,18 @@ class ViewComposerTest extends TestCase
         Sermon::factory()->create([
             'service' => SermonService::MORNING,
             'date' => now()->subDay(),
-            'title' => 'Latest Morning'
+            'title' => 'Latest Morning',
         ]);
         Sermon::factory()->create([
             'service' => SermonService::EVENING,
             'date' => now()->subDay(),
-            'title' => 'Latest Evening'
+            'title' => 'Latest Evening',
         ]);
 
         $view = View::make('components.layout.footer')->render();
 
-        $this->assertStringContainsString('See morning services on our YouTube channel.', $view);
-        $this->assertStringContainsString('Listen to evening sermons on our website.', $view);
+        $this->assertStringContainsString('Watch Sunday morning services', $view);
+        $this->assertStringContainsString('Listen to evening sermons', $view);
     }
 
     #[Test]
@@ -42,7 +41,7 @@ class ViewComposerTest extends TestCase
             'slug' => 'about-us',
             'area' => \App\Enums\PageArea::CHURCH,
             'heading' => 'About Our Church',
-            'description' => 'Test Description'
+            'description' => 'Test Description',
         ]);
 
         $response = $this->get('/church/about-us');
@@ -59,7 +58,7 @@ class ViewComposerTest extends TestCase
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
             'date' => $date,
-            'title' => 'Sermon Title'
+            'title' => 'Sermon Title',
         ]);
 
         // segment 1: christ, segment 2: sermons, segment 3: year, segment 4: month, segment 5: slug
@@ -92,9 +91,9 @@ class ViewComposerTest extends TestCase
     public function it_populates_header_with_navigation_pages(): void
     {
         Page::factory()->create([
-            'slug' => 'nav-page', 
-            'area' => \App\Enums\PageArea::CHURCH, 
-            'navigation' => true
+            'slug' => 'nav-page',
+            'area' => \App\Enums\PageArea::CHURCH,
+            'navigation' => true,
         ]);
 
         $response = $this->get('/');
