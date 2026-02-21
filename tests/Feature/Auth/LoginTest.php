@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Auth;
 
+use App\Livewire\Auth\Login as LoginComponent;
 use App\Models\User;
+use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -124,5 +130,83 @@ class LoginTest extends TestCase
 
         $this->assertGuest();
         $this->assertNull(session('test_key'));
+    }
+
+    #[Test]
+    public function livewire_login_is_rate_limited_after_five_failed_attempts(): void
+    {
+        Event::fake([Lockout::class]);
+
+        $user = User::factory()->create([
+            'password' => bcrypt('password123'),
+        ]);
+
+        $throttleKey = $this->throttleKey($user->email);
+        RateLimiter::clear($throttleKey);
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            Livewire::test(LoginComponent::class)
+                ->set('email', $user->email)
+                ->set('password', 'incorrect-password')
+                ->call('login')
+                ->assertSet('error', trans('auth.failed'));
+        }
+
+        $component = Livewire::test(LoginComponent::class)
+            ->set('email', $user->email)
+            ->set('password', 'incorrect-password')
+            ->call('login');
+
+        $error = (string) $component->get('error');
+        $seconds = RateLimiter::availableIn($throttleKey);
+        $expectedMessages = [
+            $this->throttleMessage($seconds),
+            $this->throttleMessage(max($seconds + 1, 0)),
+            $this->throttleMessage(max($seconds - 1, 0)),
+        ];
+
+        $this->assertTrue(RateLimiter::tooManyAttempts($throttleKey, 5));
+        $this->assertContains($error, $expectedMessages);
+        Event::assertDispatched(Lockout::class);
+    }
+
+    #[Test]
+    public function successful_livewire_login_clears_failed_attempt_counter(): void
+    {
+        $user = User::factory()->create([
+            'password' => bcrypt('password123'),
+        ]);
+
+        $throttleKey = $this->throttleKey($user->email);
+        RateLimiter::clear($throttleKey);
+
+        Livewire::test(LoginComponent::class)
+            ->set('email', $user->email)
+            ->set('password', 'incorrect-password')
+            ->call('login');
+
+        $this->assertTrue(RateLimiter::tooManyAttempts($throttleKey, 1));
+
+        Livewire::test(LoginComponent::class)
+            ->set('email', $user->email)
+            ->set('password', 'password123')
+            ->call('login')
+            ->assertRedirect('/church/members');
+
+        $this->assertFalse(RateLimiter::tooManyAttempts($throttleKey, 1));
+        $this->assertAuthenticatedAs($user);
+    }
+
+    private function throttleKey(string $email): string
+    {
+        return Str::transliterate(Str::lower($email).'|127.0.0.1');
+    }
+
+    private function throttleMessage(int $seconds): string
+    {
+        return trans('auth.throttle', [
+            'seconds' => $seconds,
+            'minutes' => (int) ceil($seconds / 60),
+        ]);
     }
 }

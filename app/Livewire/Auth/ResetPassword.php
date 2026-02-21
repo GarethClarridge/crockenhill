@@ -2,17 +2,20 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\View\View;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
+use Livewire\Features\SupportRedirects\Redirector;
 
 class ResetPassword extends Component
 {
     public string $token = '';
 
-    #[Validate('required|email|exists:users,email')]
+    #[Validate('required|email')]
     public string $email = '';
 
     #[Validate('required|string|min:8|confirmed')]
@@ -24,12 +27,12 @@ class ResetPassword extends Component
 
     public string $error = '';
 
-    public function mount($token)
+    public function mount(string $token): void
     {
         $this->token = $token;
     }
 
-    public function resetPassword()
+    public function resetPassword(): Redirector|\Illuminate\Http\RedirectResponse|null
     {
         $this->validate();
 
@@ -40,21 +43,24 @@ class ResetPassword extends Component
             'password_confirmation' => $this->password_confirmation,
         ];
 
-        $status = Password::reset($data, function ($user, $password) {
+        $status = Password::reset($data, function (User $user, string $password): void {
             $user->password = Hash::make($password);
             $user->save();
             Auth::login($user);
         });
+
         if ($status === Password::PASSWORD_RESET) {
             $this->status = __($status);
 
             return redirect('/church/members');
-        } else {
-            $this->error = __($status);
         }
+
+        $this->error = __($status);
+
+        return null;
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.auth.reset-password');
     }
