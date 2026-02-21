@@ -1,22 +1,29 @@
 @props(['label' => null, 'hint' => null])
 
-<label class="flex items-center gap-3 cursor-pointer">
+@php
+    $modelName = $attributes->wire('model')->value();
+    $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-', $modelName) : ($label ? \Illuminate\Support\Str::slug($label) : 'toggle-' . Str::random(8)));
+@endphp
+
+<div class="flex items-center gap-3">
     <button type="button"
         role="switch"
+        @if($id) id="{{ $id }}" @endif
+        @if($label) aria-labelledby="{{ $id }}-label" @endif
         x-data="{ checked: $wire.entangle('{{ $attributes->wire('model')->value() }}') }"
         :aria-checked="checked"
         @click="checked = !checked"
-        :class="checked ? 'bg-green-600' : 'bg-gray-200'"
-        class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+        {{ $attributes->merge(['class' => 'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2']) }}
+        :class="checked ? 'bg-green-600' : 'bg-gray-200'">
         <span :class="checked ? 'translate-x-5' : 'translate-x-0'"
             class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
     </button>
     @if($label)
-        <div>
+        <label @if($id) id="{{ $id }}-label" for="{{ $id }}" @endif class="cursor-pointer">
             <span class="text-sm font-medium text-gray-700">{{ $label }}</span>
             @if($hint)
                 <p class="text-sm text-gray-500">{{ $hint }}</p>
             @endif
-        </div>
+        </label>
     @endif
-</label>
+</div>
