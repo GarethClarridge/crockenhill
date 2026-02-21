@@ -3,8 +3,8 @@
 namespace App\Livewire\Admin\Pages;
 
 use App\Enums\PageArea;
+use App\Services\SafeMarkdownRenderer;
 use Illuminate\Support\Str;
-use League\CommonMark\CommonMarkConverter;
 
 trait PageForm
 {
@@ -43,16 +43,7 @@ trait PageForm
 
     protected function convertMarkdown(): string
     {
-        if (empty($this->markdown)) {
-            return '';
-        }
-
-        $converter = new CommonMarkConverter([
-            'html_input' => 'strip',
-            'allow_unsafe_links' => false,
-        ]);
-
-        return $converter->convert($this->markdown)->getContent();
+        return app(SafeMarkdownRenderer::class)->convert($this->markdown);
     }
 
     protected function getAreaOptions(): array

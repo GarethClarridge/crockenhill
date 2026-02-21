@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Page;
+use App\Services\SafeMarkdownRenderer;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Support\Facades\View;
-use League\CommonMark\CommonMarkConverter;
 
 /**
  * Controller for displaying pages to the public.
@@ -30,9 +30,9 @@ class PageController extends Controller
      *
      * @param  string  $area  The area of the page.
      * @param  string  $slug  The slug of the page.
-     * @param  \League\CommonMark\CommonMarkConverter  $converter  Service to convert markdown to HTML.
+     * @param  \App\Services\SafeMarkdownRenderer  $markdownRenderer  Service to convert markdown to safe HTML.
      */
-    public function show(string $area, string $slug, CommonMarkConverter $converter): ViewContract
+    public function show(string $area, string $slug, SafeMarkdownRenderer $markdownRenderer): ViewContract
     {
         $page = Page::where('slug', $slug)->where('area', $area)->first();
 
@@ -40,7 +40,7 @@ class PageController extends Controller
             abort(404, 'Page not found');
         }
 
-        $html = $converter->convert($page->markdown ?? '');
+        $html = $markdownRenderer->convert($page->markdown);
 
         return View::make('layouts/page')->with([
             'page' => $page,

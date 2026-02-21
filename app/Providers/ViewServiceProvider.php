@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Enums\SermonService;
 use App\Models\Page;
 use App\Models\Sermon;
+use App\Services\SafeMarkdownRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
@@ -29,6 +30,8 @@ class ViewServiceProvider extends ServiceProvider
      */
     public function boot(Request $request): void
     {
+        $markdownRenderer = app(SafeMarkdownRenderer::class);
+
         /**
          * Provide the latest morning and evening sermons to the footer.
          */
@@ -57,7 +60,7 @@ class ViewServiceProvider extends ServiceProvider
          * Performance Optimization: Eager load 'media' relationship on Page queries
          * used for related links and page cards to prevent N+1 query issues.
          */
-        View::composer('layouts/page', function ($view) {
+        View::composer('layouts/page', function ($view) use ($markdownRenderer) {
             // User
             $user = Auth::user();
 
@@ -68,7 +71,9 @@ class ViewServiceProvider extends ServiceProvider
                 // Use the page data from the controller
                 $description = '<meta name="description" content="'.$page->description.'">';
                 $heading = $page->heading;
-                $content = htmlspecialchars_decode($page->body);
+                $content = isset($view->content)
+                    ? (string) $view->content
+                    : $markdownRenderer->convert($page->markdown);
                 $headingpicture = $page->heading_image_url;
                 $area = $page->area->value;
                 $slug = $page->slug;
