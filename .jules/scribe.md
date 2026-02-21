@@ -4,4 +4,4 @@
 
 ## 2026-02-27 - [Testing without Database]
 **Learning:** In environments where the primary database (MySQL) is unavailable and migrations fail on alternatives (SQLite), unit tests for model methods can still be performed using `Model::factory()->make()`.
-**Action:** Prefer `make()` over `create()` for unit tests that only verify data transformation logic and do not require persistence.
+**Action:** Prefer `make()` over `create()` for unit tests that only verify data transformation logic and do not require persistence. Also, remove the `DatabaseTransactions` trait from such tests as it still attempts to establish a DB connection.

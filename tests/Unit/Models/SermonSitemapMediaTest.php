@@ -3,7 +3,6 @@
 namespace Tests\Unit\Models;
 
 use App\Models\Sermon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -12,8 +11,6 @@ use Tests\TestCase;
 
 class SermonSitemapMediaTest extends TestCase
 {
-    use DatabaseTransactions;
-
     #[Test]
     public function it_includes_video_and_image_metadata_in_sitemap_tag(): void
     {
