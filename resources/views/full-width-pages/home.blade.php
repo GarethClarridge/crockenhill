@@ -31,7 +31,7 @@
       height="450"
       fetchpriority="high">
     {{-- Gradient Overlay --}}
-    <div class="absolute inset-0 bg-black/30"></div>
+    <div class="absolute inset-0 bg-gradient-to-tr from-black/65 via-black/35 to-black/10"></div>
     {{-- Content --}}
     <div class="relative grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
       <h1 class="text-white text-6xl font-display p-12 text-center md:text-left typewriter">
@@ -67,7 +67,7 @@
       height="800"
       fetchpriority="high">
     {{-- Gradient Overlay --}}
-    <div class="absolute inset-0 bg-black/20"></div>
+    <div class="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/40 to-black/10"></div>
     {{-- Content --}}
     <div class="relative grid grid-cols-1 mx-auto justify-items-center">
       <h1 class="text-white font-display text-6xl p-12 text-center typewriter">
@@ -89,10 +89,14 @@
     </div>
   </div>
 
+  <x-h2>
+    Welcome
+  </x-h2>
+
   <x-text>
     <p>
-      Crockenhill Baptist Church is friendly, Bible teaching church in
-      the village of Crockenhill, just outside Swanley and on the road between St Mary Cray and Eynsford.
+      Crockenhill Baptist Church is a friendly, Bible-teaching church in the village of Crockenhill,
+      just outside Swanley and on the road between St Mary Cray and Eynsford.
     </p>
   </x-text>
 
@@ -114,6 +118,19 @@
       </a> at 10:30am on Sundays.
     </p>
   </x-text>
+
+  <div class="mx-auto mb-8 mt-8 w-full max-w-[34rem] px-6 text-center sm:px-0">
+    <div class="w-full rounded-xl bg-[linear-gradient(120deg,#249a97_0%,#1d686a_55%,#145557_100%)] p-[1.5px] shadow-[0_10px_24px_rgba(20,85,87,0.18)]">
+      <x-button link="/community/sunday-mornings" variant="featureOutline" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
+        <div class="flex items-center justify-center gap-2">
+          <span class="bg-[linear-gradient(120deg,#249a97_0%,#1d686a_55%,#145557_100%)] bg-clip-text text-transparent">
+            What to expect on Sunday mornings
+          </span>
+          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-[#1d686a]" />
+        </div>
+      </x-button>
+    </div>
+  </div>
 
   <!-- <x-youtube 
       link="https://www.youtube.com/embed?listType=playlist&list=UUtSUTtkZlALToswWQpWS2kA" 
@@ -191,17 +208,21 @@
 
   <!-- <x-youtube link="https://www.youtube.com/embed/Ue3rHGDMzjU" title="Good News in 90 Seconds" /> -->
 
-  <div class="m-12">
-    <x-button link="/christ">
-      <div class="flex items-center justify-center">
-        Find out more about this good news
-        <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
-      </div>
-    </x-button>
+  <div class="mx-auto mb-8 mt-6 w-full max-w-[34rem] px-6 text-center sm:px-0">
+    <div class="w-full rounded-xl bg-[linear-gradient(120deg,#249a97_0%,#1d686a_55%,#145557_100%)] p-[1.5px] shadow-[0_10px_24px_rgba(20,85,87,0.18)]">
+      <x-button link="/christ" variant="featureOutline" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
+        <div class="flex items-center justify-center gap-2">
+          <span class="bg-[linear-gradient(120deg,#249a97_0%,#1d686a_55%,#145557_100%)] bg-clip-text text-transparent">
+            Explore the good news about Jesus
+          </span>
+          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-[#1d686a]" />
+        </div>
+      </x-button>
+    </div>
   </div>
 
   <x-text>
-    <p class="my-6">
+    <p class="mb-4 mt-2">
       If you've got questions, do get in touch using the details below.
       We'd love to hear from you.
     </p>
