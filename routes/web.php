@@ -160,8 +160,6 @@ Route::middleware('auth')->group(function () {
 
 Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
     Route::get('', MemberController::class)->name('memberHome');
-    // Pages resource removed - now handled by Filament at /admin/pages
-    // Meetings resource removed - now handled by Filament at /admin/meetings
 
     // Calendar admin routes
     Route::middleware('admin')->group(function () {

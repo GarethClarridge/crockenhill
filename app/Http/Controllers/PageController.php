@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\View;
 
 /**
  * Controller for displaying pages to the public.
- *
- * Note: Page CRUD operations are handled by Filament (PageResource).
- * This controller only handles public-facing page display.
  */
 class PageController extends Controller
 {

@@ -13,8 +13,8 @@ use Tests\TestCase;
 /**
  * Tests for Meeting CRUD operations.
  *
- * Note: Meeting admin has been migrated to Filament at /admin/meetings.
- * The legacy routes at /church/members/meetings now redirect to Filament.
+ * Note: Meeting admin is available at /admin/meetings.
+ * The legacy routes at /church/members/meetings now redirect to /admin/meetings.
  * This test file verifies the redirects work correctly and tests the
  * public meeting show functionality.
  */
@@ -47,7 +47,7 @@ class MeetingCrudTest extends TestCase
     }
 
     #[Test]
-    public function test_legacy_meeting_index_redirects_to_filament()
+    public function test_legacy_meeting_index_redirects_to_admin()
     {
         $this->actingAs($this->adminUser);
         $response = $this->get('/church/members/meetings');
@@ -55,7 +55,7 @@ class MeetingCrudTest extends TestCase
     }
 
     #[Test]
-    public function test_legacy_meeting_create_redirects_to_filament()
+    public function test_legacy_meeting_create_redirects_to_admin()
     {
         $this->actingAs($this->adminUser);
         $response = $this->get('/church/members/meetings/create');
@@ -63,7 +63,7 @@ class MeetingCrudTest extends TestCase
     }
 
     #[Test]
-    public function test_legacy_meeting_edit_redirects_to_filament()
+    public function test_legacy_meeting_edit_redirects_to_admin()
     {
         $meeting = Meeting::factory()->create();
 
