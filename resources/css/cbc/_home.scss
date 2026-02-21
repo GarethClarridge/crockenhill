@@ -10,6 +10,7 @@
     // Typewriter animation - ultra performance CSS-only approach
     &.typewriter {
       position: relative;
+      line-height: 0.95;
       
       .typewriter-line {
         display: inline-block;

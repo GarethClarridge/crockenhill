@@ -25,4 +25,18 @@ class HomepageContentTest extends TestCase
         $response->assertSee('Learn about Bible study');
         $response->assertSee('Explore the good news about Jesus');
     }
+
+    #[Test]
+    public function homepage_has_single_set_of_hero_navigation_links(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertStatus(200);
+
+        $content = (string) $response->getContent();
+
+        $this->assertSame(1, substr_count($content, 'href="#worshipping-god"'));
+        $this->assertSame(1, substr_count($content, 'href="#strengthening-believers"'));
+        $this->assertSame(1, substr_count($content, 'href="#proclaiming-jesus-christ-to-all"'));
+    }
 }

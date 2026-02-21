@@ -20,62 +20,36 @@
 
 <main id="main-content" class="text-sm -mt-px text-center">
 
-  {{-- Desktop Hero --}}
-  <div class="full-width-head relative py-16 mb-16 hidden md:block overflow-hidden">
+  {{-- Hero --}}
+  <div class="full-width-head relative mb-16 overflow-hidden py-16">
     {{-- Background Image (LCP element) --}}
-    <img
-      src="{{ asset('/images/homepage/may2024wide.webp') }}"
-      alt=""
-      class="absolute inset-0 w-full h-full object-cover object-right"
-      width="1200"
-      height="450"
-      fetchpriority="high">
+    <picture class="absolute inset-0 block">
+      <source
+        media="(max-width: 767px)"
+        srcset="{{ asset('/images/homepage/may2024mobile-portrait-600.webp') }} 600w,
+                {{ asset('/images/homepage/may2024mobile-portrait.webp') }} 675w"
+        sizes="100vw">
+      <source
+        media="(min-width: 768px)"
+        srcset="{{ asset('/images/homepage/may2024wide.webp') }}">
+      <img
+        src="{{ asset('/images/homepage/may2024wide.webp') }}"
+        alt=""
+        class="h-full w-full object-cover md:object-right"
+        width="1200"
+        height="450"
+        fetchpriority="high">
+    </picture>
     {{-- Gradient Overlay --}}
-    <div class="absolute inset-0 bg-gradient-to-tr from-black/65 via-black/35 to-black/10"></div>
+    <div class="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/40 to-black/10 md:from-black/65 md:via-black/35"></div>
     {{-- Content --}}
-    <div class="relative grid grid-cols-1 md:grid-cols-2 mx-auto justify-items-center">
-      <h1 class="text-white text-6xl font-display p-12 text-center md:text-left typewriter">
+    <div class="relative mx-auto grid grid-cols-1 justify-items-center md:grid-cols-2">
+      <h1 class="typewriter p-12 text-center font-display text-6xl text-white md:text-left">
         <span class="typewriter-line typewriter-line-1">Crockenhill</span><br>
         <span class="typewriter-line typewriter-line-2">Baptist</span><br>
         <span class="typewriter-line typewriter-line-3">Church.</span>
       </h1>
-      <div class="p-3 leading-10 text-xl self-center font-display text-center md:text-right hero-nav-container">
-        <div class="hero-nav-link-animated hero-nav-link-1">
-          <x-hero-nav-link href="#worshipping-god" text="Worshipping God" />
-        </div>
-        <div class="hero-nav-link-animated hero-nav-link-2">
-          <x-hero-nav-link href="#strengthening-believers" text="Strengthening believers" />
-        </div>
-        <div class="hero-nav-link-animated hero-nav-link-3">
-          <x-hero-nav-link href="#proclaiming-jesus-christ-to-all" text="Proclaiming Jesus Christ to all" />
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {{-- Mobile Hero --}}
-  <div class="full-width-head relative py-16 mb-16 md:hidden overflow-hidden">
-    {{-- Background Image (LCP element) - portrait orientation for mobile --}}
-    <img
-      src="{{ asset('/images/homepage/may2024mobile-portrait-600.webp') }}"
-      srcset="{{ asset('/images/homepage/may2024mobile-portrait-600.webp') }} 600w,
-              {{ asset('/images/homepage/may2024mobile-portrait.webp') }} 675w"
-      sizes="100vw"
-      alt=""
-      class="absolute inset-0 w-full h-full object-cover"
-      width="600"
-      height="800"
-      fetchpriority="high">
-    {{-- Gradient Overlay --}}
-    <div class="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/40 to-black/10"></div>
-    {{-- Content --}}
-    <div class="relative grid grid-cols-1 mx-auto justify-items-center">
-      <h1 class="text-white font-display text-6xl p-12 text-center typewriter">
-        <span class="typewriter-line typewriter-line-1">Crockenhill</span><br>
-        <span class="typewriter-line typewriter-line-2">Baptist</span><br>
-        <span class="typewriter-line typewriter-line-3">Church.</span>
-      </h1>
-      <div class="p-3 m-6 leading-10 text-xl font-display text-center hero-nav-container">
+      <div class="hero-nav-container m-6 p-3 text-center font-display text-xl leading-10 md:m-0 md:self-center md:text-right">
         <div class="hero-nav-link-animated hero-nav-link-1">
           <x-hero-nav-link href="#worshipping-god" text="Worshipping God" />
         </div>
