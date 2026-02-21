@@ -27,9 +27,26 @@ class SitemapService
 
             // Dynamic content via Sitemapable models
             // Eager load relationships to prevent N+1 queries during sitemap generation
-            ->add(Sermon::with('preacherProfile')->get())
-            ->add(Page::with('media')->where('admin', 'no')->get())
-            ->add(Meeting::all())
+            // Large text/blob fields (body, markdown, points, summary, etc.) are excluded via select() where possible
+            // to reduce memory usage and SQL execution time.
+            ->add(
+                Sermon::query()
+                    ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'thumbnail_file_path', 'summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series'])
+                    ->with('preacherProfile:id,name,slug')
+                    ->get()
+            )
+            ->add(
+                Page::query()
+                    ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
+                    ->with(['media', 'meeting'])
+                    ->where('admin', 'no')
+                    ->get()
+            )
+            ->add(
+                Meeting::query()
+                    ->select(['id', 'slug', 'updated_at', 'page_id'])
+                    ->get()
+            )
 
             ->writeToFile($sitemapPath);
 

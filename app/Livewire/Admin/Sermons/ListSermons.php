@@ -90,7 +90,8 @@ class ListSermons extends Component
     public function render()
     {
         $query = Sermon::query()
-            ->with('preacherProfile')
+            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug'])
+            ->with('preacherProfile:id,name,slug')
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")
                 ->orWhere('preacher', 'like', "%{$this->search}%")
                 ->orWhere('reference', 'like', "%{$this->search}%"))

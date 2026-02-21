@@ -57,7 +57,8 @@ class PodcastFeedService
         $limit = config('podcast.items_limit', 100);
 
         return Sermon::forPodcast()
-            ->with('preacherProfile')
+            ->select(['id', 'title', 'audio_file_path', 'filetype', 'date', 'series', 'reference', 'preacher', 'preacher_id', 'duration', 'summary', 'slug', 'thumbnail_file_path'])
+            ->with('preacherProfile:id,name,slug')
             ->forService($serviceType)
             ->limit($limit)
             ->get()
