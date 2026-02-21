@@ -79,13 +79,13 @@
     Skip to content
   </a>
 
-  <header x-data="{ expanded: false }">
+  <header x-data="{ expanded: false }" class="site-header">
     <x-layout.header />
   </header>
 
   @yield('content')
 
-  <footer class="mt-6 bg-cbc-pattern bg-cover p-6">
+  <footer class="site-footer mt-6 bg-cbc-pattern bg-cover p-6">
     <x-layout.footer />
   </footer>
 

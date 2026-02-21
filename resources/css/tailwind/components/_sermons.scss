@@ -1,0 +1,26 @@
+@layer components {
+    .panel-heading {
+        font-size: 0.75em;
+    }
+
+    .sermon-details {
+        @apply -mx-5 mb-6 bg-[#08a386] p-6 text-xl text-white;
+    }
+
+    .sermon-details a {
+        @apply text-inherit;
+    }
+
+    .sermon-headings {
+        @apply pt-1;
+    }
+
+    .sermon-headings > ol > li,
+    .sermon-headings > ul > li {
+        @apply pt-6;
+    }
+
+    .sermon-icon {
+        @apply w-full bg-center bg-no-repeat md:w-1/2;
+    }
+}

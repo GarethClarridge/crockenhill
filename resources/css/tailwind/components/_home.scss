@@ -1,9 +1,5 @@
 /*
- * Legacy SCSS -> Tailwind component migration plan
- * Phase 1 (completed): home hero/typewriter/nav styles now live in this Tailwind component layer.
- * Phase 2: migrate shared legacy partials (cards/header/footer/pages/sermons/text) into
- *          resources/css/tailwind/components/*.scss using @layer components and @apply.
- * Phase 3: remove the remaining resources/css/cbc/* imports from resources/css/app.scss.
+ * Home-specific component-layer styles for the animated hero and nav on the home page.
  */
 
 @layer components {
