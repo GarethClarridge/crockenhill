@@ -45,4 +45,10 @@ class ConfigValidationTest extends TestCase
         $this->assertGreaterThanOrEqual(1800, $redisRetryAfter, 'Redis retry_after must exceed transcription timeout');
         $this->assertGreaterThanOrEqual(1800, $databaseRetryAfter, 'Database retry_after must exceed transcription timeout');
     }
+
+    #[Test]
+    public function it_defaults_session_cookies_to_same_site_lax(): void
+    {
+        $this->assertSame('lax', config('session.same_site'));
+    }
 }

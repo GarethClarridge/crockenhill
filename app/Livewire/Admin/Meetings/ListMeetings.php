@@ -12,20 +12,44 @@ class ListMeetings extends Component
 {
     use WithNotifications, WithPagination;
 
+    private const DEFAULT_SORT_COLUMN = 'updated_at';
+
+    private const DEFAULT_SORT_DIRECTION = 'desc';
+
+    private const ALLOWED_SORT_COLUMNS = [
+        'slug',
+        'day',
+        'start_time',
+        'type',
+        'is_recurring',
+        'location',
+        'created_at',
+        'updated_at',
+    ];
+
+    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
+
     public string $search = '';
 
     public ?string $typeFilter = null;
 
     public ?bool $recurringFilter = null;
 
-    public string $sortBy = 'updated_at';
+    public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
-    public string $sortDirection = 'desc';
+    public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
     protected $queryString = ['search', 'typeFilter', 'recurringFilter'];
 
     public function sort(string $column): void
     {
+        if (! in_array($column, self::ALLOWED_SORT_COLUMNS, true)) {
+            $this->sortBy = self::DEFAULT_SORT_COLUMN;
+            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
+
+            return;
+        }
+
         if ($this->sortBy === $column) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
@@ -47,6 +71,8 @@ class ListMeetings extends Component
 
     public function render()
     {
+        $this->sanitizeSorting();
+
         $meetings = Meeting::query()
             ->with(['page', 'calendarEvents'])
             ->when($this->search, fn ($q) => $q->whereHas('page', fn ($q2) => $q2->where('heading', 'like', "%{$this->search}%"))
@@ -70,5 +96,16 @@ class ListMeetings extends Component
             'headers' => $headers,
             'types' => MeetingType::cases(),
         ])->layout('layouts.admin', ['title' => 'Meetings', 'heading' => 'Meetings']);
+    }
+
+    private function sanitizeSorting(): void
+    {
+        if (! in_array($this->sortBy, self::ALLOWED_SORT_COLUMNS, true)) {
+            $this->sortBy = self::DEFAULT_SORT_COLUMN;
+        }
+
+        if (! in_array($this->sortDirection, self::ALLOWED_SORT_DIRECTIONS, true)) {
+            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
+        }
     }
 }

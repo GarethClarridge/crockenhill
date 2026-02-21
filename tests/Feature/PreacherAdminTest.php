@@ -94,6 +94,21 @@ class PreacherAdminTest extends TestCase
     }
 
     #[Test]
+    public function preacher_list_resets_invalid_sort_input_to_safe_defaults(): void
+    {
+        $this->actingAs($this->admin);
+
+        Preacher::factory()->create(['name' => 'Alpha Preacher']);
+
+        Livewire::test(ListPreachers::class)
+            ->set('sortBy', 'invalid_column')
+            ->set('sortDirection', 'sideways')
+            ->assertSet('sortBy', 'name')
+            ->assertSet('sortDirection', 'asc')
+            ->assertSee('Alpha Preacher');
+    }
+
+    #[Test]
     public function admin_can_add_alias_to_preacher(): void
     {
         $this->actingAs($this->admin);

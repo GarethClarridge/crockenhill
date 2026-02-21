@@ -13,34 +13,50 @@ class HandleCors
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Handle preflight OPTIONS requests
+        $allowedOrigin = $this->getAllowedOrigin($request);
+        $origin = $request->header('Origin');
+
+        // Reject unknown origins on preflight requests.
         if ($request->getMethod() === 'OPTIONS') {
-            return response('', 200)
-                ->header('Access-Control-Allow-Origin', $this->getAllowedOrigin($request))
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
-                ->header('Access-Control-Allow-Credentials', 'true')
-                ->header('Access-Control-Max-Age', '86400'); // 24 hours
+            if ($origin !== null && $allowedOrigin === null) {
+                $forbidden = response('', Response::HTTP_FORBIDDEN);
+                $forbidden->headers->set('Vary', 'Origin');
+
+                return $forbidden;
+            }
+
+            return $this->applyCorsHeaders(response('', Response::HTTP_OK), $allowedOrigin, true);
         }
 
         $response = $next($request);
 
-        // Add CORS headers to the response
-        return $response
-            ->header('Access-Control-Allow-Origin', $this->getAllowedOrigin($request))
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept')
-            ->header('Access-Control-Allow-Credentials', 'true');
+        return $this->applyCorsHeaders($response, $allowedOrigin, false);
     }
 
     /**
-     * Get the allowed origin for the request
+     * Get the allowed origin for the request.
      */
-    private function getAllowedOrigin(Request $request): string
+    private function getAllowedOrigin(Request $request): ?string
     {
         $origin = $request->header('Origin');
-        $appUrl = config('app.url');
-        $allowedOrigins = config('app.cors_allowed_origins', [
+
+        if (! is_string($origin) || $origin === '') {
+            return null;
+        }
+
+        $allowedOrigins = $this->getConfiguredOrigins();
+
+        return in_array($origin, $allowedOrigins, true) ? $origin : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getConfiguredOrigins(): array
+    {
+        $appUrl = (string) config('app.url');
+
+        $allowedOrigins = (array) config('app.cors_allowed_origins', [
             $appUrl,
             str_replace('https://', 'https://www.', $appUrl),
         ]);
@@ -55,11 +71,30 @@ class HandleCors
             ]);
         }
 
-        // If origin is in allowed list, return it; otherwise return first allowed origin
-        if ($origin && in_array($origin, $allowedOrigins)) {
-            return $origin;
+        $filtered = array_values(array_unique(array_filter($allowedOrigins, fn (mixed $value): bool => is_string($value) && $value !== '')));
+
+        return $filtered;
+    }
+
+    /**
+     * Apply CORS headers for allowed origins only.
+     */
+    private function applyCorsHeaders(Response $response, ?string $allowedOrigin, bool $isPreflight): Response
+    {
+        if ($allowedOrigin === null) {
+            return $response;
         }
 
-        return $allowedOrigins[0] ?? '*';
+        $response->headers->set('Access-Control-Allow-Origin', $allowedOrigin);
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+        $response->headers->set('Access-Control-Allow-Credentials', 'true');
+        $response->headers->set('Vary', 'Origin');
+
+        if ($isPreflight) {
+            $response->headers->set('Access-Control-Max-Age', '86400');
+        }
+
+        return $response;
     }
 }
