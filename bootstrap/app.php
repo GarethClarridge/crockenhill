@@ -17,13 +17,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('media:cleanup-temp-files --hours=24')->everySixHours();
     })
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->trustProxies(at: '*');
+        $trustedProxies = env('TRUSTED_PROXIES');
+
+        if (is_string($trustedProxies) && trim($trustedProxies) !== '') {
+            $middleware->trustProxies(at: $trustedProxies);
+        }
 
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
             'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
-            'cors' => \App\Http\Middleware\HandleCors::class,
             'media.process' => \App\Http\Middleware\EnsureMediaProcessingAccess::class,
         ]);
 

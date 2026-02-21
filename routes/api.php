@@ -12,7 +12,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 // Sermon data endpoints (read-only)
-Route::prefix('sermons')->name('api.sermons.')->middleware('cors')->group(function () {
+Route::prefix('sermons')->name('api.sermons.')->group(function () {
     Route::get('/', [SermonApiController::class, 'index'])
         ->middleware('throttle:api')
         ->name('index');
@@ -28,7 +28,6 @@ Route::prefix('media')->name('api.media.')->group(function () {
     Route::post('{type}', [MediaController::class, 'upload'])
         ->where('type', 'audio|video|livestream')
         ->middleware([
-            'cors',
             'auth:sanctum',
             'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
             'media.process',
