@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Log;
 
 class SermonStatusManagementService
 {
+    public function __construct(
+        private SermonValidationService $validationService
+    ) {}
+
     /**
      * Get the current processing status for a given processing ID
      */
@@ -106,8 +110,8 @@ class SermonStatusManagementService
                         'title' => $log->sermon->title,
                         'slug' => $log->sermon->slug,
                     ] : null,
-                    'can_retry' => $this->canRetryProcessing($log),
-                    'requires_manual_review' => $this->requiresManualReview($log),
+                    'can_retry' => $this->validationService->canRetryProcessing($log),
+                    'requires_manual_review' => $this->validationService->requiresManualReview($log),
                 ];
             })->toArray();
         } catch (\Exception $e) {
@@ -260,76 +264,6 @@ class SermonStatusManagementService
                 'timestamp' => now()->toISOString(),
             ];
         }
-    }
-
-    /**
-     * Check if processing can be retried automatically
-     */
-    private function canRetryProcessing(MediaProcessingLog $processingLog): bool
-    {
-        // Don't retry if it's been marked for manual review
-        if (str_contains($processingLog->current_step ?? '', 'manual_review')) {
-            return false;
-        }
-
-        // Don't retry if it's too old (more than 7 days)
-        if ($processingLog->created_at->diffInDays(now()) > 7) {
-            return false;
-        }
-
-        // Don't retry certain critical failures
-        $criticalFailures = [
-            'file_not_found',
-            'invalid_file_format',
-            'storage_failure',
-        ];
-
-        foreach ($criticalFailures as $failure) {
-            if (str_contains(strtolower($processingLog->error_message ?? ''), $failure)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Check if processing requires manual review
-     */
-    private function requiresManualReview(MediaProcessingLog $processingLog): bool
-    {
-        // Already marked for manual review
-        if (str_contains($processingLog->current_step ?? '', 'manual_review')) {
-            return true;
-        }
-
-        // Multiple failures in critical steps
-        $criticalSteps = [
-            'creating_sermon_record',
-            'transcribing_audio',
-        ];
-
-        if (in_array($processingLog->current_step, $criticalSteps)) {
-            return true;
-        }
-
-        // Check for specific error patterns that require manual intervention
-        $manualReviewPatterns = [
-            'file not found',
-            'invalid audio format',
-            'transcription service unavailable',
-            'storage failure',
-            'database constraint violation',
-        ];
-
-        $errorMessage = strtolower($processingLog->error_message ?? '');
-        foreach ($manualReviewPatterns as $pattern) {
-            if (str_contains($errorMessage, $pattern)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**

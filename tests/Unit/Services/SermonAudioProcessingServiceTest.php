@@ -8,11 +8,11 @@ use App\Services\MediaValidationService;
 use App\Services\MetadataExtractionService;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\SermonAudioProcessingService;
+use App\Services\SermonJobPipelineService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -29,6 +29,8 @@ class SermonAudioProcessingServiceTest extends TestCase
 
     private MediaValidationService $mediaValidationService;
 
+    private SermonJobPipelineService $jobPipelineService;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -37,11 +39,13 @@ class SermonAudioProcessingServiceTest extends TestCase
         $this->metadataService = $this->createMock(MetadataExtractionService::class);
         $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
         $this->mediaValidationService = new MediaValidationService;
+        $this->jobPipelineService = $this->createMock(SermonJobPipelineService::class);
 
         $this->service = new SermonAudioProcessingService(
             $this->metadataService,
             $this->pipelineBuilder,
-            $this->mediaValidationService
+            $this->mediaValidationService,
+            $this->jobPipelineService
         );
 
         // Setup storage fakes
@@ -146,8 +150,6 @@ class SermonAudioProcessingServiceTest extends TestCase
     #[Test]
     public function it_processes_livestream_audio_successfully(): void
     {
-        Bus::fake();
-
         $file = UploadedFile::fake()->create('livestream.mp3', 1024, 'audio/mpeg');
         $metadata = [
             'source_type' => 'livestream',
@@ -157,6 +159,27 @@ class SermonAudioProcessingServiceTest extends TestCase
         $this->pipelineBuilder->expects($this->once())
             ->method('buildAudioPipeline')
             ->willReturn([new DummyJob]);
+
+        $this->jobPipelineService->expects($this->once())
+            ->method('createProcessingLogWithLivestreamContext')
+            ->willReturnCallback(function (string $processingId, string $filename, array $livestreamMetadata): MediaProcessingLog {
+                return MediaProcessingLog::create([
+                    'processing_id' => $processingId,
+                    'processing_type' => 'audio',
+                    'original_filename' => $filename,
+                    'status' => ProcessingStatus::PENDING,
+                    'current_step' => 'initiated_from_livestream:'.$livestreamMetadata['livestream_processing_id'],
+                    'processing_metadata' => $livestreamMetadata,
+                ]);
+            });
+
+        $this->jobPipelineService->expects($this->once())
+            ->method('dispatchProcessingJobs')
+            ->with(
+                $this->callback(fn (array $jobs): bool => count($jobs) === 1 && $jobs[0] instanceof DummyJob),
+                $this->isInstanceOf(MediaProcessingLog::class),
+                $metadata
+            );
 
         $result = $this->service->processSermonAudio($file, $metadata);
 

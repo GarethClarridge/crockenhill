@@ -6,6 +6,8 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\SermonJobPipelineService;
+use App\Services\SermonStatusManagementService;
+use App\Services\SermonValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use PHPUnit\Framework\Attributes\Test;
@@ -24,7 +26,13 @@ class SermonJobPipelineServiceTest extends TestCase
         parent::setUp();
 
         $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
-        $this->service = new SermonJobPipelineService($this->pipelineBuilder);
+        $validationService = new SermonValidationService;
+        $statusManagementService = new SermonStatusManagementService($validationService);
+        $this->service = new SermonJobPipelineService(
+            $this->pipelineBuilder,
+            $validationService,
+            $statusManagementService
+        );
     }
 
     // --- dispatchProcessingJobs() ---
@@ -93,6 +101,7 @@ class SermonJobPipelineServiceTest extends TestCase
 
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => 'test-123',
+            'processing_type' => 'audio',
             'original_filename' => 'livestream-2026-01-15.mp3',
             'status' => ProcessingStatus::PENDING->value,
         ]);

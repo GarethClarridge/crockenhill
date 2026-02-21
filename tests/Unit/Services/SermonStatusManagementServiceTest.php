@@ -6,6 +6,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonStatusManagementService;
+use App\Services\SermonValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -19,7 +20,7 @@ class SermonStatusManagementServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonStatusManagementService;
+        $this->service = new SermonStatusManagementService(new SermonValidationService);
     }
 
     // --- getProcessingStatus() ---
