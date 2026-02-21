@@ -78,7 +78,10 @@ class CalendarAdminControllerTest extends TestCase
 
         $response->assertStatus(200);
         $meetings = $response->viewData('meetings');
-        $this->assertEquals('a-meeting', $meetings->first()->slug);
+        $meetingSlugs = $meetings->pluck('slug')->values()->all();
+        $sortedMeetingSlugs = collect($meetingSlugs)->sort()->values()->all();
+
+        $this->assertSame($sortedMeetingSlugs, $meetingSlugs);
     }
 
     // --- categorizeEvent ---

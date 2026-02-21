@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\PageArea;
+use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -15,6 +17,8 @@ class HomepageContentTest extends TestCase
     #[Test]
     public function homepage_has_improved_welcome_and_specific_calls_to_action(): void
     {
+        $this->ensureHomepageCtaPagesExist();
+
         $response = $this->get('/');
 
         $response->assertStatus(200);
@@ -43,6 +47,8 @@ class HomepageContentTest extends TestCase
     #[Test]
     public function homepage_renders_full_width_page_card_footer_ctas(): void
     {
+        $this->ensureHomepageCtaPagesExist();
+
         $response = $this->get('/');
 
         $response->assertStatus(200);
@@ -50,5 +56,32 @@ class HomepageContentTest extends TestCase
         $content = (string) $response->getContent();
 
         $this->assertGreaterThanOrEqual(2, substr_count($content, 'aria-label="Learn about '));
+    }
+
+    private function ensureHomepageCtaPagesExist(): void
+    {
+        Page::query()->updateOrCreate(
+            ['slug' => 'sunday-evenings'],
+            [
+                'heading' => 'Sunday evenings',
+                'description' => 'Sunday evening service information.',
+                'area' => PageArea::COMMUNITY,
+                'body' => 'Sunday evening service information.',
+                'markdown' => 'Sunday evening service information.',
+                'navigation' => true,
+            ]
+        );
+
+        Page::query()->updateOrCreate(
+            ['slug' => 'bible-study'],
+            [
+                'heading' => 'Bible study',
+                'description' => 'Bible study information.',
+                'area' => PageArea::COMMUNITY,
+                'body' => 'Bible study information.',
+                'markdown' => 'Bible study information.',
+                'navigation' => true,
+            ]
+        );
     }
 }
