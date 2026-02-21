@@ -9,7 +9,6 @@ use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -80,7 +79,7 @@ class ViewServiceProvider extends ServiceProvider
                     ->where('slug', '!=', $slug)
                     ->where('slug', '!=', 'privacy-policy')
                     ->where('admin', '!=', 'yes')
-                    ->orderBy(DB::raw('RAND()'))
+                    ->inRandomOrder()
                     ->take(5)
                     ->get();
 
@@ -148,7 +147,7 @@ class ViewServiceProvider extends ServiceProvider
                             ->where('area', $slug)
                             ->where('slug', '!=', $slug)
                             ->where('slug', '!=', 'homepage')
-                            ->orderBy(DB::raw('RAND()'))
+                            ->inRandomOrder()
                             ->take(5)
                             ->get();
 
@@ -175,7 +174,7 @@ class ViewServiceProvider extends ServiceProvider
                         ->where('area', $area)
                         ->where('slug', '!=', $area)
                         ->where('slug', '!=', 'homepage')
-                        ->orderBy(DB::raw('RAND()'))
+                        ->inRandomOrder()
                         ->take(5)
                         ->get();
 
@@ -324,7 +323,7 @@ class ViewServiceProvider extends ServiceProvider
                         ->where('slug', '!=', $area)
                         ->where('slug', '!=', 'privacy-policy')
                         ->where('admin', '!=', 'yes')
-                        ->orderBy(DB::raw('RAND()'))
+                        ->inRandomOrder()
                         ->take(5)
                         ->get();
                 }
