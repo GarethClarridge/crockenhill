@@ -57,7 +57,7 @@ class Form extends Component
     // Form properties
     public string $mediaType = '';
 
-    public $mediaFile = null;
+    public mixed $mediaFile = null;
 
     public ?string $fileModifiedDate = null;
 

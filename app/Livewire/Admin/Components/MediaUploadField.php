@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Components;
 
 use App\Livewire\Traits\WithNotifications;
 use Exception;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Spatie\MediaLibrary\HasMedia;
@@ -86,7 +89,7 @@ class MediaUploadField extends Component
         }
     }
 
-    public function render(): \Illuminate\View\View
+    public function render(): View
     {
         $existingMedia = $this->model?->getMedia($this->collection) ?? collect();
 

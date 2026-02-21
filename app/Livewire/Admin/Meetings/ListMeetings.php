@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Meetings;
 
 use App\Enums\MeetingType;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Meeting;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -39,7 +42,7 @@ class ListMeetings extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    protected $queryString = ['search', 'typeFilter', 'recurringFilter'];
+    protected array $queryString = ['search', 'typeFilter', 'recurringFilter'];
 
     public function sort(string $column): void
     {
@@ -69,7 +72,7 @@ class ListMeetings extends Component
         $this->success('Meeting deleted');
     }
 
-    public function render()
+    public function render(): View
     {
         $this->sanitizeSorting();
 

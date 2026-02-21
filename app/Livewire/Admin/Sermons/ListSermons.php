@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
@@ -8,6 +10,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -49,7 +52,7 @@ class ListSermons extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    protected $queryString = ['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months'];
+    protected array $queryString = ['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months'];
 
     public function mount(): void
     {
@@ -103,7 +106,7 @@ class ListSermons extends Component
         });
     }
 
-    public function render()
+    public function render(): View
     {
         $this->sanitizeSorting();
 

@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Preachers;
 
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -34,7 +37,7 @@ class ListPreachers extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    protected $queryString = ['search', 'activeFilter'];
+    protected array $queryString = ['search', 'activeFilter'];
 
     public function mount(): void
     {
@@ -55,7 +58,7 @@ class ListPreachers extends Component
         $this->success('Preacher deleted');
     }
 
-    public function render()
+    public function render(): View
     {
         $this->sanitizeSorting();
 

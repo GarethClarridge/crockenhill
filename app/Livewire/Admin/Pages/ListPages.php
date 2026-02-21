@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Pages;
 
 use App\Enums\PageArea;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -37,7 +40,7 @@ class ListPages extends Component
 
     public array $selected = [];
 
-    protected $queryString = ['search', 'areaFilter', 'navigationFilter'];
+    protected array $queryString = ['search', 'areaFilter', 'navigationFilter'];
 
     public function sort(string $column): void
     {
@@ -74,7 +77,7 @@ class ListPages extends Component
         $this->success('Pages deleted');
     }
 
-    public function render()
+    public function render(): View
     {
         $this->sanitizeSorting();
 

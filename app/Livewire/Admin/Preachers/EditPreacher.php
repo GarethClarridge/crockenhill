@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Preachers;
 
 use App\Contracts\SpeakerIdentificationInterface;
@@ -9,6 +11,7 @@ use App\Models\PreacherAlias;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class EditPreacher extends Component
@@ -133,7 +136,7 @@ class EditPreacher extends Component
         $this->preacher->refresh();
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.admin.preachers.preacher-form', [
             'title' => 'Edit Preacher',
