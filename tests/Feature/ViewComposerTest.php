@@ -106,8 +106,10 @@ class ViewComposerTest extends TestCase
     #[Test]
     public function it_uses_members_links_for_second_level_members_route(): void
     {
+        $membersSlug = 'view-composer-members-link';
+
         Page::factory()->create([
-            'slug' => 'songs',
+            'slug' => $membersSlug,
             'area' => PageArea::MEMBERS,
             'admin' => 'no',
         ]);
@@ -131,7 +133,7 @@ class ViewComposerTest extends TestCase
 
         $links = $view->getData()['links'];
 
-        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === 'songs' && $page->area === PageArea::MEMBERS));
+        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === $membersSlug && $page->area === PageArea::MEMBERS));
         $this->assertFalse($links->contains(fn (Page $page): bool => $page->area === PageArea::SERMONS));
         $this->assertFalse($links->contains('slug', 'pages'));
     }
@@ -139,8 +141,10 @@ class ViewComposerTest extends TestCase
     #[Test]
     public function it_uses_members_links_for_third_level_members_route(): void
     {
+        $membersSlug = 'view-composer-members-link-level-3';
+
         Page::factory()->create([
-            'slug' => 'songs',
+            'slug' => $membersSlug,
             'area' => PageArea::MEMBERS,
             'admin' => 'no',
         ]);
@@ -158,24 +162,30 @@ class ViewComposerTest extends TestCase
 
         $links = $view->getData()['links'];
 
-        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === 'songs' && $page->area === PageArea::MEMBERS));
+        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === $membersSlug && $page->area === PageArea::MEMBERS));
         $this->assertFalse($links->contains(fn (Page $page): bool => $page->area === PageArea::SERMONS));
     }
 
     #[Test]
     public function it_scopes_home_card_pages_to_expected_slugs(): void
     {
-        Page::factory()->create([
-            'slug' => 'sunday-evenings',
-            'area' => PageArea::COMMUNITY,
-            'admin' => 'no',
-        ]);
+        Page::query()->updateOrCreate(
+            ['slug' => 'sunday-evenings'],
+            Page::factory()->raw([
+                'slug' => 'sunday-evenings',
+                'area' => PageArea::COMMUNITY,
+                'admin' => 'no',
+            ]),
+        );
 
-        Page::factory()->create([
-            'slug' => 'bible-study',
-            'area' => PageArea::COMMUNITY,
-            'admin' => 'no',
-        ]);
+        Page::query()->updateOrCreate(
+            ['slug' => 'bible-study'],
+            Page::factory()->raw([
+                'slug' => 'bible-study',
+                'area' => PageArea::COMMUNITY,
+                'admin' => 'no',
+            ]),
+        );
 
         Page::factory()->create([
             'slug' => 'unrelated-page',

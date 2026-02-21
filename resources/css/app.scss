@@ -2,11 +2,11 @@
 @use 'cbc/mixins';
 @use 'cbc/cards';
 @use 'cbc/header';
-@use 'cbc/home';
 @use 'cbc/footer';
 @use 'cbc/pages';
 @use 'cbc/sermons';
 @use 'cbc/text';
+@use 'tailwind/components/home';
 
 @tailwind base;
 @tailwind components;
@@ -53,5 +53,4 @@
   src:
     url(/fonts/lato-bold.woff2) format("woff2");
 }
-
 

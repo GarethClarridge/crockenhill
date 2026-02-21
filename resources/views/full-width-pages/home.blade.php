@@ -21,7 +21,7 @@
 <main id="main-content" class="text-sm -mt-px text-center">
 
   {{-- Hero --}}
-  <div class="full-width-head relative mb-16 overflow-hidden py-16">
+  <div class="home-hero">
     {{-- Background Image (LCP element) --}}
     <picture class="absolute inset-0 block">
       <source
@@ -44,19 +44,19 @@
     <div class="absolute inset-0 bg-gradient-to-tr from-black/70 via-black/40 to-black/10 md:from-black/65 md:via-black/35"></div>
     {{-- Content --}}
     <div class="relative mx-auto grid grid-cols-1 justify-items-center md:grid-cols-2">
-      <h1 class="typewriter p-12 text-center font-display text-6xl text-white md:text-left">
-        <span class="typewriter-line typewriter-line-1">Crockenhill</span><br>
-        <span class="typewriter-line typewriter-line-2">Baptist</span><br>
-        <span class="typewriter-line typewriter-line-3">Church.</span>
+      <h1 class="home-hero-title home-typewriter">
+        <span class="home-typewriter-line home-typewriter-line-1">Crockenhill</span><br>
+        <span class="home-typewriter-line home-typewriter-line-2">Baptist</span><br>
+        <span class="home-typewriter-line home-typewriter-line-3">Church.</span>
       </h1>
-      <div class="hero-nav-container m-6 p-3 text-center font-display text-xl leading-10 md:m-0 md:self-center md:text-right">
-        <div class="hero-nav-link-animated hero-nav-link-1">
+      <div class="home-hero-nav">
+        <div class="home-hero-nav-link home-hero-nav-link-1">
           <x-hero-nav-link href="#worshipping-god" text="Worshipping God" />
         </div>
-        <div class="hero-nav-link-animated hero-nav-link-2">
+        <div class="home-hero-nav-link home-hero-nav-link-2">
           <x-hero-nav-link href="#strengthening-believers" text="Strengthening believers" />
         </div>
-        <div class="hero-nav-link-animated hero-nav-link-3">
+        <div class="home-hero-nav-link home-hero-nav-link-3">
           <x-hero-nav-link href="#proclaiming-jesus-christ-to-all" text="Proclaiming Jesus Christ to all" />
         </div>
       </div>
