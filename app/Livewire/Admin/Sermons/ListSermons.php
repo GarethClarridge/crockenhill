@@ -87,10 +87,17 @@ class ListSermons extends Component
         });
     }
 
+    /**
+     * Render the component
+     *
+     * Performance Optimization: Limits retrieved columns to only those necessary for the list view,
+     * excluding large text fields (summary, points, transcript) to reduce memory usage and SQL execution time.
+     * Eager loads preacherProfile with only required columns to prevent N+1 queries.
+     */
     public function render()
     {
         $query = Sermon::query()
-            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug'])
+            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path'])
             ->with('preacherProfile:id,name,slug')
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")
                 ->orWhere('preacher', 'like', "%{$this->search}%")

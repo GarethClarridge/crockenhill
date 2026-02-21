@@ -12,6 +12,13 @@ use Spatie\Sitemap\Tags\Url;
 
 class SitemapService
 {
+    /**
+     * Generate sitemap.xml
+     *
+     * Performance Optimization: Limits retrieved columns for dynamic models and eager loads
+     * required relationships to prevent N+1 queries. Large text fields like body, markdown,
+     * and transcript are excluded to reduce memory usage during the generation of large collections.
+     */
     public function generate(): bool
     {
         $sitemapPath = $this->getFilePath();
@@ -27,8 +34,6 @@ class SitemapService
 
             // Dynamic content via Sitemapable models
             // Eager load relationships to prevent N+1 queries during sitemap generation
-            // Large text/blob fields (body, markdown, points, summary, etc.) are excluded via select() where possible
-            // to reduce memory usage and SQL execution time.
             ->add(
                 Sermon::query()
                     ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'thumbnail_file_path', 'summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series'])
