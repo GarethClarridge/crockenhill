@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Enums\PageArea;
 use App\Enums\SermonService;
 use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -92,13 +94,103 @@ class ViewComposerTest extends TestCase
     {
         Page::factory()->create([
             'slug' => 'nav-page',
-            'area' => \App\Enums\PageArea::CHURCH,
+            'area' => PageArea::CHURCH,
             'navigation' => true,
         ]);
 
         $response = $this->get('/');
 
+        $response->assertSee('/church/nav-page');
+    }
+
+    #[Test]
+    public function it_uses_members_links_for_second_level_members_route(): void
+    {
+        Page::factory()->create([
+            'slug' => 'songs',
+            'area' => PageArea::MEMBERS,
+            'admin' => 'no',
+        ]);
+
+        Page::factory()->create([
+            'slug' => 'all-sermons',
+            'area' => PageArea::SERMONS,
+            'admin' => 'no',
+        ]);
+
+        Page::factory()->create([
+            'slug' => 'pages',
+            'area' => PageArea::MEMBERS,
+            'admin' => 'yes',
+        ]);
+
+        $this->app->instance('request', Request::create('/church/members', 'GET'));
+
+        $view = View::make('layouts/page');
+        $view->render();
+
+        $links = $view->getData()['links'];
+
+        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === 'songs' && $page->area === PageArea::MEMBERS));
+        $this->assertFalse($links->contains(fn (Page $page): bool => $page->area === PageArea::SERMONS));
+        $this->assertFalse($links->contains('slug', 'pages'));
+    }
+
+    #[Test]
+    public function it_uses_members_links_for_third_level_members_route(): void
+    {
+        Page::factory()->create([
+            'slug' => 'songs',
+            'area' => PageArea::MEMBERS,
+            'admin' => 'no',
+        ]);
+
+        Page::factory()->create([
+            'slug' => 'all-sermons',
+            'area' => PageArea::SERMONS,
+            'admin' => 'no',
+        ]);
+
+        $this->app->instance('request', Request::create('/church/members/view-composer-check', 'GET'));
+
+        $view = View::make('layouts/page');
+        $view->render();
+
+        $links = $view->getData()['links'];
+
+        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === 'songs' && $page->area === PageArea::MEMBERS));
+        $this->assertFalse($links->contains(fn (Page $page): bool => $page->area === PageArea::SERMONS));
+    }
+
+    #[Test]
+    public function it_scopes_home_card_pages_to_expected_slugs(): void
+    {
+        Page::factory()->create([
+            'slug' => 'sunday-evenings',
+            'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
+        ]);
+
+        Page::factory()->create([
+            'slug' => 'bible-study',
+            'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
+        ]);
+
+        Page::factory()->create([
+            'slug' => 'unrelated-page',
+            'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
+        ]);
+
+        $response = $this->get('/');
+
+        $response->assertStatus(200);
+
         $pages = $response->viewData('pages');
-        $this->assertTrue($pages->contains('slug', 'nav-page'));
+
+        $this->assertTrue($pages->contains('slug', 'sunday-evenings'));
+        $this->assertTrue($pages->contains('slug', 'bible-study'));
+        $this->assertFalse($pages->contains('slug', 'unrelated-page'));
     }
 }
