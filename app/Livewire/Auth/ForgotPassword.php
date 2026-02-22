@@ -1,33 +1,64 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Auth;
 
+use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 class ForgotPassword extends Component
 {
-    #[Validate('required|email|exists:users,email')]
+    #[Validate('required|email')]
     public string $email = '';
 
     public string $status = '';
 
     public string $error = '';
 
-    public function sendResetLink()
+    public function sendResetLink(): void
     {
         $this->validate();
+        $this->error = '';
 
-        $status = Password::sendResetLink(['email' => $this->email]);
-        if ($status === Password::RESET_LINK_SENT) {
-            $this->status = __($status);
-        } else {
-            $this->error = __($status);
+        if ($this->isRateLimited()) {
+            return;
         }
+
+        RateLimiter::hit($this->throttleKey());
+
+        Password::sendResetLink(['email' => $this->email]);
+        $this->status = __(Password::RESET_LINK_SENT);
     }
 
-    public function render()
+    protected function isRateLimited(): bool
+    {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 3)) {
+            return false;
+        }
+
+        event(new Lockout(request()));
+
+        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $this->error = trans('auth.throttle', [
+            'seconds' => $seconds,
+            'minutes' => (int) ceil($seconds / 60),
+        ]);
+
+        return true;
+    }
+
+    protected function throttleKey(): string
+    {
+        return Str::transliterate('forgot|'.Str::lower($this->email).'|'.request()->ip());
+    }
+
+    public function render(): View
     {
         return view('livewire.auth.forgot-password');
     }

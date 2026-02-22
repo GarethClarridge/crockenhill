@@ -249,7 +249,10 @@ use Illuminate\Support\Str;
            x-transition:enter-end="opacity-100 transform translate-y-0"
            class="p-6 max-h-96 overflow-y-auto">
         <div class="prose prose-gray max-w-none text-gray-700">
-          {!! Str::markdown($sermon->transcript) !!}
+          {!! Str::markdown($sermon->transcript, [
+            'html_input' => 'strip',
+            'allow_unsafe_links' => false,
+          ]) !!}
         </div>
       </div>
     </div>

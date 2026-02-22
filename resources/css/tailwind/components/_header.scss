@@ -1,0 +1,9 @@
+@layer components {
+    .site-header {
+        @apply font-display uppercase;
+    }
+
+    .site-header .user-name {
+        @apply font-sans normal-case;
+    }
+}

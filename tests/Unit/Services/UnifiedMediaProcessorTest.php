@@ -5,6 +5,7 @@ namespace Tests\Unit\Services;
 use App\Data\LivestreamProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Models\User;
 use App\Services\LivestreamSegmentationService;
 use App\Services\ProcessingInitiator;
 use App\Services\ProcessingLogService;
@@ -178,6 +179,45 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->assertEquals('Transcription API timeout', $response->errorMessage);
     }
 
+    #[Test]
+    public function non_admin_user_can_only_read_owned_processing_logs(): void
+    {
+        $owner = User::factory()->create(['is_admin' => false]);
+        $otherUser = User::factory()->create(['is_admin' => false]);
+
+        $ownedLog = MediaProcessingLog::factory()->audio()->processing()->create([
+            'owner_user_id' => $owner->id,
+        ]);
+        $otherLog = MediaProcessingLog::factory()->audio()->processing()->create([
+            'owner_user_id' => $otherUser->id,
+        ]);
+
+        $this->actingAs($owner);
+
+        $ownedResponse = $this->processor->getStatus($ownedLog->processing_id);
+        $otherResponse = $this->processor->getStatus($otherLog->processing_id);
+
+        $this->assertTrue($ownedResponse->found);
+        $this->assertFalse($otherResponse->found);
+    }
+
+    #[Test]
+    public function admin_user_can_read_any_processing_log(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $owner = User::factory()->create(['is_admin' => false]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'owner_user_id' => $owner->id,
+        ]);
+
+        $this->actingAs($admin);
+
+        $response = $this->processor->getStatus($log->processing_id);
+
+        $this->assertTrue($response->found);
+        $this->assertEquals($log->processing_id, $response->processingId);
+    }
+
     // --- getStatusWithLogs() tests ---
 
     #[Test]
@@ -252,6 +292,27 @@ class UnifiedMediaProcessorTest extends TestCase
     public function it_returns_failure_when_cancel_processing_id_not_found(): void
     {
         $result = $this->processor->cancel('nonexistent-id');
+
+        $this->assertFalse($result['success']);
+        $this->assertEquals('Processing ID not found', $result['message']);
+    }
+
+    #[Test]
+    public function non_admin_user_cannot_cancel_other_users_processing(): void
+    {
+        $owner = User::factory()->create(['is_admin' => false]);
+        $otherUser = User::factory()->create(['is_admin' => false]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'owner_user_id' => $otherUser->id,
+        ]);
+
+        $this->actingAs($owner);
+
+        $this->sermonService
+            ->expects($this->never())
+            ->method('cancelProcessing');
+
+        $result = $this->processor->cancel($log->processing_id);
 
         $this->assertFalse($result['success']);
         $this->assertEquals('Processing ID not found', $result['message']);
@@ -372,6 +433,27 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->assertEquals('NOT_FOUND', $result->errorCode);
     }
 
+    #[Test]
+    public function non_admin_user_cannot_retry_other_users_processing(): void
+    {
+        $owner = User::factory()->create(['is_admin' => false]);
+        $otherUser = User::factory()->create(['is_admin' => false]);
+        $log = MediaProcessingLog::factory()->audio()->failed()->create([
+            'owner_user_id' => $otherUser->id,
+        ]);
+
+        $this->actingAs($owner);
+
+        $this->sermonService
+            ->expects($this->never())
+            ->method('retryProcessing');
+
+        $result = $this->processor->retry($log->processing_id);
+
+        $this->assertFalse($result->success);
+        $this->assertEquals('NOT_FOUND', $result->errorCode);
+    }
+
     // --- canHandle() tests ---
 
     #[Test]
@@ -386,6 +468,24 @@ class UnifiedMediaProcessorTest extends TestCase
     public function it_returns_false_when_processing_id_does_not_exist(): void
     {
         $this->assertFalse($this->processor->canHandle('nonexistent-id'));
+    }
+
+    #[Test]
+    public function non_admin_user_can_handle_only_owned_processing_id(): void
+    {
+        $owner = User::factory()->create(['is_admin' => false]);
+        $otherUser = User::factory()->create(['is_admin' => false]);
+        $ownedLog = MediaProcessingLog::factory()->audio()->processing()->create([
+            'owner_user_id' => $owner->id,
+        ]);
+        $otherLog = MediaProcessingLog::factory()->audio()->processing()->create([
+            'owner_user_id' => $otherUser->id,
+        ]);
+
+        $this->actingAs($owner);
+
+        $this->assertTrue($this->processor->canHandle($ownedLog->processing_id));
+        $this->assertFalse($this->processor->canHandle($otherLog->processing_id));
     }
 
     // --- processDirectVideo() (tested via process('video', ...)) ---

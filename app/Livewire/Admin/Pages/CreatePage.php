@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Pages;
 
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class CreatePage extends Component
@@ -24,7 +27,7 @@ class CreatePage extends Component
         $this->success('Page created', redirectTo: route('admin.pages.index'));
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.admin.pages.page-form', [
             'title' => 'Create Page',

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Components;
 
 use App\Livewire\Traits\WithNotifications;
@@ -18,7 +20,7 @@ abstract class ResourceTable extends Component
 
     public array $selected = [];
 
-    protected $queryString = ['search', 'sortBy', 'sortDirection'];
+    protected array $queryString = ['search', 'sortBy', 'sortDirection'];
 
     public function mount(): void
     {
@@ -41,7 +43,7 @@ abstract class ResourceTable extends Component
         $this->resetPage();
     }
 
-    abstract protected function getQuery();
+    abstract protected function getQuery(): mixed;
 
     abstract protected function getHeaders(): array;
 

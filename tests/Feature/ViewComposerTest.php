@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Enums\PageArea;
 use App\Enums\SermonService;
 use App\Models\Page;
 use App\Models\Sermon;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -21,18 +22,18 @@ class ViewComposerTest extends TestCase
         Sermon::factory()->create([
             'service' => SermonService::MORNING,
             'date' => now()->subDay(),
-            'title' => 'Latest Morning'
+            'title' => 'Latest Morning',
         ]);
         Sermon::factory()->create([
             'service' => SermonService::EVENING,
             'date' => now()->subDay(),
-            'title' => 'Latest Evening'
+            'title' => 'Latest Evening',
         ]);
 
         $view = View::make('components.layout.footer')->render();
 
-        $this->assertStringContainsString('See morning services on our YouTube channel.', $view);
-        $this->assertStringContainsString('Listen to evening sermons on our website.', $view);
+        $this->assertStringContainsString('Watch Sunday morning services', $view);
+        $this->assertStringContainsString('Listen to evening sermons', $view);
     }
 
     #[Test]
@@ -42,7 +43,7 @@ class ViewComposerTest extends TestCase
             'slug' => 'about-us',
             'area' => \App\Enums\PageArea::CHURCH,
             'heading' => 'About Our Church',
-            'description' => 'Test Description'
+            'description' => 'Test Description',
         ]);
 
         $response = $this->get('/church/about-us');
@@ -59,7 +60,7 @@ class ViewComposerTest extends TestCase
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
             'date' => $date,
-            'title' => 'Sermon Title'
+            'title' => 'Sermon Title',
         ]);
 
         // segment 1: christ, segment 2: sermons, segment 3: year, segment 4: month, segment 5: slug
@@ -92,14 +93,115 @@ class ViewComposerTest extends TestCase
     public function it_populates_header_with_navigation_pages(): void
     {
         Page::factory()->create([
-            'slug' => 'nav-page', 
-            'area' => \App\Enums\PageArea::CHURCH, 
-            'navigation' => true
+            'slug' => 'nav-page',
+            'area' => PageArea::CHURCH,
+            'navigation' => true,
         ]);
 
         $response = $this->get('/');
 
+        $response->assertSee('/church/nav-page');
+    }
+
+    #[Test]
+    public function it_uses_members_links_for_second_level_members_route(): void
+    {
+        $membersSlug = 'view-composer-members-link';
+
+        Page::factory()->create([
+            'slug' => $membersSlug,
+            'area' => PageArea::MEMBERS,
+            'admin' => 'no',
+        ]);
+
+        Page::unguarded(fn () => Page::query()->updateOrCreate(
+            ['slug' => 'all-sermons'],
+            ['area' => PageArea::SERMONS, 'admin' => 'no', 'heading' => 'All Sermons', 'description' => 'All sermons', 'body' => 'All sermons', 'markdown' => '', 'navigation' => false],
+        ));
+
+        Page::unguarded(fn () => Page::query()->updateOrCreate(
+            ['slug' => 'pages'],
+            ['area' => PageArea::MEMBERS, 'admin' => 'yes', 'heading' => 'Pages', 'description' => 'Admin pages', 'body' => 'Pages', 'markdown' => '', 'navigation' => false],
+        ));
+
+        $this->app->instance('request', Request::create('/church/members', 'GET'));
+
+        $view = View::make('layouts/page');
+        $view->render();
+
+        $links = $view->getData()['links'];
+
+        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === $membersSlug && $page->area === PageArea::MEMBERS));
+        $this->assertFalse($links->contains(fn (Page $page): bool => $page->area === PageArea::SERMONS));
+        $this->assertFalse($links->contains('slug', 'pages'));
+    }
+
+    #[Test]
+    public function it_uses_members_links_for_third_level_members_route(): void
+    {
+        $membersSlug = 'view-composer-members-link-level-3';
+
+        Page::factory()->create([
+            'slug' => $membersSlug,
+            'area' => PageArea::MEMBERS,
+            'admin' => 'no',
+        ]);
+
+        Page::query()->updateOrCreate(
+            ['slug' => 'all-sermons'],
+            Page::factory()->raw([
+                'slug' => 'all-sermons',
+                'area' => PageArea::SERMONS,
+                'admin' => 'no',
+            ]),
+        );
+
+        $this->app->instance('request', Request::create('/church/members/view-composer-check', 'GET'));
+
+        $view = View::make('layouts/page');
+        $view->render();
+
+        $links = $view->getData()['links'];
+
+        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === $membersSlug && $page->area === PageArea::MEMBERS));
+        $this->assertFalse($links->contains(fn (Page $page): bool => $page->area === PageArea::SERMONS));
+    }
+
+    #[Test]
+    public function it_scopes_home_card_pages_to_expected_slugs(): void
+    {
+        Page::query()->updateOrCreate(
+            ['slug' => 'sunday-evenings'],
+            Page::factory()->raw([
+                'slug' => 'sunday-evenings',
+                'area' => PageArea::COMMUNITY,
+                'admin' => 'no',
+            ]),
+        );
+
+        Page::query()->updateOrCreate(
+            ['slug' => 'bible-study'],
+            Page::factory()->raw([
+                'slug' => 'bible-study',
+                'area' => PageArea::COMMUNITY,
+                'admin' => 'no',
+            ]),
+        );
+
+        Page::factory()->create([
+            'slug' => 'unrelated-page',
+            'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
+        ]);
+
+        $response = $this->get('/');
+
+        $response->assertStatus(200);
+
         $pages = $response->viewData('pages');
-        $this->assertTrue($pages->contains('slug', 'nav-page'));
+
+        $this->assertTrue($pages->contains('slug', 'sunday-evenings'));
+        $this->assertTrue($pages->contains('slug', 'bible-study'));
+        $this->assertFalse($pages->contains('slug', 'unrelated-page'));
     }
 }

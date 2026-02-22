@@ -18,7 +18,10 @@ class LivestreamQueueHealthCheck implements Arrayable
     public function run(): array
     {
         try {
-            $queueName = config('media-processing.queue.name');
+            $queueName = (string) config(
+                'media-processing.queues.livestream',
+                config('media-processing.types.livestream.queue', config('media-processing.queue.name', 'livestream-processing'))
+            );
 
             // Check if there are any stuck processing jobs
             $stuckJobs = MediaProcessingLog::where('status', 'processing')
@@ -59,7 +62,7 @@ class LivestreamQueueHealthCheck implements Arrayable
 
             return [
                 'status' => 'healthy',
-                'message' => "Livestream processing queue is healthy. {$pendingJobs} pending jobs.",
+                'message' => "Livestream processing queue [{$queueName}] is healthy. {$pendingJobs} pending jobs.",
                 'timestamp' => now()->toISOString(),
             ];
 

@@ -8,12 +8,15 @@ $sizeClasses = [
     'sm' => 'px-3 py-1.5 text-sm',
     'md' => 'px-4 py-2 text-base',
     'lg' => 'p-4 text-base',
+    'xl' => 'px-8 py-3.5 text-lg',
 ];
 
 $variantClasses = [
     'default' => 'bg-cbc-pattern bg-cover text-white',
     'primary' => 'bg-green-500 hover:bg-green-600 text-white',
     'secondary' => 'bg-gray-500 hover:bg-gray-600 text-white',
+    'feature' => 'bg-[#1d686a] hover:bg-[#165355] text-white shadow-sm',
+    'featureOutline' => 'border border-transparent bg-slate-100/90 text-[#145557] hover:bg-white shadow-none focus:ring-[#1d686a]',
     'outline' => 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700',
     'danger' => 'bg-red-600 hover:bg-red-700 text-white',
     'ghost' => 'hover:bg-gray-100 text-gray-600',

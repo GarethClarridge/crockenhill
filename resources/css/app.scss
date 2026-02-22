@@ -1,12 +1,10 @@
-@use 'variables';
-@use 'cbc/mixins';
-@use 'cbc/cards';
-@use 'cbc/header';
-@use 'cbc/home';
-@use 'cbc/footer';
-@use 'cbc/pages';
-@use 'cbc/sermons';
-@use 'cbc/text';
+@use 'tailwind/components/typography';
+@use 'tailwind/components/header';
+@use 'tailwind/components/footer';
+@use 'tailwind/components/pages';
+@use 'tailwind/components/sermons';
+@use 'tailwind/components/cards';
+@use 'tailwind/components/home';
 
 @tailwind base;
 @tailwind components;
@@ -53,5 +51,3 @@
   src:
     url(/fonts/lato-bold.woff2) format("woff2");
 }
-
-

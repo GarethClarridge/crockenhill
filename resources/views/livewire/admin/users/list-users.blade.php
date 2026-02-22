@@ -88,11 +88,12 @@
                                             class="{{ $user->is_admin ? 'text-amber-600' : 'text-green-600' }}"
                                             :aria-label="$user->is_admin ? 'Remove admin privileges' : 'Grant admin privileges'" />
                                     @endif
-                                    <x-button link="{{ route('admin.users.edit', $user) }}" variant="ghost" size="xs" icon="pencil" inline />
+                                    <x-button link="{{ route('admin.users.edit', $user) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit user: {{ $user->name }}" />
                                     @if($user->id !== auth()->id())
                                         <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                             wire:click="delete({{ $user->id }})"
-                                            wire:confirm="Delete {{ $user->name }}?" />
+                                            wire:confirm="Delete {{ $user->name }}?"
+                                            aria-label="Delete user: {{ $user->name }}" />
                                     @endif
                                 </div>
                             </td>

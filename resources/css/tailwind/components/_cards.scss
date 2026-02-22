@@ -1,0 +1,48 @@
+@layer components {
+    .cbc-card-img-top {
+        @apply object-cover;
+        filter: brightness(50%);
+    }
+
+    .card-img-caption {
+        @apply object-cover;
+        border-top-left-radius: calc(0.25rem - 1px);
+        border-top-right-radius: calc(0.25rem - 1px);
+    }
+
+    .card-img-caption .cbc-card-img-top {
+        z-index: 0;
+    }
+
+    .card-img-caption .card-text {
+        @apply absolute z-10 w-full text-center;
+        margin: 33% 0;
+    }
+
+    .card-img-caption .card-text div {
+        border-width: 3px;
+        @apply inline-block max-w-[80%] border-solid;
+    }
+
+    article .card-img-caption .cbc-card-img-top {
+        height: 33vh;
+    }
+
+    aside {
+        max-width: 50vw !important;
+    }
+
+    @media (min-width: 768px) {
+        aside {
+            max-width: 25vw !important;
+        }
+    }
+
+    aside .card-img-caption .cbc-card-img-top {
+        height: 15vh;
+    }
+
+    aside .read-more {
+        @apply pt-1 text-right italic;
+    }
+}

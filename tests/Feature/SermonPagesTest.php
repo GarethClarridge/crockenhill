@@ -8,6 +8,7 @@ use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -73,6 +74,44 @@ class SermonPagesTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee($sermon->title);
         $response->assertSee($sermon->service->label());
+    }
+
+    public function test_sermon_transcript_strips_script_tags_from_markdown(): void
+    {
+        Storage::fake('local');
+
+        $transcriptPath = 'transcripts/security-script-tag.md';
+        Storage::put($transcriptPath, '<script>alert("transcript-xss")</script>'."\n\n".'Safe transcript content.');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'security-script-tag-sermon',
+            'transcript_file_path' => $transcriptPath,
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('Safe transcript content.');
+        $response->assertDontSee('<script>alert("transcript-xss")</script>', false);
+    }
+
+    public function test_sermon_transcript_blocks_javascript_links_from_markdown(): void
+    {
+        Storage::fake('local');
+
+        $transcriptPath = 'transcripts/security-javascript-link.md';
+        Storage::put($transcriptPath, '[Click me](javascript:alert("transcript-link"))');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'security-javascript-link-sermon',
+            'transcript_file_path' => $transcriptPath,
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('Click me');
+        $response->assertDontSee('javascript:alert("transcript-link")', false);
     }
 
     public function test_sermon_all_page_renders(): void

@@ -2,8 +2,6 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import viteCompression from 'vite-plugin-compression';
 
-const buildId = Date.now().toString(36);
-
 export default defineConfig({
     server: {
         host: '0.0.0.0',
@@ -21,13 +19,13 @@ export default defineConfig({
     build: {
         rollupOptions: {
             output: {
-                entryFileNames: `assets/[name]-[hash]-${buildId}.js`,
-                chunkFileNames: `assets/[name]-[hash]-${buildId}.js`,
+                entryFileNames: 'assets/[name]-[hash].js',
+                chunkFileNames: 'assets/[name]-[hash].js',
                 assetFileNames: (assetInfo) => {
                     if (assetInfo.name && assetInfo.name.endsWith('.css')) {
-                        return `assets/[name]-[hash]-${buildId}.css`;
+                        return 'assets/[name]-[hash].css';
                     }
-                    return `assets/[name]-[hash]-${buildId}[extname]`;
+                    return 'assets/[name]-[hash][extname]';
                 }
             }
         }

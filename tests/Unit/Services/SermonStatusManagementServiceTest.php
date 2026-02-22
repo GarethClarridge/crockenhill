@@ -6,6 +6,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonStatusManagementService;
+use App\Services\SermonValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -19,7 +20,7 @@ class SermonStatusManagementServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonStatusManagementService;
+        $this->service = new SermonStatusManagementService(new SermonValidationService);
     }
 
     // --- getProcessingStatus() ---
@@ -199,93 +200,5 @@ class SermonStatusManagementServiceTest extends TestCase
         $result = $this->service->markForManualReview('nonexistent-id');
 
         $this->assertFalse($result);
-    }
-
-    // --- getDetailedProcessingLogs() ---
-
-    #[Test]
-    public function it_returns_detailed_logs_for_existing_processing(): void
-    {
-        $sermon = Sermon::factory()->create();
-        $log = MediaProcessingLog::factory()->audio()->processing()->create([
-            'sermon_id' => $sermon->id,
-            'current_step' => 'transcribing_audio',
-        ]);
-
-        $details = $this->service->getDetailedProcessingLogs($log->processing_id);
-
-        $this->assertTrue($details['found']);
-        $this->assertArrayHasKey('processing_log', $details);
-        $this->assertArrayHasKey('sermon', $details);
-        $this->assertArrayHasKey('log_entries', $details);
-        $this->assertArrayHasKey('troubleshooting', $details);
-        $this->assertEquals($log->processing_id, $details['processing_log']['processing_id']);
-    }
-
-    #[Test]
-    public function it_returns_not_found_for_nonexistent_detailed_logs(): void
-    {
-        $details = $this->service->getDetailedProcessingLogs('nonexistent-id');
-
-        $this->assertFalse($details['found']);
-    }
-
-    #[Test]
-    public function it_returns_null_sermon_in_detailed_logs_when_no_sermon(): void
-    {
-        $log = MediaProcessingLog::factory()->audio()->processing()->create([
-            'sermon_id' => null,
-        ]);
-
-        $details = $this->service->getDetailedProcessingLogs($log->processing_id);
-
-        $this->assertTrue($details['found']);
-        $this->assertNull($details['sermon']);
-    }
-
-    #[Test]
-    public function it_generates_troubleshooting_info_for_transcription_failures(): void
-    {
-        $log = MediaProcessingLog::factory()->audio()->failed()->create([
-            'current_step' => 'transcribing_audio',
-            'error_message' => 'API rate limit exceeded',
-        ]);
-
-        $details = $this->service->getDetailedProcessingLogs($log->processing_id);
-
-        $troubleshooting = $details['troubleshooting'];
-        $this->assertNotEmpty($troubleshooting['common_issues']);
-        $this->assertNotEmpty($troubleshooting['suggested_actions']);
-    }
-
-    // --- getSystemHealth() ---
-
-    #[Test]
-    public function it_returns_system_health_with_required_keys(): void
-    {
-        $health = $this->service->getSystemHealth();
-
-        $this->assertArrayHasKey('overall_status', $health);
-        $this->assertArrayHasKey('checks', $health);
-        $this->assertArrayHasKey('statistics', $health);
-        $this->assertArrayHasKey('timestamp', $health);
-    }
-
-    #[Test]
-    public function it_reports_healthy_status_when_all_checks_pass(): void
-    {
-        $health = $this->service->getSystemHealth();
-
-        $this->assertEquals('healthy', $health['overall_status']);
-    }
-
-    #[Test]
-    public function it_includes_queue_storage_and_processing_checks(): void
-    {
-        $health = $this->service->getSystemHealth();
-
-        $this->assertArrayHasKey('queue', $health['checks']);
-        $this->assertArrayHasKey('storage', $health['checks']);
-        $this->assertArrayHasKey('processing', $health['checks']);
     }
 }

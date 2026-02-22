@@ -170,14 +170,16 @@ class PageSeoTest extends TestCase
     #[Test]
     public function it_returns_route_with_area_and_slug(): void
     {
+        $slug = 'sunday-mornings-seo-test';
+
         $page = Page::factory()->create([
-            'slug' => 'sunday-mornings',
+            'slug' => $slug,
             'area' => 'church',
         ]);
 
         $route = $page->route;
 
-        $this->assertEquals('/church/sunday-mornings', $route);
+        $this->assertEquals('/church/'.$slug, $route);
     }
 
     #[Test]

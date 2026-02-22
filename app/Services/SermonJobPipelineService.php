@@ -8,13 +8,16 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 
 class SermonJobPipelineService
 {
     public function __construct(
-        private ProcessingPipelineBuilder $pipelineBuilder
+        private ProcessingPipelineBuilder $pipelineBuilder,
+        private SermonValidationService $validationService,
+        private SermonStatusManagementService $statusManagementService
     ) {}
 
     /**
@@ -31,8 +34,9 @@ class SermonJobPipelineService
             'source_type' => $livestreamMetadata['source_type'] ?? 'unknown',
         ]);
 
-        // For livestream audio, use a different queue to avoid conflicts
-        $queueName = $this->isLivestreamAudio($livestreamMetadata) ? 'livestream-audio' : 'default';
+        $queueName = $this->isLivestreamAudio($livestreamMetadata)
+            ? $this->livestreamAudioQueue()
+            : $this->defaultQueue();
 
         Bus::chain($jobs)
             ->catch(function (\Throwable $e) use ($processingLog) {
@@ -63,13 +67,17 @@ class SermonJobPipelineService
     ): MediaProcessingLog {
         $logData = [
             'processing_id' => $processingId,
+            'processing_type' => 'audio',
             'original_filename' => $originalFilename,
+            'owner_user_id' => Auth::id(),
             'status' => ProcessingStatus::PENDING,
             'current_step' => 'initiated_from_livestream',
         ];
 
-        // For now, we'll store livestream context in the current_step field
-        // In the future, a processing_metadata JSON field could be added to the migration
+        if (! empty($livestreamMetadata)) {
+            $logData['processing_metadata'] = $livestreamMetadata;
+        }
+
         if (! empty($livestreamMetadata['livestream_processing_id'])) {
             $logData['current_step'] = 'initiated_from_livestream:'.$livestreamMetadata['livestream_processing_id'];
         }
@@ -103,14 +111,17 @@ class SermonJobPipelineService
             case 'creating_sermon_record_failed':
                 // Restart from the beginning - but we need the original metadata
                 // For now, we'll mark for manual review since we can't easily recreate the metadata
-                $this->markForManualReview($processingLog->processing_id, 'Failed during sermon record creation - requires manual intervention');
+                $this->statusManagementService->markForManualReview(
+                    $processingLog->processing_id,
+                    'Failed during sermon record creation - requires manual intervention'
+                );
                 break;
 
             case 'transcribing_audio':
             case 'transcribing_audio_failed':
                 if ($sermonId) {
                     TranscribeAudio::dispatch($processingLog)
-                        ->onQueue(config('media-processing.processing.queue', 'default'));
+                        ->onQueue($this->processingQueue());
                 }
                 break;
 
@@ -118,7 +129,7 @@ class SermonJobPipelineService
             case 'analyzing_transcript_failed':
                 if ($sermonId) {
                     ProcessTranscriptWithAI::dispatch($processingLog)
-                        ->onQueue(config('media-processing.processing.queue', 'default'));
+                        ->onQueue($this->processingQueue());
                 }
                 break;
 
@@ -126,7 +137,7 @@ class SermonJobPipelineService
             case 'updating_sermon_record_failed':
                 if ($sermonId) {
                     UpdateSermonRecord::dispatch($sermonId)
-                        ->onQueue(config('media-processing.processing.queue', 'default'));
+                        ->onQueue($this->processingQueue());
                 }
                 break;
 
@@ -134,13 +145,16 @@ class SermonJobPipelineService
             case 'notification_failed':
                 if ($sermonId) {
                     SendCompletionNotification::dispatch($processingLog)
-                        ->onQueue(config('media-processing.processing.queue', 'default'));
+                        ->onQueue($this->processingQueue());
                 }
                 break;
 
             default:
                 // Unknown step - mark for manual review
-                $this->markForManualReview($processingLog->processing_id, "Unknown processing step: {$currentStep}");
+                $this->statusManagementService->markForManualReview(
+                    $processingLog->processing_id,
+                    "Unknown processing step: {$currentStep}"
+                );
                 break;
         }
     }
@@ -150,30 +164,7 @@ class SermonJobPipelineService
      */
     public function canRetryProcessing(MediaProcessingLog $processingLog): bool
     {
-        // Don't retry if it's been marked for manual review
-        if (str_contains($processingLog->current_step ?? '', 'manual_review')) {
-            return false;
-        }
-
-        // Don't retry if it's too old (more than 7 days)
-        if ($processingLog->created_at->diffInDays(now()) > 7) {
-            return false;
-        }
-
-        // Don't retry certain critical failures
-        $criticalFailures = [
-            'file_not_found',
-            'invalid_file_format',
-            'storage_failure',
-        ];
-
-        foreach ($criticalFailures as $failure) {
-            if (str_contains(strtolower($processingLog->error_message ?? ''), $failure)) {
-                return false;
-            }
-        }
-
-        return true;
+        return $this->validationService->canRetryProcessing($processingLog);
     }
 
     /**
@@ -181,76 +172,7 @@ class SermonJobPipelineService
      */
     public function requiresManualReview(MediaProcessingLog $processingLog): bool
     {
-        // Already marked for manual review
-        if (str_contains($processingLog->current_step ?? '', 'manual_review')) {
-            return true;
-        }
-
-        // Multiple failures in critical steps
-        $criticalSteps = [
-            'creating_sermon_record',
-            'transcribing_audio',
-        ];
-
-        if (in_array($processingLog->current_step, $criticalSteps)) {
-            return true;
-        }
-
-        // Check for specific error patterns that require manual intervention
-        $manualReviewPatterns = [
-            'file not found',
-            'invalid audio format',
-            'transcription service unavailable',
-            'storage failure',
-            'database constraint violation',
-        ];
-
-        $errorMessage = strtolower($processingLog->error_message ?? '');
-        foreach ($manualReviewPatterns as $pattern) {
-            if (str_contains($errorMessage, $pattern)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Mark processing for manual review
-     */
-    private function markForManualReview(string $processingId, string $reviewNote = ''): bool
-    {
-        try {
-            $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
-
-            if (! $processingLog) {
-                Log::warning('Processing log not found for manual review marking', [
-                    'processing_id' => $processingId,
-                ]);
-
-                return false;
-            }
-
-            $processingLog->update([
-                'status' => ProcessingStatus::FAILED,
-                'current_step' => 'manual_review_required',
-                'error_message' => $reviewNote ?: 'Marked for manual review',
-            ]);
-
-            Log::info('Processing marked for manual review', [
-                'processing_id' => $processingId,
-                'review_note' => $reviewNote,
-            ]);
-
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Failed to mark processing for manual review', [
-                'processing_id' => $processingId,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
+        return $this->validationService->requiresManualReview($processingLog);
     }
 
     /**
@@ -260,6 +182,24 @@ class SermonJobPipelineService
     {
         return isset($metadata['source_type']) &&
                in_array($metadata['source_type'], ['livestream', 'video_upload']);
+    }
+
+    private function livestreamAudioQueue(): string
+    {
+        return (string) config(
+            'media-processing.queues.livestream_audio',
+            config('media-processing.types.audio.queue', 'audio-processing')
+        );
+    }
+
+    private function defaultQueue(): string
+    {
+        return (string) config('media-processing.queues.default', config('media-processing.processing.queue', 'default'));
+    }
+
+    private function processingQueue(): string
+    {
+        return (string) config('media-processing.queues.processing', $this->defaultQueue());
     }
 
     /**
@@ -386,7 +326,7 @@ class SermonJobPipelineService
             // For now, we'll mark for manual review since full restart requires
             // the original file which may not be available after early failures
             // In the future, this could be enhanced to store file paths for restart
-            $this->markForManualReview(
+            $this->statusManagementService->markForManualReview(
                 $processingLog->processing_id,
                 "Early processing failure detected. Source type: {$sourceType}. ".
                 'File may need to be re-uploaded for retry. '.
@@ -404,7 +344,7 @@ class SermonJobPipelineService
                 'error' => $e->getMessage(),
             ]);
 
-            $this->markForManualReview(
+            $this->statusManagementService->markForManualReview(
                 $processingLog->processing_id,
                 "Failed to restart early processing failure: {$e->getMessage()}"
             );

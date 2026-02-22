@@ -1,88 +1,63 @@
 {{-- Alpine.js is automatically loaded by Livewire 3 --}}
 
-<div class="w-100 text-white grid grid-cols-7 lg:grid-cols-12 justify-between bg-cbc-pattern bg-cover">
+<div class="w-100 grid grid-cols-7 justify-between bg-cbc-pattern bg-cover text-white lg:grid-cols-12">
 
   <a class="p-2" href="/" wire:navigate>
-    <img src="/svg/IconWhite.svg" class="inline-block align-top max-h-8" alt="Crockenhill Baptist Church logo" width="30" height="32">
+    <img src="/svg/IconWhite.svg" class="inline-block max-h-8 align-top" alt="Crockenhill Baptist Church logo" width="30" height="32">
   </a>
 
-  <a class="font-display col-span-5 text-xl min-[400px]:text-2xl text-center flex" href="/" wire:navigate>
-    <span class="inline-block align-middle pb-1 my-auto mx-auto">
+  <a class="col-span-5 flex text-center font-display text-xl min-[400px]:text-2xl" href="/" wire:navigate>
+    <span class="mx-auto my-auto inline-block align-middle pb-1">
       Crockenhill Baptist Church
     </span>
   </a>
 
-  <div class="hidden w-100 lg:block col-span-5 flex my-auto pb-1">
-    <ul class="mx-auto flex font-display text-l fill-white">
+  <div class="col-span-5 my-auto hidden w-100 pb-1 lg:block">
+    <ul class="mx-auto flex fill-white font-display text-l">
       <li>
-        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/christ" wire:navigate>
-          <x-icon-cross class="h-4 w-4 mr-1" />
-          <span class="">Christ</span>
+        <a class="flex items-center justify-between px-8 py-2 fill-white" href="/christ" wire:navigate>
+          <x-icon-cross class="mr-2 h-5 w-5" />
+          <span>Christ</span>
         </a>
       </li>
 
       <li>
-        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/church" wire:navigate>
-          <x-icon-church class="h-5 w-5 mr-1" />
-          <span class="">Church</span>
+        <a class="flex items-center justify-between px-8 py-2 fill-white" href="/church" wire:navigate>
+          <x-icon-church class="mr-2 h-5 w-5" />
+          <span>Church</span>
         </a>
       </li>
 
       <li>
-        <a class="px-8 py-2 flex justify-between items-center fill-white" href="/community" wire:navigate>
-          <x-heroicon-s-user-group class="h-5 w-5 mr-1" />
-          <span class="">Community</span>
+        <a class="flex items-center justify-between px-8 py-2 fill-white" href="/community" wire:navigate>
+          <x-heroicon-s-user-group class="mr-2 h-5 w-5" />
+          <span>Community</span>
         </a>
       </li>
     </ul>
   </div>
 
-  <button class="inline-block align-right select-none font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline ms-4 text-right flex items-center justify-end" type="button" role="button" aria-label="Navigation" @click="expanded = ! expanded" :aria-expanded="expanded" aria-controls="mobile-menu">
+  <button class="ms-4 flex items-center justify-end rounded px-3 py-1 text-right align-right font-normal leading-normal no-underline select-none whitespace-no-wrap lg:hidden" type="button" role="button" aria-label="Navigation" @click="expanded = ! expanded" :aria-expanded="expanded" aria-controls="mobile-menu">
     <x-heroicon-m-bars-3 class="h-6 w-6" />
   </button>
 
-  <div class="w-100 lg:hidden col-span-8 flex bg-gradient-to-r from-green-100 to-emerald-100 text-emerald-950 fill-emerald-950 py-2">
-    <ul class="mx-auto flex font-display">
-      <li>
-        <a class="px-8 py-2 flex justify-between items-center" href="/christ" wire:navigate>
-          <x-icon-cross class="h-4 w-4 mr-1" />
-          <span class="">Christ</span>
-        </a>
-      </li>
-
-      <li>
-        <a class="px-8 py-2 flex justify-between items-center" href="/church" wire:navigate>
-          <x-icon-church class="h-5 w-5 mr-1" />
-          <span class="">Church</span>
-        </a>
-      </li>
-
-      <li>
-        <a class="px-8 py-2 flex justify-between items-center" href="/community" wire:navigate>
-          <x-heroicon-s-user-group class="h-5 w-5 mr-1" />
-          <span class="">Community</span>
-        </a>
-      </li>
-    </ul>
-  </div>
-
 </div>
 
-<div x-show="expanded" x-transition id="mobile-menu" class="absolute z-30 backdrop-blur-sm bg-gradient-to-r from-green-100/80 to-emerald-100/80 w-screen font-display p-6 leading-loose text-lg" tabindex="-1" x-cloak>
-  <ul class="grid grid-cols-3 text-center mt-3">
+<div x-show="expanded" x-transition id="mobile-menu" class="absolute z-30 w-screen bg-gradient-to-r from-green-100/80 to-emerald-100/80 p-6 font-display text-lg leading-loose backdrop-blur-sm" tabindex="-1" x-cloak>
+  <ul class="mt-3 grid grid-cols-1 gap-8 text-center md:grid-cols-3">
 
-    <li class="">
-      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/christ" wire:navigate>
-        <div class="flex items-center">
-          <x-icon-cross class="h-4 w-4 mr-1" />
-          <span class="">Christ</span>
+    <li>
+      <a class="inline-block rounded-md bg-gradient-to-r from-teal-600 to-teal-800 px-6 py-3 text-xl text-white fill-white" href="/christ" wire:navigate>
+        <div class="flex items-center justify-center">
+          <x-icon-cross class="mr-2 h-5 w-5" />
+          <span>Christ</span>
         </div>
       </a>
       <ul class="mt-6">
         @foreach ($pages as $page)
         @if ($page->area->value == 'christ')
-        <li class="leading-none mb-6">
-          <a class="" href="/christ/{{$page->slug}}" wire:navigate>
+        <li class="mb-6 leading-none">
+          <a href="/christ/{{$page->slug}}" wire:navigate>
             {{$page->heading}}
           </a>
         </li>
@@ -91,18 +66,18 @@
       </ul>
     </li>
 
-    <li class="">
-      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/church" wire:navigate>
-        <div class="flex items-center">
-          <x-icon-church class="h-5 w-5 mr-1" />
-          <span class="">Church</span>
+    <li>
+      <a class="inline-block rounded-md bg-gradient-to-r from-teal-600 to-teal-800 px-6 py-3 text-xl text-white fill-white" href="/church" wire:navigate>
+        <div class="flex items-center justify-center">
+          <x-icon-church class="mr-2 h-5 w-5" />
+          <span>Church</span>
         </div>
       </a>
       <ul class="mt-6">
         @foreach ($pages as $page)
         @if ($page->area->value == 'church')
-        <li class="leading-none mb-6">
-          <a class="" href="/church/{{$page->slug}}" wire:navigate>
+        <li class="mb-6 leading-none">
+          <a href="/church/{{$page->slug}}" wire:navigate>
             {{$page->heading}}
           </a>
         </li>
@@ -111,18 +86,18 @@
       </ul>
     </li>
 
-    <li class="">
-      <a class="bg-gradient-to-r from-teal-600 to-teal-800 text-white fill-white px-6 py-3 rounded-md text-xl inline-block" href="/community" wire:navigate>
-        <div class="flex items-center">
-          <x-heroicon-s-user-group class="h-5 w-5 mr-1" />
-          <span class="">Community</span>
+    <li>
+      <a class="inline-block rounded-md bg-gradient-to-r from-teal-600 to-teal-800 px-6 py-3 text-xl text-white fill-white" href="/community" wire:navigate>
+        <div class="flex items-center justify-center">
+          <x-heroicon-s-user-group class="mr-2 h-5 w-5" />
+          <span>Community</span>
         </div>
       </a>
       <ul class="mt-6">
         @foreach ($pages as $page)
         @if ($page->area->value == 'community')
-        <li class="leading-none mb-6">
-          <a class="" href="/community/{{$page->slug}}" wire:navigate>
+        <li class="mb-6 leading-none">
+          <a href="/community/{{$page->slug}}" wire:navigate>
             {{$page->heading}}
           </a>
         </li>
@@ -132,8 +107,8 @@
     </li>
 
     @if ($user)
-    <li class="">
-      <a class="" href="/church/members" wire:navigate>
+    <li>
+      <a href="/church/members" wire:navigate>
         Members
       </a>
     </li>

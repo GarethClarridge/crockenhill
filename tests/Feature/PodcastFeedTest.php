@@ -380,7 +380,9 @@ class PodcastFeedTest extends TestCase
     #[Test]
     public function feed_handles_empty_database_gracefully(): void
     {
-        // No sermons created
+        // Ensure the test is deterministic even if baseline fixtures/seed data exist
+        Sermon::query()->delete();
+        Cache::forget('podcast_feed_morning');
 
         $response = $this->get('/christ/sermons/morning/feed');
 

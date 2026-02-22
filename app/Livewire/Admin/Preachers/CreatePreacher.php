@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Preachers;
 
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class CreatePreacher extends Component
@@ -53,7 +56,7 @@ class CreatePreacher extends Component
         $this->success('Preacher created', redirectTo: route('admin.preachers.index'));
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.admin.preachers.preacher-form', [
             'title' => 'Create Preacher',

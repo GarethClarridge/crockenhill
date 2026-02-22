@@ -38,10 +38,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $visual_sample_count
  * @property float|null $visual_processing_time
  * @property int|null $sermon_id
+ * @property int|null $owner_user_id
  * @property \Illuminate\Support\Carbon|null $started_at
  * @property \Illuminate\Support\Carbon|null $completed_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read User|null $owner
  * @property-read Sermon|null $sermon
  * @property-read \Illuminate\Database\Eloquent\Collection<int, LivestreamSegment> $segments
  */
@@ -90,6 +92,7 @@ class MediaProcessingLog extends Model
 
         // Relationships
         'sermon_id',
+        'owner_user_id',
 
         // Timestamps
         'started_at',
@@ -125,6 +128,11 @@ class MediaProcessingLog extends Model
     public function sermon(): BelongsTo
     {
         return $this->belongsTo(Sermon::class);
+    }
+
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_user_id');
     }
 
     public function segments(): HasMany
@@ -177,6 +185,15 @@ class MediaProcessingLog extends Model
     public function scopeRecent(Builder $query, int $days = 7): Builder
     {
         return $query->where('created_at', '>=', now()->subDays($days));
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->is_admin) {
+            return $query;
+        }
+
+        return $query->where('owner_user_id', $user->id);
     }
 
     // Status helpers

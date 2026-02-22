@@ -94,6 +94,50 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
         $this->assertEquals(2, SpeakerSample::count());
     }
 
+    public function test_bootstrap_resolves_legacy_sermon_paths_via_storage_service(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $preacher = Preacher::factory()->create(['name' => 'Mark Drury', 'slug' => 'mark-drury']);
+
+        // Legacy sermon: bare filename without '/', plus a filetype
+        Sermon::factory()->count(2)->withPreacher($preacher)->create([
+            'audio_file_path' => 'my-sermon',
+            'filetype' => 'mp3',
+        ]);
+
+        $embedding = array_fill(0, 256, 0.1);
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->method('extractEmbedding')
+            ->with(
+                $this->equalTo('legacy/sermons/my-sermon.mp3'),
+                $this->isType('string'),
+            )
+            ->willReturn(SpeakerEmbeddingResult::success($embedding, 60.0));
+        $mockService->method('updateProfile')
+            ->willReturnCallback(function (SpeakerProfile $profile, array $approvedEmbeddings): SpeakerProfile {
+                $profile->update([
+                    'centroid_embedding' => $approvedEmbeddings[0],
+                    'sample_count' => count($approvedEmbeddings),
+                ]);
+
+                return $profile->fresh() ?? $profile;
+            });
+
+        $this->instance(SpeakerIdentificationInterface::class, $mockService);
+
+        $this->artisan('speaker-profiles:bootstrap --min-sermons=2 --max-sermons=2')
+            ->assertSuccessful();
+
+        $profile = SpeakerProfile::where('preacher_id', $preacher->id)->first();
+        $this->assertNotNull($profile);
+        $this->assertEquals(2, $profile->sample_count);
+    }
+
     public function test_bootstrap_dry_run_makes_no_changes(): void
     {
         config([

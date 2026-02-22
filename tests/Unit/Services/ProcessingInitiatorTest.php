@@ -5,6 +5,7 @@ namespace Tests\Unit\Services;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
+use App\Models\User;
 use App\Services\MetadataExtractionService;
 use App\Services\ProcessingInitiator;
 use Carbon\Carbon;
@@ -206,5 +207,22 @@ class ProcessingInitiatorTest extends TestCase
             'processing_type' => 'video',
             'status' => ProcessingStatus::PENDING->value,
         ]);
+    }
+
+    #[Test]
+    public function it_sets_owner_user_id_when_authenticated(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $file = UploadedFile::fake()->create('sermon.mp4', 2048);
+        $extractedDateTime = Carbon::create(2026, 2, 10, 10, 30, 0);
+
+        $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
+        $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
+
+        $log = $this->initiator->initiateProcessing($file, 'video');
+
+        $this->assertEquals($user->id, $log->owner_user_id);
     }
 }

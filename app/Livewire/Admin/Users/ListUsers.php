@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Users;
 
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -17,7 +20,7 @@ class ListUsers extends Component
 
     public ?bool $adminFilter = null;
 
-    protected $queryString = ['search', 'verifiedFilter', 'adminFilter'];
+    protected array $queryString = ['search', 'verifiedFilter', 'adminFilter'];
 
     public function mount(): void
     {
@@ -63,7 +66,7 @@ class ListUsers extends Component
         $this->success($user->is_admin ? 'Admin granted' : 'Admin revoked');
     }
 
-    public function render()
+    public function render(): View
     {
         $users = User::query()
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%")

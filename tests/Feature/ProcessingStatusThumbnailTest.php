@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ApiTokenAbility;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ProcessingStatusThumbnailTest extends TestCase
@@ -41,10 +43,11 @@ class ProcessingStatusThumbnailTest extends TestCase
         ]);
 
         // Create authenticated user
-        $user = \App\Models\User::factory()->create();
+        $user = \App\Models\User::factory()->create(['is_admin' => true]);
 
-        $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/media/processing/{$processingId}/status");
+        Sanctum::actingAs($user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
+        $response = $this->getJson("/api/media/processing/{$processingId}/status");
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -81,10 +84,11 @@ class ProcessingStatusThumbnailTest extends TestCase
         ]);
 
         // Create authenticated user
-        $user = \App\Models\User::factory()->create();
+        $user = \App\Models\User::factory()->create(['is_admin' => true]);
 
-        $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/media/processing/{$processingId}/status");
+        Sanctum::actingAs($user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
+        $response = $this->getJson("/api/media/processing/{$processingId}/status");
 
         $response->assertStatus(200)
             ->assertJson([
@@ -107,10 +111,11 @@ class ProcessingStatusThumbnailTest extends TestCase
         ]);
 
         // Create authenticated user
-        $user = \App\Models\User::factory()->create();
+        $user = \App\Models\User::factory()->create(['is_admin' => true]);
 
-        $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/media/processing/{$processingId}/status");
+        Sanctum::actingAs($user, [ApiTokenAbility::MEDIA_PROCESS->value]);
+
+        $response = $this->getJson("/api/media/processing/{$processingId}/status");
 
         $response->assertStatus(200)
             ->assertJson([

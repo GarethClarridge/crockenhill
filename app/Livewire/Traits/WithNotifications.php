@@ -1,10 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Traits;
+
+use Illuminate\Http\RedirectResponse;
+use Livewire\Features\SupportRedirects\Redirector;
 
 trait WithNotifications
 {
-    public function success(string $message, ?string $redirectTo = null): mixed
+    public function success(string $message, ?string $redirectTo = null): Redirector|RedirectResponse|null
     {
         if ($redirectTo) {
             session()->flash('notification', ['type' => 'success', 'message' => $message]);

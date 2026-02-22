@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class NullSpeakerIdentificationService implements SpeakerIdentificationInterface
 {
-    public function extractEmbedding(string $audioPath): SpeakerEmbeddingResult
+    public function extractEmbedding(string $audioPath, ?string $disk = null): SpeakerEmbeddingResult
     {
         Log::debug('NullSpeakerIdentificationService: extractEmbedding called', [
             'audio_path' => $audioPath,

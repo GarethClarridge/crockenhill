@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Enums\PageArea;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -83,7 +84,7 @@ class RouteTest extends TestCase
     public function public_page_routes_return_404_for_wrong_area(): void
     {
         // Create a page in 'christ' area
-        $page = Page::factory()->create([
+        Page::factory()->create([
             'area' => PageArea::CHRIST->value,
             'slug' => 'test-page',
             'heading' => 'Test Page',
@@ -105,7 +106,7 @@ class RouteTest extends TestCase
     public function public_page_routes_handle_special_characters_in_slugs(): void
     {
         // Create a page with special characters in slug
-        $page = Page::factory()->create([
+        Page::factory()->create([
             'area' => PageArea::CHRIST->value,
             'slug' => 'test-page-with-dashes',
             'heading' => 'Test Page With Dashes',
@@ -124,7 +125,7 @@ class RouteTest extends TestCase
     public function public_page_routes_work_with_empty_markdown(): void
     {
         // Create a page with empty markdown
-        $page = Page::factory()->create([
+        Page::factory()->create([
             'area' => PageArea::CHRIST->value,
             'slug' => 'empty-page',
             'heading' => 'Empty Page',
@@ -137,6 +138,50 @@ class RouteTest extends TestCase
         $response = $this->get('/christ/empty-page');
         $response->assertStatus(200);
         $response->assertSee('Empty Page');
+    }
+
+    #[Test]
+    public function public_page_markdown_strips_script_tags(): void
+    {
+        $slug = 'security-script-tag-page-'.Str::lower(Str::random(8));
+
+        Page::factory()->create([
+            'area' => PageArea::CHRIST->value,
+            'slug' => $slug,
+            'heading' => 'Security Script Tag Page',
+            'markdown' => '<script>alert("page-xss")</script>'."\n\n".'Safe page content.',
+            'body' => '',
+            'description' => 'Security test page',
+            'admin' => 'no',
+        ]);
+
+        $response = $this->get("/christ/{$slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('Safe page content.');
+        $response->assertDontSee('<script>alert("page-xss")</script>', false);
+    }
+
+    #[Test]
+    public function public_page_markdown_blocks_javascript_links(): void
+    {
+        $slug = 'security-javascript-link-page-'.Str::lower(Str::random(8));
+
+        Page::factory()->create([
+            'area' => PageArea::CHRIST->value,
+            'slug' => $slug,
+            'heading' => 'Security Javascript Link Page',
+            'markdown' => '[Click me](javascript:alert("page-link"))',
+            'body' => '',
+            'description' => 'Security link test page',
+            'admin' => 'no',
+        ]);
+
+        $response = $this->get("/christ/{$slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('Click me');
+        $response->assertDontSee('javascript:alert("page-link")', false);
     }
 
     #[Test]

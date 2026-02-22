@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Data\StandardProcessingResponse;
+use App\Models\MediaProcessingLog;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -49,7 +53,7 @@ class UnifiedMediaProcessor
 
     public function getStatus(string $processingId): StandardProcessingResponse
     {
-        $log = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
+        $log = $this->findProcessingLog($processingId);
 
         if (! $log) {
             return StandardProcessingResponse::notFound();
@@ -88,7 +92,7 @@ class UnifiedMediaProcessor
 
     public function cancel(string $processingId): array
     {
-        $log = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
+        $log = $this->findProcessingLog($processingId);
 
         if (! $log) {
             return ['success' => false, 'message' => 'Processing ID not found'];
@@ -108,7 +112,7 @@ class UnifiedMediaProcessor
 
     public function retry(string $processingId): ProcessingResult
     {
-        $log = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
+        $log = $this->findProcessingLog($processingId);
 
         if (! $log) {
             return ProcessingResult::failure(
@@ -147,7 +151,31 @@ class UnifiedMediaProcessor
 
     public function canHandle(string $processingId): bool
     {
-        return \App\Models\MediaProcessingLog::where('processing_id', $processingId)->exists();
+        return $this->processingLogQuery()
+            ->where('processing_id', $processingId)
+            ->exists();
+    }
+
+    private function findProcessingLog(string $processingId): ?MediaProcessingLog
+    {
+        return $this->processingLogQuery()
+            ->where('processing_id', $processingId)
+            ->first();
+    }
+
+    /**
+     * @return Builder<MediaProcessingLog>
+     */
+    private function processingLogQuery(): Builder
+    {
+        $query = MediaProcessingLog::query();
+        $user = Auth::user();
+
+        if ($user instanceof User) {
+            $query->visibleTo($user);
+        }
+
+        return $query;
     }
 
     /**
@@ -178,7 +206,7 @@ class UnifiedMediaProcessor
                         'error_message' => 'Video processing failed: '.$e->getMessage(),
                     ]);
                 })
-                ->onQueue('video-processing')
+                ->onQueue((string) config('media-processing.queues.video', config('media-processing.types.video.queue', 'video-processing')))
                 ->dispatch();
 
             return ProcessingResult::success(

@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\CalendarEvents;
 
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class EditCalendarEvent extends Component
@@ -70,7 +73,7 @@ class EditCalendarEvent extends Component
         $this->success('Calendar event updated');
     }
 
-    public function render()
+    public function render(): View
     {
         $meetings = Meeting::with('page')->get()
             ->mapWithKeys(fn ($m) => [$m->slug => $m->page->heading ?? $m->slug]);

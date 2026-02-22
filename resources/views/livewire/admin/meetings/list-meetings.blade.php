@@ -86,11 +86,12 @@
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">
                                 <div class="flex gap-1 justify-end">
-                                    <x-button link="{{ route('meetings.show', $meeting) }}" variant="ghost" size="xs" icon="eye" inline />
-                                    <x-button link="{{ route('admin.meetings.edit', $meeting) }}" variant="ghost" size="xs" icon="pencil" inline />
+                                    <x-button link="{{ route('meetings.show', $meeting) }}" variant="ghost" size="xs" icon="eye" inline aria-label="View meeting: {{ $meeting->page?->heading ?? $meeting->slug }}" />
+                                    <x-button link="{{ route('admin.meetings.edit', $meeting) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit meeting: {{ $meeting->page?->heading ?? $meeting->slug }}" />
                                     <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                         wire:click="delete({{ $meeting->id }})"
-                                        wire:confirm="Delete '{{ $meeting->page?->heading ?? $meeting->slug }}'?" />
+                                        wire:confirm="Delete '{{ $meeting->page?->heading ?? $meeting->slug }}'?"
+                                        aria-label="Delete meeting: {{ $meeting->page?->heading ?? $meeting->slug }}" />
                                 </div>
                             </td>
                         </tr>
