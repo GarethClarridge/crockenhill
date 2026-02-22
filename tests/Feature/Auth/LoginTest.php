@@ -235,7 +235,7 @@ class LoginTest extends TestCase
 
     private function throttleKey(string $email): string
     {
-        return Str::transliterate(Str::lower($email).'|127.0.0.1');
+        return Str::transliterate('login|'.Str::lower($email).'|127.0.0.1');
     }
 
     private function throttleMessage(int $seconds): string
