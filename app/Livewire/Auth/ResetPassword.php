@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Livewire\Auth;
 
 use App\Models\User;
+use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
@@ -39,6 +42,10 @@ class ResetPassword extends Component
     {
         $this->validate();
 
+        if ($this->isRateLimited()) {
+            return null;
+        }
+
         $data = [
             'token' => $this->token,
             'email' => $this->email,
@@ -53,14 +60,38 @@ class ResetPassword extends Component
         });
 
         if ($status === Password::PASSWORD_RESET) {
+            RateLimiter::clear($this->throttleKey());
             $this->status = __($status);
 
             return redirect('/church/members');
         }
 
+        RateLimiter::hit($this->throttleKey());
         $this->error = __($status);
 
         return null;
+    }
+
+    protected function isRateLimited(): bool
+    {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+            return false;
+        }
+
+        event(new Lockout(request()));
+
+        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $this->error = trans('auth.throttle', [
+            'seconds' => $seconds,
+            'minutes' => (int) ceil($seconds / 60),
+        ]);
+
+        return true;
+    }
+
+    protected function throttleKey(): string
+    {
+        return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
     }
 
     public function render(): View
