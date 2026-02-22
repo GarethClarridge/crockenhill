@@ -11,3 +11,6 @@
 ## 2026-03-05 - Semantic Switches and Connectivity Feedback
 **Learning:** For interactive switches, wrapping everything in a `<label>` is not enough for modern accessibility standards. Using a `<button role="switch">` with an explicit `aria-labelledby` pointing to a descriptive label provides much clearer intent to assistive technologies. Additionally, global connectivity indicators like `wire:offline` are critical for TALL stack applications where many interactions depend on a stable server connection; providing this feedback at the layout level ensures users are never left wondering why a button isn't responding.
 **Action:** Always prefer `<button role="switch">` for toggles and ensure they are correctly labeled. Include a global `wire:offline` indicator in the main layout for all Livewire-heavy applications.
+## 2026-02-13 - Integrated Loading States for Form Components
+**Learning:** Adding automated loading indicators to base form components (input, select) that target their `wire:model` provides immediate feedback for debounced search and live validation without requiring per-instance configuration. Fallback `aria-label` from placeholders ensures accessibility when formal labels are missing.
+**Action:** Use `wire:loading` with `wire:target` in base components and ensure conflicting elements (like clear buttons) use `wire:loading.remove`.
