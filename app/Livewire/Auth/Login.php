@@ -78,6 +78,6 @@ class Login extends Component
 
     private function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
+        return Str::transliterate('login|'.Str::lower($this->email).'|'.request()->ip());
     }
 }
