@@ -44,7 +44,7 @@ Overall assessment:
 
 #### C1. `/up` health endpoint coupled to external OpenAI availability
 
-*Carried forward from previous review — still unresolved.*
+*Carried forward from previous review — recommendation updated.*
 
 Evidence:
 - `AppServiceProvider` throws on health check failure: [AppServiceProvider.php:44](app/Providers/AppServiceProvider.php#L44)
@@ -53,10 +53,10 @@ Evidence:
 
 Impact: A third-party outage or missing key marks the entire app unhealthy, triggering container restart loops in production.
 
-Recommendation:
-1. Restrict `/up` to local liveness checks only (DB, cache, disk).
-2. Move OpenAI and queue checks to a separate `/diagnostics` endpoint.
-3. Report degraded state via logging/alerting, not process restarts.
+Recommendation: Remove the custom health checks entirely. For an app of this size, Laravel's built-in `/up` behaviour (confirms the app boots and the DB is reachable) is sufficient. No diagnostics endpoint is needed.
+
+1. Remove the `DiagnosingHealth` event listener from `AppServiceProvider` (lines 44–65) and its three unused imports.
+2. Delete the `app/HealthChecks/` directory (`OpenAIHealthCheck`, `StorageHealthCheck`, `SermonProcessingQueueHealthCheck`, `StorageSpaceHealthCheck`, `FFmpegHealthCheck`, `LivestreamQueueHealthCheck`).
 
 #### C2. Failing test suite excluded from default runs
 
