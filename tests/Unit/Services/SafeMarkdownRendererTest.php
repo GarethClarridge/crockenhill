@@ -3,15 +3,12 @@
 namespace Tests\Unit\Services;
 
 use App\Services\SafeMarkdownRenderer;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SafeMarkdownRendererTest extends TestCase
 {
-    use DatabaseTransactions;
-
     private SafeMarkdownRenderer $renderer;
 
     protected function setUp(): void
