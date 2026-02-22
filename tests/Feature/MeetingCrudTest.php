@@ -5,14 +5,16 @@ namespace Tests\Feature;
 use App\Models\Meeting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
  * Tests for Meeting CRUD operations.
  *
- * Note: Meeting admin has been migrated to Filament at /admin/meetings.
- * The legacy routes at /church/members/meetings now redirect to Filament.
+ * Note: Meeting admin is available at /admin/meetings.
+ * The legacy routes at /church/members/meetings now redirect to /admin/meetings.
  * This test file verifies the redirects work correctly and tests the
  * public meeting show functionality.
  */
@@ -45,7 +47,7 @@ class MeetingCrudTest extends TestCase
     }
 
     #[Test]
-    public function test_legacy_meeting_index_redirects_to_filament()
+    public function test_legacy_meeting_index_redirects_to_admin()
     {
         $this->actingAs($this->adminUser);
         $response = $this->get('/church/members/meetings');
@@ -53,7 +55,7 @@ class MeetingCrudTest extends TestCase
     }
 
     #[Test]
-    public function test_legacy_meeting_create_redirects_to_filament()
+    public function test_legacy_meeting_create_redirects_to_admin()
     {
         $this->actingAs($this->adminUser);
         $response = $this->get('/church/members/meetings/create');
@@ -61,7 +63,7 @@ class MeetingCrudTest extends TestCase
     }
 
     #[Test]
-    public function test_legacy_meeting_edit_redirects_to_filament()
+    public function test_legacy_meeting_edit_redirects_to_admin()
     {
         $meeting = Meeting::factory()->create();
 
@@ -85,6 +87,41 @@ class MeetingCrudTest extends TestCase
         $response->assertViewHas('meeting');
         $response->assertViewHas('photos');
         $response->assertViewHas('page');
+    }
+
+    #[Test]
+    public function test_meeting_show_loads_legacy_jpeg_photos(): void
+    {
+        $meeting = Meeting::factory()->create([
+            'slug' => 'legacy-photo-meeting',
+        ]);
+
+        $photoDirectory = public_path("images/meetings/{$meeting->slug}");
+        $photoFile = "{$photoDirectory}/legacy-photo.jpeg";
+
+        File::ensureDirectoryExists($photoDirectory);
+        File::put($photoFile, 'test-image-content');
+
+        try {
+            $response = $this->get("/community/{$meeting->slug}");
+
+            $response->assertStatus(200);
+            $response->assertViewHas('photos', function (mixed $photos) use ($meeting): bool {
+                if (! ($photos instanceof Collection)) {
+                    return false;
+                }
+
+                return $photos->contains(function (mixed $photo) use ($meeting): bool {
+                    if (! is_array($photo)) {
+                        return false;
+                    }
+
+                    return $photo['url'] === "/images/meetings/{$meeting->slug}/legacy-photo.jpeg";
+                });
+            });
+        } finally {
+            File::deleteDirectory($photoDirectory);
+        }
     }
 
     #[Test]

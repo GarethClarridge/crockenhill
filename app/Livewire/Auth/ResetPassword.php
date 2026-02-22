@@ -1,18 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Auth;
 
+use App\Models\User;
+use Illuminate\Auth\Events\Lockout;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
+use Livewire\Features\SupportRedirects\Redirector;
 
 class ResetPassword extends Component
 {
     public string $token = '';
 
-    #[Validate('required|email|exists:users,email')]
+    #[Validate('required|email')]
     public string $email = '';
 
     #[Validate('required|string|min:8|confirmed')]
@@ -24,14 +33,18 @@ class ResetPassword extends Component
 
     public string $error = '';
 
-    public function mount($token)
+    public function mount(string $token): void
     {
         $this->token = $token;
     }
 
-    public function resetPassword()
+    public function resetPassword(): Redirector|RedirectResponse|null
     {
         $this->validate();
+
+        if ($this->isRateLimited()) {
+            return null;
+        }
 
         $data = [
             'token' => $this->token,
@@ -40,21 +53,48 @@ class ResetPassword extends Component
             'password_confirmation' => $this->password_confirmation,
         ];
 
-        $status = Password::reset($data, function ($user, $password) {
+        $status = Password::reset($data, function (User $user, string $password): void {
             $user->password = Hash::make($password);
             $user->save();
             Auth::login($user);
         });
+
         if ($status === Password::PASSWORD_RESET) {
+            RateLimiter::clear($this->throttleKey());
             $this->status = __($status);
 
             return redirect('/church/members');
-        } else {
-            $this->error = __($status);
         }
+
+        RateLimiter::hit($this->throttleKey());
+        $this->error = __($status);
+
+        return null;
     }
 
-    public function render()
+    protected function isRateLimited(): bool
+    {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+            return false;
+        }
+
+        event(new Lockout(request()));
+
+        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $this->error = trans('auth.throttle', [
+            'seconds' => $seconds,
+            'minutes' => (int) ceil($seconds / 60),
+        ]);
+
+        return true;
+    }
+
+    protected function throttleKey(): string
+    {
+        return Str::transliterate('reset|'.Str::lower($this->email).'|'.request()->ip());
+    }
+
+    public function render(): View
     {
         return view('livewire.auth.reset-password');
     }

@@ -32,6 +32,7 @@ class AutomatedSermonApiTest extends TestCase
         $this->user = User::factory()->create([
             'email' => 'test@crockenhill.org',
             'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
 
         // Set up storage and configuration
@@ -414,9 +415,10 @@ class AutomatedSermonApiTest extends TestCase
     {
         $this->mockUnifiedMediaProcessor('test-uuid-123');
 
-        // Authorization for this endpoint is authentication-only
         $unauthorizedUser = User::factory()->create([
             'email' => 'unauthorized@example.com',
+            'email_verified_at' => now(),
+            'is_admin' => false,
         ]);
 
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
@@ -426,7 +428,7 @@ class AutomatedSermonApiTest extends TestCase
                 'file' => $file,
             ]);
 
-        $response->assertStatus(202);
+        $response->assertStatus(403);
     }
 
     #[Test]

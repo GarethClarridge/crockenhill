@@ -235,7 +235,7 @@ class Page extends Model implements HasMedia, Sitemapable
 
         // Fallback to legacy public/images location
         return file_exists(public_path("images/headings/large/{$this->slug}.webp"))
-            || file_exists(public_path("images/headings/large/{$this->slug}.webp"));
+            || file_exists(public_path("images/headings/large/{$this->slug}.jpg"));
     }
 
     /**

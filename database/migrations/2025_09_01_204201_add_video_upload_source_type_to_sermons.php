@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         Schema::table('sermons', function (Blueprint $table) {
             // Modify the existing source_type enum to include video_upload
             $table->dropColumn('source_type');

@@ -34,6 +34,7 @@ class ConfigValidationTest extends TestCase
     public function it_has_media_processing_config(): void
     {
         $this->assertNotEmpty(config('media-processing.types.audio.queue'), 'media-processing.types.audio.queue is not set');
+        $this->assertNotEmpty(config('media-processing.queues.livestream_audio'), 'media-processing.queues.livestream_audio is not set');
     }
 
     #[Test]
@@ -44,5 +45,11 @@ class ConfigValidationTest extends TestCase
 
         $this->assertGreaterThanOrEqual(1800, $redisRetryAfter, 'Redis retry_after must exceed transcription timeout');
         $this->assertGreaterThanOrEqual(1800, $databaseRetryAfter, 'Database retry_after must exceed transcription timeout');
+    }
+
+    #[Test]
+    public function it_defaults_session_cookies_to_same_site_lax(): void
+    {
+        $this->assertSame('lax', config('session.same_site'));
     }
 }

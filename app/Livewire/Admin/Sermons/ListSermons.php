@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
@@ -8,12 +10,29 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ListSermons extends Component
 {
     use WithNotifications, WithPagination;
+
+    private const DEFAULT_SORT_COLUMN = 'date';
+
+    private const DEFAULT_SORT_DIRECTION = 'desc';
+
+    private const ALLOWED_SORT_COLUMNS = [
+        'title',
+        'date',
+        'service',
+        'preacher',
+        'series',
+        'created_at',
+        'updated_at',
+    ];
+
+    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
     public string $search = '';
 
@@ -29,11 +48,11 @@ class ListSermons extends Component
 
     public bool $last12Months = true;
 
-    public string $sortBy = 'date';
+    public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
-    public string $sortDirection = 'desc';
+    public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    protected $queryString = ['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months'];
+    protected array $queryString = ['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months'];
 
     public function mount(): void
     {
@@ -87,8 +106,10 @@ class ListSermons extends Component
         });
     }
 
-    public function render()
+    public function render(): View
     {
+        $this->sanitizeSorting();
+
         $query = Sermon::query()
             ->with('preacherProfile')
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")
@@ -120,5 +141,16 @@ class ListSermons extends Component
             'seriesList' => $this->getSeries(),
             'headers' => $headers,
         ])->layout('layouts.admin', ['title' => 'Sermons', 'heading' => 'Sermons']);
+    }
+
+    private function sanitizeSorting(): void
+    {
+        if (! in_array($this->sortBy, self::ALLOWED_SORT_COLUMNS, true)) {
+            $this->sortBy = self::DEFAULT_SORT_COLUMN;
+        }
+
+        if (! in_array($this->sortDirection, self::ALLOWED_SORT_DIRECTIONS, true)) {
+            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
+        }
     }
 }

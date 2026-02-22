@@ -106,7 +106,10 @@ class AnalyzeSegments implements ShouldQueue
                 );
 
                 CleanupTemporaryFiles::dispatch($this->processingLog)
-                    ->onQueue(config('media-processing.queue.name'))
+                    ->onQueue((string) config(
+                        'media-processing.queues.livestream',
+                        config('media-processing.types.livestream.queue', config('media-processing.queue.name', 'livestream-processing'))
+                    ))
                     ->delay(now()->addMinutes(5));
             }
 

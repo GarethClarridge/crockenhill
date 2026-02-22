@@ -17,9 +17,9 @@ use Illuminate\Support\Str;
 
 class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationInterface
 {
-    public function extractEmbedding(string $audioPath): SpeakerEmbeddingResult
+    public function extractEmbedding(string $audioPath, ?string $disk = null): SpeakerEmbeddingResult
     {
-        $preparedAudio = $this->prepareAudioForExtraction($audioPath);
+        $preparedAudio = $this->prepareAudioForExtraction($audioPath, $disk);
         $absolutePath = $preparedAudio['absolute_path'];
         $tempLocalPath = $preparedAudio['temp_local_path'];
 
@@ -230,9 +230,9 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
     /**
      * @return array{absolute_path:string,temp_local_path:string|null}
      */
-    private function prepareAudioForExtraction(string $audioPath): array
+    private function prepareAudioForExtraction(string $audioPath, ?string $disk = null): array
     {
-        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+        $sermonDisk = $disk ?? (string) config('media-processing.storage.sermon_disk', 'public');
         $sermonFilesystem = Storage::disk($sermonDisk);
 
         if ($this->usesRemoteStorage($sermonDisk)) {

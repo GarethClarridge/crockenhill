@@ -1,0 +1,5 @@
+@layer components {
+    .site-footer .list-group-item {
+        @apply border-none bg-transparent;
+    }
+}

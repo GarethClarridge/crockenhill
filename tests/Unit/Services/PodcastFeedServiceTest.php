@@ -23,6 +23,7 @@ class PodcastFeedServiceTest extends TestCase
         parent::setUp();
         $this->storageService = $this->createMock(SermonStorageService::class);
         $this->service = new PodcastFeedService($this->storageService);
+        Sermon::query()->delete();
         Cache::flush();
     }
 

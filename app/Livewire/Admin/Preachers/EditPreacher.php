@@ -1,11 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Preachers;
 
+use App\Contracts\SpeakerIdentificationInterface;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
+use App\Models\SpeakerProfile;
+use App\Models\SpeakerSample;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class EditPreacher extends Component
@@ -93,11 +99,49 @@ class EditPreacher extends Component
         $this->preacher->refresh();
     }
 
-    public function render()
+    public function recomputeProfile(int $profileId): void
+    {
+        $profile = SpeakerProfile::where('id', $profileId)
+            ->where('preacher_id', $this->preacher->id)
+            ->firstOrFail();
+
+        $approvedEmbeddings = SpeakerSample::query()
+            ->where('speaker_profile_id', $profile->id)
+            ->where('approved', true)
+            ->pluck('embedding')
+            ->filter(fn ($embedding) => is_array($embedding) && $embedding !== [])
+            ->values()
+            ->all();
+
+        if ($approvedEmbeddings === []) {
+            $this->error('No approved samples to recompute from.');
+
+            return;
+        }
+
+        $speakerService = app(SpeakerIdentificationInterface::class);
+        $speakerService->updateProfile($profile, $approvedEmbeddings);
+
+        $this->success('Profile recomputed from '.count($approvedEmbeddings).' approved samples.');
+        $this->preacher->refresh();
+    }
+
+    public function removeProfile(int $profileId): void
+    {
+        SpeakerProfile::where('id', $profileId)
+            ->where('preacher_id', $this->preacher->id)
+            ->update(['is_active' => false]);
+
+        $this->success('Speaker profile deactivated. This preacher will no longer be matched automatically.');
+        $this->preacher->refresh();
+    }
+
+    public function render(): View
     {
         return view('livewire.admin.preachers.preacher-form', [
             'title' => 'Edit Preacher',
             'aliases' => $this->preacher->aliases,
+            'speakerProfiles' => $this->preacher->speakerProfiles()->orderByDesc('is_active')->orderByDesc('updated_at')->get(),
         ])->layout('layouts.admin', ['title' => 'Edit: '.$this->preacher->name, 'heading' => 'Edit Preacher']);
     }
 }

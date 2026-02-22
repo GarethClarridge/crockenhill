@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Meetings;
 
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Meeting;
 use App\Models\Page;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class CreateMeeting extends Component
@@ -37,7 +40,7 @@ class CreateMeeting extends Component
         $this->success('Meeting created', redirectTo: route('admin.meetings.index'));
     }
 
-    public function render()
+    public function render(): View
     {
         $pages = Page::orderBy('heading')->get()->map(fn ($p) => ['id' => $p->id, 'name' => $p->heading])->toArray();
 

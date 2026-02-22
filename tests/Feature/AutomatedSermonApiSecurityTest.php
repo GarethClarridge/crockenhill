@@ -25,6 +25,7 @@ class AutomatedSermonApiSecurityTest extends TestCase
         $this->user = User::factory()->create([
             'email' => 'test@crockenhill.org',
             'email_verified_at' => now(), // Ensure email is verified
+            'is_admin' => true,
         ]);
         Storage::fake('local');
         Storage::fake('public');
@@ -80,6 +81,128 @@ class AutomatedSermonApiSecurityTest extends TestCase
         $response = $this->deleteJson("/api/media/processing/{$processingId}");
 
         $response->assertStatus(401);
+    }
+
+    #[Test]
+    public function it_rejects_non_admin_authenticated_users(): void
+    {
+        $nonAdminUser = User::factory()->create([
+            'email_verified_at' => now(),
+            'is_admin' => false,
+        ]);
+        $file = UploadedFile::fake()->create('sermon.mp3', 64, 'audio/mpeg');
+
+        $response = $this->actingAs($nonAdminUser)
+            ->postJson('/api/media/audio', [
+                'file' => $file,
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    #[Test]
+    public function it_rejects_non_admin_users_on_processing_management_endpoints(): void
+    {
+        $nonAdminUser = User::factory()->create([
+            'email_verified_at' => now(),
+            'is_admin' => false,
+        ]);
+        $processingId = (string) Str::uuid();
+        $endpoints = [
+            ['GET', "/api/media/processing/{$processingId}/status"],
+            ['POST', "/api/media/processing/{$processingId}/retry"],
+            ['DELETE', "/api/media/processing/{$processingId}"],
+        ];
+
+        foreach ($endpoints as [$method, $url]) {
+            $response = $this->actingAs($nonAdminUser)->json($method, $url);
+
+            $response->assertStatus(403);
+        }
+    }
+
+    #[Test]
+    public function it_rejects_unverified_admin_users(): void
+    {
+        $unverifiedAdmin = User::factory()->create([
+            'email_verified_at' => null,
+            'is_admin' => true,
+        ]);
+        $file = UploadedFile::fake()->create('sermon.mp3', 64, 'audio/mpeg');
+
+        $response = $this->actingAs($unverifiedAdmin)
+            ->postJson('/api/media/audio', [
+                'file' => $file,
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    #[Test]
+    public function it_rejects_api_tokens_without_media_process_ability(): void
+    {
+        $mockResult = \App\Services\ProcessingResult::success(
+            processingId: 'test-uuid-token-ability',
+            message: 'Audio processing initiated successfully'
+        );
+        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor->method('process')->willReturn($mockResult);
+        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+
+        $forbiddenToken = $this->user->createToken('forbidden-media-token', ['read:only'])->plainTextToken;
+        $file = UploadedFile::fake()->create('sermon.mp3', 64, 'audio/mpeg');
+
+        $response = $this
+            ->withHeader('Authorization', 'Bearer '.$forbiddenToken)
+            ->postJson('/api/media/audio', [
+                'file' => $file,
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    #[Test]
+    public function it_allows_api_tokens_with_media_process_ability(): void
+    {
+        $mockResult = \App\Services\ProcessingResult::success(
+            processingId: 'test-uuid-token-ability',
+            message: 'Audio processing initiated successfully'
+        );
+        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor->method('process')->willReturn($mockResult);
+        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
+
+        $allowedToken = $this->user->createToken('allowed-media-token', ['media:process'])->plainTextToken;
+        $file = UploadedFile::fake()->create('sermon.mp3', 64, 'audio/mpeg');
+
+        $response = $this
+            ->withHeader('Authorization', 'Bearer '.$allowedToken)
+            ->postJson('/api/media/audio', [
+                'file' => $file,
+            ]);
+
+        $response->assertStatus(202);
+    }
+
+    #[Test]
+    public function it_rejects_api_tokens_without_media_process_ability_for_management_endpoints(): void
+    {
+        $forbiddenToken = $this->user->createToken('forbidden-management-token', ['read:only'])->plainTextToken;
+        $processingId = (string) Str::uuid();
+
+        $endpoints = [
+            ['GET', "/api/media/processing/{$processingId}/status"],
+            ['POST', "/api/media/processing/{$processingId}/retry"],
+            ['DELETE', "/api/media/processing/{$processingId}"],
+        ];
+
+        foreach ($endpoints as [$method, $url]) {
+            $response = $this
+                ->withHeader('Authorization', 'Bearer '.$forbiddenToken)
+                ->json($method, $url);
+
+            $response->assertStatus(403);
+        }
     }
 
     #[Test]

@@ -378,7 +378,10 @@ class SpeakerIdentificationTest extends TestCase
             'media-processing.speaker_identification.mode' => 'shadow',
         ]);
 
-        $visitingPreacher = Preacher::factory()->create(['name' => 'Visiting Speaker']);
+        $visitingPreacher = Preacher::factory()->create([
+            'name' => 'Visiting Speaker',
+            'slug' => 'visiting-speaker-shadow-mode',
+        ]);
         $matchedPreacher = Preacher::factory()->create(['name' => 'Mark Drury']);
         $profile = SpeakerProfile::factory()->create(['preacher_id' => $matchedPreacher->id, 'is_active' => true]);
 
@@ -464,7 +467,10 @@ class SpeakerIdentificationTest extends TestCase
             'media-processing.speaker_identification.mode' => 'enforce',
         ]);
 
-        $preacher = Preacher::factory()->create(['name' => 'Visiting Speaker', 'slug' => 'visiting-speaker']);
+        $preacher = Preacher::factory()->create([
+            'name' => 'Visiting Speaker',
+            'slug' => 'visiting-speaker-error-mode',
+        ]);
         SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
 
         $sermon = Sermon::factory()->create([

@@ -34,6 +34,7 @@ class MediaProcessingLogFactory extends Factory
             ]),
             'error_message' => $this->faker->optional(0.2)->sentence(),
             'sermon_id' => null,
+            'owner_user_id' => null,
             // Add source_file_path for audio type to prevent null issues
             'source_file_path' => $processingType === 'audio'
                 ? 'sermons/test/'.uniqid().'.mp3'

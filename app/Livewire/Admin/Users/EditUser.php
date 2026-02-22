@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Users;
 
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class EditUser extends Component
@@ -77,7 +80,7 @@ class EditUser extends Component
         $this->passwordConfirmation = '';
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.admin.users.user-form', [
             'title' => 'Edit User',

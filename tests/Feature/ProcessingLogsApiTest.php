@@ -28,6 +28,8 @@ class ProcessingLogsApiTest extends TestCase
         $this->user = User::factory()->create([
             'email' => 'admin@test.com',
             'password' => bcrypt('password'),
+            'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
 
         // Create unique log file for this test to avoid parallel test conflicts

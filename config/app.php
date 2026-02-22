@@ -106,20 +106,5 @@ return [
 
     'cipher' => 'AES-256-CBC',
 
-    /*
-    |--------------------------------------------------------------------------
-    | CORS Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configuration for Cross-Origin Resource Sharing (CORS) to allow
-    | API access from authorized domains.
-    |
-    */
-
-    'cors_allowed_origins' => [
-        env('APP_URL', 'https://crockenhill.org'),
-        str_replace('https://', 'https://www.', env('APP_URL', 'https://crockenhill.org')),
-    ],
-
     'test_token' => env('TEST_TOKEN'),
 ];

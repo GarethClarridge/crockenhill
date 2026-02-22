@@ -9,6 +9,9 @@
     "build": "vite build",
     "watch": "vite build --watch"
   },
+  "engines": {
+    "node": ">=20.19.0 <21 || >=22.12.0"
+  },
   "keywords": [],
   "author": "Gareth Clarridge",
   "license": "BSD-2-Clause",

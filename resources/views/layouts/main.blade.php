@@ -71,17 +71,21 @@
 </head>
 
 <body class="bg-slate-200">
+  <div wire:offline class="fixed top-0 left-0 right-0 z-[100] bg-red-600 text-white text-center py-2 text-sm font-medium shadow-md" role="alert">
+    You are currently offline. Some features may not be available.
+  </div>
+
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-emerald-900 focus:rounded-md focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
     Skip to content
   </a>
 
-  <header x-data="{ expanded: false }">
+  <header x-data="{ expanded: false }" class="site-header">
     <x-layout.header />
   </header>
 
   @yield('content')
 
-  <footer class="bg-cbc-pattern bg-cover p-6 mt-6">
+  <footer class="site-footer mt-6 bg-cbc-pattern bg-cover p-6">
     <x-layout.footer />
   </footer>
 

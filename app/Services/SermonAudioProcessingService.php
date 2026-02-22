@@ -6,6 +6,7 @@ use App\Data\SermonMetadata;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -16,7 +17,8 @@ class SermonAudioProcessingService
     public function __construct(
         private readonly MetadataExtractionService $metadataService,
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
-        private readonly MediaValidationService $mediaValidation
+        private readonly MediaValidationService $mediaValidation,
+        private readonly SermonJobPipelineService $jobPipelineService
     ) {}
 
     /**
@@ -57,6 +59,7 @@ class SermonAudioProcessingService
                 'processing_id' => $processingId,
                 'processing_type' => 'audio',
                 'original_filename' => $file->getClientOriginalName(),
+                'owner_user_id' => Auth::id(),
                 'source_file_path' => $storedFilePath,
                 'status' => ProcessingStatus::PENDING,
                 'current_step' => 'audio_processing_initiated',
@@ -81,7 +84,7 @@ class SermonAudioProcessingService
                         'error_message' => 'Audio processing failed: '.$e->getMessage(),
                     ]);
                 })
-                ->onQueue(config('media-processing.types.audio.queue', 'audio-processing'))
+                ->onQueue($this->audioQueue())
                 ->dispatch();
 
             Log::info('Audio processing jobs dispatched', [
@@ -136,7 +139,7 @@ class SermonAudioProcessingService
             $storedFilePath = $this->storeAudioFile($file, $metadata);
 
             // Create processing log with livestream context
-            $processingLog = $this->createProcessingLogWithLivestreamContext(
+            $processingLog = $this->jobPipelineService->createProcessingLogWithLivestreamContext(
                 $processingId,
                 $file->getClientOriginalName(),
                 $livestreamMetadata
@@ -160,7 +163,7 @@ class SermonAudioProcessingService
                 'job_classes' => array_map(fn ($job) => get_class($job), $jobs),
             ]);
 
-            $this->dispatchProcessingJobs($jobs, $processingLog, $livestreamMetadata);
+            $this->jobPipelineService->dispatchProcessingJobs($jobs, $processingLog, $livestreamMetadata);
 
             // Store the transcript path for later use
             $transcriptPath = $this->storeTranscript($processingLog->id, '');
@@ -265,31 +268,6 @@ class SermonAudioProcessingService
     }
 
     /**
-     * Create initial processing log entry with livestream context
-     */
-    private function createProcessingLogWithLivestreamContext(
-        string $processingId,
-        string $originalFilename,
-        array $livestreamMetadata
-    ): MediaProcessingLog {
-        $logData = [
-            'processing_id' => $processingId,
-            'processing_type' => 'audio',
-            'original_filename' => $originalFilename,
-            'status' => \App\Enums\ProcessingStatus::PENDING,
-            'current_step' => 'initiated_from_livestream',
-        ];
-
-        // Store livestream context in processing_metadata JSON field
-        if (! empty($livestreamMetadata['livestream_processing_id'])) {
-            $logData['processing_metadata'] = $livestreamMetadata;
-            $logData['current_step'] = 'initiated_from_livestream:'.$livestreamMetadata['livestream_processing_id'];
-        }
-
-        return MediaProcessingLog::create($logData);
-    }
-
-    /**
      * Store the transcript path for later use
      */
     private function storeTranscript(int $sermonId, string $transcript): string
@@ -300,45 +278,8 @@ class SermonAudioProcessingService
         return $transcriptPath;
     }
 
-    /**
-     * Dispatch processing jobs for the sermon
-     */
-    private function dispatchProcessingJobs(array $jobs, MediaProcessingLog $processingLog, array $livestreamMetadata): void
+    private function audioQueue(): string
     {
-        Log::info('Dispatching sermon processing jobs', [
-            'processing_id' => $processingLog->processing_id,
-            'jobs_count' => count($jobs),
-            'source_type' => $livestreamMetadata['source_type'] ?? 'unknown',
-        ]);
-
-        // For livestream audio, use a different queue to avoid conflicts
-        $queueName = $this->isLivestreamAudio($livestreamMetadata) ? 'livestream-audio' : 'default';
-
-        \Illuminate\Support\Facades\Bus::chain($jobs)
-            ->catch(function (\Throwable $e) use ($processingLog) {
-                Log::error('Sermon processing job chain failed', [
-                    'processing_id' => $processingLog->processing_id,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-
-                // Update processing log with error
-                $processingLog->update([
-                    'status' => \App\Enums\ProcessingStatus::FAILED,
-                    'error_message' => 'Processing chain failed: '.$e->getMessage(),
-                    'current_step' => 'job_chain_failed',
-                ]);
-            })
-            ->onQueue($queueName)
-            ->dispatch();
-    }
-
-    /**
-     * Check if this is livestream audio processing
-     */
-    private function isLivestreamAudio(array $metadata): bool
-    {
-        return isset($metadata['source_type']) &&
-               in_array($metadata['source_type'], ['livestream', 'video_upload']);
+        return (string) config('media-processing.queues.audio', config('media-processing.types.audio.queue', 'audio-processing'));
     }
 }

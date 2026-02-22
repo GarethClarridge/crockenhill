@@ -1,5 +1,10 @@
 @php
-  use Illuminate\Support\Str;
+  use App\Services\SafeMarkdownRenderer;
+
+  $previewSource = filled($page->markdown ?? null)
+    ? $page->markdown
+    : ($page->body ?? '');
+  $previewHtml = app(SafeMarkdownRenderer::class)->convert($previewSource);
 @endphp
 
 @extends('layouts/page')
@@ -71,19 +76,15 @@
 
         <div class="">
           <label class="block mb-3" for="markdown">Markdown content</label>
-          @if ($page->markdown)
-            <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" name="markdown" id="markdown-input" rows="20">{{trim($page->markdown)}}</textarea>
-          @else
-            <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" name="markdown" id="markdown-input" rows="20">{{trim($page->body)}}</textarea>
-          @endif
+          <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" name="markdown" id="legacy-markdown-input" rows="20">{{ trim($previewSource) }}</textarea>
         </div>
 
         <div class="">
           <h4 class="mb-3">
             Rendered content
           </h4>
-          <div id="rendered-content" class="prose mt-1 block bg-white py-3 px-6 rounded-md border border-gray-300 shadow-sm ">
-            {!!$page->body!!}
+          <div id="legacy-rendered-content" class="page-editor-rendered-content prose mt-1 block bg-white py-3 px-6 rounded-md border border-gray-300 shadow-sm ">
+            {!! $previewHtml !!}
           </div>
         </div>
 

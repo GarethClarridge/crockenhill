@@ -91,6 +91,21 @@ class AdminSermonTest extends TestCase
     }
 
     #[Test]
+    public function it_resets_invalid_sort_input_to_safe_defaults()
+    {
+        $this->actingAs($this->admin);
+
+        Sermon::factory()->create(['title' => 'Alpha Sermon', 'date' => now()]);
+
+        Livewire::test(ListSermons::class)
+            ->set('sortBy', 'invalid_column')
+            ->set('sortDirection', 'sideways')
+            ->assertSet('sortBy', 'date')
+            ->assertSet('sortDirection', 'desc')
+            ->assertSee('Alpha Sermon');
+    }
+
+    #[Test]
     public function edit_form_shows_review_banner_when_preacher_review_needed()
     {
         $this->actingAs($this->admin);

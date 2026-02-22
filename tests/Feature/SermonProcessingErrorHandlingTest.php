@@ -492,33 +492,25 @@ class SermonProcessingErrorHandlingTest extends TestCase
     }
 
     #[Test]
-    public function it_provides_detailed_error_information(): void
+    public function it_provides_error_information_in_status_response(): void
     {
         $service = app(\App\Services\SermonProcessingService::class);
 
-        // Create processing log with detailed error
-        $sermon = Sermon::factory()->create();
-        $processingLog = MediaProcessingLog::create([
+        MediaProcessingLog::create([
             'processing_id' => 'detailed-error-test-id',
             'processing_type' => 'audio',
             'original_filename' => 'error-test-audio.mp3',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'analyzing_transcript_failed',
-            'sermon_id' => $sermon->id,
             'error_message' => 'OpenAI API returned 429: Rate limit exceeded',
         ]);
 
-        // Get detailed logs
-        $details = $service->getDetailedProcessingLogs('detailed-error-test-id');
+        $status = $service->getProcessingStatus('detailed-error-test-id');
 
-        $this->assertTrue($details['found']);
-        $this->assertEquals('detailed-error-test-id', $details['processing_log']['processing_id']);
-        $this->assertEquals('failed', $details['processing_log']['status']);
-        $this->assertStringContainsString('Rate limit exceeded', $details['processing_log']['error_message']);
-        $this->assertArrayHasKey('troubleshooting', $details);
-        $this->assertArrayHasKey('common_issues', $details['troubleshooting']);
-        $this->assertArrayHasKey('suggested_actions', $details['troubleshooting']);
-        $this->assertArrayHasKey('recovery_options', $details['troubleshooting']);
+        $this->assertTrue($status->found);
+        $this->assertEquals('detailed-error-test-id', $status->processingId);
+        $this->assertEquals('failed', $status->status);
+        $this->assertStringContainsString('Rate limit exceeded', (string) $status->errorMessage);
     }
 
     #[Test]

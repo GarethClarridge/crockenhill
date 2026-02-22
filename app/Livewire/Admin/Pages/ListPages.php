@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Pages;
 
 use App\Enums\PageArea;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -12,22 +15,42 @@ class ListPages extends Component
 {
     use WithNotifications, WithPagination;
 
+    private const DEFAULT_SORT_COLUMN = 'updated_at';
+
+    private const DEFAULT_SORT_DIRECTION = 'desc';
+
+    private const ALLOWED_SORT_COLUMNS = [
+        'heading',
+        'area',
+        'navigation',
+        'updated_at',
+    ];
+
+    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
+
     public string $search = '';
 
     public ?string $areaFilter = null;
 
     public ?bool $navigationFilter = null;
 
-    public string $sortBy = 'updated_at';
+    public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
-    public string $sortDirection = 'desc';
+    public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
     public array $selected = [];
 
-    protected $queryString = ['search', 'areaFilter', 'navigationFilter'];
+    protected array $queryString = ['search', 'areaFilter', 'navigationFilter'];
 
     public function sort(string $column): void
     {
+        if (! in_array($column, self::ALLOWED_SORT_COLUMNS, true)) {
+            $this->sortBy = self::DEFAULT_SORT_COLUMN;
+            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
+
+            return;
+        }
+
         if ($this->sortBy === $column) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
@@ -54,9 +77,13 @@ class ListPages extends Component
         $this->success('Pages deleted');
     }
 
-    public function render()
+    public function render(): View
     {
+        $this->sanitizeSorting();
+
         $pages = Page::query()
+            ->select(['id', 'slug', 'heading', 'description', 'area', 'navigation', 'updated_at'])
+            ->with(['media', 'meeting'])
             ->when($this->search, fn ($q) => $q->where('heading', 'like', "%{$this->search}%")
                 ->orWhere('description', 'like', "%{$this->search}%"))
             ->when($this->areaFilter, fn ($q) => $q->where('area', $this->areaFilter))
@@ -78,5 +105,16 @@ class ListPages extends Component
             'headers' => $headers,
             'areas' => PageArea::cases(),
         ])->layout('layouts.admin', ['title' => 'Pages', 'heading' => 'Pages']);
+    }
+
+    private function sanitizeSorting(): void
+    {
+        if (! in_array($this->sortBy, self::ALLOWED_SORT_COLUMNS, true)) {
+            $this->sortBy = self::DEFAULT_SORT_COLUMN;
+        }
+
+        if (! in_array($this->sortDirection, self::ALLOWED_SORT_DIRECTIONS, true)) {
+            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
+        }
     }
 }

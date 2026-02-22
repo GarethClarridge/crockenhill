@@ -146,22 +146,6 @@ class SermonProcessingService
     }
 
     /**
-     * Get detailed processing logs for troubleshooting
-     */
-    public function getDetailedProcessingLogs(string $processingId): array
-    {
-        return $this->statusManagementService->getDetailedProcessingLogs($processingId);
-    }
-
-    /**
-     * Generate health check information for the processing system
-     */
-    public function getSystemHealth(): array
-    {
-        return $this->statusManagementService->getSystemHealth();
-    }
-
-    /**
      * Cancel processing for a given processing ID
      */
     public function cancelProcessing(string $processingId): bool

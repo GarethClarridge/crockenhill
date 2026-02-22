@@ -106,7 +106,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_upload_livestream_video_successfully()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         $videoFile = UploadedFile::fake()->create('livestream.mp4', 50000, 'video/mp4');
 
         $response = $this->actingAs($user)
@@ -152,7 +152,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_upload_livestream_video_validation_missing_file()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
 
         $response = $this->actingAs($user)
             ->postJson('/api/media/livestream', []);
@@ -163,7 +163,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_upload_livestream_video_validation_invalid_format()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         $invalidFile = UploadedFile::fake()->create('document.txt', 1000, 'text/plain');
 
         $response = $this->actingAs($user)
@@ -179,7 +179,7 @@ class LivestreamProcessingApiTest extends TestCase
     {
         Config::set('media-processing.types.livestream.max_file_size', 1000); // 1KB limit
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         $largeFile = UploadedFile::fake()->create('large.mp4', 2000, 'video/mp4'); // 2KB file
 
         $response = $this->actingAs($user)
@@ -197,6 +197,7 @@ class LivestreamProcessingApiTest extends TestCase
         $user = User::factory()->create([
             'email' => 'options-test@crockenhill.org',
             'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
         $videoFile = UploadedFile::fake()->create('livestream.mp4', 50000, 'video/mp4');
 
@@ -226,7 +227,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_get_processing_status_successfully()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
 
         // Create a simple processing record for testing
         $processing = MediaProcessingLog::factory()->create([
@@ -256,7 +257,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_get_processing_status_not_found()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
 
         $response = $this->actingAs($user)
             ->getJson('/api/media/processing/nonexistent-id/status');
@@ -277,7 +278,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_processing_status_shows_progress_percentage()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
 
         // Test different statuses and their expected progress
         $testCases = [
@@ -308,7 +309,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_processing_status_with_video_path()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
 
         $sermon = Sermon::factory()->create();
         $processing = MediaProcessingLog::factory()->create([
@@ -340,7 +341,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_processing_status_current_step_detection()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
 
         $processingId = \Illuminate\Support\Str::uuid();
         $processing = MediaProcessingLog::factory()->create([
@@ -377,7 +378,7 @@ class LivestreamProcessingApiTest extends TestCase
         $mockService->method('processWithSegmentation')->willReturn($mockResult);
         $this->app->instance(\App\Services\LivestreamSegmentationService::class, $mockService);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         $videoFile = UploadedFile::fake()->create('test.mp4', 1000, 'video/mp4');
 
         $successCount = 0;
@@ -404,7 +405,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_api_error_handling()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
 
         // Test with corrupted or problematic file
         $corruptedFile = UploadedFile::fake()->create('corrupted.mp4', 1000, 'video/mp4');
@@ -423,7 +424,7 @@ class LivestreamProcessingApiTest extends TestCase
 
     public function test_api_response_format_consistency()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
         $videoFile = UploadedFile::fake()->create('consistent.mp4', 1000, 'video/mp4');
 
         $response = $this->actingAs($user)
@@ -470,7 +471,7 @@ class LivestreamProcessingApiTest extends TestCase
             );
         $this->app->instance(\App\Services\LivestreamSegmentationService::class, $mockService);
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_admin' => true]);
 
         $videoFile1 = UploadedFile::fake()->create('concurrent1.mp4', 1000, 'video/mp4');
         $videoFile2 = UploadedFile::fake()->create('concurrent2.mp4', 1000, 'video/mp4');

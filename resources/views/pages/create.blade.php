@@ -69,7 +69,7 @@ use Illuminate\Support\Str;
       <h4 class="mb-3">
         Rendered content
       </h4>
-      <div id="rendered-content" class="prose mt-1 block bg-white py-3 px-6 rounded-md border border-gray-300 shadow-sm ">
+      <div id="rendered-content" class="page-editor-rendered-content prose mt-1 block bg-white py-3 px-6 rounded-md border border-gray-300 shadow-sm ">
 
       </div>
     </div>

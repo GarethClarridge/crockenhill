@@ -54,10 +54,11 @@
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">
                                 <div class="flex gap-1 justify-end">
-                                    <x-button link="{{ route('admin.preachers.edit', $preacher) }}" variant="ghost" size="xs" icon="pencil" inline />
+                                    <x-button link="{{ route('admin.preachers.edit', $preacher) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit preacher: {{ $preacher->name }}" />
                                     <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                         wire:click="delete({{ $preacher->id }})"
-                                        wire:confirm="Delete '{{ $preacher->name }}'? This will unlink their sermons." />
+                                        wire:confirm="Delete '{{ $preacher->name }}'? This will unlink their sermons."
+                                        aria-label="Delete preacher: {{ $preacher->name }}" />
                                 </div>
                             </td>
                         </tr>

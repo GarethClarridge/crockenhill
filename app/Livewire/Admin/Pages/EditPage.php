@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Pages;
 
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class EditPage extends Component
@@ -35,7 +38,7 @@ class EditPage extends Component
         $this->success('Page updated');
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.admin.pages.page-form', [
             'title' => 'Edit Page',

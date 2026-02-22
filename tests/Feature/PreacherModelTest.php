@@ -15,19 +15,21 @@ class PreacherModelTest extends TestCase
 
     public function test_preacher_can_be_created(): void
     {
+        $slug = 'john-smith-feature-test';
+
         $preacher = Preacher::factory()->create([
             'name' => 'John Smith',
-            'slug' => 'john-smith',
+            'slug' => $slug,
             'is_active' => true,
         ]);
 
         $this->assertDatabaseHas('preachers', [
             'name' => 'John Smith',
-            'slug' => 'john-smith',
+            'slug' => $slug,
             'is_active' => true,
         ]);
 
-        $this->assertEquals('john-smith', $preacher->getRouteKey());
+        $this->assertEquals($slug, $preacher->getRouteKey());
     }
 
     public function test_preacher_route_key_is_slug(): void
@@ -56,11 +58,13 @@ class PreacherModelTest extends TestCase
 
     public function test_active_scope_filters_inactive_preachers(): void
     {
-        Preacher::factory()->create(['is_active' => true]);
-        Preacher::factory()->create(['is_active' => true]);
-        Preacher::factory()->inactive()->create();
+        $activeOne = Preacher::factory()->create(['is_active' => true]);
+        $activeTwo = Preacher::factory()->create(['is_active' => true]);
+        $inactive = Preacher::factory()->inactive()->create();
 
-        $activePreachers = Preacher::active()->get();
+        $activePreachers = Preacher::active()
+            ->whereIn('id', [$activeOne->id, $activeTwo->id, $inactive->id])
+            ->get();
 
         $this->assertCount(2, $activePreachers);
         $this->assertTrue($activePreachers->every(fn ($p) => $p->is_active));
@@ -102,11 +106,13 @@ class PreacherModelTest extends TestCase
 
     public function test_needs_preacher_review_scope(): void
     {
-        Sermon::factory()->create(['needs_preacher_review' => true]);
-        Sermon::factory()->create(['needs_preacher_review' => true]);
-        Sermon::factory()->create(['needs_preacher_review' => false]);
+        $first = Sermon::factory()->create(['needs_preacher_review' => true]);
+        $second = Sermon::factory()->create(['needs_preacher_review' => true]);
+        $third = Sermon::factory()->create(['needs_preacher_review' => false]);
 
-        $needsReview = Sermon::needsPreacherReview()->get();
+        $needsReview = Sermon::needsPreacherReview()
+            ->whereIn('id', [$first->id, $second->id, $third->id])
+            ->get();
 
         $this->assertCount(2, $needsReview);
     }

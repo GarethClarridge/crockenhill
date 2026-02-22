@@ -13,8 +13,11 @@ interface SpeakerIdentificationInterface
 {
     /**
      * Extract a speaker embedding from an audio file.
+     *
+     * @param  string  $audioPath  Disk-relative path to the audio file
+     * @param  string|null  $disk  Override the storage disk (defaults to sermon_disk config)
      */
-    public function extractEmbedding(string $audioPath): SpeakerEmbeddingResult;
+    public function extractEmbedding(string $audioPath, ?string $disk = null): SpeakerEmbeddingResult;
 
     /**
      * Identify the speaker in an audio file by comparing against known profiles.

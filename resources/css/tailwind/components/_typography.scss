@@ -1,0 +1,22 @@
+@layer components {
+    .references {
+        @apply text-right italic;
+        font-size: 1rem;
+    }
+
+    .display-1,
+    .display-2,
+    .display-3 {
+        @apply font-display;
+    }
+
+    main p a {
+        @apply underline;
+    }
+
+    main p .btn,
+    main div a.btn,
+    main nav a.btn {
+        @apply no-underline;
+    }
+}

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\PreacherSource;
@@ -8,6 +10,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Livewire\Component;
 
 class EditSermon extends Component
@@ -122,7 +125,7 @@ class EditSermon extends Component
         $this->success('Sermon updated');
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.admin.sermons.edit-sermon', [
             'services' => SermonService::cases(),

@@ -220,44 +220,6 @@ class SermonProcessingServiceTest extends TestCase
         $this->assertTrue($result);
     }
 
-    #[Test]
-    public function it_delegates_get_detailed_processing_logs(): void
-    {
-        $expectedLogs = [
-            ['step' => 'transcription', 'status' => 'completed'],
-            ['step' => 'analysis', 'status' => 'failed'],
-        ];
-
-        $this->statusManagementService
-            ->method('getDetailedProcessingLogs')
-            ->with('detail-123')
-            ->willReturn($expectedLogs);
-
-        $logs = $this->service->getDetailedProcessingLogs('detail-123');
-
-        $this->assertCount(2, $logs);
-        $this->assertEquals('transcription', $logs[0]['step']);
-    }
-
-    #[Test]
-    public function it_delegates_get_system_health(): void
-    {
-        $expectedHealth = [
-            'status' => 'healthy',
-            'disk_space' => '50GB',
-            'queue_size' => 3,
-        ];
-
-        $this->statusManagementService
-            ->method('getSystemHealth')
-            ->willReturn($expectedHealth);
-
-        $health = $this->service->getSystemHealth();
-
-        $this->assertEquals('healthy', $health['status']);
-        $this->assertArrayHasKey('queue_size', $health);
-    }
-
     // --- Graceful Degradation Tests ---
 
     #[Test]

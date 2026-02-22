@@ -1,26 +1,48 @@
 <?php
 
+$defaultQueue = env('MEDIA_PROCESSING_QUEUE_DEFAULT', 'default');
+$audioQueue = env('MEDIA_PROCESSING_QUEUE_AUDIO', 'audio-processing');
+$videoQueue = env('MEDIA_PROCESSING_QUEUE_VIDEO', 'video-processing');
+$livestreamQueue = env('MEDIA_PROCESSING_QUEUE_LIVESTREAM', 'livestream-processing');
+$livestreamAudioQueue = env('MEDIA_PROCESSING_QUEUE_LIVESTREAM_AUDIO', $audioQueue);
+$speakerIdentificationQueue = env('MEDIA_PROCESSING_QUEUE_SPEAKER_IDENTIFICATION', 'speaker-identification');
+
 return [
+    'queues' => [
+        'default' => $defaultQueue,
+        'processing' => $defaultQueue,
+        'audio' => $audioQueue,
+        'video' => $videoQueue,
+        'livestream' => $livestreamQueue,
+        'livestream_audio' => $livestreamAudioQueue,
+        'speaker_identification' => $speakerIdentificationQueue,
+    ],
+
+    // Legacy alias retained for older queue lookups.
+    'queue' => [
+        'name' => $livestreamQueue,
+    ],
+
     'types' => [
         'audio' => [
             'max_file_size' => 100 * 1024 * 1024, // 100MB
             'allowed_extensions' => ['mp3', 'wav', 'm4a', 'mp4'],
             'allowed_mimes' => ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/m4a'],
-            'queue' => 'audio-processing',
+            'queue' => $audioQueue,
             'description' => 'Audio sermon files',
         ],
         'video' => [
             'max_file_size' => 1024 * 1024 * 1024, // 1GB
             'allowed_extensions' => ['mp4', 'mov', 'avi', 'mkv'],
             'allowed_mimes' => ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'],
-            'queue' => 'video-processing',
+            'queue' => $videoQueue,
             'description' => 'Direct sermon video files',
         ],
         'livestream' => [
             'max_file_size' => 2 * 1024 * 1024 * 1024, // 2GB
             'allowed_extensions' => ['mp4', 'mov', 'avi', 'mkv', 'webm'],
             'allowed_mimes' => ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'],
-            'queue' => 'livestream-processing',
+            'queue' => $livestreamQueue,
             'description' => 'Full livestream recordings requiring segmentation',
         ],
     ],
@@ -59,6 +81,7 @@ return [
         'retry_attempts' => 3,
         'retry_delay' => 60,
         'max_concurrent_jobs' => 2,
+        'queue' => $defaultQueue,
     ],
 
     /*
@@ -99,7 +122,7 @@ return [
         'mode' => env('SPEAKER_IDENTIFICATION_MODE', 'shadow'),
         'provider' => env('SPEAKER_IDENTIFICATION_PROVIDER', 'null'),
         'model_version' => env('SPEAKER_MODEL_VERSION', 'v1.0'),
-        'queue' => 'speaker-identification',
+        'queue' => $speakerIdentificationQueue,
         'accept_threshold' => (float) env('SPEAKER_ACCEPT_THRESHOLD', 0.75),
         'margin_threshold' => (float) env('SPEAKER_MARGIN_THRESHOLD', 0.10),
         'min_duration' => (int) env('SPEAKER_MIN_DURATION', 30),

@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Admin\CalendarEvents;
 
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -20,7 +23,7 @@ class ListCalendarEvents extends Component
 
     public bool $upcomingOnly = true;
 
-    protected $queryString = ['search', 'meetingFilter', 'uncategorizedOnly', 'upcomingOnly'];
+    protected array $queryString = ['search', 'meetingFilter', 'uncategorizedOnly', 'upcomingOnly'];
 
     public function updatedSearch(): void
     {
@@ -36,7 +39,7 @@ class ListCalendarEvents extends Component
         $this->success('Event categorized');
     }
 
-    public function render()
+    public function render(): View
     {
         $events = CalendarEvent::query()
             ->with('meeting.page')

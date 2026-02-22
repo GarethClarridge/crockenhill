@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\SpeakerIdentificationInterface;
 use App\Livewire\Admin\Preachers\CreatePreacher;
 use App\Livewire\Admin\Preachers\EditPreacher;
 use App\Livewire\Admin\Preachers\ListPreachers;
 use App\Models\Preacher;
+use App\Models\SpeakerProfile;
+use App\Models\SpeakerSample;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -90,6 +94,21 @@ class PreacherAdminTest extends TestCase
     }
 
     #[Test]
+    public function preacher_list_resets_invalid_sort_input_to_safe_defaults(): void
+    {
+        $this->actingAs($this->admin);
+
+        Preacher::factory()->create(['name' => 'Alpha Preacher']);
+
+        Livewire::test(ListPreachers::class)
+            ->set('sortBy', 'invalid_column')
+            ->set('sortDirection', 'sideways')
+            ->assertSet('sortBy', 'name')
+            ->assertSet('sortDirection', 'asc')
+            ->assertSee('Alpha Preacher');
+    }
+
+    #[Test]
     public function admin_can_add_alias_to_preacher(): void
     {
         $this->actingAs($this->admin);
@@ -118,5 +137,91 @@ class PreacherAdminTest extends TestCase
             ->set('needsReviewFilter', true)
             ->assertSee('Needs Review Sermon')
             ->assertDontSee('Fine Sermon');
+    }
+
+    #[Test]
+    public function admin_can_recompute_speaker_profile(): void
+    {
+        $this->actingAs($this->admin);
+
+        $preacher = Preacher::factory()->create();
+        $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
+        SpeakerSample::factory()->approved()->count(3)->create(['speaker_profile_id' => $profile->id]);
+
+        $this->mock(SpeakerIdentificationInterface::class, function (MockInterface $mock) use ($profile) {
+            $mock->shouldReceive('updateProfile')
+                ->once()
+                ->with(\Mockery::on(fn ($p) => $p->id === $profile->id), \Mockery::type('array'))
+                ->andReturn($profile);
+        });
+
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher])
+            ->call('recomputeProfile', $profile->id)
+            ->assertDispatched('notify');
+    }
+
+    #[Test]
+    public function recompute_fails_with_no_approved_samples(): void
+    {
+        $this->actingAs($this->admin);
+
+        $preacher = Preacher::factory()->create();
+        $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
+
+        $this->mock(SpeakerIdentificationInterface::class, function (MockInterface $mock) {
+            $mock->shouldNotReceive('updateProfile');
+        });
+
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher])
+            ->call('recomputeProfile', $profile->id)
+            ->assertDispatched('notify');
+
+        // Profile centroid should be unchanged — no updateProfile call was made
+    }
+
+    #[Test]
+    public function admin_cannot_recompute_another_preachers_profile(): void
+    {
+        $this->actingAs($this->admin);
+
+        $preacher = Preacher::factory()->create();
+        $otherPreacher = Preacher::factory()->create();
+        $otherProfile = SpeakerProfile::factory()->create(['preacher_id' => $otherPreacher->id]);
+
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher])
+            ->call('recomputeProfile', $otherProfile->id);
+    }
+
+    #[Test]
+    public function admin_can_deactivate_speaker_profile(): void
+    {
+        $this->actingAs($this->admin);
+
+        $preacher = Preacher::factory()->create();
+        $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
+
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher])
+            ->call('removeProfile', $profile->id)
+            ->assertDispatched('notify');
+
+        $this->assertDatabaseHas('speaker_profiles', ['id' => $profile->id, 'is_active' => false]);
+    }
+
+    #[Test]
+    public function admin_cannot_deactivate_another_preachers_profile(): void
+    {
+        $this->actingAs($this->admin);
+
+        $preacher = Preacher::factory()->create();
+        $otherPreacher = Preacher::factory()->create();
+        $otherProfile = SpeakerProfile::factory()->create(['preacher_id' => $otherPreacher->id, 'is_active' => true]);
+
+        Livewire::test(EditPreacher::class, ['preacher' => $preacher])
+            ->call('removeProfile', $otherProfile->id);
+
+        // Profile must remain active — the where clause prevents cross-preacher updates
+        $this->assertDatabaseHas('speaker_profiles', ['id' => $otherProfile->id, 'is_active' => true]);
     }
 }

@@ -9,6 +9,7 @@ use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use App\Models\SpeakerSample;
 use App\Services\NullSpeakerIdentificationService;
+use App\Services\SermonStorageService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
@@ -23,7 +24,7 @@ class BootstrapSpeakerProfilesCommand extends Command
 
     protected $description = 'Bootstrap speaker profiles from historical sermon audio';
 
-    public function handle(SpeakerIdentificationInterface $speakerService): int
+    public function handle(SpeakerIdentificationInterface $speakerService, SermonStorageService $storageService): int
     {
         $dryRun = (bool) $this->option('dry-run');
         $minSermons = max(1, (int) $this->option('min-sermons'));
@@ -124,7 +125,8 @@ class BootstrapSpeakerProfilesCommand extends Command
             $this->line("Bootstrapping {$preacher->name} ({$sermons->count()} sermons)...");
 
             foreach ($sermons as $sermon) {
-                $result = $speakerService->extractEmbedding($sermon->audio_file_path);
+                $fileInfo = $storageService->getSermonFileInfo($sermon);
+                $result = $speakerService->extractEmbedding($fileInfo['path'], $fileInfo['disk']);
 
                 if (! $result->success || ! is_array($result->embedding)) {
                     $metrics['samples_failed']++;
@@ -223,6 +225,6 @@ class BootstrapSpeakerProfilesCommand extends Command
             ->where('audio_file_path', '!=', '')
             ->orderByDesc('date')
             ->limit($maxSermons)
-            ->get(['id', 'audio_file_path', 'date']);
+            ->get(['id', 'audio_file_path', 'filetype', 'date']);
     }
 }

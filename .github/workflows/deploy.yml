@@ -75,6 +75,9 @@ jobs:
       - name: Run migrations
         run: php artisan migrate --force
 
+      - name: Typing baseline (changed app files)
+        run: ./scripts/check-typing-baseline.sh "${{ github.event.before }}" "${{ github.sha }}"
+
       - name: PHPStan
         run: composer phpstan
 

@@ -1,0 +1,188 @@
+/*
+ * Home-specific component-layer styles for the animated hero and nav on the home page.
+ */
+
+@layer components {
+    .home-hero {
+        @apply relative mb-16 overflow-hidden py-16;
+        min-height: 50vh;
+    }
+
+    .home-hero-title {
+        @apply p-12 text-center font-display text-6xl text-white md:text-left;
+        font-weight: 800;
+        line-height: 0.95;
+    }
+
+    .home-typewriter {
+        position: relative;
+    }
+
+    .home-typewriter-line {
+        display: inline-block;
+        max-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        will-change: max-width;
+        position: relative;
+    }
+
+    .home-typewriter-line-1 {
+        animation: home-typewriter-line-1 1.2s steps(11) 0.5s forwards;
+    }
+
+    .home-typewriter-line-1::after {
+        content: '|';
+        position: absolute;
+        right: 0;
+        animation: home-cursor-blink 1s infinite 0.5s, home-cursor-hide-1 0s 1.7s forwards;
+    }
+
+    .home-typewriter-line-2 {
+        animation: home-typewriter-line-2 0.8s steps(7) 1.8s forwards;
+    }
+
+    .home-typewriter-line-2::after {
+        content: '|';
+        position: absolute;
+        right: 0;
+        opacity: 0;
+        animation: home-cursor-show-2 0s 1.8s forwards, home-cursor-blink 1s infinite 1.8s, home-cursor-hide-2 0s 2.6s forwards;
+    }
+
+    .home-typewriter-line-3 {
+        animation: home-typewriter-line-3 0.8s steps(7) 2.7s forwards;
+    }
+
+    .home-typewriter-line-3::after {
+        content: '|';
+        position: absolute;
+        right: 0;
+        opacity: 0;
+        animation: home-cursor-show-3 0s 2.7s forwards, home-cursor-blink 1s infinite 2.7s, home-cursor-hide-3 0s 3.5s forwards;
+    }
+
+    .home-hero-nav {
+        @apply m-6 p-3 text-center font-display text-xl leading-[3.5rem] md:m-0 md:self-center md:text-right;
+    }
+
+    .home-hero-nav-link {
+        opacity: 0;
+        transform: translateY(20px);
+        will-change: opacity, transform;
+    }
+
+    .home-hero-nav-link-1 {
+        animation: home-fade-in-up 0.6s ease-out 4s forwards;
+    }
+
+    .home-hero-nav-link-2 {
+        animation: home-fade-in-up 0.6s ease-out 4.3s forwards;
+    }
+
+    .home-hero-nav-link-3 {
+        animation: home-fade-in-up 0.6s ease-out 4.6s forwards;
+    }
+}
+
+@keyframes home-typewriter-line-1 {
+    from {
+        max-width: 0;
+    }
+
+    to {
+        max-width: 100%;
+    }
+}
+
+@keyframes home-typewriter-line-2 {
+    from {
+        max-width: 0;
+    }
+
+    to {
+        max-width: 100%;
+    }
+}
+
+@keyframes home-typewriter-line-3 {
+    from {
+        max-width: 0;
+    }
+
+    to {
+        max-width: 100%;
+    }
+}
+
+@keyframes home-cursor-blink {
+    0%,
+    50% {
+        opacity: 1;
+    }
+
+    51%,
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes home-cursor-hide-1 {
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes home-cursor-hide-2 {
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes home-cursor-hide-3 {
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes home-cursor-show-2 {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes home-cursor-show-3 {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes home-fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-typewriter .home-typewriter-line {
+        animation: none;
+        max-width: 100%;
+    }
+
+    .home-typewriter .home-typewriter-line::after {
+        animation: none;
+        opacity: 0;
+    }
+
+    .home-hero-nav-link {
+        animation: none;
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
