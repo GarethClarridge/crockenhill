@@ -12,6 +12,13 @@ use Spatie\Sitemap\Tags\Url;
 
 class SitemapService
 {
+    /**
+     * Generate sitemap.xml
+     *
+     * Performance Optimization: Limits retrieved columns for dynamic models and eager loads
+     * required relationships to prevent N+1 queries. Large text fields like body, markdown,
+     * and transcript are excluded to reduce memory usage during the generation of large collections.
+     */
     public function generate(): bool
     {
         $sitemapPath = $this->getFilePath();
@@ -27,25 +34,24 @@ class SitemapService
 
             // Dynamic content via Sitemapable models
             // Eager load relationships to prevent N+1 queries during sitemap generation
-            // Performance Optimization: Use select() to limit columns and reduce memory usage for large collections
-            ->add(Sermon::with('preacherProfile:id,name')->select([
-                'id',
-                'date',
-                'slug',
-                'updated_at',
-                'video_file_path',
-                'thumbnail_file_path',
-                'title',
-                'summary',
-                'duration',
-                'meta_description',
-                'preacher',
-                'preacher_id',
-                'reference',
-                'series',
-            ])->get())
-            ->add(Page::with('media')->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])->where('admin', 'no')->get())
-            ->add(Meeting::select(['id', 'slug', 'updated_at'])->get())
+            ->add(
+                Sermon::query()
+                    ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'thumbnail_file_path', 'summary', 'duration', 'meta_description', 'preacher', 'preacher_id', 'reference', 'series'])
+                    ->with('preacherProfile:id,name,slug')
+                    ->get()
+            )
+            ->add(
+                Page::query()
+                    ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
+                    ->with(['media', 'meeting'])
+                    ->where('admin', 'no')
+                    ->get()
+            )
+            ->add(
+                Meeting::query()
+                    ->select(['id', 'slug', 'updated_at', 'page_id'])
+                    ->get()
+            )
 
             ->writeToFile($sitemapPath);
 

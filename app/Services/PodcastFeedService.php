@@ -46,8 +46,9 @@ class PodcastFeedService
     /**
      * Fetch sermons from database and enrich for feed.
      *
-     * Performance Optimization: Eager loads 'preacherProfile' to prevent N+1 queries
-     * when generating the podcast summary for each sermon in the feed.
+     * Performance Optimization: Limits retrieved columns to required fields for the RSS feed,
+     * excluding very large text fields (like full transcripts or points) while keeping summary for descriptions.
+     * Eager loads 'preacherProfile' with restricted columns to prevent N+1 queries during enrichment.
      *
      * @return Collection<int, Sermon>
      */
@@ -57,7 +58,8 @@ class PodcastFeedService
         $limit = config('podcast.items_limit', 100);
 
         return Sermon::forPodcast()
-            ->with('preacherProfile')
+            ->select(['id', 'title', 'audio_file_path', 'filetype', 'date', 'service', 'series', 'reference', 'preacher', 'preacher_id', 'duration', 'summary', 'slug', 'thumbnail_file_path', 'transcript_file_path'])
+            ->with('preacherProfile:id,name,slug')
             ->forService($serviceType)
             ->limit($limit)
             ->get()
