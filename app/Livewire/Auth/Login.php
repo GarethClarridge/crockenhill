@@ -11,44 +11,50 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\Features\SupportRedirects\Redirector;
 
 class Login extends Component
 {
-    #[Validate('required|email')]
-    public string $email = '';
+    #[Validate('required|string|email')]
+    public string|array $email = '';
 
-    #[Validate('required|min:1')]
-    public string $password = '';
+    #[Validate('required|string|min:1')]
+    public string|array $password = '';
 
-    public bool $remember = false;
+    #[Validate('boolean')]
+    public bool|array $remember = false;
 
+    #[Locked]
     public string $error = '';
 
     public function login(): Redirector|RedirectResponse|null
     {
-        $this->validate();
+        $validated = $this->validate();
+        $email = (string) $validated['email'];
+        $password = (string) $validated['password'];
+        $remember = (bool) ($validated['remember'] ?? false);
         $this->error = '';
 
-        if ($this->isRateLimited()) {
+        if ($this->isRateLimited($email)) {
             return null;
         }
 
         $credentials = [
-            'email' => $this->email,
-            'password' => $this->password,
+            'email' => $email,
+            'password' => $password,
         ];
 
-        if (Auth::attempt($credentials, $this->remember)) {
-            RateLimiter::clear($this->throttleKey());
+        if (Auth::attempt($credentials, $remember)) {
+            RateLimiter::clear($this->throttleKey($email));
             Session::regenerate();
 
             return redirect()->intended('/church/members');
         }
 
-        RateLimiter::hit($this->throttleKey());
+        RateLimiter::hit($this->throttleKey($email));
         $this->error = trans('auth.failed');
 
         return null;
@@ -59,15 +65,15 @@ class Login extends Component
         return view('livewire.auth.login');
     }
 
-    private function isRateLimited(): bool
+    private function isRateLimited(string $email): bool
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey($email), 5)) {
             return false;
         }
 
         event(new Lockout(request()));
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $seconds = RateLimiter::availableIn($this->throttleKey($email));
         $this->error = trans('auth.throttle', [
             'seconds' => $seconds,
             'minutes' => (int) ceil($seconds / 60),
@@ -76,8 +82,8 @@ class Login extends Component
         return true;
     }
 
-    private function throttleKey(): string
+    private function throttleKey(string $email): string
     {
-        return Str::transliterate('login|'.Str::lower($this->email).'|'.request()->ip());
+        return Str::transliterate('login|'.Str::lower($email).'|'.request()->ip());
     }
 }

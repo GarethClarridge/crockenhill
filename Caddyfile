@@ -1,4 +1,12 @@
 crockenhill.org, www.crockenhill.org {
+    # Extended timeouts for large media file uploads (default read_timeout is 5s)
+    timeouts {
+        read_body   3700s
+        read_header 30s
+        write       3700s
+        idle        120s
+    }
+
     # Reverse proxy to app container with extended timeouts for media processing
     reverse_proxy app:80 {
         transport http {

@@ -114,17 +114,15 @@ class ViewComposerTest extends TestCase
             'admin' => 'no',
         ]);
 
-        Page::factory()->create([
-            'slug' => 'all-sermons',
-            'area' => PageArea::SERMONS,
-            'admin' => 'no',
-        ]);
+        Page::unguarded(fn () => Page::query()->updateOrCreate(
+            ['slug' => 'all-sermons'],
+            ['area' => PageArea::SERMONS, 'admin' => 'no', 'heading' => 'All Sermons', 'description' => 'All sermons', 'body' => 'All sermons', 'markdown' => '', 'navigation' => false],
+        ));
 
-        Page::factory()->create([
-            'slug' => 'pages',
-            'area' => PageArea::MEMBERS,
-            'admin' => 'yes',
-        ]);
+        Page::unguarded(fn () => Page::query()->updateOrCreate(
+            ['slug' => 'pages'],
+            ['area' => PageArea::MEMBERS, 'admin' => 'yes', 'heading' => 'Pages', 'description' => 'Admin pages', 'body' => 'Pages', 'markdown' => '', 'navigation' => false],
+        ));
 
         $this->app->instance('request', Request::create('/church/members', 'GET'));
 
@@ -149,11 +147,14 @@ class ViewComposerTest extends TestCase
             'admin' => 'no',
         ]);
 
-        Page::factory()->create([
-            'slug' => 'all-sermons',
-            'area' => PageArea::SERMONS,
-            'admin' => 'no',
-        ]);
+        Page::query()->updateOrCreate(
+            ['slug' => 'all-sermons'],
+            Page::factory()->raw([
+                'slug' => 'all-sermons',
+                'area' => PageArea::SERMONS,
+                'admin' => 'no',
+            ]),
+        );
 
         $this->app->instance('request', Request::create('/church/members/view-composer-check', 'GET'));
 

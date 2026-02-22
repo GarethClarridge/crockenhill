@@ -197,6 +197,42 @@ class LoginTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    #[Test]
+    public function livewire_login_rejects_array_payload_for_email_without_type_error(): void
+    {
+        Livewire::test(LoginComponent::class)
+            ->set('email', ['attacker@example.com'])
+            ->set('password', 'password123')
+            ->set('remember', false)
+            ->call('login')
+            ->assertHasErrors(['email' => 'string'])
+            ->assertSet('error', '');
+    }
+
+    #[Test]
+    public function livewire_login_rejects_array_payload_for_password_without_type_error(): void
+    {
+        Livewire::test(LoginComponent::class)
+            ->set('email', 'attacker@example.com')
+            ->set('password', ['password123'])
+            ->set('remember', false)
+            ->call('login')
+            ->assertHasErrors(['password' => 'string'])
+            ->assertSet('error', '');
+    }
+
+    #[Test]
+    public function livewire_login_rejects_array_payload_for_remember_without_type_error(): void
+    {
+        Livewire::test(LoginComponent::class)
+            ->set('email', 'attacker@example.com')
+            ->set('password', 'password123')
+            ->set('remember', ['true'])
+            ->call('login')
+            ->assertHasErrors(['remember' => 'boolean'])
+            ->assertSet('error', '');
+    }
+
     private function throttleKey(string $email): string
     {
         return Str::transliterate(Str::lower($email).'|127.0.0.1');

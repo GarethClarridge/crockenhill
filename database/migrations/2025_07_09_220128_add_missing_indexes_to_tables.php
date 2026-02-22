@@ -89,25 +89,7 @@ return new class extends Migration
      */
     private function indexExists(string $table, string $indexName): bool
     {
-        if (DB::getDriverName() === 'mysql') {
-            $indexes = DB::select("SHOW INDEX FROM {$table} WHERE Key_name = ?", [$indexName]);
-
-            return ! empty($indexes);
-        }
-
-        // Fallback for other drivers (like SQLite during tests)
-        if (method_exists(Schema::class, 'getIndexes')) {
-            $indexes = Schema::getIndexes($table);
-            foreach ($indexes as $index) {
-                if ($index['name'] === $indexName) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        return false;
+        return Schema::hasIndex($table, $indexName);
     }
 
     /**
