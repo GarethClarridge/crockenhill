@@ -19,3 +19,7 @@
 ## 2026-02-20 - Admin Page List N+1 and Memory Optimization
 **Learning:** The 'ListPages' admin component was fetching full 'body' and 'markdown' columns for every row and performing N+1 queries for 'media' and 'meeting' relationships.
 **Action:** Use 'select()' to exclude large columns and 'with()' to eager load relationships in Livewire list components. This reduced query count from 22 to 4 for 10 items.
+
+## 2026-02-26 - Sitemap Memory Optimization
+**Learning:** `SitemapService` was fetching all columns for `Sermon`, `Page`, and `Meeting` models, including large text/JSON blobs like `summary`, `points`, `body`, and `markdown` which are not needed for sitemap tags.
+**Action:** Use `select()` to limit columns for all models in the sitemap generation process. For `Sermon`, also use column selection on eager-loaded `preacherProfile` relationship. This reduces memory footprint and database pressure, especially as the content grows.
