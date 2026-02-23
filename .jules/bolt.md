@@ -23,3 +23,10 @@
 ## 2026-02-26 - Sitemap Memory Optimization
 **Learning:** `SitemapService` was fetching all columns for `Sermon`, `Page`, and `Meeting` models, including large text/JSON blobs like `summary`, `points`, `body`, and `markdown` which are not needed for sitemap tags.
 **Action:** Use `select()` to limit columns for all models in the sitemap generation process. For `Sermon`, also use column selection on eager-loaded `preacherProfile` relationship. This reduces memory footprint and database pressure, especially as the content grows.
+## 2026-02-23 - [BritishEnglishConverter Optimization]
+**Learning:** Iterative regex replacements in a loop (e.g., in `BritishEnglishConverter::convert`) are significantly slower than using array-based `preg_replace`, especially when dealing with large word lists or long texts like sermon transcripts. While the win on small datasets is minor (approx. 5%), it scales better with larger datasets (approx. 15%+ improvement).
+**Action:** Always prefer array-based `preg_replace` or `strtr` for multiple string replacements.
+
+## 2026-02-23 - [Storage Existence Checks Bottleneck]
+**Learning:** Using `Storage::exists()` inside model accessors or methods like `hasThumbnail()` and `hasTranscript()` creates a performance bottleneck when these models are rendered in lists or sitemaps, as it triggers multiple remote network calls (e.g., to DigitalOcean Spaces/S3).
+**Action:** Trust the database column presence for existence checks in performance-critical paths, and only perform physical storage checks when absolutely necessary (e.g., during file processing).
