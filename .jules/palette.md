@@ -14,3 +14,7 @@
 ## 2026-02-13 - Integrated Loading States for Form Components
 **Learning:** Adding automated loading indicators to base form components (input, select) that target their `wire:model` provides immediate feedback for debounced search and live validation without requiring per-instance configuration. Fallback `aria-label` from placeholders ensures accessibility when formal labels are missing.
 **Action:** Use `wire:loading` with `wire:target` in base components and ensure conflicting elements (like clear buttons) use `wire:loading.remove`.
+
+## 2026-02-23 - Scoped Loading States and Loop Accessibility
+**Learning:** In complex Livewire forms with many interactive elements (like dynamic lists of points), global loading states cause confusing UI flicker. Enhancing base button components to automatically target their own 'wire:click' or 'wire:submit' actions provides precise, scoped feedback. Additionally, icon-only buttons within loops require contextual 'aria-label' attributes (e.g., "Remove alias: [name]") to provide clear intent to screen reader users beyond just the action type.
+**Action:** Automatically derive 'wire:target' from 'wire:click' or 'wire:submit' in 'form-button' components. Ensure all loop-based buttons include unique identifying information in their ARIA labels.

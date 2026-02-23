@@ -92,7 +92,7 @@
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">
                                 <div class="flex gap-1 justify-end" role="group" aria-label="Actions for {{ $event->title }}">
-                                    <x-button link="{{ route('admin.calendar-events.edit', $event) }}" variant="ghost" size="xs" icon="pencil" inline />
+                                    <x-button link="{{ route('admin.calendar-events.edit', $event) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit event: {{ $event->title }}" />
                                 </div>
                             </td>
                         </tr>

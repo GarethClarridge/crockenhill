@@ -71,10 +71,11 @@
                             <div class="flex gap-2 mb-2">
                                 <x-input wire:model="points.{{ $index }}" class="flex-1" />
                                 <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600"
-                                    wire:click="removePoint({{ $index }})" />
+                                    wire:click="removePoint({{ $index }})"
+                                    aria-label="Remove point" />
                             </div>
                         @endforeach
-                        <x-form-button variant="ghost" size="sm" icon="plus" wire:click="addPoint">
+                        <x-form-button variant="ghost" size="sm" icon="plus" wire:click="addPoint" aria-label="Add sermon point">
                             Add Point
                         </x-form-button>
                     </div>
