@@ -38,7 +38,8 @@
                                     <span class="text-sm font-mono text-gray-700">{{ $alias->alias }}</span>
                                     <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                         wire:click="removeAlias({{ $alias->id }})"
-                                        wire:confirm="Remove alias '{{ $alias->alias }}'?" />
+                                        wire:confirm="Remove alias '{{ $alias->alias }}'?"
+                                        aria-label="Remove alias: {{ $alias->alias }}" />
                                 </li>
                             @endforeach
                         </ul>
@@ -92,7 +93,8 @@
                                             </x-form-button>
                                             <x-form-button variant="ghost" size="xs" icon="no-symbol" class="text-red-600"
                                                 wire:click="removeProfile({{ $profile->id }})"
-                                                wire:confirm="Deactivate this speaker profile? This preacher will no longer be auto-matched." />
+                                                wire:confirm="Deactivate this speaker profile? This preacher will no longer be auto-matched."
+                                                aria-label="Deactivate profile" />
                                         @endif
                                     </div>
                                 </li>
