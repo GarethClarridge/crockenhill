@@ -43,7 +43,7 @@ Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
 // Meeting routes
 Route::resource('meetings', MeetingController::class)
     ->except(['show'])
-    ->middleware('auth');
+    ->middleware(['auth', 'admin']);
 
 // Calendar routes
 Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
@@ -75,15 +75,15 @@ Route::group(['prefix' => 'christ/sermons'], function () {
         ->name('showSermonWithDate');
     Route::get('/{year}/{month}/{sermon:slug}/edit', [SermonAdminController::class, 'editWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->middleware('auth')
+        ->middleware(['auth', 'admin'])
         ->name('editSermonWithDate');
     Route::post('/{year}/{month}/{sermon:slug}/edit', [SermonAdminController::class, 'updateWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->middleware('auth')
+        ->middleware(['auth', 'admin'])
         ->name('updateSermonWithDate');
     Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonAdminController::class, 'destroyWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->middleware('auth')
+        ->middleware(['auth', 'admin'])
         ->name('destroySermonWithDate');
 
     // Audio serving route
@@ -94,9 +94,9 @@ Route::group(['prefix' => 'christ/sermons'], function () {
 
     // Fallback slug-only routes
     Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');
-    Route::get('/{sermon:slug}/edit', [SermonAdminController::class, 'edit'])->middleware('auth')->name('editSermon');
-    Route::post('/{sermon:slug}/edit', [SermonAdminController::class, 'update'])->middleware('auth')->name('updateSermon');
-    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware('auth')->name('destroySermon');
+    Route::get('/{sermon:slug}/edit', [SermonAdminController::class, 'edit'])->middleware(['auth', 'admin'])->name('editSermon');
+    Route::post('/{sermon:slug}/edit', [SermonAdminController::class, 'update'])->middleware(['auth', 'admin'])->name('updateSermon');
+    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'admin'])->name('destroySermon');
 });
 
 // Members routes
@@ -167,11 +167,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
         Route::post('calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('admin.calendar.categorize');
         Route::get('calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('admin.calendar.patterns');
         Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
-    });
 
-    // Unified media upload route (replaces smart-upload)
-    Route::get('sermon-upload', [SermonAdminController::class, 'upload'])->name('admin.sermon-upload.create');
-    Route::post('sermon-upload', [SermonAdminController::class, 'processMedia'])->name('admin.sermon-upload.store');
+        // Unified media upload route (replaces smart-upload)
+        Route::get('sermon-upload', [SermonAdminController::class, 'upload'])->name('admin.sermon-upload.create');
+        Route::post('sermon-upload', [SermonAdminController::class, 'processMedia'])->name('admin.sermon-upload.store');
+    });
 });
 
 Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware('admin');

@@ -135,6 +135,7 @@ class UnifiedMediaProcessingTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@crockenhill.org',
             'email_verified_at' => now(),
+            'is_admin' => true,
         ]);
         $this->actingAs($user);
 
