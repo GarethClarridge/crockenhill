@@ -14,6 +14,11 @@ class BritishEnglishConverter
     /**
      * Convert American English text to British English
      *
+     * Performance Optimization: Uses array-based preg_replace to process all corrections
+     * in a single pass through the regex engine, rather than looping and calling
+     * preg_replace multiple times. This is significantly more efficient when
+     * dealing with large word lists or long transcripts.
+     *
      * @param  string  $text  Text to convert
      * @return string Converted text
      */
@@ -21,11 +26,11 @@ class BritishEnglishConverter
     {
         $corrections = $this->getCorrections();
 
-        foreach ($corrections as $pattern => $replacement) {
-            $text = preg_replace($pattern, $replacement, $text);
+        if (empty($corrections)) {
+            return $text;
         }
 
-        return $text;
+        return (string) preg_replace(array_keys($corrections), array_values($corrections), $text);
     }
 
     /**
