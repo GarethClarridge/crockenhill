@@ -13,3 +13,7 @@
 ## 2026-02-21 - Parallel Testing Artifacts
 **Learning:** Running parallel tests with SQLite in Laravel creates local database files (e.g., `crockenhill_test_1`) in the root directory.
 **Action:** Ensure these artifacts and any temporary `.env` files are removed before committing to avoid polluting the repository with binary data.
+
+## 2026-02-28 - [Testing BinaryFileResponse and Naming Conventions]
+**Learning:** `BinaryFileResponse` (returned by `response()->file()`) can be verified in feature tests using `assertStatus` and `assertHeader`. When using PHPUnit `#[Test]` attributes, method names should not have the `test_` prefix to avoid redundancy and follow strict project conventions.
+**Action:** Use `#[Test]` with descriptive, non-prefixed method names like `can_serve_audio_locally`.
