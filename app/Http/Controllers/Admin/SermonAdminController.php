@@ -14,6 +14,7 @@ use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -141,9 +142,15 @@ class SermonAdminController extends Controller
             }
 
         } catch (\Exception $e) {
+            Log::error('Sermon upload failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user()?->id,
+            ]);
+
             return redirect()
                 ->back()
-                ->with('error', 'An error occurred during upload: '.$e->getMessage());
+                ->with('error', 'An error occurred during upload. Please try again.');
         }
     }
 
