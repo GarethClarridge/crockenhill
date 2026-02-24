@@ -11,8 +11,6 @@
     <testsuites>
         <testsuite name="Feature Tests">
             <directory suffix="Test.php">./tests/Feature</directory>
-            <!-- Exclude ProcessingLogsViewerTest due to Livewire/Alpine.js polling causing test hangs -->
-            <exclude>./tests/Feature/ProcessingLogsViewerTest.php</exclude>
         </testsuite>
 
         <testsuite name="Unit Tests">

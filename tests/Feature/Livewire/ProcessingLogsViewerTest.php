@@ -9,7 +9,6 @@ use App\Http\Controllers\Api\MediaController;
 use App\Livewire\ProcessingLogsViewer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Collection;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -173,10 +172,63 @@ class ProcessingLogsViewerTest extends TestCase
     public function it_formats_processing_time_correctly()
     {
         $this->actingAs($this->admin);
-        
+
         // 300 seconds = 5 minutes
         $this->mockControllerResponse();
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
             ->assertSet('processingTime', '5m 0s');
+    }
+
+    #[Test]
+    public function it_validates_log_limit_boundaries(): void
+    {
+        $this->actingAs($this->admin);
+        $this->mockControllerResponse();
+
+        $component = Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId]);
+
+        // Too small
+        $component->set('logLimit', 2)
+            ->call('updateLogLimit')
+            ->assertHasErrors(['logLimit']);
+
+        // Too large
+        $component->set('logLimit', 150)
+            ->call('updateLogLimit')
+            ->assertHasErrors(['logLimit']);
+
+        // Valid
+        $component->set('logLimit', 50)
+            ->call('updateLogLimit')
+            ->assertHasNoErrors();
+    }
+
+    #[Test]
+    public function it_formats_memory_peak_correctly(): void
+    {
+        $this->actingAs($this->admin);
+
+        // Default mock has 50 MB (52428800 bytes)
+        $this->mockControllerResponse();
+        Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
+            ->assertSet('memoryPeak', '50 MB');
+    }
+
+    #[Test]
+    public function it_handles_missing_processing_id_gracefully(): void
+    {
+        $this->actingAs($this->admin);
+
+        // Mock controller that cannot handle the ID
+        $mockController = $this->createMock(\App\Http\Controllers\Api\MediaController::class);
+        $mockController->method('canHandle')->willReturn(false);
+        $this->app->instance(\App\Http\Controllers\Api\MediaController::class, $mockController);
+
+        $component = Livewire::test(ProcessingLogsViewer::class, ['processingId' => 'non-existent-id']);
+
+        $component->assertStatus(200)
+            ->assertSet('processingId', 'non-existent-id')
+            ->assertSet('logs', [])
+            ->assertSet('statusData', []);
     }
 }
