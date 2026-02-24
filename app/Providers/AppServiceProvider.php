@@ -4,9 +4,6 @@ namespace App\Providers;
 
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\TranscriptionServiceInterface;
-use App\HealthChecks\OpenAIHealthCheck;
-use App\HealthChecks\SermonProcessingQueueHealthCheck;
-use App\HealthChecks\StorageHealthCheck;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Sermon;
@@ -16,10 +13,8 @@ use App\Services\MockSermonAnalysisService;
 use App\Services\MockTranscriptionService;
 use App\Services\SermonAnalysisService;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -39,30 +34,6 @@ class AppServiceProvider extends ServiceProvider
         if (str_starts_with(config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
-
-        // Register custom health checks for Laravel 12
-        Event::listen(DiagnosingHealth::class, function () {
-            // Run OpenAI health check
-            $openAICheck = new OpenAIHealthCheck;
-            $openAIResult = $openAICheck->run();
-            if ($openAIResult['status'] === 'error') {
-                throw new \Exception('OpenAI API health check failed: '.$openAIResult['message']);
-            }
-
-            // Run sermon processing queue health check
-            $queueCheck = new SermonProcessingQueueHealthCheck;
-            $queueResult = $queueCheck->run();
-            if ($queueResult['status'] === 'error') {
-                throw new \Exception('Sermon processing queue health check failed: '.$queueResult['message']);
-            }
-
-            // Run storage health check
-            $storageCheck = new StorageHealthCheck;
-            $storageResult = $storageCheck->run();
-            if ($storageResult['status'] === 'error') {
-                throw new \Exception('Storage health check failed: '.$storageResult['message']);
-            }
-        });
 
         // Share user with all views (per-request, not at boot time)
         View::composer('*', function ($view) {
