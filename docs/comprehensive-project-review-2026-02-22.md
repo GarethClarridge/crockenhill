@@ -76,7 +76,7 @@ Recommendation:
 
 ### High
 
-#### H1. Service locator anti-pattern (`app()`) used in multiple classes
+#### H1. Service locator anti-pattern (`app()`) used in multiple classes *Completed*
 
 Evidence:
 - `Sermon` model calls `app()` in attribute accessors: [Sermon.php:180](app/Models/Sermon.php#L180), [Sermon.php:323](app/Models/Sermon.php#L323), [Sermon.php:346](app/Models/Sermon.php#L346)
@@ -92,7 +92,7 @@ Recommendation:
 2. For controllers/services: always inject via constructor.
 3. For form requests: cache the service instance as a property.
 
-#### H2. Schema dump is stale and creates migration risk
+#### H2. Schema dump is stale and creates migration risk *completed*
 
 *Carried forward.*
 
