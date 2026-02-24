@@ -193,11 +193,34 @@ Recommendation:
 1. Use `ProcessingException` and its subclasses consistently for all media processing errors.
 2. Never surface raw exception messages to end users.
 
-#### M6. PHPStan at level 5 — room to tighten
+#### M6. PHPStan at level 5 — room to tighten *Partially complete — level 6 enabled with baseline*
 
-*Carried forward.*
+*Updated 2026-02-24: Incremented to level 6. A baseline (`phpstan-baseline.neon`) was generated capturing 424 pre-existing violations. All new code is now checked at level 6. The baseline violations are purely missing iterable value types and missing Collection generics — no logic errors.*
 
-Recommendation: Increment one level per sprint. Level 6 adds return type checking and would catch several issues found in this review (missing return types, unsafe null access).
+**Level 6 violation summary (424 errors across 99 files — to fix incrementally):**
+
+All errors fall into two categories:
+
+- `missingType.iterableValue` (287 errors) — `array` return/parameter types without element type annotation. Fix pattern: `array` → `array<string>`, `array<string, mixed>`, etc.
+- `missingType.generics` (118 errors) — `Collection` used without generic types. Fix pattern: `Collection` → `Collection<int, Sermon>` etc.
+- `missingType.return` / `missingType.parameter` (19 errors) — methods with no return type or untyped parameters.
+
+**Files with most violations (priority order for cleanup):**
+
+| File | Approx errors |
+|---|---|
+| `app/Services/VideoSegmentationService.php` | high |
+| `app/Services/SermonProcessingService.php` | high |
+| `app/Services/UnifiedMediaProcessor.php` | high |
+| `app/Livewire/MediaUpload/Form.php` | high |
+| `app/Services/VideoExtractionService.php` | medium |
+| `app/Services/SermonStorageService.php` | medium |
+| `app/Console/Commands/ConvertJpgToWebp.php` | medium |
+| `app/Models/Sermon.php` | medium |
+
+**All affected files (full list):** Console/Commands (8), Contracts (3), Data (9), Enums (5), Jobs (6), Livewire (17), Models (11), Services (34), Repositories (1), other (5).
+
+Recommendation: Fix 20–30 files per sprint, prioritising the service layer. Remove entries from the baseline as each file is cleaned. When the baseline reaches zero lines, delete it.
 
 #### M7. Route file noise and fragile ordering
 
