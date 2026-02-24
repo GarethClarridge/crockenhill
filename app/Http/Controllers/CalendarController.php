@@ -11,6 +11,8 @@ use Illuminate\View\View;
 
 class CalendarController extends Controller
 {
+    public function __construct(private readonly CalendarService $calendarService) {}
+
     public function index(): View
     {
         $allEvents = CalendarEvent::with('meeting')
@@ -40,8 +42,7 @@ class CalendarController extends Controller
 
     public function eventsForMeeting(Meeting $meeting): View
     {
-        $calendarService = app(CalendarService::class);
-        $events = $calendarService->getEventsForMeeting($meeting->slug)
+        $events = $this->calendarService->getEventsForMeeting($meeting->slug)
             ->sortBy('start_datetime');
 
         return view('meetings.events', compact('meeting', 'events'));
@@ -49,8 +50,7 @@ class CalendarController extends Controller
 
     public function uncategorized(): View
     {
-        $calendarService = app(CalendarService::class);
-        $uncategorizedEvents = $calendarService->getUncategorizedEvents()
+        $uncategorizedEvents = $this->calendarService->getUncategorizedEvents()
             ->where('start_datetime', '>=', now())
             ->take(20);
 

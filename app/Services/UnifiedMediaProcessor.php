@@ -16,19 +16,13 @@ use Illuminate\Support\Str;
 
 class UnifiedMediaProcessor
 {
-    private ?LivestreamSegmentationService $livestreamService = null;
-
     public function __construct(
         private readonly SermonProcessingService $sermonService,
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingLogService $processingLogService,
-        private readonly ProcessingInitiator $processingInitiator
+        private readonly ProcessingInitiator $processingInitiator,
+        private readonly LivestreamSegmentationService $livestreamService
     ) {}
-
-    private function getLivestreamService(): LivestreamSegmentationService
-    {
-        return $this->livestreamService ??= app(LivestreamSegmentationService::class);
-    }
 
     public function process(string $type, UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
     {
@@ -42,7 +36,7 @@ class UnifiedMediaProcessor
         return match ($type) {
             'audio' => $this->sermonService->processSermon($file, $clientFileDate),
             'video' => $this->processDirectVideo($file, $clientFileDate),
-            'livestream' => $this->getLivestreamService()->processWithSegmentation($file, $clientFileDate),
+            'livestream' => $this->livestreamService->processWithSegmentation($file, $clientFileDate),
             default => ProcessingResult::failure(
                 processingId: 'invalid-'.Str::uuid(),
                 message: "Unsupported media type: {$type}",
@@ -100,7 +94,7 @@ class UnifiedMediaProcessor
 
         $result = match ($log->processing_type) {
             'audio', 'video' => $this->sermonService->cancelProcessing($processingId),
-            'livestream' => $this->getLivestreamService()->cancelProcessing($processingId),
+            'livestream' => $this->livestreamService->cancelProcessing($processingId),
             default => false,
         };
 
@@ -124,7 +118,7 @@ class UnifiedMediaProcessor
 
         return match ($log->processing_type) {
             'audio', 'video' => $this->sermonService->retryProcessing($processingId),
-            'livestream' => $this->convertLivestreamRetryResult($this->getLivestreamService()->retryProcessing($processingId)),
+            'livestream' => $this->convertLivestreamRetryResult($this->livestreamService->retryProcessing($processingId)),
             default => ProcessingResult::failure(
                 processingId: $processingId,
                 message: "Unknown processing type: {$log->processing_type}",

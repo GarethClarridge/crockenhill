@@ -177,7 +177,7 @@ class Sermon extends Model implements Sitemapable
             return null;
         }
 
-        $storageService = app(\App\Services\SermonStorageService::class);
+        $storageService = resolve(\App\Services\SermonStorageService::class);
 
         return $storageService->getPublicUrl($this);
     }

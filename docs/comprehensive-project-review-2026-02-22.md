@@ -42,7 +42,7 @@ Overall assessment:
 
 ### Critical
 
-#### C1. `/up` health endpoint coupled to external OpenAI availability
+#### C1. `/up` health endpoint coupled to external OpenAI availability *Completed*
 
 *Carried forward from previous review — recommendation updated.*
 
@@ -58,7 +58,7 @@ Recommendation: Remove the custom health checks entirely. For an app of this siz
 1. Remove the `DiagnosingHealth` event listener from `AppServiceProvider` (lines 44–65) and its three unused imports.
 2. Delete the `app/HealthChecks/` directory (`OpenAIHealthCheck`, `StorageHealthCheck`, `SermonProcessingQueueHealthCheck`, `StorageSpaceHealthCheck`, `FFmpegHealthCheck`, `LivestreamQueueHealthCheck`).
 
-#### C2. Failing test suite excluded from default runs
+#### C2. Failing test suite excluded from default runs *Completed*
 
 *Carried forward — still unresolved.*
 

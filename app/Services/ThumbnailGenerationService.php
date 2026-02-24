@@ -24,16 +24,15 @@ class ThumbnailGenerationService
 
     private readonly FrameExtractionService $frameExtractionService;
 
-    public function __construct(
-        ?FrameExtractionService $frameExtractionService = null
-    ) {
+    public function __construct(FrameExtractionService $frameExtractionService)
+    {
         $this->config = config('thumbnail-generation');
 
         $this->storageDisk = $this->config['storage']['disk'];
         $this->storagePath = $this->config['storage']['path'];
         $this->tempDisk = $this->config['processing']['temp_disk'];
         $this->tempPath = $this->config['processing']['temp_path'];
-        $this->frameExtractionService = $frameExtractionService ?? app(FrameExtractionService::class);
+        $this->frameExtractionService = $frameExtractionService;
     }
 
     /**

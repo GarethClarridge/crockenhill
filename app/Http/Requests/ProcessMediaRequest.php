@@ -7,6 +7,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class ProcessMediaRequest extends FormRequest
 {
+    private ?MediaValidationService $validationService = null;
+
+    private function validationService(): MediaValidationService
+    {
+        return $this->validationService ??= $this->container->make(MediaValidationService::class);
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -23,7 +30,7 @@ class ProcessMediaRequest extends FormRequest
     public function rules(): array
     {
         $type = $this->input('type', 'audio');
-        $validation = app(MediaValidationService::class);
+        $validation = $this->validationService();
 
         $fileRules = in_array($type, $validation->supportedTypes(), true)
             ? $validation->rulesForType($type)
@@ -43,7 +50,7 @@ class ProcessMediaRequest extends FormRequest
     public function messages(): array
     {
         $type = $this->input('type', 'audio');
-        $validation = app(MediaValidationService::class);
+        $validation = $this->validationService();
 
         $maxSize = in_array($type, $validation->supportedTypes(), true)
             ? $validation->maxFileSizeForDisplay($type)
