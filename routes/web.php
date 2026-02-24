@@ -4,8 +4,7 @@ use App\Http\Controllers\Admin\CalendarAdminController;
 use App\Http\Controllers\Admin\SermonAdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CalendarController;
-// Import all necessary controllers
-use App\Http\Controllers\MeetingController; // Added this line
+use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PodcastFeedController;
@@ -174,7 +173,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function ()
     });
 });
 
-Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware('admin');
+Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware(['auth', 'admin']);
 
 // Sitemap route
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
@@ -184,9 +183,12 @@ foreach (config('redirects') as $from => $to) {
     Route::permanentRedirect($from, $to);
 }
 
-// Catch-all dynamic page routes (these must be last!)
-Route::get('/{area}', [PageController::class, 'showPage'])->name('pages.showArea'); // Area-only route without trailing slash
-Route::get('/{area}/{slug}', [PageController::class, 'show'])->name('pages.showPublic');
+Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
+    ->name('logout');
+
+Route::get('verify-email/{id}/{hash}', [AuthenticatedSessionController::class, 'verifyEmail'])
+    ->middleware(['auth', 'signed', 'throttle:6,1'])
+    ->name('verification.verify');
 
 if (app()->isLocal()) {
     Route::get('500', function () {
@@ -194,10 +196,6 @@ if (app()->isLocal()) {
     });
 }
 
-Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
-    ->name('logout');
-
-// Add the email verification route
-Route::get('verify-email/{id}/{hash}', [AuthenticatedSessionController::class, 'verifyEmail'])
-    ->middleware(['auth', 'signed', 'throttle:6,1'])
-    ->name('verification.verify');
+// Catch-all dynamic page routes (these must be last!)
+Route::get('/{area}', [PageController::class, 'showPage'])->name('pages.showArea');
+Route::get('/{area}/{slug}', [PageController::class, 'show'])->name('pages.showPublic');
