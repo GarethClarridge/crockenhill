@@ -42,6 +42,7 @@ class ListMeetings extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
+    /** @var array<int, string> */
     protected array $queryString = ['search', 'typeFilter', 'recurringFilter'];
 
     public function sort(string $column): void

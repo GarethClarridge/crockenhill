@@ -69,6 +69,9 @@ trait MeetingForm
         }
     }
 
+    /**
+     * @return array<int, array{id: string, name: string}>
+     */
     protected function getTypeOptions(): array
     {
         return collect(MeetingType::cases())
@@ -76,6 +79,9 @@ trait MeetingForm
             ->toArray();
     }
 
+    /**
+     * @return array<int, array{id: string, name: string}>
+     */
     protected function getFrequencyOptions(): array
     {
         return collect(MeetingFrequency::cases())

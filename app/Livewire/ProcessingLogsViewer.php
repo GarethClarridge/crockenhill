@@ -7,6 +7,7 @@ namespace App\Livewire;
 use App\Contracts\ProcessingStatusContract;
 use App\Data\ProcessingLogEntry;
 use Carbon\Carbon;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Lazy;
@@ -25,10 +26,13 @@ class ProcessingLogsViewer extends Component
     public int $logLimit = 20;
 
     // Processing status data
+    /** @var array<string, mixed> */
     public array $statusData = [];
 
+    /** @var array<int, array<string, mixed>> */
     public array $logs = [];
 
+    /** @var array<string, mixed> */
     public array $performanceMetrics = [];
 
     public ?Carbon $lastFetch = null;
@@ -40,6 +44,7 @@ class ProcessingLogsViewer extends Component
 
     public bool $showMetrics = true;
 
+    /** @var array<string, string> */
     protected array $rules = [
         'processingId' => 'required|string',
         'autoRefresh' => 'boolean',
@@ -191,6 +196,9 @@ class ProcessingLogsViewer extends Component
         }
     }
 
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
     public function getFilteredLogsProperty(): Collection
     {
         $logs = collect($this->logs);
@@ -208,6 +216,9 @@ class ProcessingLogsViewer extends Component
         return $logs;
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function getAvailableStepsProperty(): array
     {
         return collect($this->logs)
@@ -263,6 +274,9 @@ class ProcessingLogsViewer extends Component
         };
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function getLevelColorProperty(): array
     {
         return [
@@ -297,12 +311,12 @@ class ProcessingLogsViewer extends Component
     }
 
     #[Lazy]
-    public function render()
+    public function render(): View
     {
         return view('livewire.processing-logs-viewer');
     }
 
-    public function placeholder()
+    public function placeholder(): View
     {
         return view('livewire.components.lazy-placeholder');
     }

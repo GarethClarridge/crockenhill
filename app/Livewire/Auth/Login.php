@@ -18,12 +18,15 @@ use Livewire\Features\SupportRedirects\Redirector;
 
 class Login extends Component
 {
+    /** @var string|array<string, mixed> */
     #[Validate('required|string|email')]
     public string|array $email = '';
 
+    /** @var string|array<string, mixed> */
     #[Validate('required|string|min:1')]
     public string|array $password = '';
 
+    /** @var bool|array<string, mixed> */
     #[Validate('boolean')]
     public bool|array $remember = false;
 

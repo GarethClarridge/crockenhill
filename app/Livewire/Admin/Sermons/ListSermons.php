@@ -52,6 +52,7 @@ class ListSermons extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
+    /** @var array<int, string> */
     protected array $queryString = ['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months'];
 
     public function mount(): void
@@ -93,6 +94,8 @@ class ListSermons extends Component
 
     /**
      * Get cached list of series for filter dropdown.
+     *
+     * @return Collection<int, string>
      */
     protected function getSeries(): Collection
     {

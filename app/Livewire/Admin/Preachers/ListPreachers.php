@@ -37,6 +37,7 @@ class ListPreachers extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
+    /** @var array<int, string> */
     protected array $queryString = ['search', 'activeFilter'];
 
     public function mount(): void

@@ -28,6 +28,9 @@ class EditUser extends Component
 
     public bool $changePassword = false;
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function rules(): array
     {
         $rules = [

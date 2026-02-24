@@ -83,6 +83,8 @@ class ExtractVideoFrames extends Command
 
     /**
      * Extract frames at specific timestamps
+     *
+     * @param  array<int, string>  $timestamps
      */
     private function extractAtTimestamps(string $videoPath, array $timestamps, string $outputDir): void
     {

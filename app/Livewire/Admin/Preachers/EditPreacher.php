@@ -41,6 +41,9 @@ class EditPreacher extends Component
         $this->isActive = $preacher->is_active;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function rules(): array
     {
         return [

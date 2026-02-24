@@ -20,6 +20,7 @@ class ListUsers extends Component
 
     public ?bool $adminFilter = null;
 
+    /** @var array<int, string> */
     protected array $queryString = ['search', 'verifiedFilter', 'adminFilter'];
 
     public function mount(): void

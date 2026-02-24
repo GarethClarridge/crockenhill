@@ -26,6 +26,8 @@ class Form extends Component
 
     /**
      * Log helper that respects test environment
+     *
+     * @param  array<string, mixed>  $context
      */
     private function logInfo(string $message, array $context = []): void
     {
@@ -36,6 +38,8 @@ class Form extends Component
 
     /**
      * Log error helper that respects test environment
+     *
+     * @param  array<string, mixed>  $context
      */
     private function logError(string $message, array $context = []): void
     {
@@ -46,6 +50,8 @@ class Form extends Component
 
     /**
      * Log debug helper that respects test environment
+     *
+     * @param  array<string, mixed>  $context
      */
     private function logDebug(string $message, array $context = []): void
     {
@@ -92,11 +98,15 @@ class Form extends Component
 
     public bool $showProcessingStatus = false;
 
+    /** @var array<string, string> */
     protected array $rules = [
         'mediaType' => 'required|in:audio,video,livestream',
         'mediaFile' => 'required|file',
     ];
 
+    /**
+     * @return array<string, string>
+     */
     protected function getDynamicMessages(): array
     {
         $validation = app(MediaValidationService::class);
@@ -240,6 +250,9 @@ class Form extends Component
         }
     }
 
+    /**
+     * @return array<string, string>
+     */
     protected function getDynamicRules(): array
     {
         $validation = app(MediaValidationService::class);

@@ -27,6 +27,9 @@ class CreatePreacher extends Component
         abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function rules(): array
     {
         return [

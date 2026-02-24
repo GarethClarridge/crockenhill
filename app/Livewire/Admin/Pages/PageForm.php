@@ -22,6 +22,9 @@ trait PageForm
 
     public string $markdown = '';
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function rules(): array
     {
         $pageId = isset($this->page) && $this->page->exists ? $this->page->id : '';
@@ -48,6 +51,9 @@ trait PageForm
         return app(SafeMarkdownRenderer::class)->convert($this->markdown);
     }
 
+    /**
+     * @return array<int, array{id: string, name: string}>
+     */
     protected function getAreaOptions(): array
     {
         return collect(PageArea::cases())

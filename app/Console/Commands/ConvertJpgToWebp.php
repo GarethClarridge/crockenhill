@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -20,12 +21,16 @@ class ConvertJpgToWebp extends Command
 
     protected $description = 'Convert JPG images to WebP format and update all references in the codebase';
 
+    /** @var array<string, string> */
     private array $convertedFiles = [];
 
+    /** @var array<string, array<int, string>> */
     private array $updatedReferences = [];
 
+    /** @var array<int, string> */
     private array $unusedImages = [];
 
+    /** @var array<int, string> */
     private array $errors = [];
 
     private bool $isDryRun = false;
@@ -82,7 +87,10 @@ class ConvertJpgToWebp extends Command
         return count($this->errors) > 0 ? 1 : 0;
     }
 
-    private function findAllJpgFiles(): \Illuminate\Support\Collection
+    /**
+     * @return Collection<int, string>
+     */
+    private function findAllJpgFiles(): Collection
     {
         $directories = [
             base_path('public/images'),
@@ -106,7 +114,10 @@ class ConvertJpgToWebp extends Command
         return $files;
     }
 
-    private function convertImages(\Illuminate\Support\Collection $files): void
+    /**
+     * @param  Collection<int, string>  $files
+     */
+    private function convertImages(Collection $files): void
     {
         $bar = $this->output->createProgressBar($files->count());
         $bar->start();
@@ -186,6 +197,9 @@ class ConvertJpgToWebp extends Command
         $this->updateFilesInDirectory(base_path('database'), ['php'], $replacements);
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function buildReplacementPatterns(): array
     {
         $replacements = [];
@@ -222,6 +236,10 @@ class ConvertJpgToWebp extends Command
         return array_merge($replacements, $hardcodedPatterns);
     }
 
+    /**
+     * @param  array<int, string>  $extensions
+     * @param  array<string, string>  $replacements
+     */
     private function updateFilesInDirectory(string $directory, array $extensions, array $replacements): void
     {
         $files = collect(File::allFiles($directory))

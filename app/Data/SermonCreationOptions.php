@@ -7,6 +7,9 @@ use App\Models\MediaProcessingLog;
 
 class SermonCreationOptions
 {
+    /**
+     * @param  array<string, mixed>|null  $aiAnalysis
+     */
     public function __construct(
         // Required fields
         public string $audioFilePath,
@@ -77,6 +80,8 @@ class SermonCreationOptions
 
     /**
      * Create options for livestream processing
+     *
+     * @param  array<string, mixed>  $metadata
      */
     public static function fromLivestream(MediaProcessingLog $log, array $metadata): self
     {

@@ -193,55 +193,41 @@ Recommendation:
 1. Use `ProcessingException` and its subclasses consistently for all media processing errors.
 2. Never surface raw exception messages to end users.
 
-#### M6. PHPStan at level 5 — room to tighten *✅ COMPLETE — Level 6 enabled, 71 violations fixed (21.4% reduction)*
+#### M6. PHPStan at level 5 — room to tighten *🟡 IN PROGRESS — Level 6 enabled, 126 violations fixed (38.0% reduction)*
 
-**Status:** ✅ Incremented to level 6 (2026-02-24). Baseline reduced from 332 → 261.
+**Status:** 🟡 Ongoing (updated 2026-02-24). Baseline reduced from 332 → 206.
 
-**Implementation (5 commits, comprehensive refactor):**
-1. **Infrastructure setup** — Updated `phpstan.neon` to level 6, added `phpstan-baseline.neon`, deleted stale `.dist` template
-2. **Batch 1 (54 fixes)** — Services layer: LivestreamProcessingLogger (11), SermonAnalysisService (10), MetadataExtractionService (10), SermonProcessingLogger (8), VideoStorageService (7), SermonValidationService (7). Added comprehensive `@param/@return array<K,V>` type hints.
-3. **Batch 2 (12 fixes)** — VideoSegmentationService (7), SermonJobPipelineService (6). Fixed array types, Collection generics, and parameter typing.
-4. **Batch 3 (6 fixes)** — CalendarService: Fixed all 6 violations with `Collection<int, CalendarEvent>` return types and `array<string, mixed>` parameter typing.
-5. **Batch 4 (5 fixes)** — VideoExtractionService: Fixed array parameter typing for compression options and output path methods, array return types for optimized audio extraction.
+**Implementation to date (incremental batches):**
+1. **Infrastructure setup** — Updated `phpstan.neon` to level 6, added `phpstan-baseline.neon`, deleted stale `.dist` template.
+2. **Core services batches (71 fixes)** — Service-layer type cleanup (`array<K,V>`, collection generics, typed params/returns).
+3. **Batch 5 (13 fixes)** — Console/data/request typing:
+   - `ConvertJpgToWebp`, `ExtractVideoFrames`, `SermonCreationOptions`, `UpdateSermonRequest`.
+4. **Batch 6 (24 fixes)** — Livewire admin typing:
+   - `ResourceTable`, meetings/pages/preachers/sermons/users admin components and traits.
+5. **Batch 7 (18 fixes)** — Livewire non-admin typing:
+   - `Auth\Login`, `MediaUpload\Form`, `ProcessingLogsViewer`.
 
-**Total violations fixed: 71 across 12 files, 21.4% reduction**
-
-**Files modified (by category):**
-- **Services** (12 files): LivestreamProcessingLogger, SermonAnalysisService, MetadataExtractionService, SermonProcessingLogger, VideoStorageService, SermonValidationService, SongClusteringService, VideoSegmentationService, SermonJobPipelineService, CalendarService, VideoExtractionService, and others
-- **Type declarations added**: array<K,V>, Collection<TKey, TModel>, array<string, mixed>, array<int, string>, array<string, float|int|string|null>
+**Total violations fixed: 126 across multiple batches/files, 38.0% reduction**
 
 **Current state:**
-- **Baseline: 261 violations** (down from 332, **71 fixed, 21.4% reduction**)
-- **All new code** now checked at PHPStan level 6 with zero compromises
-- **Tests**: ✅ Passing (1621 tests, 4786 assertions — verified no regressions)
-- **Code quality**: ✅ PHPStan clean at level 6, Pint clean, no styling issues
+- **Baseline: 206 violations** (down from 332, **126 fixed, 38.0% reduction**).
+- **Code quality gates:** ✅ PHPStan clean at level 6 (with baseline), ✅ Pint clean.
+- **Tests:** Mixed. Focused test runs for earlier batches passed; some Livewire test filters later failed due to DB test bootstrap contention (deadlocks/migrations table state), not type-hint regressions.
 
-**Remaining work (261 violations, categorized by priority):**
-- **Services** (~40 violations) — VideoExtractionService, ThumbnailGenerationService, ProcessingExceptionHandler, LivestreamErrorHandler, SermonVideoDisplayService, RmsAnalysisService, SermonCreationService, FrameExtractionService. **High priority (high ROI for maintainability).**
-- **Models** (~120 violations) — Eloquent relationship generics (Builder<Model>, BelongsTo<TRelated>, HasMany), Attribute<Get,Set>, scope methods. **Low priority (framework-level, technical debt).**
-- **Livewire components** (~35 violations) — Component state properties, rules() returns, option methods. **Medium priority.**
-- **Jobs/Controllers** (~25 violations) — Array types, Collection generics. **Medium priority.**
-- **Console commands** (~15 violations) — Migration utilities, Collection typing. **Low priority.**
-- **Other** (~26 violations) — Logging, observers, form requests.
+**Where work paused (complexity threshold):**
+- Next remaining top cluster starts in `app/Jobs/AnalyzeSegments.php` (undefined model properties + return-type mismatch between data/model segment types). This is logic/contract-level and no longer a low-risk typing-only cleanup.
 
-**Lessons learned:**
-- **Baseline strategy works well:** Immediate enforcement on new code, no test breakage
-- **Services layer is achievable:** 71 fixes = 1 intensive 2-hour session; demonstrates velocity for clearing remaining violations
-- **Array types are highest-ROI:** `array<K,V>` and `Collection<TKey, TModel>` catch real bugs and improve IDE support significantly
-- **Framework generics require context:** Eloquent patterns vary by relationship type; best batched together in a dedicated sprint
-- **Velocity math:** At current rate (71 fixes/session), remaining 261 violations ≈ 4 more sessions (2 sprints) to zero baseline
-
-**Immediate actions:**
-1. ✅ **Level 6 enforced on all new code** — achieved
-2. ✅ **PHPStan passes cleanly** — achieved
-3. ✅ **No test regressions** — achieved
+**Remaining work (206 violations, current profile):**
+- **Jobs/processing logic** (high complexity): `AnalyzeSegments`, `ExtractAudioFromVideo`, `ExtractSermon`, `PerformVisualAnalysis`.
+- **Models** (high volume): Eloquent generics/attribute typing/scopes.
+- **Logging/Mail/Observers/Form requests** (medium): typed arrays/return declarations.
+- **Residual services/components** (medium): targeted generic typing and contract tightening.
 
 **Recommendation:**
-1. **Immediate:** Keep level 6 enforcement active — all new code now benefits automatically
-2. **Next sprint:** Fix remaining Services (~40 violations = highest ROI for maintainability and IDE support)
-3. **Sprint 3:** Livewire components + Jobs/Controllers (~60 violations, medium complexity)
-4. **Sprint 4:** Models/Eloquent generics (low complexity but volume; can be parallelized or used as training task)
-5. **Target:** Zero baseline by end of sprint 4. Current velocity (71/session) supports clearing ~260 violations in 4 intensive sessions spread across 2-3 sprints.
+1. Keep level 6 enforcement and continue baseline burn-down in safe batches.
+2. Treat `AnalyzeSegments` as a dedicated refactor task (define canonical segment type and align model properties/casts/contracts).
+3. After job-layer alignment, do model generics as a volume pass.
+4. Continue regenerating baseline after each batch to prevent stale ignores.
 
 #### M7. Route file noise and fragile ordering *Completed*
 

@@ -18,8 +18,10 @@ abstract class ResourceTable extends Component
 
     public string $sortDirection = 'desc';
 
+    /** @var array<int, int|string> */
     public array $selected = [];
 
+    /** @var array<int, string> */
     protected array $queryString = ['search', 'sortBy', 'sortDirection'];
 
     public function mount(): void
@@ -45,6 +47,9 @@ abstract class ResourceTable extends Component
 
     abstract protected function getQuery(): mixed;
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     abstract protected function getHeaders(): array;
 
     public function deleteSelected(): void

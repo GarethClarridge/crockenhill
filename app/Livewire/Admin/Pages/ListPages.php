@@ -38,8 +38,10 @@ class ListPages extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
+    /** @var array<int, int|string> */
     public array $selected = [];
 
+    /** @var array<int, string> */
     protected array $queryString = ['search', 'areaFilter', 'navigationFilter'];
 
     public function sort(string $column): void

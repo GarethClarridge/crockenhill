@@ -26,6 +26,9 @@ class CreateUser extends Component
 
     public bool $sendVerification = true;
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function rules(): array
     {
         return [

@@ -37,12 +37,16 @@ class EditSermon extends Component
 
     public ?string $summary = null;
 
+    /** @var array<int, string> */
     public array $points = [];
 
     public bool $showSummary = true;
 
     public bool $showPoints = true;
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function rules(): array
     {
         return [

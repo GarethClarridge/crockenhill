@@ -16,6 +16,9 @@ class UpdateSermonRequest extends FormRequest
         return $sermon && $this->user()->can('update', $sermon);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
@@ -34,6 +37,9 @@ class UpdateSermonRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function messages(): array
     {
         return [
