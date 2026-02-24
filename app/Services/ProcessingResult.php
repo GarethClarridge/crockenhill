@@ -4,6 +4,9 @@ namespace App\Services;
 
 class ProcessingResult
 {
+    /**
+     * @param  array<string, mixed>|null  $details
+     */
     public function __construct(
         public readonly bool $success,
         public readonly string $processingId,
@@ -13,6 +16,9 @@ class ProcessingResult
         public readonly ?array $details = null
     ) {}
 
+    /**
+     * @param  array<string, mixed>|null  $details
+     */
     public static function success(
         string $processingId,
         string $message,
@@ -41,6 +47,9 @@ class ProcessingResult
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         $data = [

@@ -20,6 +20,9 @@ class LivestreamProcessingFailed extends Mailable
 
     public string|int $line;
 
+    /**
+     * @param  array<string, mixed>|null  $processingMetadata
+     */
     public function __construct(
         public string $processingId,
         \Throwable|string $exception,

@@ -193,9 +193,9 @@ Recommendation:
 1. Use `ProcessingException` and its subclasses consistently for all media processing errors.
 2. Never surface raw exception messages to end users.
 
-#### M6. PHPStan at level 5 — room to tighten *🟡 IN PROGRESS — Level 6 enabled, 126 violations fixed (38.0% reduction)*
+#### M6. PHPStan at level 5 — room to tighten *🟡 IN PROGRESS — Level 6 enabled, 309 violations fixed (93.1% reduction)*
 
-**Status:** 🟡 Ongoing (updated 2026-02-24). Baseline reduced from 332 → 206.
+**Status:** 🟡 Ongoing (updated 2026-02-24). Baseline reduced from 332 → 23.
 
 **Implementation to date (incremental batches):**
 1. **Infrastructure setup** — Updated `phpstan.neon` to level 6, added `phpstan-baseline.neon`, deleted stale `.dist` template.
@@ -206,28 +206,34 @@ Recommendation:
    - `ResourceTable`, meetings/pages/preachers/sermons/users admin components and traits.
 5. **Batch 7 (18 fixes)** — Livewire non-admin typing:
    - `Auth\Login`, `MediaUpload\Form`, `ProcessingLogsViewer`.
+6. **Batch 8 (183 fixes)** — Broad low-risk typing pass:
+   - Logging/mail/observer/repository signatures, extensive service `array`/generic annotations, and model relationship/scope generic typing (`CalendarEvent`, `LivestreamSegment`, `MediaProcessingLog`, `Meeting`, `Page`, `Sermon`, etc.).
 
-**Total violations fixed: 126 across multiple batches/files, 38.0% reduction**
+**Total violations fixed: 309 across multiple batches/files, 93.1% reduction**
 
 **Current state:**
-- **Baseline: 206 violations** (down from 332, **126 fixed, 38.0% reduction**).
+- **Baseline: 23 violations** (down from 332, **309 fixed, 93.1% reduction**).
 - **Code quality gates:** ✅ PHPStan clean at level 6 (with baseline), ✅ Pint clean.
-- **Tests:** Mixed. Focused test runs for earlier batches passed; some Livewire test filters later failed due to DB test bootstrap contention (deadlocks/migrations table state), not type-hint regressions.
+- **Tests:** ✅ Focused regression checks passed (including Login payload-hardening tests after Livewire type adjustments).
+
+**Remaining work (23 violations, intentionally deferred):**
+- **Jobs/processing logic (14):**
+  - `AnalyzeSegments` (11)
+  - `ExtractAudioFromVideo` (1)
+  - `ExtractSermon` (1)
+  - `PerformVisualAnalysis` (1)
+- **Video services with behavior-coupled typing (6):**
+  - `VideoExtractionService` (3)
+  - `VideoSegmentationService` (1)
+  - `VideoStorageService` (2)
 
 **Where work paused (complexity threshold):**
-- Next remaining top cluster starts in `app/Jobs/AnalyzeSegments.php` (undefined model properties + return-type mismatch between data/model segment types). This is logic/contract-level and no longer a low-risk typing-only cleanup.
-
-**Remaining work (206 violations, current profile):**
-- **Jobs/processing logic** (high complexity): `AnalyzeSegments`, `ExtractAudioFromVideo`, `ExtractSermon`, `PerformVisualAnalysis`.
-- **Models** (high volume): Eloquent generics/attribute typing/scopes.
-- **Logging/Mail/Observers/Form requests** (medium): typed arrays/return declarations.
-- **Residual services/components** (medium): targeted generic typing and contract tightening.
+- `app/Jobs/AnalyzeSegments.php` and adjacent video/job paths now require contract-level alignment (data-vs-model segment types, property naming consistency, and return-shape harmonization). This is no longer mechanical PHPDoc cleanup.
 
 **Recommendation:**
-1. Keep level 6 enforcement and continue baseline burn-down in safe batches.
-2. Treat `AnalyzeSegments` as a dedicated refactor task (define canonical segment type and align model properties/casts/contracts).
-3. After job-layer alignment, do model generics as a volume pass.
-4. Continue regenerating baseline after each batch to prevent stale ignores.
+1. Keep level 6 enforcement active and baseline regeneration discipline after each batch.
+2. Create a dedicated refactor task for segment canonicalization (single segment type contract used by jobs/services/models).
+3. Resolve the 6 residual `Video*` service return-type mismatches in the same refactor stream to avoid piecemeal churn.
 
 #### M7. Route file noise and fragile ordering *Completed*
 

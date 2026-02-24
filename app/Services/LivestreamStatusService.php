@@ -34,6 +34,9 @@ class LivestreamStatusService
         return $this->buildProcessingResult($processingLog);
     }
 
+    /**
+     * @return array<string, int|float>
+     */
     public function getProcessingSummary(): array
     {
         $total = MediaProcessingLog::livestream()->count();

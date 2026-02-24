@@ -92,7 +92,7 @@ class VisualAnalysisService
     /**
      * Refine cluster boundaries with dense sampling
      *
-     * @param  array{start_estimate: float, end_estimate: float, samples: array}  $cluster
+     * @param  array{start_estimate: float, end_estimate: float, samples: array<int, mixed>}  $cluster
      * @return array{refined_visual_start: float, refined_visual_end: float, dense_sample_count: int}
      */
     public function refineBoundaries(string $videoPath, array $cluster): array

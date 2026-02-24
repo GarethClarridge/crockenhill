@@ -48,7 +48,9 @@ use Spatie\Sitemap\Tags\Url;
  */
 class Page extends Model implements HasMedia, Sitemapable
 {
+    /** @use HasFactory<\Database\Factories\PageFactory> */
     use HasFactory;
+
     use InteractsWithMedia;
 
     /**
@@ -98,6 +100,10 @@ class Page extends Model implements HasMedia, Sitemapable
         return null; // Or some default/error handling if slug is missing
     }
 
+    /**
+     * @param  Builder<Page>  $query
+     * @return Builder<Page>
+     */
     public function scopeInArea(Builder $query, string|PageArea $area): Builder
     {
         $areaValue = $area instanceof PageArea ? $area->value : $area;
@@ -105,6 +111,10 @@ class Page extends Model implements HasMedia, Sitemapable
         return $query->where('area', $areaValue);
     }
 
+    /**
+     * @param  Builder<Page>  $query
+     * @return Builder<Page>
+     */
     public function scopeIsNavigation(Builder $query, bool $isNavigation = true): Builder
     {
         return $query->where('navigation', $isNavigation);
@@ -112,6 +122,9 @@ class Page extends Model implements HasMedia, Sitemapable
 
     /**
      * Get the meeting associated with this page.
+     */
+    /**
+     * @return HasOne<Meeting, $this>
      */
     public function meeting(): HasOne
     {
@@ -424,6 +437,9 @@ class Page extends Model implements HasMedia, Sitemapable
 
     /**
      * Convert the page to a sitemap tag.
+     */
+    /**
+     * @return Url|string|array<string, mixed>
      */
     public function toSitemapTag(): Url|string|array
     {

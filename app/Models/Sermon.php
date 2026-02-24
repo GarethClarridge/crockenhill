@@ -31,20 +31,20 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?float $preacher_confidence
  * @property bool $needs_preacher_review
  * @property ?string $series
- * @property ?array $points
+ * @property array<int, string>|null $points
  * @property ?string $summary
  * @property bool $show_summary
  * @property bool $show_points
  * @property ?string $transcript_file_path
  * @property ?string $thumbnail_file_path
  * @property ?\Illuminate\Support\Carbon $thumbnail_generated_at
- * @property ?array $thumbnail_metadata
+ * @property array<string, mixed>|null $thumbnail_metadata
  * @property ?string $livestream_processing_id
  * @property ?string $video_file_path
  * @property ?string $source_type
  * @property ?float $segment_start_time
  * @property ?float $segment_end_time
- * @property ?array $livestream_metadata
+ * @property array<string, mixed>|null $livestream_metadata
  * @property ?string $bible_reference
  * @property ?string $audio_url
  * @property ?bool $is_guest
@@ -87,6 +87,7 @@ use Spatie\Sitemap\Tags\Url;
  */
 class Sermon extends Model implements Sitemapable
 {
+    /** @use HasFactory<\Database\Factories\SermonFactory> */
     use HasFactory;
 
     public $timestamps = false;
@@ -207,26 +208,46 @@ class Sermon extends Model implements Sitemapable
         return $this->preacher ? '/christ/sermons/preachers/'.Str::slug($this->preacher) : null;
     }
 
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeLast12Months(Builder $query): Builder
     {
         return $query->where('date', '>=', now()->subMonths(12)->startOfDay());
     }
 
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeForService(Builder $query, string $serviceType): Builder
     {
         return $query->where('service', $serviceType);
     }
 
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeInSeries(Builder $query, string $seriesTitle): Builder
     {
         return $query->where('series', $seriesTitle);
     }
 
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeByPreacher(Builder $query, string $preacherName): Builder
     {
         return $query->where('preacher', $preacherName);
     }
 
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeNeedsPreacherReview(Builder $query): Builder
     {
         return $query->where('needs_preacher_review', true);
@@ -243,6 +264,10 @@ class Sermon extends Model implements Sitemapable
     /**
      * Scope to get only automated sermons
      */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeAutomated(Builder $query): Builder
     {
         return $query->where(function ($q) {
@@ -253,6 +278,10 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get only manually created sermons
+     */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
      */
     public function scopeManual(Builder $query): Builder
     {
@@ -265,6 +294,10 @@ class Sermon extends Model implements Sitemapable
     /**
      * Scope to get sermons with completed processing
      */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeProcessingCompleted(Builder $query): Builder
     {
         return $query->whereHas('processingLogs', function ($q) {
@@ -274,6 +307,10 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get sermons with failed processing
+     */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
      */
     public function scopeProcessingFailed(Builder $query): Builder
     {
@@ -285,6 +322,10 @@ class Sermon extends Model implements Sitemapable
     /**
      * Scope to get sermons currently being processed
      */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeProcessingInProgress(Builder $query): Builder
     {
         return $query->whereHas('processingLogs', function ($q) {
@@ -295,6 +336,9 @@ class Sermon extends Model implements Sitemapable
     /**
      * Get the processing logs for this sermon.
      */
+    /**
+     * @return HasMany<MediaProcessingLog, $this>
+     */
     public function processingLogs(): HasMany
     {
         return $this->hasMany(MediaProcessingLog::class);
@@ -302,6 +346,9 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Get the livestream processing log for this sermon.
+     */
+    /**
+     * @return BelongsTo<MediaProcessingLog, $this>
      */
     public function livestreamProcessing(): BelongsTo
     {
@@ -528,9 +575,9 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * Get livestream metadata with defaults
+     * Get livestream metadata with defaults.
      *
-     * @return array The livestream metadata array
+     * @return array<string, mixed>
      */
     public function getLivestreamInfo(): array
     {
@@ -553,6 +600,10 @@ class Sermon extends Model implements Sitemapable
     /**
      * Scope to get only livestream sermons
      */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeFromLivestream(Builder $query): Builder
     {
         return $query->where('source_type', 'livestream');
@@ -560,6 +611,10 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get sermons with video files
+     */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
      */
     public function scopeWithVideo(Builder $query): Builder
     {
@@ -569,6 +624,10 @@ class Sermon extends Model implements Sitemapable
     /**
      * Scope to get sermons by source type
      */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
     public function scopeBySourceType(Builder $query, string $sourceType): Builder
     {
         return $query->where('source_type', $sourceType);
@@ -576,6 +635,10 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get sermons with thumbnails
+     */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
      */
     public function scopeWithThumbnail(Builder $query): Builder
     {
@@ -618,6 +681,9 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Convert the sermon to a sitemap tag.
+     */
+    /**
+     * @return Url|string|array<string, mixed>
      */
     public function toSitemapTag(): Url|string|array
     {
@@ -741,6 +807,10 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope for podcast-ready sermons (must have audio file)
+     */
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
      */
     public function scopeForPodcast(Builder $query): Builder
     {

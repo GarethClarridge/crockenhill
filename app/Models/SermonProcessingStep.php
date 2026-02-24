@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  */
 class SermonProcessingStep extends Model
 {
+    /** @use HasFactory<\Database\Factories\SermonProcessingStepFactory> */
     use HasFactory;
 
     /**

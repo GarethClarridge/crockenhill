@@ -20,6 +20,7 @@ class ThumbnailGenerationService
 
     private string $tempPath;
 
+    /** @var array<string, mixed> */
     private array $config;
 
     private readonly FrameExtractionService $frameExtractionService;
@@ -371,7 +372,7 @@ class ThumbnailGenerationService
      * @param  int  $y  Y position (center of text area)
      * @param  int  $fontSize  Font size
      * @param  string  $fontColor  Font color
-     * @param  array  $bgConfig  Background configuration
+     * @param  array<string, mixed>  $bgConfig  Background configuration
      */
     private function addTextWithBackground(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor, array $bgConfig): void
     {
@@ -692,7 +693,7 @@ class ThumbnailGenerationService
      * @param  string  $text  Text to measure
      * @param  int  $fontSize  Font size
      * @param  string|null  $fontPath  Path to font file
-     * @return array Text bounds [width, height]
+     * @return array{width: float|int, height: float|int} Text bounds [width, height]
      */
     private function calculateTextBounds(string $text, int $fontSize, ?string $fontPath = null): array
     {
@@ -737,8 +738,8 @@ class ThumbnailGenerationService
      * @param  ImageInterface  $image  The image to modify
      * @param  int  $x  X position
      * @param  int  $y  Y position
-     * @param  array  $textBounds  Text dimensions
-     * @param  array  $bgConfig  Background configuration
+     * @param  array{width: float|int, height: float|int}  $textBounds  Text dimensions
+     * @param  array<string, mixed>  $bgConfig  Background configuration
      */
     private function addTextBackground(ImageInterface $image, int $x, int $y, array $textBounds, array $bgConfig): void
     {

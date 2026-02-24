@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $speaker_profile_id
  * @property ?int $sermon_id
  * @property ?int $media_processing_log_id
- * @property array $embedding
+ * @property array<int, float> $embedding
  * @property float $duration_seconds
  * @property ?float $quality_score
  * @property SampleSource $source

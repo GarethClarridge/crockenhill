@@ -40,6 +40,8 @@ class SermonStatusManagementService
 
     /**
      * Get processing statistics and recent activity
+     *
+     * @return array<string, mixed>
      */
     public function getProcessingStatistics(): array
     {
@@ -87,6 +89,8 @@ class SermonStatusManagementService
 
     /**
      * Get failed processing logs that may need manual review
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getFailedProcessingLogs(int $limit = 50): array
     {

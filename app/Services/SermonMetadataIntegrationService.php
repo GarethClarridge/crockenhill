@@ -192,7 +192,7 @@ class SermonMetadataIntegrationService
      * Get video information for a sermon
      *
      * @param  int  $sermonId  The sermon ID
-     * @return array Video information
+     * @return array<string, mixed> Video information
      */
     public function getVideoInfo(int $sermonId): array
     {
@@ -226,7 +226,7 @@ class SermonMetadataIntegrationService
      * Get video preview data for administrative interface
      *
      * @param  int  $sermonId  The sermon ID
-     * @return array Preview data
+     * @return array<string, mixed> Preview data
      */
     public function getVideoPreviewData(int $sermonId): array
     {

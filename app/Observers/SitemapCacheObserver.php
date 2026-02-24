@@ -9,7 +9,7 @@ class SitemapCacheObserver
     /**
      * Handle the model "created" event.
      */
-    public function created($model): void
+    public function created(mixed $model): void
     {
         Cache::forget('sitemap');
         Cache::forget('nav_pages');
@@ -18,7 +18,7 @@ class SitemapCacheObserver
     /**
      * Handle the model "updated" event.
      */
-    public function updated($model): void
+    public function updated(mixed $model): void
     {
         Cache::forget('sitemap');
         Cache::forget('nav_pages');
@@ -27,7 +27,7 @@ class SitemapCacheObserver
     /**
      * Handle the model "deleted" event.
      */
-    public function deleted($model): void
+    public function deleted(mixed $model): void
     {
         Cache::forget('sitemap');
         Cache::forget('nav_pages');

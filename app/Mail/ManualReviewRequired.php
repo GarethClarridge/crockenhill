@@ -12,6 +12,9 @@ class ManualReviewRequired extends Mailable
 {
     use Queueable, SerializesModels;
 
+    /**
+     * @param  array<int, mixed>  $segments
+     */
     public function __construct(
         public string $processingId,
         public string $reason,

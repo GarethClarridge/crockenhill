@@ -10,7 +10,7 @@ class SermonProcessingLogFormatter
     /**
      * Customize the given logger instance.
      */
-    public function __invoke($logger)
+    public function __invoke(mixed $logger): void
     {
         foreach ($logger->getHandlers() as $handler) {
             $handler->setFormatter(new class extends LineFormatter
@@ -43,6 +43,9 @@ class SermonProcessingLogFormatter
                     return $output;
                 }
 
+                /**
+                 * @param  array<string, mixed>  $context
+                 */
                 private function formatContext(array $context): string
                 {
                     // Format specific fields for better readability

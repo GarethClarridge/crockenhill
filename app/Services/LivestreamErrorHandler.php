@@ -29,6 +29,9 @@ class LivestreamErrorHandler
         $this->sendFailureNotification($processingId, $exception, $step);
     }
 
+    /**
+     * @param  array<string, mixed>  $context
+     */
     public function handlePartialFailure(string $processingId, string $step, string $message, array $context = []): void
     {
         $this->logger->logWarning($processingId, $step, $message, $context);
@@ -98,6 +101,9 @@ class LivestreamErrorHandler
         return false;
     }
 
+    /**
+     * @param  array<int, mixed>  $segments
+     */
     public function handleSegmentationFailure(string $processingId, string $reason, array $segments = []): void
     {
         $this->logger->logWarning($processingId, 'segmentation', "Segmentation issues: {$reason}", [
@@ -228,6 +234,9 @@ class LivestreamErrorHandler
         }
     }
 
+    /**
+     * @param  array<int, mixed>  $segments
+     */
     private function sendManualReviewNotification(string $processingId, string $reason, array $segments): void
     {
         try {
@@ -242,6 +251,9 @@ class LivestreamErrorHandler
         }
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function validateFileFormat(string $filePath): array
     {
         // Get supported formats from the unified media-processing config
@@ -290,6 +302,9 @@ class LivestreamErrorHandler
         return round($bytes, 2).' '.$units[$pow];
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function checkSystemRequirements(): array
     {
         $errors = [];

@@ -246,6 +246,8 @@ class SermonCreationService
 
     /**
      * Generate sermon title using specified strategy
+     *
+     * @param  array<string, mixed>  $context
      */
     public function generateTitle(
         TitleGenerationStrategy $strategy,
@@ -260,6 +262,8 @@ class SermonCreationService
 
     /**
      * Generate title using ID3 tags first, then AI analysis, then filename
+     *
+     * @param  array<string, mixed>  $context
      */
     private function generateTitleAiWithFallback(array $context): string
     {
@@ -281,6 +285,8 @@ class SermonCreationService
 
     /**
      * Generate title from filename only
+     *
+     * @param  array<string, mixed>  $context
      */
     private function generateTitleFromFilename(array $context): string
     {

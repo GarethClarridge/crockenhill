@@ -11,6 +11,8 @@ class SermonStorageService
 {
     /**
      * Get file information for a sermon based on its storage pattern
+     *
+     * @return array{type: string, disk: string, path: string, original_path: string}
      */
     public function getSermonFileInfo(Sermon $sermon): array
     {
@@ -158,6 +160,8 @@ class SermonStorageService
 
     /**
      * Get storage statistics for all sermon files
+     *
+     * @return array<string, mixed>
      */
     public function getStorageStats(): array
     {

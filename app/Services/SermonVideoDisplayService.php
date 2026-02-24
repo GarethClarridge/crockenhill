@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Storage;
 
 class SermonVideoDisplayService
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function getSermonWithVideo(int $sermonId): array
     {
         /** @var Sermon|null $sermon */
@@ -34,6 +37,9 @@ class SermonVideoDisplayService
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getVideoPreviewData(int $sermonId): array
     {
         /** @var Sermon|null $sermon */
@@ -182,6 +188,9 @@ class SermonVideoDisplayService
         }
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function getSermonsBySourceType(?string $sourceType = null): array
     {
         $query = Sermon::with('livestreamProcessing');
@@ -203,6 +212,9 @@ class SermonVideoDisplayService
         })->toArray();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getLivestreamSourceIndicator(Sermon $sermon): array
     {
         if ($sermon->source_type !== 'livestream' || ! $sermon->livestreamProcessing) {
@@ -298,7 +310,7 @@ class SermonVideoDisplayService
      *
      * @param  \Illuminate\Contracts\Filesystem\Filesystem  $disk
      */
-    private function isS3CompatibleDisk($disk): bool
+    private function isS3CompatibleDisk(mixed $disk): bool
     {
         try {
             $adapter = $disk->getAdapter();

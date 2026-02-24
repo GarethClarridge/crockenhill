@@ -12,8 +12,10 @@ class FrameExtractionService
 
     private string $tempPath;
 
+    /** @var array<string, mixed> */
     private array $ffmpegConfig;
 
+    /** @var array<string, mixed> */
     private array $extractionConfig;
 
     public function __construct(
@@ -108,6 +110,8 @@ class FrameExtractionService
 
     /**
      * Get video metadata using VideoSegmentationService
+     *
+     * @return array<string, float|int|string>
      */
     public function getVideoMetadata(string $videoPath): array
     {
@@ -179,7 +183,7 @@ class FrameExtractionService
      *
      * @param  \Illuminate\Contracts\Filesystem\Filesystem  $disk
      */
-    public function isS3CompatibleDisk($disk): bool
+    public function isS3CompatibleDisk(mixed $disk): bool
     {
         try {
             $adapter = $disk->getAdapter();

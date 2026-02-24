@@ -79,6 +79,10 @@ class Preacher extends Model
         return $this->hasMany(SpeakerProfile::class);
     }
 
+    /**
+     * @param  Builder<Preacher>  $query
+     * @return Builder<Preacher>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

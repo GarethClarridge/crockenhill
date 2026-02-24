@@ -43,6 +43,8 @@ class SermonMetadataService
 
     /**
      * Generate fallback metadata when AI processing fails
+     *
+     * @return array<string, mixed>
      */
     public function generateFallbackData(Sermon $sermon, MediaProcessingLog $processingLog): array
     {

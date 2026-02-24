@@ -9,6 +9,8 @@ class SermonRepository
 {
     /**
      * Get all distinct sermon series from database
+     *
+     * @return array<int, string>
      */
     public function getExistingSeries(): array
     {

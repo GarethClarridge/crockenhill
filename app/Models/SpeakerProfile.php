@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $preacher_id
  * @property string $provider
  * @property string $model_version
- * @property array $centroid_embedding
+ * @property array<int, float> $centroid_embedding
  * @property int $sample_count
  * @property ?float $quality_score
  * @property ?float $accept_threshold
@@ -80,6 +80,10 @@ class SpeakerProfile extends Model
         return $this->hasMany(SpeakerSample::class);
     }
 
+    /**
+     * @param  Builder<SpeakerProfile>  $query
+     * @return Builder<SpeakerProfile>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

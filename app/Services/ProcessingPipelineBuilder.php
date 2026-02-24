@@ -28,6 +28,8 @@ class ProcessingPipelineBuilder
 {
     /**
      * Build job pipeline for audio processing
+     *
+     * @return array<int, object>
      */
     public function buildAudioPipeline(MediaProcessingLog $log): array
     {
@@ -44,6 +46,8 @@ class ProcessingPipelineBuilder
 
     /**
      * Build job pipeline for direct video processing
+     *
+     * @return array<int, object>
      */
     public function buildDirectVideoPipeline(MediaProcessingLog $log): array
     {

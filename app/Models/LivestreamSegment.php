@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $is_sermon_candidate
  * @property bool|null $is_sermon_segment
  * @property int|null $segment_order
- * @property array|null $metadata
+ * @property array<string, mixed>|null $metadata
  * @property float|null $visual_confidence
  * @property int|null $visual_sample_count
  * @property string|null $calibration_method
@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class LivestreamSegment extends Model
 {
+    /** @use HasFactory<\Database\Factories\LivestreamSegmentFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -69,36 +70,63 @@ class LivestreamSegment extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<MediaProcessingLog, $this>
+     */
     public function processingLog(): BelongsTo
     {
         return $this->belongsTo(MediaProcessingLog::class, 'media_processing_log_id');
     }
 
+    /**
+     * @param  Builder<LivestreamSegment>  $query
+     * @return Builder<LivestreamSegment>
+     */
     public function scopeClassifiedAs(Builder $query, string $classification): Builder
     {
         return $query->where('classification', $classification);
     }
 
+    /**
+     * @param  Builder<LivestreamSegment>  $query
+     * @return Builder<LivestreamSegment>
+     */
     public function scopeSpeech(Builder $query): Builder
     {
         return $query->where('classification', 'speech');
     }
 
+    /**
+     * @param  Builder<LivestreamSegment>  $query
+     * @return Builder<LivestreamSegment>
+     */
     public function scopeSong(Builder $query): Builder
     {
         return $query->where('classification', 'song');
     }
 
+    /**
+     * @param  Builder<LivestreamSegment>  $query
+     * @return Builder<LivestreamSegment>
+     */
     public function scopeSilence(Builder $query): Builder
     {
         return $query->where('classification', 'silence');
     }
 
+    /**
+     * @param  Builder<LivestreamSegment>  $query
+     * @return Builder<LivestreamSegment>
+     */
     public function scopeSermonCandidates(Builder $query): Builder
     {
         return $query->where('is_sermon_candidate', true);
     }
 
+    /**
+     * @param  Builder<LivestreamSegment>  $query
+     * @return Builder<LivestreamSegment>
+     */
     public function scopeByDurationRange(Builder $query, float $minDuration, ?float $maxDuration = null): Builder
     {
         $query->where('duration', '>=', $minDuration);
@@ -110,11 +138,19 @@ class LivestreamSegment extends Model
         return $query;
     }
 
+    /**
+     * @param  Builder<LivestreamSegment>  $query
+     * @return Builder<LivestreamSegment>
+     */
     public function scopeOrderedByTime(Builder $query): Builder
     {
         return $query->orderBy('start_time');
     }
 
+    /**
+     * @param  Builder<LivestreamSegment>  $query
+     * @return Builder<LivestreamSegment>
+     */
     public function scopeOrderedByDuration(Builder $query, string $direction = 'desc'): Builder
     {
         return $query->orderBy('duration', $direction);
@@ -188,6 +224,9 @@ class LivestreamSegment extends Model
         return sprintf('%dm %ds', $minutes, $seconds);
     }
 
+    /**
+     * @return Attribute<string, never>
+     */
     protected function timeRange(): Attribute
     {
         return Attribute::make(
@@ -195,6 +234,9 @@ class LivestreamSegment extends Model
         );
     }
 
+    /**
+     * @return Attribute<string, never>
+     */
     protected function classificationDisplay(): Attribute
     {
         return Attribute::make(
@@ -210,6 +252,9 @@ class LivestreamSegment extends Model
             ->first();
     }
 
+    /**
+     * @return array<string, float|int>
+     */
     public static function getSegmentsSummary(int $processingLogId): array
     {
         $segments = static::where('media_processing_log_id', $processingLogId)->get();

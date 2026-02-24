@@ -16,6 +16,8 @@ class ProcessingExceptionHandler
 {
     /**
      * Handle video processing exceptions with context
+     *
+     * @param  array<string, mixed>  $context
      */
     public function handleVideoProcessingException(\Exception $e, array $context): ProcessingResult
     {
@@ -33,6 +35,8 @@ class ProcessingExceptionHandler
 
     /**
      * Handle audio processing exceptions with context
+     *
+     * @param  array<string, mixed>  $context
      */
     public function handleAudioProcessingException(\Exception $e, array $context): ProcessingResult
     {
@@ -50,6 +54,8 @@ class ProcessingExceptionHandler
 
     /**
      * Handle livestream processing exceptions with context
+     *
+     * @param  array<string, mixed>  $context
      */
     public function handleLivestreamProcessingException(\Exception $e, array $context): ProcessingResult
     {
@@ -67,6 +73,8 @@ class ProcessingExceptionHandler
 
     /**
      * Handle job processing failures
+     *
+     * @param  array<string, mixed>  $context
      */
     public function handleJobFailure(\Throwable $exception, string $jobClass, array $context = []): void
     {
@@ -158,6 +166,8 @@ class ProcessingExceptionHandler
 
     /**
      * Log processing metrics for monitoring
+     *
+     * @param  array<string, mixed>  $metrics
      */
     public function logProcessingMetrics(string $processingType, array $metrics): void
     {

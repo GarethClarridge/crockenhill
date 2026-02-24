@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class CalendarEvent extends Model
 {
+    /** @use HasFactory<\Database\Factories\CalendarEventFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -51,21 +52,36 @@ class CalendarEvent extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Meeting, $this>
+     */
     public function meeting(): BelongsTo
     {
         return $this->belongsTo(Meeting::class, 'meeting_slug', 'slug');
     }
 
+    /**
+     * @param  Builder<CalendarEvent>  $query
+     * @return Builder<CalendarEvent>
+     */
     public function scopeUpcoming(Builder $query): Builder
     {
         return $query->where('start_datetime', '>=', now());
     }
 
+    /**
+     * @param  Builder<CalendarEvent>  $query
+     * @return Builder<CalendarEvent>
+     */
     public function scopePast(Builder $query): Builder
     {
         return $query->where('start_datetime', '<', now());
     }
 
+    /**
+     * @param  Builder<CalendarEvent>  $query
+     * @return Builder<CalendarEvent>
+     */
     public function scopeConfirmed(Builder $query): Builder
     {
         return $query->where('status', 'confirmed');

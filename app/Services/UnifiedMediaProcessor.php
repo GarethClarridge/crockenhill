@@ -84,6 +84,9 @@ class UnifiedMediaProcessor
         );
     }
 
+    /**
+     * @return array{success: bool, message: string}
+     */
     public function cancel(string $processingId): array
     {
         $log = $this->findProcessingLog($processingId);

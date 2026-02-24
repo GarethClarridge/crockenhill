@@ -28,13 +28,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $rms_log_path
  * @property float|null $sermon_start_time
  * @property float|null $sermon_end_time
- * @property array|null $ai_analysis
- * @property array|null $processing_metadata
+ * @property array<string, mixed>|null $ai_analysis
+ * @property array<string, mixed>|null $processing_metadata
  * @property string|null $threshold_method
  * @property float|null $adaptive_threshold
- * @property array|null $rms_stats
- * @property array|null $visual_samples
- * @property array|null $song_clusters
+ * @property array<string, mixed>|null $rms_stats
+ * @property array<int, array<string, mixed>>|null $visual_samples
+ * @property array<int, array<string, mixed>>|null $song_clusters
  * @property int|null $visual_sample_count
  * @property float|null $visual_processing_time
  * @property int|null $sermon_id
@@ -49,6 +49,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class MediaProcessingLog extends Model
 {
+    /** @use HasFactory<\Database\Factories\MediaProcessingLogFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -125,16 +126,25 @@ class MediaProcessingLog extends Model
 
     // Relationships
 
+    /**
+     * @return BelongsTo<Sermon, $this>
+     */
     public function sermon(): BelongsTo
     {
         return $this->belongsTo(Sermon::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_user_id');
     }
 
+    /**
+     * @return HasMany<LivestreamSegment, $this>
+     */
     public function segments(): HasMany
     {
         return $this->hasMany(LivestreamSegment::class, 'media_processing_log_id');
@@ -142,51 +152,91 @@ class MediaProcessingLog extends Model
 
     // Scopes
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeByType(Builder $query, string $type): Builder
     {
         return $query->where('processing_type', $type);
     }
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeAudio(Builder $query): Builder
     {
         return $query->where('processing_type', 'audio');
     }
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeVideo(Builder $query): Builder
     {
         return $query->where('processing_type', 'video');
     }
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeLivestream(Builder $query): Builder
     {
         return $query->where('processing_type', 'livestream');
     }
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeProcessing(Builder $query): Builder
     {
         return $query->where('status', ProcessingStatus::PROCESSING);
     }
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopePending(Builder $query): Builder
     {
         return $query->where('status', ProcessingStatus::PENDING);
     }
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeCompleted(Builder $query): Builder
     {
         return $query->where('status', ProcessingStatus::COMPLETED);
     }
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeFailed(Builder $query): Builder
     {
         return $query->where('status', ProcessingStatus::FAILED);
     }
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeRecent(Builder $query, int $days = 7): Builder
     {
         return $query->where('created_at', '>=', now()->subDays($days));
     }
 
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         if ($user->is_admin) {
@@ -275,6 +325,9 @@ class MediaProcessingLog extends Model
 
     /**
      * Accessor for stored_file_path (maps to source_file_path)
+     */
+    /**
+     * @return Attribute<string|null, string|null>
      */
     protected function storedFilePath(): Attribute
     {

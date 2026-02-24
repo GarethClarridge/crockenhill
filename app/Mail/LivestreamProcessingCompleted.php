@@ -12,6 +12,9 @@ class LivestreamProcessingCompleted extends Mailable
 {
     use Queueable, SerializesModels;
 
+    /**
+     * @param  array<string, mixed>  $summary
+     */
     public function __construct(
         public string $processingId,
         public array $summary = []

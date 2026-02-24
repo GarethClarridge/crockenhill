@@ -61,7 +61,9 @@ use Spatie\Sitemap\Tags\Url;
  */
 class Meeting extends Model implements HasMedia, Sitemapable
 {
+    /** @use HasFactory<\Database\Factories\MeetingFactory> */
     use HasFactory;
+
     use InteractsWithMedia;
 
     /**
@@ -112,6 +114,9 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
     /**
      * Get the page that provides content for this meeting.
+     */
+    /**
+     * @return BelongsTo<Page, $this>
      */
     public function page(): BelongsTo
     {
@@ -185,16 +190,28 @@ class Meeting extends Model implements HasMedia, Sitemapable
         return null;
     }
 
+    /**
+     * @param  Builder<Meeting>  $query
+     * @return Builder<Meeting>
+     */
     public function scopeIsRecurring(Builder $query): Builder
     {
         return $query->where('is_recurring', true);
     }
 
+    /**
+     * @param  Builder<Meeting>  $query
+     * @return Builder<Meeting>
+     */
     public function scopeUpcoming(Builder $query): Builder
     {
         return $query->where('meeting_date', '>=', now());
     }
 
+    /**
+     * @param  Builder<Meeting>  $query
+     * @return Builder<Meeting>
+     */
     public function scopeOnDate(Builder $query, Carbon $date): Builder
     {
         return $query->whereDate('meeting_date', $date->toDateString());
@@ -274,11 +291,17 @@ class Meeting extends Model implements HasMedia, Sitemapable
         return $nextOccurrence;
     }
 
+    /**
+     * @return HasMany<CalendarEvent, $this>
+     */
     public function calendarEvents(): HasMany
     {
         return $this->hasMany(CalendarEvent::class, 'meeting_slug', 'slug');
     }
 
+    /**
+     * @return Collection<int, CalendarEvent>
+     */
     public function getUpcomingEventsAttribute(): Collection
     {
         return \App\Models\CalendarEvent::where('meeting_slug', $this->slug)
@@ -289,6 +312,9 @@ class Meeting extends Model implements HasMedia, Sitemapable
             ->get();
     }
 
+    /**
+     * @return Collection<int, CalendarEvent>
+     */
     public function getPastEventsAttribute(): Collection
     {
         return \App\Models\CalendarEvent::where('meeting_slug', $this->slug)
@@ -311,6 +337,9 @@ class Meeting extends Model implements HasMedia, Sitemapable
         return $this->past_events->first();
     }
 
+    /**
+     * @param  array<string, mixed>  $eventData
+     */
     public function createEvent(array $eventData): Event
     {
         return app(CalendarService::class)->createEventForMeeting($this->slug, $eventData);
@@ -318,6 +347,9 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
     /**
      * Convert the meeting to a sitemap tag.
+     */
+    /**
+     * @return Url|string|array<string, mixed>
      */
     public function toSitemapTag(): Url|string|array
     {

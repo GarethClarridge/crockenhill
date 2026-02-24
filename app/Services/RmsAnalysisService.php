@@ -11,6 +11,7 @@ class RmsAnalysisService
 
     private float $minSectionDuration;
 
+    /** @var array<string, mixed> */
     private array $adaptiveConfig;
 
     public function __construct()
@@ -137,6 +138,9 @@ class RmsAnalysisService
     /**
      * Get total duration from RMS log content
      */
+    /**
+     * @param  array<int, string>  $lines
+     */
     public function getTotalDuration(string $logContent, array $lines): float
     {
         $maxTime = 0.0;
@@ -156,7 +160,7 @@ class RmsAnalysisService
     /**
      * Determine which threshold to use based on configuration
      *
-     * @return array{threshold: float, method: string, log_data: array}
+     * @return array<string, mixed>
      */
     public function determineThreshold(string $logContent): array
     {
@@ -200,6 +204,8 @@ class RmsAnalysisService
 
     /**
      * Calculate adaptive threshold based on RMS distribution
+     *
+     * @return array<string, mixed>
      */
     public function calculateAdaptiveThreshold(string $logContent): array
     {
