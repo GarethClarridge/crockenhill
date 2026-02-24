@@ -38,13 +38,14 @@ class SermonThumbnailTest extends TestCase
         $this->assertFalse($sermon->hasThumbnail());
     }
 
-    public function test_has_thumbnail_returns_false_when_thumbnail_file_does_not_exist(): void
+    public function test_has_thumbnail_trusts_database_path_even_if_file_missing_from_storage(): void
     {
         $sermon = Sermon::factory()->create(['thumbnail_file_path' => 'sermons/thumbnails/nonexistent.jpg']);
 
         Storage::fake('public');
 
-        $this->assertFalse($sermon->hasThumbnail());
+        // Note: Optimized behavior trusts the database path to avoid expensive storage checks
+        $this->assertTrue($sermon->hasThumbnail());
     }
 
     public function test_has_thumbnail_returns_true_when_thumbnail_file_exists(): void

@@ -45,10 +45,20 @@ class SermonVideoDisplayService
 
         $videoPath = $this->getVideoStoragePath($sermon->video_file_path);
 
+        /**
+         * Performance Optimization: Use pre-populated duration from DB if available.
+         * For livestream sermons, use calculated segment duration.
+         * Only fall back to expensive FFprobe (which may download from S3) if necessary.
+         */
+        $duration = $sermon->duration;
+        if (! $duration && $sermon->isFromLivestream()) {
+            $duration = $sermon->getSegmentDuration();
+        }
+
         return [
             'has_video' => true,
             'video_url' => $this->getVideoUrl($sermon->video_file_path),
-            'duration' => $this->getVideoDuration($videoPath),
+            'duration' => $duration ?: $this->getVideoDuration($videoPath, $sermon),
             'file_size' => $this->getVideoFileSize($videoPath),
             'format' => pathinfo($sermon->video_file_path, PATHINFO_EXTENSION),
         ];
@@ -78,8 +88,31 @@ class SermonVideoDisplayService
         return $disk->path($videoPath);
     }
 
-    private function getVideoDuration(string $videoPath): ?float
+    /**
+     * Get video duration using FFprobe as a fallback
+     *
+     * @param  string  $videoPath  Path to video file
+     * @param  Sermon|null  $sermon  Optional sermon model for duration lookup
+     * @return float|null Duration in seconds
+     */
+    private function getVideoDuration(string $videoPath, ?Sermon $sermon = null): ?float
     {
+        /**
+         * Performance Optimization: Secondary check for duration in DB/metadata
+         * to avoid downloading from S3 if possible.
+         */
+        if ($sermon) {
+            if ($sermon->duration) {
+                return $sermon->duration;
+            }
+            if ($sermon->isFromLivestream()) {
+                $duration = $sermon->getSegmentDuration();
+                if ($duration) {
+                    return $duration;
+                }
+            }
+        }
+
         $disk = config('media-processing.storage.sermon_disk', 'public');
 
         // Check if file exists using storage-aware method
