@@ -143,15 +143,11 @@ class SermonAdminController extends Controller
             }
 
         } catch (\Exception $e) {
-            Log::error('Sermon upload failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => $request->user()?->id,
-            ]);
+            Log::error('Media upload failed', ['exception' => $e]);
 
             return redirect()
                 ->back()
-                ->with('error', 'An error occurred during upload. Please try again.');
+                ->with('error', 'An error occurred during upload. Please try again or contact support.');
         }
     }
 

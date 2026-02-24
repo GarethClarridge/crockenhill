@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Http\UploadedFile;
@@ -18,7 +19,7 @@ class SermonValidationService
         $maxSize = config('media-processing.processing.max_file_size', 100 * 1024 * 1024);
         if ($file->getSize() > $maxSize) {
             $maxSizeMB = round($maxSize / (1024 * 1024));
-            throw new \InvalidArgumentException("File size exceeds maximum limit of {$maxSizeMB}MB");
+            throw new InvalidFileException(["File size exceeds maximum limit of {$maxSizeMB}MB"]);
         }
 
         // Check MIME type
@@ -32,7 +33,7 @@ class SermonValidationService
         ]);
 
         if (! in_array($file->getMimeType(), $allowedMimeTypes)) {
-            throw new \InvalidArgumentException('Invalid file type. Only audio files are allowed.');
+            throw new InvalidFileException(['Invalid file type. Only audio files are allowed.']);
         }
 
         // Check file extension
@@ -40,12 +41,12 @@ class SermonValidationService
         $extension = strtolower($file->getClientOriginalExtension());
 
         if (! in_array($extension, $allowedExtensions)) {
-            throw new \InvalidArgumentException('Invalid file extension. Allowed: '.implode(', ', $allowedExtensions));
+            throw new InvalidFileException(['Invalid file extension. Allowed: '.implode(', ', $allowedExtensions)]);
         }
 
         // Basic file integrity check
         if (! $file->isValid()) {
-            throw new \InvalidArgumentException('Uploaded file is corrupted or invalid');
+            throw new InvalidFileException(['Uploaded file is corrupted or invalid']);
         }
     }
 

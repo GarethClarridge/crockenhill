@@ -182,7 +182,7 @@ Evidence: Invalid Tailwind classes like `w-100`, `text-l`, `fill-white`, `align-
 
 Recommendation: Systematic cleanup pass, ideally with a lint rule for known legacy tokens.
 
-#### M5. Inconsistent exception hierarchy
+#### M5. Inconsistent exception hierarchy *Completed*
 
 Evidence:
 - Some code throws `InvalidArgumentException`, some `ProcessingException`, some generic `Exception`
