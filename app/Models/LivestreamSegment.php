@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
- * @property string $processing_id
  * @property int $media_processing_log_id
  * @property int $segment_index
  * @property float $start_time
@@ -34,7 +33,6 @@ class LivestreamSegment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'processing_id',
         'media_processing_log_id',
         'segment_index',
         'start_time',

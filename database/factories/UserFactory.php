@@ -42,7 +42,7 @@ class UserFactory extends Factory
     public function crockenhillAdmin(): static
     {
         return $this->state(fn (array $attributes) => [
-            'email' => 'admin@crockenhill.org',
+            'email' => $this->faker->unique()->userName().'@crockenhill.org',
             'email_verified_at' => now(),
         ]);
     }

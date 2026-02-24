@@ -6,7 +6,6 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\VideoExtractionService;
-use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -20,18 +19,17 @@ class ProcessVideoCommandTest extends TestCase
     public function it_creates_sermon_from_livestream_segments(): void
     {
         Storage::fake('public');
-        
+
         $processingId = 'test-id';
         $log = MediaProcessingLog::factory()->create([
             'processing_id' => $processingId,
-            'source_file_path' => 'livestream/source.mp4'
+            'source_file_path' => 'livestream/source.mp4',
         ]);
 
         Storage::disk('local')->put('livestream/source.mp4', 'content');
 
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $processingId,
             'classification' => 'speech',
             'duration' => 1200,
             'start_time' => 100,
@@ -57,12 +55,12 @@ class ProcessVideoCommandTest extends TestCase
 
         $this->assertDatabaseHas('sermons', [
             'livestream_processing_id' => $processingId,
-            'source_type' => 'livestream'
+            'source_type' => 'livestream',
         ]);
 
         $sermon = Sermon::where('livestream_processing_id', $processingId)->first();
         Storage::disk('public')->assertExists($sermon->video_file_path);
-        
+
         // Cleanup temp file
         if (file_exists('/tmp/segment.mp4')) {
             unlink('/tmp/segment.mp4');

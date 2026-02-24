@@ -16,16 +16,6 @@ class LivestreamSegmentFactory extends Factory
         $endTime = $startTime + $duration;
 
         return [
-            'processing_id' => function (array $attributes) {
-                // If media_processing_log_id is provided, get the processing_id from that log
-                if (isset($attributes['media_processing_log_id'])) {
-                    $log = \App\Models\MediaProcessingLog::find($attributes['media_processing_log_id']);
-
-                    return $log ? $log->processing_id : $this->faker->uuid();
-                }
-
-                return $this->faker->uuid();
-            },
             'media_processing_log_id' => 1, // Will be overridden in tests
             'segment_index' => $this->faker->numberBetween(1, 10),
             'start_time' => $startTime,
@@ -69,13 +59,6 @@ class LivestreamSegmentFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'media_processing_log_id' => $processingLogId,
-        ]);
-    }
-
-    public function forProcessing(string $processingId): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'processing_id' => $processingId,
         ]);
     }
 }

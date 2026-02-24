@@ -102,7 +102,7 @@ Evidence:
 
 Recommendation: Regenerate the dump or remove it and rely on full migration replay.
 
-#### H3. Database schema inconsistencies from incremental evolution
+#### H3. Database schema inconsistencies from incremental evolution *In progress*
 
 Evidence:
 - **Inconsistent cascading deletes**: `media_processing_logs` cascades on sermon delete, but the older `sermon_processing_logs` uses `SET NULL` — inconsistent behavior for the same conceptual relationship.

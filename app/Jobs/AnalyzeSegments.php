@@ -157,7 +157,6 @@ class AnalyzeSegments implements ShouldQueue
     {
         foreach ($segments as $segmentData) {
             $segmentRecord = [
-                'processing_id' => $this->processingLog->processing_id,
                 'media_processing_log_id' => $this->processingLog->id,
                 'segment_index' => $segmentData->segmentOrder,
                 'start_time' => $segmentData->startTime,

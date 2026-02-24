@@ -148,7 +148,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
             $endTime = $startTime + 120; // 2 minute segments
 
             $segment = LivestreamSegment::create([
-                'processing_id' => 'perf-test-segmentation',
+                'media_processing_log_id' => $processing->id,
                 'segment_index' => $i + 1,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
@@ -163,7 +163,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
 
         // Test querying performance with many segments
         $queryStart = microtime(true);
-        $retrievedSegments = LivestreamSegment::where('processing_id', 'perf-test-segmentation')
+        $retrievedSegments = LivestreamSegment::where('media_processing_log_id', $processing->id)
             ->orderBy('start_time')
             ->get();
         $queryEnd = microtime(true);
@@ -232,7 +232,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
             if ($status === 'completed') {
                 for ($j = 0; $j < rand(3, 8); $j++) {
                     LivestreamSegment::create([
-                        'processing_id' => "perf-test-{$i}",
+                        'media_processing_log_id' => $processing->id,
                         'segment_index' => $j + 1,
                         'start_time' => $j * 300,
                         'end_time' => ($j + 1) * 300,
@@ -377,7 +377,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
             // Create segments
             for ($j = 0; $j < 5; $j++) {
                 LivestreamSegment::factory()->create([
-                    'processing_id' => "memory-test-{$i}",
+                    'media_processing_log_id' => $processing->id,
                 ]);
             }
 
@@ -391,8 +391,8 @@ class LivestreamProcessingPerformanceTest extends TestCase
             $peakMemory = max($peakMemory, $currentMemory);
 
             // Clean up to test memory release
+            LivestreamSegment::where('media_processing_log_id', $processing->id)->delete();
             $processing->delete();
-            LivestreamSegment::where('processing_id', "memory-test-{$i}")->delete();
 
             // Force garbage collection
             if (function_exists('gc_collect_cycles')) {

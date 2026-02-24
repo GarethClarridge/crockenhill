@@ -193,7 +193,6 @@ class LivestreamProcessingIntegrationTest extends TestCase
 
         // Create segments
         LivestreamSegment::factory()->create([
-            'processing_id' => $processing->processing_id,
             'media_processing_log_id' => $processing->id,
             'segment_index' => 1,
             'start_time' => 300,
@@ -325,7 +324,6 @@ class LivestreamProcessingIntegrationTest extends TestCase
 
         $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
         LivestreamSegment::factory()->count(3)->create([
-            'processing_id' => $processing->processing_id,
             'media_processing_log_id' => $processing->id,
             'segment_index' => 1,
         ]);

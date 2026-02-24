@@ -17,7 +17,7 @@ class LivestreamSegmentTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->create();
         $data = [
-            'processing_id' => $log->processing_id,
+
             'media_processing_log_id' => $log->id,
             'segment_index' => 0,
             'start_time' => 10.5,
@@ -48,7 +48,6 @@ class LivestreamSegmentTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
         $segment = LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
             'metadata' => ['foo' => 'bar'],
             'start_time' => '10.5',
             'is_sermon_candidate' => 1,
@@ -66,7 +65,6 @@ class LivestreamSegmentTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
         $segment = LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id
         ]);
 
         $this->assertInstanceOf(MediaProcessingLog::class, $segment->processingLog);
@@ -77,21 +75,18 @@ class LivestreamSegmentTest extends TestCase
     public function it_defines_classification_scopes(): void
     {
         $log = MediaProcessingLog::factory()->create();
-        
+
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
-            'classification' => 'speech'
+            'classification' => 'speech',
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
-            'classification' => 'song'
+            'classification' => 'song',
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
-            'classification' => 'silence'
+            'classification' => 'silence',
         ]);
 
         $this->assertCount(1, LivestreamSegment::speech()->get());
@@ -106,13 +101,11 @@ class LivestreamSegmentTest extends TestCase
 
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
-            'is_sermon_candidate' => true
+            'is_sermon_candidate' => true,
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
-            'is_sermon_candidate' => false
+            'is_sermon_candidate' => false,
         ]);
 
         $this->assertCount(1, LivestreamSegment::sermonCandidates()->get());
@@ -125,18 +118,15 @@ class LivestreamSegmentTest extends TestCase
 
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
-            'duration' => 10
+            'duration' => 10,
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
-            'duration' => 20
+            'duration' => 20,
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
-            'processing_id' => $log->processing_id,
-            'duration' => 30
+            'duration' => 30,
         ]);
 
         $this->assertCount(2, LivestreamSegment::byDurationRange(15)->get());
@@ -176,12 +166,12 @@ class LivestreamSegmentTest extends TestCase
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
             'classification' => 'speech',
-            'duration' => 100
+            'duration' => 100,
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
             'classification' => 'song',
-            'duration' => 50
+            'duration' => 50,
         ]);
 
         $summary = LivestreamSegment::getSegmentsSummary($log->id);
