@@ -6,6 +6,9 @@ use Spatie\LaravelData\Data;
 
 class ThumbnailResult extends Data
 {
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
     public function __construct(
         public readonly bool $success,
         public readonly ?string $thumbnailPath = null,
@@ -15,6 +18,8 @@ class ThumbnailResult extends Data
 
     /**
      * Create a successful thumbnail generation result
+     *
+     * @param  array<string, mixed>  $metadata
      */
     public static function success(string $thumbnailPath, array $metadata = []): self
     {
@@ -89,6 +94,8 @@ class ThumbnailResult extends Data
 
     /**
      * Get metadata array
+     *
+     * @return array<string, mixed>
      */
     public function getMetadata(): array
     {

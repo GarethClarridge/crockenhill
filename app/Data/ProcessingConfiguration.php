@@ -12,6 +12,11 @@ namespace App\Data;
  */
 class ProcessingConfiguration
 {
+    /**
+     * @param  array<int, string>  $allowedExtensions
+     * @param  array<string, mixed>  $validationRules
+     * @param  array<string, mixed>  $metadata
+     */
     public function __construct(
         public readonly array $allowedExtensions,
         public readonly int $maxFileSize,
@@ -157,6 +162,8 @@ class ProcessingConfiguration
 
     /**
      * Convert to array for API responses
+     *
+     * @return array<string, mixed>
      */
     public function toArray(): array
     {

@@ -35,7 +35,7 @@ interface ProcessingStatusContract
      * Cancel processing for a given processing ID
      *
      * @param  string  $processingId  The processing ID to cancel
-     * @return array The cancellation response
+     * @return array<string, mixed> The cancellation response
      */
     public function cancelProcessing(string $processingId): array;
 

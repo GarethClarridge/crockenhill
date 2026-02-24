@@ -8,6 +8,10 @@ use Illuminate\Support\Collection;
 
 class ProcessingLogCollection
 {
+    /**
+     * @param  Collection<int, ProcessingLogEntry>  $entries
+     * @param  array<string, mixed>|null  $summary
+     */
     public function __construct(
         public readonly Collection $entries,
         public readonly int $totalCount,
@@ -15,6 +19,9 @@ class ProcessingLogCollection
         public readonly ?array $summary = null
     ) {}
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

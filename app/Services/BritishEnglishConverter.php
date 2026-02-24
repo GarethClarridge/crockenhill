@@ -36,7 +36,7 @@ class BritishEnglishConverter
     /**
      * Get spelling corrections from cache or generate them
      *
-     * @return array Array of regex patterns and replacements
+     * @return array<string, string> Array of regex patterns and replacements
      */
     private function getCorrections(): array
     {
@@ -48,7 +48,7 @@ class BritishEnglishConverter
     /**
      * Build comprehensive spelling corrections
      *
-     * @return array Array of regex patterns and replacements
+     * @return array<string, string> Array of regex patterns and replacements
      */
     private function buildCorrections(): array
     {
@@ -65,7 +65,7 @@ class BritishEnglishConverter
     /**
      * Load word list from external source (JSON file, API, etc.)
      *
-     * @return array|null Word list or null if not available
+     * @return array<string, string>|null Word list or null if not available
      */
     private function loadWordList(): ?array
     {
@@ -89,8 +89,8 @@ class BritishEnglishConverter
     /**
      * Build corrections from external word list
      *
-     * @param  array  $wordList  Word list data
-     * @return array Regex patterns and replacements
+     * @param  array<string, string>  $wordList  Word list data
+     * @return array<string, string> Regex patterns and replacements
      */
     private function buildCorrectionsFromWordList(array $wordList): array
     {
@@ -108,7 +108,7 @@ class BritishEnglishConverter
     /**
      * Get built-in spelling corrections (fallback)
      *
-     * @return array Array of regex patterns and replacements
+     * @return array<string, string> Array of regex patterns and replacements
      */
     private function getBuiltInCorrections(): array
     {
@@ -184,7 +184,7 @@ class BritishEnglishConverter
     /**
      * Get statistics about available corrections
      *
-     * @return array Statistics
+     * @return array<string, mixed> Statistics
      */
     public function getStats(): array
     {

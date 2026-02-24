@@ -8,6 +8,10 @@ use Carbon\Carbon;
 
 readonly class ProcessingLogEntry
 {
+    /**
+     * @param  array<string, mixed>|null  $metrics
+     * @param  array<string, mixed>|null  $context
+     */
     public function __construct(
         public string $step,
         public string $level,
@@ -20,6 +24,9 @@ readonly class ProcessingLogEntry
         public ?int $memoryUsage = null
     ) {}
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

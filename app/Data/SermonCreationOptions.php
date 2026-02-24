@@ -40,6 +40,8 @@ class SermonCreationOptions
 
     /**
      * Create options for audio upload processing
+     *
+     * @param  array<string, mixed>  $aiAnalysis
      */
     public static function fromAudioUpload(MediaProcessingLog $log, array $aiAnalysis): self
     {
@@ -56,6 +58,8 @@ class SermonCreationOptions
 
     /**
      * Create options for video upload processing
+     *
+     * @param  array<string, mixed>  $aiAnalysis
      */
     public static function fromVideoUpload(MediaProcessingLog $log, array $aiAnalysis): self
     {

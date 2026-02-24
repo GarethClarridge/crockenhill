@@ -8,6 +8,9 @@ use Spatie\LaravelData\Data;
 
 class SermonAnalysis extends Data
 {
+    /**
+     * @param  array<int, string>  $points
+     */
     public function __construct(
         #[Required]
         #[Max(255)]
@@ -28,6 +31,8 @@ class SermonAnalysis extends Data
 
     /**
      * Create SermonAnalysis with validation
+     *
+     * @param  array<int, string>  $points
      */
     public static function create(
         string $title,
@@ -90,6 +95,8 @@ class SermonAnalysis extends Data
 
     /**
      * Create from raw AI analysis data with validation
+     *
+     * @param  array<string, mixed>  $analysisData
      */
     public static function fromAiAnalysis(array $analysisData): self
     {
@@ -105,6 +112,8 @@ class SermonAnalysis extends Data
 
     /**
      * Transform the analysis for database insertion
+     *
+     * @return array<string, mixed>
      */
     public function toSermonAttributes(): array
     {
@@ -129,6 +138,8 @@ class SermonAnalysis extends Data
 
     /**
      * Get a summary of the analysis for logging/debugging
+     *
+     * @return array<string, mixed>
      */
     public function getSummary(): array
     {

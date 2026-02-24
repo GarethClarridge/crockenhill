@@ -60,7 +60,7 @@ class AudioChunkingService
      * @param  string  $filePath  Full path to the original audio file
      * @param  string  $processingId  Processing ID for logging
      * @param  float  $duration  Total duration in seconds
-     * @return array Array of chunk file paths
+     * @return array<int, string> Array of chunk file paths
      *
      * @throws TranscriptionException When chunk creation fails
      */
@@ -138,7 +138,7 @@ class AudioChunkingService
     /**
      * Reassemble transcripts from chunks with overlap deduplication
      *
-     * @param  array  $transcripts  Array of transcript data with indices and content
+     * @param  array<int, array<string, mixed>>  $transcripts  Array of transcript data with indices and content
      * @param  string  $processingId  Processing ID for logging
      * @return string The reassembled transcript
      */
@@ -218,6 +218,9 @@ class AudioChunkingService
 
     /**
      * Check if two arrays of sentences match with some tolerance
+     *
+     * @param  array<int, string>  $sentences1
+     * @param  array<int, string>  $sentences2
      */
     public function sentencesMatch(array $sentences1, array $sentences2): bool
     {
@@ -255,6 +258,8 @@ class AudioChunkingService
 
     /**
      * Clean up temporary chunk files
+     *
+     * @param  array<int, string>  $chunkPaths
      */
     public function cleanupChunkFiles(array $chunkPaths, string $processingId): void
     {
@@ -352,6 +357,8 @@ class AudioChunkingService
 
     /**
      * Split transcript into sentences (used for overlap detection)
+     *
+     * @return array<int, string>
      */
     private function splitIntoSentences(string $transcript): array
     {

@@ -459,7 +459,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
      * Split transcript into sentences while preserving natural speech patterns
      *
      * @param  string  $transcript  Raw transcript text
-     * @return array Array of sentences
+     * @return array<int, string> Array of sentences
      */
     private function splitIntoSentences(string $transcript): array
     {
@@ -478,8 +478,8 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     /**
      * Group sentences into logical paragraphs
      *
-     * @param  array  $sentences  Array of sentences
-     * @return array Array of paragraph strings
+     * @param  array<int, string>  $sentences  Array of sentences
+     * @return array<int, string> Array of paragraph strings
      */
     private function groupSentencesIntoParagraphs(array $sentences): array
     {

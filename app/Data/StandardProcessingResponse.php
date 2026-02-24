@@ -10,6 +10,11 @@ use Carbon\Carbon;
  */
 class StandardProcessingResponse
 {
+    /**
+     * @param  array<string, mixed>  $additionalData
+     * @param  array<string, mixed>|null  $performanceMetrics
+     * @param  array<string, mixed>|null  $errorHistory
+     */
     public function __construct(
         public readonly bool $found,
         public readonly ?string $processingId = null,
@@ -30,6 +35,8 @@ class StandardProcessingResponse
 
     /**
      * Create a successful found response
+     *
+     * @param  array<string, mixed>  $additionalData
      */
     public static function found(
         string $processingId,
@@ -62,6 +69,10 @@ class StandardProcessingResponse
 
     /**
      * Create a successful found response with logs and metrics
+     *
+     * @param  array<string, mixed>  $additionalData
+     * @param  array<string, mixed>|null  $metrics
+     * @param  array<string, mixed>|null  $errorHistory
      */
     public static function withLogs(
         string $processingId,
@@ -151,6 +162,8 @@ class StandardProcessingResponse
 
     /**
      * Convert to array for JSON response
+     *
+     * @return array<string, mixed>
      */
     public function toArray(): array
     {
@@ -213,6 +226,8 @@ class StandardProcessingResponse
 
     /**
      * Create response from processing status with flexible input
+     *
+     * @param  array<string, mixed>  $additionalData
      */
     public static function fromProcessingStatus(
         string $processingId,

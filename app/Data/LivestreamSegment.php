@@ -15,6 +15,7 @@ class LivestreamSegment extends Data
         public float $peakRms,
         public bool $isSermonCandidate = false,
         public int $segmentOrder = 0,
+        /** @var array<string, mixed> */
         public ?array $metadata = null,
     ) {}
 

@@ -15,5 +15,8 @@ interface ProcessingLogContract
 
     public function getLogsByStep(string $processingId, string $step): ProcessingLogCollection;
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getPerformanceMetrics(string $processingId): ?array;
 }

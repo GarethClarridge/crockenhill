@@ -14,6 +14,9 @@ use Exception;
  */
 class InvalidFileException extends Exception
 {
+    /**
+     * @param  array<int, string>  $errors
+     */
     public function __construct(array $errors, int $code = 0, ?\Throwable $previous = null)
     {
         $message = 'Invalid file: '.implode(', ', $errors);

@@ -12,7 +12,7 @@ interface SermonAnalysisInterface
      * Analyze sermon transcript and extract metadata
      *
      * @param  string  $transcript  The sermon transcript text to analyze
-     * @param  array  $existingSeries  Existing sermon series for context
+     * @param  array<int, string>  $existingSeries  Existing sermon series for context
      */
     public function analyzeSermon(string $transcript, array $existingSeries = []): SermonAnalysis;
 }

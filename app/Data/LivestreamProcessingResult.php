@@ -17,11 +17,13 @@ class LivestreamProcessingResult extends Data
         public ?float $sermonEndTime = null,
         public ?int $sermonId = null,
         public ?string $errorMessage = null,
+        /** @var array<string, mixed> */
         public ?array $processingMetadata = null,
         public ?string $startedAt = null,
         public ?string $completedAt = null,
         /** @var LivestreamSegment[] */
         public array $segments = [],
+        /** @var array<string, mixed> */
         public ?array $segmentsSummary = null,
     ) {}
 
