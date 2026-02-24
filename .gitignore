@@ -52,3 +52,7 @@ Homestead.yaml
 # Logs
 artisan_serve.log
 *.log
+
+# Example files
+*.osz
+*.sqlite
