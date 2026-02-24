@@ -1,12 +1,11 @@
 @layer components {
     .edit-metadata {
-        @apply -mx-5 mb-6 bg-[#6b0f1a] p-6 text-white;
+        @apply -mx-5 mb-6 bg-cbc-crimson p-6 text-white;
     }
 
     .edit-metadata input,
     .edit-metadata select {
-        background-color: #c07c84;
-        @apply border-none;
+        @apply border-none bg-cbc-rose-muted;
     }
 
     .page-editor-rendered-content img {

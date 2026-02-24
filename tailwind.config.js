@@ -15,7 +15,19 @@ module.exports = {
       },
       backgroundImage: {
         'cbc-pattern': "url('/svg/pattern.svg')",
-      }
+      },
+      colors: {
+        'cbc-teal': {
+          light:   '#249a97',
+          DEFAULT: '#1d686a',
+          dark:    '#145557',
+          deeper:  '#0f4143',
+          darkest: '#134e4a',
+        },
+        'cbc-crimson': '#6b0f1a',
+        'cbc-emerald': '#08a386',
+        'cbc-rose-muted': '#c07c84',
+      },
     }
   },
   plugins: [

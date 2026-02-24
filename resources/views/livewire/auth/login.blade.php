@@ -18,7 +18,7 @@
             <label for="remember" class="text-sm">Remember me</label>
         </div>
         <div class="form-actions my-3">
-            <button type="submit" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl w-full">Login</button>
+            <button type="submit" class="inline-block text-center select-none border font-normal whitespace-nowrap rounded no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl w-full">Login</button>
         </div>
         <div class="mt-4 text-center">
             <a href="{{ route('password.request') }}" class="text-blue-600 hover:underline">Forgot your password?</a>

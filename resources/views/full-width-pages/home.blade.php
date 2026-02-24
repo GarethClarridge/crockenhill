@@ -87,20 +87,20 @@
     </p>
     <p>
       You're more than welcome to join us - we'd love to see you! If you can't make it in person you can watch our morning services on
-      <a class="inline" href="https://www.youtube.com/@crockenhillbaptistchurch9727/streams">
+      <a class="inline" href="{{ config('organization.social.youtube') }}">
         our YouTube channel
       </a> at 10:30am on Sundays.
     </p>
   </x-text>
 
   <div class="mx-auto mb-8 mt-8 w-full max-w-[34rem] px-6 text-center sm:px-0">
-    <div class="w-full rounded-xl bg-[linear-gradient(120deg,#249a97_0%,#1d686a_55%,#145557_100%)] p-[1.5px] shadow-[0_10px_24px_rgba(20,85,87,0.18)]">
+    <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px] shadow-[0_10px_24px_rgba(20,85,87,0.18)]">
       <x-button link="/community/sunday-mornings" variant="featureOutline" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
         <div class="flex items-center justify-center gap-2">
-          <span class="bg-[linear-gradient(120deg,#249a97_0%,#1d686a_55%,#145557_100%)] bg-clip-text text-transparent">
+          <span class="bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] bg-clip-text text-transparent">
             What to expect on Sunday mornings
           </span>
-          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-[#1d686a]" />
+          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-cbc-teal" />
         </div>
       </x-button>
     </div>
@@ -183,13 +183,13 @@
   <!-- <x-youtube link="https://www.youtube.com/embed/Ue3rHGDMzjU" title="Good News in 90 Seconds" /> -->
 
   <div class="mx-auto mb-8 mt-6 w-full max-w-[34rem] px-6 text-center sm:px-0">
-    <div class="w-full rounded-xl bg-[linear-gradient(120deg,#249a97_0%,#1d686a_55%,#145557_100%)] p-[1.5px] shadow-[0_10px_24px_rgba(20,85,87,0.18)]">
+    <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px] shadow-[0_10px_24px_rgba(20,85,87,0.18)]">
       <x-button link="/christ" variant="featureOutline" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
         <div class="flex items-center justify-center gap-2">
-          <span class="bg-[linear-gradient(120deg,#249a97_0%,#1d686a_55%,#145557_100%)] bg-clip-text text-transparent">
+          <span class="bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] bg-clip-text text-transparent">
             Explore the good news about Jesus
           </span>
-          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-[#1d686a]" />
+          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-cbc-teal" />
         </div>
       </x-button>
     </div>

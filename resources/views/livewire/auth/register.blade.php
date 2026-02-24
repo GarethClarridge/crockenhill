@@ -22,7 +22,7 @@
             <input type="password" id="password_confirmation" wire:model="password_confirmation" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required>
         </div>
         <div class="form-actions my-3">
-            <button type="submit" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl w-full">Register</button>
+            <button type="submit" class="inline-block text-center select-none border font-normal whitespace-nowrap rounded no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl w-full">Register</button>
         </div>
         <div class="mt-4 text-center">
             <a href="{{ route('login') }}" class="text-blue-600 hover:underline">Already have an account? Login</a>

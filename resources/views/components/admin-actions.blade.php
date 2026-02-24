@@ -33,12 +33,12 @@
   @method('DELETE')
   <div class="relative inline-flex align-middle">
     <a href="{{ $editRoute }}" wire:navigate
-       class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline bg-green-500 hover:bg-green-600 text-white">
+       class="inline-block text-center select-none border font-normal whitespace-nowrap rounded py-1 px-3 leading-normal no-underline bg-green-500 hover:bg-green-600 text-white">
       Edit
     </a>
     <button type="submit" 
             onclick="return confirm('{{ $deleteConfirmMessage }}')"
-            class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded py-1 px-3 leading-normal no-underline bg-red-600 hover:bg-red-700 text-white">
+            class="inline-block text-center select-none border font-normal whitespace-nowrap rounded py-1 px-3 leading-normal no-underline bg-red-600 hover:bg-red-700 text-white">
       Delete
     </button>
   </div>

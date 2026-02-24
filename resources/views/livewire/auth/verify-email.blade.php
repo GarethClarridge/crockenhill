@@ -6,7 +6,7 @@
             <div class="mb-4 px-3 py-3 border rounded bg-green-200 border-green-300 text-green-800">A fresh verification link has been sent to your email address.</div>
         @endif
         <form wire:submit.prevent="resend" class="form-actions my-3">
-            <button type="submit" class="inline-block align-middle text-center select-none border font-normal whitespace-no-wrap rounded no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl">Resend Verification Email</button>
+            <button type="submit" class="inline-block text-center select-none border font-normal whitespace-nowrap rounded no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl">Resend Verification Email</button>
         </form>
         <div class="mt-4">
             <form method="POST" action="{{ route('logout') }}">

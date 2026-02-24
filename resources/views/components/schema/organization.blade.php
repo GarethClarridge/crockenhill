@@ -3,29 +3,26 @@
 {!! json_encode([
   '@context' => 'https://schema.org',
   '@type' => 'Church',
-  'name' => 'Crockenhill Baptist Church',
+  'name' => config('organization.name'),
   '@id' => config('app.url'),
   'url' => config('app.url'),
   'logo' => asset('images/Primary.png'),
-  'description' => 'An independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, and proclaiming Jesus Christ to all.',
+  'description' => config('organization.description'),
   'address' => [
     '@type' => 'PostalAddress',
-    'streetAddress' => 'Eynsford Road',
-    'addressLocality' => 'Crockenhill',
-    'addressRegion' => 'Kent',
-    'postalCode' => 'BR8 8JS',
-    'addressCountry' => 'GB'
+    'streetAddress' => config('organization.address.street'),
+    'addressLocality' => config('organization.address.locality'),
+    'addressRegion' => config('organization.address.region'),
+    'postalCode' => config('organization.address.postal_code'),
+    'addressCountry' => config('organization.address.country'),
   ],
   'geo' => [
     '@type' => 'GeoCoordinates',
-    'latitude' => '51.38349261524606',
-    'longitude' => '0.16404725602797054'
+    'latitude' => config('organization.geo.latitude'),
+    'longitude' => config('organization.geo.longitude'),
   ],
-  'telephone' => '+44-1322-663995',
-  'email' => 'admin@crockenhill.org',
-  'sameAs' => [
-    'https://www.facebook.com/pages/Crockenhill-Baptist-Church/487590057946905',
-    'https://www.youtube.com/@crockenhillbaptistchurch9727/streams'
-  ]
+  'telephone' => config('organization.phone'),
+  'email' => config('organization.email_admin'),
+  'sameAs' => array_values(config('organization.social')),
 ], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
 </script>

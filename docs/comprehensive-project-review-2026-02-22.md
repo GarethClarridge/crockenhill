@@ -162,7 +162,7 @@ Evidence:
 
 Recommendation: Extract `PreacherResolutionService` and simplify the controller to orchestration only.
 
-#### M3. Frontend hardcoded brand values scattered across templates
+#### M3. Frontend hardcoded brand values scattered across templates *Completed*
 
 Evidence:
 - Organization details (name, phone, address, geo coordinates) hardcoded in [schema/organization.blade.php](resources/views/components/schema/organization.blade.php)
@@ -174,7 +174,7 @@ Recommendation:
 2. Move org details to `config/organization.php`.
 3. Move social links to config or a settings model.
 
-#### M4. Legacy CSS class drift in Blade templates
+#### M4. Legacy CSS class drift in Blade templates *Completed*
 
 *Carried forward.*
 
