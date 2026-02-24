@@ -15,14 +15,8 @@ class MeetingTest extends TestCase
     #[Test]
     public function meeting_relationships()
     {
-        // No relationships are defined on the Meeting model yet.
-        // This test serves as a placeholder.
-        // Example: if Meeting hasMany Attendees:
-        // $meeting = \App\Models\Meeting::factory()->has(Attendee::factory()->count(3), 'attendees')->create();
-        // $this->assertCount(3, $meeting->attendees);
         $meeting = \App\Models\Meeting::factory()->create();
         $this->assertInstanceOf(\App\Models\Meeting::class, $meeting);
-        $this->assertTrue(true); // Basic assertion
     }
 
     #[Test]

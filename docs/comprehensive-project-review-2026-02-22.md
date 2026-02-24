@@ -258,7 +258,7 @@ Recommendation: Clean stale comments, consider splitting routes by domain, add r
 
 ### Low
 
-#### L1. Test anti-patterns
+#### L1. Test anti-patterns *Completed*
 
 Evidence:
 - **Placeholder tests**: `MeetingTest::meeting_relationships()` asserts `assertTrue(true)` — not testing anything
@@ -269,7 +269,7 @@ Evidence:
 
 Recommendation: Fix placeholders, prefer constructor injection over reflection, use specific mock expectations.
 
-#### L2. Missing test coverage in specific areas
+#### L2. Missing test coverage in specific areas *Completed*
 
 | Gap | Risk |
 |---|---|

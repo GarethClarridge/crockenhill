@@ -9,7 +9,6 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class SermonPagesTest extends TestCase
@@ -159,13 +158,9 @@ class SermonPagesTest extends TestCase
 
     public function test_sermon_series_page_renders(): void
     {
-        $sermon = Sermon::first();
-        if ($sermon->series) {
-            $response = $this->get('/christ/sermons/series/'.Str::slug($sermon->series));
-            $response->assertStatus(200);
-            $response->assertSee($sermon->series);
-        } else {
-            $this->assertTrue(true); // No series to test
-        }
+        $sermon = Sermon::factory()->inSeries('Test Series')->create();
+        $response = $this->get('/christ/sermons/series/test-series');
+        $response->assertStatus(200);
+        $response->assertSee('Test Series');
     }
 }

@@ -14,8 +14,7 @@ class VideoSegmentationService
 {
     use DetectsStorageType;
 
-    /** @phpstan-ignore-next-line property.unusedType (nullable for testing environment) */
-    private ?FFProbe $ffprobe;
+    private ?FFProbe $ffprobe = null;
 
     private float $minSermonDuration;
 
@@ -154,8 +153,8 @@ class VideoSegmentationService
     }
 
     /**
-     * @param array<int, array<string, float>> $loudSections
-     * @param array<string, mixed> $rmsData
+     * @param  array<int, array<string, float>>  $loudSections
+     * @param  array<string, mixed>  $rmsData
      * @return array<int, LivestreamSegment>
      */
     private function combineLoudAndQuietSections(array $loudSections, float $totalDuration, array $rmsData): array
@@ -399,7 +398,7 @@ class VideoSegmentationService
     /**
      * Calibrate per-song RMS threshold based on song and adjacent speech
      *
-     * @param array<string, mixed> $songCluster
+     * @param  array<string, mixed>  $songCluster
      * @return array<string, float>
      */
     public function calibratePerSongThreshold(string $rmsLogPath, array $songCluster): array
@@ -467,7 +466,7 @@ class VideoSegmentationService
     /**
      * Detect precise boundaries for a song cluster using min/max of visual and RMS boundaries
      *
-     * @param array<string, mixed> $cluster
+     * @param  array<string, mixed>  $cluster
      */
     public function detectBoundariesForCluster(
         string $rmsLogPath,
