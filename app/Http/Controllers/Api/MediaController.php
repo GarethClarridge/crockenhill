@@ -127,6 +127,9 @@ class MediaController extends Controller implements ProcessingStatusContract
         return $this->mediaProcessor->getStatusWithLogs($processingId, $includeLogs, $logLimit);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function cancelProcessing(string $processingId): array
     {
         return $this->mediaProcessor->cancel($processingId);

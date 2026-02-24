@@ -98,6 +98,8 @@ class SendCompletionNotification implements ShouldQueue
 
     /**
      * Prepare notification data
+     *
+     * @return array<string, mixed>
      */
     private function prepareNotificationData(?Sermon $sermon, MediaProcessingLog $processingLog): array
     {
@@ -148,6 +150,8 @@ class SendCompletionNotification implements ShouldQueue
 
     /**
      * Get items that may require manual review
+     *
+     * @return array<int, string>
      */
     private function getReviewItems(Sermon $sermon, MediaProcessingLog $processingLog): array
     {
@@ -185,6 +189,8 @@ class SendCompletionNotification implements ShouldQueue
 
     /**
      * Send notification to the configured admin email
+     *
+     * @param  array<string, mixed>  $data
      */
     private function sendNotifications(array $data): void
     {
@@ -230,6 +236,8 @@ class SendCompletionNotification implements ShouldQueue
 
     /**
      * Send email notification to admin
+     *
+     * @param  array<string, mixed>  $data
      */
     private function sendEmailNotification(string $adminEmail, array $data): void
     {
@@ -261,6 +269,8 @@ class SendCompletionNotification implements ShouldQueue
 
     /**
      * Build email message content
+     *
+     * @param  array<string, mixed>  $data
      */
     private function buildEmailMessage(array $data): string
     {
@@ -334,6 +344,8 @@ class SendCompletionNotification implements ShouldQueue
 
     /**
      * Calculate the number of seconds to wait before retrying the job.
+     *
+     * @return array<int, int>
      */
     public function backoff(): array
     {

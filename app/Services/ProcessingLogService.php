@@ -54,6 +54,9 @@ class ProcessingLogService implements ProcessingLogContract
         );
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getPerformanceMetrics(string $processingId): ?array
     {
         $logPath = empty($this->logFilePath) ? storage_path('logs/laravel.log') : $this->logFilePath;
@@ -89,6 +92,9 @@ class ProcessingLogService implements ProcessingLogContract
         ];
     }
 
+    /**
+     * @return Collection<int, ProcessingLogEntry>
+     */
     private function parseLogsFromFile(string $processingId, ?int $limit = null, ?Carbon $since = null, ?string $customLogPath = null): Collection
     {
         $logPath = $customLogPath ?? (empty($this->logFilePath) ? storage_path('logs/laravel.log') : $this->logFilePath);
@@ -190,6 +196,9 @@ class ProcessingLogService implements ProcessingLogContract
         );
     }
 
+    /**
+     * @param  array<string, mixed>  $context
+     */
     private function extractStep(string $message, array $context): string
     {
         // Check context first
@@ -255,6 +264,9 @@ class ProcessingLogService implements ProcessingLogContract
         return 'general';
     }
 
+    /**
+     * @param  array<string, mixed>  $context
+     */
     private function extractExecutionTime(array $context): ?float
     {
         // Check various execution time fields
@@ -286,6 +298,9 @@ class ProcessingLogService implements ProcessingLogContract
         return null;
     }
 
+    /**
+     * @param  array<string, mixed>  $context
+     */
     private function extractMemoryUsage(array $context): ?int
     {
         $memoryFields = [
@@ -315,6 +330,10 @@ class ProcessingLogService implements ProcessingLogContract
         return null;
     }
 
+    /**
+     * @param  array<string, mixed>  $context
+     * @return array<string, mixed>|null
+     */
     private function extractMetrics(array $context): ?array
     {
         $metrics = [];
@@ -344,6 +363,10 @@ class ProcessingLogService implements ProcessingLogContract
         return empty($metrics) ? null : $metrics;
     }
 
+    /**
+     * @param  Collection<int, ProcessingLogEntry>  $logs
+     * @return array<string, mixed>
+     */
     private function generateLogSummary(Collection $logs): array
     {
         $summary = [

@@ -265,6 +265,8 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
     /**
      * Calculate the number of seconds to wait before retrying the job.
+     *
+     * @return array<int, int>
      */
     public function backoff(): array
     {

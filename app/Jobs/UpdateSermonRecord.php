@@ -212,6 +212,8 @@ class UpdateSermonRecord implements ShouldQueue
 
     /**
      * Get existing sermon series from database
+     *
+     * @return array<int, string>
      */
     private function getExistingSeries(): array
     {
@@ -311,6 +313,8 @@ class UpdateSermonRecord implements ShouldQueue
 
     /**
      * Calculate the number of seconds to wait before retrying the job.
+     *
+     * @return array<int, int>
      */
     public function backoff(): array
     {

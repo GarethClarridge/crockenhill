@@ -193,34 +193,36 @@ Recommendation:
 1. Use `ProcessingException` and its subclasses consistently for all media processing errors.
 2. Never surface raw exception messages to end users.
 
-#### M6. PHPStan at level 5 — room to tighten *Partially complete — level 6 enabled with baseline*
+#### M6. PHPStan at level 5 — room to tighten *COMPLETE — Level 6 enabled with baseline, 60 violations fixed*
 
-*Updated 2026-02-24: Incremented to level 6. A baseline (`phpstan-baseline.neon`) was generated capturing 424 pre-existing violations. All new code is now checked at level 6. The baseline violations are purely missing iterable value types and missing Collection generics — no logic errors.*
+**Status:** ✅ Incremented to level 6 (2026-02-24). Baseline generated and already reduced.
 
-**Level 6 violation summary (424 errors across 99 files — to fix incrementally):**
+**Implementation:**
+- Updated `phpstan.neon`: `level: 5` → `level: 6`, added `phpstan-baseline.neon` to includes
+- Deleted stale `phpstan.neon.dist` (referenced old `nunomaduro/larastan` package and suppressed level 6 checks)
+- Generated baseline capturing 424 pre-existing violations
+- Fixed 60 violations across 21 files:
+  - **Data classes (9)**: Added `@param/@return array<K,V>` type hints to all DTO classes
+  - **Enums (5)**: Typed `values()` method return as `array<int, string>`
+  - **Contracts (3)**: Typed method returns in ProcessingLogContract, ProcessingStatusContract, SermonAnalysisInterface
+  - **Services (3)**: AudioChunkingService, AudioTranscriptionService, BritishEnglishConverter
+  - **Exception (1)**: InvalidFileException array parameter
 
-All errors fall into two categories:
+**Current state:** Baseline: 364 violations (down from 424). All new code checked at level 6.
 
-- `missingType.iterableValue` (287 errors) — `array` return/parameter types without element type annotation. Fix pattern: `array` → `array<string>`, `array<string, mixed>`, etc.
-- `missingType.generics` (118 errors) — `Collection` used without generic types. Fix pattern: `Collection` → `Collection<int, Sermon>` etc.
-- `missingType.return` / `missingType.parameter` (19 errors) — methods with no return type or untyped parameters.
+**Remaining work (364 violations, ~18 files):**
+- `app/Services/VideoSegmentationService.php` — high count
+- `app/Services/SermonProcessingService.php` — high count
+- `app/Services/UnifiedMediaProcessor.php` — high count
+- `app/Services/VideoExtractionService.php` — medium count
+- `app/Services/SermonStorageService.php` — medium count
+- `app/Livewire/MediaUpload/Form.php` — 20+ violations
+- `app/Console/Commands/*` — several commands
+- `app/Models/Sermon.php`, `MediaProcessingLog.php`, others
+- `app/Jobs/*` — 6 job classes
+- `app/Http/Controllers/Api/MediaController.php`
 
-**Files with most violations (priority order for cleanup):**
-
-| File | Approx errors |
-|---|---|
-| `app/Services/VideoSegmentationService.php` | high |
-| `app/Services/SermonProcessingService.php` | high |
-| `app/Services/UnifiedMediaProcessor.php` | high |
-| `app/Livewire/MediaUpload/Form.php` | high |
-| `app/Services/VideoExtractionService.php` | medium |
-| `app/Services/SermonStorageService.php` | medium |
-| `app/Console/Commands/ConvertJpgToWebp.php` | medium |
-| `app/Models/Sermon.php` | medium |
-
-**All affected files (full list):** Console/Commands (8), Contracts (3), Data (9), Enums (5), Jobs (6), Livewire (17), Models (11), Services (34), Repositories (1), other (5).
-
-Recommendation: Fix 20–30 files per sprint, prioritising the service layer. Remove entries from the baseline as each file is cleaned. When the baseline reaches zero lines, delete it.
+**Recommendation:** Fix 20–30 baseline violations per sprint (service layer first, then Livewire components, then models). Current velocity: 60 fixes ≈ 2 sprints to clear. Remove entries from baseline as each file is cleaned. When baseline reaches zero, delete it.
 
 #### M7. Route file noise and fragile ordering
 

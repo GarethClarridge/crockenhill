@@ -212,6 +212,10 @@ class PerformVisualAnalysis implements ShouldQueue
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $visualSamples
+     * @param  array<string, mixed>  $songClusters
+     */
     private function storeVisualAnalysis(array $visualSamples, array $songClusters, float $processingTime): void
     {
         $this->processingLog->update([

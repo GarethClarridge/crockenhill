@@ -128,6 +128,9 @@ class AnalyzeSegments implements ShouldQueue
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $thresholdMetadata
+     */
     private function storeThresholdMetadata(array $thresholdMetadata): void
     {
         $updateData = [
@@ -153,6 +156,9 @@ class AnalyzeSegments implements ShouldQueue
         ]);
     }
 
+    /**
+     * @param  array<int, LivestreamSegment>  $segments
+     */
     private function storeSegments(array $segments): void
     {
         foreach ($segments as $segmentData) {
@@ -192,6 +198,9 @@ class AnalyzeSegments implements ShouldQueue
         ]);
     }
 
+    /**
+     * @param  array<int, LivestreamSegment>  $segments
+     */
     private function findSermonCandidate(array $segments): ?\App\Data\LivestreamSegment
     {
         $speechSegments = array_filter($segments, fn ($s) => $s->isSpeech());
@@ -229,6 +238,8 @@ class AnalyzeSegments implements ShouldQueue
 
     /**
      * Get visual clusters from processing log
+     *
+     * @return array<string, mixed>|null
      */
     private function getVisualClusters(): ?array
     {
@@ -242,7 +253,8 @@ class AnalyzeSegments implements ShouldQueue
     /**
      * Analyze segments using visual guidance
      *
-     * @return array<\App\Data\LivestreamSegment>
+     * @param  array<string, mixed>  $visualClusters
+     * @return array<int, LivestreamSegment>
      */
     private function analyzeWithVisualGuidance(
         VideoSegmentationService $segmentationService,
@@ -355,6 +367,8 @@ class AnalyzeSegments implements ShouldQueue
 
     /**
      * Get total duration from RMS log lines
+     *
+     * @param  array<int, string>  $lines
      */
     private function getTotalDurationFromLog(array $lines): float
     {

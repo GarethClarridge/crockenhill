@@ -14,6 +14,8 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
 
     /**
      * Analyze sermon transcript using mock data generation
+     *
+     * @param  array<int, string>  $existingSeries
      */
     public function analyzeSermon(string $transcript, array $existingSeries = []): SermonAnalysis
     {
@@ -148,6 +150,8 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
 
     /**
      * Generate mock series identification
+     *
+     * @param  array<int, string>  $existingSeries
      */
     private function generateMockSeries(string $transcript, array $existingSeries): ?string
     {
@@ -264,6 +268,8 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
 
     /**
      * Generate mock sermon points
+     *
+     * @return array<int, string>
      */
     private function generateMockPoints(string $transcript): array
     {

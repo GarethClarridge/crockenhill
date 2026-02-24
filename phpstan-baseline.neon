@@ -127,118 +127,58 @@ parameters:
 			path: app/Http/Requests/UpdateSermonRequest.php
 
 		-
-			message: '#^Method App\\Jobs\\AnalyzeSegments\:\:analyzeWithVisualGuidance\(\) has parameter \$visualClusters with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Access to an undefined property App\\Models\\LivestreamSegment\:\:\$avgRms\.$#'
+			identifier: property.notFound
 			count: 1
 			path: app/Jobs/AnalyzeSegments.php
 
 		-
-			message: '#^Method App\\Jobs\\AnalyzeSegments\:\:findSermonCandidate\(\) has parameter \$segments with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Access to an undefined property App\\Models\\LivestreamSegment\:\:\$endTime\.$#'
+			identifier: property.notFound
 			count: 1
 			path: app/Jobs/AnalyzeSegments.php
 
 		-
-			message: '#^Method App\\Jobs\\AnalyzeSegments\:\:getTotalDurationFromLog\(\) has parameter \$lines with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Access to an undefined property App\\Models\\LivestreamSegment\:\:\$isSermonCandidate\.$#'
+			identifier: property.notFound
 			count: 1
 			path: app/Jobs/AnalyzeSegments.php
 
 		-
-			message: '#^Method App\\Jobs\\AnalyzeSegments\:\:getVisualClusters\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Access to an undefined property App\\Models\\LivestreamSegment\:\:\$peakRms\.$#'
+			identifier: property.notFound
 			count: 1
 			path: app/Jobs/AnalyzeSegments.php
 
 		-
-			message: '#^Method App\\Jobs\\AnalyzeSegments\:\:storeSegments\(\) has parameter \$segments with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Access to an undefined property App\\Models\\LivestreamSegment\:\:\$segmentOrder\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Jobs/AnalyzeSegments.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\LivestreamSegment\:\:\$startTime\.$#'
+			identifier: property.notFound
 			count: 1
 			path: app/Jobs/AnalyzeSegments.php
 
 		-
-			message: '#^Method App\\Jobs\\AnalyzeSegments\:\:storeThresholdMetadata\(\) has parameter \$thresholdMetadata with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Method App\\Jobs\\AnalyzeSegments\:\:analyzeWithVisualGuidance\(\) should return array\<int, App\\Models\\LivestreamSegment\> but returns array\<App\\Data\\LivestreamSegment\>\.$#'
+			identifier: return.type
 			count: 1
 			path: app/Jobs/AnalyzeSegments.php
 
 		-
-			message: '#^Method App\\Jobs\\PerformVisualAnalysis\:\:storeVisualAnalysis\(\) has parameter \$songClusters with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Method App\\Jobs\\AnalyzeSegments\:\:findSermonCandidate\(\) never returns App\\Data\\LivestreamSegment so it can be removed from the return type\.$#'
+			identifier: return.unusedType
 			count: 1
-			path: app/Jobs/PerformVisualAnalysis.php
+			path: app/Jobs/AnalyzeSegments.php
 
 		-
-			message: '#^Method App\\Jobs\\PerformVisualAnalysis\:\:storeVisualAnalysis\(\) has parameter \$visualSamples with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Method App\\Jobs\\AnalyzeSegments\:\:findSermonCandidate\(\) should return App\\Data\\LivestreamSegment\|null but returns App\\Models\\LivestreamSegment\.$#'
+			identifier: return.type
 			count: 1
-			path: app/Jobs/PerformVisualAnalysis.php
-
-		-
-			message: '#^Method App\\Jobs\\ProcessTranscriptWithAI\:\:backoff\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/ProcessTranscriptWithAI.php
-
-		-
-			message: '#^Method App\\Jobs\\SendCompletionNotification\:\:backoff\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/SendCompletionNotification.php
-
-		-
-			message: '#^Method App\\Jobs\\SendCompletionNotification\:\:buildEmailMessage\(\) has parameter \$data with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/SendCompletionNotification.php
-
-		-
-			message: '#^Method App\\Jobs\\SendCompletionNotification\:\:getReviewItems\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/SendCompletionNotification.php
-
-		-
-			message: '#^Method App\\Jobs\\SendCompletionNotification\:\:prepareNotificationData\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/SendCompletionNotification.php
-
-		-
-			message: '#^Method App\\Jobs\\SendCompletionNotification\:\:sendEmailNotification\(\) has parameter \$data with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/SendCompletionNotification.php
-
-		-
-			message: '#^Method App\\Jobs\\SendCompletionNotification\:\:sendNotifications\(\) has parameter \$data with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/SendCompletionNotification.php
-
-		-
-			message: '#^Method App\\Jobs\\TranscribeAudio\:\:backoff\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/TranscribeAudio.php
-
-		-
-			message: '#^Method App\\Jobs\\TranscribeAudio\:\:middleware\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/TranscribeAudio.php
-
-		-
-			message: '#^Method App\\Jobs\\UpdateSermonRecord\:\:backoff\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/UpdateSermonRecord.php
-
-		-
-			message: '#^Method App\\Jobs\\UpdateSermonRecord\:\:getExistingSeries\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Jobs/UpdateSermonRecord.php
+			path: app/Jobs/AnalyzeSegments.php
 
 		-
 			message: '#^Method App\\Livewire\\Admin\\CalendarEvents\\EditCalendarEvent\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
@@ -1555,18 +1495,6 @@ parameters:
 			path: app/Services/MetadataExtractionService.php
 
 		-
-			message: '#^Method App\\Services\\MockSermonAnalysisService\:\:generateMockPoints\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/MockSermonAnalysisService.php
-
-		-
-			message: '#^Method App\\Services\\MockSermonAnalysisService\:\:generateMockSeries\(\) has parameter \$existingSeries with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/MockSermonAnalysisService.php
-
-		-
 			message: '#^Method App\\Services\\ProcessingExceptionHandler\:\:handleAudioProcessingException\(\) has parameter \$context with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -1595,54 +1523,6 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: app/Services/ProcessingExceptionHandler.php
-
-		-
-			message: '#^Method App\\Services\\ProcessingLogService\:\:extractExecutionTime\(\) has parameter \$context with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/ProcessingLogService.php
-
-		-
-			message: '#^Method App\\Services\\ProcessingLogService\:\:extractMemoryUsage\(\) has parameter \$context with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/ProcessingLogService.php
-
-		-
-			message: '#^Method App\\Services\\ProcessingLogService\:\:extractMetrics\(\) has parameter \$context with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/ProcessingLogService.php
-
-		-
-			message: '#^Method App\\Services\\ProcessingLogService\:\:extractMetrics\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/ProcessingLogService.php
-
-		-
-			message: '#^Method App\\Services\\ProcessingLogService\:\:extractStep\(\) has parameter \$context with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/ProcessingLogService.php
-
-		-
-			message: '#^Method App\\Services\\ProcessingLogService\:\:generateLogSummary\(\) has parameter \$logs with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Services/ProcessingLogService.php
-
-		-
-			message: '#^Method App\\Services\\ProcessingLogService\:\:generateLogSummary\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/ProcessingLogService.php
-
-		-
-			message: '#^Method App\\Services\\ProcessingLogService\:\:parseLogsFromFile\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Services/ProcessingLogService.php
 
 		-
 			message: '#^Method App\\Services\\ProcessingPipelineBuilder\:\:buildAudioPipeline\(\) return type has no value type specified in iterable type array\.$#'

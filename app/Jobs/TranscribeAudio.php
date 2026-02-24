@@ -171,6 +171,8 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
 
     /**
      * Calculate the number of seconds to wait before retrying the job.
+     *
+     * @return array<int, int>
      */
     public function backoff(): array
     {
@@ -180,6 +182,8 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
 
     /**
      * Prevent duplicate workers from transcribing the same processing item at once.
+     *
+     * @return array<int, WithoutOverlapping>
      */
     public function middleware(): array
     {
