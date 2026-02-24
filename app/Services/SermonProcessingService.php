@@ -24,14 +24,6 @@ class SermonProcessingService
     }
 
     /**
-     * Process a sermon audio file from livestream with additional metadata
-     */
-    public function processSermonAudio(UploadedFile $file, array $livestreamMetadata = []): array
-    {
-        return $this->audioProcessingService->processSermonAudio($file, $livestreamMetadata);
-    }
-
-    /**
      * Get the current processing status for a given processing ID
      */
     public function getProcessingStatus(string $processingId): StandardProcessingResponse

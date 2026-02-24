@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ProcessingStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -20,7 +21,7 @@ class SermonProcessingStepFactory extends Factory
         return [
             'processing_id' => Str::uuid(),
             'step' => $this->faker->randomElement(['transcription', 'analysis', 'segmentation', 'storage']),
-            'status' => 'started',
+            'status' => ProcessingStatus::STARTED->value,
             'message' => null,
             'started_at' => now(),
             'completed_at' => null,
@@ -33,7 +34,7 @@ class SermonProcessingStepFactory extends Factory
     public function completed(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'completed',
+            'status' => ProcessingStatus::COMPLETED->value,
             'started_at' => now()->subHours(1),
             'completed_at' => now(),
         ]);
@@ -45,7 +46,7 @@ class SermonProcessingStepFactory extends Factory
     public function failed(string $errorMessage = 'Processing failed'): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'failed',
+            'status' => ProcessingStatus::FAILED->value,
             'message' => $errorMessage,
             'started_at' => now()->subHours(1),
             'completed_at' => now(),
@@ -58,7 +59,7 @@ class SermonProcessingStepFactory extends Factory
     public function cancelled(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'cancelled',
+            'status' => ProcessingStatus::CANCELLED->value,
             'started_at' => now()->subHours(1),
             'completed_at' => now(),
         ]);

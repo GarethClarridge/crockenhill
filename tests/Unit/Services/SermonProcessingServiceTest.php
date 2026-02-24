@@ -95,24 +95,6 @@ class SermonProcessingServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_delegates_process_sermon_audio_with_metadata(): void
-    {
-        $file = UploadedFile::fake()->create('sermon.mp3', 1024);
-        $metadata = ['source' => 'livestream', 'segment_id' => 'seg-1'];
-        $expectedArray = ['processing_id' => 'test-789', 'status' => 'pending'];
-
-        $this->audioProcessingService
-            ->method('processSermonAudio')
-            ->with($file, $metadata)
-            ->willReturn($expectedArray);
-
-        $result = $this->service->processSermonAudio($file, $metadata);
-
-        $this->assertEquals('test-789', $result['processing_id']);
-        $this->assertEquals('pending', $result['status']);
-    }
-
-    #[Test]
     public function it_delegates_get_processing_status_to_status_management_service(): void
     {
         $processingId = 'test-status-123';

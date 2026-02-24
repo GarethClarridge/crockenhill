@@ -4,7 +4,6 @@ namespace Tests\Performance;
 
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
-use App\Services\LivestreamMonitoringService;
 use App\Services\LivestreamProcessingLogger;
 use App\Services\LivestreamProcessingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -203,96 +202,6 @@ class LivestreamProcessingPerformanceTest extends TestCase
         echo '- Total memory usage: '.round($memoryUsage / 1024 / 1024, 2)." MB\n";
     }
 
-    public function test_monitoring_service_performance_with_large_dataset()
-    {
-        $startTime = microtime(true);
-        $startMemory = memory_get_usage(true);
-
-        // Create a large dataset of processing records
-        $recordCount = 200;
-        $processingRecords = [];
-
-        $creationStart = microtime(true);
-        for ($i = 0; $i < $recordCount; $i++) {
-            $status = ['completed', 'failed', 'processing'][rand(0, 2)];
-            $createdAt = now()->subHours(rand(1, 168)); // Random time in past week
-            $completedAt = $status === 'completed' ? $createdAt->copy()->addMinutes(rand(30, 180)) : null;
-
-            $processing = MediaProcessingLog::create([
-                'processing_id' => "perf-test-{$i}",
-                'original_filename' => "test-video-{$i}.mp4",
-                'file_path' => "livestreams/test-{$i}.mp4",
-                'file_size' => rand(100000000, 1000000000), // 100MB to 1GB
-                'status' => $status,
-                'created_at' => $createdAt,
-                'completed_at' => $completedAt,
-            ]);
-
-            // Add some segments for completed ones
-            if ($status === 'completed') {
-                for ($j = 0; $j < rand(3, 8); $j++) {
-                    LivestreamSegment::create([
-                        'media_processing_log_id' => $processing->id,
-                        'segment_index' => $j + 1,
-                        'start_time' => $j * 300,
-                        'end_time' => ($j + 1) * 300,
-                        'duration' => 300,
-                        'classification' => $j % 2 === 0 ? 'speech' : 'song',
-                    ]);
-                }
-            }
-
-            $processingRecords[] = $processing;
-        }
-        $creationEnd = microtime(true);
-
-        $monitoringService = app(LivestreamMonitoringService::class);
-
-        // Test metrics calculation performance
-        $metricsStart = microtime(true);
-        $metrics24h = $monitoringService->getProcessingMetrics(24);
-        $metricsEnd = microtime(true);
-
-        $systemHealthStart = microtime(true);
-        $systemHealth = $monitoringService->getSystemHealth();
-        $systemHealthEnd = microtime(true);
-
-        $trendsStart = microtime(true);
-        $trends = $monitoringService->getPerformanceTrends(7);
-        $trendsEnd = microtime(true);
-
-        $endTime = microtime(true);
-        $endMemory = memory_get_usage(true);
-
-        $totalDuration = $endTime - $startTime;
-        $memoryUsage = $endMemory - $startMemory;
-        $creationDuration = $creationEnd - $creationStart;
-        $metricsDuration = $metricsEnd - $metricsStart;
-        $systemHealthDuration = $systemHealthEnd - $systemHealthStart;
-        $trendsDuration = $trendsEnd - $trendsStart;
-
-        // Verify correctness
-        $this->assertArrayHasKey('summary', $metrics24h);
-        $this->assertArrayHasKey('processing_times', $metrics24h);
-        $this->assertArrayHasKey('queue_health', $systemHealth);
-        $this->assertIsArray($trends);
-        $this->assertEquals(7, count($trends));
-
-        // Performance assertions
-        $this->assertLessThan(20.0, $creationDuration, "Creating {$recordCount} records should take less than 20 seconds");
-        $this->assertLessThan(2.0, $metricsDuration, 'Metrics calculation should take less than 2 seconds');
-        $this->assertLessThan(1.0, $systemHealthDuration, 'System health check should take less than 1 second');
-        $this->assertLessThan(3.0, $trendsDuration, 'Trends calculation should take less than 3 seconds');
-        $this->assertLessThan(500 * 1024 * 1024, $memoryUsage, 'Memory usage should be less than 500MB');
-
-        echo "\nMonitoring Performance with {$recordCount} records:\n";
-        echo '- Data creation time: '.round($creationDuration, 3)." seconds\n";
-        echo '- Metrics calculation time: '.round($metricsDuration, 3)." seconds\n";
-        echo '- System health check time: '.round($systemHealthDuration, 3)." seconds\n";
-        echo '- Trends calculation time: '.round($trendsDuration, 3)." seconds\n";
-        echo '- Total memory usage: '.round($memoryUsage / 1024 / 1024, 2)." MB\n";
-    }
-
     public function test_logging_performance_under_load()
     {
         $startTime = microtime(true);
@@ -359,60 +268,5 @@ class LivestreamProcessingPerformanceTest extends TestCase
         echo '- Average time per log entry: '.round($loggingDuration / $logCount * 1000, 3)." ms\n";
         echo '- 100 performance metrics time: '.round($metricsDuration, 3)." seconds\n";
         echo '- Total memory usage: '.round($memoryUsage / 1024 / 1024, 2)." MB\n";
-    }
-
-    public function test_memory_usage_stability()
-    {
-        $initialMemory = memory_get_usage(true);
-        $peakMemory = $initialMemory;
-        $memoryReadings = [];
-
-        // Perform various operations while monitoring memory
-        for ($i = 0; $i < 10; $i++) {
-            // Create processing record
-            $processing = MediaProcessingLog::factory()->create([
-                'processing_id' => "memory-test-{$i}",
-            ]);
-
-            // Create segments
-            for ($j = 0; $j < 5; $j++) {
-                LivestreamSegment::factory()->create([
-                    'media_processing_log_id' => $processing->id,
-                ]);
-            }
-
-            // Perform monitoring operations
-            $monitoringService = app(LivestreamMonitoringService::class);
-            $metrics = $monitoringService->getProcessingMetrics(1);
-
-            // Record memory usage
-            $currentMemory = memory_get_usage(true);
-            $memoryReadings[] = $currentMemory;
-            $peakMemory = max($peakMemory, $currentMemory);
-
-            // Clean up to test memory release
-            LivestreamSegment::where('media_processing_log_id', $processing->id)->delete();
-            $processing->delete();
-
-            // Force garbage collection
-            if (function_exists('gc_collect_cycles')) {
-                gc_collect_cycles();
-            }
-        }
-
-        $finalMemory = memory_get_usage(true);
-        $memoryGrowth = $finalMemory - $initialMemory;
-        $peakGrowth = $peakMemory - $initialMemory;
-
-        // Memory stability assertions
-        $this->assertLessThan(50 * 1024 * 1024, $memoryGrowth, 'Memory growth should be less than 50MB');
-        $this->assertLessThan(100 * 1024 * 1024, $peakGrowth, 'Peak memory growth should be less than 100MB');
-
-        echo "\nMemory Usage Stability:\n";
-        echo '- Initial memory: '.round($initialMemory / 1024 / 1024, 2)." MB\n";
-        echo '- Final memory: '.round($finalMemory / 1024 / 1024, 2)." MB\n";
-        echo '- Memory growth: '.round($memoryGrowth / 1024 / 1024, 2)." MB\n";
-        echo '- Peak memory: '.round($peakMemory / 1024 / 1024, 2)." MB\n";
-        echo '- Peak growth: '.round($peakGrowth / 1024 / 1024, 2)." MB\n";
     }
 }

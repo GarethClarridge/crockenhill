@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\ProcessingStatus;
 use App\Models\SermonProcessingStep;
 use Illuminate\Support\Facades\Log;
 
@@ -42,7 +43,7 @@ abstract class ProcessingJob
                 'step' => $step,
             ],
             [
-                'status' => 'started',
+                'status' => ProcessingStatus::STARTED->value,
                 'message' => $message,
                 'started_at' => now(),
                 'completed_at' => null,
@@ -73,7 +74,7 @@ abstract class ProcessingJob
         SermonProcessingStep::where('processing_id', $this->processingId)
             ->where('step', $step)
             ->update([
-                'status' => 'completed',
+                'status' => ProcessingStatus::COMPLETED->value,
                 'message' => $message,
                 'completed_at' => now(),
             ]);
@@ -103,7 +104,7 @@ abstract class ProcessingJob
         SermonProcessingStep::where('processing_id', $this->processingId)
             ->where('step', $step)
             ->update([
-                'status' => 'failed',
+                'status' => ProcessingStatus::FAILED->value,
                 'message' => $error,
                 'completed_at' => now(),
             ]);
@@ -126,7 +127,7 @@ abstract class ProcessingJob
 
         // Check if any processing steps have been cancelled
         $cancelledSteps = SermonProcessingStep::where('processing_id', $this->processingId)
-            ->where('status', 'cancelled')
+            ->where('status', ProcessingStatus::CANCELLED->value)
             ->count();
 
         if ($cancelledSteps > 0) {

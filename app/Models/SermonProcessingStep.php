@@ -55,7 +55,7 @@ class SermonProcessingStep extends Model
     public function markAsStarted(?string $message = null): bool
     {
         return $this->update([
-            'status' => 'started',
+            'status' => ProcessingStatus::STARTED->value,
             'message' => $message,
             'started_at' => now(),
             'completed_at' => null,
@@ -68,7 +68,7 @@ class SermonProcessingStep extends Model
     public function markAsCompleted(?string $message = null): bool
     {
         return $this->update([
-            'status' => 'completed',
+            'status' => ProcessingStatus::COMPLETED->value,
             'message' => $message,
             'completed_at' => now(),
         ]);
@@ -80,7 +80,7 @@ class SermonProcessingStep extends Model
     public function markAsFailed(string $errorMessage): bool
     {
         return $this->update([
-            'status' => 'failed',
+            'status' => ProcessingStatus::FAILED->value,
             'message' => $errorMessage,
             'completed_at' => now(),
         ]);
@@ -103,7 +103,7 @@ class SermonProcessingStep extends Model
      */
     public function isCompleted(): bool
     {
-        return $this->status === 'completed';
+        return $this->status === ProcessingStatus::COMPLETED->value;
     }
 
     /**
@@ -111,7 +111,7 @@ class SermonProcessingStep extends Model
      */
     public function isFailed(): bool
     {
-        return $this->status === 'failed';
+        return $this->status === ProcessingStatus::FAILED->value;
     }
 
     /**
@@ -119,7 +119,7 @@ class SermonProcessingStep extends Model
      */
     public function isStarted(): bool
     {
-        return $this->status === 'started';
+        return $this->status === ProcessingStatus::STARTED->value;
     }
 
     /**

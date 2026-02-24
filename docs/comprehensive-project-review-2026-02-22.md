@@ -142,7 +142,7 @@ Recommendation: Cache with a short TTL or use the `SitemapCacheObserver` pattern
 
 ### Medium
 
-#### M1. Unused services and dead processing paths
+#### M1. Unused services and dead processing paths *Completed*
 
 *Carried forward and expanded.*
 

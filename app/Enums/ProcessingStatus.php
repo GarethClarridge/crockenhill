@@ -5,6 +5,7 @@ namespace App\Enums;
 enum ProcessingStatus: string
 {
     case PENDING = 'pending';
+    case STARTED = 'started';
     case PROCESSING = 'processing';
     case COMPLETED = 'completed';
     case FAILED = 'failed';
@@ -14,6 +15,7 @@ enum ProcessingStatus: string
     {
         return match ($this) {
             self::PENDING => 'Pending',
+            self::STARTED => 'Started',
             self::PROCESSING => 'Processing',
             self::COMPLETED => 'Completed',
             self::FAILED => 'Failed',

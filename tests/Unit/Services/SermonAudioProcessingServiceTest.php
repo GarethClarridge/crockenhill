@@ -148,54 +148,6 @@ class SermonAudioProcessingServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_processes_livestream_audio_successfully(): void
-    {
-        $file = UploadedFile::fake()->create('livestream.mp3', 1024, 'audio/mpeg');
-        $metadata = [
-            'source_type' => 'livestream',
-            'livestream_processing_id' => 'ls-123',
-        ];
-
-        $this->pipelineBuilder->expects($this->once())
-            ->method('buildAudioPipeline')
-            ->willReturn([new DummyJob]);
-
-        $this->jobPipelineService->expects($this->once())
-            ->method('createProcessingLogWithLivestreamContext')
-            ->willReturnCallback(function (string $processingId, string $filename, array $livestreamMetadata): MediaProcessingLog {
-                return MediaProcessingLog::create([
-                    'processing_id' => $processingId,
-                    'processing_type' => 'audio',
-                    'original_filename' => $filename,
-                    'status' => ProcessingStatus::PENDING,
-                    'current_step' => 'initiated_from_livestream:'.$livestreamMetadata['livestream_processing_id'],
-                    'processing_metadata' => $livestreamMetadata,
-                ]);
-            });
-
-        $this->jobPipelineService->expects($this->once())
-            ->method('dispatchProcessingJobs')
-            ->with(
-                $this->callback(fn (array $jobs): bool => count($jobs) === 1 && $jobs[0] instanceof DummyJob),
-                $this->isInstanceOf(MediaProcessingLog::class),
-                $metadata
-            );
-
-        $result = $this->service->processSermonAudio($file, $metadata);
-
-        $this->assertTrue($result['success']);
-        $this->assertNotNull($result['processing_id']);
-
-        $log = MediaProcessingLog::where('processing_id', $result['processing_id'])->first();
-        $this->assertNotNull($log);
-        $this->assertEquals('initiated_from_livestream:ls-123', $log->current_step);
-
-        // Check transcript placeholder
-        $this->assertArrayHasKey('transcript_path', $result);
-        Storage::disk('local')->assertExists($result['transcript_path']);
-    }
-
-    #[Test]
     public function it_handles_processing_failures_during_initiation(): void
     {
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');

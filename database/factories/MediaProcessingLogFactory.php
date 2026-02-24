@@ -24,7 +24,13 @@ class MediaProcessingLogFactory extends Factory
             'processing_id' => $this->faker->uuid(),
             'processing_type' => $processingType,
             'original_filename' => $this->faker->regexify('[0-9]{4}-[0-9]{2}-[0-9]{2}').'_sermon.mp3',
-            'status' => $this->faker->randomElement(ProcessingStatus::cases()),
+            'status' => $this->faker->randomElement([
+                ProcessingStatus::PENDING,
+                ProcessingStatus::PROCESSING,
+                ProcessingStatus::COMPLETED,
+                ProcessingStatus::FAILED,
+                ProcessingStatus::CANCELLED,
+            ]),
             'current_step' => $this->faker->optional()->randomElement([
                 'metadata_extraction',
                 'audio_transcription',

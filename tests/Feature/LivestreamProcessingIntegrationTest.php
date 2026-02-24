@@ -265,47 +265,6 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->assertStringContainsString('manual review', $processing2->error_message);
     }
 
-    public function test_monitoring_integration()
-    {
-        // Create test processing records - all livestream type
-        MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::COMPLETED,
-            'created_at' => now()->subHours(2),
-            'completed_at' => now()->subHours(1),
-            'file_size' => 1073741824, // 1GB
-        ]);
-
-        MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::FAILED,
-            'created_at' => now()->subHour(),
-            'error_message' => 'FFmpeg processing failed',
-        ]);
-
-        MediaProcessingLog::factory()->livestream()->create([
-            'status' => ProcessingStatus::PROCESSING,
-            'created_at' => now()->subMinutes(30),
-        ]);
-
-        $monitoringService = app(\App\Services\LivestreamMonitoringService::class);
-        $metrics = $monitoringService->getProcessingMetrics(24);
-
-        $this->assertEquals(3, $metrics['summary']['total_processed']);
-        $this->assertEquals(1, $metrics['summary']['successful']);
-        $this->assertEquals(1, $metrics['summary']['failed']);
-        $this->assertEquals(1, $metrics['summary']['in_progress']);
-        $this->assertEquals(33.33, $metrics['summary']['success_rate']);
-
-        $this->assertArrayHasKey('processing_times', $metrics);
-        $this->assertArrayHasKey('failure_analysis', $metrics);
-        $this->assertArrayHasKey('storage_usage', $metrics);
-
-        // Test system health
-        $health = $monitoringService->getSystemHealth();
-        $this->assertArrayHasKey('queue_health', $health);
-        $this->assertArrayHasKey('storage_health', $health);
-        $this->assertArrayHasKey('processing_health', $health);
-    }
-
     public function test_logging_integration()
     {
         $logger = app(LivestreamProcessingLogger::class);

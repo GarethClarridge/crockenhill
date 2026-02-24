@@ -42,8 +42,7 @@ class MediaProcessingServiceProvider extends ServiceProvider
             return new \App\Services\SermonAudioProcessingService(
                 $app->make(\App\Services\MetadataExtractionService::class),
                 $app->make(\App\Services\ProcessingPipelineBuilder::class),
-                $app->make(\App\Services\MediaValidationService::class),
-                $app->make(\App\Services\SermonJobPipelineService::class)
+                $app->make(\App\Services\MediaValidationService::class)
             );
         });
         $this->app->bind(SermonProcessingService::class);
