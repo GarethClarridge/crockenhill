@@ -1417,42 +1417,6 @@ parameters:
 			path: app/Services/SermonCreationService.php
 
 		-
-			message: '#^Method App\\Services\\SermonJobPipelineService\:\:buildSermonProcessingPipeline\(\) has parameter \$livestreamMetadata with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/SermonJobPipelineService.php
-
-		-
-			message: '#^Method App\\Services\\SermonJobPipelineService\:\:buildSermonProcessingPipeline\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/SermonJobPipelineService.php
-
-		-
-			message: '#^Method App\\Services\\SermonJobPipelineService\:\:createProcessingLogWithLivestreamContext\(\) has parameter \$livestreamMetadata with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/SermonJobPipelineService.php
-
-		-
-			message: '#^Method App\\Services\\SermonJobPipelineService\:\:dispatchProcessingJobs\(\) has parameter \$jobs with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/SermonJobPipelineService.php
-
-		-
-			message: '#^Method App\\Services\\SermonJobPipelineService\:\:dispatchProcessingJobs\(\) has parameter \$livestreamMetadata with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/SermonJobPipelineService.php
-
-		-
-			message: '#^Method App\\Services\\SermonJobPipelineService\:\:isLivestreamAudio\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/SermonJobPipelineService.php
-
-		-
 			message: '#^Method App\\Services\\SermonMetadataIntegrationService\:\:getVideoInfo\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -1597,44 +1561,8 @@ parameters:
 			path: app/Services/VideoExtractionService.php
 
 		-
-			message: '#^Method App\\Services\\VideoSegmentationService\:\:analyzeSegments\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/VideoSegmentationService.php
-
-		-
-			message: '#^Method App\\Services\\VideoSegmentationService\:\:calibratePerSongThreshold\(\) has parameter \$songCluster with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/VideoSegmentationService.php
-
-		-
-			message: '#^Method App\\Services\\VideoSegmentationService\:\:combineLoudAndQuietSections\(\) has parameter \$loudSections with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/VideoSegmentationService.php
-
-		-
-			message: '#^Method App\\Services\\VideoSegmentationService\:\:combineLoudAndQuietSections\(\) has parameter \$rmsData with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/VideoSegmentationService.php
-
-		-
-			message: '#^Method App\\Services\\VideoSegmentationService\:\:combineLoudAndQuietSections\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/VideoSegmentationService.php
-
-		-
-			message: '#^Method App\\Services\\VideoSegmentationService\:\:detectBoundariesForCluster\(\) has parameter \$cluster with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/VideoSegmentationService.php
-
-		-
-			message: '#^Method App\\Services\\VideoSegmentationService\:\:getVideoMetadata\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Comparison operation "\>" between float and \(array\|float\|int\) results in an error\.$#'
+			identifier: greater.invalid
 			count: 1
 			path: app/Services/VideoSegmentationService.php
 

@@ -93,7 +93,7 @@ class VideoSegmentationService
     }
 
     /**
-     * @return array{segments: LivestreamSegment[], threshold_metadata: array}
+     * @return array<string, mixed>
      */
     public function analyzeSegments(string $rmsLogPath): array
     {
@@ -153,6 +153,11 @@ class VideoSegmentationService
         return $this->identifySermonCandidate($segments);
     }
 
+    /**
+     * @param array<int, array<string, float>> $loudSections
+     * @param array<string, mixed> $rmsData
+     * @return array<int, LivestreamSegment>
+     */
     private function combineLoudAndQuietSections(array $loudSections, float $totalDuration, array $rmsData): array
     {
         $combinedSections = [];
@@ -234,6 +239,9 @@ class VideoSegmentationService
         return $segments;
     }
 
+    /**
+     * @return array<string, float|int|string|null>
+     */
     public function getVideoMetadata(string $videoPath): array
     {
         // In testing environment, return mock metadata
@@ -391,8 +399,8 @@ class VideoSegmentationService
     /**
      * Calibrate per-song RMS threshold based on song and adjacent speech
      *
-     * @param  array{start_estimate: float, end_estimate: float, samples: array, confidence: float}  $songCluster
-     * @return array{threshold: float, song_avg_rms: float, speech_avg_rms: float}
+     * @param array<string, mixed> $songCluster
+     * @return array<string, float>
      */
     public function calibratePerSongThreshold(string $rmsLogPath, array $songCluster): array
     {
@@ -459,7 +467,7 @@ class VideoSegmentationService
     /**
      * Detect precise boundaries for a song cluster using min/max of visual and RMS boundaries
      *
-     * @param  array{start_estimate: float, end_estimate: float, samples: array, confidence: float, refined_visual_start?: float, refined_visual_end?: float}  $cluster
+     * @param array<string, mixed> $cluster
      */
     public function detectBoundariesForCluster(
         string $rmsLogPath,

@@ -22,6 +22,9 @@ class SermonJobPipelineService
 
     /**
      * Create and dispatch processing jobs for the sermon
+     *
+     * @param array<int, mixed> $jobs
+     * @param array<string, mixed> $livestreamMetadata
      */
     public function dispatchProcessingJobs(
         array $jobs,
@@ -59,6 +62,8 @@ class SermonJobPipelineService
 
     /**
      * Create initial processing log entry with livestream context
+     *
+     * @param array<string, mixed> $livestreamMetadata
      */
     public function createProcessingLogWithLivestreamContext(
         string $processingId,
@@ -177,6 +182,8 @@ class SermonJobPipelineService
 
     /**
      * Check if this is livestream audio processing
+     *
+     * @param array<string, mixed> $metadata
      */
     private function isLivestreamAudio(array $metadata): bool
     {
@@ -204,6 +211,9 @@ class SermonJobPipelineService
 
     /**
      * Build sermon processing pipeline using the builder
+     *
+     * @param array<string, mixed> $livestreamMetadata
+     * @return array<int, mixed>
      */
     public function buildSermonProcessingPipeline(
         MediaProcessingLog $processingLog,
