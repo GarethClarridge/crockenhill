@@ -99,7 +99,15 @@ class VideoStorageService
     }
 
     /**
-     * @return array<string, string>
+     * @return array{
+     *     audio_path: string,
+     *     full_path: string,
+     *     original_size: int,
+     *     final_size: int,
+     *     compression_applied: bool,
+     *     compression_ratio: float,
+     *     valid_for_transcription: bool
+     * }
      */
     public function extractOptimizedAudioFromSegment(
         string $inputVideoPath,
@@ -194,7 +202,7 @@ class VideoStorageService
     }
 
     /**
-     * @param array<int, string> $filePaths
+     * @param  array<int, string>  $filePaths
      */
     public function cleanupTemporaryFiles(array $filePaths): void
     {
@@ -202,26 +210,28 @@ class VideoStorageService
 
         // Clean up specific files passed in the array
         foreach ($filePaths as $filePath) {
-            if (is_string($filePath) && ! empty($filePath)) {
-                try {
-                    // Try temp disk first
-                    if (Storage::disk($this->tempDisk)->exists($filePath)) {
-                        Storage::disk($this->tempDisk)->delete($filePath);
-                        $deletedCount++;
-                        Log::debug('Deleted temp file', ['file' => $filePath, 'disk' => $this->tempDisk]);
-                    }
-                    // Check if it's an absolute path (for local files)
-                    elseif (file_exists($filePath)) {
-                        unlink($filePath);
-                        $deletedCount++;
-                        Log::debug('Deleted local temp file', ['file' => $filePath]);
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Failed to delete temp file', [
-                        'file' => $filePath,
-                        'error' => $e->getMessage(),
-                    ]);
+            if ($filePath === '') {
+                continue;
+            }
+
+            try {
+                // Try temp disk first
+                if (Storage::disk($this->tempDisk)->exists($filePath)) {
+                    Storage::disk($this->tempDisk)->delete($filePath);
+                    $deletedCount++;
+                    Log::debug('Deleted temp file', ['file' => $filePath, 'disk' => $this->tempDisk]);
                 }
+                // Check if it's an absolute path (for local files)
+                elseif (file_exists($filePath)) {
+                    unlink($filePath);
+                    $deletedCount++;
+                    Log::debug('Deleted local temp file', ['file' => $filePath]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete temp file', [
+                    'file' => $filePath,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
@@ -429,7 +439,7 @@ class VideoStorageService
     /**
      * Move processed file to permanent storage
      *
-     * @param array<string, mixed> $uploadResult
+     * @param  array<string, mixed>  $uploadResult
      */
     public function moveToPermanent(array $uploadResult): string
     {

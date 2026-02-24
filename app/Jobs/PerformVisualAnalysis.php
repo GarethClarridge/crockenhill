@@ -213,8 +213,24 @@ class PerformVisualAnalysis implements ShouldQueue
     }
 
     /**
-     * @param  array<string, mixed>  $visualSamples
-     * @param  array<string, mixed>  $songClusters
+     * @param  array<int, array{
+     *     timestamp: float,
+     *     classification: string,
+     *     confidence: float,
+     *     brightness?: float,
+     *     contrast?: float,
+     *     edge_density?: float
+     * }>  $visualSamples
+     * @param  array<int, array{
+     *     start_estimate: float,
+     *     end_estimate: float,
+     *     sample_count: int,
+     *     samples?: array<int, float>,
+     *     confidence?: float,
+     *     refined_visual_start?: float,
+     *     refined_visual_end?: float,
+     *     dense_sample_count?: int
+     * }>  $songClusters
      */
     private function storeVisualAnalysis(array $visualSamples, array $songClusters, float $processingTime): void
     {

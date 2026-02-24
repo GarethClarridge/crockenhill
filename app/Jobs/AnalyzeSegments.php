@@ -2,7 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\LivestreamSegment;
+use App\Data\LivestreamSegment;
+use App\Models\LivestreamSegment as LivestreamSegmentModel;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoSegmentationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -62,7 +63,9 @@ class AnalyzeSegments implements ShouldQueue
                 $analysisResult = $segmentationService->analyzeSegments($this->processingLog->rms_log_path);
 
                 // Extract segments and metadata from the analysis result
+                /** @var array<int, LivestreamSegment> $segments */
                 $segments = $analysisResult['segments'];
+                /** @var array<string, mixed> $thresholdMetadata */
                 $thresholdMetadata = $analysisResult['threshold_metadata'];
             }
 
@@ -189,7 +192,7 @@ class AnalyzeSegments implements ShouldQueue
                 $segmentRecord['calibration_method'] = $segmentData->metadata['calibration_method'];
             }
 
-            LivestreamSegment::create($segmentRecord);
+            LivestreamSegmentModel::create($segmentRecord);
         }
 
         Log::info('Segments stored in database', [
@@ -201,7 +204,7 @@ class AnalyzeSegments implements ShouldQueue
     /**
      * @param  array<int, LivestreamSegment>  $segments
      */
-    private function findSermonCandidate(array $segments): ?\App\Data\LivestreamSegment
+    private function findSermonCandidate(array $segments): ?LivestreamSegment
     {
         $speechSegments = array_filter($segments, fn ($s) => $s->isSpeech());
 
@@ -212,7 +215,7 @@ class AnalyzeSegments implements ShouldQueue
         usort($speechSegments, fn ($a, $b) => $b->duration <=> $a->duration);
         $longestSpeechSegment = $speechSegments[0];
 
-        $minSermonDuration = config('media-processing.segmentation.min_sermon_duration');
+        $minSermonDuration = (float) config('media-processing.segmentation.min_sermon_duration', 300.0);
 
         if ($longestSpeechSegment->duration >= $minSermonDuration) {
             return $longestSpeechSegment;
@@ -239,7 +242,16 @@ class AnalyzeSegments implements ShouldQueue
     /**
      * Get visual clusters from processing log
      *
-     * @return array<string, mixed>|null
+     * @return array<int, array{
+     *     start_estimate: float,
+     *     end_estimate: float,
+     *     samples: array<int, float>,
+     *     confidence: float,
+     *     sample_count?: int,
+     *     refined_visual_start?: float,
+     *     refined_visual_end?: float,
+     *     dense_sample_count?: int
+     * }>|null
      */
     private function getVisualClusters(): ?array
     {
@@ -253,7 +265,16 @@ class AnalyzeSegments implements ShouldQueue
     /**
      * Analyze segments using visual guidance
      *
-     * @param  array<string, mixed>  $visualClusters
+     * @param  array<int, array{
+     *     start_estimate: float,
+     *     end_estimate: float,
+     *     samples: array<int, float>,
+     *     confidence: float,
+     *     sample_count?: int,
+     *     refined_visual_start?: float,
+     *     refined_visual_end?: float,
+     *     dense_sample_count?: int
+     * }>  $visualClusters
      * @return array<int, LivestreamSegment>
      */
     private function analyzeWithVisualGuidance(
@@ -268,6 +289,9 @@ class AnalyzeSegments implements ShouldQueue
         $fullRmsLogPath = \Illuminate\Support\Facades\Storage::disk(config('media-processing.storage.temp_disk'))
             ->path($rmsLogPath);
         $logContent = file_get_contents($fullRmsLogPath);
+        if ($logContent === false) {
+            throw new \Exception('Unable to read RMS log for visual-guided analysis');
+        }
         $lines = explode("\n", trim($logContent));
         $totalDuration = $this->getTotalDurationFromLog($lines);
 
@@ -304,15 +328,15 @@ class AnalyzeSegments implements ShouldQueue
     /**
      * Fill gaps between song segments with speech segments
      *
-     * @param  array<\App\Data\LivestreamSegment>  $songSegments
-     * @return array<\App\Data\LivestreamSegment>
+     * @param  array<LivestreamSegment>  $songSegments
+     * @return array<LivestreamSegment>
      */
     private function fillGapsWithSpeechSegments(array $songSegments, float $totalDuration, int &$segmentOrder): array
     {
         if (empty($songSegments)) {
             // No songs found, entire video is speech
             return [
-                new \App\Data\LivestreamSegment(
+                new LivestreamSegment(
                     startTime: 0.0,
                     endTime: $totalDuration,
                     duration: $totalDuration,
@@ -333,7 +357,7 @@ class AnalyzeSegments implements ShouldQueue
         foreach ($songSegments as $songSegment) {
             // Add speech segment before this song if there's a gap
             if ($songSegment->startTime > $previousEnd) {
-                $allSegments[] = new \App\Data\LivestreamSegment(
+                $allSegments[] = new LivestreamSegment(
                     startTime: $previousEnd,
                     endTime: $songSegment->startTime,
                     duration: $songSegment->startTime - $previousEnd,
@@ -351,7 +375,7 @@ class AnalyzeSegments implements ShouldQueue
 
         // Add final speech segment if needed
         if ($previousEnd < $totalDuration) {
-            $allSegments[] = new \App\Data\LivestreamSegment(
+            $allSegments[] = new LivestreamSegment(
                 startTime: $previousEnd,
                 endTime: $totalDuration,
                 duration: $totalDuration - $previousEnd,

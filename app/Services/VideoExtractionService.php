@@ -83,7 +83,7 @@ class VideoExtractionService
      * @return string|UploadedFile Based on options['return_type']
      */
     /**
-     * @param array<string, mixed> $options
+     * @param  array<string, mixed>  $options
      */
     public function extractSegment(string $inputPath, object $segment, array $options = []): string|UploadedFile
     {
@@ -312,7 +312,7 @@ class VideoExtractionService
     /**
      * Extract audio from video segment
      *
-     * @param array<string, mixed> $compressionOptions
+     * @param  array<string, mixed>  $compressionOptions
      */
     public function extractAudio(
         string $inputVideoPath,
@@ -393,7 +393,15 @@ class VideoExtractionService
      * Extract optimized audio from segment with compression validation.
      * Delegates to AudioCompressionService; passes its own S3 upload handler.
      *
-     * @return array<string, string|bool>
+     * @return array{
+     *     audio_path: string,
+     *     full_path: string,
+     *     original_size: int,
+     *     final_size: int,
+     *     compression_applied: bool,
+     *     compression_ratio: float,
+     *     valid_for_transcription: bool
+     * }
      */
     public function extractOptimizedAudio(
         string $inputVideoPath,
@@ -449,7 +457,6 @@ class VideoExtractionService
         $s3Config = config('media-processing.s3_processing');
         $maxRetries = $s3Config['retry_attempts'] ?? 3;
         $retryDelay = $s3Config['retry_delay'] ?? 5;
-        $uploadTimeout = $s3Config['upload_timeout'] ?? 300;
 
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
             try {
@@ -551,10 +558,9 @@ class VideoExtractionService
     }
 
     /**
-     * Get the appropriate output path - temporary for S3 disks, direct for local disks
-     */
-    /**
-     * @return array<string, string>
+     * Get the appropriate output path - temporary for S3 disks, direct for local disks.
+     *
+     * @return array{processing_path: string, permanent_path: string, use_temp_processing: bool}
      */
     private function getProcessingOutputPath(string $filename): array
     {
@@ -622,7 +628,16 @@ class VideoExtractionService
      * Alias for extractOptimizedAudio for backward compatibility
      *
      * @deprecated Use extractOptimizedAudio instead
-     * @return array<string, string|bool>
+     *
+     * @return array{
+     *     audio_path: string,
+     *     full_path: string,
+     *     original_size: int,
+     *     final_size: int,
+     *     compression_applied: bool,
+     *     compression_ratio: float,
+     *     valid_for_transcription: bool
+     * }
      */
     public function extractOptimizedAudioFromSegment(
         string $inputVideoPath,

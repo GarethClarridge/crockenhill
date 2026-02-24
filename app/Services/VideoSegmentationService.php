@@ -398,7 +398,16 @@ class VideoSegmentationService
     /**
      * Calibrate per-song RMS threshold based on song and adjacent speech
      *
-     * @param  array<string, mixed>  $songCluster
+     * @param  array{
+     *     start_estimate: float,
+     *     end_estimate: float,
+     *     samples: array<int, float>,
+     *     confidence: float,
+     *     sample_count?: int,
+     *     refined_visual_start?: float,
+     *     refined_visual_end?: float,
+     *     dense_sample_count?: int
+     * }  $songCluster
      * @return array<string, float>
      */
     public function calibratePerSongThreshold(string $rmsLogPath, array $songCluster): array
@@ -417,7 +426,7 @@ class VideoSegmentationService
 
             $songAvgRms = array_sum($songRmsValues) / count($songRmsValues);
 
-            $speechBuffer = config('media-processing.visual_analysis.calibration_speech_buffer', 60);
+            $speechBuffer = (float) config('media-processing.visual_analysis.calibration_speech_buffer', 60);
             $beforeStart = max(0, $songCluster['start_estimate'] - $speechBuffer);
             $afterEnd = $songCluster['end_estimate'];
 
@@ -437,8 +446,8 @@ class VideoSegmentationService
 
             $threshold = ($songAvgRms + $speechAvgRms) / 2.0;
 
-            $safetyFloor = config('media-processing.visual_analysis.threshold_safety_floor', -80.0);
-            $safetyCeiling = config('media-processing.visual_analysis.threshold_safety_ceiling', -20.0);
+            $safetyFloor = (float) config('media-processing.visual_analysis.threshold_safety_floor', -80.0);
+            $safetyCeiling = (float) config('media-processing.visual_analysis.threshold_safety_ceiling', -20.0);
             $threshold = max($safetyFloor, min($safetyCeiling, $threshold));
 
             Log::info('Per-song threshold calibrated', [
@@ -466,7 +475,16 @@ class VideoSegmentationService
     /**
      * Detect precise boundaries for a song cluster using min/max of visual and RMS boundaries
      *
-     * @param  array<string, mixed>  $cluster
+     * @param  array{
+     *     start_estimate: float,
+     *     end_estimate: float,
+     *     samples: array<int, float>,
+     *     confidence: float,
+     *     sample_count?: int,
+     *     refined_visual_start?: float,
+     *     refined_visual_end?: float,
+     *     dense_sample_count?: int
+     * }  $cluster
      */
     public function detectBoundariesForCluster(
         string $rmsLogPath,
@@ -478,12 +496,12 @@ class VideoSegmentationService
             $logContent = $this->getFileContents($fullRmsLogPath, $rmsLogPath);
 
             // Get refined visual boundaries if available, otherwise use estimates
-            $visualStart = $cluster['refined_visual_start'] ?? $cluster['start_estimate'];
-            $visualEnd = $cluster['refined_visual_end'] ?? $cluster['end_estimate'];
+            $visualStart = (float) ($cluster['refined_visual_start'] ?? $cluster['start_estimate']);
+            $visualEnd = (float) ($cluster['refined_visual_end'] ?? $cluster['end_estimate']);
 
             // Define search region for RMS boundaries
-            $introBuffer = config('media-processing.visual_analysis.intro_search_buffer', 120);
-            $outroBuffer = config('media-processing.visual_analysis.outro_search_buffer', 60);
+            $introBuffer = (float) config('media-processing.visual_analysis.intro_search_buffer', 120);
+            $outroBuffer = (float) config('media-processing.visual_analysis.outro_search_buffer', 60);
 
             $searchStart = max(0, $visualStart - $introBuffer);
             $searchEnd = $visualEnd + $outroBuffer;
