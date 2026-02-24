@@ -64,7 +64,8 @@ class SermonApiController extends Controller
 
         $query->orderBy($sortField, $sortOrder);
 
-        $sermons = $query->paginate($request->get('per_page', 15));
+        $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
+        $sermons = $query->paginate($perPage);
 
         return SermonResource::collection($sermons);
     }

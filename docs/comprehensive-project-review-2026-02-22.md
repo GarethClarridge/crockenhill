@@ -116,7 +116,7 @@ Recommendation:
 2. Add a string enum constraint or migrate `media_processing_logs.status` to a proper ENUM matching the `ProcessingStatus` enum.
 3. Document the integer type convention going forward.
 
-#### H4. `LayoutPageComposer` is a 330-line complexity hotspot *in progress*
+#### H4. `LayoutPageComposer` is a 330-line complexity hotspot *Completed*
 
 *Carried forward.*
 
@@ -124,7 +124,7 @@ Evidence: [LayoutPageComposer.php](app/View/Composers/LayoutPageComposer.php) â€
 
 Recommendation: Split into focused presenter classes per page type. Keep the composer layer thin.
 
-#### H5. Public API pagination is unbounded
+#### H5. Public API pagination is unbounded *Completed*
 
 *Carried forward.*
 
