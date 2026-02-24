@@ -32,6 +32,14 @@ class LayoutPageComposer
 
     private function composeUsingProvidedPage(View $view, Page $page): void
     {
+        /**
+         * Security check: If the page is marked as an admin-only page,
+         * ensure the current user has administrative privileges.
+         */
+        if ($page->admin === 'yes' && (! auth()->check() || ! auth()->user()->is_admin)) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $viewData = $view->getData();
         $content = array_key_exists('content', $viewData)
             ? (string) $viewData['content']
@@ -140,6 +148,14 @@ class LayoutPageComposer
                 ->first();
 
             if ($page) {
+                /**
+                 * Security check: If the page is marked as an admin-only page,
+                 * ensure the current user has administrative privileges.
+                 */
+                if ($page->admin === 'yes' && (! auth()->check() || ! auth()->user()->is_admin)) {
+                    abort(403, 'Unauthorized action.');
+                }
+
                 $description = '<meta name="description" content="'.$page->description.'">';
                 $heading = $page->heading;
                 $content = htmlspecialchars_decode($page->body);
@@ -187,6 +203,14 @@ class LayoutPageComposer
                 ->first();
 
             if ($page) {
+                /**
+                 * Security check: If the page is marked as an admin-only page,
+                 * ensure the current user has administrative privileges.
+                 */
+                if ($page->admin === 'yes' && (! auth()->check() || ! auth()->user()->is_admin)) {
+                    abort(403, 'Unauthorized action.');
+                }
+
                 $description = '<meta name="description" content="'.$page->description.'">';
                 $heading = $page->heading;
                 $content = htmlspecialchars_decode($page->body);

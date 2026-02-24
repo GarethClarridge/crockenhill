@@ -37,6 +37,14 @@ class PageController extends Controller
             abort(404, 'Page not found');
         }
 
+        /**
+         * Security check: If the page is marked as an admin-only page,
+         * ensure the current user has administrative privileges.
+         */
+        if ($page->admin === 'yes' && (! auth()->check() || ! auth()->user()->is_admin)) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $html = $markdownRenderer->convert($page->markdown);
 
         return View::make('layouts/page')->with([

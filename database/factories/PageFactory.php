@@ -18,7 +18,7 @@ class PageFactory extends Factory
             'description' => $this->faker->sentence(10),
             'area' => $this->faker->randomElement(PageArea::values()),
             'body' => $this->faker->paragraphs(3, true),
-            'admin' => $this->faker->randomElement(['yes', 'no']),
+            'admin' => 'no',
             'markdown' => $this->faker->paragraphs(2, true),
             'navigation' => $this->faker->boolean(70),
         ];
@@ -36,6 +36,15 @@ class PageFactory extends Factory
     public function isNotNavigation(): Factory
     {
         return $this->isNavigation(false);
+    }
+
+    public function admin(bool $isAdmin = true): Factory
+    {
+        return $this->state(function (array $attributes) use ($isAdmin) {
+            return [
+                'admin' => $isAdmin ? 'yes' : 'no',
+            ];
+        });
     }
 
     public function inArea(string|\App\Enums\PageArea $area): Factory
