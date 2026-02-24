@@ -6,6 +6,7 @@ use App\Data\SermonCreationOptions;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\PreacherResolutionService;
 use App\Services\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -20,7 +21,7 @@ class SermonCreationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonCreationService;
+        $this->service = new SermonCreationService(new PreacherResolutionService);
     }
 
     #[Test]

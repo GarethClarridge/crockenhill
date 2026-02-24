@@ -154,7 +154,7 @@ Evidence:
 
 Recommendation: Remove dead services. Replace string literals with enum values for type safety.
 
-#### M2. `SermonAdminController` is a refactoring candidate
+#### M2. `SermonAdminController` is a refactoring candidate *Completed*
 
 Evidence:
 - 228 lines with preacher resolution logic, date validation, and JSON parsing mixed into the `update()` method

@@ -6,15 +6,14 @@ use App\Data\SermonCreationOptions;
 use App\Enums\PreacherSource;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
-use App\Models\Preacher;
-use App\Models\PreacherAlias;
 use App\Models\Sermon;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SermonCreationService
 {
+    public function __construct(private readonly PreacherResolutionService $preacherResolutionService) {}
+
     /**
      * Create a sermon record with all necessary metadata
      */
@@ -56,7 +55,7 @@ class SermonCreationService
         $preacherName = $id3Preacher ?? 'Visiting Speaker';
         $preacherSource = $id3Preacher !== null ? PreacherSource::ID3 : PreacherSource::DEFAULT;
         $needsReview = $preacherSource === PreacherSource::DEFAULT;
-        $preacherModel = $this->resolvePreacher($preacherName);
+        $preacherModel = $this->preacherResolutionService->resolve($preacherName);
 
         // Build sermon data
         $sermonData = [
@@ -110,105 +109,15 @@ class SermonCreationService
         return Sermon::create($sermonData);
     }
 
-    /**
-     * Resolve a preacher name to a canonical Preacher model.
-     * Looks up via PreacherAlias, then by slug. Creates the record on the fly if not found.
-     */
-    private function resolvePreacher(string $name): Preacher
-    {
-        $normalizedName = $this->normalizeAlias($name);
-
-        if ($normalizedName === '') {
-            $normalizedName = 'visiting speaker';
-            $name = 'Visiting Speaker';
-        }
-
-        $alias = PreacherAlias::where('alias', $normalizedName)->first();
-
-        if ($alias) {
-            return $alias->preacher;
-        }
-
-        $canonicalName = Str::title($this->normalizeWhitespace($name));
-        $slug = Str::slug($canonicalName);
-
-        $preacher = $this->findOrCreatePreacher($slug, $canonicalName);
-        $alias = $this->findOrCreateAlias($normalizedName, $preacher->id);
-
-        if ($alias->preacher_id !== $preacher->id) {
-            return $alias->preacher;
-        }
-
-        return $preacher;
-    }
-
     private function normalizePreacherInput(?string $name): ?string
     {
         if ($name === null) {
             return null;
         }
 
-        $normalized = $this->normalizeWhitespace($name);
+        $normalized = $this->preacherResolutionService->normalizeWhitespace($name);
 
         return $normalized === '' ? null : $normalized;
-    }
-
-    private function normalizeAlias(string $value): string
-    {
-        return strtolower($this->normalizeWhitespace($value));
-    }
-
-    private function normalizeWhitespace(string $value): string
-    {
-        return trim(preg_replace('/\s+/', ' ', $value) ?? $value);
-    }
-
-    private function findOrCreatePreacher(string $slug, string $name): Preacher
-    {
-        try {
-            return Preacher::firstOrCreate(
-                ['slug' => $slug],
-                ['name' => $name, 'is_active' => true]
-            );
-        } catch (QueryException $e) {
-            if ($this->isUniqueConstraintViolation($e)) {
-                $existing = Preacher::where('slug', $slug)->first();
-                if ($existing) {
-                    return $existing;
-                }
-            }
-
-            throw $e;
-        }
-    }
-
-    private function findOrCreateAlias(string $alias, int $preacherId): PreacherAlias
-    {
-        try {
-            return PreacherAlias::firstOrCreate(
-                ['alias' => $alias],
-                ['preacher_id' => $preacherId]
-            );
-        } catch (QueryException $e) {
-            if ($this->isUniqueConstraintViolation($e)) {
-                $existing = PreacherAlias::where('alias', $alias)->first();
-                if ($existing) {
-                    return $existing;
-                }
-            }
-
-            throw $e;
-        }
-    }
-
-    private function isUniqueConstraintViolation(QueryException $exception): bool
-    {
-        $sqlState = $exception->errorInfo[0] ?? null;
-        $driverCode = (int) ($exception->errorInfo[1] ?? 0);
-
-        // MySQL: 23000/1062, PostgreSQL: 23505, SQLite: 23000/19
-        return $sqlState === '23505'
-            || ($sqlState === '23000' && in_array($driverCode, [19, 1062], true));
     }
 
     /**
