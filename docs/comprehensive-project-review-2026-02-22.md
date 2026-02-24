@@ -102,7 +102,7 @@ Evidence:
 
 Recommendation: Regenerate the dump or remove it and rely on full migration replay.
 
-#### H3. Database schema inconsistencies from incremental evolution *In progress*
+#### H3. Database schema inconsistencies from incremental evolution *Completed*
 
 Evidence:
 - **Inconsistent cascading deletes**: `media_processing_logs` cascades on sermon delete, but the older `sermon_processing_logs` uses `SET NULL` — inconsistent behavior for the same conceptual relationship.
@@ -116,7 +116,7 @@ Recommendation:
 2. Add a string enum constraint or migrate `media_processing_logs.status` to a proper ENUM matching the `ProcessingStatus` enum.
 3. Document the integer type convention going forward.
 
-#### H4. `LayoutPageComposer` is a 330-line complexity hotspot
+#### H4. `LayoutPageComposer` is a 330-line complexity hotspot *in progress*
 
 *Carried forward.*
 
