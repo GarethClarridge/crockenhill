@@ -1213,42 +1213,6 @@ parameters:
 			path: app/Repositories/SermonRepository.php
 
 		-
-			message: '#^Method App\\Services\\CalendarService\:\:createEventForMeeting\(\) has parameter \$eventData with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/CalendarService.php
-
-		-
-			message: '#^Method App\\Services\\CalendarService\:\:getAllUpcomingEvents\(\) return type with generic class Illuminate\\Database\\Eloquent\\Collection does not specify its types\: TKey, TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Services/CalendarService.php
-
-		-
-			message: '#^Method App\\Services\\CalendarService\:\:getCachedEventsForMeeting\(\) return type with generic class Illuminate\\Database\\Eloquent\\Collection does not specify its types\: TKey, TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Services/CalendarService.php
-
-		-
-			message: '#^Method App\\Services\\CalendarService\:\:getEventsForMeeting\(\) return type with generic class Illuminate\\Database\\Eloquent\\Collection does not specify its types\: TKey, TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Services/CalendarService.php
-
-		-
-			message: '#^Method App\\Services\\CalendarService\:\:getUncategorizedEvents\(\) return type with generic class Illuminate\\Database\\Eloquent\\Collection does not specify its types\: TKey, TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Services/CalendarService.php
-
-		-
-			message: '#^Method App\\Services\\CalendarService\:\:syncFromGoogleCalendar\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/CalendarService.php
-
-		-
 			message: '#^Method App\\Services\\FrameExtractionService\:\:getVideoMetadata\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1

@@ -12,6 +12,9 @@ use Spatie\GoogleCalendar\Event;
 
 class CalendarService
 {
+    /**
+     * @return Collection<int, CalendarEvent>
+     */
     public function getEventsForMeeting(string $meetingSlug, ?Carbon $startDate = null, ?Carbon $endDate = null): Collection
     {
         $query = CalendarEvent::where('meeting_slug', $meetingSlug)
@@ -29,6 +32,9 @@ class CalendarService
         return $query->get();
     }
 
+    /**
+     * @return Collection<int, CalendarEvent>
+     */
     public function getAllUpcomingEvents(?Carbon $startDate = null, ?Carbon $endDate = null): Collection
     {
         $query = CalendarEvent::where('status', '!=', 'cancelled')
@@ -42,6 +48,9 @@ class CalendarService
         return $query->get();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function syncFromGoogleCalendar(): array
     {
         $startDate = now()->subMonths(config('calendar.sync_window.past_months', 3));
@@ -140,6 +149,9 @@ class CalendarService
         return $calendarEvent;
     }
 
+    /**
+     * @param array<string, mixed> $eventData
+     */
     public function createEventForMeeting(string $meetingSlug, array $eventData): Event
     {
         $meeting = Meeting::where('slug', $meetingSlug)->firstOrFail();
@@ -204,6 +216,9 @@ class CalendarService
         return config('calendar.uncategorized_slug', 'uncategorized');
     }
 
+    /**
+     * @return Collection<int, CalendarEvent>
+     */
     public function getUncategorizedEvents(): Collection
     {
         return CalendarEvent::where('meeting_slug', config('calendar.uncategorized_slug', 'uncategorized'))
@@ -246,6 +261,9 @@ class CalendarService
         return $event;
     }
 
+    /**
+     * @return Collection<int, CalendarEvent>
+     */
     public function getCachedEventsForMeeting(string $meetingSlug, ?Carbon $startDate = null, ?Carbon $endDate = null): Collection
     {
         $cacheKey = "meeting_events_{$meetingSlug}_".($startDate?->format('Y-m-d') ?? 'all').'_'.($endDate?->format('Y-m-d') ?? 'all');
