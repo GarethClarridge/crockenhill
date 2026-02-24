@@ -30,6 +30,9 @@ class EditCalendarEvent extends Component
 
     public ?string $meetingSlug = null;
 
+    /**
+     * @return array<string, string>
+     */
     protected function rules(): array
     {
         return [

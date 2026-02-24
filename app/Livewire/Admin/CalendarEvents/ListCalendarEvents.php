@@ -23,6 +23,7 @@ class ListCalendarEvents extends Component
 
     public bool $upcomingOnly = true;
 
+    /** @var array<int, string> */
     protected array $queryString = ['search', 'meetingFilter', 'uncategorizedOnly', 'upcomingOnly'];
 
     public function updatedSearch(): void

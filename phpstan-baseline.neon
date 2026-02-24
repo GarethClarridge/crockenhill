@@ -133,18 +133,6 @@ parameters:
 			path: app/Jobs/AnalyzeSegments.php
 
 		-
-			message: '#^Method App\\Livewire\\Admin\\CalendarEvents\\EditCalendarEvent\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Livewire/Admin/CalendarEvents/EditCalendarEvent.php
-
-		-
-			message: '#^Property App\\Livewire\\Admin\\CalendarEvents\\ListCalendarEvents\:\:\$queryString type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Livewire/Admin/CalendarEvents/ListCalendarEvents.php
-
-		-
 			message: '#^Method App\\Livewire\\Admin\\Components\\ResourceTable\:\:getHeaders\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -175,12 +163,6 @@ parameters:
 			path: app/Livewire/Admin/Meetings/CreateMeeting.php
 
 		-
-			message: '#^Method App\\Livewire\\Admin\\Meetings\\CreateMeeting\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Livewire/Admin/Meetings/CreateMeeting.php
-
-		-
 			message: '#^Method App\\Livewire\\Admin\\Meetings\\EditMeeting\:\:getFrequencyOptions\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -188,12 +170,6 @@ parameters:
 
 		-
 			message: '#^Method App\\Livewire\\Admin\\Meetings\\EditMeeting\:\:getTypeOptions\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Livewire/Admin/Meetings/EditMeeting.php
-
-		-
-			message: '#^Method App\\Livewire\\Admin\\Meetings\\EditMeeting\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: app/Livewire/Admin/Meetings/EditMeeting.php

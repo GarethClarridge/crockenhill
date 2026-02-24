@@ -37,6 +37,9 @@ trait MeetingForm
 
     public ?int $pageId = null;
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function rules(): array
     {
         $meetingId = isset($this->meeting) && $this->meeting->exists ? $this->meeting->id : '';
