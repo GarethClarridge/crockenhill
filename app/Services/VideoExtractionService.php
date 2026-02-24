@@ -82,6 +82,9 @@ class VideoExtractionService
      * @param  array  $options  Extraction options
      * @return string|UploadedFile Based on options['return_type']
      */
+    /**
+     * @param array<string, mixed> $options
+     */
     public function extractSegment(string $inputPath, object $segment, array $options = []): string|UploadedFile
     {
         $returnType = $options['return_type'] ?? 'file_path';
@@ -308,6 +311,8 @@ class VideoExtractionService
 
     /**
      * Extract audio from video segment
+     *
+     * @param array<string, mixed> $compressionOptions
      */
     public function extractAudio(
         string $inputVideoPath,
@@ -387,6 +392,8 @@ class VideoExtractionService
     /**
      * Extract optimized audio from segment with compression validation.
      * Delegates to AudioCompressionService; passes its own S3 upload handler.
+     *
+     * @return array<string, string|bool>
      */
     public function extractOptimizedAudio(
         string $inputVideoPath,
@@ -546,6 +553,9 @@ class VideoExtractionService
     /**
      * Get the appropriate output path - temporary for S3 disks, direct for local disks
      */
+    /**
+     * @return array<string, string>
+     */
     private function getProcessingOutputPath(string $filename): array
     {
         $permanentPath = $this->audioPath.'/'.$filename;
@@ -612,6 +622,7 @@ class VideoExtractionService
      * Alias for extractOptimizedAudio for backward compatibility
      *
      * @deprecated Use extractOptimizedAudio instead
+     * @return array<string, string|bool>
      */
     public function extractOptimizedAudioFromSegment(
         string $inputVideoPath,

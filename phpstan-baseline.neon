@@ -133,6 +133,18 @@ parameters:
 			path: app/Jobs/AnalyzeSegments.php
 
 		-
+			message: '#^Parameter \#1 \$num of function round expects float\|int, bool\|string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Jobs/ExtractAudioFromVideo.php
+
+		-
+			message: '#^Parameter \#1 \$num of function round expects float\|int, bool\|string given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Jobs/ExtractSermon.php
+
+		-
 			message: '#^Parameter \#2 \$songClusters of method App\\Jobs\\PerformVisualAnalysis\:\:storeVisualAnalysis\(\) expects array\<string, mixed\>, array\<int, array\<string, array\<int, float\>\|float\|int\>\> given\.$#'
 			identifier: argument.type
 			count: 2
@@ -1495,32 +1507,20 @@ parameters:
 			path: app/Services/UnifiedMediaProcessor.php
 
 		-
-			message: '#^Method App\\Services\\VideoExtractionService\:\:extractAudio\(\) has parameter \$compressionOptions with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Method App\\Services\\VideoExtractionService\:\:extractOptimizedAudio\(\) should return array\<string, bool\|string\> but returns array\<string, bool\|float\|int\|string\>\.$#'
+			identifier: return.type
 			count: 1
 			path: app/Services/VideoExtractionService.php
 
 		-
-			message: '#^Method App\\Services\\VideoExtractionService\:\:extractOptimizedAudio\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Method App\\Services\\VideoExtractionService\:\:getProcessingOutputPath\(\) should return array\<string, string\> but returns array\<string, string\|false\>\.$#'
+			identifier: return.type
 			count: 1
 			path: app/Services/VideoExtractionService.php
 
 		-
-			message: '#^Method App\\Services\\VideoExtractionService\:\:extractOptimizedAudioFromSegment\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/VideoExtractionService.php
-
-		-
-			message: '#^Method App\\Services\\VideoExtractionService\:\:extractSegment\(\) has parameter \$options with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/VideoExtractionService.php
-
-		-
-			message: '#^Method App\\Services\\VideoExtractionService\:\:getProcessingOutputPath\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Method App\\Services\\VideoExtractionService\:\:getProcessingOutputPath\(\) should return array\<string, string\> but returns array\<string, string\|true\>\.$#'
+			identifier: return.type
 			count: 1
 			path: app/Services/VideoExtractionService.php
 
