@@ -10,6 +10,8 @@ class SermonProcessingLogger
 {
     /**
      * Log the start of sermon processing.
+     *
+     * @param array<string, mixed> $metadata
      */
     public function logProcessingStart(string $processingId, string $filename, array $metadata = []): void
     {
@@ -27,6 +29,8 @@ class SermonProcessingLogger
 
     /**
      * Log a processing step with performance metrics.
+     *
+     * @param array<string, mixed> $metrics
      */
     public function logProcessingStep(
         string $processingId,
@@ -63,6 +67,8 @@ class SermonProcessingLogger
 
     /**
      * Log API call performance and results.
+     *
+     * @param array<string, mixed> $additionalContext
      */
     public function logApiCall(
         string $processingId,
@@ -127,6 +133,8 @@ class SermonProcessingLogger
 
     /**
      * Log processing completion with comprehensive statistics.
+     *
+     * @param array<string, mixed> $statistics
      */
     public function logProcessingComplete(
         string $processingId,
@@ -153,6 +161,8 @@ class SermonProcessingLogger
 
     /**
      * Log error with detailed context for troubleshooting.
+     *
+     * @param array<string, mixed> $additionalContext
      */
     public function logError(
         string $processingId,
@@ -178,6 +188,8 @@ class SermonProcessingLogger
 
     /**
      * Log performance metrics for monitoring.
+     *
+     * @param array<string, mixed> $metrics
      */
     public function logPerformanceMetrics(string $processingId, array $metrics): void
     {
@@ -192,6 +204,8 @@ class SermonProcessingLogger
 
     /**
      * Log system health check results.
+     *
+     * @param array<string, mixed> $result
      */
     public function logHealthCheck(string $checkName, array $result): void
     {
@@ -214,6 +228,8 @@ class SermonProcessingLogger
 
     /**
      * Generate processing statistics from logs.
+     *
+     * @return array<string, mixed>
      */
     public function generateProcessingStatistics(int $days = 7): array
     {

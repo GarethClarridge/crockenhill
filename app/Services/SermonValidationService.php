@@ -52,6 +52,9 @@ class SermonValidationService
 
     /**
      * Validate processing metadata
+     *
+     * @param array<string, mixed> $metadata
+     * @return array<int, string>
      */
     public function validateProcessingMetadata(array $metadata): array
     {
@@ -92,6 +95,8 @@ class SermonValidationService
 
     /**
      * Generate fallback data for graceful degradation
+     *
+     * @return array<string, mixed>
      */
     public function generateFallbackData(Sermon $sermon, MediaProcessingLog $processingLog): array
     {
@@ -160,6 +165,9 @@ class SermonValidationService
 
     /**
      * Validate sermon data before creation/update
+     *
+     * @param array<string, mixed> $data
+     * @return array<int, string>
      */
     public function validateSermonData(array $data): array
     {
@@ -224,6 +232,8 @@ class SermonValidationService
 
     /**
      * Validate file storage constraints
+     *
+     * @return array<int, string>
      */
     public function validateStorageConstraints(UploadedFile $file): array
     {
@@ -263,6 +273,8 @@ class SermonValidationService
 
     /**
      * Validate processing requirements
+     *
+     * @return array<int, string>
      */
     public function validateProcessingRequirements(): array
     {

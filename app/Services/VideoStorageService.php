@@ -46,6 +46,9 @@ class VideoStorageService
         $this->audioPath = config('media-processing.storage.paths.audio', 'sermons/audio');
     }
 
+    /**
+     * @return array<string, string|int|null>
+     */
     public function storeUploadedVideo(UploadedFile $file): array
     {
         try {
@@ -95,6 +98,9 @@ class VideoStorageService
         return $this->videoExtractor->extractAudio($inputVideoPath, $segment, [], $outputFilename);
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function extractOptimizedAudioFromSegment(
         string $inputVideoPath,
         LivestreamSegment $segment,
@@ -108,6 +114,9 @@ class VideoStorageService
         );
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function moveToSermonStorage(string $tempVideoPath, string $sermonSlug): array
     {
         try {
@@ -184,6 +193,9 @@ class VideoStorageService
         }
     }
 
+    /**
+     * @param array<int, string> $filePaths
+     */
     public function cleanupTemporaryFiles(array $filePaths): void
     {
         $deletedCount = 0;
@@ -252,6 +264,9 @@ class VideoStorageService
         return $deletedCount;
     }
 
+    /**
+     * @return array<string, int>
+     */
     public function getStorageStats(): array
     {
         try {
@@ -403,6 +418,8 @@ class VideoStorageService
 
     /**
      * Store uploaded file temporarily for processing
+     *
+     * @return array<string, string|int|null>
      */
     public function storeTemporary(UploadedFile $file): array
     {
@@ -411,6 +428,8 @@ class VideoStorageService
 
     /**
      * Move processed file to permanent storage
+     *
+     * @param array<string, mixed> $uploadResult
      */
     public function moveToPermanent(array $uploadResult): string
     {

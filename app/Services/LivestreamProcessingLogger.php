@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Log;
 
 class LivestreamProcessingLogger
 {
+    /**
+     * @param array<string, mixed> $context
+     */
     public function logProcessingStep(string $processingId, string $step, array $context = []): void
     {
         Log::info("Livestream processing step: {$step}", [
@@ -34,6 +37,9 @@ class LivestreamProcessingLogger
         ]);
     }
 
+    /**
+     * @param array<string, mixed> $context
+     */
     public function logWarning(string $processingId, string $step, string $message, array $context = []): void
     {
         Log::warning("Livestream processing warning in step: {$step}", [
@@ -45,6 +51,9 @@ class LivestreamProcessingLogger
         ]);
     }
 
+    /**
+     * @param array<string, mixed> $metrics
+     */
     public function logPerformanceMetrics(string $processingId, string $step, float $executionTime, array $metrics = []): void
     {
         Log::info("Livestream processing performance metrics: {$step}", [
@@ -87,6 +96,9 @@ class LivestreamProcessingLogger
         ]);
     }
 
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
     private function getProcessingLogs(string $processingId): Collection
     {
         $logFile = storage_path('logs/laravel.log');
@@ -107,6 +119,9 @@ class LivestreamProcessingLogger
         return $logs->filter();
     }
 
+    /**
+     * @return array<string, string>|null
+     */
     private function parseLogLine(string $line): ?array
     {
         if (preg_match('/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\].*\.(\w+):/', $line, $matches)) {
@@ -120,6 +135,10 @@ class LivestreamProcessingLogger
         return null;
     }
 
+    /**
+     * @param mixed $segments
+     * @return array<string, mixed>
+     */
     private function generateSegmentSummary($segments): array
     {
         $songSegments = $segments->where('classification', 'song');
@@ -144,6 +163,10 @@ class LivestreamProcessingLogger
         ];
     }
 
+    /**
+     * @param Collection<int, array<string, mixed>> $logs
+     * @return array<string, array<string, float|string>>
+     */
     private function extractPerformanceMetrics(Collection $logs): array
     {
         $performanceLogs = $logs->filter(function ($log) {
@@ -173,6 +196,9 @@ class LivestreamProcessingLogger
         return 'unknown';
     }
 
+    /**
+     * @param array<string, mixed> $summary
+     */
     public function logProcessingCompletion(string $processingId, bool $success, array $summary = []): void
     {
         $level = $success ? 'info' : 'error';
@@ -186,6 +212,9 @@ class LivestreamProcessingLogger
         ]);
     }
 
+    /**
+     * @return array<string, int|float|null>
+     */
     public function getRecentProcessingActivity(int $hours = 24): array
     {
         $since = now()->subHours($hours);

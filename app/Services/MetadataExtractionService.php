@@ -214,6 +214,8 @@ class MetadataExtractionService
 
     /**
      * Extract audio file information using GetID3
+     *
+     * @return array<string, float|int|string|null>
      */
     public function extractAudioInfo(UploadedFile $file): array
     {
@@ -240,6 +242,8 @@ class MetadataExtractionService
 
     /**
      * Extract audio file information from file path using GetID3
+     *
+     * @return array<string, float|int|string|null>
      */
     public function extractAudioInfoFromPath(string $filePath): array
     {
@@ -266,6 +270,8 @@ class MetadataExtractionService
 
     /**
      * Extract duration from GetID3 info array
+     *
+     * @param array<string, mixed> $info
      */
     private function extractDuration(array $info): ?float
     {
@@ -283,6 +289,8 @@ class MetadataExtractionService
 
     /**
      * Extract bitrate from GetID3 info array
+     *
+     * @param array<string, mixed> $info
      */
     private function extractBitrate(array $info): ?int
     {
@@ -300,6 +308,8 @@ class MetadataExtractionService
 
     /**
      * Extract format from GetID3 info array
+     *
+     * @param array<string, mixed> $info
      */
     private function extractFormat(array $info): ?string
     {
@@ -317,6 +327,8 @@ class MetadataExtractionService
 
     /**
      * Extract filesize from GetID3 info array or UploadedFile
+     *
+     * @param array<string, mixed> $info
      */
     private function extractFilesize(array $info, UploadedFile $file): ?int
     {
@@ -335,6 +347,8 @@ class MetadataExtractionService
 
     /**
      * Extract filesize from GetID3 info array or file path
+     *
+     * @param array<string, mixed> $info
      */
     private function extractFilesizeFromPath(array $info, string $filePath): ?int
     {
@@ -353,6 +367,8 @@ class MetadataExtractionService
 
     /**
      * Get default audio info when extraction fails
+     *
+     * @return array<string, float|int|string|null>
      */
     private function getDefaultAudioInfo(UploadedFile $file): array
     {
@@ -366,6 +382,8 @@ class MetadataExtractionService
 
     /**
      * Get default audio info from file path when extraction fails
+     *
+     * @return array<string, float|int|string|null>
      */
     private function getDefaultAudioInfoFromPath(string $filePath): array
     {
@@ -402,6 +420,8 @@ class MetadataExtractionService
 
     /**
      * Validate audio file format and quality
+     *
+     * @return array<string, bool|array<int, string>|array<string, float|int|string|null>>
      */
     public function validateAudioFile(UploadedFile $file): array
     {

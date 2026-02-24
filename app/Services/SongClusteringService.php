@@ -25,7 +25,7 @@ class SongClusteringService
      * Cluster visual samples into song periods
      *
      * @param  array<array{timestamp: float, classification: string, confidence: float}>  $visualSamples
-     * @return array<array{start_estimate: float, end_estimate: float, sample_count: int, samples: array, confidence: float}>
+     * @return array<int, array<string, float|int|array<int, float>>>
      */
     public function clusterSongPeriods(array $visualSamples): array
     {
@@ -114,7 +114,7 @@ class SongClusteringService
      * Group consecutive samples with same classification
      *
      * @param  array<array{timestamp: float, classification: string, confidence: float}>  $samples
-     * @return array<array{start_estimate: float, end_estimate: float, sample_count: int, samples: array, confidence: float}>
+     * @return array<int, array<string, float|int|array<int, float>>>
      */
     private function groupConsecutiveSamples(array $samples): array
     {
@@ -170,8 +170,8 @@ class SongClusteringService
     /**
      * Filter clusters by minimum duration
      *
-     * @param  array<array{start_estimate: float, end_estimate: float, sample_count: int, samples: array, confidence: float}>  $clusters
-     * @return array<array{start_estimate: float, end_estimate: float, sample_count: int, samples: array, confidence: float}>
+     * @param  array<int, array<string, float|int|array<int, float>>>  $clusters
+     * @return array<int, array<string, float|int|array<int, float>>>
      */
     private function filterByMinimumDuration(array $clusters, int $minDuration): array
     {
@@ -186,8 +186,8 @@ class SongClusteringService
      * Merge clusters that are close together
      * Handles brief instrumental breaks where lyrics temporarily disappear
      *
-     * @param  array<array{start_estimate: float, end_estimate: float, sample_count: int, samples: array, confidence: float}>  $clusters
-     * @return array<array{start_estimate: float, end_estimate: float, sample_count: int, samples: array, confidence: float}>
+     * @param  array<int, array<string, float|int|array<int, float>>>  $clusters
+     * @return array<int, array<string, float|int|array<int, float>>>
      */
     private function mergeCloseGaps(array $clusters, ?int $maxGap = null): array
     {

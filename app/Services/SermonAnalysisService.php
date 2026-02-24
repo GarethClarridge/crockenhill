@@ -37,7 +37,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      * Analyze sermon transcript using AI to extract comprehensive information
      *
      * @param  string  $transcript  The sermon transcript to analyze
-     * @param  array  $existingSeries  Optional array of existing series names
+     * @param  array<int, string>  $existingSeries  Optional array of existing series names
      * @return SermonAnalysis The analyzed sermon data
      *
      * @throws Exception When analysis fails
@@ -111,9 +111,9 @@ class SermonAnalysisService implements SermonAnalysisInterface
      * Perform comprehensive AI analysis using OpenAI GPT API
      *
      * @param  string  $transcript  The sermon transcript
-     * @param  array  $existingSeries  Array of existing series names
+     * @param  array<int, string>  $existingSeries  Array of existing series names
      * @param  string  $processingId  Processing ID for logging
-     * @return array The parsed analysis results
+     * @return array<string, mixed> The parsed analysis results
      *
      * @throws Exception When AI analysis fails
      */
@@ -295,7 +295,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      * Build comprehensive analysis prompt for OpenAI
      *
      * @param  string  $transcript  The sermon transcript
-     * @param  array  $existingSeries  Array of existing series names
+     * @param  array<int, string>  $existingSeries  Array of existing series names
      * @return string The formatted prompt
      */
     private function buildAnalysisPrompt(string $transcript, array $existingSeries): string
@@ -365,9 +365,9 @@ PROMPT;
     /**
      * Validate and clean the AI analysis data
      *
-     * @param  array  $analysisData  Raw analysis data from AI
+     * @param  array<string, mixed>  $analysisData  Raw analysis data from AI
      * @param  string  $originalTranscript  Original transcript for fallback
-     * @return array Validated and cleaned analysis data
+     * @return array<string, mixed> Validated and cleaned analysis data
      */
     private function validateAndCleanAnalysisData(array $analysisData, string $originalTranscript): array
     {
@@ -526,7 +526,7 @@ PROMPT;
     /**
      * Get existing sermon series from database
      *
-     * @return array Array of unique series names
+     * @return array<int, string> Array of unique series names
      */
     private function getExistingSeries(): array
     {
@@ -594,7 +594,7 @@ PROMPT;
      * Get fallback analysis data when AI processing fails
      *
      * @param  string  $transcript  Original transcript
-     * @return array Fallback analysis data
+     * @return array<string, mixed> Fallback analysis data
      */
     private function getFallbackAnalysisData(string $transcript): array
     {
@@ -679,7 +679,7 @@ PROMPT;
      * Identify series from transcript and existing series list
      *
      * @param  string  $transcript  The sermon transcript
-     * @param  array  $existingSeries  Array of existing series names
+     * @param  array<int, string>  $existingSeries  Array of existing series names
      * @return string|null Matched series name or null
      *
      * @throws Exception When series identification fails
@@ -734,7 +734,7 @@ PROMPT;
      * Extract sermon points/headings from transcript
      *
      * @param  string  $transcript  The sermon transcript
-     * @return array Array of sermon points
+     * @return array<int, string> Array of sermon points
      *
      * @throws Exception When point extraction fails
      */
