@@ -226,6 +226,55 @@ class SitemapCacheTest extends TestCase
     }
 
     #[Test]
+    public function nav_pages_cache_is_populated_on_first_header_request(): void
+    {
+        Cache::forget('nav_pages');
+
+        $this->assertFalse(Cache::has('nav_pages'));
+
+        $this->get('/');
+
+        $this->assertTrue(Cache::has('nav_pages'));
+    }
+
+    #[Test]
+    public function nav_pages_cache_is_invalidated_when_page_is_created(): void
+    {
+        $this->get('/');
+        $this->assertTrue(Cache::has('nav_pages'));
+
+        Page::factory()->create(['slug' => 'new-nav-page', 'area' => 'church', 'admin' => 'no']);
+
+        $this->assertFalse(Cache::has('nav_pages'));
+    }
+
+    #[Test]
+    public function nav_pages_cache_is_invalidated_when_page_is_updated(): void
+    {
+        $page = Page::factory()->create(['slug' => 'nav-page', 'area' => 'church', 'admin' => 'no']);
+
+        $this->get('/');
+        $this->assertTrue(Cache::has('nav_pages'));
+
+        $page->update(['heading' => 'Updated Heading']);
+
+        $this->assertFalse(Cache::has('nav_pages'));
+    }
+
+    #[Test]
+    public function nav_pages_cache_is_invalidated_when_page_is_deleted(): void
+    {
+        $page = Page::factory()->create(['slug' => 'nav-page', 'area' => 'church', 'admin' => 'no']);
+
+        $this->get('/');
+        $this->assertTrue(Cache::has('nav_pages'));
+
+        $page->delete();
+
+        $this->assertFalse(Cache::has('nav_pages'));
+    }
+
+    #[Test]
     public function multiple_model_changes_only_invalidate_cache_once(): void
     {
         // Generate initial sitemap

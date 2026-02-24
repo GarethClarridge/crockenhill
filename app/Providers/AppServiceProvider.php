@@ -15,6 +15,7 @@ use App\Services\SermonAnalysisService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -40,9 +41,9 @@ class AppServiceProvider extends ServiceProvider
             $view->with('user', Auth::user());
         });
 
-        // Share $pages with the header component
+        // Share $pages with the header component (cached to avoid a DB query on every request)
         View::composer('components.layout.header', function ($view) {
-            $view->with('pages', Page::isNavigation()->get());
+            $view->with('pages', Cache::rememberForever('nav_pages', fn () => Page::isNavigation()->get()));
         });
 
         // Register sitemap cache observers

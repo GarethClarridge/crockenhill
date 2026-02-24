@@ -132,7 +132,7 @@ Evidence: `per_page` passed directly to `paginate()` at [SermonApiController.php
 
 Recommendation: `min(max((int) $request->get('per_page', 15), 1), 100)`.
 
-#### H6. View composer queries the database on every request
+#### H6. View composer queries the database on every request *Completed*
 
 Evidence: [AppServiceProvider.php:74](app/Providers/AppServiceProvider.php#L74) — `Page::isNavigation()->get()` runs on every request for the header component.
 

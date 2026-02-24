@@ -12,6 +12,7 @@ class SitemapCacheObserver
     public function created($model): void
     {
         Cache::forget('sitemap');
+        Cache::forget('nav_pages');
     }
 
     /**
@@ -20,6 +21,7 @@ class SitemapCacheObserver
     public function updated($model): void
     {
         Cache::forget('sitemap');
+        Cache::forget('nav_pages');
     }
 
     /**
@@ -28,5 +30,6 @@ class SitemapCacheObserver
     public function deleted($model): void
     {
         Cache::forget('sitemap');
+        Cache::forget('nav_pages');
     }
 }
