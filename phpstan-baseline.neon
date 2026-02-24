@@ -1,12 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Method App\\Console\\Commands\\CleanupOrphanedTempFiles\:\:cleanupDirectory\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Console/Commands/CleanupOrphanedTempFiles.php
-
-		-
 			message: '#^Method App\\Console\\Commands\\ConvertJpgToWebp\:\:buildReplacementPatterns\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -61,52 +55,10 @@ parameters:
 			path: app/Console/Commands/ConvertJpgToWebp.php
 
 		-
-			message: '#^Method App\\Console\\Commands\\CreateApiToken\:\:handle\(\) has no return type specified\.$#'
-			identifier: missingType.return
-			count: 1
-			path: app/Console/Commands/CreateApiToken.php
-
-		-
 			message: '#^Method App\\Console\\Commands\\ExtractVideoFrames\:\:extractAtTimestamps\(\) has parameter \$timestamps with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: app/Console/Commands/ExtractVideoFrames.php
-
-		-
-			message: '#^Method App\\Console\\Commands\\FixUploadDirectories\:\:handle\(\) has no return type specified\.$#'
-			identifier: missingType.return
-			count: 1
-			path: app/Console/Commands/FixUploadDirectories.php
-
-		-
-			message: '#^Property App\\Console\\Commands\\MigrateImagesToStorage\:\:\$stats type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Console/Commands/MigrateImagesToStorage.php
-
-		-
-			message: '#^Method App\\Console\\Commands\\MigrateSermonStorageCommand\:\:migrateLegacySermons\(\) has parameter \$sermons with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: app/Console/Commands/MigrateSermonStorageCommand.php
-
-		-
-			message: '#^Method App\\Console\\Commands\\MigrateSermonStorageCommand\:\:migrateProcessingSermons\(\) has parameter \$sermons with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: app/Console/Commands/MigrateSermonStorageCommand.php
-
-		-
-			message: '#^Method App\\Console\\Commands\\MigrateSermonStorageCommand\:\:migrateStorageSermons\(\) has parameter \$sermons with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: app/Console/Commands/MigrateSermonStorageCommand.php
-
-		-
-			message: '#^Method App\\Console\\Commands\\SyncGoogleCalendarCommand\:\:handle\(\) has no return type specified\.$#'
-			identifier: missingType.return
-			count: 1
-			path: app/Console/Commands/SyncGoogleCalendarCommand.php
 
 		-
 			message: '#^Method App\\Data\\SermonCreationOptions\:\:__construct\(\) has parameter \$aiAnalysis with no value type specified in iterable type array\.$#'

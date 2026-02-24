@@ -10,7 +10,7 @@ class FixUploadDirectories extends Command
 
     protected $description = 'Create and fix permissions for upload directories';
 
-    public function handle()
+    public function handle(): int
     {
         $this->info('🔧 Fixing upload directories...');
         $this->newLine();

@@ -19,6 +19,7 @@ class MigrateImagesToStorage extends Command
 
     protected $description = 'Migrate images from public/ to storage/app/public/ following Laravel best practices';
 
+    /** @var array<string, int> */
     private array $stats = [
         'migrated' => 0,
         'skipped' => 0,

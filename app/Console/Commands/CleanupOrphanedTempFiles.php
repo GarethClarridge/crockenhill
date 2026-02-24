@@ -123,7 +123,7 @@ class CleanupOrphanedTempFiles extends Command
     /**
      * Clean up files in a specific directory
      *
-     * @return array [files_deleted, total_size]
+     * @return array<int, int> [files_deleted, total_size]
      */
     private function cleanupDirectory(string $directory, \Carbon\Carbon $cutoffTime, bool $dryRun, int $depth = 0): array
     {

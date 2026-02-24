@@ -71,6 +71,9 @@ class MigrateSermonStorageCommand extends Command
         }
     }
 
+    /**
+     * @param  mixed  $sermons
+     */
     private function migrateLegacySermons($sermons, string $targetDisk, bool $dryRun, int $batchSize): void
     {
         $this->info("Migrating {$sermons->count()} legacy sermons");
@@ -157,6 +160,9 @@ class MigrateSermonStorageCommand extends Command
         $this->newLine();
     }
 
+    /**
+     * @param  mixed  $sermons
+     */
     private function migrateStorageSermons($sermons, string $targetDisk, bool $dryRun, int $batchSize): void
     {
         $this->info("Migrating {$sermons->count()} storage sermons");
@@ -215,6 +221,9 @@ class MigrateSermonStorageCommand extends Command
         $this->newLine();
     }
 
+    /**
+     * @param  mixed  $sermons
+     */
     private function migrateProcessingSermons($sermons, string $targetDisk, bool $dryRun, int $batchSize): void
     {
         $this->info("Migrating {$sermons->count()} processing sermons");

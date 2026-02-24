@@ -13,7 +13,7 @@ class SyncGoogleCalendarCommand extends Command
 
     protected $description = 'Syncs events from Google Calendar using the configured window';
 
-    public function handle(CalendarService $calendarService)
+    public function handle(CalendarService $calendarService): int
     {
         $this->info('Starting Google Calendar sync...');
 

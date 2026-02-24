@@ -11,7 +11,7 @@ class CreateApiToken extends Command
 
     protected $description = 'Create an API token for a user';
 
-    public function handle()
+    public function handle(): int
     {
         $email = $this->argument('email');
         $tokenName = $this->argument('name');
