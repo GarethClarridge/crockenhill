@@ -5,6 +5,7 @@ namespace Tests\Unit\Services;
 use App\Data\ThumbnailResult;
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
+use App\Services\StorageAdapterHelper;
 use App\Services\ThumbnailGenerationService;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,8 +39,8 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
             'codec' => 'h264',
         ]);
 
-        $this->frameExtractionService = new FrameExtractionService($videoService);
-        $this->service = new ThumbnailGenerationService($this->frameExtractionService);
+        $this->frameExtractionService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
+        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class));
     }
 
     // ---- storeThumbnail tests ----
@@ -261,15 +262,6 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
 
         // Very small width should cap at 0.5x
         $this->assertEquals(24, $method->invoke($this->service, 48, 100, 1280));
-    }
-
-    // ---- isS3CompatibleDisk tests (now on FrameExtractionService) ----
-
-    #[Test]
-    public function it_identifies_non_s3_disk_as_not_compatible(): void
-    {
-        $localDisk = Storage::disk('local');
-        $this->assertFalse($this->frameExtractionService->isS3CompatibleDisk($localDisk));
     }
 
     private function getPrivateMethod(string $methodName): \ReflectionMethod

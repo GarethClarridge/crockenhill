@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Data\ThumbnailResult;
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
+use App\Services\StorageAdapterHelper;
 use App\Services\ThumbnailGenerationService;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,8 +36,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             'codec' => 'h264',
         ]);
 
-        $this->frameExtractionService = new FrameExtractionService($videoService);
-        $this->service = new ThumbnailGenerationService($this->frameExtractionService);
+        $this->frameExtractionService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
+        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class));
     }
 
     #[Test]
@@ -56,7 +57,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         config(['thumbnail-generation.enabled' => false]);
 
         // Recreate service with new config
-        $this->service = new ThumbnailGenerationService($this->frameExtractionService);
+        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class));
 
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon',
@@ -179,8 +180,8 @@ class ThumbnailGenerationServiceTest extends TestCase
             'height' => 0,   // Invalid height
         ]);
 
-        $frameService = new FrameExtractionService($videoService);
-        $service = new ThumbnailGenerationService($frameService);
+        $frameService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
+        $service = new ThumbnailGenerationService($frameService, app(StorageAdapterHelper::class));
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'test_video');

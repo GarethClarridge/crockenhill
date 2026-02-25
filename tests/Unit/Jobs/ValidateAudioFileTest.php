@@ -5,6 +5,7 @@ namespace Tests\Unit\Jobs;
 use App\Jobs\ValidateAudioFile;
 use App\Models\MediaProcessingLog;
 use App\Services\AudioExtractionService;
+use App\Services\StorageAdapterHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -47,7 +48,7 @@ class ValidateAudioFileTest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
 
         $job = new ValidateAudioFile($log);
-        $job->handle($mockExtractor);
+        $job->handle($mockExtractor, app(StorageAdapterHelper::class));
 
         $log->refresh();
         $this->assertEquals('audio_validation_complete', $log->current_step);
@@ -73,7 +74,7 @@ class ValidateAudioFileTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('No stored file path found in processing log');
 
-        $job->handle($mockExtractor);
+        $job->handle($mockExtractor, app(StorageAdapterHelper::class));
     }
 
     #[Test]
@@ -97,7 +98,7 @@ class ValidateAudioFileTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Audio file not found at path');
 
-        $job->handle($mockExtractor);
+        $job->handle($mockExtractor, app(StorageAdapterHelper::class));
     }
 
     #[Test]
@@ -132,7 +133,7 @@ class ValidateAudioFileTest extends TestCase
         $job = new ValidateAudioFile($log);
 
         try {
-            $job->handle($mockExtractor);
+            $job->handle($mockExtractor, app(StorageAdapterHelper::class));
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
             $this->assertEquals('Audio file is too short', $e->getMessage());
@@ -172,9 +173,10 @@ class ValidateAudioFileTest extends TestCase
             ->with($this->anything());
 
         Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ValidateAudioFile($log);
-        $job->handle($mockExtractor);
+        $job->handle($mockExtractor, app(StorageAdapterHelper::class));
 
         $log->refresh();
         $this->assertEquals('audio_validation_complete', $log->current_step);
@@ -202,13 +204,14 @@ class ValidateAudioFileTest extends TestCase
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('error')->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ValidateAudioFile($log);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Audio file not found in S3 storage');
 
-        $job->handle($mockExtractor);
+        $job->handle($mockExtractor, app(StorageAdapterHelper::class));
     }
 
     #[Test]

@@ -36,7 +36,7 @@ class AudioCompressionServiceTest extends TestCase
             'channels' => 1,
         ]);
 
-        $this->service = new AudioCompressionService;
+        $this->service = app(AudioCompressionService::class);
     }
 
     // ---- Constructor and instantiation ----
@@ -71,7 +71,7 @@ class AudioCompressionServiceTest extends TestCase
     {
         // Temporarily set a very small max size
         Config::set('media-processing.audio_extraction.transcription_optimized.max_file_size', 100);
-        $service = new AudioCompressionService;
+        $service = app(AudioCompressionService::class);
         $validateMethod = (new \ReflectionClass($service))->getMethod('validateAudioFileSize');
         $validateMethod->setAccessible(true);
 

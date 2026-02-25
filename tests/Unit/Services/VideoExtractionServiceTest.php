@@ -43,7 +43,7 @@ class VideoExtractionServiceTest extends TestCase
             'upload_timeout' => 300,
         ]);
 
-        $this->service = new VideoExtractionService(new AudioCompressionService);
+        $this->service = new VideoExtractionService(app(AudioCompressionService::class), app(\App\Services\StorageAdapterHelper::class));
     }
 
     // ---- Constructor and instantiation ----
@@ -152,7 +152,7 @@ class VideoExtractionServiceTest extends TestCase
     {
         Config::set('filesystems.disks.public', ['driver' => 's3']);
         Config::set('media-processing.storage.sermon_disk', 'public');
-        $service = new VideoExtractionService(new AudioCompressionService);
+        $service = new VideoExtractionService(app(AudioCompressionService::class), app(\App\Services\StorageAdapterHelper::class));
 
         $method = (new \ReflectionClass($service))->getMethod('getProcessingOutputPath');
         $method->setAccessible(true);
@@ -204,22 +204,6 @@ class VideoExtractionServiceTest extends TestCase
 
         $size = $method->invoke($this->service, '/nonexistent/file.txt', 'local');
         $this->assertEquals(0, $size);
-    }
-
-    // ---- getLocalFileSize tests ----
-
-    #[Test]
-    public function it_gets_local_file_size_directly(): void
-    {
-        $method = $this->getPrivateMethod('getLocalFileSize');
-
-        $tempFile = tempnam(sys_get_temp_dir(), 'test');
-        file_put_contents($tempFile, str_repeat('y', 256));
-
-        $this->assertEquals(256, $method->invoke($this->service, $tempFile));
-        $this->assertEquals(0, $method->invoke($this->service, '/nonexistent.txt'));
-
-        unlink($tempFile);
     }
 
     private function getPrivateMethod(string $methodName): \ReflectionMethod

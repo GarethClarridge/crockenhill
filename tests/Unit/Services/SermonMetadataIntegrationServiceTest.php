@@ -19,7 +19,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonMetadataIntegrationService;
+        $this->service = app(SermonMetadataIntegrationService::class);
     }
 
     // --- linkVideoToSermon() ---

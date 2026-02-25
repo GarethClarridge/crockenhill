@@ -19,7 +19,7 @@ class SermonVideoDisplayServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonVideoDisplayService;
+        $this->service = app(SermonVideoDisplayService::class);
         Storage::fake('local');
 
         // Clear any existing sermons to ensure test isolation

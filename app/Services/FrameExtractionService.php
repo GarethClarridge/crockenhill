@@ -19,7 +19,8 @@ class FrameExtractionService
     private array $extractionConfig;
 
     public function __construct(
-        private readonly VideoSegmentationService $videoService
+        private readonly VideoSegmentationService $videoService,
+        private readonly StorageAdapterHelper $storageHelper
     ) {
         $config = config('thumbnail-generation');
 
@@ -148,7 +149,8 @@ class FrameExtractionService
     }
 
     /**
-     * Ensure we have a local path for FFmpeg processing
+     * Ensure we have a local path for FFmpeg processing.
+     * Downloads S3 files into the service's temp directory when needed.
      */
     public function ensureLocalVideoPath(string $videoPath, ?string $disk = null): string
     {
@@ -156,42 +158,7 @@ class FrameExtractionService
             return $videoPath;
         }
 
-        $diskInstance = Storage::disk($disk);
-
-        if ($this->isS3CompatibleDisk($diskInstance)) {
-            $tempVideoFilename = 'temp_video_'.Str::uuid().'.'.pathinfo($videoPath, PATHINFO_EXTENSION);
-            $tempVideoPath = $this->tempPath.'/'.$tempVideoFilename;
-
-            Storage::disk($this->tempDisk)->makeDirectory($this->tempPath);
-
-            $localTempPath = Storage::disk($this->tempDisk)->path($tempVideoPath);
-
-            $stream = $diskInstance->readStream($videoPath);
-            Storage::disk($this->tempDisk)->writeStream($tempVideoPath, $stream);
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-
-            return $localTempPath;
-        }
-
-        return $diskInstance->path($videoPath);
-    }
-
-    /**
-     * Check if a disk uses S3-compatible storage
-     *
-     * @param  \Illuminate\Contracts\Filesystem\Filesystem  $disk
-     */
-    public function isS3CompatibleDisk(mixed $disk): bool
-    {
-        try {
-            $adapter = $disk->getAdapter();
-
-            return $adapter instanceof \League\Flysystem\AwsS3V3\AwsS3V3Adapter;
-        } catch (\Exception $e) {
-            return false;
-        }
+        return $this->storageHelper->downloadToTemp($videoPath, $disk, $this->tempDisk, $this->tempPath);
     }
 
     /**
@@ -203,19 +170,8 @@ class FrameExtractionService
             return;
         }
 
-        try {
-            $cleanupEnabled = config('thumbnail-generation.processing.cleanup_temp_files');
-            if ($cleanupEnabled && file_exists($tempVideoPath)) {
-                unlink($tempVideoPath);
-                Log::debug('Cleaned up downloaded S3 video temp file', [
-                    'temp_video_path' => $tempVideoPath,
-                ]);
-            }
-        } catch (\Exception $e) {
-            Log::warning('Failed to cleanup downloaded video temp file', [
-                'temp_video_path' => $tempVideoPath,
-                'error' => $e->getMessage(),
-            ]);
+        if (config('thumbnail-generation.processing.cleanup_temp_files')) {
+            $this->storageHelper->cleanupTempFile($tempVideoPath);
         }
     }
 }

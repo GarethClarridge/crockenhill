@@ -19,7 +19,10 @@ class VideoStorageServiceUploadTest extends TestCase
 
         $extractionService = $this->createMock(VideoExtractionService::class);
         $compressionService = $this->createMock(AudioCompressionService::class);
-        $this->service = new VideoStorageService($extractionService, $compressionService);
+        $this->service = app(VideoStorageService::class, [
+            'videoExtractor' => $extractionService,
+            'audioCompressor' => $compressionService,
+        ]);
     }
 
     public function test_upload_to_permanent_storage_uploads_file_and_returns_path(): void
@@ -54,7 +57,7 @@ class VideoStorageServiceUploadTest extends TestCase
         config()->set('media-processing.s3_processing.retry_delay', 0);
 
         $this->expectException(VideoProcessingException::class);
-        $this->expectExceptionMessage('Failed to upload file to S3 after 1 attempts');
+        $this->expectExceptionMessage('Failed to upload file after 1 attempts');
 
         $this->service->uploadToPermanentStorage(
             storage_path('app/temp/does-not-exist.mp3'),

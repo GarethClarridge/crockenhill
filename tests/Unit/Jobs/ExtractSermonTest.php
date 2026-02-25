@@ -4,6 +4,7 @@ namespace Tests\Unit\Jobs;
 
 use App\Jobs\ExtractSermon;
 use App\Models\MediaProcessingLog;
+use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -39,7 +40,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('info')->once()->with('ExtractSermon job skipped: processing cancelled', \Mockery::any());
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage);
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
     }
 
     #[Test]
@@ -62,7 +63,7 @@ class ExtractSermonTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Sermon segment times not found');
 
-        $job->handle($mockExtractor, $mockStorage);
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
     }
 
     #[Test]
@@ -116,7 +117,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage);
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
 
         $log->refresh();
         $this->assertEquals('extraction_complete', $log->current_step);
@@ -162,7 +163,7 @@ class ExtractSermonTest extends TestCase
         $job = new ExtractSermon($log);
 
         try {
-            $job->handle($mockExtractor, $mockStorage);
+            $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
             $this->assertEquals('FFmpeg segfault', $e->getMessage());
@@ -219,7 +220,7 @@ class ExtractSermonTest extends TestCase
         $job = new ExtractSermon($log);
 
         try {
-            $job->handle($mockExtractor, $mockStorage);
+            $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
             $this->assertStringContainsString('file does not exist', $e->getMessage());

@@ -25,7 +25,7 @@ class ThumbnailGenerationService
 
     private readonly FrameExtractionService $frameExtractionService;
 
-    public function __construct(FrameExtractionService $frameExtractionService)
+    public function __construct(FrameExtractionService $frameExtractionService, private readonly StorageAdapterHelper $storageHelper)
     {
         $this->config = config('thumbnail-generation');
 
@@ -63,7 +63,7 @@ class ThumbnailGenerationService
             $localVideoPath = $this->frameExtractionService->ensureLocalVideoPath($videoPath, $disk);
 
             // Track if we downloaded a temp video for S3 processing
-            if ($disk && $this->frameExtractionService->isS3CompatibleDisk(Storage::disk($disk))) {
+            if ($disk && $this->storageHelper->isS3CompatibleDisk(Storage::disk($disk))) {
                 $tempVideoPath = $localVideoPath;
             }
 

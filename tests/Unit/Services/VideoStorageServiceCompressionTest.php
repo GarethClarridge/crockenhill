@@ -27,7 +27,10 @@ class VideoStorageServiceCompressionTest extends TestCase
         // Mock VideoExtractionService dependency
         $this->extractionService = $this->createMock(VideoExtractionService::class);
         $this->compressionService = $this->createMock(AudioCompressionService::class);
-        $this->service = new VideoStorageService($this->extractionService, $this->compressionService);
+        $this->service = app(VideoStorageService::class, [
+            'videoExtractor' => $this->extractionService,
+            'audioCompressor' => $this->compressionService,
+        ]);
 
         // Create a mock segment for testing
         $this->testSegment = new LivestreamSegment(

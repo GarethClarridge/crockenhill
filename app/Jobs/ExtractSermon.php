@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
 use App\Traits\DetectsStorageType;
@@ -26,7 +27,7 @@ class ExtractSermon implements ShouldQueue
         private MediaProcessingLog $processingLog
     ) {}
 
-    public function handle(VideoExtractionService $videoExtractor, VideoStorageService $storageService): void
+    public function handle(VideoExtractionService $videoExtractor, VideoStorageService $storageService, StorageAdapterHelper $storageHelper): void
     {
         try {
             if ($this->processingLog->fresh()->isCancelled()) {
@@ -52,26 +53,21 @@ class ExtractSermon implements ShouldQueue
 
             $sermonSegment = $this->createSermonSegment();
 
-            // Get temp disk and check if it's S3-compatible
             $tempDisk = config('media-processing.storage.temp_disk');
             $isS3TempDisk = $this->isS3Disk($tempDisk);
-            $localTempPath = null;
 
             if ($isS3TempDisk) {
-                // For S3 temp disks, verify file exists using Storage disk
                 if (! Storage::disk($tempDisk)->exists($this->processingLog->source_file_path)) {
                     throw new \Exception('Original video file not found on S3: '.$this->processingLog->source_file_path);
                 }
 
-                // Download to local temp for processing
-                $localTempPath = storage_path('app/temp/'.basename($this->processingLog->source_file_path).'_'.time());
-                $this->ensureDirectoryExists(dirname($localTempPath));
-
-                $videoStream = Storage::disk($tempDisk)->readStream($this->processingLog->source_file_path);
-                file_put_contents($localTempPath, $videoStream);
-                $videoPath = $localTempPath;
+                $videoPath = $storageHelper->downloadToTemp(
+                    $this->processingLog->source_file_path,
+                    $tempDisk,
+                    'local',
+                    'temp/extraction'
+                );
             } else {
-                // For local temp disks, use direct path
                 $videoPath = Storage::disk($tempDisk)->path($this->processingLog->source_file_path);
 
                 // Wait for file to be available (handles async upload/storage delays)
@@ -84,7 +80,7 @@ class ExtractSermon implements ShouldQueue
                         'attempt' => $attempt,
                         'expected_path' => $videoPath,
                     ]);
-                    sleep(2); // Wait 2 seconds before retrying
+                    sleep(2);
                 }
 
                 if (! file_exists($videoPath)) {
@@ -108,8 +104,8 @@ class ExtractSermon implements ShouldQueue
                 $sermonAudioPath = $audioExtractionResult['audio_path'];
             } finally {
                 // Clean up temporary S3 download file if we created one
-                if ($isS3TempDisk && $localTempPath && file_exists($localTempPath)) {
-                    unlink($localTempPath);
+                if ($isS3TempDisk) {
+                    $storageHelper->cleanupTempFile($videoPath);
                 }
             }
 
@@ -228,17 +224,5 @@ class ExtractSermon implements ShouldQueue
 
         // For local paths, use file_exists
         return file_exists($fullPath);
-    }
-
-    /**
-     * Ensure directory exists (for local operations only)
-     */
-    private function ensureDirectoryExists(string $directory): void
-    {
-        if (! is_dir($directory)) {
-            if (! mkdir($directory, 0755, true)) {
-                throw new \Exception("Failed to create directory: {$directory}");
-            }
-        }
     }
 }

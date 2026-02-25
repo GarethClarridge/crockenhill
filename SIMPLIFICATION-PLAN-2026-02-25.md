@@ -52,10 +52,10 @@ Target files:
 
 Tasks:
 
-- [ ] Introduce a single canonical processing-step definition (enum or dedicated mapper class).
-- [ ] Move all progress percentage logic to one mapper.
-- [ ] Replace ad-hoc string matching for status/step where possible.
-- [ ] Remove dead/private mapping helpers in `LivestreamStatusService` once centralized.
+- [x] Introduce a single canonical processing-step definition (enum or dedicated mapper class).
+- [x] Move all progress percentage logic to one mapper.
+- [x] Replace ad-hoc string matching for status/step where possible.
+- [x] Remove dead/private mapping helpers in `LivestreamStatusService` once centralized.
 
 Exit criteria:
 

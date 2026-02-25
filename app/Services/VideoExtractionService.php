@@ -26,7 +26,8 @@ class VideoExtractionService
     private string $audioPath;
 
     public function __construct(
-        private readonly AudioCompressionService $audioCompressor
+        private readonly AudioCompressionService $audioCompressor,
+        private readonly StorageAdapterHelper $storageHelper
     ) {
         $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
         $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
@@ -412,149 +413,21 @@ class VideoExtractionService
             $inputVideoPath,
             $segment,
             $outputFilename,
-            fn (string $localFilePath, string $permanentPath): string => $this->uploadToPermanentStorage($localFilePath, $permanentPath)
+            fn (string $localFilePath, string $permanentPath): string => $this->storageHelper->uploadWithRetry($localFilePath, $permanentPath, $this->permanentDisk)
         );
     }
 
     /**
-     * Ensure directory exists
-     */
-    private function ensureDirectoryExists(string $directory): void
-    {
-        // Skip directory creation for S3 disks - they don't support local paths
-        // This method should only be called for local/temp storage now
-        try {
-            if (! is_dir($directory)) {
-                if (! mkdir($directory, 0755, true)) {
-                    throw new VideoProcessingException("Failed to create directory: {$directory}");
-                }
-
-                Log::info('Created directory for audio extraction', [
-                    'directory' => $directory,
-                    'permissions' => '0755',
-                ]);
-            }
-
-            if (! is_writable($directory)) {
-                throw new VideoProcessingException("Directory is not writable: {$directory}");
-            }
-        } catch (\Exception $e) {
-            Log::error('Directory creation failed', [
-                'directory' => $directory,
-                'error' => $e->getMessage(),
-                'permanent_disk' => $this->permanentDisk,
-                'is_s3_disk' => $this->isS3Disk($this->permanentDisk),
-            ]);
-            throw new VideoProcessingException("Directory operation failed for: {$directory}. Error: {$e->getMessage()}", 0, $e);
-        }
-    }
-
-    /**
-     * Upload a local file to permanent S3 storage and return the permanent path
+     * Upload a local file to permanent storage with exponential-backoff retry.
      */
     private function uploadToPermanentStorage(string $localFilePath, string $permanentPath): string
     {
-        $s3Config = config('media-processing.s3_processing');
-        $maxRetries = $s3Config['retry_attempts'] ?? 3;
-        $retryDelay = $s3Config['retry_delay'] ?? 5;
-
-        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
-            try {
-                $fileStream = fopen($localFilePath, 'r');
-                if (! $fileStream) {
-                    throw new VideoProcessingException("Unable to open local file for S3 upload: {$localFilePath}");
-                }
-
-                $startTime = microtime(true);
-                $success = Storage::disk($this->permanentDisk)->put($permanentPath, $fileStream);
-                $uploadTime = microtime(true) - $startTime;
-                fclose($fileStream);
-
-                if (! $success) {
-                    throw new VideoProcessingException("Failed to upload file to permanent storage: {$permanentPath}");
-                }
-
-                // Verify file was uploaded successfully
-                if (! Storage::disk($this->permanentDisk)->exists($permanentPath)) {
-                    throw new VideoProcessingException("File upload appeared successful but file not found in storage: {$permanentPath}");
-                }
-
-                if (config('media-processing.log_s3_operations', true)) {
-                    Log::info('File uploaded to permanent S3 storage', [
-                        'local_path' => $localFilePath,
-                        'permanent_path' => $permanentPath,
-                        'permanent_disk' => $this->permanentDisk,
-                        'file_size' => $this->getLocalFileSize($localFilePath),
-                        'upload_time_seconds' => round($uploadTime, 2),
-                        'attempt' => $attempt,
-                    ]);
-                }
-
-                return $permanentPath;
-
-            } catch (\Exception $e) {
-                $isLastAttempt = ($attempt === $maxRetries);
-
-                Log::error('S3 upload attempt failed', [
-                    'error' => $e->getMessage(),
-                    'local_path' => $localFilePath,
-                    'permanent_path' => $permanentPath,
-                    'permanent_disk' => $this->permanentDisk,
-                    'attempt' => $attempt,
-                    'max_retries' => $maxRetries,
-                    'is_last_attempt' => $isLastAttempt,
-                ]);
-
-                if ($isLastAttempt) {
-                    throw new VideoProcessingException("Failed to upload file to S3 after {$maxRetries} attempts. Last error: {$e->getMessage()}", 0, $e);
-                }
-
-                // Wait before retrying
-                sleep($retryDelay * $attempt); // Exponential backoff
-            }
-        }
-
-        // This should never be reached, but PHPStan requires it
-        throw new VideoProcessingException('Unexpected end of upload attempts');
+        return $this->storageHelper->uploadWithRetry($localFilePath, $permanentPath, $this->permanentDisk);
     }
 
-    /**
-     * Create a temporary local file path for processing
-     */
-    private function createTemporaryFilePath(string $filename): string
-    {
-        $tempPath = 'temp/audio_extraction/'.$filename;
-        $fullTempPath = Storage::disk($this->tempDisk)->path($tempPath);
-
-        // Ensure temp directory exists (temp disk should always be local)
-        $this->ensureDirectoryExists(dirname($fullTempPath));
-
-        return $fullTempPath;
-    }
-
-    /**
-     * Safely clean up temporary files with error handling
-     */
     private function cleanupTemporaryFile(string $filePath): void
     {
-        if (empty($filePath)) {
-            return;
-        }
-
-        try {
-            if (file_exists($filePath)) {
-                unlink($filePath);
-                if (config('media-processing.log_s3_operations', true)) {
-                    Log::debug('Temporary file cleaned up', ['file_path' => $filePath]);
-                }
-            }
-        } catch (\Exception $e) {
-            Log::warning('Failed to clean up temporary file', [
-                'file_path' => $filePath,
-                'error' => $e->getMessage(),
-            ]);
-            // Don't throw - cleanup failures shouldn't break the main process
-        }
+        $this->storageHelper->cleanupTempFile($filePath);
     }
 
     /**
@@ -564,28 +437,13 @@ class VideoExtractionService
      */
     private function getProcessingOutputPath(string $filename): array
     {
-        $permanentPath = $this->audioPath.'/'.$filename;
-
-        if ($this->isS3Disk($this->permanentDisk)) {
-            // For S3 disks, create temporary local file first
-            $tempPath = $this->createTemporaryFilePath($filename);
-
-            return [
-                'processing_path' => $tempPath,
-                'permanent_path' => $permanentPath,
-                'use_temp_processing' => true,
-            ];
-        } else {
-            // For local disks, process directly to permanent location
-            $fullPermanentPath = Storage::disk($this->permanentDisk)->path($permanentPath);
-            $this->ensureDirectoryExists(dirname($fullPermanentPath));
-
-            return [
-                'processing_path' => $fullPermanentPath,
-                'permanent_path' => $permanentPath,
-                'use_temp_processing' => false,
-            ];
-        }
+        return $this->storageHelper->getProcessingOutputPath(
+            $filename,
+            $this->audioPath,
+            $this->permanentDisk,
+            $this->tempDisk,
+            'temp/audio_extraction'
+        );
     }
 
     /**
@@ -613,14 +471,6 @@ class VideoExtractionService
             }
         }
 
-        return file_exists($filePath) ? filesize($filePath) : 0;
-    }
-
-    /**
-     * Get local file size (for files that are expected to be local)
-     */
-    private function getLocalFileSize(string $filePath): int
-    {
         return file_exists($filePath) ? filesize($filePath) : 0;
     }
 

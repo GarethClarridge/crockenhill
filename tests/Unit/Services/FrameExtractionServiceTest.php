@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Services\FrameExtractionService;
+use App\Services\StorageAdapterHelper;
 use App\Services\VideoSegmentationService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -42,7 +43,7 @@ class FrameExtractionServiceTest extends TestCase
         ]);
 
         $this->videoService = Mockery::mock(VideoSegmentationService::class);
-        $this->service = new FrameExtractionService($this->videoService);
+        $this->service = new FrameExtractionService($this->videoService, app(StorageAdapterHelper::class));
     }
 
     protected function tearDown(): void
@@ -231,16 +232,6 @@ class FrameExtractionServiceTest extends TestCase
 
         // Cleanup after test
         unlink($tempFile);
-    }
-
-    // ---- isS3CompatibleDisk ----
-
-    #[Test]
-    public function it_returns_false_for_local_disk(): void
-    {
-        $disk = Storage::disk('local');
-
-        $this->assertFalse($this->service->isS3CompatibleDisk($disk));
     }
 
     // ---- ensureLocalVideoPath ----

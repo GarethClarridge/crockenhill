@@ -30,8 +30,9 @@ class AudioCompressionService
 
     private string $audioPath;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly StorageAdapterHelper $storageHelper
+    ) {
         $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
         $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
 
@@ -295,63 +296,17 @@ class AudioCompressionService
      */
     private function getProcessingOutputPath(string $filename): array
     {
-        $permanentPath = $this->audioPath.'/'.$filename;
-
-        if ($this->isS3Disk($this->permanentDisk)) {
-            $tempPath = 'temp/audio_extraction/'.$filename;
-            $fullTempPath = Storage::disk($this->tempDisk)->path($tempPath);
-            $this->ensureDirectoryExists(dirname($fullTempPath));
-
-            return [
-                'processing_path' => $fullTempPath,
-                'permanent_path' => $permanentPath,
-                'use_temp_processing' => true,
-            ];
-        }
-
-        $fullPermanentPath = Storage::disk($this->permanentDisk)->path($permanentPath);
-        $this->ensureDirectoryExists(dirname($fullPermanentPath));
-
-        return [
-            'processing_path' => $fullPermanentPath,
-            'permanent_path' => $permanentPath,
-            'use_temp_processing' => false,
-        ];
+        return $this->storageHelper->getProcessingOutputPath(
+            $filename,
+            $this->audioPath,
+            $this->permanentDisk,
+            $this->tempDisk,
+            'temp/audio_extraction'
+        );
     }
 
-    /**
-     * Ensure local directory exists (for local operations only).
-     */
-    private function ensureDirectoryExists(string $directory): void
-    {
-        if (! is_dir($directory)) {
-            if (! mkdir($directory, 0755, true)) {
-                throw new VideoProcessingException("Failed to create directory: {$directory}");
-            }
-        }
-    }
-
-    /**
-     * Safely clean up a temporary file.
-     */
     private function cleanupTemporaryFile(string $filePath): void
     {
-        if (empty($filePath)) {
-            return;
-        }
-
-        try {
-            if (file_exists($filePath)) {
-                unlink($filePath);
-                if (config('media-processing.log_s3_operations', true)) {
-                    Log::debug('Temporary file cleaned up', ['file_path' => $filePath]);
-                }
-            }
-        } catch (\Exception $e) {
-            Log::warning('Failed to clean up temporary file', [
-                'file_path' => $filePath,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        $this->storageHelper->cleanupTempFile($filePath);
     }
 }
