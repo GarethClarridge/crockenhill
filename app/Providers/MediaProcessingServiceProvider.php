@@ -45,7 +45,12 @@ class MediaProcessingServiceProvider extends ServiceProvider
                 $app->make(\App\Services\MediaValidationService::class)
             );
         });
-        $this->app->bind(SermonProcessingService::class);
+        $this->app->bind(SermonProcessingService::class, function ($app) {
+            return new SermonProcessingService(
+                $app->make(\App\Services\SermonValidationService::class),
+                $app->make(\App\Services\SermonProcessingLogger::class)
+            );
+        });
     }
 
     public function boot(): void

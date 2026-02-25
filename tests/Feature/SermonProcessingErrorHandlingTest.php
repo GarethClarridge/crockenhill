@@ -320,7 +320,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_invalid_file_formats(): void
     {
-        $service = app(\App\Services\SermonProcessingService::class);
+        $service = app(\App\Services\SermonAudioProcessingService::class);
 
         // Create invalid file (text file with audio extension)
         $invalidFile = \Illuminate\Http\UploadedFile::fake()->create('invalid.mp3', 1024, 'text/plain');
@@ -335,7 +335,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_oversized_files(): void
     {
-        $service = app(\App\Services\SermonProcessingService::class);
+        $service = app(\App\Services\SermonAudioProcessingService::class);
 
         // Create oversized file (larger than 100MB limit)
         $oversizedFile = \Illuminate\Http\UploadedFile::fake()->create('large.mp3', 101 * 1024, 'audio/mpeg');
@@ -350,7 +350,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_corrupted_files(): void
     {
-        $service = app(\App\Services\SermonProcessingService::class);
+        $service = app(\App\Services\SermonAudioProcessingService::class);
 
         // Create corrupted file with proper MIME type but invalid content
         $corruptedFile = \Illuminate\Http\UploadedFile::fake()->createWithContent('corrupted.mp3', 'invalid audio data');
@@ -374,7 +374,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_processing_retry_scenarios(): void
     {
-        $service = app(\App\Services\SermonProcessingService::class);
+        $service = app(\App\Services\SermonJobPipelineService::class);
 
         // Create failed processing log
         $processingLog = MediaProcessingLog::create([
@@ -406,7 +406,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_retry_of_non_failed_processing(): void
     {
-        $service = app(\App\Services\SermonProcessingService::class);
+        $service = app(\App\Services\SermonJobPipelineService::class);
 
         // Create processing log that's not failed
         $processingLog = MediaProcessingLog::create([
@@ -468,7 +468,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_manual_review_marking(): void
     {
-        $service = app(\App\Services\SermonProcessingService::class);
+        $service = app(\App\Services\SermonStatusManagementService::class);
 
         // Create failed processing log
         $processingLog = MediaProcessingLog::create([
@@ -494,7 +494,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_provides_error_information_in_status_response(): void
     {
-        $service = app(\App\Services\SermonProcessingService::class);
+        $service = app(\App\Services\SermonStatusManagementService::class);
 
         MediaProcessingLog::create([
             'processing_id' => 'detailed-error-test-id',

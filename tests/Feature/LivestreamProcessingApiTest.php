@@ -375,7 +375,7 @@ class LivestreamProcessingApiTest extends TestCase
             processingId: 'test-uuid-123',
             message: 'Livestream processing initiated successfully'
         );
-        $mockService->method('processWithSegmentation')->willReturn($mockResult);
+        $mockService->method('startProcessing')->willReturn($mockResult);
         $this->app->instance(\App\Services\LivestreamSegmentationService::class, $mockService);
 
         $user = User::factory()->create(['is_admin' => true]);
@@ -458,7 +458,7 @@ class LivestreamProcessingApiTest extends TestCase
     {
         // Mock the service to avoid rate limiting issues
         $mockService = $this->createMock(\App\Services\LivestreamSegmentationService::class);
-        $mockService->method('processWithSegmentation')
+        $mockService->method('startProcessing')
             ->willReturnOnConsecutiveCalls(
                 \App\Services\ProcessingResult::success(
                     processingId: 'uuid-1',

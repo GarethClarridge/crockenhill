@@ -334,12 +334,12 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->audio()->failed()->create();
 
-        // Mock just enough of SermonProcessingService to avoid real job dispatch
-        $mockSermonService = $this->createMock(\App\Services\SermonProcessingService::class);
-        $mockSermonService->method('retryProcessing')->willReturn(
+        // Mock SermonJobPipelineService to avoid real job dispatch on retry
+        $mockPipelineService = $this->createMock(\App\Services\SermonJobPipelineService::class);
+        $mockPipelineService->method('retryProcessing')->willReturn(
             \App\Services\ProcessingResult::success($log->processing_id, 'Retry initiated')
         );
-        $this->app->instance(\App\Services\SermonProcessingService::class, $mockSermonService);
+        $this->app->instance(\App\Services\SermonJobPipelineService::class, $mockPipelineService);
 
         $this->withToken($this->token)
             ->postJson("/api/media/processing/{$log->processing_id}/retry")

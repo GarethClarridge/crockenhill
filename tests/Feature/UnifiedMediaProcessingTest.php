@@ -31,8 +31,8 @@ class UnifiedMediaProcessingTest extends TestCase
             );
         });
 
-        // Mock the SermonProcessingService to avoid actual processing
-        $this->mock(\App\Services\SermonProcessingService::class, function ($mock) {
+        // Mock SermonAudioProcessingService to avoid actual processing
+        $this->mock(\App\Services\SermonAudioProcessingService::class, function ($mock) {
             $mock->shouldReceive('processSermon')->andReturn(
                 \App\Services\ProcessingResult::success('test-processing-id', 'Processing started')
             );
@@ -53,7 +53,7 @@ class UnifiedMediaProcessingTest extends TestCase
 
         // Mock LivestreamSegmentationService for direct service calls
         $this->mock(\App\Services\LivestreamSegmentationService::class, function ($mock) {
-            $mock->shouldReceive('processWithSegmentation')->andReturn(
+            $mock->shouldReceive('startProcessing')->andReturn(
                 \App\Services\ProcessingResult::success('livestream-id', 'Livestream processing started')
             );
         });

@@ -17,7 +17,8 @@ use App\Models\User;
 use App\Services\AudioTranscriptionService;
 use App\Services\MediaProcessingLogger;
 use App\Services\SermonAnalysisService;
-use App\Services\SermonProcessingService;
+use App\Services\SermonJobPipelineService;
+use App\Services\SermonStatusManagementService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -610,7 +611,7 @@ class SermonProcessingJobChainTest extends TestCase
         ]);
 
         // Test recovery by retrying from failed step
-        $service = app(SermonProcessingService::class);
+        $service = app(SermonJobPipelineService::class);
 
         // Verify the processing log exists before retry
         $this->assertDatabaseHas('media_processing_logs', [
@@ -642,7 +643,7 @@ class SermonProcessingJobChainTest extends TestCase
         $file = UploadedFile::fake()->create('test-sermon.mp3', 1024, 'audio/mpeg');
 
         // Get the service from the container to use proper dependencies
-        $service = app(SermonProcessingService::class);
+        $statusService = app(SermonStatusManagementService::class);
 
         // Create a processing log manually to simulate what the service would do
         $processingId = 'storage-test-id';
@@ -660,7 +661,7 @@ class SermonProcessingJobChainTest extends TestCase
         $this->assertEquals(ProcessingStatus::PENDING, $processingLog->status);
 
         // Test that we can retrieve the processing status
-        $statusResult = $service->getProcessingStatus($processingId);
+        $statusResult = $statusService->getProcessingStatus($processingId);
         $this->assertEquals($processingId, $statusResult->processingId);
         $this->assertEquals(ProcessingStatus::PENDING->value, $statusResult->status);
     }

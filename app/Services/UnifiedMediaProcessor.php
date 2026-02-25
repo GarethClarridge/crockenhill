@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
 class UnifiedMediaProcessor
 {
     public function __construct(
+        private readonly SermonAudioProcessingService $audioProcessingService,
+        private readonly SermonJobPipelineService $jobPipelineService,
         private readonly SermonProcessingService $sermonService,
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingLogService $processingLogService,
@@ -34,9 +36,9 @@ class UnifiedMediaProcessor
         ]);
 
         return match ($type) {
-            'audio' => $this->sermonService->processSermon($file, $clientFileDate),
+            'audio' => $this->audioProcessingService->processSermon($file, $clientFileDate),
             'video' => $this->processDirectVideo($file, $clientFileDate),
-            'livestream' => $this->livestreamService->processWithSegmentation($file, $clientFileDate),
+            'livestream' => $this->livestreamService->startProcessing($file, $clientFileDate),
             default => ProcessingResult::failure(
                 processingId: 'invalid-'.Str::uuid(),
                 message: "Unsupported media type: {$type}",
@@ -120,7 +122,7 @@ class UnifiedMediaProcessor
         }
 
         return match ($log->processing_type) {
-            'audio', 'video' => $this->sermonService->retryProcessing($processingId),
+            'audio', 'video' => $this->jobPipelineService->retryProcessing($processingId),
             'livestream' => $this->convertLivestreamRetryResult($this->livestreamService->retryProcessing($processingId)),
             default => ProcessingResult::failure(
                 processingId: $processingId,

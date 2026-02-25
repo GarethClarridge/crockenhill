@@ -102,7 +102,7 @@ Exit criteria:
 
 - Validation inputs and error behavior come from one source of truth.
 
-## Phase 4: Orchestrator and Pipeline Layer Reduction (P1/P2)
+## Phase 4: Orchestrator and Pipeline Layer Reduction (P1/P2) ✅
 
 Target files:
 
@@ -114,10 +114,17 @@ Target files:
 
 Tasks:
 
-- [ ] Keep `UnifiedMediaProcessor` as primary orchestrator.
-- [ ] Remove pass-through methods/classes where they add no behavior.
-- [ ] Trim runtime-unused methods from `SermonJobPipelineService` (or move to test helper if truly test-only).
-- [ ] Keep one clear retry/cancel path per processing type.
+- [x] Keep `UnifiedMediaProcessor` as primary orchestrator.
+- [x] Remove pass-through methods/classes where they add no behavior.
+- [x] Trim runtime-unused methods from `SermonJobPipelineService` (or move to test helper if truly test-only).
+- [x] Keep one clear retry/cancel path per processing type.
+
+Files changed:
+- `app/Services/SermonProcessingService.php` — removed 6 pass-through methods (`processSermon`, `getProcessingStatus`, `getProcessingStatistics`, `retryProcessing`, `getFailedProcessingLogs`, `markForManualReview`) and 3 now-unused injected deps; retains only `applyGracefulDegradation` and `cancelProcessing`
+- `app/Services/UnifiedMediaProcessor.php` — added `SermonAudioProcessingService` + `SermonJobPipelineService` deps; routes audio/retry directly to underlying services instead of through `SermonProcessingService`
+- `app/Services/SermonJobPipelineService.php` — removed vestigial `buildSermonProcessingPipeline()` (unused params) and its `ProcessingPipelineBuilder` dependency
+- `app/Services/LivestreamSegmentationService.php` — removed `processWithSegmentation()` (pure pass-through to `startProcessing`) and `updateProcessingStatus()` (no external callers)
+- `app/Providers/MediaProcessingServiceProvider.php` — explicit binding for `SermonProcessingService` with reduced deps
 
 Exit criteria:
 

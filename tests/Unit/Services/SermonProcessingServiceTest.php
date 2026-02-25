@@ -2,19 +2,13 @@
 
 namespace Tests\Unit\Services;
 
-use App\Data\StandardProcessingResponse;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\ProcessingResult;
-use App\Services\SermonAudioProcessingService;
-use App\Services\SermonJobPipelineService;
 use App\Services\SermonProcessingLogger;
 use App\Services\SermonProcessingService;
-use App\Services\SermonStatusManagementService;
 use App\Services\SermonValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -24,12 +18,6 @@ class SermonProcessingServiceTest extends TestCase
 
     private SermonProcessingService $service;
 
-    private SermonAudioProcessingService $audioProcessingService;
-
-    private SermonJobPipelineService $jobPipelineService;
-
-    private SermonStatusManagementService $statusManagementService;
-
     private SermonValidationService $validationService;
 
     private SermonProcessingLogger $logger;
@@ -38,168 +26,13 @@ class SermonProcessingServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->audioProcessingService = $this->createMock(SermonAudioProcessingService::class);
-        $this->jobPipelineService = $this->createMock(SermonJobPipelineService::class);
-        $this->statusManagementService = $this->createMock(SermonStatusManagementService::class);
         $this->validationService = $this->createMock(SermonValidationService::class);
         $this->logger = $this->createMock(SermonProcessingLogger::class);
 
         $this->service = new SermonProcessingService(
-            $this->audioProcessingService,
-            $this->jobPipelineService,
-            $this->statusManagementService,
             $this->validationService,
             $this->logger
         );
-    }
-
-    #[Test]
-    public function it_delegates_process_sermon_to_audio_processing_service(): void
-    {
-        $file = UploadedFile::fake()->create('sermon.mp3', 1024);
-        $expectedResult = ProcessingResult::success(
-            processingId: 'test-123',
-            message: 'Processing started'
-        );
-
-        $this->audioProcessingService
-            ->method('processSermon')
-            ->with($file, null)
-            ->willReturn($expectedResult);
-
-        $result = $this->service->processSermon($file);
-
-        $this->assertTrue($result->success);
-        $this->assertEquals('test-123', $result->processingId);
-    }
-
-    #[Test]
-    public function it_passes_client_file_date_to_audio_processing_service(): void
-    {
-        $file = UploadedFile::fake()->create('sermon.mp3', 1024);
-        $clientFileDate = '2026-01-15';
-        $expectedResult = ProcessingResult::success(
-            processingId: 'test-456',
-            message: 'Processing started'
-        );
-
-        $this->audioProcessingService
-            ->method('processSermon')
-            ->with($file, $clientFileDate)
-            ->willReturn($expectedResult);
-
-        $result = $this->service->processSermon($file, $clientFileDate);
-
-        $this->assertTrue($result->success);
-        $this->assertEquals('test-456', $result->processingId);
-    }
-
-    #[Test]
-    public function it_delegates_get_processing_status_to_status_management_service(): void
-    {
-        $processingId = 'test-status-123';
-        $expectedResponse = StandardProcessingResponse::found(
-            processingId: $processingId,
-            status: 'processing',
-            currentStep: 'transcribing_audio',
-            progressPercentage: 70
-        );
-
-        $this->statusManagementService
-            ->method('getProcessingStatus')
-            ->with($processingId)
-            ->willReturn($expectedResponse);
-
-        $response = $this->service->getProcessingStatus($processingId);
-
-        $this->assertTrue($response->found);
-        $this->assertEquals($processingId, $response->processingId);
-        $this->assertEquals('processing', $response->status);
-        $this->assertEquals(70, $response->progressPercentage);
-    }
-
-    #[Test]
-    public function it_delegates_get_processing_statistics(): void
-    {
-        $expectedStats = [
-            'total' => 50,
-            'completed' => 45,
-            'failed' => 5,
-            'success_rate' => 90.0,
-        ];
-
-        $this->statusManagementService
-            ->method('getProcessingStatistics')
-            ->willReturn($expectedStats);
-
-        $stats = $this->service->getProcessingStatistics();
-
-        $this->assertEquals(50, $stats['total']);
-        $this->assertEquals(90.0, $stats['success_rate']);
-    }
-
-    #[Test]
-    public function it_delegates_retry_processing_to_job_pipeline_service(): void
-    {
-        $processingId = 'retry-123';
-        $expectedResult = ProcessingResult::success(
-            processingId: $processingId,
-            message: 'Retry initiated'
-        );
-
-        $this->jobPipelineService
-            ->method('retryProcessing')
-            ->with($processingId)
-            ->willReturn($expectedResult);
-
-        $result = $this->service->retryProcessing($processingId);
-
-        $this->assertTrue($result->success);
-        $this->assertEquals($processingId, $result->processingId);
-    }
-
-    #[Test]
-    public function it_delegates_get_failed_processing_logs(): void
-    {
-        $expectedLogs = [
-            ['processing_id' => 'fail-1', 'error' => 'Transcription failed'],
-            ['processing_id' => 'fail-2', 'error' => 'Storage error'],
-        ];
-
-        $this->statusManagementService
-            ->method('getFailedProcessingLogs')
-            ->with(50)
-            ->willReturn($expectedLogs);
-
-        $logs = $this->service->getFailedProcessingLogs();
-
-        $this->assertCount(2, $logs);
-    }
-
-    #[Test]
-    public function it_passes_custom_limit_to_get_failed_processing_logs(): void
-    {
-        $this->statusManagementService
-            ->method('getFailedProcessingLogs')
-            ->with(10)
-            ->willReturn([]);
-
-        $logs = $this->service->getFailedProcessingLogs(10);
-
-        $this->assertEmpty($logs);
-    }
-
-    #[Test]
-    public function it_delegates_mark_for_manual_review(): void
-    {
-        $this->statusManagementService
-            ->method('markForManualReview')
-            ->with('review-123', 'Needs attention')
-            ->willReturn(true);
-
-        $result = $this->service->markForManualReview('review-123', 'Needs attention');
-
-        $this->assertTrue($result);
     }
 
     // --- Graceful Degradation Tests ---

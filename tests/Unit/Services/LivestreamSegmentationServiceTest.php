@@ -202,20 +202,6 @@ class LivestreamSegmentationServiceTest extends TestCase
         $this->assertTrue($result->success);
     }
 
-    // ---- processWithSegmentation (delegate method) ----
-
-    #[Test]
-    public function it_delegates_process_with_segmentation_to_start_processing(): void
-    {
-        $file = UploadedFile::fake()->create('livestream.mp4', 50000, 'video/mp4');
-        $this->setupLivestreamMocks('livestream.mp4');
-
-        $result = $this->service->processWithSegmentation($file);
-
-        $this->assertInstanceOf(ProcessingResult::class, $result);
-        $this->assertTrue($result->success);
-    }
-
     // ---- retryProcessing ----
 
     #[Test]
@@ -329,30 +315,5 @@ class LivestreamSegmentationServiceTest extends TestCase
         $result = $this->service->cancelProcessing('cancel-cleanup-123');
 
         $this->assertTrue($result);
-    }
-
-    // ---- updateProcessingStatus ----
-
-    #[Test]
-    public function it_updates_processing_status(): void
-    {
-        MediaProcessingLog::factory()->livestream()->pending()->create([
-            'processing_id' => 'status-update-123',
-        ]);
-
-        $this->service->updateProcessingStatus('status-update-123', 'processing');
-
-        $this->assertDatabaseHas('media_processing_logs', [
-            'processing_id' => 'status-update-123',
-            'status' => 'processing',
-        ]);
-    }
-
-    #[Test]
-    public function it_handles_updating_status_for_nonexistent_log(): void
-    {
-        // Should not throw
-        $this->service->updateProcessingStatus('nonexistent-id', 'processing');
-        $this->assertTrue(true);
     }
 }

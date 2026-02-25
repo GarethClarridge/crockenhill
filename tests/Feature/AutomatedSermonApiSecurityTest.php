@@ -435,14 +435,14 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_handles_concurrent_requests_safely(): void
     {
-        // Mock the SermonProcessingService to avoid actual processing
-        $mockService = $this->createMock(\App\Services\SermonProcessingService::class);
+        // Mock SermonJobPipelineService to avoid actual processing on retry
+        $mockService = $this->createMock(\App\Services\SermonJobPipelineService::class);
         $mockResult = \App\Services\ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Processing retry initiated successfully'
         );
         $mockService->method('retryProcessing')->willReturn($mockResult);
-        $this->app->instance(\App\Services\SermonProcessingService::class, $mockService);
+        $this->app->instance(\App\Services\SermonJobPipelineService::class, $mockService);
 
         // Test for race conditions by making concurrent requests
         $processingId = (string) Str::uuid();
@@ -524,14 +524,14 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_limits_request_frequency(): void
     {
-        // Mock the SermonProcessingService to avoid actual processing
-        $mockService = $this->createMock(\App\Services\SermonProcessingService::class);
+        // Mock SermonAudioProcessingService to avoid actual processing on upload
+        $mockService = $this->createMock(\App\Services\SermonAudioProcessingService::class);
         $mockResult = \App\Services\ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Sermon processing initiated successfully'
         );
         $mockService->method('processSermon')->willReturn($mockResult);
-        $this->app->instance(\App\Services\SermonProcessingService::class, $mockService);
+        $this->app->instance(\App\Services\SermonAudioProcessingService::class, $mockService);
 
         for ($i = 0; $i < 5; $i++) {
             $file = UploadedFile::fake()->create("sermon-{$i}.mp3", 64, 'audio/mpeg');

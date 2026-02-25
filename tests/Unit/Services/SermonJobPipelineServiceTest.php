@@ -4,7 +4,6 @@ namespace Tests\Unit\Services;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
-use App\Services\ProcessingPipelineBuilder;
 use App\Services\SermonJobPipelineService;
 use App\Services\SermonStatusManagementService;
 use App\Services\SermonValidationService;
@@ -19,17 +18,13 @@ class SermonJobPipelineServiceTest extends TestCase
 
     private SermonJobPipelineService $service;
 
-    private ProcessingPipelineBuilder $pipelineBuilder;
-
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
         $validationService = $this->app->make(SermonValidationService::class);
         $statusManagementService = new SermonStatusManagementService($validationService);
         $this->service = new SermonJobPipelineService(
-            $this->pipelineBuilder,
             $validationService,
             $statusManagementService
         );
@@ -300,23 +295,5 @@ class SermonJobPipelineServiceTest extends TestCase
         $log->refresh();
         $this->assertEquals(ProcessingStatus::PENDING, $log->status);
         $this->assertNull($log->error_message);
-    }
-
-    // --- buildSermonProcessingPipeline() ---
-
-    #[Test]
-    public function it_delegates_pipeline_building_to_builder(): void
-    {
-        $log = MediaProcessingLog::factory()->audio()->pending()->create();
-        $expectedJobs = [new \App\Jobs\TestJob];
-
-        $this->pipelineBuilder
-            ->method('buildAudioPipeline')
-            ->with($log)
-            ->willReturn($expectedJobs);
-
-        $jobs = $this->service->buildSermonProcessingPipeline($log, '/path/to/file.mp3');
-
-        $this->assertCount(1, $jobs);
     }
 }

@@ -2,70 +2,17 @@
 
 namespace App\Services;
 
-use App\Data\StandardProcessingResponse;
-use Illuminate\Http\UploadedFile;
+use App\Enums\ProcessingStatus;
+use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
+use Illuminate\Support\Facades\Log;
 
 class SermonProcessingService
 {
     public function __construct(
-        private SermonAudioProcessingService $audioProcessingService,
-        private SermonJobPipelineService $jobPipelineService,
-        private SermonStatusManagementService $statusManagementService,
         private SermonValidationService $validationService,
         private SermonProcessingLogger $logger
     ) {}
-
-    /**
-     * Process a sermon audio file through the complete automation pipeline
-     */
-    public function processSermon(UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
-    {
-        return $this->audioProcessingService->processSermon($file, $clientFileDate);
-    }
-
-    /**
-     * Get the current processing status for a given processing ID
-     */
-    public function getProcessingStatus(string $processingId): StandardProcessingResponse
-    {
-        return $this->statusManagementService->getProcessingStatus($processingId);
-    }
-
-    /**
-     * Get processing statistics and recent activity
-     *
-     * @return array<string, mixed>
-     */
-    public function getProcessingStatistics(): array
-    {
-        return $this->statusManagementService->getProcessingStatistics();
-    }
-
-    /**
-     * Retry failed processing for a given processing ID
-     */
-    public function retryProcessing(string $processingId): ProcessingResult
-    {
-        return $this->jobPipelineService->retryProcessing($processingId);
-    }
-
-    /**
-     * Get failed processing logs that may need manual review
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    public function getFailedProcessingLogs(int $limit = 50): array
-    {
-        return $this->statusManagementService->getFailedProcessingLogs($limit);
-    }
-
-    /**
-     * Mark processing for manual review
-     */
-    public function markForManualReview(string $processingId, string $reviewNote = ''): bool
-    {
-        return $this->statusManagementService->markForManualReview($processingId, $reviewNote);
-    }
 
     /**
      * Apply graceful degradation to failed processing
@@ -73,7 +20,7 @@ class SermonProcessingService
     public function applyGracefulDegradation(string $processingId): ProcessingResult
     {
         try {
-            $processingLog = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
+            $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
 
             if (! $processingLog) {
                 return ProcessingResult::failure(
@@ -91,7 +38,7 @@ class SermonProcessingService
                 );
             }
 
-            $sermon = \App\Models\Sermon::find($processingLog->sermon_id);
+            $sermon = Sermon::find($processingLog->sermon_id);
             if (! $sermon) {
                 return ProcessingResult::failure(
                     processingId: $processingId,
@@ -108,7 +55,7 @@ class SermonProcessingService
 
             // Mark processing as completed with degradation applied
             $processingLog->update([
-                'status' => \App\Enums\ProcessingStatus::COMPLETED,
+                'status' => ProcessingStatus::COMPLETED,
                 'current_step' => 'completed_with_degradation',
                 'error_message' => 'Graceful degradation applied',
             ]);
@@ -127,7 +74,7 @@ class SermonProcessingService
             );
 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to apply graceful degradation', [
+            Log::error('Failed to apply graceful degradation', [
                 'processing_id' => $processingId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -147,14 +94,14 @@ class SermonProcessingService
     public function cancelProcessing(string $processingId): bool
     {
         try {
-            $processingLog = \App\Models\MediaProcessingLog::where('processing_id', $processingId)->first();
+            $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
 
             if (! $processingLog) {
                 return false;
             }
 
             // If processing is already completed, cannot cancel
-            if ($processingLog->status === \App\Enums\ProcessingStatus::COMPLETED) {
+            if ($processingLog->status === ProcessingStatus::COMPLETED) {
                 return false;
             }
 
@@ -164,7 +111,7 @@ class SermonProcessingService
 
             return true;
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to cancel processing', [
+            Log::error('Failed to cancel processing', [
                 'processing_id' => $processingId,
                 'error' => $e->getMessage(),
             ]);

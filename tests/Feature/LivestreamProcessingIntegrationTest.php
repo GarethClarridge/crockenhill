@@ -82,7 +82,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $service = app(LivestreamSegmentationService::class);
 
         // Process the livestream
-        $result = $service->processWithSegmentation($videoFile);
+        $result = $service->startProcessing($videoFile);
 
         // Verify processing record was created
         $this->assertDatabaseHas('media_processing_logs', [

@@ -11,6 +11,8 @@ use App\Services\ProcessingInitiator;
 use App\Services\ProcessingLogService;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
+use App\Services\SermonAudioProcessingService;
+use App\Services\SermonJobPipelineService;
 use App\Services\SermonProcessingService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +29,10 @@ class UnifiedMediaProcessorTest extends TestCase
 
     private LivestreamSegmentationService $livestreamService;
 
+    private SermonAudioProcessingService $audioProcessingService;
+
+    private SermonJobPipelineService $jobPipelineService;
+
     private SermonProcessingService $sermonService;
 
     private ProcessingPipelineBuilder $pipelineBuilder;
@@ -40,12 +46,16 @@ class UnifiedMediaProcessorTest extends TestCase
         parent::setUp();
 
         $this->livestreamService = $this->createMock(LivestreamSegmentationService::class);
+        $this->audioProcessingService = $this->createMock(SermonAudioProcessingService::class);
+        $this->jobPipelineService = $this->createMock(SermonJobPipelineService::class);
         $this->sermonService = $this->createMock(SermonProcessingService::class);
         $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
         $this->processingLogService = $this->createMock(ProcessingLogService::class);
         $this->processingInitiator = $this->createMock(ProcessingInitiator::class);
 
         $this->processor = new UnifiedMediaProcessor(
+            $this->audioProcessingService,
+            $this->jobPipelineService,
             $this->sermonService,
             $this->pipelineBuilder,
             $this->processingLogService,
@@ -57,7 +67,7 @@ class UnifiedMediaProcessorTest extends TestCase
     // --- process() routing tests ---
 
     #[Test]
-    public function it_routes_audio_to_sermon_processing_service(): void
+    public function it_routes_audio_to_audio_processing_service(): void
     {
         $file = UploadedFile::fake()->create('sermon.mp3', 1024);
         $expectedResult = ProcessingResult::success(
@@ -65,7 +75,7 @@ class UnifiedMediaProcessorTest extends TestCase
             message: 'Audio processing started'
         );
 
-        $this->sermonService
+        $this->audioProcessingService
             ->method('processSermon')
             ->with($file, null)
             ->willReturn($expectedResult);
@@ -86,7 +96,7 @@ class UnifiedMediaProcessorTest extends TestCase
             message: 'Audio processing started'
         );
 
-        $this->sermonService
+        $this->audioProcessingService
             ->method('processSermon')
             ->with($file, $clientFileDate)
             ->willReturn($expectedResult);
@@ -106,7 +116,7 @@ class UnifiedMediaProcessorTest extends TestCase
         );
 
         $this->livestreamService
-            ->method('processWithSegmentation')
+            ->method('startProcessing')
             ->with($file, null)
             ->willReturn($expectedResult);
 
@@ -335,7 +345,7 @@ class UnifiedMediaProcessorTest extends TestCase
     // --- retry() tests ---
 
     #[Test]
-    public function it_retries_audio_processing_via_sermon_service(): void
+    public function it_retries_audio_processing_via_job_pipeline_service(): void
     {
         $log = MediaProcessingLog::factory()->audio()->failed()->create();
         $expectedResult = ProcessingResult::success(
@@ -343,7 +353,7 @@ class UnifiedMediaProcessorTest extends TestCase
             message: 'Retry initiated'
         );
 
-        $this->sermonService
+        $this->jobPipelineService
             ->method('retryProcessing')
             ->with($log->processing_id)
             ->willReturn($expectedResult);
@@ -355,7 +365,7 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
-    public function it_retries_video_processing_via_sermon_service(): void
+    public function it_retries_video_processing_via_job_pipeline_service(): void
     {
         $log = MediaProcessingLog::factory()->video()->failed()->create();
         $expectedResult = ProcessingResult::success(
@@ -363,7 +373,7 @@ class UnifiedMediaProcessorTest extends TestCase
             message: 'Video retry initiated'
         );
 
-        $this->sermonService
+        $this->jobPipelineService
             ->method('retryProcessing')
             ->with($log->processing_id)
             ->willReturn($expectedResult);
@@ -443,7 +453,7 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->actingAs($owner);
 
-        $this->sermonService
+        $this->jobPipelineService
             ->expects($this->never())
             ->method('retryProcessing');
 

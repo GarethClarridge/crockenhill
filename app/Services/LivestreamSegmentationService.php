@@ -20,14 +20,6 @@ class LivestreamSegmentationService
         private ProcessingInitiator $processingInitiator
     ) {}
 
-    /**
-     * Process video with segmentation (for livestream videos)
-     */
-    public function processWithSegmentation(UploadedFile $videoFile, ?string $clientFileDate = null): ProcessingResult
-    {
-        return $this->startProcessing($videoFile, $clientFileDate);
-    }
-
     public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null): ProcessingResult
     {
         try {
@@ -179,15 +171,6 @@ class LivestreamSegmentationService
             })
             ->onQueue($queueName)
             ->dispatch();
-    }
-
-    public function updateProcessingStatus(string $processingId, string $status): void
-    {
-        $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
-
-        if ($processingLog) {
-            $processingLog->update(['status' => $status]);
-        }
     }
 
     private function handleProcessingFailure(string $processingId, \Throwable $e): void
