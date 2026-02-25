@@ -61,7 +61,7 @@ class SentinelSecurityTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'An error occurred during upload. Please try again.');
+        $response->assertSessionHas('error', 'An error occurred during upload. Please try again or contact support.');
 
         Log::shouldHaveReceived('error')
             ->once()
