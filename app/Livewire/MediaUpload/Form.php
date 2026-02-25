@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Livewire\MediaUpload;
 
 use App\Enums\ProcessingStatus;
+use App\Livewire\Traits\HasConditionalLogging;
+use App\Livewire\Traits\WithUploadLifecycle;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\MediaValidationService;
@@ -13,79 +15,27 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
 class Form extends Component
 {
+    use HasConditionalLogging;
     use WithFileUploads;
-
-    /**
-     * Log helper that respects test environment
-     *
-     * @param  array<string, mixed>  $context
-     */
-    private function logInfo(string $message, array $context = []): void
-    {
-        if (! app()->runningUnitTests()) {
-            Log::info($message, $context);
-        }
-    }
-
-    /**
-     * Log error helper that respects test environment
-     *
-     * @param  array<string, mixed>  $context
-     */
-    private function logError(string $message, array $context = []): void
-    {
-        if (! app()->runningUnitTests()) {
-            Log::error($message, $context);
-        }
-    }
-
-    /**
-     * Log debug helper that respects test environment
-     *
-     * @param  array<string, mixed>  $context
-     */
-    private function logDebug(string $message, array $context = []): void
-    {
-        if (! app()->runningUnitTests()) {
-            Log::debug($message, $context);
-        }
-    }
-
-    // Form properties
-    public string $mediaType = '';
-
-    public mixed $mediaFile = null;
-
-    public ?string $fileModifiedDate = null;
+    use WithUploadLifecycle;
 
     // Processing state
     public ?string $processingId = null;
 
     public ?string $tempFilePath = null;
 
-    public ?string $originalFileName = null;
-
-    public string $status = 'idle'; // idle, uploading, processing, completed, failed
+    public string $status = 'idle';
 
     public string $currentStep = '';
 
     public int $progressPercentage = 0;
-
-    // Upload progress tracking
-    public int $uploadProgress = 0;           // 0-100 percentage
-
-    public bool $isUploading = false;         // Track if upload is in progress
-
-    public bool $uploadCancelled = false;     // Track if user cancelled upload
 
     public ?string $errorMessage = null;
 
@@ -93,39 +43,7 @@ class Form extends Component
 
     public ?string $cancelledMessage = null;
 
-    // UI state
-    public bool $showUploadForm = true;
-
     public bool $showProcessingStatus = false;
-
-    /** @var array<string, string> */
-    protected array $rules = [
-        'mediaType' => 'required|in:audio,video,livestream',
-        'mediaFile' => 'required|file',
-    ];
-
-    /**
-     * @return array<string, string>
-     */
-    protected function getDynamicMessages(): array
-    {
-        $validation = app(MediaValidationService::class);
-        $maxSize = in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->maxFileSizeForDisplay($this->mediaType)
-            : '100MB';
-        $extensions = in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->allowedExtensionsForDisplay($this->mediaType)
-            : 'MP3, WAV, M4A, MP4, MOV, AVI, MKV';
-
-        return [
-            'mediaType.required' => 'Please select a media type.',
-            'mediaType.in' => 'Invalid media type selected.',
-            'mediaFile.required' => 'Please select a file to upload.',
-            'mediaFile.file' => 'The uploaded item must be a file.',
-            'mediaFile.mimes' => "Invalid file type. Supported formats: {$extensions}.",
-            'mediaFile.max' => "File size cannot exceed {$maxSize}.",
-        ];
-    }
 
     public function mount(): void
     {
@@ -134,7 +52,6 @@ class Form extends Component
             'timestamp' => now()->toDateTimeString(),
         ]);
 
-        // Ensure user has permission to upload sermons
         if (! Gate::allows('create', Sermon::class)) {
             $this->logError('MediaUpload: Unauthorized access attempt', [
                 'user_id' => Auth::id(),
@@ -145,139 +62,6 @@ class Form extends Component
         $this->logInfo('MediaUpload: Component mounted successfully', [
             'user_id' => Auth::id(),
         ]);
-    }
-
-    public function updatedMediaType(): void
-    {
-        // Clear previous file selection when media type changes
-        $this->mediaFile = null;
-        $this->resetErrorBag('mediaFile');
-    }
-
-    public function updatedMediaFile(): void
-    {
-        // Just log that file was selected - don't validate yet
-        // Validation will happen in uploadComplete() where we have the actual file
-        if (! $this->mediaFile) {
-            return;
-        }
-
-        // Set upload state - the actual upload will be tracked by JavaScript
-        $this->isUploading = true;
-        $this->uploadCancelled = false;
-        $this->status = 'uploading';
-        $this->errorMessage = null;
-        $this->successMessage = null;
-        $this->cancelledMessage = null;
-        $this->uploadProgress = 0;
-
-        $this->logInfo('MediaUpload: File upload started', [
-            'media_type' => $this->mediaType,
-            'file_name' => $this->mediaFile->getClientOriginalName(),
-        ]);
-    }
-
-    public function uploadComplete(): void
-    {
-        // This is called by JavaScript after livewire-upload-finish event
-
-        if ($this->uploadCancelled) {
-            $this->logInfo('Upload complete but was cancelled, ignoring');
-
-            return;
-        }
-
-        if (! $this->mediaFile) {
-            $this->handleUploadError('File upload completed but file is missing');
-
-            return;
-        }
-
-        $this->isUploading = false;
-        $this->uploadProgress = 100;
-
-        $this->logInfo('MediaUpload: File upload completed, starting validation', [
-            'file_name' => $this->mediaFile->getClientOriginalName(),
-        ]);
-
-        // Now validate and start processing
-        try {
-            $this->validate($this->getDynamicRules(), $this->getDynamicMessages());
-
-            // Save original filename before we lose access to the file object
-            $this->originalFileName = $this->mediaFile->getClientOriginalName();
-
-            // Hide upload form and show processing status section
-            $this->showUploadForm = false;
-            $this->showProcessingStatus = true;
-            $this->status = 'processing';
-            $this->currentStep = 'Preparing for processing...';
-            $this->progressPercentage = 5;
-            $this->errorMessage = null;
-            $this->successMessage = null;
-            $this->cancelledMessage = null;
-
-            // Store file data for processing
-            $tempFilePath = $this->mediaFile->store('temp/livewire-upload', 'local');
-            $this->tempFilePath = $tempFilePath;
-
-            $this->logInfo('File stored to temp directory', [
-                'temp_file_path' => $tempFilePath,
-                'full_path' => storage_path('app/'.$tempFilePath),
-                'file_exists' => file_exists(storage_path('app/'.$tempFilePath)),
-            ]);
-
-            // Call processing directly
-            $this->startProcessing();
-
-            $this->logInfo('Media processing started', [
-                'processing_id' => $this->processingId,
-                'media_type' => $this->mediaType,
-                'user_id' => Auth::id(),
-            ]);
-
-        } catch (ValidationException $e) {
-            $this->handleUploadError('Validation failed: '.$e->getMessage());
-            $this->setErrorBag($e->validator->getMessageBag());
-        } catch (\Exception $e) {
-            $this->logError('Media processing preparation failed', [
-                'error' => $e->getMessage(),
-                'media_type' => $this->mediaType,
-                'user_id' => Auth::id(),
-            ]);
-
-            $this->handleUploadError('An unexpected error occurred: '.$e->getMessage());
-        }
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    protected function getDynamicRules(): array
-    {
-        $validation = app(MediaValidationService::class);
-
-        $fileRules = in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->rulesForType($this->mediaType)
-            : ['file' => 'required|file'];
-
-        // Map 'file' key to 'mediaFile' for Livewire property name
-        $rules = $this->rules;
-        $rules['mediaFile'] = $fileRules['file'];
-
-        $this->logInfo('MediaUpload: Dynamic rules from config', [
-            'media_type' => $this->mediaType,
-            'rules' => $rules['mediaFile'],
-        ]);
-
-        return $rules;
-    }
-
-    public function uploadMedia(): void
-    {
-        // Fallback for manual upload button (JavaScript-disabled browsers)
-        $this->logInfo('Manual upload triggered (JavaScript fallback)');
-        $this->uploadComplete();
     }
 
     public function startProcessing(): void
@@ -301,7 +85,6 @@ class Form extends Component
         $fullTempPath = Storage::disk('local')->path($this->tempFilePath);
 
         try {
-            // Reconstruct the uploaded file from stored temp file
             $mimeType = mime_content_type($fullTempPath) ?: 'application/octet-stream';
 
             $originalFile = new UploadedFile(
@@ -309,7 +92,7 @@ class Form extends Component
                 $this->originalFileName,
                 $mimeType,
                 null,
-                true // Mark as already-validated to skip upload validation
+                true
             );
 
             $this->logInfo('Processing with file date', [
@@ -317,12 +100,9 @@ class Form extends Component
                 'original_filename' => $this->originalFileName,
             ]);
 
-            // Start the actual processing
             $processor = $this->getProcessor();
-
             $result = $processor->process($this->mediaType, $originalFile, $this->fileModifiedDate);
 
-            // Update UI to show completion
             if ($result->success) {
                 $this->processingId = $result->processingId;
                 $this->status = ProcessingStatus::PROCESSING->value;
@@ -363,7 +143,6 @@ class Form extends Component
             $this->successMessage = null;
             $this->cancelledMessage = null;
         } finally {
-            // Always clean up the Livewire temp file, regardless of success or failure
             if (file_exists($fullTempPath)) {
                 try {
                     unlink($fullTempPath);
@@ -398,40 +177,6 @@ class Form extends Component
         $this->retryUpload();
     }
 
-    public function cancelUpload(): void
-    {
-        if (! $this->isUploading) {
-            return;
-        }
-
-        $this->logInfo('Upload cancelled by user', [
-            'file_name' => $this->originalFileName ?? 'unknown',
-            'upload_progress' => $this->uploadProgress,
-        ]);
-
-        // Set cancellation flag to prevent uploadComplete() from executing
-        $this->uploadCancelled = true;
-        $this->isUploading = false;
-
-        // Reset to idle state
-        $this->status = 'idle';
-        $this->uploadProgress = 0;
-        $this->mediaFile = null;
-        $this->errorMessage = null;
-
-        // Livewire temp file cleanup happens automatically via JavaScript
-        // calling Livewire.find(componentId).cancelUpload('mediaFile')
-    }
-
-    public function updateUploadProgress(int $progress): void
-    {
-        if ($this->uploadCancelled) {
-            return; // Ignore updates after cancellation
-        }
-
-        $this->uploadProgress = $progress;
-    }
-
     public function cancelProcessing(): void
     {
         if (! $this->processingId) {
@@ -439,7 +184,6 @@ class Form extends Component
         }
 
         try {
-            // Use the unified media processor to cancel processing
             $processor = $this->getProcessor();
             $result = $processor->cancel($this->processingId);
 
@@ -462,28 +206,6 @@ class Form extends Component
         }
     }
 
-    public function handleUploadError(string $message): void
-    {
-        $this->status = 'failed';
-        $this->errorMessage = $message;
-        $this->successMessage = null;
-        $this->cancelledMessage = null;
-        $this->showUploadForm = true;
-        $this->showProcessingStatus = true;
-
-        // Reset upload state
-        $this->resetUploadState();
-    }
-
-    private function handleProcessingError(string $message): void
-    {
-        $this->status = 'failed';
-        $this->errorMessage = $message;
-        $this->successMessage = null;
-        $this->cancelledMessage = null;
-        $this->currentStep = 'Processing failed';
-    }
-
     public function checkProcessingStatus(): void
     {
         if (! $this->processingId || in_array($this->status, ['completed', 'failed', 'cancelled'])) {
@@ -491,7 +213,6 @@ class Form extends Component
         }
 
         try {
-            // Use the unified media processor to get status
             $processor = $this->getProcessor();
             $statusResponse = $processor->getStatus($this->processingId);
 
@@ -539,9 +260,13 @@ class Form extends Component
         }
     }
 
-    private function getProcessor(): UnifiedMediaProcessor
+    private function handleProcessingError(string $message): void
     {
-        return app(UnifiedMediaProcessor::class);
+        $this->status = 'failed';
+        $this->errorMessage = $message;
+        $this->successMessage = null;
+        $this->cancelledMessage = null;
+        $this->currentStep = 'Processing failed';
     }
 
     private function resetProcessingState(): void
@@ -555,12 +280,9 @@ class Form extends Component
         $this->cancelledMessage = null;
     }
 
-    private function resetUploadState(): void
+    private function getProcessor(): UnifiedMediaProcessor
     {
-        $this->isUploading = false;
-        $this->uploadCancelled = false;
-        $this->uploadProgress = 0;
-        $this->mediaFile = null;
+        return app(UnifiedMediaProcessor::class);
     }
 
     public function render(): View

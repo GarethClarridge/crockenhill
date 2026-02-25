@@ -6,15 +6,17 @@ namespace App\Livewire;
 
 use App\Contracts\ProcessingStatusContract;
 use App\Data\ProcessingLogEntry;
+use App\Livewire\Traits\HasConditionalLogging;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Lazy;
 use Livewire\Component;
 
 class ProcessingLogsViewer extends Component
 {
+    use HasConditionalLogging;
+
     public string $processingId;
 
     public bool $autoRefresh = true;
@@ -66,13 +68,11 @@ class ProcessingLogsViewer extends Component
         $this->logLimit = $logLimit;
         $this->lastFetch = now();
 
-        if (! app()->runningUnitTests()) {
-            Log::debug('ProcessingLogsViewer: Component mounting', [
-                'processing_id' => $processingId,
-                'auto_refresh' => $autoRefresh,
-                'expanded' => $expanded,
-            ]);
-        }
+        $this->logDebug('ProcessingLogsViewer: Component mounting', [
+            'processing_id' => $processingId,
+            'auto_refresh' => $autoRefresh,
+            'expanded' => $expanded,
+        ]);
 
         $this->fetchLogs();
     }
@@ -84,11 +84,9 @@ class ProcessingLogsViewer extends Component
             $controller = $this->findControllerForProcessingId($this->processingId);
 
             if (! $controller) {
-                if (! app()->runningUnitTests()) {
-                    Log::warning('ProcessingLogsViewer: No controller found for processing ID', [
-                        'processing_id' => $this->processingId,
-                    ]);
-                }
+                $this->logWarning('ProcessingLogsViewer: No controller found for processing ID', [
+                    'processing_id' => $this->processingId,
+                ]);
 
                 return;
             }
@@ -134,20 +132,16 @@ class ProcessingLogsViewer extends Component
 
                 $this->lastFetch = now();
             } else {
-                if (! app()->runningUnitTests()) {
-                    Log::warning('ProcessingLogsViewer: Processing record not found', [
-                        'processing_id' => $this->processingId,
-                    ]);
-                }
-            }
-        } catch (\Exception $e) {
-            if (! app()->runningUnitTests()) {
-                Log::error('ProcessingLogsViewer: Error fetching logs', [
+                $this->logWarning('ProcessingLogsViewer: Processing record not found', [
                     'processing_id' => $this->processingId,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
                 ]);
             }
+        } catch (\Exception $e) {
+            $this->logError('ProcessingLogsViewer: Error fetching logs', [
+                'processing_id' => $this->processingId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 
@@ -165,12 +159,10 @@ class ProcessingLogsViewer extends Component
     {
         $this->autoRefresh = ! $this->autoRefresh;
 
-        if (! app()->runningUnitTests()) {
-            Log::debug('ProcessingLogsViewer: Auto refresh toggled', [
-                'processing_id' => $this->processingId,
-                'auto_refresh' => $this->autoRefresh,
-            ]);
-        }
+        $this->logDebug('ProcessingLogsViewer: Auto refresh toggled', [
+            'processing_id' => $this->processingId,
+            'auto_refresh' => $this->autoRefresh,
+        ]);
     }
 
     public function refreshLogs(): void
@@ -187,13 +179,11 @@ class ProcessingLogsViewer extends Component
     public function updateFilter(): void
     {
         // Filters are applied in the computed property, no need to refetch
-        if (! app()->runningUnitTests()) {
-            Log::debug('ProcessingLogsViewer: Filter updated', [
-                'processing_id' => $this->processingId,
-                'filter_level' => $this->filterLevel,
-                'filter_step' => $this->filterStep,
-            ]);
-        }
+        $this->logDebug('ProcessingLogsViewer: Filter updated', [
+            'processing_id' => $this->processingId,
+            'filter_level' => $this->filterLevel,
+            'filter_step' => $this->filterStep,
+        ]);
     }
 
     /**
