@@ -333,31 +333,31 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * Check if this sermon has a transcript available.
+     * Check if this sermon has a transcript available
      *
-     * Performance Optimization: Trusts the database column presence for existence checks in
-     * performance-critical paths (sitemaps, list views) to avoid expensive remote storage
-     * network calls (e.g., S3/DigitalOcean Spaces).
+     * Performance Optimization: Trust the database column presence to avoid
+     * expensive remote storage existence checks in performance-critical paths
+     * like sermon listings and sitemap generation.
      *
-     * @return bool True if transcript path is present in database
+     * @return bool True if transcript path is set
      */
     public function hasTranscript(): bool
     {
-        return ! empty(trim($this->transcript_file_path ?? ''));
+        return ! empty($this->transcript_file_path) && trim((string) $this->transcript_file_path) !== '';
     }
 
     /**
-     * Check if this sermon has a thumbnail available.
+     * Check if this sermon has a thumbnail available
      *
-     * Performance Optimization: Trusts the database column presence for existence checks in
-     * performance-critical paths (sitemaps, list views) to avoid expensive remote storage
-     * network calls (e.g., S3/DigitalOcean Spaces).
+     * Performance Optimization: Trust the database column presence to avoid
+     * expensive remote storage existence checks in performance-critical paths
+     * like sermon listings and sitemap generation.
      *
-     * @return bool True if thumbnail path is present in database
+     * @return bool True if thumbnail path is set
      */
     public function hasThumbnail(): bool
     {
-        return ! empty(trim($this->thumbnail_file_path ?? ''));
+        return ! empty($this->thumbnail_file_path) && trim((string) $this->thumbnail_file_path) !== '';
     }
 
     /**
