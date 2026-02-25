@@ -2,8 +2,12 @@
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum MeetingType: string
 {
+    use HasValues;
+
     case SUNDAY_AND_BIBLE_STUDIES = 'SundayAndBibleStudies';
     case CHILDREN_AND_YOUNG_PEOPLE = 'ChildrenAndYoungPeople';
     case ADULTS = 'Adults';
@@ -17,15 +21,5 @@ enum MeetingType: string
             self::ADULTS => 'Adults',
             self::OCCASIONAL => 'Occasional',
         };
-    }
-
-    /**
-     * Helper to get all values for validation rules
-     *
-     * @return array<int, string>
-     */
-    public static function values(): array
-    {
-        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

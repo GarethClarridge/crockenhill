@@ -2,8 +2,12 @@
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum PageArea: string
 {
+    use HasValues;
+
     case CHRIST = 'christ';
     case CHURCH = 'church';
     case COMMUNITY = 'community';
@@ -19,13 +23,5 @@ enum PageArea: string
             self::MEMBERS => 'Members',
             self::SERMONS => 'Sermons',
         };
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public static function values(): array
-    {
-        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

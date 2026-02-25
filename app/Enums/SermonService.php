@@ -2,8 +2,12 @@
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum SermonService: string
 {
+    use HasValues;
+
     case MORNING = 'morning';
     case EVENING = 'evening';
     case OTHER = 'other';
@@ -15,13 +19,5 @@ enum SermonService: string
             self::EVENING => 'Evening',
             self::OTHER => 'Other',
         };
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public static function values(): array
-    {
-        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

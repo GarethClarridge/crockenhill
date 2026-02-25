@@ -2,8 +2,12 @@
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum PreacherSource: string
 {
+    use HasValues;
+
     case ID3 = 'id3';
     case SPEAKER_MODEL = 'speaker_model';
     case MANUAL = 'manual';
@@ -17,13 +21,5 @@ enum PreacherSource: string
             self::MANUAL => 'Manual',
             self::DEFAULT => 'Default',
         };
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public static function values(): array
-    {
-        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

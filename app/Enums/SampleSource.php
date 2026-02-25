@@ -2,8 +2,12 @@
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum SampleSource: string
 {
+    use HasValues;
+
     case Backfill = 'backfill';
     case UploadAuto = 'upload_auto';
     case ManualUpload = 'manual_upload';
@@ -15,13 +19,5 @@ enum SampleSource: string
             self::UploadAuto => 'Upload (Auto)',
             self::ManualUpload => 'Manual Upload',
         };
-    }
-
-    /**
-     * @return list<string>
-     */
-    public static function values(): array
-    {
-        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

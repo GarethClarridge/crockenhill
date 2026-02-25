@@ -274,7 +274,7 @@ Evidence: Only 5 instances of `loading="lazy"` across the entire codebase. Sermo
 
 Recommendation: Add `loading="lazy"` to all below-the-fold images. Keep `fetchpriority="high"` on hero/LCP images (already done correctly).
 
-#### L5. Enum `values()` method duplicated across all enums
+#### L5. Enum `values()` method duplicated across all enums *Completed*
 
 Evidence: Every enum in `app/Enums/` implements an identical `values()` method.
 

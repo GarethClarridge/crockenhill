@@ -2,8 +2,12 @@
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum MeetingFrequency: string
 {
+    use HasValues;
+
     case DAILY = 'daily';
     case WEEKLY = 'weekly';
     case MONTHLY = 'monthly';
@@ -17,13 +21,5 @@ enum MeetingFrequency: string
             self::MONTHLY => 'Monthly',
             self::ANNUALLY => 'Annually',
         };
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    public static function values(): array
-    {
-        return array_map(fn ($case) => $case->value, self::cases());
     }
 }

@@ -2,18 +2,11 @@
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum ApiTokenAbility: string
 {
-    case MEDIA_PROCESS = 'media:process';
+    use HasValues;
 
-    /**
-     * @return list<string>
-     */
-    public static function values(): array
-    {
-        return array_map(
-            static fn (self $ability): string => $ability->value,
-            self::cases()
-        );
-    }
+    case MEDIA_PROCESS = 'media:process';
 }
