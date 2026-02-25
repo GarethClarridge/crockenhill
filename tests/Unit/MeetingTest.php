@@ -13,13 +13,6 @@ class MeetingTest extends TestCase
     use DatabaseTransactions;
 
     #[Test]
-    public function meeting_relationships()
-    {
-        $meeting = \App\Models\Meeting::factory()->create();
-        $this->assertInstanceOf(\App\Models\Meeting::class, $meeting);
-    }
-
-    #[Test]
     public function meeting_accessors()
     {
         // Test getFormattedDateTimeAttribute

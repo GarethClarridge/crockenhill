@@ -8,6 +8,8 @@ abstract class TestCase extends BaseTestCase
 {
     use CreatesApplication;
 
+    private static bool $viewCacheCleared = false;
+
     /**
      * Indicates whether the default seeder should run before each test.
      *
@@ -28,6 +30,13 @@ abstract class TestCase extends BaseTestCase
         // Disable throttling middleware during testing to prevent
         // race conditions in parallel test execution
         $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+
+        // Clear compiled views once per process to prevent stale cached
+        // class references after component refactors.
+        if (! self::$viewCacheCleared) {
+            $this->artisan('view:clear');
+            self::$viewCacheCleared = true;
+        }
     }
 
     /**

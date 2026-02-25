@@ -78,17 +78,15 @@ class GenerateThumbnailJobTest extends TestCase
         $tempFile = tempnam(sys_get_temp_dir(), 'test_video');
         file_put_contents($tempFile, 'fake video content');
 
-        // Mock the thumbnail service with any() matcher to be more flexible
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->once())
             ->method('generateThumbnail')
-            ->with($this->anything(), $this->anything())
+            ->with($this->callback(fn ($s) => $s->id === $sermon->id), $tempFile, null)
             ->willReturn(ThumbnailResult::success(
                 'sermons/thumbnails/test.jpg',
                 ['width' => 1280, 'height' => 720]
             ));
 
-        // Mock Log to allow any calls - be more permissive
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->never(); // Should not have warnings on success
 
@@ -116,14 +114,12 @@ class GenerateThumbnailJobTest extends TestCase
         $tempFile = tempnam(sys_get_temp_dir(), 'test_video');
         file_put_contents($tempFile, 'fake video content');
 
-        // Mock the thumbnail service to return failure
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->once())
             ->method('generateThumbnail')
-            ->with($this->anything(), $this->anything())
+            ->with($this->callback(fn ($s) => $s->id === $sermon->id), $tempFile, null)
             ->willReturn(ThumbnailResult::skipped('Test failure'));
 
-        // Mock Log to allow any calls
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
 
@@ -203,14 +199,12 @@ class GenerateThumbnailJobTest extends TestCase
         $tempFile = tempnam(sys_get_temp_dir(), 'test_video');
         file_put_contents($tempFile, 'fake video content');
 
-        // Mock the thumbnail service to throw exception
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->once())
             ->method('generateThumbnail')
-            ->with($this->anything(), $this->anything())
+            ->with($this->callback(fn ($s) => $s->id === $sermon->id), $tempFile, null)
             ->willThrowException(new \Exception('Service error'));
 
-        // Mock Log to allow any calls - expect error logging
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
 
