@@ -34,6 +34,16 @@ class SermonVideoDisplayService
         ];
     }
 
+    /**
+     * Get video preview data for administrative interface.
+     *
+     * Performance Optimization: Prioritizes using the pre-populated 'duration' column from the
+     * database or calculated segment duration (for livestream sermons) to avoid expensive
+     * FFprobe-based video downloads from remote storage.
+     *
+     * @param  int  $sermonId  The sermon ID
+     * @return array Preview data
+     */
     public function getVideoPreviewData(int $sermonId): array
     {
         /** @var Sermon|null $sermon */
@@ -43,26 +53,41 @@ class SermonVideoDisplayService
             return ['has_video' => false];
         }
 
+        // Performance Optimization: Check for duration in database first
+        $duration = $sermon->duration;
+
+        // Fallback to calculated segment duration for livestream sermons
+        if (! $duration && $sermon->isFromLivestream()) {
+            $duration = $sermon->getSegmentDuration();
+        }
+
         $videoPath = $this->getVideoStoragePath($sermon->video_file_path);
 
         return [
             'has_video' => true,
             'video_url' => $this->getVideoUrl($sermon->video_file_path),
-            'duration' => $this->getVideoDuration($videoPath),
+            'duration' => $duration ?: $this->getVideoDuration($videoPath),
             'file_size' => $this->getVideoFileSize($videoPath),
             'format' => pathinfo($sermon->video_file_path, PATHINFO_EXTENSION),
         ];
     }
 
+    /**
+     * Get the video URL for a given path.
+     *
+     * Performance Optimization: Trusts the database path and avoids redundant storage
+     * existence checks before generating the URL.
+     *
+     * @param  string  $videoPath  The path to the video
+     * @return string The video URL
+     */
     public function getVideoUrl(string $videoPath): string
     {
-        $disk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
-
-        if ($disk->exists($videoPath)) {
-            return $disk->url($videoPath);
+        if (empty($videoPath)) {
+            return '';
         }
 
-        return '';
+        return Storage::disk(config('media-processing.storage.sermon_disk', 'public'))->url($videoPath);
     }
 
     private function getVideoStoragePath(string $videoPath): string

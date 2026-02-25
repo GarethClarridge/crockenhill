@@ -96,6 +96,7 @@ class SermonVideoDisplayServiceTest extends TestCase
         $sermon = Sermon::factory()->create([
             'video_file_path' => 'sermons/1/video.mp4',
             'series' => null,
+            'duration' => 1234.5,
         ]);
 
         $result = $this->service->getVideoPreviewData($sermon->id);
@@ -104,6 +105,25 @@ class SermonVideoDisplayServiceTest extends TestCase
         $this->assertArrayHasKey('video_url', $result);
         $this->assertArrayHasKey('format', $result);
         $this->assertEquals('mp4', $result['format']);
+        $this->assertEquals(1234.5, $result['duration']);
+    }
+
+    public function test_get_video_preview_data_uses_livestream_segment_duration()
+    {
+        Storage::put('sermons/1/video.mp4', 'fake video content');
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+            'source_type' => 'livestream',
+            'segment_start_time' => 100.0,
+            'segment_end_time' => 500.0,
+            'duration' => null,
+            'series' => null,
+        ]);
+
+        $result = $this->service->getVideoPreviewData($sermon->id);
+
+        $this->assertEquals(400.0, $result['duration']);
     }
 
     public function test_get_video_preview_data_without_video()

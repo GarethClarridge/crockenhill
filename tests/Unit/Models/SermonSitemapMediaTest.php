@@ -33,8 +33,7 @@ class SermonSitemapMediaTest extends TestCase
             'slug' => 'test-sermon',
         ]);
 
-        // Ensure thumbnail exists on disk so hasThumbnail() returns true
-        Storage::disk('public')->put('thumbnails/test-sermon.jpg', 'dummy content');
+        // hasThumbnail() now trusts the database column, so no physical file is needed
 
         // Generate the sitemap tag
         $tag = $sermon->toSitemapTag();
@@ -70,8 +69,6 @@ class SermonSitemapMediaTest extends TestCase
             'date' => '2026-02-15',
             'slug' => 'test-sermon',
         ]);
-
-        Storage::disk('public')->put('thumbnails/test.jpg', 'dummy content');
 
         $tag = $sermon->toSitemapTag();
 
@@ -114,8 +111,6 @@ class SermonSitemapMediaTest extends TestCase
             'date' => '2026-02-15',
             'slug' => 'test-sermon',
         ]);
-
-        Storage::disk('public')->put('thumbnails/test.jpg', 'dummy content');
 
         $tag = $sermon->toSitemapTag();
 

@@ -75,31 +75,39 @@ class SermonStorageService
     }
 
     /**
-     * Get the file size for a sermon
+     * Get the file size for a sermon.
+     *
+     * Performance Optimization: Avoids redundant exists() check before size() call
+     * to reduce remote storage network round-trips.
      */
     public function getFileSize(Sermon $sermon): ?int
     {
         $info = $this->getSermonFileInfo($sermon);
 
-        if (! Storage::disk($info['disk'])->exists($info['path'])) {
+        try {
+            return Storage::disk($info['disk'])->size($info['path']);
+        } catch (\Exception $e) {
+            // File likely doesn't exist or is inaccessible
             return null;
         }
-
-        return Storage::disk($info['disk'])->size($info['path']);
     }
 
     /**
-     * Get the file's last modified time
+     * Get the file's last modified time.
+     *
+     * Performance Optimization: Avoids redundant exists() check before lastModified() call
+     * to reduce remote storage network round-trips.
      */
     public function getLastModified(Sermon $sermon): ?int
     {
         $info = $this->getSermonFileInfo($sermon);
 
-        if (! Storage::disk($info['disk'])->exists($info['path'])) {
+        try {
+            return Storage::disk($info['disk'])->lastModified($info['path']);
+        } catch (\Exception $e) {
+            // File likely doesn't exist or is inaccessible
             return null;
         }
-
-        return Storage::disk($info['disk'])->lastModified($info['path']);
     }
 
     /**
