@@ -335,31 +335,29 @@ class Sermon extends Model implements Sitemapable
     /**
      * Check if this sermon has a transcript available
      *
-     * @return bool True if transcript exists and is readable
+     * Performance Optimization: Trust the database column presence to avoid
+     * expensive remote storage existence checks in performance-critical paths
+     * like sermon listings and sitemap generation.
+     *
+     * @return bool True if transcript path is set
      */
     public function hasTranscript(): bool
     {
-        if (! $this->transcript_file_path) {
-            return false;
-        }
-
-        return \Illuminate\Support\Facades\Storage::exists($this->transcript_file_path);
+        return ! empty($this->transcript_file_path) && trim((string) $this->transcript_file_path) !== '';
     }
 
     /**
      * Check if this sermon has a thumbnail available
      *
-     * @return bool True if thumbnail exists and is accessible
+     * Performance Optimization: Trust the database column presence to avoid
+     * expensive remote storage existence checks in performance-critical paths
+     * like sermon listings and sitemap generation.
+     *
+     * @return bool True if thumbnail path is set
      */
     public function hasThumbnail(): bool
     {
-        if (! $this->thumbnail_file_path) {
-            return false;
-        }
-
-        $disk = config('thumbnail-generation.storage.disk', 'public');
-
-        return \Illuminate\Support\Facades\Storage::disk($disk)->exists($this->thumbnail_file_path);
+        return ! empty($this->thumbnail_file_path) && trim((string) $this->thumbnail_file_path) !== '';
     }
 
     /**
