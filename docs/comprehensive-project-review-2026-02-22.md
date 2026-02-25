@@ -193,9 +193,9 @@ Recommendation:
 1. Use `ProcessingException` and its subclasses consistently for all media processing errors.
 2. Never surface raw exception messages to end users.
 
-#### M6. PHPStan at level 5 — room to tighten *🟡 IN PROGRESS — Level 6 enabled, 309 violations fixed (93.1% reduction)*
+#### M6. PHPStan at level 5 — room to tighten *Completed*
 
-**Status:** 🟡 Ongoing (updated 2026-02-24). Baseline reduced from 332 → 23.
+**Status:** ✅ Completed (updated 2026-02-24). Baseline reduced from 332 → 0.
 
 **Implementation to date (incremental batches):**
 1. **Infrastructure setup** — Updated `phpstan.neon` to level 6, added `phpstan-baseline.neon`, deleted stale `.dist` template.
@@ -208,32 +208,20 @@ Recommendation:
    - `Auth\Login`, `MediaUpload\Form`, `ProcessingLogsViewer`.
 6. **Batch 8 (183 fixes)** — Broad low-risk typing pass:
    - Logging/mail/observer/repository signatures, extensive service `array`/generic annotations, and model relationship/scope generic typing (`CalendarEvent`, `LivestreamSegment`, `MediaProcessingLog`, `Meeting`, `Page`, `Sermon`, etc.).
+7. **Final closure batch (23 fixes)** — Deferred jobs/services typing completed:
+   - `AnalyzeSegments`, `ExtractAudioFromVideo`, `ExtractSermon`, `PerformVisualAnalysis`, `VideoExtractionService`, `VideoSegmentationService`, `VideoStorageService`.
+   - Resolved data-vs-model segment typing mismatches, return-shape contracts, and config numeric-cast edge cases.
 
-**Total violations fixed: 309 across multiple batches/files, 93.1% reduction**
+**Total violations fixed: 332 across multiple batches/files, 100% reduction**
 
 **Current state:**
-- **Baseline: 23 violations** (down from 332, **309 fixed, 93.1% reduction**).
-- **Code quality gates:** ✅ PHPStan clean at level 6 (with baseline), ✅ Pint clean.
-- **Tests:** ✅ Focused regression checks passed (including Login payload-hardening tests after Livewire type adjustments).
-
-**Remaining work (23 violations, intentionally deferred):**
-- **Jobs/processing logic (14):**
-  - `AnalyzeSegments` (11)
-  - `ExtractAudioFromVideo` (1)
-  - `ExtractSermon` (1)
-  - `PerformVisualAnalysis` (1)
-- **Video services with behavior-coupled typing (6):**
-  - `VideoExtractionService` (3)
-  - `VideoSegmentationService` (1)
-  - `VideoStorageService` (2)
-
-**Where work paused (complexity threshold):**
-- `app/Jobs/AnalyzeSegments.php` and adjacent video/job paths now require contract-level alignment (data-vs-model segment types, property naming consistency, and return-shape harmonization). This is no longer mechanical PHPDoc cleanup.
+- **Baseline: 0 violations** (down from 332, **332 fixed, 100% reduction**).
+- **Code quality gates:** ✅ PHPStan clean at level 6 (no baseline suppressions), ✅ Pint clean.
+- **Tests:** ✅ Focused regression checks passed for the final M6 batch files.
 
 **Recommendation:**
-1. Keep level 6 enforcement active and baseline regeneration discipline after each batch.
-2. Create a dedicated refactor task for segment canonicalization (single segment type contract used by jobs/services/models).
-3. Resolve the 6 residual `Video*` service return-type mismatches in the same refactor stream to avoid piecemeal churn.
+1. Keep level 6 enforcement active.
+2. Keep baseline at zero by fixing new findings directly rather than reintroducing suppressions.
 
 #### M7. Route file noise and fragile ordering *Completed*
 
@@ -272,7 +260,7 @@ Recommendation: Fix placeholders, prefer constructor injection over reflection, 
 | `PreacherAlias` model | No tests |
 | `ResourceTable` Livewire component | Shared admin component untested |
 
-#### L3. Duplicate Blade components
+#### L3. Duplicate Blade components *Completed*
 
 Evidence:
 - Two button components: `Button.php` (class-based) and `button.blade.php` (anonymous)
