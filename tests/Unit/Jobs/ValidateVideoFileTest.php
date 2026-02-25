@@ -4,6 +4,7 @@ namespace Tests\Unit\Jobs;
 
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -32,7 +33,7 @@ class ValidateVideoFileTest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
 
         $job = new ValidateVideoFile($log);
-        $job->handle();
+        $job->handle($this->app->make(MediaValidationService::class));
 
         $log->refresh();
         $this->assertEquals('video_validation_complete', $log->current_step);
@@ -54,7 +55,7 @@ class ValidateVideoFileTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('No stored file path found in processing log');
 
-        $job->handle();
+        $job->handle($this->app->make(MediaValidationService::class));
     }
 
     #[Test]
@@ -75,7 +76,7 @@ class ValidateVideoFileTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Video file not found at path');
 
-        $job->handle();
+        $job->handle($this->app->make(MediaValidationService::class));
     }
 
     #[Test]
@@ -103,10 +104,10 @@ class ValidateVideoFileTest extends TestCase
         $job = new ValidateVideoFile($log);
 
         try {
-            $job->handle();
+            $job->handle($this->app->make(MediaValidationService::class));
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
-            $this->assertStringContainsString('exceeds maximum size limit', $e->getMessage());
+            $this->assertStringContainsString('exceeds maximum limit', $e->getMessage());
         } finally {
             @unlink($tempFile);
         }
@@ -139,10 +140,10 @@ class ValidateVideoFileTest extends TestCase
         $job = new ValidateVideoFile($log);
 
         try {
-            $job->handle();
+            $job->handle($this->app->make(MediaValidationService::class));
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
-            $this->assertStringContainsString('Unsupported video MIME type', $e->getMessage());
+            $this->assertStringContainsString('Invalid file type', $e->getMessage());
         } finally {
             @unlink($tempFile);
         }
@@ -164,7 +165,7 @@ class ValidateVideoFileTest extends TestCase
         $job = new ValidateVideoFile($log);
 
         try {
-            $job->handle();
+            $job->handle($this->app->make(MediaValidationService::class));
         } catch (\Exception) {
             // Expected
         }

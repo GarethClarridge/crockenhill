@@ -137,6 +137,76 @@ class MediaValidationServiceTest extends TestCase
         $this->assertEquals(['audio', 'video', 'livestream'], $this->service->supportedTypes());
     }
 
+    // ---- validateUploadedFile ----
+
+    #[Test]
+    public function validate_uploaded_file_passes_for_valid_audio(): void
+    {
+        $file = $this->createMockUploadedFile('sermon.mp3', 'audio/mpeg', 1 * 1024 * 1024);
+
+        // Should not throw
+        $this->service->validateUploadedFile('audio', $file);
+        $this->assertTrue(true);
+    }
+
+    #[Test]
+    public function validate_uploaded_file_throws_for_oversized_audio(): void
+    {
+        $file = $this->createMockUploadedFile('sermon.mp3', 'audio/mpeg', 200 * 1024 * 1024);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('File size exceeds maximum limit');
+
+        $this->service->validateUploadedFile('audio', $file);
+    }
+
+    #[Test]
+    public function validate_uploaded_file_throws_for_invalid_mime(): void
+    {
+        $file = $this->createMockUploadedFile('sermon.exe', 'application/octet-stream', 1 * 1024 * 1024);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid file type');
+
+        $this->service->validateUploadedFile('audio', $file);
+    }
+
+    #[Test]
+    public function validate_uploaded_file_throws_for_invalid_extension(): void
+    {
+        $file = $this->createMockUploadedFile('sermon.flac', 'audio/mpeg', 1 * 1024 * 1024);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid file extension');
+
+        $this->service->validateUploadedFile('audio', $file);
+    }
+
+    #[Test]
+    public function validate_uploaded_file_throws_for_invalid_type_argument(): void
+    {
+        $file = $this->createMockUploadedFile('sermon.mp3', 'audio/mpeg', 1 * 1024 * 1024);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unsupported media type');
+
+        $this->service->validateUploadedFile('podcast', $file);
+    }
+
+    /**
+     * Create a partial mock UploadedFile with controlled size/mime/extension/validity.
+     */
+    private function createMockUploadedFile(string $name, string $mimeType, int $size): \Illuminate\Http\UploadedFile
+    {
+        $file = $this->createMock(\Illuminate\Http\UploadedFile::class);
+        $file->method('isValid')->willReturn(true);
+        $file->method('getSize')->willReturn($size);
+        $file->method('getMimeType')->willReturn($mimeType);
+        $file->method('getClientOriginalExtension')->willReturn(pathinfo($name, PATHINFO_EXTENSION));
+
+        return $file;
+    }
+
     #[Test]
     public function all_types_produce_consistent_rules_from_config(): void
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
+use App\Services\MediaValidationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -27,7 +28,7 @@ class ValidateVideoFile implements ShouldQueue
         private MediaProcessingLog $processingLog
     ) {}
 
-    public function handle(): void
+    public function handle(MediaValidationService $mediaValidation): void
     {
         Log::info('Validating video file', [
             'processing_id' => $this->processingLog->processing_id,
@@ -51,32 +52,11 @@ class ValidateVideoFile implements ShouldQueue
                 'disk' => $disk,
             ]);
 
-            // Basic video file validation
             if (! file_exists($filePath)) {
                 throw new \Exception("Video file not found at path: {$filePath} (relative: {$storedFilePath})");
             }
 
-            // Check file size
-            $fileSize = filesize($filePath);
-            $maxSize = config('media-processing.types.video.max_file_size', 1073741824); // 1GB
-
-            if ($fileSize > $maxSize) {
-                $maxSizeMB = round($maxSize / (1024 * 1024));
-                $fileSizeMB = round($fileSize / (1024 * 1024), 2);
-                throw new \Exception("Video file exceeds maximum size limit ({$fileSizeMB}MB > {$maxSizeMB}MB)");
-            }
-
-            // Check file type using mime type
-            $mimeType = mime_content_type($filePath);
-            if ($mimeType === false) {
-                throw new \Exception('Could not determine video file MIME type');
-            }
-
-            $allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'];
-
-            if (! in_array($mimeType, $allowedTypes)) {
-                throw new \Exception("Unsupported video MIME type: {$mimeType}");
-            }
+            $mediaValidation->validateLocalFile('video', $filePath);
 
             $this->processingLog->update([
                 'current_step' => 'video_validation_complete',
@@ -85,8 +65,6 @@ class ValidateVideoFile implements ShouldQueue
 
             Log::info('Video file validation completed', [
                 'processing_id' => $this->processingLog->processing_id,
-                'file_size' => $fileSize,
-                'mime_type' => $mimeType,
             ]);
 
         } catch (\Exception $e) {

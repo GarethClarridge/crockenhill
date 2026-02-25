@@ -30,9 +30,8 @@ class AudioExtractionServiceTest extends TestCase
             'bitrate' => 32,
             'channels' => 1,
         ]);
-        Config::set('media-processing.processing.max_file_size', 104857600);
 
-        $this->service = new AudioExtractionService;
+        $this->service = $this->app->make(AudioExtractionService::class);
     }
 
     protected function tearDown(): void
@@ -72,7 +71,7 @@ class AudioExtractionServiceTest extends TestCase
     #[Test]
     public function it_validates_a_valid_m4a_file(): void
     {
-        $file = UploadedFile::fake()->create('sermon.m4a', 1024, 'audio/x-m4a');
+        $file = UploadedFile::fake()->create('sermon.m4a', 1024, 'audio/m4a');
 
         $this->service->validateAudioFile($file);
         $this->assertTrue(true);
@@ -84,7 +83,7 @@ class AudioExtractionServiceTest extends TestCase
         $file = UploadedFile::fake()->create('sermon.ogg', 1024, 'audio/mpeg');
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage("Audio file extension 'ogg' not allowed");
+        $this->expectExceptionMessage('Invalid file extension');
 
         $this->service->validateAudioFile($file);
     }
@@ -95,7 +94,7 @@ class AudioExtractionServiceTest extends TestCase
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/ogg');
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Audio file MIME type');
+        $this->expectExceptionMessage('Invalid file type');
 
         $this->service->validateAudioFile($file);
     }
@@ -103,7 +102,7 @@ class AudioExtractionServiceTest extends TestCase
     #[Test]
     public function it_rejects_file_exceeding_max_size(): void
     {
-        Config::set('media-processing.processing.max_file_size', 1024); // 1KB
+        Config::set('media-processing.types.audio.max_file_size', 1024); // 1KB
 
         $file = UploadedFile::fake()->create('sermon.mp3', 10, 'audio/mpeg'); // 10KB
 
@@ -119,7 +118,7 @@ class AudioExtractionServiceTest extends TestCase
         $file = UploadedFile::fake()->create('document.pdf', 1024, 'audio/mpeg');
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage("Audio file extension 'pdf' not allowed");
+        $this->expectExceptionMessage('Invalid file extension');
 
         $this->service->validateAudioFile($file);
     }

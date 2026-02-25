@@ -73,9 +73,9 @@ Target files:
 
 Tasks:
 
-- [ ] Create one storage helper/service for: `exists`, `size`, `download-to-temp`, `upload`, `cleanup`.
-- [ ] Remove duplicate S3/local detection and repeated temp-file download/cleanup logic.
-- [ ] Reuse one temp-file collector for failure/cancel cleanup paths.
+- [x] Create one storage helper/service for: `exists`, `size`, `download-to-temp`, `upload`, `cleanup`.
+- [x] Remove duplicate S3/local detection and repeated temp-file download/cleanup logic.
+- [x] Reuse one temp-file collector for failure/cancel cleanup paths.
 
 Exit criteria:
 

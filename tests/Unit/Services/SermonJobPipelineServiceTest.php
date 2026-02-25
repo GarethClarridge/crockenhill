@@ -26,7 +26,7 @@ class SermonJobPipelineServiceTest extends TestCase
         parent::setUp();
 
         $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
-        $validationService = new SermonValidationService;
+        $validationService = $this->app->make(SermonValidationService::class);
         $statusManagementService = new SermonStatusManagementService($validationService);
         $this->service = new SermonJobPipelineService(
             $this->pipelineBuilder,

@@ -123,32 +123,7 @@ class SermonAudioProcessingService
      */
     public function validateAudioFile(UploadedFile $file): void
     {
-        // Check file size
-        $maxSize = $this->mediaValidation->maxFileSizeBytes('audio');
-        if ($file->getSize() > $maxSize) {
-            $maxSizeMB = round($maxSize / (1024 * 1024));
-            throw new \InvalidArgumentException("File size exceeds maximum limit of {$maxSizeMB}MB");
-        }
-
-        // Check MIME type
-        $allowedMimeTypes = $this->mediaValidation->allowedMimes('audio');
-
-        if (! in_array($file->getMimeType(), $allowedMimeTypes)) {
-            throw new \InvalidArgumentException('Invalid file type. Only audio files are allowed.');
-        }
-
-        // Check file extension
-        $allowedExtensions = $this->mediaValidation->allowedExtensions('audio');
-        $extension = strtolower($file->getClientOriginalExtension());
-
-        if (! in_array($extension, $allowedExtensions)) {
-            throw new \InvalidArgumentException('Invalid file extension. Allowed: '.implode(', ', $allowedExtensions));
-        }
-
-        // Basic file integrity check
-        if (! $file->isValid()) {
-            throw new \InvalidArgumentException('Uploaded file is corrupted or invalid');
-        }
+        $this->mediaValidation->validateUploadedFile('audio', $file);
     }
 
     /**
@@ -179,6 +154,6 @@ class SermonAudioProcessingService
 
     private function audioQueue(): string
     {
-        return (string) config('media-processing.queues.audio', config('media-processing.types.audio.queue', 'audio-processing'));
+        return (string) config('media-processing.queues.audio', 'audio-processing');
     }
 }

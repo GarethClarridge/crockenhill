@@ -19,7 +19,7 @@ class SermonValidationServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new SermonValidationService;
+        $this->service = $this->app->make(SermonValidationService::class);
     }
 
     // ---- validateProcessingMetadata ----

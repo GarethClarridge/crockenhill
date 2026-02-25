@@ -16,6 +16,8 @@ use Illuminate\Support\Str;
  */
 class AudioExtractionService
 {
+    public function __construct(private readonly MediaValidationService $mediaValidation) {}
+
     /**
      * Extract audio from video file optimized for transcription
      */
@@ -116,29 +118,7 @@ class AudioExtractionService
      */
     public function validateAudioFile(UploadedFile $file): void
     {
-        $allowedMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a', 'audio/m4a'];
-        $allowedExtensions = ['mp3', 'wav', 'm4a', 'mp4'];
-        $maxFileSize = config('media-processing.processing.max_file_size', 104857600); // 100MB
-
-        if (! $file->isValid()) {
-            throw new \InvalidArgumentException('Invalid audio file uploaded');
-        }
-
-        if ($file->getSize() > $maxFileSize) {
-            $maxSizeMB = round($maxFileSize / (1024 * 1024));
-            throw new \InvalidArgumentException("Audio file size exceeds maximum limit of {$maxSizeMB}MB");
-        }
-
-        $extension = strtolower($file->getClientOriginalExtension());
-        if (! in_array($extension, $allowedExtensions)) {
-            $allowed = implode(', ', $allowedExtensions);
-            throw new \InvalidArgumentException("Audio file extension '{$extension}' not allowed. Allowed: {$allowed}");
-        }
-
-        $mimeType = $file->getMimeType();
-        if (! in_array($mimeType, $allowedMimeTypes)) {
-            throw new \InvalidArgumentException("Audio file MIME type '{$mimeType}' not allowed");
-        }
+        $this->mediaValidation->validateUploadedFile('audio', $file);
     }
 
     /**

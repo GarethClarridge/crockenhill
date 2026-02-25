@@ -10,50 +10,24 @@ use Illuminate\Support\Str;
 
 class SermonValidationService
 {
+    public function __construct(private readonly MediaValidationService $mediaValidation) {}
+
     /**
      * Validate the uploaded audio file
      */
     public function validateAudioFile(UploadedFile $file): void
     {
-        // Check file size
-        $maxSize = config('media-processing.processing.max_file_size', 100 * 1024 * 1024);
-        if ($file->getSize() > $maxSize) {
-            $maxSizeMB = round($maxSize / (1024 * 1024));
-            throw new InvalidFileException(["File size exceeds maximum limit of {$maxSizeMB}MB"]);
-        }
-
-        // Check MIME type
-        $allowedMimeTypes = config('media-processing.processing.allowed_mime_types', [
-            'audio/mpeg',
-            'audio/mp3',
-            'audio/wav',
-            'audio/x-wav',
-            'audio/mp4',
-            'audio/m4a',
-        ]);
-
-        if (! in_array($file->getMimeType(), $allowedMimeTypes)) {
-            throw new InvalidFileException(['Invalid file type. Only audio files are allowed.']);
-        }
-
-        // Check file extension
-        $allowedExtensions = config('media-processing.processing.allowed_extensions', ['mp3', 'wav', 'm4a', 'mp4']);
-        $extension = strtolower($file->getClientOriginalExtension());
-
-        if (! in_array($extension, $allowedExtensions)) {
-            throw new InvalidFileException(['Invalid file extension. Allowed: '.implode(', ', $allowedExtensions)]);
-        }
-
-        // Basic file integrity check
-        if (! $file->isValid()) {
-            throw new InvalidFileException(['Uploaded file is corrupted or invalid']);
+        try {
+            $this->mediaValidation->validateUploadedFile('audio', $file);
+        } catch (\InvalidArgumentException $e) {
+            throw new InvalidFileException([$e->getMessage()]);
         }
     }
 
     /**
      * Validate processing metadata
      *
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
      * @return array<int, string>
      */
     public function validateProcessingMetadata(array $metadata): array
@@ -166,7 +140,7 @@ class SermonValidationService
     /**
      * Validate sermon data before creation/update
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      * @return array<int, string>
      */
     public function validateSermonData(array $data): array

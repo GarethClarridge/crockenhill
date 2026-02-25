@@ -20,7 +20,7 @@ class SermonStatusManagementServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonStatusManagementService(new SermonValidationService);
+        $this->service = new SermonStatusManagementService($this->app->make(SermonValidationService::class));
     }
 
     // --- getProcessingStatus() ---
