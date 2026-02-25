@@ -321,24 +321,6 @@ class StandardProcessingResponse
             return 0;
         }
 
-        // Simple progress calculation based on common steps
-        $stepProgress = match ($log->current_step) {
-            'audio_processing_initiated', 'video_processing_initiated' => 10,
-            'visual_analysis' => 10,
-            'validating' => 15,
-            'rms_generation' => 20,
-            'extracting_audio' => 25,
-            'segmentation' => 30,
-            'analyzing_segments' => 40,
-            'extraction', 'extracting_sermon' => 50,
-            'sermon_creation', 'creating_sermon' => 60,
-            'transcribing_audio', 'transcription_completed' => 70,
-            'analyzing_transcript', 'ai_analysis_completed' => 85,
-            'generating_thumbnail' => 90,
-            'cleanup' => 95,
-            default => 50,
-        };
-
-        return $stepProgress;
+        return \App\Enums\ProcessingStep::progressForStep($log->current_step);
     }
 }
