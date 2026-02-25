@@ -22,6 +22,7 @@ Christmas
   </x-text>
 
   <div class="mx-auto max-w-screen-xl text-center pt-24 pb-12">
+    <h2 class="sr-only">Events</h2>
     <h3 class="font-display text-white mt-8 text-xl lg:text-2xl sm:px-16 lg:px-48">
       Preparing Room
     </h3>

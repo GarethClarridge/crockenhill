@@ -7,75 +7,70 @@
   and rendered by the layouts/page layout. We only render the meeting-specific details here.
 --}}
 
-{{-- Meeting Details Table --}}
+{{-- Meeting Details --}}
 
 <div class="bg-cbc-pattern bg-cover my-12 px-6 md:px-16 py-12 text-white text-3xl font-display">
-  <table>
-    <tbody>
-      @if ($meeting->day != '')
-      <tr class="md:leading-loose">
-        <th scope="row" class="my-3 flex items-center">
-          <x-heroicon-s-calendar class="h-10 w-10 mr-2" />
-        </th>
-        <td>
-          {{$meeting->day}}
-        </td>
-      </tr>
-      @endif
-      @if ($meeting->start_time != '')
-      <tr class="md:leading-loose">
-        <th scope="row" class="my-3 flex items-center">
-          <x-heroicon-o-clock class="h-10 w-10 mr-2" />
-        </th>
-        <td>
-          {{ $meeting->start_time ? date('g:ia', strtotime($meeting->start_time)) : '' }}
-          @if ($meeting->end_time != '')
-          - {{ $meeting->end_time ? date('g:ia', strtotime($meeting->end_time)) : '' }}
-          @endif
-        </td>
-      </tr>
-      @endif
-      @if ($meeting->location != '')
-      <tr class="leading-relaxed md:leading-loose">
-        <th scope="row" class="my-3 flex items-center">
-          <x-heroicon-o-map-pin class="h-10 w-10 mr-2" />
-        </th>
-        <td>{{ $meeting->location }}</td>
-      </tr>
-      @endif
-      @if ($meeting->who != '')
-      <tr class="leading-relaxed md:leading-loose">
-        <th scope="row" class="my-3 flex items-center">
-          <x-heroicon-o-user class="h-10 w-10 mr-2" />
-        </th>
-        <td>{{$meeting->who}}</td>
-      </tr>
-      @endif
-      @if ($meeting->leaders_phone != '')
-      <tr class="leading-relaxed md:leading-loose">
-        <th scope="row" class="my-3 flex items-center">
-          <x-heroicon-o-phone class="h-10 w-10 mr-2" />
-        </th>
-        <td>{{$meeting->leaders_phone}}</td>
-      </tr>
-      @endif
-      @if ($meeting->leaders_email != '')
-      <tr class="leading-relaxed md:leading-loose">
-        <th scope="row" class="my-3 flex items-center">
-          <x-heroicon-o-envelope class="h-10 w-10 mr-2" />
-        </th>
-        <td>{{$meeting->leaders_email}}</td>
-      </tr>
-      @endif
-    </tbody>
-  </table>
+  <dl>
+    @if ($meeting->day != '')
+    <div class="my-3 flex items-center md:leading-loose">
+      <x-heroicon-s-calendar class="h-10 w-10 mr-2 shrink-0" aria-hidden="true" />
+      <dt class="sr-only">Day</dt>
+      <dd>{{ $meeting->day }}</dd>
+    </div>
+    @endif
+    @if ($meeting->start_time != '')
+    <div class="my-3 flex items-center md:leading-loose">
+      <x-heroicon-o-clock class="h-10 w-10 mr-2 shrink-0" aria-hidden="true" />
+      <dt class="sr-only">Time</dt>
+      <dd>
+        {{ date('g:ia', strtotime($meeting->start_time)) }}
+        @if ($meeting->end_time != '')
+        &ndash; {{ date('g:ia', strtotime($meeting->end_time)) }}
+        @endif
+      </dd>
+    </div>
+    @endif
+    @if ($meeting->location != '')
+    <div class="my-3 flex items-center leading-relaxed md:leading-loose">
+      <x-heroicon-o-map-pin class="h-10 w-10 mr-2 shrink-0" aria-hidden="true" />
+      <dt class="sr-only">Location</dt>
+      <dd>{{ $meeting->location }}</dd>
+    </div>
+    @endif
+    @if ($meeting->who != '')
+    <div class="my-3 flex items-center leading-relaxed md:leading-loose">
+      <x-heroicon-o-user class="h-10 w-10 mr-2 shrink-0" aria-hidden="true" />
+      <dt class="sr-only">Who this is for</dt>
+      <dd>{{ $meeting->who }}</dd>
+    </div>
+    @endif
+    @if ($meeting->leaders_phone != '')
+    <div class="my-3 flex items-center leading-relaxed md:leading-loose">
+      <x-heroicon-o-phone class="h-10 w-10 mr-2 shrink-0" aria-hidden="true" />
+      <dt class="sr-only">Phone</dt>
+      <dd>{{ $meeting->leaders_phone }}</dd>
+    </div>
+    @endif
+    @if ($meeting->leaders_email != '')
+    <div class="my-3 flex items-center leading-relaxed md:leading-loose">
+      <x-heroicon-o-envelope class="h-10 w-10 mr-2 shrink-0" aria-hidden="true" />
+      <dt class="sr-only">Email</dt>
+      <dd>{{ $meeting->leaders_email }}</dd>
+    </div>
+    @endif
+  </dl>
 </div>
 
 @if ($photos->isNotEmpty())
-<div class="flex flex-wrap ">
-  @foreach ($photos as $photo)
+<div class="flex flex-wrap">
+  @foreach ($photos as $index => $photo)
+  @php
+    $altText = !empty($photo['name']) && !preg_match('/\.(jpe?g|png|webp|gif)$/i', $photo['name'])
+      ? $photo['name']
+      : $heading . ' photo ' . ($index + 1);
+  @endphp
   <div class="md:w-1/2 pr-4 pl-4">
-    <img src="{{ $photo['url'] }}" width="100%" alt="{{ $photo['name'] }}" loading="lazy">
+    <img src="{{ $photo['url'] }}" width="100%" alt="{{ $altText }}" loading="lazy">
   </div>
   @endforeach
 </div>

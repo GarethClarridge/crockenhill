@@ -68,8 +68,15 @@
 
     .home-hero-nav-link {
         opacity: 0;
+        visibility: hidden;
         transform: translateY(20px);
         will-change: opacity, transform;
+
+        &:focus-within {
+            opacity: 1;
+            visibility: visible;
+            transform: none;
+        }
     }
 
     .home-hero-nav-link-1 {
@@ -160,11 +167,13 @@
 @keyframes home-fade-in-up {
     from {
         opacity: 0;
+        visibility: hidden;
         transform: translateY(20px);
     }
 
     to {
         opacity: 1;
+        visibility: visible;
         transform: translateY(0);
     }
 }
@@ -183,6 +192,7 @@
     .home-hero-nav-link {
         animation: none;
         opacity: 1;
+        visibility: visible;
         transform: translateY(0);
     }
 }

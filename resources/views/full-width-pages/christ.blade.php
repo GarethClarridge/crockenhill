@@ -75,7 +75,7 @@ Christ
       authority that had never been seen before.
     </p>
     <p>
-      As <a href="#top">the video above</a> says, by doing these
+      As the video above says, by doing these
       things Jesus was showing us that he is God's King. The one
       with supreme authority over the universe: God himself in
       human form. Jesus was showing us he was the one
@@ -95,7 +95,7 @@ Christ
 
   <x-text>
     <p>
-      But <a href="#who">the world Jesus gave us a glimpse of</a>
+      But <a href="#who-is-jesus">the world Jesus gave us a glimpse of</a>
       isn't the one we have is it?
     </p>
     <p>
@@ -134,7 +134,7 @@ Christ
 
   <x-text>
     <p>
-      God saw <a href="#why">we'd rebelled against him</a>, saw we were
+      God saw <a href="#why-do-i-need-jesus">we'd rebelled against him</a>, saw we were
       headed for a lost eternity without him, and he loved us
       enough to do something about it.
     </p>
@@ -192,10 +192,9 @@ Christ
     <p>
       A great place to start is to read through one of the accounts
       of Jesus' life in the Bible with you so you can decide for
-      yourself what you think. We'd recommend starting with Mark's
-      gospel,
+      yourself what you think. We'd recommend starting with
       <a href="https://www.biblegateway.com/passage/?search=Mark+1&version=NIVUK">
-        which you can find online here
+        Mark's gospel on BibleGateway
       </a>. If you don't have a Bible and would like one, do get in
       touch and we'd be happy to provide one.
     </p>

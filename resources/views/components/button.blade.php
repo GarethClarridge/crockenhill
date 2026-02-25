@@ -1,7 +1,7 @@
 @props(['link', 'variant' => 'default', 'size' => 'md', 'icon' => null, 'inline' => false])
 
 @php
-$baseClasses = 'no-underline rounded-md focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all inline-flex items-center justify-center';
+$baseClasses = 'no-underline rounded-md focus:outline-none focus:ring-2 focus:ring-[#145557] focus:ring-offset-2 transition-all inline-flex items-center justify-center';
 
 $sizeClasses = [
     'xs' => 'px-2 py-1 text-xs',
