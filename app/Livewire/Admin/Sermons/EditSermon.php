@@ -44,6 +44,9 @@ class EditSermon extends Component
 
     public bool $showPoints = true;
 
+    /** @var \Illuminate\Support\Collection<int, string> */
+    public \Illuminate\Support\Collection $preacherOptions;
+
     /**
      * @return array<string, mixed>
      */
@@ -68,6 +71,7 @@ class EditSermon extends Component
     public function mount(Sermon $sermon): void
     {
         $this->sermon = $sermon;
+        $this->preacherOptions = Preacher::active()->orderBy('name')->pluck('name', 'id');
         $this->title = $sermon->title;
         $this->slug = $sermon->slug;
         $this->date = $sermon->date->format('Y-m-d');
@@ -133,7 +137,7 @@ class EditSermon extends Component
     {
         return view('livewire.admin.sermons.edit-sermon', [
             'services' => SermonService::cases(),
-            'preachers' => Preacher::active()->orderBy('name')->pluck('name', 'id'),
+            'preachers' => $this->preacherOptions,
         ])->layout('layouts.admin', ['title' => 'Edit: '.$this->sermon->title, 'heading' => 'Edit Sermon']);
     }
 }

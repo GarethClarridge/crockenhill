@@ -25,10 +25,8 @@ class AppServiceProvider extends ServiceProvider
 {
     /**
      * Bootstrap any application services.
-     *
-     * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         // Force URL generation to use APP_URL (important for sitemap, emails, etc.)
         URL::forceRootUrl(config('app.url'));
@@ -36,8 +34,8 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // Share user with all views (per-request, not at boot time)
-        View::composer('*', function ($view) {
+        // Share authenticated user with the header component
+        View::composer('components.layout.header', function ($view) {
             $view->with('user', Auth::user());
         });
 
@@ -91,10 +89,8 @@ class AppServiceProvider extends ServiceProvider
      *
      * This service provider is a great spot to register your container
      * bindings with the application.
-     *
-     * @return void
      */
-    public function register()
+    public function register(): void
     {
         $this->app->bind('path.public', function () {
             return base_path().'/public';
@@ -117,17 +113,11 @@ class AppServiceProvider extends ServiceProvider
             $serviceType = config('media-processing.transcription.service_type')
                 ?? config('media-processing.transcription.service', 'openai');
 
-            switch ($serviceType) {
-                case 'mock':
-                    return $app->make(MockTranscriptionService::class);
-                case 'openai':
-                default:
-                    return $app->make(AudioTranscriptionService::class);
-            }
+            return match ($serviceType) {
+                'mock' => $app->make(MockTranscriptionService::class),
+                default => $app->make(AudioTranscriptionService::class),
+            };
         });
 
-        // if ($this->app->environment('local', 'testing')) {
-        //   $this->app->register(DuskServiceProvider::class);
-        // }
     }
 }

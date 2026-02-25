@@ -74,10 +74,10 @@ use Illuminate\Support\Str;
     ];
 @endphp
 <script type="application/ld+json">
-    {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
+    {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}
 </script>
 <script type="application/ld+json">
-    {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
+    {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}
 </script>
 @endsection
 
@@ -250,7 +250,7 @@ use Illuminate\Support\Str;
            class="p-6 max-h-96 overflow-y-auto">
         <div class="prose prose-gray max-w-none text-gray-700">
           {!! Str::markdown($sermon->transcript, [
-            'html_input' => 'strip',
+            'html_input' => 'escape',
             'allow_unsafe_links' => false,
           ]) !!}
         </div>

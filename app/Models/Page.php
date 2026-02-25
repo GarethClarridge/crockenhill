@@ -264,38 +264,7 @@ class Page extends Model implements HasMedia, Sitemapable
      */
     public function getHeadingImageUrlAttribute(): ?string
     {
-        $media = $this->getFirstMedia('headings');
-
-        if ($media) {
-            // Use desktop conversion if available, fall back to large, then original
-            if ($media->hasGeneratedConversion('desktop')) {
-                return $media->getUrl('desktop');
-            }
-            if ($media->hasGeneratedConversion('large')) {
-                return $media->getUrl('large');
-            }
-
-            return $media->getUrl();
-        }
-
-        // Check new storage location (storage/app/public/pages/headings/)
-        $newStoragePath = "pages/headings/large/{$this->slug}.webp";
-        if (Storage::disk('public')->exists($newStoragePath)) {
-            return Storage::disk('public')->url($newStoragePath);
-        }
-
-        // Fallback to legacy public/images location (check WebP first, then JPG)
-        $webpPath = "/images/headings/large/{$this->slug}.webp";
-        if (file_exists(public_path($webpPath))) {
-            return $webpPath;
-        }
-
-        $jpgPath = "/images/headings/large/{$this->slug}.jpg";
-        if (file_exists(public_path($jpgPath))) {
-            return $jpgPath;
-        }
-
-        return null;
+        return $this->resolveHeadingImageUrl(['desktop', 'large'], 'large');
     }
 
     /**
@@ -303,34 +272,7 @@ class Page extends Model implements HasMedia, Sitemapable
      */
     public function getHeadingImageTabletUrlAttribute(): ?string
     {
-        $media = $this->getFirstMedia('headings');
-
-        if ($media) {
-            if ($media->hasGeneratedConversion('tablet')) {
-                return $media->getUrl('tablet');
-            }
-
-            return $media->getUrl();
-        }
-
-        // Check new storage location
-        $newStoragePath = "pages/headings/large/{$this->slug}.webp";
-        if (Storage::disk('public')->exists($newStoragePath)) {
-            return Storage::disk('public')->url($newStoragePath);
-        }
-
-        // Fallback to legacy public/images location (check WebP first, then JPG)
-        $webpPath = "/images/headings/large/{$this->slug}.webp";
-        if (file_exists(public_path($webpPath))) {
-            return $webpPath;
-        }
-
-        $jpgPath = "/images/headings/large/{$this->slug}.jpg";
-        if (file_exists(public_path($jpgPath))) {
-            return $jpgPath;
-        }
-
-        return null;
+        return $this->resolveHeadingImageUrl(['tablet'], 'large');
     }
 
     /**
@@ -338,34 +280,7 @@ class Page extends Model implements HasMedia, Sitemapable
      */
     public function getHeadingImageMobileUrlAttribute(): ?string
     {
-        $media = $this->getFirstMedia('headings');
-
-        if ($media) {
-            if ($media->hasGeneratedConversion('mobile')) {
-                return $media->getUrl('mobile');
-            }
-
-            return $media->getUrl();
-        }
-
-        // Check new storage location
-        $newStoragePath = "pages/headings/small/{$this->slug}.webp";
-        if (Storage::disk('public')->exists($newStoragePath)) {
-            return Storage::disk('public')->url($newStoragePath);
-        }
-
-        // Fallback to legacy public/images location (check WebP first, then JPG)
-        $webpPath = "/images/headings/small/{$this->slug}.webp";
-        if (file_exists(public_path($webpPath))) {
-            return $webpPath;
-        }
-
-        $jpgPath = "/images/headings/small/{$this->slug}.jpg";
-        if (file_exists(public_path($jpgPath))) {
-            return $jpgPath;
-        }
-
-        return null;
+        return $this->resolveHeadingImageUrl(['mobile'], 'small');
     }
 
     /**
@@ -373,33 +288,41 @@ class Page extends Model implements HasMedia, Sitemapable
      */
     public function getHeadingImageSmallUrlAttribute(): ?string
     {
+        return $this->resolveHeadingImageUrl(['thumbnail', 'small'], 'small');
+    }
+
+    /**
+     * Resolve a heading image URL by checking Media Library conversions, then new storage,
+     * then legacy public/images paths.
+     *
+     * @param  array<int, string>  $conversions  Media Library conversion names to try in order.
+     * @param  string  $size  Subfolder name ('large' or 'small') for non-Media-Library fallbacks.
+     */
+    private function resolveHeadingImageUrl(array $conversions, string $size): ?string
+    {
         $media = $this->getFirstMedia('headings');
 
         if ($media) {
-            // Use thumbnail conversion if available, fall back to small, then original
-            if ($media->hasGeneratedConversion('thumbnail')) {
-                return $media->getUrl('thumbnail');
-            }
-            if ($media->hasGeneratedConversion('small')) {
-                return $media->getUrl('small');
+            foreach ($conversions as $conversion) {
+                if ($media->hasGeneratedConversion($conversion)) {
+                    return $media->getUrl($conversion);
+                }
             }
 
             return $media->getUrl();
         }
 
-        // Check new storage location
-        $newStoragePath = "pages/headings/small/{$this->slug}.webp";
-        if (Storage::disk('public')->exists($newStoragePath)) {
-            return Storage::disk('public')->url($newStoragePath);
+        $storagePath = "pages/headings/{$size}/{$this->slug}.webp";
+        if (Storage::disk('public')->exists($storagePath)) {
+            return Storage::disk('public')->url($storagePath);
         }
 
-        // Fallback to legacy public/images location (check WebP first, then JPG)
-        $webpPath = "/images/headings/small/{$this->slug}.webp";
+        $webpPath = "/images/headings/{$size}/{$this->slug}.webp";
         if (file_exists(public_path($webpPath))) {
             return $webpPath;
         }
 
-        $jpgPath = "/images/headings/small/{$this->slug}.jpg";
+        $jpgPath = "/images/headings/{$size}/{$this->slug}.jpg";
         if (file_exists(public_path($jpgPath))) {
             return $jpgPath;
         }

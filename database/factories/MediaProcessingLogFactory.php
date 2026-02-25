@@ -154,4 +154,27 @@ class MediaProcessingLogFactory extends Factory
             'sermon_id' => null,
         ]);
     }
+
+    /**
+     * Associate the log with a specific sermon (completed processing).
+     */
+    public function withSermon(Sermon $sermon): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'sermon_id' => $sermon->id,
+            'status' => ProcessingStatus::COMPLETED,
+            'current_step' => 'completed',
+            'error_message' => null,
+        ]);
+    }
+
+    /**
+     * Associate the log with a specific owner user.
+     */
+    public function withOwner(\App\Models\User $user): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'owner_user_id' => $user->id,
+        ]);
+    }
 }

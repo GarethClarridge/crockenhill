@@ -304,7 +304,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public function getUpcomingEventsAttribute(): Collection
     {
-        return \App\Models\CalendarEvent::where('meeting_slug', $this->slug)
+        return $this->calendarEvents()
             ->upcoming()
             ->confirmed()
             ->orderBy('start_datetime')
@@ -317,7 +317,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public function getPastEventsAttribute(): Collection
     {
-        return \App\Models\CalendarEvent::where('meeting_slug', $this->slug)
+        return $this->calendarEvents()
             ->past()
             ->confirmed()
             ->orderBy('start_datetime', 'desc')

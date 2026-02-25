@@ -49,4 +49,46 @@ class CalendarEventFactory extends Factory
             'is_categorized_automatically' => true,
         ]);
     }
+
+    /**
+     * Event starts in the future.
+     */
+    public function upcoming(): static
+    {
+        return $this->state(function (array $attributes) {
+            $start = $this->faker->dateTimeBetween('+1 day', '+30 days');
+            $end = (clone $start)->modify('+1 hour');
+
+            return [
+                'start_datetime' => $start,
+                'end_datetime' => $end,
+            ];
+        });
+    }
+
+    /**
+     * Event has already occurred.
+     */
+    public function past(): static
+    {
+        return $this->state(function (array $attributes) {
+            $start = $this->faker->dateTimeBetween('-30 days', '-1 day');
+            $end = (clone $start)->modify('+1 hour');
+
+            return [
+                'start_datetime' => $start,
+                'end_datetime' => $end,
+            ];
+        });
+    }
+
+    /**
+     * Associate the event with a specific meeting.
+     */
+    public function forMeeting(\App\Models\Meeting $meeting): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'meeting_slug' => $meeting->slug,
+        ]);
+    }
 }

@@ -1,0 +1,167 @@
+<?php
+
+namespace Tests\Feature\Livewire\Admin;
+
+use App\Livewire\Admin\Sermons\ListSermons;
+use App\Models\Sermon;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class ListSermonsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected User $admin;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->admin = User::factory()->admin()->create();
+    }
+
+    // -------------------------------------------------------------------------
+    // Access control
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function it_renders_for_admin(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ListSermons::class)
+            ->assertStatus(200)
+            ->assertSee('Sermons');
+    }
+
+    #[Test]
+    public function it_aborts_403_for_non_admin(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $this->actingAs($user);
+
+        Livewire::test(ListSermons::class)
+            ->assertStatus(403);
+    }
+
+    #[Test]
+    public function it_aborts_403_for_guest(): void
+    {
+        Livewire::test(ListSermons::class)
+            ->assertStatus(403);
+    }
+
+    // -------------------------------------------------------------------------
+    // Listing
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function it_lists_sermons_from_last_12_months_by_default(): void
+    {
+        $this->actingAs($this->admin);
+
+        $recent = Sermon::factory()->withDate(now()->subMonths(6))->create(['title' => 'Recent Sermon']);
+        $old = Sermon::factory()->withDate(now()->subMonths(14))->create(['title' => 'Old Sermon']);
+
+        Livewire::test(ListSermons::class)
+            ->assertSee('Recent Sermon')
+            ->assertDontSee('Old Sermon');
+    }
+
+    #[Test]
+    public function it_shows_all_sermons_when_last_12_months_filter_is_off(): void
+    {
+        $this->actingAs($this->admin);
+
+        $old = Sermon::factory()->withDate(now()->subMonths(14))->create(['title' => 'Old Sermon']);
+
+        Livewire::test(ListSermons::class)
+            ->set('last12Months', false)
+            ->assertSee('Old Sermon');
+    }
+
+    // -------------------------------------------------------------------------
+    // Search
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function it_filters_by_search_term(): void
+    {
+        $this->actingAs($this->admin);
+
+        Sermon::factory()->withDate(now()->subWeeks(2))->create(['title' => 'Grace Abounding']);
+        Sermon::factory()->withDate(now()->subWeeks(2))->create(['title' => 'The Good Shepherd']);
+
+        Livewire::test(ListSermons::class)
+            ->set('last12Months', false)
+            ->set('search', 'Grace')
+            ->assertSee('Grace Abounding')
+            ->assertDontSee('The Good Shepherd');
+    }
+
+    // -------------------------------------------------------------------------
+    // Filters
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function it_filters_sermons_that_need_preacher_review(): void
+    {
+        $this->actingAs($this->admin);
+
+        $needsReview = Sermon::factory()->withDate(now()->subWeeks(1))->needsPreacherReview()->create(['title' => 'Needs Review']);
+        $reviewed = Sermon::factory()->withDate(now()->subWeeks(1))->create(['title' => 'Already Reviewed', 'needs_preacher_review' => false]);
+
+        Livewire::test(ListSermons::class)
+            ->set('needsReviewFilter', true)
+            ->assertSee('Needs Review')
+            ->assertDontSee('Already Reviewed');
+    }
+
+    #[Test]
+    public function it_filters_sermons_with_video(): void
+    {
+        $this->actingAs($this->admin);
+
+        $withVideo = Sermon::factory()->withDate(now()->subWeeks(1))->withVideo()->create(['title' => 'Has Video']);
+        $audioOnly = Sermon::factory()->withDate(now()->subWeeks(1))->create(['title' => 'Audio Only']);
+
+        Livewire::test(ListSermons::class)
+            ->set('hasVideoFilter', true)
+            ->assertSee('Has Video')
+            ->assertDontSee('Audio Only');
+    }
+
+    // -------------------------------------------------------------------------
+    // Delete
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function admin_can_delete_a_sermon(): void
+    {
+        $this->actingAs($this->admin);
+
+        $sermon = Sermon::factory()->create();
+
+        Livewire::test(ListSermons::class)
+            ->call('delete', $sermon)
+            ->assertDispatched('notify', type: 'success', message: 'Sermon deleted');
+
+        $this->assertModelMissing($sermon);
+    }
+
+    #[Test]
+    public function non_admin_cannot_delete_a_sermon(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $this->actingAs($user);
+
+        $sermon = Sermon::factory()->create();
+
+        Livewire::test(ListSermons::class)
+            ->assertStatus(403);
+
+        $this->assertModelExists($sermon);
+    }
+}

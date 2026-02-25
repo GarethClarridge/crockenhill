@@ -31,11 +31,7 @@ class PageController extends Controller
      */
     public function show(string $area, string $slug, SafeMarkdownRenderer $markdownRenderer): ViewContract
     {
-        $page = Page::where('slug', $slug)->where('area', $area)->first();
-
-        if (! $page) {
-            abort(404, 'Page not found');
-        }
+        $page = Page::where('slug', $slug)->where('area', $area)->firstOrFail();
 
         $html = $markdownRenderer->convert($page->markdown);
 

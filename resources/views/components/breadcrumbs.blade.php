@@ -62,7 +62,7 @@ return [
 @endphp
 
 <script type="application/ld+json">
-  {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) !!}
+  {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}
 </script>
 
 <nav class="my-6" aria-label="Breadcrumb">

@@ -149,24 +149,6 @@ class Sermon extends Model implements Sitemapable
         ];
     }
 
-    // Accessor for points is no longer strictly needed if 'points' => 'array' cast is used.
-    // Eloquent's 'array' cast will handle JSON decode/encode.
-    // If custom logic beyond simple JSON (like specific object mapping) was needed, accessor/mutator is good.
-    // For now, relying on 'array' cast simplifies.
-    // public function getPointsAttribute($value): ?array
-    // {
-    //   if (is_string($value)) {
-    //     $decoded = json_decode($value, true);
-    //     return (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
-    //   }
-    //   return is_array($value) ? $value : null; // Ensure it's an array or null
-    // }
-
-    // public function setPointsAttribute($value): void
-    // {
-    //   $this->attributes['points'] = is_array($value) ? json_encode($value) : null;
-    // }
-
     public function getHumanDateAttribute(): ?string
     {
         return $this->date->format('F j, Y');
@@ -657,7 +639,9 @@ class Sermon extends Model implements Sitemapable
         }
 
         // Auto-generate from available content
-        $preacherName = $this->preacherProfile->name ?? $this->preacher;
+        $preacherName = ($this->relationLoaded('preacherProfile') && $this->preacherProfile)
+            ? $this->preacherProfile->name
+            : $this->preacher;
         $description = "Listen to '{$this->title}' by {$preacherName}";
         $description .= " preached on {$this->human_date}";
 
@@ -773,7 +757,9 @@ class Sermon extends Model implements Sitemapable
             $parts[] = "A sermon on {$this->reference}";
         }
 
-        $preacherName = $this->preacherProfile->name ?? $this->preacher;
+        $preacherName = ($this->relationLoaded('preacherProfile') && $this->preacherProfile)
+            ? $this->preacherProfile->name
+            : $this->preacher;
         if ($preacherName) {
             $prefix = empty($parts) ? 'A sermon from' : 'from';
             $parts[] = "{$prefix} {$preacherName}";
