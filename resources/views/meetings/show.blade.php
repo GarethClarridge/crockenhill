@@ -75,7 +75,7 @@
 <div class="flex flex-wrap ">
   @foreach ($photos as $photo)
   <div class="md:w-1/2 pr-4 pl-4">
-    <img src="{{ $photo['url'] }}" width="100%" alt="{{ $photo['name'] }}">
+    <img src="{{ $photo['url'] }}" width="100%" alt="{{ $photo['name'] }}" loading="lazy">
   </div>
   @endforeach
 </div>

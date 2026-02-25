@@ -6,7 +6,8 @@
                 <div class="relative group" role="listitem">
                     <img src="{{ $media->getUrl('thumbnail') }}"
                          alt="Uploaded image: {{ $media->name }}"
-                         class="w-24 h-24 object-cover rounded-lg" />
+                         class="w-24 h-24 object-cover rounded-lg"
+                         loading="lazy" />
                     <button type="button"
                             wire:click="remove({{ $media->id }})"
                             wire:confirm="Remove this image?"

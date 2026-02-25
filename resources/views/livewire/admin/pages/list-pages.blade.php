@@ -76,7 +76,8 @@
                                 @if($page->hasMedia('headings'))
                                     <img src="{{ $page->getFirstMediaUrl('headings', 'thumbnail') }}"
                                          alt="Header image for {{ $page->heading }}"
-                                         class="w-10 h-10 object-cover rounded-lg" />
+                                         class="w-10 h-10 object-cover rounded-lg"
+                                         loading="lazy" />
                                 @else
                                     <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center" aria-label="No image">
                                         <x-heroicon-o-photo class="w-5 h-5 text-gray-300" aria-hidden="true" />

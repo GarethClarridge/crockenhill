@@ -268,7 +268,7 @@ Evidence:
 
 Recommendation: Consolidate to one approach per component type.
 
-#### L4. Lazy loading underutilized on images
+#### L4. Lazy loading underutilized on images *Completed*
 
 Evidence: Only 5 instances of `loading="lazy"` across the entire codebase. Sermon cards and page cards in listing views don't use lazy loading.
 

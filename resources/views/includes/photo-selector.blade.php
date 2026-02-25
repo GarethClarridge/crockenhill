@@ -8,7 +8,7 @@
 
     <div class="flex flex-col">
       <div class="relative flex flex-col min-w-0 rounded break-words border bg-white border-1 border-gray-300 p-0">
-        <img class="w-full rounded rounded-t" src="{{$photo_directory}}/{{$photo}}" alt="">
+        <img class="w-full rounded rounded-t" src="{{$photo_directory}}/{{$photo}}" alt="" loading="lazy">
         <div class="flex-auto p-6">
           <p class="mb-0">
             Copy this into the markdown content box:

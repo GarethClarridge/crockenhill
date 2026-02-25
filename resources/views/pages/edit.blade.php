@@ -60,7 +60,7 @@
           @if (isset($headingpicture) && file_exists(public_path($headingpicture)))
             <div>
               <p class="mt-6 mb-1">Heading image</p>
-              <img src="{{$headingpicture}}" alt="{{$headingpicture}}" class="max-w-full h-auto" id="headingpicture">
+              <img src="{{$headingpicture}}" alt="{{$headingpicture}}" class="max-w-full h-auto" id="headingpicture" loading="lazy">
             </div>
           @endif
 
