@@ -5,7 +5,7 @@ namespace Tests\Unit;
 use App\Services\AudioChunkingService;
 use App\Services\AudioTranscriptionService;
 use App\Services\BritishEnglishConverter;
-use App\Services\MediaProcessingLogger;
+use App\Services\SermonProcessingLogger;
 use App\Services\TranscriptStorageService;
 use Exception;
 use Illuminate\Support\Facades\Storage;
@@ -32,7 +32,7 @@ class AudioTranscriptionServiceTest extends TestCase
         // Configure the service to use the same disk as our faked storage
         config(['media-processing.storage.sermon_disk' => 'local']);
 
-        $logger = app(MediaProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $storageService = app(TranscriptStorageService::class);
         $converter = app(BritishEnglishConverter::class);
         $chunkingService = new AudioChunkingService($logger);
@@ -47,7 +47,7 @@ class AudioTranscriptionServiceTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('OpenAI API key not configured');
 
-        $logger = app(MediaProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $storageService = app(TranscriptStorageService::class);
         $converter = app(BritishEnglishConverter::class);
         $chunkingService = new AudioChunkingService($logger);

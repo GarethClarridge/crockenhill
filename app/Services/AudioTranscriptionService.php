@@ -21,7 +21,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     private const DEFAULT_RETRY_DELAY_BASE = 2; // seconds
 
     public function __construct(
-        private readonly MediaProcessingLogger $logger,
+        private readonly SermonProcessingLogger $logger,
         private readonly TranscriptStorageService $storageService,
         private readonly BritishEnglishConverter $britishEnglishConverter,
         private readonly AudioChunkingService $chunkingService

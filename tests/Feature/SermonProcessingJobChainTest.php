@@ -15,9 +15,9 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\AudioTranscriptionService;
-use App\Services\MediaProcessingLogger;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonJobPipelineService;
+use App\Services\SermonProcessingLogger;
 use App\Services\SermonStatusManagementService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -86,7 +86,7 @@ class SermonProcessingJobChainTest extends TestCase
         $job = new CreateSermonRecord($processingLog);
 
         // Execute the job with dependency injection
-        $logger = app(MediaProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $sermonCreationService = app(\App\Services\SermonCreationService::class);
         $job->handle($logger, $sermonCreationService);
 
@@ -143,7 +143,7 @@ class SermonProcessingJobChainTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Processing log not found');
 
-        $logger = app(MediaProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $sermonCreationService = app(\App\Services\SermonCreationService::class);
         $job->handle($logger, $sermonCreationService);
     }
@@ -567,7 +567,7 @@ class SermonProcessingJobChainTest extends TestCase
         // Execute first job
         $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
         $createJob = new CreateSermonRecord($processingLog);
-        $logger = app(MediaProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $sermonCreationService = app(\App\Services\SermonCreationService::class);
         $createJob->handle($logger, $sermonCreationService);
 
@@ -700,7 +700,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Execute create sermon job
         $createJob = new CreateSermonRecord($processingLog);
-        $logger = app(MediaProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $sermonCreationService = app(\App\Services\SermonCreationService::class);
         $createJob->handle($logger, $sermonCreationService);
 

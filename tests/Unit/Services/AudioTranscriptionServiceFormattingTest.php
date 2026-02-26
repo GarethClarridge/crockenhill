@@ -5,7 +5,7 @@ namespace Tests\Unit\Services;
 use App\Services\AudioChunkingService;
 use App\Services\AudioTranscriptionService;
 use App\Services\BritishEnglishConverter;
-use App\Services\MediaProcessingLogger;
+use App\Services\SermonProcessingLogger;
 use App\Services\TranscriptStorageService;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +17,7 @@ class AudioTranscriptionServiceFormattingTest extends TestCase
 {
     private AudioTranscriptionService $service;
 
-    private MediaProcessingLogger $logger;
+    private SermonProcessingLogger $logger;
 
     protected function setUp(): void
     {
@@ -28,7 +28,7 @@ class AudioTranscriptionServiceFormattingTest extends TestCase
         Config::set('openai.api_key', 'test-key');
         Config::set('media-processing.storage.sermon_disk', 'local');
 
-        $this->logger = Mockery::mock(MediaProcessingLogger::class);
+        $this->logger = Mockery::mock(SermonProcessingLogger::class);
         $this->logger->shouldReceive('logProcessingStep')->andReturn(true);
         $this->logger->shouldReceive('logFileOperation')->andReturn(true);
         $this->logger->shouldReceive('logApiCall')->andReturn(true);

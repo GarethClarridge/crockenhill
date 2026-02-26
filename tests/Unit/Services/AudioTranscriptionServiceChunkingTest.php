@@ -3,7 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Services\AudioChunkingService;
-use App\Services\MediaProcessingLogger;
+use App\Services\SermonProcessingLogger;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -13,7 +13,7 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
 {
     private AudioChunkingService $chunkingService;
 
-    private MediaProcessingLogger $logger;
+    private SermonProcessingLogger $logger;
 
     protected function setUp(): void
     {
@@ -25,7 +25,7 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
         config(['media-processing.ffmpeg_path' => '/usr/bin/ffmpeg']);
         config(['media-processing.ffprobe_path' => '/usr/bin/ffprobe']);
 
-        $this->logger = Mockery::mock(MediaProcessingLogger::class);
+        $this->logger = Mockery::mock(SermonProcessingLogger::class);
         $this->logger->shouldReceive('logProcessingStep')->andReturn(true);
         $this->logger->shouldReceive('logFileOperation')->andReturn(true);
         $this->logger->shouldReceive('logApiCall')->andReturn(true);

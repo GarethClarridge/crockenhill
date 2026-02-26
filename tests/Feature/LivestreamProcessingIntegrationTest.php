@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\LivestreamProcessingLogger;
 use App\Services\LivestreamSegmentationService;
+use App\Services\SermonProcessingLogger;
 use App\Services\VideoSegmentationService;
 use App\Services\VideoStorageService;
 use Illuminate\Bus\PendingBatch;
@@ -223,7 +223,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
 
     public function test_logging_integration()
     {
-        $logger = app(LivestreamProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
         $processingId = 'test-logging-integration';
 
         // Create a processing record with segments

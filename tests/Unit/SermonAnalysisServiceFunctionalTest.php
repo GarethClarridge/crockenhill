@@ -29,7 +29,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
             'openai.api_key' => 'test-api-key',
         ]);
 
-        $logger = app(\App\Services\MediaProcessingLogger::class);
+        $logger = app(\App\Services\SermonProcessingLogger::class);
         $converter = app(BritishEnglishConverter::class);
         $repository = app(SermonRepository::class);
         $this->service = new SermonAnalysisService($logger, $converter, $repository);
@@ -47,7 +47,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('OpenAI API key not configured');
 
-        $logger = app(\App\Services\MediaProcessingLogger::class);
+        $logger = app(\App\Services\SermonProcessingLogger::class);
         $converter = app(BritishEnglishConverter::class);
         $repository = app(SermonRepository::class);
         new SermonAnalysisService($logger, $converter, $repository);

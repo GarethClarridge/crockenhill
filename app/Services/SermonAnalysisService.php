@@ -22,7 +22,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
     private const MIN_TRANSCRIPT_LENGTH = 100;
 
     public function __construct(
-        private readonly MediaProcessingLogger $logger,
+        private readonly SermonProcessingLogger $logger,
         private readonly BritishEnglishConverter $britishEnglishConverter,
         private readonly SermonRepository $sermonRepository
     ) {

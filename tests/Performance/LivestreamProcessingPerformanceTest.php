@@ -4,8 +4,8 @@ namespace Tests\Performance;
 
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
-use App\Services\LivestreamProcessingLogger;
 use App\Services\LivestreamProcessingService;
+use App\Services\SermonProcessingLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
@@ -207,7 +207,7 @@ class LivestreamProcessingPerformanceTest extends TestCase
         $startTime = microtime(true);
         $startMemory = memory_get_usage(true);
 
-        $logger = app(LivestreamProcessingLogger::class);
+        $logger = app(SermonProcessingLogger::class);
 
         // Test logging performance with many log entries
         $logCount = 1000;

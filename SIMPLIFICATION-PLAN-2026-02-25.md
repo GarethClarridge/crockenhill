@@ -209,7 +209,7 @@ Exit criteria:
 
 - One canonical key path per configuration concern.
 
-## Phase 7: Logging/Reporting Unification (P2)
+## Phase 7: Logging/Reporting Unification (P2) ✅
 
 Target files:
 
@@ -221,9 +221,16 @@ Target files:
 
 Tasks:
 
-- [ ] Pick one primary logger API and retire redundant wrappers.
-- [ ] Keep one log parsing/reporting service for processing logs.
-- [ ] Remove duplicated status aggregation code.
+- [x] Pick one primary logger API and retire redundant wrappers.
+- [x] Keep one log parsing/reporting service for processing logs.
+- [x] Remove duplicated status aggregation code.
+
+Files changed:
+- `app/Services/SermonProcessingLogger.php` — absorbed `logWarning`, `generateProcessingReport`, `getRecentProcessingActivity` from `LivestreamProcessingLogger`
+- `app/Services/MediaProcessingLogger.php` — deleted (empty alias; all callers updated to `SermonProcessingLogger`)
+- `app/Services/LivestreamProcessingLogger.php` — deleted (duplicate logging methods removed; unique report/activity methods moved to `SermonProcessingLogger`)
+- `app/Services/AudioTranscriptionService.php`, `SermonAnalysisService.php`, `AudioChunkingService.php`, `MockTranscriptionService.php` — type-hint updated from `MediaProcessingLogger` to `SermonProcessingLogger`
+- `tests/Unit/Services/LivestreamProcessingLoggerTest.php` — deleted; unique tests migrated to `SermonProcessingLoggerTest`
 
 Exit criteria:
 

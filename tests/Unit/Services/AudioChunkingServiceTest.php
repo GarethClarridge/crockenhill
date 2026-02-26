@@ -4,7 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Exceptions\TranscriptionException;
 use App\Services\AudioChunkingService;
-use App\Services\MediaProcessingLogger;
+use App\Services\SermonProcessingLogger;
 use Illuminate\Support\Facades\Config;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -14,7 +14,7 @@ class AudioChunkingServiceTest extends TestCase
 {
     private AudioChunkingService $service;
 
-    private MediaProcessingLogger|Mockery\MockInterface $logger;
+    private SermonProcessingLogger|Mockery\MockInterface $logger;
 
     protected function setUp(): void
     {
@@ -27,7 +27,7 @@ class AudioChunkingServiceTest extends TestCase
             'channels' => 1,
         ]);
 
-        $this->logger = Mockery::mock(MediaProcessingLogger::class)->shouldIgnoreMissing();
+        $this->logger = Mockery::mock(SermonProcessingLogger::class)->shouldIgnoreMissing();
 
         $this->service = new AudioChunkingService($this->logger);
     }
@@ -261,7 +261,7 @@ class AudioChunkingServiceTest extends TestCase
     #[Test]
     public function it_logs_reassembly_completion(): void
     {
-        $logger = Mockery::mock(MediaProcessingLogger::class);
+        $logger = Mockery::mock(SermonProcessingLogger::class);
         $logger->shouldReceive('logProcessingStep')
             ->once()
             ->with('proc-123', 'transcript_reassembly', 'completed', Mockery::type('array'));

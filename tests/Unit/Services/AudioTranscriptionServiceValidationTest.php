@@ -5,7 +5,7 @@ namespace Tests\Unit\Services;
 use App\Services\AudioChunkingService;
 use App\Services\AudioTranscriptionService;
 use App\Services\BritishEnglishConverter;
-use App\Services\MediaProcessingLogger;
+use App\Services\SermonProcessingLogger;
 use App\Services\TranscriptStorageService;
 use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +19,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
     protected AudioTranscriptionService $service;
 
-    protected MediaProcessingLogger $mockLogger;
+    protected SermonProcessingLogger $mockLogger;
 
     protected function setUp(): void
     {
@@ -30,7 +30,7 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         Storage::fake('public');
 
         // Mock the logger dependency
-        $this->mockLogger = $this->createMock(MediaProcessingLogger::class);
+        $this->mockLogger = $this->createMock(SermonProcessingLogger::class);
 
         // Set OpenAI API key for testing
         Config::set('media-processing.transcription.openai_api_key', 'test-api-key');

@@ -19,7 +19,7 @@ class AudioChunkingService
     private const MIN_DURATION_FOR_CHUNKING = 420; // 7 minutes
 
     public function __construct(
-        private readonly MediaProcessingLogger $logger
+        private readonly SermonProcessingLogger $logger
     ) {}
 
     /**

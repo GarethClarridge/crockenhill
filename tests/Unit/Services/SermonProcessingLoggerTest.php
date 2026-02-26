@@ -2,7 +2,9 @@
 
 namespace Tests\Unit\Services;
 
+use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Services\ProcessingReport;
 use App\Services\SermonProcessingLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -401,5 +403,114 @@ class SermonProcessingLoggerTest extends TestCase
         $this->assertEquals(14, $stats['period']['days']);
         $this->assertArrayHasKey('start', $stats['period']);
         $this->assertArrayHasKey('end', $stats['period']);
+    }
+
+    // --- logWarning() ---
+
+    #[Test]
+    public function it_logs_warning_with_step_and_message(): void
+    {
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                return str_contains($message, 'extraction')
+                    && $context['processing_id'] === 'proc-001'
+                    && $context['step'] === 'extraction'
+                    && $context['warning_message'] === 'Low disk space'
+                    && isset($context['timestamp']);
+            });
+
+        $this->logger->logWarning('proc-001', 'extraction', 'Low disk space');
+    }
+
+    #[Test]
+    public function it_includes_context_in_warning_log(): void
+    {
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                return $context['context']['quality'] === 'low';
+            });
+
+        $this->logger->logWarning('proc-001', 'video', 'Quality reduced', ['quality' => 'low']);
+    }
+
+    // --- generateProcessingReport() ---
+
+    #[Test]
+    public function it_generates_processing_report_for_existing_record(): void
+    {
+        Log::spy();
+
+        $processing = MediaProcessingLog::factory()->create([
+            'processing_id' => 'test-report-id',
+            'status' => 'completed',
+            'original_filename' => 'test-video.mp4',
+            'file_size' => 1073741824,
+            'duration' => 3600.0,
+            'sermon_id' => null,
+            'completed_at' => now(),
+        ]);
+
+        LivestreamSegment::factory()->count(3)->create(['media_processing_log_id' => $processing->id]);
+        LivestreamSegment::factory()->create([
+            'media_processing_log_id' => $processing->id,
+            'classification' => 'speech',
+            'duration' => 1800.0,
+            'is_sermon_candidate' => true,
+        ]);
+
+        $report = $this->logger->generateProcessingReport('test-report-id');
+
+        $this->assertInstanceOf(ProcessingReport::class, $report);
+        $data = $report->toArray();
+        $this->assertEquals('test-report-id', $data['processing_id']);
+        $this->assertEquals('completed', $data['status']);
+        $this->assertEquals('test-video.mp4', $data['original_filename']);
+        $this->assertEquals(4, $data['total_segments']);
+        $this->assertEquals('not_started', $data['sermon_processing_status']);
+    }
+
+    #[Test]
+    public function it_throws_when_generating_report_for_missing_record(): void
+    {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Processing record not found for ID: nonexistent-id');
+
+        $this->logger->generateProcessingReport('nonexistent-id');
+    }
+
+    // --- getRecentProcessingActivity() ---
+
+    #[Test]
+    public function it_returns_recent_livestream_processing_activity(): void
+    {
+        Log::spy();
+
+        MediaProcessingLog::factory()->livestream()->create([
+            'status' => 'completed',
+            'created_at' => now()->subHours(2),
+            'completed_at' => now()->subHours(1),
+        ]);
+        MediaProcessingLog::factory()->livestream()->create([
+            'status' => 'failed',
+            'created_at' => now()->subHours(1),
+        ]);
+        MediaProcessingLog::factory()->livestream()->create([
+            'status' => 'processing',
+            'created_at' => now()->subMinutes(30),
+        ]);
+        // Old record outside the 24-hour window should be excluded
+        MediaProcessingLog::factory()->livestream()->create([
+            'status' => 'completed',
+            'created_at' => now()->subDays(2),
+        ]);
+
+        $activity = $this->logger->getRecentProcessingActivity(24);
+
+        $this->assertEquals(3, $activity['total_processed']);
+        $this->assertEquals(1, $activity['successful']);
+        $this->assertEquals(1, $activity['failed']);
+        $this->assertEquals(1, $activity['in_progress']);
     }
 }
