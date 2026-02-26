@@ -23,6 +23,11 @@ class SermonAssetController extends Controller
             abort(404, 'Audio file not found.');
         }
 
+        // Security check: Prevent path traversal
+        if (str_contains($sermon->audio_file_path, '..')) {
+            abort(404, 'Invalid audio file path.');
+        }
+
         $storageService = $this->storageService;
         $fileInfo = $storageService->getSermonFileInfo($sermon);
 
@@ -53,6 +58,11 @@ class SermonAssetController extends Controller
     {
         if (! $sermon->thumbnail_file_path) {
             abort(404, 'Thumbnail not found.');
+        }
+
+        // Security check: Prevent path traversal
+        if (str_contains($sermon->thumbnail_file_path, '..')) {
+            abort(404, 'Invalid thumbnail file path.');
         }
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
