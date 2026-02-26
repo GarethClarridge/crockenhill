@@ -91,13 +91,19 @@ use Illuminate\Support\Str;
 
 <section class="space-y-8">
   <div class="bg-white border border-gray-200 rounded-t-lg mb-0 p-6 shadow-sm">
+    @if(!$sermon->video_file_path && $sermon->hasThumbnail())
+      <div class="mb-8 overflow-hidden rounded-lg shadow-sm border border-gray-100">
+        <img src="{{ route('serveSermonThumbnail', $sermon->slug) }}" alt="Sermon: {{ $sermon->title }}" class="w-full max-h-96 object-cover">
+      </div>
+    @endif
+
     <dl class="space-y-6">
       @if ($sermon->date != null)
       <div class="flex items-center">
         <x-heroicon-s-calendar class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />
         <div>
           <dt class="sr-only">Date</dt>
-          <dd class="text-gray-900 font-medium">{{ date('j F Y', strtotime($sermon->date)) }}</dd>
+          <dd class="text-gray-900 font-medium">{{ $sermon->date->format('j F Y') }}</dd>
         </div>
       </div>
       @endif
