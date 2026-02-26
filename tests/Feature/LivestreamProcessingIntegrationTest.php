@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\ProcessingStatus;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -220,49 +219,6 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $this->assertEquals('livestream', $sermon->source_type);
         $this->assertNotNull($sermon->video_file_path);
 
-        // Test sermon with video display
-        $sermonVideoService = app(\App\Services\SermonVideoDisplayService::class);
-        $sermonData = $sermonVideoService->getSermonWithVideo($sermon->id);
-
-        $this->assertTrue($sermonData['has_video']);
-        $this->assertEquals('livestream', $sermonData['source_type']);
-        $this->assertNotNull($sermonData['livestream_info']);
-        $this->assertEquals('sunday-service.mp4', $sermonData['livestream_info']['original_filename']);
-    }
-
-    public function test_error_handling_integration()
-    {
-        $processing = MediaProcessingLog::factory()->create([
-            'processing_id' => 'test-error-handling',
-            'status' => 'processing',
-        ]);
-
-        $errorHandler = app(\App\Services\LivestreamErrorHandler::class);
-        $logger = app(LivestreamProcessingLogger::class);
-
-        // Test processing failure
-        $exception = new \Exception('Test processing failure');
-        $errorHandler->handleProcessingFailure('test-error-handling', $exception, 'video_analysis');
-
-        $processing->refresh();
-        $this->assertEquals(ProcessingStatus::FAILED, $processing->status);
-        $this->assertEquals('Test processing failure', $processing->error_message);
-
-        // Test segmentation failure requiring manual review
-        $processing2 = MediaProcessingLog::factory()->create([
-            'processing_id' => 'test-manual-review',
-            'status' => ProcessingStatus::PROCESSING,
-        ]);
-
-        $errorHandler->handleSegmentationFailure(
-            'test-manual-review',
-            'No clear sermon section identified',
-            []
-        );
-
-        $processing2->refresh();
-        $this->assertEquals(ProcessingStatus::FAILED, $processing2->status);
-        $this->assertStringContainsString('manual review', $processing2->error_message);
     }
 
     public function test_logging_integration()

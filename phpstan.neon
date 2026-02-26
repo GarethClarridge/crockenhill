@@ -16,5 +16,3 @@ parameters:
         # The method exists on Conversion class and works correctly at runtime
         - '#Call to an undefined method Spatie\\Image\\Drivers\\ImageDriver::nonQueued\(\)#'
 
-    excludePaths:
-        - app/Http/Controllers/Auth/PasswordController.php

@@ -130,7 +130,7 @@ Exit criteria:
 
 - Reduced service surface area with no behavior regression in upload/status/cancel/retry.
 
-## Phase 5: Runtime-Dead Code Removal (P2)
+## Phase 5: Runtime-Dead Code Removal (P2) ✅
 
 Candidates:
 
@@ -149,9 +149,33 @@ Candidates:
 
 Tasks:
 
-- [ ] Confirm runtime reachability with `rg` and route/container references.
-- [ ] Delete unused classes and prune tests that only cover removed dead paths.
-- [ ] Keep deletions grouped by domain to simplify review.
+- [x] Confirm runtime reachability with `rg` and route/container references.
+- [x] Delete unused classes and prune tests that only cover removed dead paths.
+- [x] Keep deletions grouped by domain to simplify review.
+
+Files deleted:
+- `app/Services/LivestreamErrorHandler.php`
+- `app/Services/ProcessingExceptionHandler.php`
+- `app/Services/SermonMetadataService.php`
+- `app/Services/SermonVideoDisplayService.php`
+- `app/Http/Requests/StorePageRequest.php`
+- `app/Http/Requests/UpdatePageRequest.php`
+- `app/Http/Requests/Auth/LoginRequest.php`
+- `app/Http/Controllers/Auth/PasswordController.php`
+- `app/Data/ProcessingConfiguration.php`
+- `app/Http/Resources/SermonCollection.php`
+- `app/Exceptions/UnsupportedProcessingTypeException.php`
+- `app/Exceptions/ThumbnailGenerationException.php`
+
+Tests pruned:
+- `tests/Unit/Services/LivestreamErrorHandlerTest.php` (deleted — only covered removed class)
+- `tests/Unit/Services/ProcessingExceptionHandlerTest.php` (deleted — only covered removed class)
+- `tests/Unit/Services/SermonMetadataServiceTest.php` (deleted — only covered removed class)
+- `tests/Unit/Services/SermonVideoDisplayServiceTest.php` (deleted — only covered removed class)
+- `tests/Feature/LivestreamProcessingIntegrationTest.php` — removed `test_error_handling_integration` and `SermonVideoDisplayService` usage from `test_sermon_integration_with_livestream_processing`
+
+Other:
+- `phpstan.neon` — removed `excludePaths` entry for deleted `PasswordController.php`
 
 Exit criteria:
 
