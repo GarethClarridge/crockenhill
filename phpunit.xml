@@ -35,6 +35,8 @@
         <env name="TRANSCRIPTION_RETRY_DELAY_BASE" value="0"/>
         <env name="ANALYSIS_MAX_RETRIES" value="1"/>
         <env name="ANALYSIS_RETRY_DELAY_BASE" value="0"/>
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
 
         <!-- Storage Configuration for Tests -->
         <env name="DO_SPACES_ACCESS_KEY_ID" value="test_access_key"/>
