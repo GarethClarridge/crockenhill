@@ -122,6 +122,18 @@ class SermonPagesTest extends TestCase
         $response->assertSee('Other Test Sermon');
     }
 
+    public function test_grouped_sermon_lists_render_date_heading_above_cards_grid(): void
+    {
+        $response = $this->get('/christ/sermons');
+
+        $response->assertStatus(200);
+        $response->assertSeeInOrder([
+            '<h2 id=',
+            'text-3xl sm:text-4xl',
+            '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 justify-center items-start">',
+        ], false);
+    }
+
     public function test_sermon_service_page_renders(): void
     {
         foreach (SermonService::cases() as $service) {
