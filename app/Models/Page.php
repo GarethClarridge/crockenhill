@@ -232,23 +232,15 @@ class Page extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * Check if the page has a heading image (Media Library, new storage, or legacy).
+     * Check if the page has a heading image (Media Library or new storage).
      */
     public function hasImage(): bool
     {
-        // Check Media Library first (preferred)
         if ($this->getFirstMedia('headings')) {
             return true;
         }
 
-        // Check new storage location (storage/app/public/pages/headings/)
-        if (Storage::disk('public')->exists("pages/headings/large/{$this->slug}.webp")) {
-            return true;
-        }
-
-        // Fallback to legacy public/images location
-        return file_exists(public_path("images/headings/large/{$this->slug}.webp"))
-            || file_exists(public_path("images/headings/large/{$this->slug}.jpg"));
+        return Storage::disk('public')->exists("pages/headings/large/{$this->slug}.webp");
     }
 
     /**
@@ -292,8 +284,7 @@ class Page extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * Resolve a heading image URL by checking Media Library conversions, then new storage,
-     * then legacy public/images paths.
+     * Resolve a heading image URL by checking Media Library conversions, then new storage.
      *
      * @param  array<int, string>  $conversions  Media Library conversion names to try in order.
      * @param  string  $size  Subfolder name ('large' or 'small') for non-Media-Library fallbacks.
@@ -315,16 +306,6 @@ class Page extends Model implements HasMedia, Sitemapable
         $storagePath = "pages/headings/{$size}/{$this->slug}.webp";
         if (Storage::disk('public')->exists($storagePath)) {
             return Storage::disk('public')->url($storagePath);
-        }
-
-        $webpPath = "/images/headings/{$size}/{$this->slug}.webp";
-        if (file_exists(public_path($webpPath))) {
-            return $webpPath;
-        }
-
-        $jpgPath = "/images/headings/{$size}/{$this->slug}.jpg";
-        if (file_exists(public_path($jpgPath))) {
-            return $jpgPath;
         }
 
         return null;

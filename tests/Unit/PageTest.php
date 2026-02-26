@@ -5,7 +5,6 @@ namespace Tests\Unit;
 use App\Enums\PageArea;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -182,28 +181,5 @@ This is about us.';
         Page::where('slug', 'nonexistent')
             ->where('area', PageArea::CHRIST->value)
             ->firstOrFail();
-    }
-
-    #[Test]
-    public function has_image_returns_true_when_only_legacy_jpg_exists(): void
-    {
-        $slug = 'legacy-jpg-fallback-'.Str::lower(Str::random(12));
-        $page = Page::factory()->create(['slug' => $slug]);
-
-        $legacyDirectory = public_path('images/headings/large');
-        $legacyJpgPath = "{$legacyDirectory}/{$slug}.jpg";
-
-        if (! is_dir($legacyDirectory)) {
-            mkdir($legacyDirectory, 0755, true);
-        }
-
-        try {
-            file_put_contents($legacyJpgPath, 'test-jpg-content');
-            $this->assertTrue($page->hasImage());
-        } finally {
-            if (file_exists($legacyJpgPath)) {
-                unlink($legacyJpgPath);
-            }
-        }
     }
 }

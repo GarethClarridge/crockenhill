@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Spatie\GoogleCalendar\Event;
 use Spatie\MediaLibrary\HasMedia;
@@ -394,63 +393,24 @@ class Meeting extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * Get all photos for this meeting (Media Library + legacy filesystem fallback).
+     * Get all photos for this meeting from the Media Library.
      *
      * @return \Illuminate\Support\Collection<int, array{url: string, thumbnail: string, name: string}>
      */
     public function getPhotosAttribute(): \Illuminate\Support\Collection
     {
-        // Check Media Library first
-        $mediaPhotos = $this->getMedia('photos');
-
-        if ($mediaPhotos->isNotEmpty()) {
-            return $mediaPhotos->map(fn (Media $media) => [
-                'url' => $media->getUrl('gallery'),
-                'thumbnail' => $media->getUrl('thumbnail'),
-                'name' => $media->name,
-            ]);
-        }
-
-        // Fallback to legacy filesystem photos
-        return $this->getLegacyPhotos();
+        return $this->getMedia('photos')->map(fn (Media $media) => [
+            'url' => $media->getUrl('gallery'),
+            'thumbnail' => $media->getUrl('thumbnail'),
+            'name' => $media->name,
+        ]);
     }
 
     /**
-     * Get legacy photos from the filesystem (for backward compatibility).
-     *
-     * @return \Illuminate\Support\Collection<int, array{url: string, thumbnail: string, name: string}>
-     */
-    private function getLegacyPhotos(): \Illuminate\Support\Collection
-    {
-        $directory = public_path("images/meetings/{$this->slug}");
-
-        if (! File::isDirectory($directory)) {
-            return collect();
-        }
-
-        return collect(File::files($directory))
-            ->filter(fn ($file) => in_array(
-                strtolower($file->getExtension()),
-                ['jpg', 'jpeg', 'png', 'webp', 'gif']
-            ))
-            ->map(fn ($file) => [
-                'url' => "/images/meetings/{$this->slug}/{$file->getFilename()}",
-                'thumbnail' => "/images/meetings/{$this->slug}/{$file->getFilename()}",
-                'name' => $file->getFilename(),
-            ]);
-    }
-
-    /**
-     * Check if meeting has any photos (Media Library or legacy).
+     * Check if meeting has any photos in the Media Library.
      */
     public function hasPhotos(): bool
     {
-        if ($this->getMedia('photos')->isNotEmpty()) {
-            return true;
-        }
-
-        $directory = public_path("images/meetings/{$this->slug}");
-
-        return File::isDirectory($directory) && count(File::files($directory)) > 0;
+        return $this->getMedia('photos')->isNotEmpty();
     }
 }

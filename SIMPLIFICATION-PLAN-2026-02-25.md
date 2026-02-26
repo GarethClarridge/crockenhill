@@ -254,7 +254,7 @@ Exit criteria:
 
 - Thinner model responsibilities and clearer route/controller boundaries.
 
-## Phase 9: Legacy Fallback Retirement Across Content/Media (P1/P2)
+## Phase 9: Legacy Fallback Retirement Across Content/Media (P1/P2) ✅ (partial)
 
 Target files:
 
@@ -266,14 +266,12 @@ Target files:
 
 Tasks:
 
-- [ ] Measure remaining legacy assets/paths (page headings, meeting photos, sermon legacy paths, non-UUID processing IDs) in production.
-- [ ] Complete one-way migration to canonical storage paths/media library for remaining legacy content.
-- [ ] Remove runtime fallback branches once counts in production reach zero:
-  - `Page` legacy `public/images/headings/*` fallback.
-  - `Meeting` filesystem photo fallback.
-  - `SermonStorageService` legacy path pattern branch.
-  - `MediaController` legacy processing ID acceptance regex.
-- [ ] Delete or archive migration commands that exist only for the retired legacy paths.
+- [x] `Page` legacy `public/images/headings/*` fallback removed — run `pages:migrate-images` in production first.
+- [x] `Meeting` filesystem photo fallback removed — run `meetings:migrate-photos` in production first.
+- [x] `MediaController` legacy processing ID acceptance narrowed to UUID-only.
+- [x] `MigratePageImagesToMediaLibrary.php` and `MigrateImagesToStorage.php` deleted (superseded).
+- [x] `meetings:migrate-photos` command added (`app/Console/Commands/MeetingMigratePhotosCommand.php`).
+- [ ] **Deferred — sermon storage**: `SermonStorageService` legacy pattern branch (`filetype NOT NULL`, no slash) still active. 663/698 production sermons use the legacy pattern. Requires a new migration command that canonicalises both the `audio_file_path`/`filetype` columns and confirms files are at the resolved `do_spaces` paths, before the branch can be removed. `MigrateSermonStorageCommand.php` and `VerifySermonStorageCommand.php` retained until then.
 
 Exit criteria:
 
