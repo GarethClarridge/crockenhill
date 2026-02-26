@@ -76,7 +76,13 @@ class BritishEnglishConverter
             try {
                 $content = Storage::get($wordListPath);
 
-                return json_decode($content, true);
+                if (! is_string($content)) {
+                    return null;
+                }
+
+                $decoded = json_decode($content, true);
+
+                return is_array($decoded) ? $decoded : null;
             } catch (\Exception $e) {
                 \Log::warning('Failed to load external word list', ['error' => $e->getMessage()]);
             }

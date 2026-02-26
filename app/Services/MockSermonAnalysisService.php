@@ -131,7 +131,7 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
     {
         // Remove quotes and clean punctuation
         $title = trim($title, '"\'');
-        $title = preg_replace('/\s+/', ' ', $title);
+        $title = preg_replace('/\s+/', ' ', $title) ?? $title;
 
         // Capitalise first letter and ensure sentence case
         $title = ucfirst(strtolower($title));
@@ -139,7 +139,7 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
         // Capitalise proper nouns (God, Jesus, Christ, Bible, etc.)
         $properNouns = ['god', 'jesus', 'christ', 'lord', 'holy spirit', 'father', 'son', 'bible', 'scripture', 'christian', 'christianity'];
         foreach ($properNouns as $noun) {
-            $title = preg_replace('/\b'.preg_quote($noun, '/').'\b/i', ucfirst($noun), $title);
+            $title = preg_replace('/\b'.preg_quote($noun, '/').'\b/i', ucfirst($noun), $title) ?? $title;
         }
 
         // Limit to 12 words maximum
@@ -344,7 +344,7 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
     private function cleanMockPoint(string $point): string
     {
         $point = trim($point);
-        $point = preg_replace('/\s+/', ' ', $point);
+        $point = preg_replace('/\s+/', ' ', $point) ?? $point;
 
         // Capitalise first letter, keep rest in sentence case
         $point = ucfirst(strtolower($point));
@@ -352,7 +352,7 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
         // Capitalise proper nouns
         $properNouns = ['god', 'jesus', 'christ', 'lord', 'holy spirit', 'father', 'son', 'bible', 'christian'];
         foreach ($properNouns as $noun) {
-            $point = preg_replace('/\b'.preg_quote($noun, '/').'\b/i', ucfirst($noun), $point);
+            $point = preg_replace('/\b'.preg_quote($noun, '/').'\b/i', ucfirst($noun), $point) ?? $point;
         }
 
         // Limit to reasonable length (max 12 words)
@@ -409,7 +409,7 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
 
         // Add main themes
         $mainTheme = $keyThemes[0];
-        $mainTheme = preg_replace('/^(good morning|today|this morning|we\'re|we are)/i', '', $mainTheme);
+        $mainTheme = preg_replace('/^(good morning|today|this morning|we\'re|we are)/i', '', $mainTheme) ?? $mainTheme;
         $mainTheme = trim($mainTheme);
         $mainTheme = lcfirst($mainTheme);
 
@@ -418,7 +418,7 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
         // Add application
         if (count($keyThemes) > 1) {
             $application = $keyThemes[1];
-            $application = preg_replace('/^(and|but|so|therefore)/i', '', $application);
+            $application = preg_replace('/^(and|but|so|therefore)/i', '', $application) ?? $application;
             $application = trim($application);
             if (! empty($application)) {
                 $summary .= ucfirst($application).'. ';
@@ -436,7 +436,7 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
         $summary .= $conclusions[array_rand($conclusions)];
 
         // Clean up and limit length
-        $summary = preg_replace('/\s+/', ' ', $summary);
+        $summary = preg_replace('/\s+/', ' ', $summary) ?? $summary;
         $summary = trim($summary);
 
         // Limit to approximately 100 words

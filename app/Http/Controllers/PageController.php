@@ -24,10 +24,11 @@ class PageController extends Controller
     {
         // Fetch the landing page for this area (where slug equals area)
         $page = Page::query()->where('slug', $area)->where('area', $area)->first();
+        $user = Auth::user();
 
         if ($page) {
             // Security check: Restricted pages
-            if ($page->admin === 'yes' && (! Auth::check() || ! Auth::user()->is_admin)) {
+            if ($page->admin === 'yes' && ($user === null || ! $user->is_admin)) {
                 abort(403, 'Unauthorized action.');
             }
 
@@ -53,9 +54,10 @@ class PageController extends Controller
     public function show(string $area, string $slug, SafeMarkdownRenderer $markdownRenderer): Response
     {
         $page = Page::query()->where('slug', $slug)->where('area', $area)->firstOrFail();
+        $user = Auth::user();
 
         // Security check: Restricted pages
-        if ($page->admin === 'yes' && (! Auth::check() || ! Auth::user()->is_admin)) {
+        if ($page->admin === 'yes' && ($user === null || ! $user->is_admin)) {
             abort(403, 'Unauthorized action.');
         }
 

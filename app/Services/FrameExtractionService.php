@@ -117,7 +117,17 @@ class FrameExtractionService
     public function getVideoMetadata(string $videoPath): array
     {
         try {
-            return $this->videoService->getVideoMetadata($videoPath);
+            $metadata = $this->videoService->getVideoMetadata($videoPath);
+
+            return [
+                'duration' => (float) ($metadata['duration'] ?? 0.0),
+                'width' => (int) ($metadata['width'] ?? 1920),
+                'height' => (int) ($metadata['height'] ?? 1080),
+                'format_name' => (string) ($metadata['format_name'] ?? 'unknown'),
+                'size' => (int) ($metadata['size'] ?? 0),
+                'bit_rate' => (int) ($metadata['bit_rate'] ?? 0),
+                'codec' => (string) ($metadata['codec'] ?? 'unknown'),
+            ];
         } catch (\Exception $e) {
             Log::error('Failed to get video metadata for thumbnail', [
                 'video_path' => $videoPath,

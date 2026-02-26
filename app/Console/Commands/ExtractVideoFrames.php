@@ -32,6 +32,14 @@ class ExtractVideoFrames extends Command
         $interval = $this->option('interval');
         $outputDir = $this->option('output-dir');
 
+        if (! is_string($outputDir)) {
+            $this->error('Invalid output directory.');
+
+            return 1;
+        }
+
+        $timestamps = array_values(array_filter($timestamps, static fn (mixed $timestamp): bool => is_string($timestamp)));
+
         // Resolve video path
         $fullVideoPath = Storage::disk(config('media-processing.storage.temp_disk', 'local'))
             ->path($videoPath);

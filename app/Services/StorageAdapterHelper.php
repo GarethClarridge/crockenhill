@@ -64,10 +64,12 @@ class StorageAdapterHelper
             $localTempPath = Storage::disk($tempDiskName)->path($tempRelativePath);
 
             $stream = $disk->readStream($relativePath);
-            Storage::disk($tempDiskName)->writeStream($tempRelativePath, $stream);
-            if (is_resource($stream)) {
-                fclose($stream);
+            if (! is_resource($stream)) {
+                throw new VideoProcessingException("Unable to read file stream for temporary download: {$relativePath}");
             }
+
+            Storage::disk($tempDiskName)->writeStream($tempRelativePath, $stream);
+            fclose($stream);
 
             return $localTempPath;
         }

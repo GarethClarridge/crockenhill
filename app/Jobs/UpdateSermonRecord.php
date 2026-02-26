@@ -192,8 +192,8 @@ class UpdateSermonRecord implements ShouldQueue
         // Generate from filename
         if (! empty($sermon->audio_file_path)) {
             $filename = pathinfo($sermon->audio_file_path, PATHINFO_FILENAME);
-            $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename);
-            $title = preg_replace('/[-_]+/', ' ', $title);
+            $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename) ?? $filename;
+            $title = preg_replace('/[-_]+/', ' ', $title) ?? $title;
             $title = trim($title);
 
             if (! empty($title) && strlen($title) > 3) {

@@ -347,6 +347,10 @@ class Page extends Model implements HasMedia, Sitemapable
      */
     public function toSitemapTag(): Url|string|array
     {
+        if (! is_string($this->route) || $this->route === '') {
+            return [];
+        }
+
         $url = Url::create($this->route)
             ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
             ->setPriority(0.7);

@@ -187,6 +187,12 @@ class MediaUploadTest extends TestCase
     {
         $this->actingAs($this->admin);
 
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor->expects($this->never())
+            ->method('getStatus');
+
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
+
         MediaProcessingLog::factory()->livestream()->cancelled()->create([
             'processing_id' => 'proc-456',
             'owner_user_id' => $this->admin->id,

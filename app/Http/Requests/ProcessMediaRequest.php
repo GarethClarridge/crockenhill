@@ -19,7 +19,9 @@ class ProcessMediaRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('create', \App\Models\Sermon::class);
+        $user = $this->user();
+
+        return $user?->can('create', \App\Models\Sermon::class) ?? false;
     }
 
     /**

@@ -295,7 +295,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         }
 
         // All attempts failed
-        $errorMessage = $lastException->getMessage();
+        $errorMessage = $lastException?->getMessage() ?? 'Audio transcription failed after all retry attempts.';
 
         $this->logger->logProcessingStep(
             $processingId,
@@ -584,11 +584,11 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     private function cleanupPunctuation(string $text): string
     {
         // Fix multiple spaces
-        $text = preg_replace('/\s+/', ' ', $text);
+        $text = preg_replace('/\s+/', ' ', $text) ?? $text;
 
         // Fix spacing around punctuation
-        $text = preg_replace('/\s+([,.!?;:])/', '$1', $text);
-        $text = preg_replace('/([,.!?;:])\s*([a-zA-Z])/', '$1 $2', $text);
+        $text = preg_replace('/\s+([,.!?;:])/', '$1', $text) ?? $text;
+        $text = preg_replace('/([,.!?;:])\s*([a-zA-Z])/', '$1 $2', $text) ?? $text;
 
         // Fix common transcription issues
         $text = str_replace([' ,', ' .', ' !', ' ?'], [',', '.', '!', '?'], $text);

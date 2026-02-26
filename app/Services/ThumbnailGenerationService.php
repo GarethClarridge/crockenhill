@@ -662,6 +662,10 @@ class ThumbnailGenerationService
         $sermonDisk = config('media-processing.storage.sermon_disk');
         $videoPath = $sermon->video_file_path;
 
+        if (! is_string($videoPath) || $videoPath === '') {
+            throw new \InvalidArgumentException('Sermon does not have a valid video path');
+        }
+
         // Delete existing thumbnail if it exists
         if ($sermon->thumbnail_file_path) {
             try {

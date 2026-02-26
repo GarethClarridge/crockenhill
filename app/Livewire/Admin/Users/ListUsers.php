@@ -26,7 +26,7 @@ class ListUsers extends Component
     public function mount(): void
     {
         // Ensure only admins can access this component
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        $this->authorizeAdmin();
     }
 
     public function updatedSearch(): void
@@ -37,7 +37,7 @@ class ListUsers extends Component
     public function delete(User $user): void
     {
         // Defense in depth: verify admin status
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        $this->authorizeAdmin();
 
         if ($user->id === auth()->id()) {
             $this->error('Cannot delete yourself');
@@ -52,7 +52,7 @@ class ListUsers extends Component
     public function toggleAdmin(User $user): void
     {
         // Defense in depth: verify admin status
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        $this->authorizeAdmin();
 
         if ($user->id === auth()->id()) {
             $this->error('Cannot modify your own admin status');
@@ -90,5 +90,10 @@ class ListUsers extends Component
             'users' => $users,
             'headers' => $headers,
         ])->layout('layouts.admin', ['title' => 'Users', 'heading' => 'Users']);
+    }
+
+    private function authorizeAdmin(): void
+    {
+        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
     }
 }

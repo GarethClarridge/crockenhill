@@ -12,8 +12,13 @@ class UpdateSermonRequest extends FormRequest
     public function authorize(): bool
     {
         $sermon = $this->route('sermon'); // Get the bound Sermon model
+        $user = $this->user();
 
-        return $sermon && $this->user()->can('update', $sermon);
+        if (! $sermon instanceof Sermon || $user === null) {
+            return false;
+        }
+
+        return $user->can('update', $sermon);
     }
 
     /**

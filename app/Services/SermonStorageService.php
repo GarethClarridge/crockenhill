@@ -133,6 +133,10 @@ class SermonStorageService
             // Read content from source disk
             $content = Storage::disk($info['disk'])->get($info['path']);
 
+            if (! is_string($content)) {
+                return false;
+            }
+
             // Write to target disk
             Storage::disk($targetDisk)->put($info['path'], $content);
 

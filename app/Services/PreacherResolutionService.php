@@ -26,7 +26,7 @@ class PreacherResolutionService
 
         $alias = PreacherAlias::where('alias', $normalizedAlias)->first();
 
-        if ($alias) {
+        if ($alias?->preacher instanceof Preacher) {
             return $alias->preacher;
         }
 
@@ -36,7 +36,7 @@ class PreacherResolutionService
         $preacher = $this->findOrCreatePreacher($slug, $canonicalName);
         $alias = $this->findOrCreateAlias($normalizedAlias, $preacher->id);
 
-        if ($alias->preacher_id !== $preacher->id) {
+        if ($alias->preacher_id !== $preacher->id && $alias->preacher instanceof Preacher) {
             return $alias->preacher;
         }
 

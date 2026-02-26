@@ -89,10 +89,11 @@ class Form extends Component
 
         try {
             $mimeType = mime_content_type($fullTempPath) ?: 'application/octet-stream';
+            $originalFileName = $this->originalFileName ?? basename($fullTempPath);
 
             $originalFile = new UploadedFile(
                 $fullTempPath,
-                $this->originalFileName,
+                $originalFileName,
                 $mimeType,
                 null,
                 true

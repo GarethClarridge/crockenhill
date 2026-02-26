@@ -24,7 +24,7 @@ class CreatePreacher extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
     }
 
     /**

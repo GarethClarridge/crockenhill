@@ -16,7 +16,14 @@ class UpdateMeetingRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('update', $this->route('meeting'));
+        $user = $this->user();
+        $meeting = $this->route('meeting');
+
+        if ($user === null || $meeting === null) {
+            return false;
+        }
+
+        return $user->can('update', $meeting);
     }
 
     /**

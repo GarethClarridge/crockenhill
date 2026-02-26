@@ -250,8 +250,8 @@ class AudioChunkingService
      */
     public function normalizeSentenceForComparison(string $sentence): string
     {
-        $normalized = preg_replace('/[^\w\s]/', '', strtolower($sentence));
-        $normalized = preg_replace('/\s+/', ' ', $normalized);
+        $normalized = preg_replace('/[^\w\s]/', '', strtolower($sentence)) ?? strtolower($sentence);
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
 
         return trim($normalized);
     }

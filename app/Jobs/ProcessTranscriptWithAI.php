@@ -270,8 +270,8 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
     private function generateFallbackTitle(): string
     {
         $filename = pathinfo($this->processingLog->original_filename, PATHINFO_FILENAME);
-        $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename);
-        $title = preg_replace('/[-_]+/', ' ', $title);
+        $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename) ?? $filename;
+        $title = preg_replace('/[-_]+/', ' ', $title) ?? $title;
         $title = trim($title);
 
         if (empty($title) || strlen($title) < 3) {

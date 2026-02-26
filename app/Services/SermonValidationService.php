@@ -106,8 +106,8 @@ class SermonValidationService
         // Try to extract from original filename
         if (! empty($processingLog->original_filename)) {
             $filename = pathinfo($processingLog->original_filename, PATHINFO_FILENAME);
-            $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename);
-            $title = preg_replace('/[-_]+/', ' ', $title);
+            $title = preg_replace('/\d{4}[-_]\d{1,2}[-_]\d{1,2}/', '', $filename) ?? $filename;
+            $title = preg_replace('/[-_]+/', ' ', $title) ?? $title;
             $title = trim($title);
 
             if (! empty($title) && strlen($title) > 3) {

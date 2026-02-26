@@ -96,6 +96,11 @@ class MigrateLivestreamAudioFiles extends Command
 
                 // Copy file from local to public storage
                 $content = Storage::disk('local')->get($filename);
+
+                if (! is_string($content)) {
+                    throw new \Exception('Failed to read file from local storage');
+                }
+
                 $success = Storage::disk('public')->put($filename, $content);
 
                 if (! $success) {

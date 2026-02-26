@@ -160,7 +160,7 @@ class ConvertJpgToWebp extends Command
 
     private function getWebpPath(string $jpgPath): string
     {
-        return preg_replace('/\.(jpg|jpeg)$/i', '.webp', $jpgPath);
+        return preg_replace('/\.(jpg|jpeg)$/i', '.webp', $jpgPath) ?? $jpgPath;
     }
 
     private function updateCodeReferences(): void
@@ -265,7 +265,7 @@ class ConvertJpgToWebp extends Command
                         continue;
                     }
 
-                    $webpPath = preg_replace('/\.jpe?g$/i', '.webp', $match);
+                    $webpPath = preg_replace('/\.jpe?g$/i', '.webp', $match) ?? $match;
                     $content = str_replace($match, $webpPath, $content);
                     $changes[] = $match.' -> '.$webpPath;
                 }

@@ -277,7 +277,7 @@ Exit criteria:
 
 - Runtime no longer branches on legacy storage/path formats for page, meeting, sermon, or processing ID lookup.
 
-## Phase 10: Media Type and Source Type Enum Normalization (P1/P2)
+## Phase 10: Media Type and Source Type Enum Normalization (P1/P2) ✅
 
 Target files:
 
@@ -290,10 +290,30 @@ Target files:
 
 Tasks:
 
-- [ ] Introduce canonical enum(s) for processing/media type and sermon source type.
-- [ ] Replace scattered string literals and regex fragments with enum-backed values.
-- [ ] Consolidate supported-type definitions (validation, routing constraints, service dispatch) to one source.
-- [ ] Add/adjust casts/validation so invalid type values fail fast.
+- [x] Introduce canonical enum(s) for processing/media type and sermon source type.
+- [x] Replace scattered string literals and regex fragments with enum-backed values.
+- [x] Consolidate supported-type definitions (validation, routing constraints, service dispatch) to one source.
+- [x] Add/adjust casts/validation so invalid type values fail fast.
+
+Files added:
+- `app/Enums/MediaType.php` — `Audio='audio'`, `Video='video'`, `Livestream='livestream'` with `label()` and `hasVideo()` helpers
+- `app/Enums/SermonSourceType.php` — `Manual='manual'`, `AudioUpload='audio_upload'`, `VideoUpload='video_upload'`, `Livestream='livestream'` with `label()` and `isFromLivestream()` helpers
+
+Files changed:
+- `app/Models/MediaProcessingLog.php` — `processing_type` cast to `MediaType`; scopes updated to use enum
+- `app/Models/Sermon.php` — `source_type` cast to `SermonSourceType`; `isFromLivestream()` and `scopeBySourceType()` updated
+- `app/Services/MediaValidationService.php` — all public methods accept `MediaType`; `supportedTypes()` returns `array<MediaType>`
+- `app/Services/UnifiedMediaProcessor.php` — `MediaType::tryFrom()` at API boundary; exhaustive enum match for dispatch
+- `app/Services/ProcessingInitiator.php` — signature accepts `MediaType`
+- `app/Services/LivestreamSegmentationService.php`, `SermonAudioProcessingService.php`, `SermonValidationService.php`, `SermonMetadataIntegrationService.php`, `SermonJobPipelineService.php`, `AudioExtractionService.php` — updated to use enums
+- `app/Data/SermonCreationOptions.php` — `$sourceType` changed to `SermonSourceType`; factory methods updated
+- `app/Data/StandardProcessingResponse.php` — exhaustive enum match (no `default` arm)
+- `app/Http/Controllers/Api/MediaController.php` — `MediaType::tryFrom()` replaces `in_array` check
+- `app/Jobs/CreateSermonRecord.php`, `GenerateThumbnail.php`, `CleanupTemporaryFiles.php`, `TranscribeAudio.php`, `IdentifySpeaker.php`, `ValidateVideoFile.php`, `ProcessTranscriptWithAI.php` — updated to use enums
+- `app/Livewire/Traits/WithUploadLifecycle.php` — `MediaType::tryFrom()` replaces `in_array` against `supportedTypes()`
+- `app/Console/Commands/MigrateLivestreamAudioFiles.php`, `ProcessVideoCommand.php` — updated to use enums
+- `database/factories/MediaProcessingLogFactory.php`, `SermonFactory.php` — updated to use enums
+- Tests updated: `ProcessingInitiatorTest`, `MediaValidationServiceTest`, `LivestreamSegmentationServiceTest`, `SermonAudioProcessingServiceTest`, `SermonCreationServiceTest`, `SermonMetadataIntegrationServiceTest`, `MediaProcessingLogTest`, `LivestreamProcessingIntegrationTest`
 
 Exit criteria:
 
@@ -400,7 +420,7 @@ Exit criteria:
 - [ ] Canonical config keys enforced.
 - [ ] Logging/status/progress behavior is consistent across API and Livewire.
 - [ ] Legacy fallback branches retired after migration completion.
-- [ ] Media/source typing is enum-driven instead of string-scattered.
+- [x] Media/source typing is enum-driven instead of string-scattered.
 - [ ] Calendar cache invalidation is deterministic and does not use global flush.
 - [ ] Schema snapshot strategy is consistent and drift-free.
 - [ ] All required quality gates pass per phase.

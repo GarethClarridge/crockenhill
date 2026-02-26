@@ -58,7 +58,7 @@ class ListSermons extends Component
     public function mount(): void
     {
         // Ensure only admins can access this component
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        $this->authorizeAdmin();
     }
 
     public function updatedSearch(): void
@@ -69,7 +69,7 @@ class ListSermons extends Component
     public function delete(Sermon $sermon): void
     {
         // Defense in depth: verify admin status
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        $this->authorizeAdmin();
 
         $sermon->delete();
 
@@ -156,5 +156,10 @@ class ListSermons extends Component
         if (! in_array($this->sortDirection, self::ALLOWED_SORT_DIRECTIONS, true)) {
             $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
         }
+    }
+
+    private function authorizeAdmin(): void
+    {
+        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
     }
 }

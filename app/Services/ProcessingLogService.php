@@ -160,6 +160,10 @@ class ProcessingLogService implements ProcessingLogContract
         }
 
         $timestamp = Carbon::createFromFormat('Y-m-d H:i:s', $matches[1]);
+        if (! $timestamp instanceof Carbon) {
+            return null;
+        }
+
         $level = strtolower($matches[2]);
         $message = trim($matches[3]);
         $contextJson = $matches[4] ?? '{}';

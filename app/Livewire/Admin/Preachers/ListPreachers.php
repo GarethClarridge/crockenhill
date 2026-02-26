@@ -42,7 +42,7 @@ class ListPreachers extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
     }
 
     public function updatedSearch(): void
@@ -52,7 +52,7 @@ class ListPreachers extends Component
 
     public function delete(Preacher $preacher): void
     {
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
 
         $preacher->delete();
 

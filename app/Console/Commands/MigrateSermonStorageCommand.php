@@ -27,6 +27,12 @@ class MigrateSermonStorageCommand extends Command
         $dryRun = $this->option('dry-run');
         $batchSize = (int) $this->option('batch-size');
 
+        if (! is_string($targetDisk)) {
+            $this->error('Invalid target disk.');
+
+            return 1;
+        }
+
         $this->info("Starting sermon storage migration to: {$targetDisk}");
         if ($dryRun) {
             $this->warn('DRY RUN MODE - No files will be actually migrated');
@@ -108,6 +114,13 @@ class MigrateSermonStorageCommand extends Command
 
                         $content = Storage::disk('public_images')->get($sourcePath);
 
+                        if (! is_string($content)) {
+                            $this->error("Failed to read source file: {$sourcePath}");
+                            $progressBar->advance();
+
+                            continue;
+                        }
+
                         // Add small delay between uploads to avoid rate limiting
                         usleep(100000); // 0.1 second delay
 
@@ -187,6 +200,13 @@ class MigrateSermonStorageCommand extends Command
 
                     if (Storage::disk($sourceDisk)->exists($sermon->audio_file_path)) {
                         $content = Storage::disk($sourceDisk)->get($sermon->audio_file_path);
+
+                        if (! is_string($content)) {
+                            $this->error("Failed to read source file: {$sermon->audio_file_path}");
+
+                            continue;
+                        }
+
                         Storage::disk($targetDisk)->put($sermon->audio_file_path, $content);
 
                         // Verify upload with retry for eventual consistency

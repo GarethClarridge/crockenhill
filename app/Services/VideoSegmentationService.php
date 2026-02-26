@@ -395,7 +395,9 @@ class VideoSegmentationService
     private function getFileContents(string $fullPath, string $storagePath): string
     {
         if ($this->isS3Disk($this->tempDisk)) {
-            return Storage::disk($this->tempDisk)->get($storagePath);
+            $contents = Storage::disk($this->tempDisk)->get($storagePath);
+
+            return is_string($contents) ? $contents : '';
         }
 
         $contents = file_get_contents($fullPath);

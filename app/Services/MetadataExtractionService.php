@@ -36,7 +36,7 @@ class MetadataExtractionService
     public function extractDateFromFilename(string $filename): Carbon
     {
         // Remove only the last extension (e.g., .mp3) to preserve dates with dots
-        $nameWithoutExtension = preg_replace('/\.[^.]+$/', '', $filename);
+        $nameWithoutExtension = preg_replace('/\.[^.]+$/', '', $filename) ?? $filename;
 
         $foundDatePattern = false;
 

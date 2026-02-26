@@ -16,7 +16,9 @@ class EnsureUserIsAdmin
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (! Auth::check() || ! Auth::user()->is_admin) {
+        $user = Auth::user();
+
+        if ($user === null || ! $user->is_admin) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -27,7 +27,7 @@ abstract class ResourceTable extends Component
     public function mount(): void
     {
         // Ensure only admins can access resource tables
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        $this->authorizeAdmin();
     }
 
     public function sort(string $column): void
@@ -55,7 +55,7 @@ abstract class ResourceTable extends Component
     public function deleteSelected(): void
     {
         // Defense in depth: verify admin status before bulk operations
-        abort_unless(auth()->user()?->is_admin, 403, 'Unauthorized');
+        $this->authorizeAdmin();
 
         if (empty($this->selected)) {
             $this->error('No items selected');
@@ -70,4 +70,9 @@ abstract class ResourceTable extends Component
     }
 
     abstract protected function getModelClass(): string;
+
+    protected function authorizeAdmin(): void
+    {
+        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
+    }
 }

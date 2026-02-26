@@ -43,6 +43,11 @@ class MigrateLocalFilesToSpacesCommand extends Command
         foreach ($files as $file) {
             try {
                 $content = $localDisk->get($file);
+
+                if (! is_string($content)) {
+                    throw new \RuntimeException("Unable to read file contents for {$file}");
+                }
+
                 $spacesDisk->put($file, $content);
 
                 // Verify upload with retry

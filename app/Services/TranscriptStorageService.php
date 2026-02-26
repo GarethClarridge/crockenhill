@@ -87,6 +87,11 @@ class TranscriptStorageService
 
         try {
             $content = $storage->get($filePath);
+
+            if (! is_string($content)) {
+                return null;
+            }
+
             Log::info('Transcript retrieved successfully', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,

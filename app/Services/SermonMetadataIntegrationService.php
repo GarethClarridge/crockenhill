@@ -243,6 +243,10 @@ class SermonMetadataIntegrationService
         $sermonDisk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
         $videoPath = $sermon->video_file_path;
 
+        if (! is_string($videoPath) || $videoPath === '') {
+            return ['has_video' => false];
+        }
+
         $previewData = [
             'has_video' => true,
             'video_url' => $sermon->getVideoUrlAttribute(),

@@ -152,6 +152,11 @@ class MockTranscriptionService implements TranscriptionServiceInterface
 
         try {
             $content = $storage->get($filePath);
+
+            if (! is_string($content)) {
+                return null;
+            }
+
             Log::info('Mock transcript retrieved successfully', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
@@ -290,6 +295,10 @@ class MockTranscriptionService implements TranscriptionServiceInterface
 
         try {
             $content = $storage->get(self::DEFAULT_TRANSCRIPT_PATH);
+
+            if (! is_string($content)) {
+                throw new Exception('Default transcript file could not be read');
+            }
 
             if (empty(trim($content))) {
                 throw new Exception('Default transcript file is empty');

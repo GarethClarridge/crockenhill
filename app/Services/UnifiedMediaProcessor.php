@@ -75,6 +75,10 @@ class UnifiedMediaProcessor
         $logs = $this->processingLogService->getProcessingLogs($processingId, $logLimit);
         $metrics = $this->processingLogService->getPerformanceMetrics($processingId);
 
+        if ($baseStatus->processingId === null || $baseStatus->status === null) {
+            return $baseStatus;
+        }
+
         return StandardProcessingResponse::withLogs(
             processingId: $baseStatus->processingId,
             status: $baseStatus->status,

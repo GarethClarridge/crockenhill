@@ -283,7 +283,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
             'failed',
             [
                 'total_attempts' => $attempt,
-                'final_error' => $lastException->getMessage(),
+                'final_error' => $lastException?->getMessage() ?? 'AI analysis failed after all retry attempts.',
                 'using_fallback' => true,
             ]
         );
