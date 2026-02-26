@@ -23,16 +23,21 @@ class TranscriptStorageService
     {
         $filename = $this->getTranscriptFilename($sermonId);
         $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
+        $disk = $this->transcriptDisk();
+        $storage = Storage::disk($disk);
 
         try {
             // Ensure transcript directory exists
-            if (! Storage::exists(self::TRANSCRIPT_DIRECTORY)) {
-                Storage::makeDirectory(self::TRANSCRIPT_DIRECTORY);
-                Log::info('Created transcript directory', ['directory' => self::TRANSCRIPT_DIRECTORY]);
+            if (! $storage->exists(self::TRANSCRIPT_DIRECTORY)) {
+                $storage->makeDirectory(self::TRANSCRIPT_DIRECTORY);
+                Log::info('Created transcript directory', [
+                    'directory' => self::TRANSCRIPT_DIRECTORY,
+                    'disk' => $disk,
+                ]);
             }
 
             // Store the transcript
-            $success = Storage::put($filePath, $transcript);
+            $success = $storage->put($filePath, $transcript);
 
             if (! $success) {
                 throw new Exception('Failed to write transcript to storage');
@@ -41,6 +46,7 @@ class TranscriptStorageService
             Log::info('Transcript stored successfully', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'size' => strlen($transcript),
             ]);
 
@@ -49,6 +55,7 @@ class TranscriptStorageService
             Log::error('Failed to store transcript', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'error' => $e->getMessage(),
             ]);
             throw new Exception("Failed to store transcript for sermon {$sermonId}: ".$e->getMessage());
@@ -65,21 +72,25 @@ class TranscriptStorageService
     {
         $filename = $this->getTranscriptFilename($sermonId);
         $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
+        $disk = $this->transcriptDisk();
+        $storage = Storage::disk($disk);
 
-        if (! Storage::exists($filePath)) {
+        if (! $storage->exists($filePath)) {
             Log::info('Transcript file not found', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
             ]);
 
             return null;
         }
 
         try {
-            $content = Storage::get($filePath);
+            $content = $storage->get($filePath);
             Log::info('Transcript retrieved successfully', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'size' => strlen($content),
             ]);
 
@@ -88,6 +99,7 @@ class TranscriptStorageService
             Log::error('Failed to retrieve transcript', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'error' => $e->getMessage(),
             ]);
 
@@ -106,7 +118,7 @@ class TranscriptStorageService
         $filename = $this->getTranscriptFilename($sermonId);
         $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
 
-        return Storage::exists($filePath);
+        return Storage::disk($this->transcriptDisk())->exists($filePath);
     }
 
     /**
@@ -119,28 +131,33 @@ class TranscriptStorageService
     {
         $filename = $this->getTranscriptFilename($sermonId);
         $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
+        $disk = $this->transcriptDisk();
+        $storage = Storage::disk($disk);
 
-        if (! Storage::exists($filePath)) {
+        if (! $storage->exists($filePath)) {
             Log::info('Transcript file does not exist, nothing to delete', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
             ]);
 
             return true;
         }
 
         try {
-            $success = Storage::delete($filePath);
+            $success = $storage->delete($filePath);
 
             if ($success) {
                 Log::info('Transcript deleted successfully', [
                     'sermon_id' => $sermonId,
                     'file_path' => $filePath,
+                    'disk' => $disk,
                 ]);
             } else {
                 Log::warning('Failed to delete transcript file', [
                     'sermon_id' => $sermonId,
                     'file_path' => $filePath,
+                    'disk' => $disk,
                 ]);
             }
 
@@ -149,6 +166,7 @@ class TranscriptStorageService
             Log::error('Error deleting transcript', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'error' => $e->getMessage(),
             ]);
 
@@ -190,5 +208,10 @@ class TranscriptStorageService
         $filename = $this->getTranscriptFilename($sermonId);
 
         return self::TRANSCRIPT_DIRECTORY.'/'.$filename;
+    }
+
+    private function transcriptDisk(): string
+    {
+        return (string) config('media-processing.storage.transcript_disk', config('media-processing.storage.sermon_disk', config('filesystems.default', 'public')));
     }
 }

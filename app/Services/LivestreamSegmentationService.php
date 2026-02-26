@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Data\LivestreamProcessingResult;
+use App\Enums\MediaType;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
 use Illuminate\Bus\Batch;
@@ -51,7 +52,7 @@ class LivestreamSegmentationService
             // Create processing log via shared initiator with livestream-specific data
             $processingLog = $this->processingInitiator->initiateProcessing(
                 $videoFile,
-                'livestream',
+                MediaType::Livestream,
                 $clientFileDate,
                 [
                     'source_file_path' => $tempPath,
@@ -91,7 +92,7 @@ class LivestreamSegmentationService
     public function retryProcessing(string $processingId): LivestreamProcessingResult
     {
         $processingLog = MediaProcessingLog::where('processing_id', $processingId)
-            ->where('processing_type', 'livestream')
+            ->where('processing_type', MediaType::Livestream)
             ->first();
 
         if (! $processingLog) {
@@ -118,7 +119,7 @@ class LivestreamSegmentationService
     public function cancelProcessing(string $processingId): bool
     {
         $processingLog = MediaProcessingLog::where('processing_id', $processingId)
-            ->where('processing_type', 'livestream')
+            ->where('processing_type', MediaType::Livestream)
             ->first();
 
         if (! $processingLog) {

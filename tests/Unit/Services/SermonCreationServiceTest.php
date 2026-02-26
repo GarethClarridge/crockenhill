@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Data\SermonCreationOptions;
+use App\Enums\SermonSourceType;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -423,7 +424,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('morning', $sermon->service->value);
         $this->assertEquals('Prayer Series', $sermon->series);
         $this->assertEquals('Matthew 6:5-15', $sermon->reference);
-        $this->assertEquals('audio_upload', $sermon->source_type);
+        $this->assertEquals(SermonSourceType::AudioUpload, $sermon->source_type);
         $this->assertNotNull($sermon->points);
     }
 
@@ -450,7 +451,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertEquals('audio/test.mp3', $sermon->audio_file_path);
         $this->assertEquals('video/test.mp4', $sermon->video_file_path);
         $this->assertEquals('evening', $sermon->service->value);
-        $this->assertEquals('video_upload', $sermon->source_type);
+        $this->assertEquals(SermonSourceType::VideoUpload, $sermon->source_type);
     }
 
     #[Test]
@@ -476,7 +477,7 @@ class SermonCreationServiceTest extends TestCase
 
         $this->assertInstanceOf(Sermon::class, $sermon);
         $this->assertEquals('audio/livestream-segment.mp3', $sermon->audio_file_path);
-        $this->assertEquals('livestream', $sermon->source_type);
+        $this->assertEquals(SermonSourceType::Livestream, $sermon->source_type);
         $this->assertEquals('test-processing-id', $sermon->livestream_processing_id);
         $this->assertEquals('morning', $sermon->service->value);
     }
@@ -492,7 +493,7 @@ class SermonCreationServiceTest extends TestCase
         $options = new SermonCreationOptions(
             audioFilePath: 'audio/test.mp3',
             originalFilename: '2024-03-15-sermon.mp3',
-            sourceType: 'audio_upload',
+            sourceType: SermonSourceType::AudioUpload,
             id3Preacher: 'John Smith',
         );
 
@@ -515,7 +516,7 @@ class SermonCreationServiceTest extends TestCase
         $options = new SermonCreationOptions(
             audioFilePath: 'audio/test.mp3',
             originalFilename: '2024-03-15-sermon.mp3',
-            sourceType: 'audio_upload',
+            sourceType: SermonSourceType::AudioUpload,
         );
 
         $sermon = $this->service->createSermon($log, $options);
@@ -537,7 +538,7 @@ class SermonCreationServiceTest extends TestCase
         $options = new SermonCreationOptions(
             audioFilePath: 'audio/test.mp3',
             originalFilename: '2024-03-15-sermon.mp3',
-            sourceType: 'audio_upload',
+            sourceType: SermonSourceType::AudioUpload,
             id3Preacher: '   ',
         );
 
@@ -560,7 +561,7 @@ class SermonCreationServiceTest extends TestCase
         $options = new SermonCreationOptions(
             audioFilePath: 'audio/test.mp3',
             originalFilename: '2024-03-15-sermon.mp3',
-            sourceType: 'audio_upload',
+            sourceType: SermonSourceType::AudioUpload,
             date: '2024-12-25',
         );
 
@@ -580,7 +581,7 @@ class SermonCreationServiceTest extends TestCase
         $options = new SermonCreationOptions(
             audioFilePath: 'audio/test.mp3',
             originalFilename: '2024-03-15-morning-sermon.mp3',
-            sourceType: 'audio_upload',
+            sourceType: SermonSourceType::AudioUpload,
             service: 'evening',
         );
 

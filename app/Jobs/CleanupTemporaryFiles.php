@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -51,14 +52,14 @@ class CleanupTemporaryFiles implements ShouldQueue
             }
 
             // Audio processing: cleanup temp files from validation and extraction
-            if ($this->processingLog->processing_type === 'audio') {
+            if ($this->processingLog->processing_type === MediaType::Audio) {
                 // Audio validation temp files are already cleaned by ValidateAudioFile job
                 // Audio transcription chunks are already cleaned by AudioTranscriptionService
                 // No additional cleanup needed for audio processing
             }
 
             // Video processing: cleanup temp files from extraction
-            if ($this->processingLog->processing_type === 'video') {
+            if ($this->processingLog->processing_type === MediaType::Video) {
                 // Video extraction temp files are handled by VideoExtractionService
                 // Stored file might be in temp directory for processing
                 if ($this->processingLog->stored_file_path && str_contains($this->processingLog->stored_file_path, 'temp/')) {

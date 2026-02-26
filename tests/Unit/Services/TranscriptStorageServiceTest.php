@@ -14,6 +14,7 @@ class TranscriptStorageServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['media-processing.storage.transcript_disk' => 'local']);
         Storage::fake();
         $this->service = new TranscriptStorageService;
     }
@@ -27,6 +28,18 @@ class TranscriptStorageServiceTest extends TestCase
 
         $this->assertEquals('transcripts/sermon_1.md', $path);
         Storage::assertExists('transcripts/sermon_1.md');
+    }
+
+    #[Test]
+    public function it_uses_configured_transcript_disk_for_storage(): void
+    {
+        config(['media-processing.storage.transcript_disk' => 'do_spaces']);
+        Storage::fake('do_spaces');
+
+        $path = $this->service->storeTranscript(2, 'This is stored on configured disk.');
+
+        $this->assertEquals('transcripts/sermon_2.md', $path);
+        Storage::disk('do_spaces')->assertExists('transcripts/sermon_2.md');
     }
 
     #[Test]

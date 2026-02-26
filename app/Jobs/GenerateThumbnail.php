@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\ThumbnailGenerationService;
@@ -231,7 +232,7 @@ class GenerateThumbnail implements ShouldQueue
         $this->sermonId = $this->processingLog->sermon_id;
 
         // Handle different processing types via processing_type field
-        if ($this->processingLog->processing_type === 'livestream') {
+        if ($this->processingLog->processing_type === MediaType::Livestream) {
             // Livestream: Get video path from video_file_path or processing metadata
             $this->videoPath = $this->processingLog->video_file_path;
 
@@ -268,7 +269,7 @@ class GenerateThumbnail implements ShouldQueue
                 'disk' => $this->disk,
                 'processing_log_video_path' => $this->processingLog->video_file_path,
             ]);
-        } elseif ($this->processingLog->processing_type === 'video') {
+        } elseif ($this->processingLog->processing_type === MediaType::Video) {
             // Direct video: Get video path from sermon record or processing log
             if ($this->sermonId) {
                 $sermon = Sermon::find($this->sermonId);

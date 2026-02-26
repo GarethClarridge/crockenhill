@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Contracts\TranscriptionServiceInterface;
+use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -62,7 +63,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
 
             Log::info('Transcribing audio file', [
                 'processing_id' => $this->processingLog->processing_id,
-                'processing_type' => $this->processingLog->processing_type,
+                'processing_type' => $this->processingLog->processing_type->value,
                 'audio_file' => $audioFilePath,
             ]);
 
@@ -157,9 +158,8 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
     private function resolveAudioPath(): string
     {
         $path = match ($this->processingLog->processing_type) {
-            'audio' => $this->processingLog->source_file_path,
-            'video', 'livestream' => $this->processingLog->audio_file_path,
-            default => throw new \Exception("Unknown processing type: {$this->processingLog->processing_type}"),
+            MediaType::Audio => $this->processingLog->source_file_path,
+            MediaType::Video, MediaType::Livestream => $this->processingLog->audio_file_path,
         };
 
         if (empty($path)) {

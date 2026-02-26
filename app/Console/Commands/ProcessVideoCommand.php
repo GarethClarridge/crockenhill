@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Data\LivestreamSegment;
+use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\VideoExtractionService;
@@ -51,7 +52,7 @@ class ProcessVideoCommand extends Command
             'service' => 'morning',
             'preacher' => 'Unknown',
             'slug' => $slug,
-            'source_type' => 'livestream',
+            'source_type' => SermonSourceType::Livestream,
             'livestream_processing_id' => $processingId,
             'segment_start_time' => $sermonSegment->start_time,
             'segment_end_time' => $sermonSegment->end_time,

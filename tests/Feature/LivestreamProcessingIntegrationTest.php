@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\SermonSourceType;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -216,7 +217,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         // Verify relationships
         $this->assertEquals($processing->id, $sermon->livestreamProcessing->id);
         $this->assertEquals($sermon->id, $processing->sermon_id);
-        $this->assertEquals('livestream', $sermon->source_type);
+        $this->assertEquals(SermonSourceType::Livestream, $sermon->source_type);
         $this->assertNotNull($sermon->video_file_path);
 
     }

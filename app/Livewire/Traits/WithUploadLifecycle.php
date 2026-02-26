@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Traits;
 
+use App\Enums\MediaType;
 use App\Services\MediaValidationService;
 use Illuminate\Validation\ValidationException;
 
@@ -194,8 +195,9 @@ trait WithUploadLifecycle
     {
         $validation = app(MediaValidationService::class);
 
-        $fileRules = in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->rulesForType($this->mediaType)
+        $mediaType = MediaType::tryFrom($this->mediaType);
+        $fileRules = $mediaType !== null
+            ? $validation->rulesForType($mediaType)
             : ['file' => 'required|file'];
 
         $rules = $this->rules;
@@ -215,11 +217,12 @@ trait WithUploadLifecycle
     protected function getDynamicMessages(): array
     {
         $validation = app(MediaValidationService::class);
-        $maxSize = in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->maxFileSizeForDisplay($this->mediaType)
+        $mediaType = MediaType::tryFrom($this->mediaType);
+        $maxSize = $mediaType !== null
+            ? $validation->maxFileSizeForDisplay($mediaType)
             : '100MB';
-        $extensions = in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->allowedExtensionsForDisplay($this->mediaType)
+        $extensions = $mediaType !== null
+            ? $validation->allowedExtensionsForDisplay($mediaType)
             : 'MP3, WAV, M4A, MP4, MOV, AVI, MKV';
 
         return [

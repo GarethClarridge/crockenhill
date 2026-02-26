@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
@@ -71,7 +72,7 @@ class SermonJobPipelineService
     ): MediaProcessingLog {
         $logData = [
             'processing_id' => $processingId,
-            'processing_type' => 'audio',
+            'processing_type' => MediaType::Audio,
             'original_filename' => $originalFilename,
             'owner_user_id' => Auth::id(),
             'status' => ProcessingStatus::PENDING,
@@ -303,7 +304,7 @@ class SermonJobPipelineService
     {
         Log::info('Restarting processing from beginning', [
             'processing_id' => $processingLog->processing_id,
-            'processing_type' => $processingLog->processing_type,
+            'processing_type' => $processingLog->processing_type->value,
             'original_filename' => $processingLog->original_filename,
         ]);
 
@@ -323,7 +324,7 @@ class SermonJobPipelineService
             // In the future, this could be enhanced to store file paths for restart
             $this->statusManagementService->markForManualReview(
                 $processingLog->processing_id,
-                "Early processing failure detected. Source type: {$sourceType}. ".
+                "Early processing failure detected. Source type: {$sourceType->value}. ".
                 'File may need to be re-uploaded for retry. '.
                 "Original filename: {$processingLog->original_filename}"
             );

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaValidationService;
 use Illuminate\Bus\Queueable;
@@ -56,7 +57,7 @@ class ValidateVideoFile implements ShouldQueue
                 throw new \Exception("Video file not found at path: {$filePath} (relative: {$storedFilePath})");
             }
 
-            $mediaValidation->validateLocalFile('video', $filePath);
+            $mediaValidation->validateLocalFile(MediaType::Video, $filePath);
 
             $this->processingLog->update([
                 'current_step' => 'video_validation_complete',

@@ -31,6 +31,7 @@ class AudioTranscriptionServiceTest extends TestCase
 
         // Configure the service to use the same disk as our faked storage
         config(['media-processing.storage.sermon_disk' => 'local']);
+        config(['media-processing.storage.transcript_disk' => 'local']);
 
         $logger = app(SermonProcessingLogger::class);
         $storageService = app(TranscriptStorageService::class);
@@ -222,14 +223,14 @@ class AudioTranscriptionServiceTest extends TestCase
         $transcript = 'Test transcript content';
 
         // Ensure directory doesn't exist
-        Storage::deleteDirectory('transcripts');
+        Storage::disk('local')->deleteDirectory('transcripts');
 
         // Store transcript should create directory
         $filePath = $this->service->storeTranscript($sermonId, $transcript);
 
         $this->assertEquals('transcripts/sermon_1.md', $filePath);
-        $this->assertTrue(Storage::exists('transcripts'));
-        $this->assertTrue(Storage::exists($filePath));
+        $this->assertTrue(Storage::disk('local')->exists('transcripts'));
+        $this->assertTrue(Storage::disk('local')->exists($filePath));
     }
 
     #[Test]

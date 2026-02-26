@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\PreacherSource;
 use App\Enums\SermonService;
+use App\Enums\SermonSourceType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,7 +42,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property array<string, mixed>|null $thumbnail_metadata
  * @property ?string $livestream_processing_id
  * @property ?string $video_file_path
- * @property ?string $source_type
+ * @property ?SermonSourceType $source_type
  * @property ?float $segment_start_time
  * @property ?float $segment_end_time
  * @property array<string, mixed>|null $livestream_metadata
@@ -139,6 +140,7 @@ class Sermon extends Model implements Sitemapable
             'thumbnail_metadata' => 'array',
             'show_summary' => 'boolean',
             'show_points' => 'boolean',
+            'source_type' => SermonSourceType::class,
             'preacher_source' => PreacherSource::class,
             'preacher_confidence' => 'float',
             'needs_preacher_review' => 'boolean',
@@ -356,17 +358,36 @@ class Sermon extends Model implements Sitemapable
             return null;
         }
 
-        try {
-            return \Illuminate\Support\Facades\Storage::get($this->transcript_file_path);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to read transcript file', [
-                'sermon_id' => $this->id,
-                'transcript_file_path' => $this->transcript_file_path,
-                'error' => $e->getMessage(),
-            ]);
+        $path = trim((string) $this->transcript_file_path);
 
-            return null;
+        foreach ($this->getTranscriptReadDisks() as $disk) {
+            try {
+                $storage = \Illuminate\Support\Facades\Storage::disk($disk);
+
+                if (! $storage->exists($path)) {
+                    continue;
+                }
+
+                $transcript = $storage->get($path);
+
+                return is_string($transcript) ? $transcript : null;
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to read transcript file from disk', [
+                    'sermon_id' => $this->id,
+                    'disk' => $disk,
+                    'transcript_file_path' => $path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
+
+        \Illuminate\Support\Facades\Log::warning('Transcript file not found on any configured disk', [
+            'sermon_id' => $this->id,
+            'transcript_file_path' => $path,
+            'disks_checked' => $this->getTranscriptReadDisks(),
+        ]);
+
+        return null;
     }
 
     /**
@@ -410,6 +431,27 @@ class Sermon extends Model implements Sitemapable
     public function getTranscriptPath(): ?string
     {
         return $this->transcript_file_path;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function getTranscriptReadDisks(): array
+    {
+        $transcriptDisk = (string) config('media-processing.storage.transcript_disk', '');
+        $sermonDisk = (string) config('media-processing.storage.sermon_disk', '');
+        $defaultDisk = (string) config('filesystems.default', '');
+
+        $diskCandidates = [
+            $transcriptDisk,
+            $sermonDisk,
+            $defaultDisk,
+            'local',
+            'public',
+            'do_spaces',
+        ];
+
+        return array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
     }
 
     /**
@@ -509,7 +551,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function isFromLivestream(): bool
     {
-        return $this->source_type === 'livestream';
+        return $this->source_type === SermonSourceType::Livestream;
     }
 
     /**
@@ -601,7 +643,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function scopeFromLivestream(Builder $query): Builder
     {
-        return $query->where('source_type', 'livestream');
+        return $query->where('source_type', SermonSourceType::Livestream);
     }
 
     /**
@@ -623,7 +665,7 @@ class Sermon extends Model implements Sitemapable
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
-    public function scopeBySourceType(Builder $query, string $sourceType): Builder
+    public function scopeBySourceType(Builder $query, SermonSourceType $sourceType): Builder
     {
         return $query->where('source_type', $sourceType);
     }

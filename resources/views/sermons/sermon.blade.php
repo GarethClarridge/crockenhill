@@ -230,7 +230,10 @@ use Illuminate\Support\Str;
       @endif
 
     {{-- Transcript Section --}}
-    @if ($sermon->hasTranscript())
+    @php
+      $transcriptContent = $sermon->transcript;
+    @endphp
+    @if (is_string($transcriptContent) && trim($transcriptContent) !== '')
     <div x-data="{ expanded: false }" class="mt-6 py-6 border-b border-gray-200">
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold text-gray-900 flex items-center">
@@ -255,7 +258,7 @@ use Illuminate\Support\Str;
            x-transition:enter-end="opacity-100 transform translate-y-0"
            class="p-6 max-h-96 overflow-y-auto">
         <div class="prose prose-gray max-w-none text-gray-700">
-          {!! Str::markdown($sermon->transcript, [
+          {!! Str::markdown($transcriptContent, [
             'html_input' => 'escape',
             'allow_unsafe_links' => false,
           ]) !!}

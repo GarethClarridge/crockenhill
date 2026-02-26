@@ -85,16 +85,21 @@ class MockTranscriptionService implements TranscriptionServiceInterface
     {
         $filename = $this->getTranscriptFilename($sermonId);
         $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
+        $disk = $this->transcriptDisk();
+        $storage = Storage::disk($disk);
 
         try {
             // Ensure transcript directory exists
-            if (! Storage::exists(self::TRANSCRIPT_DIRECTORY)) {
-                Storage::makeDirectory(self::TRANSCRIPT_DIRECTORY);
-                Log::info('Created transcript directory', ['directory' => self::TRANSCRIPT_DIRECTORY]);
+            if (! $storage->exists(self::TRANSCRIPT_DIRECTORY)) {
+                $storage->makeDirectory(self::TRANSCRIPT_DIRECTORY);
+                Log::info('Created transcript directory', [
+                    'directory' => self::TRANSCRIPT_DIRECTORY,
+                    'disk' => $disk,
+                ]);
             }
 
             // Store the transcript
-            $success = Storage::put($filePath, $transcript);
+            $success = $storage->put($filePath, $transcript);
 
             if (! $success) {
                 throw new Exception('Failed to write transcript to storage');
@@ -103,6 +108,7 @@ class MockTranscriptionService implements TranscriptionServiceInterface
             Log::info('Mock transcript stored successfully', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'size' => strlen($transcript),
                 'mock' => true,
             ]);
@@ -112,6 +118,7 @@ class MockTranscriptionService implements TranscriptionServiceInterface
             Log::error('Failed to store mock transcript', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'error' => $e->getMessage(),
                 'mock' => true,
             ]);
@@ -129,11 +136,14 @@ class MockTranscriptionService implements TranscriptionServiceInterface
     {
         $filename = $this->getTranscriptFilename($sermonId);
         $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
+        $disk = $this->transcriptDisk();
+        $storage = Storage::disk($disk);
 
-        if (! Storage::exists($filePath)) {
+        if (! $storage->exists($filePath)) {
             Log::info('Mock transcript file not found', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'mock' => true,
             ]);
 
@@ -141,10 +151,11 @@ class MockTranscriptionService implements TranscriptionServiceInterface
         }
 
         try {
-            $content = Storage::get($filePath);
+            $content = $storage->get($filePath);
             Log::info('Mock transcript retrieved successfully', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'size' => strlen($content),
                 'mock' => true,
             ]);
@@ -154,6 +165,7 @@ class MockTranscriptionService implements TranscriptionServiceInterface
             Log::error('Failed to retrieve mock transcript', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'error' => $e->getMessage(),
                 'mock' => true,
             ]);
@@ -173,7 +185,7 @@ class MockTranscriptionService implements TranscriptionServiceInterface
         $filename = $this->getTranscriptFilename($sermonId);
         $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
 
-        return Storage::exists($filePath);
+        return Storage::disk($this->transcriptDisk())->exists($filePath);
     }
 
     /**
@@ -186,11 +198,14 @@ class MockTranscriptionService implements TranscriptionServiceInterface
     {
         $filename = $this->getTranscriptFilename($sermonId);
         $filePath = self::TRANSCRIPT_DIRECTORY.'/'.$filename;
+        $disk = $this->transcriptDisk();
+        $storage = Storage::disk($disk);
 
-        if (! Storage::exists($filePath)) {
+        if (! $storage->exists($filePath)) {
             Log::info('Mock transcript file does not exist, nothing to delete', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'mock' => true,
             ]);
 
@@ -198,18 +213,20 @@ class MockTranscriptionService implements TranscriptionServiceInterface
         }
 
         try {
-            $success = Storage::delete($filePath);
+            $success = $storage->delete($filePath);
 
             if ($success) {
                 Log::info('Mock transcript deleted successfully', [
                     'sermon_id' => $sermonId,
                     'file_path' => $filePath,
+                    'disk' => $disk,
                     'mock' => true,
                 ]);
             } else {
                 Log::warning('Failed to delete mock transcript file', [
                     'sermon_id' => $sermonId,
                     'file_path' => $filePath,
+                    'disk' => $disk,
                     'mock' => true,
                 ]);
             }
@@ -219,6 +236,7 @@ class MockTranscriptionService implements TranscriptionServiceInterface
             Log::error('Error deleting mock transcript', [
                 'sermon_id' => $sermonId,
                 'file_path' => $filePath,
+                'disk' => $disk,
                 'error' => $e->getMessage(),
                 'mock' => true,
             ]);
@@ -264,12 +282,14 @@ class MockTranscriptionService implements TranscriptionServiceInterface
      */
     private function loadDefaultTranscript(): string
     {
-        if (! Storage::exists(self::DEFAULT_TRANSCRIPT_PATH)) {
+        $storage = Storage::disk($this->transcriptDisk());
+
+        if (! $storage->exists(self::DEFAULT_TRANSCRIPT_PATH)) {
             throw new Exception('Default transcript file not found: '.self::DEFAULT_TRANSCRIPT_PATH);
         }
 
         try {
-            $content = Storage::get(self::DEFAULT_TRANSCRIPT_PATH);
+            $content = $storage->get(self::DEFAULT_TRANSCRIPT_PATH);
 
             if (empty(trim($content))) {
                 throw new Exception('Default transcript file is empty');
@@ -277,6 +297,7 @@ class MockTranscriptionService implements TranscriptionServiceInterface
 
             Log::info('Loaded default transcript for mock transcription', [
                 'source_file' => self::DEFAULT_TRANSCRIPT_PATH,
+                'disk' => $this->transcriptDisk(),
                 'content_length' => strlen($content),
                 'word_count' => str_word_count($content),
                 'mock' => true,
@@ -286,11 +307,17 @@ class MockTranscriptionService implements TranscriptionServiceInterface
         } catch (Exception $e) {
             Log::error('Failed to load default transcript', [
                 'source_file' => self::DEFAULT_TRANSCRIPT_PATH,
+                'disk' => $this->transcriptDisk(),
                 'error' => $e->getMessage(),
                 'mock' => true,
             ]);
             throw new Exception('Failed to load default transcript: '.$e->getMessage());
         }
+    }
+
+    private function transcriptDisk(): string
+    {
+        return (string) config('media-processing.storage.transcript_disk', config('media-processing.storage.sermon_disk', config('filesystems.default', 'public')));
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Data\StandardProcessingResponse;
+use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,15 +36,20 @@ class UnifiedMediaProcessor
             'client_file_date' => $clientFileDate,
         ]);
 
-        return match ($type) {
-            'audio' => $this->audioProcessingService->processSermon($file, $clientFileDate),
-            'video' => $this->processDirectVideo($file, $clientFileDate),
-            'livestream' => $this->livestreamService->startProcessing($file, $clientFileDate),
-            default => ProcessingResult::failure(
+        $mediaType = MediaType::tryFrom($type);
+
+        if ($mediaType === null) {
+            return ProcessingResult::failure(
                 processingId: 'invalid-'.Str::uuid(),
                 message: "Unsupported media type: {$type}",
                 errorCode: 'UNSUPPORTED_TYPE'
-            ),
+            );
+        }
+
+        return match ($mediaType) {
+            MediaType::Audio => $this->audioProcessingService->processSermon($file, $clientFileDate),
+            MediaType::Video => $this->processDirectVideo($file, $clientFileDate),
+            MediaType::Livestream => $this->livestreamService->startProcessing($file, $clientFileDate),
         };
     }
 
@@ -98,9 +104,8 @@ class UnifiedMediaProcessor
         }
 
         $result = match ($log->processing_type) {
-            'audio', 'video' => $this->sermonService->cancelProcessing($processingId),
-            'livestream' => $this->livestreamService->cancelProcessing($processingId),
-            default => false,
+            MediaType::Audio, MediaType::Video => $this->sermonService->cancelProcessing($processingId),
+            MediaType::Livestream => $this->livestreamService->cancelProcessing($processingId),
         };
 
         return [
@@ -122,13 +127,8 @@ class UnifiedMediaProcessor
         }
 
         return match ($log->processing_type) {
-            'audio', 'video' => $this->jobPipelineService->retryProcessing($processingId),
-            'livestream' => $this->convertLivestreamRetryResult($this->livestreamService->retryProcessing($processingId)),
-            default => ProcessingResult::failure(
-                processingId: $processingId,
-                message: "Unknown processing type: {$log->processing_type}",
-                errorCode: 'UNKNOWN_TYPE'
-            ),
+            MediaType::Audio, MediaType::Video => $this->jobPipelineService->retryProcessing($processingId),
+            MediaType::Livestream => $this->convertLivestreamRetryResult($this->livestreamService->retryProcessing($processingId)),
         };
     }
 
@@ -190,7 +190,7 @@ class UnifiedMediaProcessor
             // Create processing log via shared initiator
             $processingLog = $this->processingInitiator->initiateProcessing(
                 $file,
-                'video',
+                MediaType::Video,
                 $clientFileDate,
                 ['source_file_path' => $tempPath]
             );

@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\SermonService;
+use App\Enums\SermonSourceType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -104,7 +105,7 @@ class SermonFactory extends Factory
     public function fromLivestream(): static
     {
         return $this->state(fn (array $attributes) => [
-            'source_type' => 'livestream',
+            'source_type' => SermonSourceType::Livestream,
             'segment_start_time' => $this->faker->numberBetween(0, 3600),
             'segment_end_time' => $this->faker->numberBetween(3601, 7200),
         ]);

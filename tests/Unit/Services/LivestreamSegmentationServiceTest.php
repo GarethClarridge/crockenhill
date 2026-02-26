@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\LivestreamSegmentationService;
 use App\Services\ProcessingInitiator;
@@ -178,7 +179,7 @@ class LivestreamSegmentationServiceTest extends TestCase
             ->once()
             ->with(
                 Mockery::type(UploadedFile::class),
-                'livestream',
+                MediaType::Livestream,
                 null,
                 Mockery::on(function (array $data) {
                     return isset($data['source_file_path'])

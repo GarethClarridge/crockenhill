@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,7 +19,7 @@ class MediaProcessingLogFactory extends Factory
      */
     public function definition(): array
     {
-        $processingType = $this->faker->randomElement(['audio', 'video', 'livestream']);
+        $processingType = $this->faker->randomElement(MediaType::cases());
 
         return [
             'processing_id' => $this->faker->uuid(),
@@ -42,11 +43,11 @@ class MediaProcessingLogFactory extends Factory
             'sermon_id' => null,
             'owner_user_id' => null,
             // Add source_file_path for audio type to prevent null issues
-            'source_file_path' => $processingType === 'audio'
+            'source_file_path' => $processingType === MediaType::Audio
                 ? 'sermons/test/'.uniqid().'.mp3'
                 : null,
             // Add audio_file_path for video/livestream types
-            'audio_file_path' => in_array($processingType, ['video', 'livestream'])
+            'audio_file_path' => $processingType !== MediaType::Audio
                 ? 'sermons/test/'.uniqid().'.mp3'
                 : null,
         ];
@@ -58,7 +59,7 @@ class MediaProcessingLogFactory extends Factory
     public function audio(): static
     {
         return $this->state(fn (array $attributes) => [
-            'processing_type' => 'audio',
+            'processing_type' => MediaType::Audio,
         ]);
     }
 
@@ -68,7 +69,7 @@ class MediaProcessingLogFactory extends Factory
     public function video(): static
     {
         return $this->state(fn (array $attributes) => [
-            'processing_type' => 'video',
+            'processing_type' => MediaType::Video,
         ]);
     }
 
@@ -78,7 +79,7 @@ class MediaProcessingLogFactory extends Factory
     public function livestream(): static
     {
         return $this->state(fn (array $attributes) => [
-            'processing_type' => 'livestream',
+            'processing_type' => MediaType::Livestream,
         ]);
     }
 

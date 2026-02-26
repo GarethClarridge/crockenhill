@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\MediaType;
+use App\Enums\SermonSourceType;
 use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -18,7 +20,7 @@ class SermonValidationService
     public function validateAudioFile(UploadedFile $file): void
     {
         try {
-            $this->mediaValidation->validateUploadedFile('audio', $file);
+            $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
         } catch (\InvalidArgumentException $e) {
             throw new InvalidFileException([$e->getMessage()]);
         }
@@ -44,9 +46,9 @@ class SermonValidationService
         }
 
         // Validate source type
-        $validSourceTypes = ['audio_upload', 'video_upload', 'livestream'];
-        if (! empty($metadata['source_type']) && ! in_array($metadata['source_type'], $validSourceTypes)) {
-            $errors[] = 'Invalid source type. Must be one of: '.implode(', ', $validSourceTypes);
+        $validSourceTypeValues = array_column(SermonSourceType::cases(), 'value');
+        if (! empty($metadata['source_type']) && ! in_array($metadata['source_type'], $validSourceTypeValues)) {
+            $errors[] = 'Invalid source type. Must be one of: '.implode(', ', $validSourceTypeValues);
         }
 
         // Validate filename format if provided

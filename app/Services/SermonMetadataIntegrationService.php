@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Http\File;
@@ -34,7 +35,7 @@ class SermonMetadataIntegrationService
         $sermon->update([
             'livestream_processing_id' => $processingId,
             'video_file_path' => $finalVideoPath,
-            'source_type' => 'livestream',
+            'source_type' => SermonSourceType::Livestream,
             'segment_start_time' => $processing->sermon_start_time,
             'segment_end_time' => $processing->sermon_end_time,
         ]);

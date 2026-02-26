@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\MediaType;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -118,7 +119,7 @@ class AudioExtractionService
      */
     public function validateAudioFile(UploadedFile $file): void
     {
-        $this->mediaValidation->validateUploadedFile('audio', $file);
+        $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
     }
 
     /**

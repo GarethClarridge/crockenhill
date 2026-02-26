@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Models;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
@@ -19,7 +20,7 @@ class MediaProcessingLogTest extends TestCase
     {
         $data = [
             'processing_id' => 'uuid-123',
-            'processing_type' => 'audio',
+            'processing_type' => MediaType::Audio,
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => 'initialization',
             'error_message' => 'Something went wrong',
@@ -147,7 +148,7 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function it_has_backward_compatible_stored_file_path(): void
     {
-        $log = new MediaProcessingLog();
+        $log = new MediaProcessingLog;
         $log->stored_file_path = 'test-path';
 
         $this->assertEquals('test-path', $log->source_file_path);

@@ -115,7 +115,6 @@ class SubmitToProcessing implements ShouldQueue
             }
 
             $metadata = [
-                'source_type' => 'livestream',
                 'livestream_processing_id' => $this->processingLog->processing_id,
                 'original_filename' => $this->processingLog->original_filename,
                 'segment_start_time' => $this->processingLog->sermon_start_time,

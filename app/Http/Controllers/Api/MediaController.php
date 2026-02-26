@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Contracts\ProcessingStatusContract;
 use App\Data\StandardProcessingResponse;
 use App\Enums\ApiTokenAbility;
+use App\Enums\MediaType;
 use App\Http\Controllers\Controller;
 use App\Services\MediaValidationService;
 use App\Services\UnifiedMediaProcessor;
@@ -30,8 +31,8 @@ class MediaController extends Controller implements ProcessingStatusContract
             return $abilityResponse;
         }
 
-        // Validate type
-        if (! in_array($type, ['audio', 'video', 'livestream'])) {
+        $mediaType = MediaType::tryFrom($type);
+        if ($mediaType === null) {
             return response()->json([
                 'success' => false,
                 'message' => "Unsupported media type: {$type}",
@@ -39,7 +40,7 @@ class MediaController extends Controller implements ProcessingStatusContract
             ], 400);
         }
 
-        $request->validate($this->validation->rulesForType($type));
+        $request->validate($this->validation->rulesForType($mediaType));
 
         try {
             $file = $request->file('file');

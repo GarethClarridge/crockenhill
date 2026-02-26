@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonMetadataIntegrationService;
@@ -38,7 +39,7 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         $sermon->refresh();
         $this->assertEquals($log->processing_id, $sermon->livestream_processing_id);
         $this->assertEquals('sermons/1/video.mp4', $sermon->video_file_path);
-        $this->assertEquals('livestream', $sermon->source_type);
+        $this->assertEquals(SermonSourceType::Livestream, $sermon->source_type);
     }
 
     #[Test]
@@ -99,13 +100,13 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'video_file_path' => 'sermons/1/video.mp4',
-            'source_type' => 'video_upload',
+            'source_type' => SermonSourceType::VideoUpload,
         ]);
 
         $info = $this->service->getVideoInfo($sermon->id);
 
         $this->assertTrue($info['has_video']);
-        $this->assertEquals('video_upload', $info['source_type']);
+        $this->assertEquals(SermonSourceType::VideoUpload, $info['source_type']);
         $this->assertArrayHasKey('video_path', $info);
     }
 

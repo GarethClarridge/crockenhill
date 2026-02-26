@@ -42,8 +42,9 @@ class TranscriptionServiceIntegrationTest extends TestCase
 
     public function test_mock_service_works_in_job_context()
     {
-        // Configure to use mock service
+        // Configure to use mock service and ensure transcript disk matches what Storage facade uses by default
         Config::set('media-processing.transcription.service_type', 'mock');
+        Config::set('media-processing.storage.transcript_disk', config('filesystems.default', 'local'));
 
         // Force the container to forget the previously resolved service
         app()->forgetInstance(TranscriptionServiceInterface::class);

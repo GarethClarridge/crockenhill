@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Data\SermonMetadata;
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Http\UploadedFile;
@@ -55,7 +56,7 @@ class SermonAudioProcessingService
             // Create media processing log with ID3 metadata in processing_metadata
             $processingLog = MediaProcessingLog::create([
                 'processing_id' => $processingId,
-                'processing_type' => 'audio',
+                'processing_type' => MediaType::Audio,
                 'original_filename' => $file->getClientOriginalName(),
                 'owner_user_id' => Auth::id(),
                 'source_file_path' => $storedFilePath,
@@ -123,7 +124,7 @@ class SermonAudioProcessingService
      */
     public function validateAudioFile(UploadedFile $file): void
     {
-        $this->mediaValidation->validateUploadedFile('audio', $file);
+        $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
     }
 
     /**

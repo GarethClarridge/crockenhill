@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property int $id
  * @property string $processing_id
- * @property string $processing_type
+ * @property MediaType $processing_type
  * @property ProcessingStatus $status
  * @property string|null $current_step
  * @property string|null $error_message
@@ -106,6 +107,7 @@ class MediaProcessingLog extends Model
     protected function casts(): array
     {
         return [
+            'processing_type' => MediaType::class,
             'status' => ProcessingStatus::class,
             'ai_analysis' => 'array',
             'processing_metadata' => 'array',
@@ -156,7 +158,7 @@ class MediaProcessingLog extends Model
      * @param  Builder<MediaProcessingLog>  $query
      * @return Builder<MediaProcessingLog>
      */
-    public function scopeByType(Builder $query, string $type): Builder
+    public function scopeByType(Builder $query, MediaType $type): Builder
     {
         return $query->where('processing_type', $type);
     }
@@ -167,7 +169,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeAudio(Builder $query): Builder
     {
-        return $query->where('processing_type', 'audio');
+        return $query->where('processing_type', MediaType::Audio);
     }
 
     /**
@@ -176,7 +178,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeVideo(Builder $query): Builder
     {
-        return $query->where('processing_type', 'video');
+        return $query->where('processing_type', MediaType::Video);
     }
 
     /**
@@ -185,7 +187,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeLivestream(Builder $query): Builder
     {
-        return $query->where('processing_type', 'livestream');
+        return $query->where('processing_type', MediaType::Livestream);
     }
 
     /**

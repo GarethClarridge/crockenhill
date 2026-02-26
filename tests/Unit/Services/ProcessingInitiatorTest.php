@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
@@ -39,11 +40,11 @@ class ProcessingInitiatorTest extends TestCase
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
         $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
 
-        $log = $this->initiator->initiateProcessing($file, 'video');
+        $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
         $this->assertInstanceOf(MediaProcessingLog::class, $log);
         $this->assertEquals(ProcessingStatus::PENDING, $log->status);
-        $this->assertEquals('video', $log->processing_type);
+        $this->assertEquals(MediaType::Video, $log->processing_type);
         $this->assertEquals('sermon.mp4', $log->original_filename);
         $this->assertNotEmpty($log->processing_id);
     }
@@ -57,7 +58,7 @@ class ProcessingInitiatorTest extends TestCase
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
         $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::EVENING);
 
-        $log = $this->initiator->initiateProcessing($file, 'video');
+        $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
         $this->assertEquals('2026-02-10', $log->processing_metadata['extracted_date']);
         $this->assertEquals('evening', $log->processing_metadata['extracted_service']);
@@ -77,7 +78,7 @@ class ProcessingInitiatorTest extends TestCase
             ->with($extractedDateTime)
             ->willReturn(SermonService::MORNING);
 
-        $this->initiator->initiateProcessing($file, 'video');
+        $this->initiator->initiateProcessing($file, MediaType::Video);
     }
 
     #[Test]
@@ -93,7 +94,7 @@ class ProcessingInitiatorTest extends TestCase
             ->with('evening-sermon.mp4')
             ->willReturn(SermonService::EVENING);
 
-        $log = $this->initiator->initiateProcessing($file, 'video');
+        $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
         $this->assertEquals('evening', $log->processing_metadata['extracted_service']);
     }
@@ -112,7 +113,7 @@ class ProcessingInitiatorTest extends TestCase
             ->willReturn($extractedDateTime);
         $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
 
-        $this->initiator->initiateProcessing($file, 'video', $clientFileDate);
+        $this->initiator->initiateProcessing($file, MediaType::Video, $clientFileDate);
     }
 
     #[Test]
@@ -124,9 +125,9 @@ class ProcessingInitiatorTest extends TestCase
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
         $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
 
-        $log = $this->initiator->initiateProcessing($file, 'livestream');
+        $log = $this->initiator->initiateProcessing($file, MediaType::Livestream);
 
-        $this->assertEquals('livestream', $log->processing_type);
+        $this->assertEquals(MediaType::Livestream, $log->processing_type);
         $this->assertEquals('livestream_processing_initiated', $log->current_step);
     }
 
@@ -139,7 +140,7 @@ class ProcessingInitiatorTest extends TestCase
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
         $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
 
-        $log = $this->initiator->initiateProcessing($file, 'livestream', null, [
+        $log = $this->initiator->initiateProcessing($file, MediaType::Livestream, null, [
             'source_file_path' => 'livestream/temp/test.mp4',
             'file_size' => 50000000,
             'duration' => 3600.0,
@@ -159,7 +160,7 @@ class ProcessingInitiatorTest extends TestCase
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
         $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
 
-        $log = $this->initiator->initiateProcessing($file, 'livestream', null, [
+        $log = $this->initiator->initiateProcessing($file, MediaType::Livestream, null, [
             'processing_metadata' => [
                 'upload_time' => '2026-02-10T10:30:00Z',
                 'mime_type' => 'video/mp4',
@@ -185,8 +186,8 @@ class ProcessingInitiatorTest extends TestCase
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
         $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
 
-        $log1 = $this->initiator->initiateProcessing($file, 'video');
-        $log2 = $this->initiator->initiateProcessing($file, 'video');
+        $log1 = $this->initiator->initiateProcessing($file, MediaType::Video);
+        $log2 = $this->initiator->initiateProcessing($file, MediaType::Video);
 
         $this->assertNotEquals($log1->processing_id, $log2->processing_id);
     }
@@ -200,7 +201,7 @@ class ProcessingInitiatorTest extends TestCase
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
         $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
 
-        $log = $this->initiator->initiateProcessing($file, 'video');
+        $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => $log->processing_id,
@@ -221,7 +222,7 @@ class ProcessingInitiatorTest extends TestCase
         $this->metadataService->method('extractDateFromVideo')->willReturn($extractedDateTime);
         $this->metadataService->method('determineServiceFromTime')->willReturn(SermonService::MORNING);
 
-        $log = $this->initiator->initiateProcessing($file, 'video');
+        $log = $this->initiator->initiateProcessing($file, MediaType::Video);
 
         $this->assertEquals($user->id, $log->owner_user_id);
     }

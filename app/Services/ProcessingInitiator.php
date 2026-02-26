@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
@@ -37,7 +38,7 @@ class ProcessingInitiator
      */
     public function initiateProcessing(
         UploadedFile $file,
-        string $processingType,
+        MediaType $processingType,
         ?string $clientFileDate = null,
         array $additionalLogData = []
     ): MediaProcessingLog {
@@ -48,7 +49,7 @@ class ProcessingInitiator
 
         Log::info('Extracted metadata from media file', [
             'processing_id' => $processingId,
-            'processing_type' => $processingType,
+            'processing_type' => $processingType->value,
             'original_filename' => $file->getClientOriginalName(),
             'extracted_date' => $extractedDateTime->toDateString(),
             'extracted_datetime' => $extractedDateTime->toDateTimeString(),
@@ -73,7 +74,7 @@ class ProcessingInitiator
             'original_filename' => $file->getClientOriginalName(),
             'owner_user_id' => Auth::id(),
             'status' => ProcessingStatus::PENDING,
-            'current_step' => "{$processingType}_processing_initiated",
+            'current_step' => "{$processingType->value}_processing_initiated",
             'processing_metadata' => array_merge($baseMetadata, $extraMetadata),
         ], $additionalLogData);
 

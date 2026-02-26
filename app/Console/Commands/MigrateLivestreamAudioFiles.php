@@ -48,7 +48,7 @@ class MigrateLivestreamAudioFiles extends Command
             // Debug info
             $this->line("Checking: {$sermonTitle}");
             $this->line("  Filename: {$filename}");
-            $this->line('  Source Type: '.($sermon->source_type ?: 'NULL'));
+            $this->line('  Source Type: '.($sermon->source_type !== null ? $sermon->source_type->value : 'NULL'));
             $this->line('  Created: '.($sermon->created_at ?: 'NULL'));
 
             // Check if file already exists in public storage (already accessible)

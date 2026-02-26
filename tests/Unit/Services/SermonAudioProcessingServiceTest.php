@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaValidationService;
@@ -121,7 +122,7 @@ class SermonAudioProcessingServiceTest extends TestCase
         // Check log creation
         $log = MediaProcessingLog::where('processing_id', $result->processingId)->first();
         $this->assertNotNull($log);
-        $this->assertEquals('audio', $log->processing_type);
+        $this->assertEquals(MediaType::Audio, $log->processing_type);
         $this->assertEquals('sermon.mp3', $log->original_filename);
         $this->assertEquals(ProcessingStatus::PENDING, $log->status);
 

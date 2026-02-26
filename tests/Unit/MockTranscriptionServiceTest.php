@@ -19,7 +19,8 @@ class MockTranscriptionServiceTest extends TestCase
         parent::setUp();
 
         // Ensure fresh storage for each test
-        Storage::fake();
+        Storage::fake('local');
+        config(['media-processing.storage.transcript_disk' => 'local']);
 
         $this->mockLogger = Mockery::mock(SermonProcessingLogger::class);
         $this->mockLogger->shouldReceive('logProcessingStep')->withAnyArgs()->byDefault();
@@ -57,7 +58,7 @@ class MockTranscriptionServiceTest extends TestCase
         $filePath = $this->transcriptionService->storeTranscript($sermonId, $transcript);
 
         $this->assertStringContainsString('sermon_123.md', $filePath);
-        $this->assertTrue(Storage::exists($filePath));
+        $this->assertTrue(Storage::disk('local')->exists($filePath));
 
         // Retrieve transcript
         $retrieved = $this->transcriptionService->getTranscript($sermonId);

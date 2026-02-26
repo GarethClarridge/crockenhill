@@ -113,6 +113,21 @@ class SermonPagesTest extends TestCase
         $response->assertDontSee('javascript:alert("transcript-link")', false);
     }
 
+    public function test_sermon_page_handles_missing_transcript_file_without_crashing(): void
+    {
+        Storage::fake('local');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'missing-transcript-sermon',
+            'transcript_file_path' => 'transcripts/missing-transcript.md',
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Automated transcript (may contain errors)');
+    }
+
     public function test_sermon_all_page_renders(): void
     {
         $response = $this->get('/christ/sermons/all');

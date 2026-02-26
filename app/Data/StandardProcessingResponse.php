@@ -2,6 +2,7 @@
 
 namespace App\Data;
 
+use App\Enums\MediaType;
 use Carbon\Carbon;
 
 /**
@@ -263,20 +264,19 @@ class StandardProcessingResponse
     public static function fromProcessingLog(\App\Models\MediaProcessingLog $log): self
     {
         $metadata = match ($log->processing_type) {
-            'livestream' => [
+            MediaType::Livestream => [
                 'segments_count' => $log->segments->count(),
                 'sermon_duration' => $log->sermon_end_time && $log->sermon_start_time
                     ? $log->sermon_end_time - $log->sermon_start_time
                     : null,
             ],
-            'video' => [
+            MediaType::Video => [
                 'has_thumbnail' => $log->sermon && ! empty($log->sermon->thumbnail_file_path),
                 'video_duration' => $log->duration,
             ],
-            'audio' => [
+            MediaType::Audio => [
                 'audio_duration' => $log->duration,
             ],
-            default => [],
         };
 
         // Add thumbnail data if sermon exists

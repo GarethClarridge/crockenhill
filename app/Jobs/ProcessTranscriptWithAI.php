@@ -65,14 +65,14 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 throw new \Exception('No transcript path available');
             }
 
-            $transcript = Storage::get($transcriptPath);
+            $transcript = $this->loadTranscriptFromStorage($transcriptPath);
             if (empty($transcript)) {
                 throw new \Exception('Transcript file is empty or unreadable');
             }
 
             Log::info('Processing transcript with AI', [
                 'processing_id' => $this->processingLog->processing_id,
-                'processing_type' => $this->processingLog->processing_type,
+                'processing_type' => $this->processingLog->processing_type->value,
                 'word_count' => str_word_count($transcript),
             ]);
 
@@ -199,7 +199,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
             // Only try to read transcript if path exists
             if ($this->processingLog->transcript_file_path) {
-                $transcript = Storage::get($this->processingLog->transcript_file_path);
+                $transcript = $this->loadTranscriptFromStorage($this->processingLog->transcript_file_path);
             }
 
             return SermonAnalysis::create(
@@ -213,6 +213,58 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    private function loadTranscriptFromStorage(string $transcriptPath): ?string
+    {
+        $path = trim($transcriptPath);
+        if ($path === '') {
+            return null;
+        }
+
+        foreach ($this->getTranscriptReadDisks() as $disk) {
+            try {
+                $storage = Storage::disk($disk);
+
+                if (! $storage->exists($path)) {
+                    continue;
+                }
+
+                $transcript = $storage->get($path);
+
+                return is_string($transcript) ? $transcript : null;
+            } catch (\Exception $e) {
+                Log::warning('Failed to read transcript during AI processing', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'disk' => $disk,
+                    'transcript_file_path' => $path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function getTranscriptReadDisks(): array
+    {
+        $transcriptDisk = (string) config('media-processing.storage.transcript_disk', '');
+        $sermonDisk = (string) config('media-processing.storage.sermon_disk', '');
+        $defaultDisk = (string) config('filesystems.default', '');
+
+        $diskCandidates = [
+            $transcriptDisk,
+            $sermonDisk,
+            $defaultDisk,
+            'local',
+            'public',
+            'do_spaces',
+        ];
+
+        return array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
     }
 
     private function generateFallbackTitle(): string

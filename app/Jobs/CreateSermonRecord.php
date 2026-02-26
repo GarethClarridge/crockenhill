@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Data\SermonCreationOptions;
+use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonCreationService;
@@ -90,10 +91,9 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
 
             // Prepare options using factory method based on processing type
             $options = match ($this->processingLog->processing_type) {
-                'audio' => SermonCreationOptions::fromAudioUpload($refreshedLog, $aiAnalysis ?? []),
-                'video' => SermonCreationOptions::fromVideoUpload($refreshedLog, $aiAnalysis ?? []),
-                'livestream' => throw new \Exception('CreateSermonRecord should not be used for livestream processing'),
-                default => throw new \Exception("Unknown processing type: {$this->processingLog->processing_type}"),
+                MediaType::Audio => SermonCreationOptions::fromAudioUpload($refreshedLog, $aiAnalysis ?? []),
+                MediaType::Video => SermonCreationOptions::fromVideoUpload($refreshedLog, $aiAnalysis ?? []),
+                MediaType::Livestream => throw new \Exception('CreateSermonRecord should not be used for livestream processing'),
             };
 
             // Overlay ID3 metadata if available (takes priority over AI/defaults)
@@ -116,7 +116,7 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             $sermon = $sermonCreationService->createSermon($refreshedLog, $options);
 
             // Store video permanently if needed
-            if ($this->processingLog->processing_type === 'video' && $this->processingLog->source_file_path) {
+            if ($this->processingLog->processing_type === MediaType::Video && $this->processingLog->source_file_path) {
                 $finalVideoPath = $this->storeVideoForSermon($sermon->id, $this->processingLog->source_file_path);
                 $sermon->update(['video_file_path' => $finalVideoPath]);
                 $this->processingLog->update(['video_file_path' => $finalVideoPath]);

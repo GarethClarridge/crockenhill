@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerMatchResult;
+use App\Enums\MediaType;
 use App\Enums\PreacherSource;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
@@ -257,9 +258,8 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
     private function resolveAudioPath(): string
     {
         $path = match ($this->processingLog->processing_type) {
-            'audio' => $this->processingLog->source_file_path,
-            'video', 'livestream' => $this->processingLog->audio_file_path,
-            default => throw new \Exception("Unknown processing type: {$this->processingLog->processing_type}"),
+            MediaType::Audio => $this->processingLog->source_file_path,
+            MediaType::Video, MediaType::Livestream => $this->processingLog->audio_file_path,
         };
 
         if (empty($path)) {
