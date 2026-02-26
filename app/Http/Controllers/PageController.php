@@ -37,6 +37,10 @@ class PageController extends Controller
             abort(404, 'Page not found');
         }
 
+        if ($page->admin === 'yes' && (! auth()->check() || ! auth()->user()->is_admin)) {
+            abort(404, 'Page not found');
+        }
+
         $html = $markdownRenderer->convert($page->markdown);
 
         return View::make('layouts/page')->with([

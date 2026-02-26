@@ -18,7 +18,7 @@ class PageFactory extends Factory
             'description' => $this->faker->sentence(10),
             'area' => $this->faker->randomElement(PageArea::values()),
             'body' => $this->faker->paragraphs(3, true),
-            'admin' => $this->faker->randomElement(['yes', 'no']),
+            'admin' => 'no',
             'markdown' => $this->faker->paragraphs(2, true),
             'navigation' => $this->faker->boolean(70),
         ];
@@ -46,5 +46,10 @@ class PageFactory extends Factory
         }
 
         return $this->state(fn () => ['area' => $areaValue]);
+    }
+
+    public function admin(bool $admin = true): Factory
+    {
+        return $this->state(fn () => ['admin' => $admin ? 'yes' : 'no']);
     }
 }
