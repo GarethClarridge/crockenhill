@@ -24,18 +24,38 @@ class SermonThumbnailUXTest extends TestCase
         $sermon = Sermon::factory()->create([
             'title' => 'Sermon with Thumbnail',
             'slug' => 'sermon-with-thumbnail',
-            'thumbnail_file_path' => 'thumbnails/test.jpg',
+            'thumbnail_file_path' => 'thumbnails/test-overlay.jpg',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/test-plain.jpg',
+            ],
             'date' => '2026-02-19',
         ]);
 
-        // Mock the file existence as required by hasThumbnail()
-        Storage::disk('public')->put('thumbnails/test.jpg', 'fake content');
+        // Mock plain thumbnail file required by hasPlainThumbnail()/card route.
+        Storage::disk('public')->put('thumbnails/test-plain.jpg', 'fake content');
 
         $response = $this->get('/christ/sermons/all');
         $response->assertStatus(200);
         $response->assertSee(route('serveSermonCardThumbnail', $sermon->slug), false);
         $response->assertSee('?v=', false);
         $response->assertSee('alt="Sermon: Sermon with Thumbnail"', false);
+    }
+
+    public function test_sermon_card_does_not_render_thumbnail_when_only_overlay_exists(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'title' => 'Overlay Only Sermon',
+            'slug' => 'overlay-only-sermon',
+            'thumbnail_file_path' => 'thumbnails/overlay-only.jpg',
+            'thumbnail_metadata' => null,
+            'date' => '2026-02-19',
+        ]);
+
+        Storage::disk('public')->put('thumbnails/overlay-only.jpg', 'fake content');
+
+        $response = $this->get('/christ/sermons/all');
+        $response->assertStatus(200);
+        $response->assertDontSee(route('serveSermonCardThumbnail', $sermon->slug), false);
     }
 
     public function test_sermon_card_does_not_render_livestream_badge(): void

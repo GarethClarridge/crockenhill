@@ -68,22 +68,13 @@ class SermonAssetController extends Controller
      */
     public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse
     {
-        if (! $sermon->thumbnail_file_path) {
-            abort(404, 'Thumbnail not found.');
-        }
-
-        $disk = config('thumbnail-generation.storage.disk', 'public');
         $cardThumbnailPath = $sermon->plain_thumbnail_file_path;
 
-        if (
-            $cardThumbnailPath
-            && ! str_contains($cardThumbnailPath, '..')
-            && Storage::disk($disk)->exists($cardThumbnailPath)
-        ) {
-            return $this->serveStoredThumbnail($cardThumbnailPath);
+        if (! $cardThumbnailPath) {
+            abort(404, 'Card thumbnail not found.');
         }
 
-        return $this->serveStoredThumbnail($sermon->thumbnail_file_path);
+        return $this->serveStoredThumbnail($cardThumbnailPath);
     }
 
     private function serveStoredThumbnail(string $thumbnailPath): BinaryFileResponse

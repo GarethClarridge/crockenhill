@@ -151,7 +151,7 @@ class SermonThumbnailServingTest extends TestCase
             ->assertHeader('Content-Disposition', 'inline; filename="test-plain.webp"');
     }
 
-    public function test_card_thumbnail_falls_back_to_overlay_variant_when_plain_is_missing(): void
+    public function test_card_thumbnail_returns_404_when_plain_variant_is_missing(): void
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
@@ -165,7 +165,21 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
-        $response->assertStatus(200)
-            ->assertHeader('Content-Disposition', 'inline; filename="test-overlay.webp"');
+        $response->assertStatus(404);
+    }
+
+    public function test_card_thumbnail_returns_404_when_plain_variant_path_is_not_set(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'test-sermon',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-overlay.webp',
+            'thumbnail_metadata' => null,
+        ]);
+
+        Storage::disk('public')->put('sermons/thumbnails/test-overlay.webp', 'overlay image content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+
+        $response->assertStatus(404);
     }
 }
