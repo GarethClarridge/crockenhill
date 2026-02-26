@@ -24,7 +24,6 @@
         </h4>
       </a>
     @endif
-
     <ul class="mt-4 space-y-2 prose">
       @if (($sermon->date != null))
       <li class="flex items-center">
