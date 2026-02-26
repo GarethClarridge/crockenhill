@@ -30,3 +30,11 @@
 ## 2026-02-23 - [Storage Existence Checks Bottleneck]
 **Learning:** Using `Storage::exists()` inside model accessors or methods like `hasThumbnail()` and `hasTranscript()` creates a performance bottleneck when these models are rendered in lists or sitemaps, as it triggers multiple remote network calls (e.g., to DigitalOcean Spaces/S3).
 **Action:** Trust the database column presence for existence checks in performance-critical paths, and only perform physical storage checks when absolutely necessary (e.g., during file processing).
+
+## 2026-02-26 - [Selective Column Loading for High-Traffic Listings]
+**Learning:** Fetching full Eloquent models with large text/JSON blobs (like `body`, `markdown` in `Page` or `points`, `summary` in `Sermon`) in collection-based views (home cards, sermon lists) creates significant memory overhead and unnecessary DB I/O.
+**Impact:**
+- In `SermonController@getAll`, query data volume is reduced by excluding large analysis fields for hundreds of sermons.
+- In `PageCardService` and `PageLinksRepository`, memory usage is reduced for pages rendered as cards on high-traffic areas like the Homepage and Church landing page.
+- PHPStan and Pint validation ensured that relationship integrity (keeping `id` and FKs) was maintained.
+**Action:** Always use `select()` to limit columns to only what is needed for the specific view or component when fetching collections of models, especially those known to contain large content fields.
