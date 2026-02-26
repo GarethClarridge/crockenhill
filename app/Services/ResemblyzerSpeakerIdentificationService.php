@@ -66,8 +66,10 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
                 return SpeakerEmbeddingResult::failed('Invalid extraction script output');
             }
 
+            $embedding = array_values(array_map('floatval', $output['embedding']));
+
             return SpeakerEmbeddingResult::success(
-                embedding: $output['embedding'],
+                embedding: $embedding,
                 durationUsed: (float) ($output['duration_used'] ?? $duration),
             );
         } catch (\Exception $e) {
@@ -102,7 +104,7 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
         foreach ($profiles as $profile) {
             $scores[$profile->id] = $this->cosineSimilarity(
                 $embeddingResult->embedding,
-                $profile->centroid_embedding
+                array_values($profile->centroid_embedding)
             );
         }
 
@@ -224,7 +226,7 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
             $centroid[$i] /= $count;
         }
 
-        return $centroid;
+        return array_values($centroid);
     }
 
     /**

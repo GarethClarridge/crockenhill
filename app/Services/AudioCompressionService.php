@@ -227,7 +227,11 @@ class AudioCompressionService
     private function validateAudioFileSize(string $audioPath): array
     {
         $fileSize = file_exists($audioPath) ? filesize($audioPath) : 0;
-        $maxSize = config('media-processing.audio_extraction.transcription_optimized.max_file_size');
+        if ($fileSize === false) {
+            $fileSize = 0;
+        }
+
+        $maxSize = (int) config('media-processing.audio_extraction.transcription_optimized.max_file_size', 0);
 
         return [
             'valid' => $fileSize <= $maxSize && $fileSize > 0,

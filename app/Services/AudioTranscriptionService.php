@@ -130,6 +130,9 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         $processedFilePath = $this->validateAndCompressIfNeeded($fullPath, $processingId);
 
         $fileSize = filesize($processedFilePath);
+        if ($fileSize === false) {
+            $fileSize = null;
+        }
 
         $this->logger->logFileOperation(
             $processingId,
@@ -465,6 +468,9 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     {
         // Split on sentence endings, but be careful with abbreviations and Bible references
         $sentences = preg_split('/(?<=[.!?])\s+(?=[A-Z])/', $transcript);
+        if ($sentences === false) {
+            return [];
+        }
 
         // Clean up each sentence
         $sentences = array_map('trim', $sentences);

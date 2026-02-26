@@ -78,7 +78,7 @@ class ThumbnailGenerationService
             }
 
             // Calculate optimal timestamp for frame extraction
-            $timestamp = $this->frameExtractionService->calculateOptimalTimestamp($metadata['duration']);
+            $timestamp = $this->frameExtractionService->calculateOptimalTimestamp((float) $metadata['duration']);
 
             // Extract base frame from video
             $baseFramePath = $this->frameExtractionService->extractBaseFrame($localVideoPath, $timestamp);
@@ -706,6 +706,10 @@ class ThumbnailGenerationService
 
                 foreach ($lines as $line) {
                     $bbox = imagettfbbox($fontSize, 0, $fontPath, $line);
+                    if ($bbox === false) {
+                        continue;
+                    }
+
                     $lineWidth = $bbox[4] - $bbox[0];
                     $lineHeight = $bbox[1] - $bbox[7];
 

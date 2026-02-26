@@ -83,6 +83,10 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
 
         // Fall back to meaningful phrases from the transcript
         $sentences = preg_split('/[.!?]+/', $transcript);
+        if ($sentences === false) {
+            $sentences = [];
+        }
+
         foreach ($sentences as $sentence) {
             $sentence = trim($sentence);
             if (strlen($sentence) > 20 && strlen($sentence) < 100) {
@@ -368,6 +372,10 @@ class MockSermonAnalysisService implements SermonAnalysisInterface
     {
         // Extract key themes and create a coherent summary
         $sentences = preg_split('/[.!?]+/', $transcript);
+        if ($sentences === false) {
+            $sentences = [];
+        }
+
         $keyThemes = [];
 
         // Look for sentences with important theological concepts

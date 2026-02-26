@@ -113,6 +113,10 @@ class EditSermon extends Component
             $preacher = Preacher::where('slug', Str::slug($validated['preacher']))->first();
         }
 
+        if (! ($preacher instanceof Preacher)) {
+            $preacher = null;
+        }
+
         $this->sermon->update([
             'title' => $validated['title'],
             'slug' => $validated['slug'],

@@ -444,6 +444,9 @@ class SermonProcessingLogger
 
         $logs = collect();
         $lines = file($logFile, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            return $logs;
+        }
 
         foreach ($lines as $line) {
             if (str_contains($line, $processingId)) {

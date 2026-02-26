@@ -96,7 +96,12 @@ class SermonMetadata extends Data
             // Get file creation time from the uploaded file
             $filePath = $file->getRealPath();
             if ($filePath && file_exists($filePath)) {
-                $creationTime = Carbon::createFromTimestamp(filectime($filePath));
+                $createdTimestamp = filectime($filePath);
+                if ($createdTimestamp === false) {
+                    return SermonService::MORNING;
+                }
+
+                $creationTime = Carbon::createFromTimestamp($createdTimestamp);
 
                 // If created before 2 PM, assume morning service
                 if ($creationTime->hour < 14) {

@@ -247,6 +247,8 @@ class RmsAnalysisService
             $p25 = $rmsValues[(int) floor($count * 0.25)];
             $p50 = $rmsValues[(int) floor($count * 0.50)];
             $p75 = $rmsValues[(int) floor($count * 0.75)];
+            $minValue = $rmsValues[0];
+            $maxValue = $rmsValues[$count - 1];
 
             return [
                 'success' => true,
@@ -261,8 +263,8 @@ class RmsAnalysisService
                 ],
                 'rms_stats' => [
                     'sample_count' => $count,
-                    'min' => min($rmsValues),
-                    'max' => max($rmsValues),
+                    'min' => $minValue,
+                    'max' => $maxValue,
                     'mean' => $mean,
                     'p25' => $p25,
                     'p50' => $p50,

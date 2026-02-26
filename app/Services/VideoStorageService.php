@@ -56,6 +56,10 @@ class VideoStorageService
             $tempPath = 'livestream/temp/'.$filename;
 
             $storedPath = $file->storeAs('livestream/temp', $filename, $this->tempDisk);
+            if ($storedPath === false) {
+                throw new \RuntimeException('Failed to store uploaded video on temp disk.');
+            }
+
             $fullPath = Storage::disk($this->tempDisk)->path($storedPath);
 
             Log::info('Video uploaded and stored temporarily', [
@@ -139,6 +143,10 @@ class VideoStorageService
             if ($isS3Disk) {
                 // For S3 disks, move temp video file to permanent storage via stream
                 $tempVideoStream = Storage::disk($this->tempDisk)->readStream($tempVideoPath);
+                if (! is_resource($tempVideoStream)) {
+                    throw new \RuntimeException("Failed to read temp video stream: {$tempVideoPath}");
+                }
+
                 Storage::disk($this->permanentDisk)->put($videoPath, $tempVideoStream);
 
                 // Create temporary local file for audio extraction
@@ -154,6 +162,10 @@ class VideoStorageService
 
                 // Upload audio to S3 and clean up local temp file
                 $audioStream = fopen($tempAudioPath, 'r');
+                if ($audioStream === false) {
+                    throw new \RuntimeException("Failed to open temporary audio file: {$tempAudioPath}");
+                }
+
                 Storage::disk($this->permanentDisk)->put($audioPath, $audioStream);
                 fclose($audioStream);
                 unlink($tempAudioPath);

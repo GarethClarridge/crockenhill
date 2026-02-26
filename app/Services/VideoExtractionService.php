@@ -379,10 +379,17 @@ class VideoExtractionService
             return $permanentPath;
 
         } catch (\Exception $e) {
+            $segmentStart = null;
+            if (property_exists($segment, 'startTime')) {
+                $segmentStart = $segment->startTime;
+            } elseif (property_exists($segment, 'start_time')) {
+                $segmentStart = $segment->start_time;
+            }
+
             Log::error('Failed to extract audio from video segment', [
                 'error' => $e->getMessage(),
                 'input_path' => $inputVideoPath,
-                'segment_start' => $segment->startTime ?? $segment->start_time,
+                'segment_start' => $segmentStart,
                 'compression_options' => $compressionOptions,
             ]);
 
@@ -471,7 +478,13 @@ class VideoExtractionService
             }
         }
 
-        return file_exists($filePath) ? filesize($filePath) : 0;
+        if (! file_exists($filePath)) {
+            return 0;
+        }
+
+        $fileSize = filesize($filePath);
+
+        return $fileSize === false ? 0 : $fileSize;
     }
 
     /**

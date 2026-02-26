@@ -134,7 +134,7 @@ class PerformVisualAnalysis implements ShouldQueue
             }
 
             // Cluster song periods
-            $songClusters = $clusteringService->clusterSongPeriods($visualSamples);
+            $songClusters = $clusteringService->clusterSongPeriods(array_values($visualSamples));
 
             // Check if minimum clusters requirement is met
             $minClusters = config('media-processing.visual_analysis.require_min_clusters', 1);

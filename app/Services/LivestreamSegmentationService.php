@@ -34,12 +34,19 @@ class LivestreamSegmentationService
             }
 
             $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
+            $fullPath = is_string($uploadResult['full_path'] ?? null) ? $uploadResult['full_path'] : null;
+            $tempPath = is_string($uploadResult['temp_path'] ?? null) ? $uploadResult['temp_path'] : null;
+            $originalFilename = is_string($uploadResult['original_filename'] ?? null) ? $uploadResult['original_filename'] : null;
 
-            if (! $this->segmentationService->validateVideoFile($uploadResult['full_path'])) {
+            if ($fullPath === null || $tempPath === null || $originalFilename === null) {
+                throw new \RuntimeException('Invalid upload result from storage service.');
+            }
+
+            if (! $this->segmentationService->validateVideoFile($fullPath)) {
                 throw new \Exception('Invalid video file format');
             }
 
-            $metadata = $this->segmentationService->getVideoMetadata($uploadResult['full_path']);
+            $metadata = $this->segmentationService->getVideoMetadata($fullPath);
 
             // Create processing log via shared initiator with livestream-specific data
             $processingLog = $this->processingInitiator->initiateProcessing(
@@ -47,14 +54,14 @@ class LivestreamSegmentationService
                 'livestream',
                 $clientFileDate,
                 [
-                    'source_file_path' => $uploadResult['temp_path'],
+                    'source_file_path' => $tempPath,
                     'file_size' => $uploadResult['file_size'],
                     'duration' => $metadata['duration'],
                     'processing_metadata' => [
                         'upload_time' => now()->toISOString(),
                         'format_details' => $metadata,
                         'mime_type' => $uploadResult['mime_type'],
-                        'file_format' => pathinfo($uploadResult['original_filename'], PATHINFO_EXTENSION),
+                        'file_format' => pathinfo($originalFilename, PATHINFO_EXTENSION),
                     ],
                 ]
             );

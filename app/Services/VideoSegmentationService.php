@@ -380,7 +380,13 @@ class VideoSegmentationService
             }
         }
 
-        return file_exists($fullPath) ? filesize($fullPath) : 0;
+        if (! file_exists($fullPath)) {
+            return 0;
+        }
+
+        $fileSize = filesize($fullPath);
+
+        return $fileSize === false ? 0 : $fileSize;
     }
 
     /**
@@ -392,7 +398,9 @@ class VideoSegmentationService
             return Storage::disk($this->tempDisk)->get($storagePath);
         }
 
-        return file_get_contents($fullPath);
+        $contents = file_get_contents($fullPath);
+
+        return $contents === false ? '' : $contents;
     }
 
     /**

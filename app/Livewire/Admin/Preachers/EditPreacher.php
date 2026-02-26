@@ -112,9 +112,17 @@ class EditPreacher extends Component
             ->where('speaker_profile_id', $profile->id)
             ->where('approved', true)
             ->pluck('embedding')
-            ->filter(fn ($embedding) => is_array($embedding) && $embedding !== [])
+            ->map(function ($embedding): array {
+                if (! is_array($embedding)) {
+                    return [];
+                }
+
+                return array_values(array_map('floatval', $embedding));
+            })
+            ->filter(fn (array $embedding) => $embedding !== [])
             ->values()
             ->all();
+        $approvedEmbeddings = array_values($approvedEmbeddings);
 
         if ($approvedEmbeddings === []) {
             $this->error('No approved samples to recompute from.');

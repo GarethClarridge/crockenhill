@@ -421,6 +421,8 @@ class SermonMetadataIntegrationService
         }
 
         // For absolute local paths, use filesize()
-        return filesize($videoPath);
+        $fileSize = filesize($videoPath);
+
+        return $fileSize === false ? 0 : $fileSize;
     }
 }

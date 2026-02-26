@@ -73,12 +73,17 @@ class SermonAssetController extends Controller
             default => 'image/jpeg',
         };
 
+        $lastModifiedTime = filemtime($path);
+        $lastModified = $lastModifiedTime === false
+            ? gmdate('D, d M Y H:i:s').' GMT'
+            : gmdate('D, d M Y H:i:s', $lastModifiedTime).' GMT';
+
         return response()->file($path, [
             'Content-Type' => $contentType,
             'Content-Disposition' => 'inline; filename="'.$name.'"',
             'Cache-Control' => 'public, max-age=86400', // 24 hours cache for images
             'ETag' => md5_file($path),
-            'Last-Modified' => gmdate('D, d M Y H:i:s', filemtime($path)).' GMT',
+            'Last-Modified' => $lastModified,
         ]);
     }
 }

@@ -92,7 +92,16 @@ class VisualAnalysisService
     /**
      * Refine cluster boundaries with dense sampling
      *
-     * @param  array{start_estimate: float, end_estimate: float, samples: array<int, mixed>}  $cluster
+     * @param  array{
+     *     start_estimate: float,
+     *     end_estimate: float,
+     *     samples: list<float>,
+     *     confidence?: float,
+     *     sample_count?: int,
+     *     refined_visual_start?: float,
+     *     refined_visual_end?: float,
+     *     dense_sample_count?: int
+     * }  $cluster
      * @return array{refined_visual_start: float, refined_visual_end: float, dense_sample_count: int}
      */
     public function refineBoundaries(string $videoPath, array $cluster): array
@@ -368,6 +377,10 @@ class VisualAnalysisService
     private function parseMetricsLog(string $logPath): array
     {
         $content = file_get_contents($logPath);
+        if ($content === false) {
+            return [];
+        }
+
         $lines = explode("\n", trim($content));
 
         $metrics = [];

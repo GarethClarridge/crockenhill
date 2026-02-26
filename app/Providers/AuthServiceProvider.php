@@ -28,18 +28,21 @@ class AuthServiceProvider extends ServiceProvider
 
     /**
      * Register any application authentication / authorization services.
-     *
-     * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         $this->registerPolicies();
 
         Gate::before(function ($user, $ability) {
-            if (method_exists($user, 'hasVerifiedEmail') && ! $user->hasVerifiedEmail()) {
+            if (is_object($user) && method_exists($user, 'hasVerifiedEmail') && ! $user->hasVerifiedEmail()) {
                 return false;
             }
-            if (Str::endsWith($user->email, '@crockenhill.org')) {
+
+            $email = is_object($user) && isset($user->email) && is_string($user->email)
+                ? $user->email
+                : null;
+
+            if ($email !== null && Str::endsWith($email, '@crockenhill.org')) {
                 return true;
             }
 
@@ -51,9 +54,12 @@ class AuthServiceProvider extends ServiceProvider
                 '', // Placeholder
                 '',  // Placeholder
             ];
-            // Ensure $user is an object and email property exists
-            if (is_object($user) && property_exists($user, 'email')) {
-                return in_array($user->email, $member_emails);
+
+            $email = is_object($user) && isset($user->email) && is_string($user->email)
+                ? $user->email
+                : null;
+            if ($email !== null) {
+                return in_array($email, $member_emails, true);
             }
 
             return false;

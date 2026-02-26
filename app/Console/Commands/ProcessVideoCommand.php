@@ -84,8 +84,13 @@ class ProcessVideoCommand extends Command
                 $videoFilename = $sermon->slug.'.mp4';
                 $videoPath = 'sermons/videos/'.$videoFilename;
 
+                $tempVideoContents = file_get_contents($tempVideoPath);
+                if ($tempVideoContents === false) {
+                    throw new \RuntimeException("Unable to read extracted video segment: {$tempVideoPath}");
+                }
+
                 Storage::disk(config('media-processing.storage.sermon_disk', 'public'))
-                    ->put($videoPath, file_get_contents($tempVideoPath));
+                    ->put($videoPath, $tempVideoContents);
 
                 // Extract audio
                 $audioPath = $videoExtractor->extractAudio($inputPath, $segmentData, [], $sermon->slug.'.mp3');

@@ -310,11 +310,12 @@ class AudioChunkingService
                 throw new TranscriptionException('Compressed audio file was not created or is empty');
             }
 
+            $compressedSize = filesize($compressedPath);
             $this->logger->logFileOperation(
                 $processingId,
                 'audio_compression',
                 $compressedPath,
-                filesize($compressedPath)
+                $compressedSize === false ? null : $compressedSize
             );
 
             Log::info('Fallback audio compression applied', [
@@ -363,6 +364,10 @@ class AudioChunkingService
     private function splitIntoSentences(string $transcript): array
     {
         $sentences = preg_split('/(?<=[.!?])\s+(?=[A-Z])/', $transcript);
+        if ($sentences === false) {
+            return [];
+        }
+
         $sentences = array_map('trim', $sentences);
         $sentences = array_filter($sentences, function ($sentence) {
             return ! empty($sentence) && strlen($sentence) > 3;

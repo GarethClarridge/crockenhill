@@ -19,7 +19,9 @@ class ProcessingReport
 
     public function toJson(): string
     {
-        return json_encode($this->data, JSON_PRETTY_PRINT);
+        $json = json_encode($this->data, JSON_PRETTY_PRINT);
+
+        return $json === false ? '{}' : $json;
     }
 
     public function getStatus(): string

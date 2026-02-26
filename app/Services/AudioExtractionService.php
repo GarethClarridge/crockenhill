@@ -136,6 +136,12 @@ class AudioExtractionService
      */
     private function getLocalFileSize(string $filePath): int
     {
-        return file_exists($filePath) ? filesize($filePath) : 0;
+        if (! file_exists($filePath)) {
+            return 0;
+        }
+
+        $fileSize = filesize($filePath);
+
+        return $fileSize === false ? 0 : $fileSize;
     }
 }

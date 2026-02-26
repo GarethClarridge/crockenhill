@@ -252,11 +252,54 @@ class AnalyzeSegments implements ShouldQueue
      */
     private function getVisualClusters(): ?array
     {
-        // song_clusters is already decoded by Laravel's model cast
-        // If it's null or empty array, return null
-        $clusters = $this->processingLog->song_clusters;
+        $rawClusters = $this->processingLog->song_clusters;
+        if (! is_array($rawClusters) || $rawClusters === []) {
+            return null;
+        }
 
-        return empty($clusters) ? null : $clusters;
+        $clusters = [];
+        foreach ($rawClusters as $rawCluster) {
+            $startEstimate = $rawCluster['start_estimate'] ?? null;
+            $endEstimate = $rawCluster['end_estimate'] ?? null;
+            $samples = $rawCluster['samples'] ?? null;
+            if (! is_numeric($startEstimate) || ! is_numeric($endEstimate) || ! is_array($samples)) {
+                continue;
+            }
+
+            /** @var array{
+             *     start_estimate: float,
+             *     end_estimate: float,
+             *     samples: array<int, float>,
+             *     confidence: float,
+             *     sample_count?: int,
+             *     refined_visual_start?: float,
+             *     refined_visual_end?: float,
+             *     dense_sample_count?: int
+             * } $normalizedCluster */
+            $normalizedCluster = [
+                'start_estimate' => (float) $startEstimate,
+                'end_estimate' => (float) $endEstimate,
+                'samples' => array_values(array_map('floatval', $samples)),
+                'confidence' => is_numeric($rawCluster['confidence'] ?? null) ? (float) $rawCluster['confidence'] : 0.0,
+            ];
+
+            if (is_numeric($rawCluster['sample_count'] ?? null)) {
+                $normalizedCluster['sample_count'] = (int) $rawCluster['sample_count'];
+            }
+            if (is_numeric($rawCluster['refined_visual_start'] ?? null)) {
+                $normalizedCluster['refined_visual_start'] = (float) $rawCluster['refined_visual_start'];
+            }
+            if (is_numeric($rawCluster['refined_visual_end'] ?? null)) {
+                $normalizedCluster['refined_visual_end'] = (float) $rawCluster['refined_visual_end'];
+            }
+            if (is_numeric($rawCluster['dense_sample_count'] ?? null)) {
+                $normalizedCluster['dense_sample_count'] = (int) $rawCluster['dense_sample_count'];
+            }
+
+            $clusters[] = $normalizedCluster;
+        }
+
+        return $clusters === [] ? null : $clusters;
     }
 
     /**

@@ -187,23 +187,29 @@ class ProcessingLogsViewer extends Component
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @return Collection<int, array<string, mixed>|non-empty-array<string, mixed>>
      */
     public function getFilteredLogsProperty(): Collection
     {
-        $logs = collect($this->logs);
+        $logs = $this->logs;
 
         // Filter by level
         if ($this->filterLevel !== 'all') {
-            $logs = $logs->filter(fn ($log) => $log['level'] === $this->filterLevel);
+            $logs = array_values(array_filter(
+                $logs,
+                fn (array $log): bool => ($log['level'] ?? null) === $this->filterLevel
+            ));
         }
 
         // Filter by step
         if ($this->filterStep !== 'all' && $this->filterStep !== '') {
-            $logs = $logs->filter(fn ($log) => $log['step'] === $this->filterStep);
+            $logs = array_values(array_filter(
+                $logs,
+                fn (array $log): bool => ($log['step'] ?? null) === $this->filterStep
+            ));
         }
 
-        return $logs;
+        return collect($logs);
     }
 
     /**

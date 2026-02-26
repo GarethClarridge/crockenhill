@@ -26,10 +26,10 @@ class MetadataExtractionService
             $service,
             $filename,
             $originalName,
-            $audioInfo['duration'],
-            $audioInfo['bitrate'],
-            $audioInfo['format'],
-            $audioInfo['filesize']
+            $this->toNullableFloat($audioInfo['duration'] ?? null),
+            $this->toNullableInt($audioInfo['bitrate'] ?? null),
+            $this->toNullableString($audioInfo['format'] ?? null),
+            $this->toNullableInt($audioInfo['filesize'] ?? null)
         );
     }
 
@@ -205,10 +205,10 @@ class MetadataExtractionService
             $service,
             $filename,
             $filename,
-            $audioInfo['duration'],
-            $audioInfo['bitrate'],
-            $audioInfo['format'],
-            $audioInfo['filesize']
+            $this->toNullableFloat($audioInfo['duration'] ?? null),
+            $this->toNullableInt($audioInfo['bitrate'] ?? null),
+            $this->toNullableString($audioInfo['format'] ?? null),
+            $this->toNullableInt($audioInfo['filesize'] ?? null)
         );
     }
 
@@ -221,7 +221,8 @@ class MetadataExtractionService
     {
         try {
             $track = new GetId3($file);
-            $info = $track->extractInfo();
+            $rawInfo = $track->extractInfo();
+            $info = is_array($rawInfo) ? $rawInfo : [];
 
             return [
                 'duration' => $this->extractDuration($info),
@@ -249,7 +250,8 @@ class MetadataExtractionService
     {
         try {
             $track = new GetId3($filePath);
-            $info = $track->extractInfo();
+            $rawInfo = $track->extractInfo();
+            $info = is_array($rawInfo) ? $rawInfo : [];
 
             return [
                 'duration' => $this->extractDuration($info),
@@ -271,7 +273,7 @@ class MetadataExtractionService
     /**
      * Extract duration from GetID3 info array
      *
-     * @param array<string, mixed> $info
+     * @param  array<string, mixed>  $info
      */
     private function extractDuration(array $info): ?float
     {
@@ -290,7 +292,7 @@ class MetadataExtractionService
     /**
      * Extract bitrate from GetID3 info array
      *
-     * @param array<string, mixed> $info
+     * @param  array<string, mixed>  $info
      */
     private function extractBitrate(array $info): ?int
     {
@@ -309,7 +311,7 @@ class MetadataExtractionService
     /**
      * Extract format from GetID3 info array
      *
-     * @param array<string, mixed> $info
+     * @param  array<string, mixed>  $info
      */
     private function extractFormat(array $info): ?string
     {
@@ -328,7 +330,7 @@ class MetadataExtractionService
     /**
      * Extract filesize from GetID3 info array or UploadedFile
      *
-     * @param array<string, mixed> $info
+     * @param  array<string, mixed>  $info
      */
     private function extractFilesize(array $info, UploadedFile $file): ?int
     {
@@ -348,7 +350,7 @@ class MetadataExtractionService
     /**
      * Extract filesize from GetID3 info array or file path
      *
-     * @param array<string, mixed> $info
+     * @param  array<string, mixed>  $info
      */
     private function extractFilesizeFromPath(array $info, string $filePath): ?int
     {
@@ -441,8 +443,9 @@ class MetadataExtractionService
 
         // Check file size limits (max 100MB as per design document)
         $maxSize = 100 * 1024 * 1024; // 100MB in bytes
-        if ($audioInfo['filesize'] && $audioInfo['filesize'] > $maxSize) {
-            $errors[] = 'File size too large: '.round($audioInfo['filesize'] / 1024 / 1024, 2).'MB. Maximum allowed: 100MB';
+        $fileSize = $this->toNullableFloat($audioInfo['filesize'] ?? null);
+        if ($fileSize !== null && $fileSize > $maxSize) {
+            $errors[] = 'File size too large: '.round($fileSize / 1024 / 1024, 2).'MB. Maximum allowed: 100MB';
         }
 
         return [
@@ -572,7 +575,13 @@ class MetadataExtractionService
     {
         // For local file paths, use filesize
         if (str_starts_with($filePath, '/') || str_contains($filePath, ':\\')) {
-            return file_exists($filePath) ? filesize($filePath) : null;
+            if (! file_exists($filePath)) {
+                return null;
+            }
+
+            $fileSize = filesize($filePath);
+
+            return $fileSize === false ? null : $fileSize;
         }
 
         // For storage paths, check if it's a storage-based path
@@ -600,7 +609,13 @@ class MetadataExtractionService
         }
 
         // Final fallback - might be a local path without leading slash
-        return file_exists($filePath) ? filesize($filePath) : null;
+        if (! file_exists($filePath)) {
+            return null;
+        }
+
+        $fileSize = filesize($filePath);
+
+        return $fileSize === false ? null : $fileSize;
     }
 
     /**
@@ -613,7 +628,8 @@ class MetadataExtractionService
     {
         try {
             $track = new GetId3($file);
-            $info = $track->extractInfo();
+            $rawInfo = $track->extractInfo();
+            $info = is_array($rawInfo) ? $rawInfo : [];
 
             $title = $track->getTitle();
             $preacher = $track->getArtist();
@@ -655,5 +671,32 @@ class MetadataExtractionService
                 'reference' => null,
             ];
         }
+    }
+
+    private function toNullableFloat(mixed $value): ?float
+    {
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        return null;
+    }
+
+    private function toNullableInt(mixed $value): ?int
+    {
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
+        return null;
+    }
+
+    private function toNullableString(mixed $value): ?string
+    {
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        return null;
     }
 }

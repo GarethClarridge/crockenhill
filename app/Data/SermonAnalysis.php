@@ -90,7 +90,9 @@ class SermonAnalysis extends Data
      */
     public function getPointsAsJson(): string
     {
-        return json_encode($this->points);
+        $json = json_encode($this->points);
+
+        return $json === false ? '[]' : $json;
     }
 
     /**

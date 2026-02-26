@@ -4,6 +4,23 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @phpstan-type VisualSample array{
+ *     timestamp: float,
+ *     classification: string,
+ *     confidence: float,
+ *     brightness?: float,
+ *     contrast?: float,
+ *     edge_density?: float
+ * }
+ * @phpstan-type SongCluster array{
+ *     start_estimate: float,
+ *     end_estimate: float,
+ *     sample_count: int,
+ *     samples: list<float>,
+ *     confidence: float
+ * }
+ */
 class SongClusteringService
 {
     private int $minSongDuration;
@@ -16,16 +33,16 @@ class SongClusteringService
     {
         $config = config('media-processing.visual_analysis', []);
 
-        $this->minSongDuration = $config['min_song_duration'] ?? 60;
-        $this->maxGapSeconds = $config['max_gap_seconds'] ?? 30;
-        $this->smoothingWindow = $config['smoothing_window'] ?? 3;
+        $this->minSongDuration = (int) ($config['min_song_duration'] ?? 60);
+        $this->maxGapSeconds = (int) ($config['max_gap_seconds'] ?? 30);
+        $this->smoothingWindow = (int) ($config['smoothing_window'] ?? 3);
     }
 
     /**
      * Cluster visual samples into song periods
      *
-     * @param  array<array{timestamp: float, classification: string, confidence: float}>  $visualSamples
-     * @return array<int, array<string, float|int|array<int, float>>>
+     * @param  list<VisualSample>  $visualSamples
+     * @return list<SongCluster>
      */
     public function clusterSongPeriods(array $visualSamples): array
     {
@@ -71,8 +88,8 @@ class SongClusteringService
      * Smooth classifications to reduce flickering
      * Requires N consecutive samples of same type to change state
      *
-     * @param  array<array{timestamp: float, classification: string, confidence: float}>  $samples
-     * @return array<array{timestamp: float, classification: string, confidence: float}>
+     * @param  list<VisualSample>  $samples
+     * @return list<VisualSample>
      */
     private function smoothClassifications(array $samples): array
     {
@@ -82,23 +99,30 @@ class SongClusteringService
 
         $smoothed = [];
         $windowSize = $this->smoothingWindow;
+        $sampleCount = count($samples);
+        $halfWindow = intdiv($windowSize, 2);
 
-        for ($i = 0; $i < count($samples); $i++) {
+        for ($i = 0; $i < $sampleCount; $i++) {
             // Look ahead in window
-            $windowStart = max(0, $i - floor($windowSize / 2));
-            $windowEnd = min(count($samples) - 1, $i + floor($windowSize / 2));
+            $windowStart = max(0, $i - $halfWindow);
+            $windowEnd = min($sampleCount - 1, $i + $halfWindow);
+            $windowLength = ($windowEnd - $windowStart) + 1;
 
-            $windowSamples = array_slice($samples, $windowStart, $windowEnd - $windowStart + 1);
+            $windowSamples = array_slice($samples, $windowStart, $windowLength);
+            if ($windowSamples === []) {
+                continue;
+            }
 
             // Count classifications in window
-            $songCount = count(array_filter($windowSamples, fn ($s) => $s['classification'] === 'song'));
-            $speechCount = count($windowSamples) - $songCount;
+            $songCount = count(array_filter($windowSamples, fn (array $sample): bool => $sample['classification'] === 'song'));
+            $windowSampleCount = count($windowSamples);
+            $speechCount = $windowSampleCount - $songCount;
 
             // Majority vote determines classification
             $classification = $songCount > $speechCount ? 'song' : 'speech';
 
             // Calculate average confidence for window
-            $avgConfidence = array_sum(array_column($windowSamples, 'confidence')) / count($windowSamples);
+            $avgConfidence = array_sum(array_column($windowSamples, 'confidence')) / $windowSampleCount;
 
             $smoothed[] = [
                 'timestamp' => $samples[$i]['timestamp'],
@@ -113,8 +137,8 @@ class SongClusteringService
     /**
      * Group consecutive samples with same classification
      *
-     * @param  array<array{timestamp: float, classification: string, confidence: float}>  $samples
-     * @return array<int, array<string, float|int|array<int, float>>>
+     * @param  list<VisualSample>  $samples
+     * @return list<SongCluster>
      */
     private function groupConsecutiveSamples(array $samples): array
     {
@@ -123,45 +147,56 @@ class SongClusteringService
         }
 
         $clusters = [];
-        $currentCluster = null;
+        $currentStart = 0.0;
+        $currentEnd = 0.0;
+        $currentSampleCount = 0;
+        $currentSamples = [];
+        $currentConfidenceSum = 0.0;
+        $inCluster = false;
 
         foreach ($samples as $sample) {
             // Only cluster SONG samples
             if ($sample['classification'] === 'song') {
-                if ($currentCluster === null) {
+                if (! $inCluster) {
                     // Start new cluster
-                    $currentCluster = [
-                        'start_estimate' => $sample['timestamp'],
-                        'end_estimate' => $sample['timestamp'],
-                        'sample_count' => 1,
-                        'samples' => [$sample['timestamp']],
-                        'confidences' => [$sample['confidence']],
-                    ];
+                    $currentStart = $sample['timestamp'];
+                    $currentEnd = $sample['timestamp'];
+                    $currentSampleCount = 1;
+                    $currentSamples = [$sample['timestamp']];
+                    $currentConfidenceSum = $sample['confidence'];
+                    $inCluster = true;
                 } else {
                     // Add to existing cluster
-                    $currentCluster['end_estimate'] = $sample['timestamp'];
-                    $currentCluster['sample_count']++;
-                    $currentCluster['samples'][] = $sample['timestamp'];
-                    $currentCluster['confidences'][] = $sample['confidence'];
+                    $currentEnd = $sample['timestamp'];
+                    $currentSampleCount++;
+                    $currentSamples[] = $sample['timestamp'];
+                    $currentConfidenceSum += $sample['confidence'];
                 }
             } else {
                 // SPEECH sample - close current cluster if exists
-                if ($currentCluster !== null) {
-                    // Calculate average confidence
-                    $currentCluster['confidence'] = array_sum($currentCluster['confidences']) / count($currentCluster['confidences']);
-                    unset($currentCluster['confidences']); // Remove temporary array
+                if ($inCluster) {
+                    $clusters[] = [
+                        'start_estimate' => $currentStart,
+                        'end_estimate' => $currentEnd,
+                        'sample_count' => $currentSampleCount,
+                        'samples' => $currentSamples,
+                        'confidence' => $currentConfidenceSum / $currentSampleCount,
+                    ];
 
-                    $clusters[] = $currentCluster;
-                    $currentCluster = null;
+                    $inCluster = false;
                 }
             }
         }
 
         // Close any open cluster
-        if ($currentCluster !== null) {
-            $currentCluster['confidence'] = array_sum($currentCluster['confidences']) / count($currentCluster['confidences']);
-            unset($currentCluster['confidences']);
-            $clusters[] = $currentCluster;
+        if ($inCluster) {
+            $clusters[] = [
+                'start_estimate' => $currentStart,
+                'end_estimate' => $currentEnd,
+                'sample_count' => $currentSampleCount,
+                'samples' => $currentSamples,
+                'confidence' => $currentConfidenceSum / $currentSampleCount,
+            ];
         }
 
         return $clusters;
@@ -170,12 +205,12 @@ class SongClusteringService
     /**
      * Filter clusters by minimum duration
      *
-     * @param  array<int, array<string, float|int|array<int, float>>>  $clusters
-     * @return array<int, array<string, float|int|array<int, float>>>
+     * @param  list<SongCluster>  $clusters
+     * @return list<SongCluster>
      */
     private function filterByMinimumDuration(array $clusters, int $minDuration): array
     {
-        return array_values(array_filter($clusters, function ($cluster) use ($minDuration) {
+        return array_values(array_filter($clusters, function (array $cluster) use ($minDuration): bool {
             $duration = $cluster['end_estimate'] - $cluster['start_estimate'];
 
             return $duration >= $minDuration;
@@ -186,8 +221,8 @@ class SongClusteringService
      * Merge clusters that are close together
      * Handles brief instrumental breaks where lyrics temporarily disappear
      *
-     * @param  array<int, array<string, float|int|array<int, float>>>  $clusters
-     * @return array<int, array<string, float|int|array<int, float>>>
+     * @param  list<SongCluster>  $clusters
+     * @return list<SongCluster>
      */
     private function mergeCloseGaps(array $clusters, ?int $maxGap = null): array
     {
@@ -205,15 +240,18 @@ class SongClusteringService
 
             if ($gap <= $maxGap) {
                 // Merge clusters
+                $currentSampleCount = $currentCluster['sample_count'];
+                $nextSampleCount = $nextCluster['sample_count'];
+                $totalSamples = $currentSampleCount + $nextSampleCount;
+
                 $currentCluster['end_estimate'] = $nextCluster['end_estimate'];
-                $currentCluster['sample_count'] += $nextCluster['sample_count'];
+                $currentCluster['sample_count'] = $totalSamples;
                 $currentCluster['samples'] = array_merge($currentCluster['samples'], $nextCluster['samples']);
 
                 // Recalculate average confidence (weighted by sample count)
-                $totalSamples = $currentCluster['sample_count'] + $nextCluster['sample_count'];
                 $currentCluster['confidence'] = (
-                    ($currentCluster['confidence'] * $currentCluster['sample_count']) +
-                    ($nextCluster['confidence'] * $nextCluster['sample_count'])
+                    ($currentCluster['confidence'] * $currentSampleCount) +
+                    ($nextCluster['confidence'] * $nextSampleCount)
                 ) / $totalSamples;
             } else {
                 // Gap too large, save current and start new
