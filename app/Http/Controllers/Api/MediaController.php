@@ -193,21 +193,14 @@ class MediaController extends Controller implements ProcessingStatusContract
     }
 
     /**
-     * Validate processing ID format (UUID or legacy format)
+     * Validate processing ID format (UUID v4 only).
      */
     private function isValidProcessingId(string $processingId): bool
     {
-        // Allow UUID format
-        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $processingId)) {
-            return true;
-        }
-
-        // Allow legacy format (for backward compatibility)
-        if (preg_match('/^[a-zA-Z0-9_-]+$/', $processingId) && strlen($processingId) >= 8) {
-            return true;
-        }
-
-        return false;
+        return (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            $processingId
+        );
     }
 
     /**

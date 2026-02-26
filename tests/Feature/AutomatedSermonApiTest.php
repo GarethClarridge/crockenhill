@@ -252,11 +252,9 @@ class AutomatedSermonApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$invalidId}/status");
 
-        // isValidProcessingId accepts 8+ char alphanumeric strings, so this passes.
-        // It returns 404 because no record exists.
-        $response->assertStatus(404)
-            ->assertJson([
-                'found' => false,
+        $response->assertStatus(400)
+            ->assertJsonFragment([
+                'message' => 'Invalid processing ID format',
             ]);
     }
 
