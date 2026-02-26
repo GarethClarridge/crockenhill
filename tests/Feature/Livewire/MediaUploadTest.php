@@ -2,10 +2,9 @@
 
 namespace Tests\Feature\Livewire;
 
-use App\Data\StandardProcessingResponse;
 use App\Livewire\MediaUpload;
+use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -23,9 +22,9 @@ class MediaUploadTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->admin = User::factory()->crockenhillAdmin()->create(['is_admin' => true]);
-        
+
         // Fake disks used by the component
         Storage::fake('local');
     }
@@ -34,7 +33,7 @@ class MediaUploadTest extends TestCase
     public function it_renders_successfully()
     {
         $this->actingAs($this->admin);
-        
+
         Livewire::test(MediaUpload::class)
             ->assertStatus(200)
             ->assertSee('Upload Media');
@@ -96,9 +95,9 @@ class MediaUploadTest extends TestCase
 
         Storage::fake('local');
         $file = UploadedFile::fake()->create('sermon.mp3', 1024);
-        
+
         $mockResult = \App\Services\ProcessingResult::success($expectedId, 'Started');
-        
+
         $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->expects($this->once())
             ->method('process')
@@ -124,16 +123,16 @@ class MediaUploadTest extends TestCase
     public function it_handles_processing_failures_gracefully()
     {
         $this->actingAs($this->admin);
-        
+
         $file = UploadedFile::fake()->create('sermon.mp3', 1024);
-        
+
         $mockResult = \App\Services\ProcessingResult::failure('test-proc-id', 'System error', 'ERR_CODE');
-        
+
         $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
         $mockProcessor->expects($this->once())
             ->method('process')
             ->willReturn($mockResult);
-            
+
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
         Livewire::test(MediaUpload::class)
@@ -188,18 +187,10 @@ class MediaUploadTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
-        $mockProcessor->expects($this->once())
-            ->method('getStatus')
-            ->with('proc-456')
-            ->willReturn(StandardProcessingResponse::found(
-                processingId: 'proc-456',
-                status: 'cancelled',
-                currentStep: 'cancelled',
-                progressPercentage: 42
-            ));
-
-        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
+        MediaProcessingLog::factory()->livestream()->cancelled()->create([
+            'processing_id' => 'proc-456',
+            'owner_user_id' => $this->admin->id,
+        ]);
 
         Livewire::test(MediaUpload::class)
             ->set('processingId', 'proc-456')

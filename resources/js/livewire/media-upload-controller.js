@@ -59,20 +59,13 @@ export const mediaUploadController = (config = {}) => {
             this.lastActivityTime = Date.now();
 
             this.uploadTimeout = setTimeout(() => {
-                const elapsed = Date.now() - this.lastActivityTime;
-
-                if (elapsed > STALL_TIMEOUT_MS * 1.5) {
-                    this.resetUploadTimeout();
-
+                if (! this.$wire.isUploading) {
                     return;
                 }
 
-                this.$wire.call('handleUploadError', 'Upload stalled. Please check your connection and try again.');
-
-                const component = findLivewireComponent(this.componentId);
-                if (component) {
-                    component.cancelUpload('mediaFile');
-                }
+                // Upload progress events can pause for long periods on large files or slow links.
+                // Keep waiting and let the user decide whether to cancel manually.
+                this.resetUploadTimeout();
             }, STALL_TIMEOUT_MS);
         },
 

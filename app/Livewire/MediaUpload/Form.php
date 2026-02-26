@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Livewire\MediaUpload;
 
 use App\Enums\ProcessingStatus;
+use App\Enums\ProcessingStep;
 use App\Livewire\Traits\HasConditionalLogging;
 use App\Livewire\Traits\WithUploadLifecycle;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\User;
 use App\Services\MediaValidationService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -213,44 +216,47 @@ class Form extends Component
         }
 
         try {
-            $processor = $this->getProcessor();
-            $statusResponse = $processor->getStatus($this->processingId);
+            $log = $this->findAccessibleProcessingLog($this->processingId);
+            if (! $log) {
+                return;
+            }
 
-            if ($statusResponse->found) {
-                $previousStatus = $this->status;
-                $previousProgress = $this->progressPercentage;
+            $nextStatus = $log->status->value;
+            $nextProgress = $this->progressForLog($log);
 
-                $this->status = $statusResponse->status;
-                $this->currentStep = $statusResponse->currentStep ?? $this->currentStep;
-                $this->progressPercentage = $statusResponse->progressPercentage ?? $this->progressPercentage;
+            $previousStatus = $this->status;
+            $previousProgress = $this->progressPercentage;
 
-                if ($statusResponse->status === 'failed') {
-                    $this->errorMessage = $statusResponse->errorMessage ?? 'Processing failed';
-                    $this->successMessage = null;
-                    $this->cancelledMessage = null;
-                    $this->currentStep = 'Processing failed';
-                    $this->progressPercentage = 0;
-                } elseif ($statusResponse->status === 'cancelled') {
-                    $this->errorMessage = null;
-                    $this->successMessage = null;
-                    $this->cancelledMessage = 'Processing was cancelled.';
-                    $this->currentStep = 'Processing cancelled';
-                    $this->progressPercentage = 0;
-                } elseif ($statusResponse->status === 'completed') {
-                    $this->errorMessage = null;
-                    $this->successMessage = 'Processing completed successfully!';
-                    $this->cancelledMessage = null;
-                    $this->currentStep = 'Processing completed!';
-                    $this->progressPercentage = 100;
-                }
+            $this->status = $nextStatus;
+            $this->currentStep = $log->current_step ?? $this->currentStep;
+            $this->progressPercentage = $nextProgress;
 
-                if ($this->status !== $previousStatus || $this->progressPercentage !== $previousProgress) {
-                    $this->logDebug('Processing status updated', [
-                        'processing_id' => $this->processingId,
-                        'status' => $statusResponse->status,
-                        'progress' => $statusResponse->progressPercentage,
-                    ]);
-                }
+            if ($nextStatus === 'failed') {
+                $this->errorMessage = $log->error_message ?? 'Processing failed';
+                $this->successMessage = null;
+                $this->cancelledMessage = null;
+                $this->currentStep = 'Processing failed';
+                $this->progressPercentage = 0;
+            } elseif ($nextStatus === 'cancelled') {
+                $this->errorMessage = null;
+                $this->successMessage = null;
+                $this->cancelledMessage = 'Processing was cancelled.';
+                $this->currentStep = 'Processing cancelled';
+                $this->progressPercentage = 0;
+            } elseif ($nextStatus === 'completed') {
+                $this->errorMessage = null;
+                $this->successMessage = 'Processing completed successfully!';
+                $this->cancelledMessage = null;
+                $this->currentStep = 'Processing completed!';
+                $this->progressPercentage = 100;
+            }
+
+            if ($this->status !== $previousStatus || $this->progressPercentage !== $previousProgress) {
+                $this->logDebug('Processing status updated', [
+                    'processing_id' => $this->processingId,
+                    'status' => $nextStatus,
+                    'progress' => $nextProgress,
+                ]);
             }
         } catch (\Exception $e) {
             $this->logError('Failed to check processing status', [
@@ -283,6 +289,41 @@ class Form extends Component
     private function getProcessor(): UnifiedMediaProcessor
     {
         return app(UnifiedMediaProcessor::class);
+    }
+
+    private function findAccessibleProcessingLog(string $processingId): ?MediaProcessingLog
+    {
+        return $this->processingLogQuery()
+            ->where('processing_id', $processingId)
+            ->first();
+    }
+
+    /**
+     * @return Builder<MediaProcessingLog>
+     */
+    private function processingLogQuery(): Builder
+    {
+        $query = MediaProcessingLog::query();
+        $user = Auth::user();
+
+        if ($user instanceof User) {
+            $query->visibleTo($user);
+        }
+
+        return $query;
+    }
+
+    private function progressForLog(MediaProcessingLog $log): int
+    {
+        if ($log->isComplete()) {
+            return 100;
+        }
+
+        if ($log->isFailed() || $log->isCancelled()) {
+            return 0;
+        }
+
+        return ProcessingStep::progressForStep($log->current_step);
     }
 
     public function render(): View
