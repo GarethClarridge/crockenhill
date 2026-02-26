@@ -71,11 +71,56 @@ class PodcastFeedService
      */
     private function enrichSermonForFeed(Sermon $sermon): Sermon
     {
-        // Attach computed values for feed
         $sermon->setAttribute('enclosure_url', $this->storageService->getPublicUrl($sermon));
         $sermon->setAttribute('enclosure_length', $this->storageService->getFileSize($sermon) ?? 0);
+        $sermon->setAttribute('itunes_duration', $this->formatItunesDuration((int) ($sermon->duration ?? 0)));
+        $sermon->setAttribute('podcast_summary', $this->buildPodcastSummary($sermon));
+        $sermon->setAttribute('rss_pub_date', $sermon->date->toRfc2822String());
+        $sermon->setAttribute('episode_image_url', $sermon->thumbnail_url);
+        $sermon->setAttribute('transcript_url', $this->buildTranscriptUrl($sermon));
 
         return $sermon;
+    }
+
+    private function formatItunesDuration(int $seconds): string
+    {
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $remainingSeconds = $seconds % 60;
+
+        return sprintf('%02d:%02d:%02d', $hours, $minutes, $remainingSeconds);
+    }
+
+    private function buildPodcastSummary(Sermon $sermon): string
+    {
+        $parts = [];
+
+        if ($sermon->reference) {
+            $parts[] = "A sermon on {$sermon->reference}";
+        }
+
+        $preacherName = ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile)
+            ? $sermon->preacherProfile->name
+            : $sermon->preacher;
+        if ($preacherName) {
+            $prefix = empty($parts) ? 'A sermon from' : 'from';
+            $parts[] = "{$prefix} {$preacherName}";
+        }
+
+        if ($sermon->series) {
+            $parts[] = "as part of our {$sermon->series} series";
+        }
+
+        return ! empty($parts) ? implode(' ', $parts).'.' : $sermon->title;
+    }
+
+    private function buildTranscriptUrl(Sermon $sermon): ?string
+    {
+        if (! $sermon->transcript_file_path) {
+            return null;
+        }
+
+        return url("/christ/sermons/{$sermon->date->format('Y')}/{$sermon->date->format('m')}/{$sermon->slug}/transcript");
     }
 
     /**

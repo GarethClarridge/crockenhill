@@ -11,6 +11,7 @@ use App\Http\Requests\ProcessMediaRequest;
 use App\Http\Requests\UpdateSermonRequest;
 use App\Models\Sermon;
 use App\Services\PreacherResolutionService;
+use App\Services\UnifiedMediaProcessor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +20,10 @@ use Illuminate\View\View;
 
 class SermonAdminController extends Controller
 {
-    public function __construct(private readonly PreacherResolutionService $preacherResolutionService) {}
+    public function __construct(
+        private readonly PreacherResolutionService $preacherResolutionService,
+        private readonly UnifiedMediaProcessor $mediaProcessor,
+    ) {}
 
     /**
      * Show the form for editing the specified resource.
@@ -127,10 +131,7 @@ class SermonAdminController extends Controller
             $file = $request->file('file');
             $type = $validatedData['type'];
 
-            // Use unified media processor like API
-            $processor = app(\App\Services\UnifiedMediaProcessor::class);
-
-            $result = $processor->process($type, $file);
+            $result = $this->mediaProcessor->process($type, $file);
 
             if ($result->success) {
                 return redirect()
@@ -155,42 +156,31 @@ class SermonAdminController extends Controller
         }
     }
 
-    /**
-     * Show the form for editing the specified resource with date validation.
-     */
     public function editWithDate(int $year, int $month, Sermon $sermon): View
     {
-        // Validate that the sermon's date matches the URL parameters
-        if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
-            abort(404, 'Sermon not found for the specified date.');
-        }
+        $this->assertDateMatchesUrl($year, $month, $sermon);
 
         return $this->edit($sermon);
     }
 
-    /**
-     * Update the specified resource in storage with date validation.
-     */
     public function updateWithDate(int $year, int $month, Sermon $sermon, UpdateSermonRequest $request): RedirectResponse
     {
-        // Validate that the sermon's date matches the URL parameters
-        if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
-            abort(404, 'Sermon not found for the specified date.');
-        }
+        $this->assertDateMatchesUrl($year, $month, $sermon);
 
         return $this->update($sermon, $request);
     }
 
-    /**
-     * Remove the specified resource from storage with date validation.
-     */
     public function destroyWithDate(int $year, int $month, Sermon $sermon): RedirectResponse
     {
-        // Validate that the sermon's date matches the URL parameters
+        $this->assertDateMatchesUrl($year, $month, $sermon);
+
+        return $this->destroy($sermon);
+    }
+
+    private function assertDateMatchesUrl(int $year, int $month, Sermon $sermon): void
+    {
         if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
             abort(404, 'Sermon not found for the specified date.');
         }
-
-        return $this->destroy($sermon);
     }
 }

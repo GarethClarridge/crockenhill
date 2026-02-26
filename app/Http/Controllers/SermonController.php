@@ -164,12 +164,8 @@ class SermonController extends Controller
         ]);
     }
 
-    /**
-     * Display the specified resource with date validation.
-     */
     public function showWithDate(int $year, int $month, Sermon $sermon): View
     {
-        // Validate that the sermon's date matches the URL parameters
         if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
             abort(404, 'Sermon not found for the specified date.');
         }

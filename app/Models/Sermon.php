@@ -59,12 +59,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $preacher_url
  * @property-read ?string $video_url
  * @property-read ?string $thumbnail_url
- * @property-read string $itunes_duration
- * @property-read string $podcast_summary
- * @property-read string $rss_pub_date
  * @property-read string $canonical_url
- * @property-read ?string $episode_image_url
- * @property-read ?string $transcript_url
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
  * @method static Builder|Sermon newModelQuery()
@@ -729,57 +724,6 @@ class Sermon extends Model implements Sitemapable
         return $url;
     }
 
-    // ========================================================================
-    // Podcast Feed Accessors
-    // ========================================================================
-
-    /**
-     * Get duration formatted for iTunes podcast feeds (HH:MM:SS)
-     */
-    public function getItunesDurationAttribute(): string
-    {
-        $seconds = (int) ($this->duration ?? 0);
-        $hours = floor($seconds / 3600);
-        $minutes = floor(($seconds % 3600) / 60);
-        $remainingSeconds = $seconds % 60;
-
-        return sprintf('%02d:%02d:%02d', $hours, $minutes, $remainingSeconds);
-    }
-
-    /**
-     * Get podcast episode summary from available metadata
-     */
-    public function getPodcastSummaryAttribute(): string
-    {
-        $parts = [];
-
-        if ($this->reference) {
-            $parts[] = "A sermon on {$this->reference}";
-        }
-
-        $preacherName = ($this->relationLoaded('preacherProfile') && $this->preacherProfile)
-            ? $this->preacherProfile->name
-            : $this->preacher;
-        if ($preacherName) {
-            $prefix = empty($parts) ? 'A sermon from' : 'from';
-            $parts[] = "{$prefix} {$preacherName}";
-        }
-
-        if ($this->series) {
-            $parts[] = "as part of our {$this->series} series";
-        }
-
-        return ! empty($parts) ? implode(' ', $parts).'.' : $this->title;
-    }
-
-    /**
-     * Get RFC 2822 formatted date for RSS pubDate
-     */
-    public function getRssPubDateAttribute(): string
-    {
-        return $this->date->toRfc2822String();
-    }
-
     /**
      * Get canonical sermon URL
      */
@@ -803,29 +747,5 @@ class Sermon extends Model implements Sitemapable
         return $query->whereNotNull('audio_file_path')
             ->where('audio_file_path', '!=', '')
             ->orderBy('date', 'desc');
-    }
-
-    /**
-     * Get episode image URL for podcast feeds
-     * Uses thumbnail if available, otherwise returns null (template falls back to podcast artwork)
-     */
-    public function getEpisodeImageUrlAttribute(): ?string
-    {
-        return $this->thumbnail_url;
-    }
-
-    /**
-     * Get transcript URL for podcast feeds (Podcast 2.0 transcript support)
-     * Returns null if no transcript is available
-     */
-    public function getTranscriptUrlAttribute(): ?string
-    {
-        if (! $this->transcript_file_path) {
-            return null;
-        }
-
-        // Generate a public URL to the transcript
-        // This assumes transcripts are stored in a publicly accessible location
-        return url("/christ/sermons/{$this->date->format('Y')}/{$this->date->format('m')}/{$this->slug}/transcript");
     }
 }
