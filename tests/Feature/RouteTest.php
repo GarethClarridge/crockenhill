@@ -373,6 +373,35 @@ class RouteTest extends TestCase
     }
 
     #[Test]
+    public function hamburger_nav_button_is_visible_at_all_viewport_sizes(): void
+    {
+        // Regression: the hamburger button was hidden on desktop due to a merge conflict
+        // incorrectly re-adding lg:hidden, making navigation inaccessible without a keyboard or
+        // the desktop nav links (which don't expose sub-pages).
+        $response = $this->get('/');
+
+        $response->assertStatus(200);
+
+        $content = (string) $response->getContent();
+
+        $buttonStart = strpos($content, 'aria-label="Navigation"');
+        $this->assertNotFalse($buttonStart, 'Hamburger nav button is missing from the header');
+
+        $buttonTagStart = strrpos(substr($content, 0, $buttonStart), '<button');
+        $this->assertNotFalse($buttonTagStart, 'Could not locate the opening <button tag for the hamburger');
+
+        $buttonTagClose = strpos($content, '>', $buttonTagStart);
+        $buttonOpeningTag = substr($content, $buttonTagStart, $buttonTagClose - $buttonTagStart + 1);
+
+        // The button must not be hidden at any breakpoint — it is the primary nav entry point
+        $this->assertDoesNotMatchRegularExpression(
+            '/\b(?:sm|md|lg|xl|2xl):hidden\b/',
+            $buttonOpeningTag,
+            'Hamburger nav button must not be hidden at any responsive breakpoint'
+        );
+    }
+
+    #[Test]
     public function community_slug_renders_meeting_view_when_meeting_exists(): void
     {
         // Create a meeting with a known slug
