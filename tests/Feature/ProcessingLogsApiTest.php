@@ -244,7 +244,10 @@ class ProcessingLogsApiTest extends TestCase
         $response = $this->actingAs($this->user)
             ->getJson("/api/media/processing/{$invalidId}/status");
 
-        $response->assertStatus(404);
+        $response->assertStatus(400)
+            ->assertJsonFragment([
+                'message' => 'Invalid processing ID format',
+            ]);
     }
 
     #[Test]

@@ -260,7 +260,7 @@ class LivestreamProcessingApiTest extends TestCase
         $user = User::factory()->create(['is_admin' => true]);
 
         $response = $this->actingAs($user)
-            ->getJson('/api/media/processing/nonexistent-id/status');
+            ->getJson('/api/media/processing/'.fake()->uuid().'/status');
 
         $response->assertStatus(404);
     }
