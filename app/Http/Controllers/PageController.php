@@ -33,6 +33,10 @@ class PageController extends Controller
     {
         $page = Page::where('slug', $slug)->where('area', $area)->firstOrFail();
 
+        if ($page->admin === 'yes' && (! auth()->check() || ! auth()->user()->is_admin)) {
+            abort(404, 'Page not found');
+        }
+
         $html = $markdownRenderer->convert($page->markdown);
 
         return View::make('layouts/page')->with([

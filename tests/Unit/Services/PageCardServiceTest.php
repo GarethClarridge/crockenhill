@@ -26,22 +26,30 @@ class PageCardServiceTest extends TestCase
     #[Test]
     public function it_returns_correct_pages_for_home(): void
     {
-        // Setup: Create required pages in community area
+        $this->deletePagesForSlugs([
+            'sunday-evenings',
+            'bible-study',
+            'unrelated-page',
+        ]);
+
         /** @var Page $sundayEvenings */
         $sundayEvenings = Page::factory()->create([
             'slug' => 'sunday-evenings',
             'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
         ]);
+
         /** @var Page $bibleStudy */
         $bibleStudy = Page::factory()->create([
             'slug' => 'bible-study',
             'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
         ]);
 
-        // Create an unrelated page that should not be returned
         Page::factory()->create([
             'slug' => 'unrelated-page',
             'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
         ]);
 
         $results = $this->service->forHome();
@@ -55,65 +63,119 @@ class PageCardServiceTest extends TestCase
     #[Test]
     public function it_returns_correct_pages_for_community(): void
     {
-        // Setup: Create some required pages
-        /** @var Page $coffeeCup */
-        $coffeeCup = Page::factory()->create([
-            'slug' => 'coffee-cup',
-            'area' => PageArea::COMMUNITY,
-        ]);
-        /** @var Page $babyTalk */
-        $babyTalk = Page::factory()->create([
-            'slug' => 'baby-talk',
-            'area' => PageArea::COMMUNITY,
+        $slugs = [
+            'coffee-cup',
+            'baby-talk',
+            'sunday-mornings',
+            'family-talk',
+            'buzz-club',
+            'christianity-explored',
+            'bible-study',
+            'carols-in-the-chequers',
+        ];
+
+        $this->deletePagesForSlugs([
+            ...$slugs,
+            'unrelated-community',
         ]);
 
-        // Create an unrelated page
+        /** @var array<int, Page> $pages */
+        $pages = [];
+        foreach ($slugs as $slug) {
+            $pages[] = Page::factory()->create([
+                'area' => PageArea::COMMUNITY,
+                'slug' => $slug,
+                'admin' => 'no',
+            ]);
+        }
+
         Page::factory()->create([
             'slug' => 'unrelated-community',
             'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
         ]);
 
         $results = $this->service->forCommunity();
 
-        $this->assertTrue($results->contains('id', $coffeeCup->id));
-        $this->assertTrue($results->contains('id', $babyTalk->id));
+        $this->assertCount(count($slugs), $results);
+        foreach ($pages as $page) {
+            $this->assertTrue($results->contains('id', $page->id));
+        }
+
         $this->assertFalse($results->contains('slug', 'unrelated-community'));
     }
 
     #[Test]
     public function it_returns_correct_pages_for_church(): void
     {
-        // Setup: Create some required pages (note: these are in COMMUNITY area but used for church cards)
+        $this->deletePagesForSlugs([
+            'sunday-mornings',
+            'sunday-evenings',
+            'bible-study',
+            'unrelated-church',
+        ]);
+
         /** @var Page $sundayMornings */
         $sundayMornings = Page::factory()->create([
             'slug' => 'sunday-mornings',
             'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
         ]);
 
-        // Create an unrelated page
+        /** @var Page $sundayEvenings */
+        $sundayEvenings = Page::factory()->create([
+            'slug' => 'sunday-evenings',
+            'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
+        ]);
+
+        /** @var Page $bibleStudy */
+        $bibleStudy = Page::factory()->create([
+            'slug' => 'bible-study',
+            'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
+        ]);
+
         Page::factory()->create([
             'slug' => 'unrelated-church',
             'area' => PageArea::COMMUNITY,
+            'admin' => 'no',
         ]);
 
         $results = $this->service->forChurch();
 
+        $this->assertCount(3, $results);
         $this->assertTrue($results->contains('id', $sundayMornings->id));
+        $this->assertTrue($results->contains('id', $sundayEvenings->id));
+        $this->assertTrue($results->contains('id', $bibleStudy->id));
         $this->assertFalse($results->contains('slug', 'unrelated-church'));
     }
 
     #[Test]
-    public function it_returns_correct_church_links(): void
+    public function it_returns_church_links_excluding_admin_and_special_pages(): void
     {
-        // Setup: Create public church pages
-        /** @var Page $publicPage */
-        $publicPage = Page::factory()->create([
-            'area' => PageArea::CHURCH,
-            'admin' => 'no',
-            'slug' => 'public-info',
+        $this->deletePagesForSlugs([
+            'about-us',
+            'leadership',
+            'privacy-policy',
+            'safeguarding-policy',
+            'admin-page',
+            'community-page',
         ]);
 
-        // Create policy pages that should be excluded
+        /** @var Page $page1 */
+        $page1 = Page::factory()->create([
+            'area' => PageArea::CHURCH,
+            'slug' => 'about-us',
+            'admin' => 'no',
+        ]);
+        /** @var Page $page2 */
+        $page2 = Page::factory()->create([
+            'area' => PageArea::CHURCH,
+            'slug' => 'leadership',
+            'admin' => 'no',
+        ]);
+
         Page::factory()->create([
             'area' => PageArea::CHURCH,
             'slug' => 'privacy-policy',
@@ -124,27 +186,32 @@ class PageCardServiceTest extends TestCase
             'slug' => 'safeguarding-policy',
             'admin' => 'no',
         ]);
-
-        // Create an admin page that should be excluded
         Page::factory()->create([
             'area' => PageArea::CHURCH,
+            'slug' => 'admin-page',
             'admin' => 'yes',
-            'slug' => 'admin-only-page',
         ]);
-
-        // Create a page in a different area
         Page::factory()->create([
             'area' => PageArea::COMMUNITY,
-            'admin' => 'no',
             'slug' => 'community-page',
+            'admin' => 'no',
         ]);
 
         $results = $this->service->churchLinks();
 
-        $this->assertTrue($results->contains('id', $publicPage->id));
+        $this->assertTrue($results->contains('id', $page1->id));
+        $this->assertTrue($results->contains('id', $page2->id));
         $this->assertFalse($results->contains('slug', 'privacy-policy'));
         $this->assertFalse($results->contains('slug', 'safeguarding-policy'));
-        $this->assertFalse($results->contains('slug', 'admin-only-page'));
+        $this->assertFalse($results->contains('slug', 'admin-page'));
         $this->assertFalse($results->contains('slug', 'community-page'));
+    }
+
+    /**
+     * @param  list<string>  $slugs
+     */
+    private function deletePagesForSlugs(array $slugs): void
+    {
+        Page::query()->whereIn('slug', $slugs)->delete();
     }
 }
