@@ -33,11 +33,12 @@ class SermonThumbnailUXTest extends TestCase
 
         $response = $this->get('/christ/sermons/all');
         $response->assertStatus(200);
-        $response->assertSee('/christ/sermons/sermon-with-thumbnail/thumbnail');
-        $response->assertSee('alt="Sermon: Sermon with Thumbnail"');
+        $response->assertSee(route('serveSermonCardThumbnail', $sermon->slug), false);
+        $response->assertSee('?v=', false);
+        $response->assertSee('alt="Sermon: Sermon with Thumbnail"', false);
     }
 
-    public function test_sermon_card_renders_livestream_badge(): void
+    public function test_sermon_card_does_not_render_livestream_badge(): void
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Livestream Sermon',
@@ -47,7 +48,7 @@ class SermonThumbnailUXTest extends TestCase
 
         $response = $this->get('/christ/sermons/all');
         $response->assertStatus(200);
-        $response->assertSee('Livestream');
+        $response->assertDontSee('animate-pulse');
     }
 
     public function test_sermon_page_renders_thumbnail_when_no_video(): void

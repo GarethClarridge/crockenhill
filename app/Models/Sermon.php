@@ -59,6 +59,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $preacher_url
  * @property-read ?string $video_url
  * @property-read ?string $thumbnail_url
+ * @property-read ?string $plain_thumbnail_file_path
  * @property-read string $canonical_url
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
@@ -169,6 +170,18 @@ class Sermon extends Model implements Sitemapable
         $disk = config('thumbnail-generation.storage.disk', 'public');
 
         return \Illuminate\Support\Facades\Storage::disk($disk)->url($this->thumbnail_file_path);
+    }
+
+    public function getPlainThumbnailFilePathAttribute(): ?string
+    {
+        $plainThumbnailPath = $this->thumbnail_metadata['plain_thumbnail_path'] ?? null;
+        if (! is_string($plainThumbnailPath)) {
+            return null;
+        }
+
+        $plainThumbnailPath = trim($plainThumbnailPath);
+
+        return $plainThumbnailPath === '' ? null : $plainThumbnailPath;
     }
 
     public function getSeriesUrlAttribute(): ?string
@@ -382,6 +395,11 @@ class Sermon extends Model implements Sitemapable
     public function hasThumbnail(): bool
     {
         return ! empty($this->thumbnail_file_path) && trim((string) $this->thumbnail_file_path) !== '';
+    }
+
+    public function hasPlainThumbnail(): bool
+    {
+        return $this->plain_thumbnail_file_path !== null;
     }
 
     /**

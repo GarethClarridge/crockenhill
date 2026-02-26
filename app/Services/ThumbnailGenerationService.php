@@ -89,8 +89,9 @@ class ThumbnailGenerationService
                 return ThumbnailResult::failed('Failed to extract frame from video');
             }
 
-            // Create branded overlay
+            // Create branded overlay and plain image variants
             $thumbnailPath = $this->createBrandedThumbnail($sermon, $baseFramePath);
+            $plainThumbnailPath = $this->createPlainThumbnail($baseFramePath);
 
             if (! $thumbnailPath) {
                 $this->cleanupTempFile($baseFramePath);
@@ -99,16 +100,34 @@ class ThumbnailGenerationService
                 return ThumbnailResult::failed('Failed to create branded thumbnail');
             }
 
-            // Store thumbnail in final location
+            // Store thumbnails in final location
             $finalPath = $this->storeThumbnail($thumbnailPath, $sermon);
+            $finalPlainPath = null;
+
+            if ($plainThumbnailPath) {
+                $finalPlainPath = $this->storeThumbnail($plainThumbnailPath, $sermon, 'plain');
+            } else {
+                Log::warning('Plain thumbnail generation failed, continuing with branded variant', [
+                    'sermon_id' => $sermon->id,
+                ]);
+            }
 
             // Cleanup temporary files
             $this->cleanupTempFile($baseFramePath);
             $this->cleanupTempFile($thumbnailPath);
+            if ($plainThumbnailPath) {
+                $this->cleanupTempFile($plainThumbnailPath);
+            }
             $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
             if (! $finalPath) {
                 return ThumbnailResult::failed('Failed to store thumbnail');
+            }
+
+            if ($plainThumbnailPath && ! $finalPlainPath) {
+                Log::warning('Plain thumbnail storage failed, continuing with branded variant', [
+                    'sermon_id' => $sermon->id,
+                ]);
             }
 
             // Prepare metadata
@@ -121,6 +140,8 @@ class ThumbnailGenerationService
                 ],
                 'thumbnail_sizes' => $this->config['sizes'],
                 'generated_at' => now()->toISOString(),
+                'plain_thumbnail_path' => $finalPlainPath,
+                'overlay_thumbnail_path' => $finalPath,
             ];
 
             return ThumbnailResult::success($finalPath, $resultMetadata);
@@ -149,24 +170,7 @@ class ThumbnailGenerationService
     public function createBrandedThumbnail(Sermon $sermon, string $baseFramePath): ?string
     {
         try {
-            $fullBaseFramePath = Storage::disk($this->tempDisk)->path($baseFramePath);
-
-            // Load base image using Intervention Image (following PageImageService pattern)
-            $image = Image::read($fullBaseFramePath);
-
-            // Get target size from config
-            $targetWidth = $this->config['sizes']['web']['width'];
-            $targetHeight = $this->config['sizes']['web']['height'];
-
-            // Resize image to target dimensions
-            $image->scaleDown($targetWidth, $targetHeight);
-
-            // If image doesn't fill target dimensions, add letterboxing
-            if ($image->width() !== $targetWidth || $image->height() !== $targetHeight) {
-                $canvas = Image::create($targetWidth, $targetHeight)->fill('#000000');
-                $canvas->place($image, 'center');
-                $image = $canvas;
-            }
+            $image = $this->createResizedBaseImage($baseFramePath);
 
             // Add brand overlay first (as background)
             $this->addBrandOverlay($image);
@@ -174,20 +178,33 @@ class ThumbnailGenerationService
             // Add text overlays on top of brand overlay
             $this->addTextOverlays($image, $sermon);
 
-            // Save branded thumbnail to temp location
-            $thumbnailFilename = 'thumbnail_'.Str::uuid().'.webp';
-            $tempThumbnailPath = $this->tempPath.'/'.$thumbnailFilename;
-            $fullTempThumbnailPath = Storage::disk($this->tempDisk)->path($tempThumbnailPath);
-
-            // Save with quality setting (following PageImageService pattern)
-            $quality = $this->config['sizes']['web']['quality'];
-            $image->toWebp(quality: $quality)->save($fullTempThumbnailPath);
-
-            return $tempThumbnailPath;
+            return $this->saveTemporaryThumbnail($image);
 
         } catch (\Exception $e) {
             Log::error('Branded thumbnail creation failed', [
                 'sermon_id' => $sermon->id,
+                'base_frame_path' => $baseFramePath,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Create plain thumbnail without text or brand overlays.
+     *
+     * @param  string  $baseFramePath  Path to base frame image
+     * @return string|null Path to plain thumbnail or null on failure
+     */
+    public function createPlainThumbnail(string $baseFramePath): ?string
+    {
+        try {
+            $image = $this->createResizedBaseImage($baseFramePath);
+
+            return $this->saveTemporaryThumbnail($image, 'thumbnail_plain');
+        } catch (\Exception $e) {
+            Log::error('Plain thumbnail creation failed', [
                 'base_frame_path' => $baseFramePath,
                 'error' => $e->getMessage(),
             ]);
@@ -203,13 +220,13 @@ class ThumbnailGenerationService
      * @param  Sermon  $sermon  The sermon model
      * @return string|null Final storage path or null on failure
      */
-    public function storeThumbnail(string $thumbnailPath, Sermon $sermon): ?string
+    public function storeThumbnail(string $thumbnailPath, Sermon $sermon, string $variant = 'overlay'): ?string
     {
         try {
             $fullTempPath = Storage::disk($this->tempDisk)->path($thumbnailPath);
 
             // Generate final filename
-            $filename = 'sermon_'.$sermon->id.'_'.date('Y-m-d').'.webp';
+            $filename = $this->buildStorageFilename($sermon, $variant);
             $finalPath = $this->storagePath.'/'.$filename;
 
             // Ensure storage directory exists
@@ -233,6 +250,7 @@ class ThumbnailGenerationService
             Log::error('Thumbnail storage failed', [
                 'sermon_id' => $sermon->id,
                 'thumbnail_path' => $thumbnailPath,
+                'variant' => $variant,
                 'error' => $e->getMessage(),
             ]);
 
@@ -657,7 +675,72 @@ class ThumbnailGenerationService
             }
         }
 
+        $existingPlainThumbnailPath = $sermon->plain_thumbnail_file_path;
+        if ($existingPlainThumbnailPath) {
+            try {
+                Storage::disk($this->storageDisk)->delete($existingPlainThumbnailPath);
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete existing plain thumbnail', [
+                    'sermon_id' => $sermon->id,
+                    'plain_thumbnail_file_path' => $existingPlainThumbnailPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         return $this->generateThumbnail($sermon, $videoPath, $sermonDisk);
+    }
+
+    /**
+     * Build a fully sized thumbnail canvas from the extracted base frame.
+     *
+     * @param  string  $baseFramePath  Path to base frame image on temp disk
+     */
+    private function createResizedBaseImage(string $baseFramePath): ImageInterface
+    {
+        $fullBaseFramePath = Storage::disk($this->tempDisk)->path($baseFramePath);
+        $image = Image::read($fullBaseFramePath);
+
+        $targetWidth = $this->config['sizes']['web']['width'];
+        $targetHeight = $this->config['sizes']['web']['height'];
+
+        $image->scaleDown($targetWidth, $targetHeight);
+
+        if ($image->width() !== $targetWidth || $image->height() !== $targetHeight) {
+            $canvas = Image::create($targetWidth, $targetHeight)->fill('#000000');
+            $canvas->place($image, 'center');
+            $image = $canvas;
+        }
+
+        return $image;
+    }
+
+    /**
+     * Save a temporary webp thumbnail image on the configured temp disk.
+     */
+    private function saveTemporaryThumbnail(ImageInterface $image, string $prefix = 'thumbnail'): string
+    {
+        $thumbnailFilename = $prefix.'_'.Str::uuid().'.webp';
+        $tempThumbnailPath = $this->tempPath.'/'.$thumbnailFilename;
+        $fullTempThumbnailPath = Storage::disk($this->tempDisk)->path($tempThumbnailPath);
+
+        $quality = $this->config['sizes']['web']['quality'];
+        $image->toWebp(quality: $quality)->save($fullTempThumbnailPath);
+
+        return $tempThumbnailPath;
+    }
+
+    /**
+     * Build the final persisted thumbnail filename.
+     */
+    private function buildStorageFilename(Sermon $sermon, string $variant): string
+    {
+        $baseFilename = 'sermon_'.$sermon->id.'_'.date('Y-m-d');
+        if ($variant === 'plain') {
+            $baseFilename .= '_plain';
+        }
+
+        return $baseFilename.'.webp';
     }
 
     /**

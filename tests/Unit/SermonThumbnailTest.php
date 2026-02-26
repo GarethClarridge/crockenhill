@@ -87,6 +87,33 @@ class SermonThumbnailTest extends TestCase
         $this->assertEquals($metadata, $sermon->thumbnail_metadata);
     }
 
+    public function test_plain_thumbnail_file_path_attribute_returns_metadata_value(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'sermons/thumbnails/test-plain.webp',
+            ],
+        ]);
+
+        $this->assertEquals('sermons/thumbnails/test-plain.webp', $sermon->plain_thumbnail_file_path);
+        $this->assertTrue($sermon->hasPlainThumbnail());
+    }
+
+    public function test_plain_thumbnail_file_path_attribute_returns_null_for_missing_or_empty_value(): void
+    {
+        $sermonWithoutKey = Sermon::factory()->create([
+            'thumbnail_metadata' => ['other' => 'value'],
+        ]);
+        $sermonWithEmptyValue = Sermon::factory()->create([
+            'thumbnail_metadata' => ['plain_thumbnail_path' => '   '],
+        ]);
+
+        $this->assertNull($sermonWithoutKey->plain_thumbnail_file_path);
+        $this->assertFalse($sermonWithoutKey->hasPlainThumbnail());
+        $this->assertNull($sermonWithEmptyValue->plain_thumbnail_file_path);
+        $this->assertFalse($sermonWithEmptyValue->hasPlainThumbnail());
+    }
+
     public function test_thumbnail_generated_at_is_cast_to_datetime(): void
     {
         $sermon = Sermon::factory()->create([

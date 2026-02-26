@@ -5,22 +5,19 @@
 <div class="max-w-sm rounded-lg shadow-sm bg-white border border-gray-300 flex flex-col overflow-hidden transition-shadow hover:shadow-md">
 
   @if($sermon->hasThumbnail())
-    <a href="/christ/sermons/{{ $sermon->date->format('Y') }}/{{ $sermon->date->format('m') }}/{{ $sermon->slug }}" wire:navigate class="block aspect-video overflow-hidden border-b border-gray-100">
-      <img src="{{ route('serveSermonThumbnail', $sermon->slug) }}" alt="Sermon: {{ $sermon->title }}" class="h-full w-full object-cover transition-transform duration-300 hover:scale-105" loading="lazy">
+    <a href="/christ/sermons/{{ $sermon->date->format('Y') }}/{{ $sermon->date->format('m') }}/{{ $sermon->slug }}" wire:navigate class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200">
+      <img src="{{ route('serveSermonCardThumbnail', $sermon->slug) }}?v={{ md5(($sermon->plain_thumbnail_file_path ?? '') . '|' . $sermon->thumbnail_file_path) }}" alt="Sermon: {{ $sermon->title }}" class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115" loading="lazy">
+      <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent"></div>
+      @if (($sermon->title != null))
+        <h4 class="absolute inset-x-5 top-1/2 -translate-y-1/2 text-center font-display text-2xl leading-[0.95] text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.45)] sm:text-3xl">
+          {{$sermon->title}}
+        </h4>
+      @endif
     </a>
   @endif
 
   <div class="flex flex-col flex-1 p-6">
-    @if($sermon->isFromLivestream())
-      <div class="mb-4">
-        <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-          <span class="mr-1 h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>
-          Livestream
-        </span>
-      </div>
-    @endif
-
-    @if (($sermon->title != null))
+    @if (($sermon->title != null) && ! $sermon->hasThumbnail())
       <a class="group" href="/christ/sermons/{{ $sermon->date->format('Y') }}/{{ $sermon->date->format('m') }}/{{ $sermon->slug }}" wire:navigate>
         <h4 class="font-display text-2xl text-gray-900 group-hover:underline decoration-emerald-600 underline-offset-4">
           {{$sermon->title}}

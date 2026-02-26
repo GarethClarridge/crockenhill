@@ -72,6 +72,22 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         $this->assertNull($result);
     }
 
+    #[Test]
+    public function it_stores_plain_thumbnail_variant_with_plain_suffix(): void
+    {
+        $sermon = Sermon::factory()->create(['title' => 'Test Sermon', 'date' => now()]);
+
+        $tempContent = 'fake plain thumbnail content';
+        $tempPath = 'thumbnails/temp/test_plain.webp';
+        Storage::disk('local')->put($tempPath, $tempContent);
+
+        $result = $this->service->storeThumbnail($tempPath, $sermon, 'plain');
+
+        $this->assertNotNull($result);
+        $this->assertStringContainsString('sermon_'.$sermon->id, $result);
+        $this->assertStringContainsString('_plain.webp', $result);
+    }
+
     // ---- regenerateThumbnail tests ----
 
     #[Test]
