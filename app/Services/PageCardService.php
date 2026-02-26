@@ -56,6 +56,11 @@ class PageCardService
     public function churchLinks(): Collection
     {
         return Page::query()
+            /**
+             * Performance Optimization: Limits retrieved columns to required fields for cards,
+             * excluding large text fields (like body and markdown) to reduce memory usage.
+             */
+            ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
             ->with('media')
             ->where('area', PageArea::CHURCH->value)
             ->where('slug', '!=', 'privacy-policy')
@@ -71,6 +76,11 @@ class PageCardService
     private function communityPages(array $slugs): Collection
     {
         return Page::query()
+            /**
+             * Performance Optimization: Limits retrieved columns to required fields for cards,
+             * excluding large text fields (like body and markdown) to reduce memory usage.
+             */
+            ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
             ->with('media')
             ->where('area', PageArea::COMMUNITY->value)
             ->whereIn('slug', $slugs)

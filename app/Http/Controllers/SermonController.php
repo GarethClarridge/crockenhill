@@ -25,9 +25,12 @@ class SermonController extends Controller
 
         if ($distinct_dates->isNotEmpty()) {
             /**
-             * Performance Optimization: Eager load preacherProfile to prevent N+1 queries in sermon-card components
+             * Performance Optimization: Eager load preacherProfile and limit retrieved columns
+             * to required fields for cards to reduce memory usage and DB I/O.
              */
-            $latest_sermons = Sermon::with('preacherProfile')
+            $latest_sermons = Sermon::query()
+                ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+                ->with('preacherProfile:id,name,slug')
                 ->whereIn('date', $distinct_dates)
                 ->orderBy('date', 'desc')
                 ->orderBy('service', 'asc')
@@ -45,9 +48,12 @@ class SermonController extends Controller
     public function getAll(): View
     {
         /**
-         * Performance Optimization: Eager load preacherProfile to prevent N+1 queries in sermon-card components
+         * Performance Optimization: Eager load preacherProfile and limit retrieved columns
+         * to required fields for cards to reduce memory usage and DB I/O.
          */
-        $sermons = Sermon::with('preacherProfile')
+        $sermons = Sermon::query()
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+            ->with('preacherProfile:id,name,slug')
             ->orderBy('date', 'desc')
             ->orderBy('service', 'asc')
             ->get()
@@ -89,9 +95,17 @@ class SermonController extends Controller
 
     public function getPreachers(): View
     {
-        $page = Page::where('slug', 'preachers')->first();
+        $page = Page::query()
+            ->select(['id', 'slug', 'body'])
+            ->where('slug', 'preachers')
+            ->first();
 
+        /**
+         * Performance Optimization: Limits retrieved columns for preachers to required fields
+         * (name and slug) to reduce memory usage.
+         */
         $preachers = Preacher::active()
+            ->select(['id', 'name', 'slug'])
             ->withCount('sermons')
             ->orderByDesc('sermons_count')
             ->orderBy('name')
@@ -113,8 +127,13 @@ class SermonController extends Controller
      */
     public function getPreacher(Preacher $preacher): View
     {
+        /**
+         * Performance Optimization: Eager load preacherProfile and limit retrieved columns
+         * to required fields for cards.
+         */
         $sermons = $preacher->sermons()
-            ->with('preacherProfile')
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+            ->with('preacherProfile:id,name,slug')
             ->orderBy('date', 'desc')
             ->get();
 
@@ -137,9 +156,12 @@ class SermonController extends Controller
     {
         $series_name = str_replace('-', ' ', Str::title($series));
         /**
-         * Performance Optimization: Eager load preacherProfile to prevent N+1 queries in sermon-card components
+         * Performance Optimization: Eager load preacherProfile and limit retrieved columns
+         * to required fields for cards.
          */
-        $sermons = Sermon::with('preacherProfile')
+        $sermons = Sermon::query()
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+            ->with('preacherProfile:id,name,slug')
             ->where('series', $series_name)
             ->orderBy('date', 'desc')
             ->get();
@@ -152,9 +174,12 @@ class SermonController extends Controller
     public function getService(string $service): View
     {
         /**
-         * Performance Optimization: Eager load preacherProfile to prevent N+1 queries in sermon-card components
+         * Performance Optimization: Eager load preacherProfile and limit retrieved columns
+         * to required fields for cards.
          */
-        $sermons = Sermon::with('preacherProfile')
+        $sermons = Sermon::query()
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+            ->with('preacherProfile:id,name,slug')
             ->where('service', $service)
             ->orderBy('date', 'desc')
             ->get();
