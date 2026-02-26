@@ -171,6 +171,26 @@ class LoginTest extends TestCase
     }
 
     #[Test]
+    public function livewire_login_can_repeat_failed_attempts_on_the_same_component_instance(): void
+    {
+        $user = User::factory()->create([
+            'password' => bcrypt('password123'),
+        ]);
+
+        $component = Livewire::test(LoginComponent::class)
+            ->set('email', $user->email)
+            ->set('password', 'incorrect-password');
+
+        $component
+            ->call('login')
+            ->assertSet('error', trans('auth.failed'));
+
+        $component
+            ->call('login')
+            ->assertSet('error', trans('auth.failed'));
+    }
+
+    #[Test]
     public function successful_livewire_login_clears_failed_attempt_counter(): void
     {
         $user = User::factory()->create([

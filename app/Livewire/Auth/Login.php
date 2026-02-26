@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
-use Livewire\Attributes\Locked;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\Features\SupportRedirects\Redirector;
@@ -30,7 +29,6 @@ class Login extends Component
     #[Validate('boolean')]
     public bool|array $remember = false;
 
-    #[Locked]
     public string $error = '';
 
     public function login(): Redirector|RedirectResponse|null
