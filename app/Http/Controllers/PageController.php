@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\PageArea;
 use App\Models\Page;
 use App\Services\SafeMarkdownRenderer;
-use Illuminate\Contracts\View\View as ViewContract;
-use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Controller for displaying pages to the public.
@@ -16,10 +17,30 @@ class PageController extends Controller
 {
     /**
      * Display a generic page layout.
+     *
+     * @param  string  $area  The area of the page.
      */
-    public function showPage(): ViewContract
+    public function showPage(string $area): Response
     {
-        return view('layouts/page');
+        // Fetch the landing page for this area (where slug equals area)
+        $page = Page::query()->where('slug', $area)->where('area', $area)->first();
+
+        if ($page) {
+            // Security check: Restricted pages
+            if ($page->admin === 'yes' && (! Auth::check() || ! Auth::user()->is_admin)) {
+                abort(403, 'Unauthorized action.');
+            }
+
+            // Security check: Members-only area
+            if ($page->area === PageArea::MEMBERS && ! Auth::check()) {
+                return redirect()->guest(route('login'));
+            }
+        } elseif ($area === PageArea::MEMBERS->value && ! Auth::check()) {
+            // Even if no landing page exists, protect the members area by default
+            return redirect()->guest(route('login'));
+        }
+
+        return response()->view('layouts/page', ['page' => $page]);
     }
 
     /**
@@ -29,17 +50,25 @@ class PageController extends Controller
      * @param  string  $slug  The slug of the page.
      * @param  \App\Services\SafeMarkdownRenderer  $markdownRenderer  Service to convert markdown to safe HTML.
      */
-    public function show(string $area, string $slug, SafeMarkdownRenderer $markdownRenderer): ViewContract
+    public function show(string $area, string $slug, SafeMarkdownRenderer $markdownRenderer): Response
     {
-        $page = Page::where('slug', $slug)->where('area', $area)->firstOrFail();
+        $page = Page::query()->where('slug', $slug)->where('area', $area)->firstOrFail();
 
-        if ($page->admin === 'yes' && (! auth()->check() || ! auth()->user()->is_admin)) {
-            abort(404, 'Page not found');
+        // Security check: Restricted pages
+        if ($page->admin === 'yes' && (! Auth::check() || ! Auth::user()->is_admin)) {
+            abort(403, 'Unauthorized action.');
         }
 
-        $html = $markdownRenderer->convert($page->markdown);
+        // Security check: Members-only area
+        if ($page->area === PageArea::MEMBERS && ! Auth::check()) {
+            return redirect()->guest(route('login'));
+        }
 
-        return View::make('layouts/page')->with([
+        $html = $page->markdown
+            ? $markdownRenderer->convert($page->markdown)
+            : htmlspecialchars_decode($page->body);
+
+        return response()->view('layouts/page', [
             'page' => $page,
             'html' => $html,
             'content' => $html,

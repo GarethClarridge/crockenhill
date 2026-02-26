@@ -8,7 +8,7 @@
       <li class="text-center p-3">
         <x-clickable-card 
           heading="{{$series->series}}" 
-          link="series/{!! \Illuminate\Support\Str::slug($series->series) !!}"
+          link="series/{{ \Illuminate\Support\Str::slug($series->series) }}"
           content="" />
       </li>
     @endisset
