@@ -55,11 +55,6 @@ class VideoExtractionService
                     'timeout' => config('media-processing.processing.timeout'),
                 ]);
 
-                Log::debug('FFmpeg initialized successfully', [
-                    'ffmpeg_path' => $ffmpegPath,
-                    'ffprobe_path' => $ffprobePath,
-                    'timeout' => config('media-processing.processing.timeout'),
-                ]);
             } catch (\Exception $e) {
                 Log::error('Failed to initialize FFmpeg', [
                     'ffmpeg_path' => $ffmpegPath,

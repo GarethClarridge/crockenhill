@@ -23,8 +23,7 @@ class UnifiedMediaProcessor
         private readonly SermonProcessingService $sermonService,
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingLogService $processingLogService,
-        private readonly ProcessingInitiator $processingInitiator,
-        private readonly LivestreamSegmentationService $livestreamService
+        private readonly ProcessingInitiator $processingInitiator
     ) {}
 
     public function process(string $type, UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
@@ -49,7 +48,7 @@ class UnifiedMediaProcessor
         return match ($mediaType) {
             MediaType::Audio => $this->audioProcessingService->processSermon($file, $clientFileDate),
             MediaType::Video => $this->processDirectVideo($file, $clientFileDate),
-            MediaType::Livestream => $this->livestreamService->startProcessing($file, $clientFileDate),
+            MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate),
         };
     }
 
@@ -109,7 +108,7 @@ class UnifiedMediaProcessor
 
         $result = match ($log->processing_type) {
             MediaType::Audio, MediaType::Video => $this->sermonService->cancelProcessing($processingId),
-            MediaType::Livestream => $this->livestreamService->cancelProcessing($processingId),
+            MediaType::Livestream => $this->livestreamService()->cancelProcessing($processingId),
         };
 
         return [
@@ -132,7 +131,7 @@ class UnifiedMediaProcessor
 
         return match ($log->processing_type) {
             MediaType::Audio, MediaType::Video => $this->jobPipelineService->retryProcessing($processingId),
-            MediaType::Livestream => $this->convertLivestreamRetryResult($this->livestreamService->retryProcessing($processingId)),
+            MediaType::Livestream => $this->convertLivestreamRetryResult($this->livestreamService()->retryProcessing($processingId)),
         };
     }
 
@@ -164,6 +163,11 @@ class UnifiedMediaProcessor
         return $this->processingLogQuery()
             ->where('processing_id', $processingId)
             ->first();
+    }
+
+    private function livestreamService(): LivestreamSegmentationService
+    {
+        return app(LivestreamSegmentationService::class);
     }
 
     /**
