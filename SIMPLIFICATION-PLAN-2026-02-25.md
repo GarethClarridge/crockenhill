@@ -181,7 +181,7 @@ Exit criteria:
 
 - Removed files are not required by routes/runtime container bindings.
 
-## Phase 6: Config and Queue Key Cleanup (P2/P3)
+## Phase 6: Config and Queue Key Cleanup (P2/P3) ✅
 
 Target files:
 
@@ -193,9 +193,17 @@ Target files:
 
 Tasks:
 
-- [ ] Standardize on canonical config keys (`queues.*`, `types.*`, `storage.*`).
-- [ ] Remove or migrate obsolete aliases only after callsites are migrated.
-- [ ] Eliminate misleading diagnostics that compare identical keys.
+- [x] Standardize on canonical config keys (`queues.*`, `types.*`, `storage.*`).
+- [x] Remove or migrate obsolete aliases only after callsites are migrated.
+- [x] Eliminate misleading diagnostics that compare identical keys.
+
+Files changed:
+- `config/media-processing.php` — removed legacy `queue.name` block, removed redundant `storage.disk` key (kept `storage.sermon_disk`), removed `processing.queue` key
+- `app/Jobs/SubmitToProcessing.php` — removed non-existent `storage_disk` key lookup, removed self-comparing `config_diagnostics` block
+- `app/Jobs/AnalyzeSegments.php` — collapsed three-level queue fallback chain to `queues.livestream` with hardcoded default
+- `app/Services/LivestreamSegmentationService.php` — same queue fallback simplification
+- `app/Services/SermonJobPipelineService.php` — removed `processing.queue` fallback from `defaultQueue()`
+- `app/Jobs/UpdateSermonRecord.php` — collapsed `queues.processing`/`processing.queue`/`queues.default` chain to `queues.default`
 
 Exit criteria:
 

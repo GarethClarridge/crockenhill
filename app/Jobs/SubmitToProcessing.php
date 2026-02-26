@@ -50,12 +50,6 @@ class SubmitToProcessing implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
                 'sermon_audio_path' => $this->processingLog->audio_file_path,
                 'sermon_disk' => $sermonDisk,
-                'livestream_config' => [
-                    'storage_disk' => config('media-processing.storage_disk'),
-                    'sermon_disk' => config('media-processing.storage.sermon_disk'),
-                    'temp_disk' => config('media-processing.storage.temp_disk'),
-                    'audio_path' => config('media-processing.storage.paths.audio'),
-                ],
             ]);
 
             // Use Storage::exists() for all disk types (works for both local and S3)
@@ -109,11 +103,7 @@ class SubmitToProcessing implements ShouldQueue
                     'similar_files_found' => $similarFiles,
                     'processing_log_status' => $this->processingLog->status,
                     'processing_log_error' => $this->processingLog->error_message,
-                    'config_diagnostics' => [
-                        'sermon_processing_disk' => config('media-processing.storage.sermon_disk'),
-                        'livestream_sermon_disk' => config('media-processing.storage.sermon_disk'),
-                        'disk_mismatch' => config('media-processing.storage.sermon_disk') !== config('media-processing.storage.sermon_disk'),
-                    ],
+                    'sermon_disk' => $sermonDisk,
                 ]);
 
                 throw new \Exception('Sermon audio file not found: '.$this->processingLog->audio_file_path.' - Check logs for detailed diagnostics');

@@ -200,7 +200,7 @@ class SermonJobPipelineService
 
     private function defaultQueue(): string
     {
-        return (string) config('media-processing.queues.default', config('media-processing.processing.queue', 'default'));
+        return (string) config('media-processing.queues.default', 'default');
     }
 
     private function processingQueue(): string

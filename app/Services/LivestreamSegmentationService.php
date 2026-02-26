@@ -151,10 +151,7 @@ class LivestreamSegmentationService
     private function dispatchProcessingJobs(MediaProcessingLog $processingLog): void
     {
         $processingId = $processingLog->processing_id;
-        $queueName = (string) config(
-            'media-processing.queues.livestream',
-            config('media-processing.types.livestream.queue', config('media-processing.queue.name', 'livestream-processing'))
-        );
+        $queueName = (string) config('media-processing.queues.livestream', 'livestream-processing');
 
         $parallelJobs = $this->pipelineBuilder->buildLivestreamParallelJobs($processingLog);
         $chainJobs = $this->pipelineBuilder->buildLivestreamChainJobs($processingLog);

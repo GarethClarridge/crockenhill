@@ -10,17 +10,11 @@ $speakerIdentificationQueue = env('MEDIA_PROCESSING_QUEUE_SPEAKER_IDENTIFICATION
 return [
     'queues' => [
         'default' => $defaultQueue,
-        'processing' => $defaultQueue,
         'audio' => $audioQueue,
         'video' => $videoQueue,
         'livestream' => $livestreamQueue,
         'livestream_audio' => $livestreamAudioQueue,
         'speaker_identification' => $speakerIdentificationQueue,
-    ],
-
-    // Legacy alias retained for older queue lookups.
-    'queue' => [
-        'name' => $livestreamQueue,
     ],
 
     'types' => [
@@ -53,7 +47,6 @@ return [
     |--------------------------------------------------------------------------
     */
     'storage' => [
-        'disk' => env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'public')),
         'sermon_disk' => env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'public')),
         'temp_disk' => 'local',
         'paths' => [
@@ -81,7 +74,6 @@ return [
         'retry_attempts' => 3,
         'retry_delay' => 60,
         'max_concurrent_jobs' => 2,
-        'queue' => $defaultQueue,
     ],
 
     /*
