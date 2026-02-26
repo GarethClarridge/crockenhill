@@ -44,9 +44,15 @@ class LayoutPageComposer
     private function composeUsingProvidedPage(View $view, Page $page): void
     {
         $viewData = $view->getData();
-        $content = array_key_exists('content', $viewData)
-            ? (string) $viewData['content']
-            : $this->markdownRenderer->convert($page->markdown);
+
+        // Determine content: explicit view data > markdown > legacy body
+        if (array_key_exists('content', $viewData)) {
+            $content = (string) $viewData['content'];
+        } elseif ($page->markdown) {
+            $content = $this->markdownRenderer->convert($page->markdown);
+        } else {
+            $content = htmlspecialchars_decode($page->body);
+        }
 
         $area = $page->area->value;
         $slug = $page->slug;
