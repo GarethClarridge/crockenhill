@@ -12,7 +12,7 @@
                 {{ $preacher->name }}
             </h5>
           <small class="bg-slate-800 text-white rounded-full py-1 px-2 ms-2">
-            {!! $preacher->sermons_count !!}
+            {{ $preacher->sermons_count }}
           </small>
         </x-clickable-card>
       </li>

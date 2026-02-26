@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -19,17 +20,19 @@ return new class extends Migration
     {
         Schema::dropIfExists('sermon_processing_logs');
 
-        Schema::table('livestream_segments', function (Blueprint $table) {
-            $table->dropForeign('livestream_segments_processing_id_foreign');
-            $table->dropIndex('livestream_segments_processing_id_index');
-            $table->dropColumn('processing_id');
-        });
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('livestream_segments', function (Blueprint $table) {
+                $table->dropForeign('livestream_segments_processing_id_foreign');
+                $table->dropIndex('livestream_segments_processing_id_index');
+                $table->dropColumn('processing_id');
+            });
 
-        Schema::table('media_processing_logs', function (Blueprint $table) {
-            $table->enum('status', ['pending', 'processing', 'completed', 'failed', 'cancelled'])
-                ->default('pending')
-                ->change();
-        });
+            Schema::table('media_processing_logs', function (Blueprint $table) {
+                $table->enum('status', ['pending', 'processing', 'completed', 'failed', 'cancelled'])
+                    ->default('pending')
+                    ->change();
+            });
+        }
     }
 
     /**
@@ -37,18 +40,20 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('media_processing_logs', function (Blueprint $table) {
-            $table->string('status')->default('pending')->change();
-        });
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('media_processing_logs', function (Blueprint $table) {
+                $table->string('status')->default('pending')->change();
+            });
 
-        Schema::table('livestream_segments', function (Blueprint $table) {
-            $table->string('processing_id')->nullable()->after('id');
-            $table->index('processing_id', 'livestream_segments_processing_id_index');
-            $table->foreign('processing_id', 'livestream_segments_processing_id_foreign')
-                ->references('processing_id')
-                ->on('media_processing_logs')
-                ->onDelete('cascade');
-        });
+            Schema::table('livestream_segments', function (Blueprint $table) {
+                $table->string('processing_id')->nullable()->after('id');
+                $table->index('processing_id', 'livestream_segments_processing_id_index');
+                $table->foreign('processing_id', 'livestream_segments_processing_id_foreign')
+                    ->references('processing_id')
+                    ->on('media_processing_logs')
+                    ->onDelete('cascade');
+            });
+        }
 
         Schema::create('sermon_processing_logs', function (Blueprint $table) {
             $table->bigIncrements('id');
