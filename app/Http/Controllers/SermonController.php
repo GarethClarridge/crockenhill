@@ -29,7 +29,7 @@ class SermonController extends Controller
              * to required fields for cards to reduce memory usage and DB I/O.
              */
             $latest_sermons = Sermon::query()
-                ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+                ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'source_type'])
                 ->with('preacherProfile:id,name,slug')
                 ->whereIn('date', $distinct_dates)
                 ->orderBy('date', 'desc')
@@ -52,7 +52,7 @@ class SermonController extends Controller
          * to required fields for cards to reduce memory usage and DB I/O.
          */
         $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'source_type'])
             ->with('preacherProfile:id,name,slug')
             ->orderBy('date', 'desc')
             ->orderBy('service', 'asc')
@@ -132,7 +132,7 @@ class SermonController extends Controller
          * to required fields for cards.
          */
         $sermons = $preacher->sermons()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'source_type'])
             ->with('preacherProfile:id,name,slug')
             ->orderBy('date', 'desc')
             ->get();
@@ -160,7 +160,7 @@ class SermonController extends Controller
          * to required fields for cards.
          */
         $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'source_type'])
             ->with('preacherProfile:id,name,slug')
             ->where('series', $series_name)
             ->orderBy('date', 'desc')
@@ -178,7 +178,7 @@ class SermonController extends Controller
          * to required fields for cards.
          */
         $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'source_type'])
             ->with('preacherProfile:id,name,slug')
             ->where('service', $service)
             ->orderBy('date', 'desc')

@@ -90,6 +90,7 @@ Route::group(['prefix' => 'christ/sermons'], function () {
 
     // Thumbnail serving route
     Route::get('/{sermon:slug}/thumbnail', [SermonAssetController::class, 'serveThumbnail'])->name('serveSermonThumbnail');
+    Route::get('/{sermon:slug}/thumbnail/card', [SermonAssetController::class, 'serveCardThumbnail'])->name('serveSermonCardThumbnail');
 
     // Fallback slug-only routes
     Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');

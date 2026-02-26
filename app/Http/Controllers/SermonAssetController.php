@@ -60,19 +60,47 @@ class SermonAssetController extends Controller
             abort(404, 'Thumbnail not found.');
         }
 
+        return $this->serveStoredThumbnail($sermon->thumbnail_file_path);
+    }
+
+    /**
+     * Serve the thumbnail variant intended for compact UI cards.
+     */
+    public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse
+    {
+        if (! $sermon->thumbnail_file_path) {
+            abort(404, 'Thumbnail not found.');
+        }
+
+        $disk = config('thumbnail-generation.storage.disk', 'public');
+        $cardThumbnailPath = $sermon->plain_thumbnail_file_path;
+
+        if (
+            $cardThumbnailPath
+            && ! str_contains($cardThumbnailPath, '..')
+            && Storage::disk($disk)->exists($cardThumbnailPath)
+        ) {
+            return $this->serveStoredThumbnail($cardThumbnailPath);
+        }
+
+        return $this->serveStoredThumbnail($sermon->thumbnail_file_path);
+    }
+
+    private function serveStoredThumbnail(string $thumbnailPath): BinaryFileResponse
+    {
         // Security check: Prevent path traversal
-        if (str_contains($sermon->thumbnail_file_path, '..')) {
+        if (str_contains($thumbnailPath, '..')) {
             abort(404, 'Invalid thumbnail file path.');
         }
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
 
-        if (! Storage::disk($disk)->exists($sermon->thumbnail_file_path)) {
+        if (! Storage::disk($disk)->exists($thumbnailPath)) {
             abort(404, 'Thumbnail file not found.');
         }
 
-        $path = Storage::disk($disk)->path($sermon->thumbnail_file_path);
-        $name = basename($sermon->thumbnail_file_path);
+        $path = Storage::disk($disk)->path($thumbnailPath);
+        $name = basename($thumbnailPath);
 
         // Determine content type based on file extension
         $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));

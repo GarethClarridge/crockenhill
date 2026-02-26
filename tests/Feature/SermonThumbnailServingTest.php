@@ -131,4 +131,41 @@ class SermonThumbnailServingTest extends TestCase
         $this->assertNotNull($response->headers->get('ETag'));
         $this->assertNotNull($response->headers->get('Last-Modified'));
     }
+
+    public function test_card_thumbnail_prefers_plain_variant_when_available(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'test-sermon',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-overlay.webp',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'sermons/thumbnails/test-plain.webp',
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/thumbnails/test-overlay.webp', 'overlay image content');
+        Storage::disk('public')->put('sermons/thumbnails/test-plain.webp', 'plain image content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+
+        $response->assertStatus(200)
+            ->assertHeader('Content-Disposition', 'inline; filename="test-plain.webp"');
+    }
+
+    public function test_card_thumbnail_falls_back_to_overlay_variant_when_plain_is_missing(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'test-sermon',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-overlay.webp',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'sermons/thumbnails/missing-plain.webp',
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/thumbnails/test-overlay.webp', 'overlay image content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+
+        $response->assertStatus(200)
+            ->assertHeader('Content-Disposition', 'inline; filename="test-overlay.webp"');
+    }
 }
