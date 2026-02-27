@@ -27,12 +27,12 @@
             class="w-40"
         />
 
-        @if(count($selected) > 0)
+        <div x-show="$wire.selected.length > 0" x-transition x-cloak>
             <x-form-button variant="danger" size="sm" icon="trash"
-                wire:click="deleteSelected" wire:confirm="Delete {{ count($selected) }} pages?">
-                Delete Selected ({{ count($selected) }})
+                wire:click="deleteSelected" wire:confirm="Delete selected pages?">
+                Delete Selected (<span x-text="$wire.selected.length"></span>)
             </x-form-button>
-        @endif
+        </div>
     </div>
 
     {{-- Table --}}
@@ -43,6 +43,7 @@
                     <tr>
                         <th class="w-10 px-4 py-3">
                             <input type="checkbox"
+                                aria-label="Select all pages"
                                 class="rounded border-gray-300 text-green-600 focus:ring-green-500"
                                 wire:click="$set('selected', $event.target.checked ? {{ $pages->pluck('id')->toJson() }} : [])"
                                 {{ count($selected) === $pages->count() && $pages->count() > 0 ? 'checked' : '' }} />

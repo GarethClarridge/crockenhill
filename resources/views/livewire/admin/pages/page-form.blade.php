@@ -22,7 +22,7 @@
                         hint="URL-friendly identifier (auto-generated from heading)" />
 
                     <x-textarea label="Description" wire:model="description" rows="3" required
-                        hint="{{ 500 - strlen($description) }} characters remaining" />
+                        maxlength="500" hint="Brief summary for listings and SEO" />
                 </div>
             </x-card>
 
