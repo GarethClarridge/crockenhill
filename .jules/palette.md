@@ -18,3 +18,7 @@
 ## 2026-02-23 - Scoped Loading States and Loop Accessibility
 **Learning:** In complex Livewire forms with many interactive elements (like dynamic lists of points), global loading states cause confusing UI flicker. Enhancing base button components to automatically target their own 'wire:click' or 'wire:submit' actions provides precise, scoped feedback. Additionally, icon-only buttons within loops require contextual 'aria-label' attributes (e.g., "Remove alias: [name]") to provide clear intent to screen reader users beyond just the action type.
 **Action:** Automatically derive 'wire:target' from 'wire:click' or 'wire:submit' in 'form-button' components. Ensure all loop-based buttons include unique identifying information in their ARIA labels.
+
+## 2026-03-06 - Integrated Character Counters and Bulk Action Polish
+**Learning:** For fields with strict character limits (like SEO descriptions), relying on server-side validation or PHP-calculated counters creates a laggy experience. Integrating an Alpine.js-powered live counter into base `x-input` and `x-textarea` components provides immediate, accessible feedback. Additionally, bulk action buttons (like 'Delete Selected') feel more polished when using `x-transition` to avoid layout jumps, and master checkboxes in tables MUST have an explicit `aria-label` to provide context for screen readers.
+**Action:** Use the `maxlength` prop on `x-input` and `x-textarea` for real-time length feedback. Always use `x-transition` for dynamic bulk action UI and ensure master checkboxes are correctly labeled.

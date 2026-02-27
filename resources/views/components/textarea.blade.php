@@ -1,4 +1,4 @@
-@props(['label' => null, 'hint' => null, 'required' => false])
+@props(['label' => null, 'hint' => null, 'required' => false, 'maxlength' => null])
 
 @php
 $modelName = $attributes->wire('model')->value();
@@ -13,7 +13,7 @@ if ($hasError) $describedBy[] = $id . '-error';
 $describedBy = implode(' ', $describedBy);
 @endphp
 
-<div>
+<div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }} }" x-init="count = $refs.textarea.value.length">
     @if($label)
         <label @if($id) for="{{ $id }}" @endif class="block text-sm font-medium text-gray-700 mb-1">
             {{ $label }}
@@ -23,13 +23,25 @@ $describedBy = implode(' ', $describedBy);
 
     <textarea
         @if($id) id="{{ $id }}" @endif
+        x-ref="textarea"
+        @input="count = $el.value.length"
         {{ $attributes->merge(['rows' => 3, 'class' => $textareaClasses]) }}
+        @if($maxlength) maxlength="{{ $maxlength }}" @endif
         @if($hasError) aria-invalid="true" @endif
         @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
-    ></textarea>
+    >{{ $slot }}</textarea>
 
-    @if($hint)
-        <p @if($id) id="{{ $id }}-hint" @endif class="mt-1 text-sm text-gray-500">{{ $hint }}</p>
+    @if($hint || $maxlength)
+        <div class="mt-1 flex justify-between gap-4">
+            @if($hint)
+                <p @if($id) id="{{ $id }}-hint" @endif class="text-sm text-gray-500">{{ $hint }}</p>
+            @endif
+            @if($maxlength)
+                <p class="text-xs text-gray-400 tabular-nums ml-auto" aria-live="polite">
+                    <span x-text="count"></span> / {{ $maxlength }}
+                </p>
+            @endif
+        </div>
     @endif
 
     @if($modelName)
