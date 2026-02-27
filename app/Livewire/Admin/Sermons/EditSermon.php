@@ -70,12 +70,17 @@ class EditSermon extends Component
 
     public function mount(Sermon $sermon): void
     {
+        $service = $sermon->service;
+        if (! $service instanceof SermonService) {
+            throw new \UnexpectedValueException('Sermon service is required.');
+        }
+
         $this->sermon = $sermon;
         $this->preacherOptions = Preacher::active()->orderBy('name')->pluck('name', 'id');
         $this->title = $sermon->title;
         $this->slug = $sermon->slug;
         $this->date = $sermon->date->format('Y-m-d');
-        $this->service = $sermon->service->value;
+        $this->service = $service->value;
         $this->preacher = $sermon->preacherProfile->name ?? $sermon->preacher;
         $this->preacherId = $sermon->preacher_id;
         $this->reference = $sermon->reference;

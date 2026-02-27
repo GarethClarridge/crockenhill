@@ -113,7 +113,7 @@ class LivestreamSegmentationService
         $processingLog->segments()->delete();
         $this->dispatchProcessingJobs($processingLog);
 
-        return $this->buildProcessingResult($processingLog->fresh());
+        return $this->buildProcessingResult($processingLog->fresh() ?? $processingLog);
     }
 
     public function cancelProcessing(string $processingId): bool
@@ -228,14 +228,14 @@ class LivestreamSegmentationService
     {
         $segments = $processingLog->segments->map(function (\App\Models\LivestreamSegment $segment) {
             return new \App\Data\LivestreamSegment(
-                startTime: $segment->start_time,
-                endTime: $segment->end_time,
-                duration: $segment->duration,
+                startTime: (float) ($segment->start_time ?? 0.0),
+                endTime: (float) ($segment->end_time ?? 0.0),
+                duration: (float) ($segment->duration ?? 0.0),
                 classification: $segment->classification,
-                avgRms: $segment->avg_rms,
-                peakRms: $segment->peak_rms,
+                avgRms: (float) ($segment->avg_rms ?? 0.0),
+                peakRms: (float) ($segment->peak_rms ?? 0.0),
                 isSermonCandidate: $segment->is_sermon_candidate,
-                segmentOrder: $segment->segment_order,
+                segmentOrder: (int) ($segment->segment_order ?? 0),
                 metadata: $segment->metadata,
             );
         })->toArray();
@@ -249,8 +249,10 @@ class LivestreamSegmentationService
             processingId: $processingLog->processing_id,
             status: $processingLog->status->value,
             originalFilename: $processingLog->original_filename,
-            fileSize: $processingLog->file_size,
-            fileFormat: $processingLog->processing_metadata['file_format'] ?? null,
+            fileSize: (int) ($processingLog->file_size ?? 0),
+            fileFormat: is_string($processingLog->processing_metadata['file_format'] ?? null)
+                ? $processingLog->processing_metadata['file_format']
+                : 'unknown',
             duration: $processingLog->duration,
             sermonStartTime: $processingLog->sermon_start_time,
             sermonEndTime: $processingLog->sermon_end_time,

@@ -326,7 +326,7 @@ class SermonCreationService
 
             // Use processing log created_at if available, otherwise parse date
             if ($processingLog) {
-                $title = $serviceLabel.' Sermon - '.$processingLog->created_at->format('F j, Y');
+                $title = $serviceLabel.' Sermon - '.($processingLog->created_at ?? now())->format('F j, Y');
             } else {
                 $title = $serviceLabel.' Sermon - '.date('F j, Y', strtotime($date));
             }

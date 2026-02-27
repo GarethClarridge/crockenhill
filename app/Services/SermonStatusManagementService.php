@@ -63,7 +63,7 @@ class SermonStatusManagementService
                             'status' => $log->status->label(),
                             'current_step' => $log->current_step,
                             'sermon_title' => $log->sermon?->title,
-                            'created_at' => $log->created_at->diffForHumans(),
+                            'created_at' => $log->created_at?->diffForHumans(),
                             'has_errors' => ! empty($log->error_message),
                         ];
                     }),
@@ -107,8 +107,8 @@ class SermonStatusManagementService
                     'original_filename' => $log->original_filename,
                     'current_step' => $log->current_step,
                     'error_message' => $log->error_message,
-                    'created_at' => $log->created_at->toISOString(),
-                    'updated_at' => $log->updated_at->toISOString(),
+                    'created_at' => $log->created_at?->toISOString(),
+                    'updated_at' => $log->updated_at?->toISOString(),
                     'sermon' => $log->sermon ? [
                         'id' => $log->sermon->id,
                         'title' => $log->sermon->title,

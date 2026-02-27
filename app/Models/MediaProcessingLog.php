@@ -272,7 +272,8 @@ class MediaProcessingLog extends Model
 
     public function markAsProcessing(?string $step = null): bool
     {
-        if ($this->fresh()->isCancelled()) {
+        $freshLog = $this->fresh();
+        if ($freshLog?->isCancelled() ?? false) {
             return false;
         }
 

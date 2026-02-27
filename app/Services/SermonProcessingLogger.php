@@ -267,6 +267,10 @@ class SermonProcessingLogger
         $completedLogs = $logs->where('status', 'completed');
         if ($completedLogs->count() > 0) {
             $totalTime = $completedLogs->sum(function ($log) {
+                if ($log->updated_at === null || $log->created_at === null) {
+                    return 0;
+                }
+
                 return $log->updated_at->diffInSeconds($log->created_at);
             });
             $statistics['average_processing_time'] = round($totalTime / $completedLogs->count(), 2);
@@ -425,8 +429,16 @@ class SermonProcessingLogger
             'in_progress' => $recentProcessing->where('status', 'processing')->count(),
             'average_duration_minutes' => $recentProcessing
                 ->whereNotNull('completed_at')
-                ->avg(function ($log) {
-                    return $log->created_at->diffInMinutes($log->completed_at);
+                ->whereNotNull('created_at')
+                ->avg(function (\App\Models\MediaProcessingLog $log): float {
+                    $createdAt = $log->created_at;
+                    $completedAt = $log->completed_at;
+
+                    if ($createdAt === null || $completedAt === null) {
+                        return 0.0;
+                    }
+
+                    return $createdAt->diffInMinutes($completedAt);
                 }),
         ];
     }

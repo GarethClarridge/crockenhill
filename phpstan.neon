@@ -9,7 +9,7 @@ parameters:
         - app/
 
     # Level 10 is the highest level
-    level: 7
+    level: 8
 
     ignoreErrors:
         # Spatie Media Library's nonQueued() method type is not correctly inferred

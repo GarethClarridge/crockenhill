@@ -53,14 +53,15 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->processingLogService = $this->createMock(ProcessingLogService::class);
         $this->processingInitiator = $this->createMock(ProcessingInitiator::class);
 
+        $this->app->instance(LivestreamSegmentationService::class, $this->livestreamService);
+
         $this->processor = new UnifiedMediaProcessor(
             $this->audioProcessingService,
             $this->jobPipelineService,
             $this->sermonService,
             $this->pipelineBuilder,
             $this->processingLogService,
-            $this->processingInitiator,
-            $this->livestreamService
+            $this->processingInitiator
         );
     }
 

@@ -155,7 +155,7 @@ class VideoStorageService
 
                 // Extract audio from temp video file
                 $tempVideoFullPath = Storage::disk($this->tempDisk)->path($tempVideoPath);
-                $video = $this->ffmpeg->open($tempVideoFullPath);
+                $video = $this->requireFfmpeg()->open($tempVideoFullPath);
                 $format = new Mp3;
                 $format->setAudioKiloBitrate(128);
                 $video->save($format, $tempAudioPath);
@@ -185,7 +185,7 @@ class VideoStorageService
 
                 Storage::disk($this->tempDisk)->move($tempVideoPath, $videoPath);
 
-                $video = $this->ffmpeg->open(Storage::disk($this->permanentDisk)->path($videoPath));
+                $video = $this->requireFfmpeg()->open(Storage::disk($this->permanentDisk)->path($videoPath));
                 $format = new Mp3;
                 $format->setAudioKiloBitrate(128);
                 $video->save($format, $fullAudioPath);
@@ -410,5 +410,14 @@ class VideoStorageService
     public function cleanup(string $processingId): void
     {
         $this->cleanupTemporaryFiles([]);
+    }
+
+    private function requireFfmpeg(): FFMpeg
+    {
+        if (! $this->ffmpeg instanceof FFMpeg) {
+            throw new \RuntimeException('FFmpeg is unavailable in the current environment.');
+        }
+
+        return $this->ffmpeg;
     }
 }

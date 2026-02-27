@@ -100,7 +100,7 @@ class AudioCompressionService
             $fallbackConfig = config('media-processing.audio_extraction.fallback_compression');
 
             /** @var \FFMpeg\Media\Video $video */
-            $video = $this->ffmpeg->open($inputVideoPath);
+            $video = $this->requireFfmpeg()->open($inputVideoPath);
 
             $format = new Mp3;
             $format->setAudioKiloBitrate($config['bitrate']);
@@ -254,7 +254,7 @@ class AudioCompressionService
         $compressedPath = str_replace('.mp3', '_compressed.mp3', $inputPath);
 
         try {
-            $audio = $this->ffmpeg->open($inputPath);
+            $audio = $this->requireFfmpeg()->open($inputPath);
 
             $format = new Mp3;
             $format->setAudioKiloBitrate($compressionSettings['bitrate']);
@@ -312,5 +312,14 @@ class AudioCompressionService
     private function cleanupTemporaryFile(string $filePath): void
     {
         $this->storageHelper->cleanupTempFile($filePath);
+    }
+
+    private function requireFfmpeg(): FFMpeg
+    {
+        if (! $this->ffmpeg instanceof FFMpeg) {
+            throw new VideoProcessingException('FFmpeg is unavailable in the current environment.');
+        }
+
+        return $this->ffmpeg;
     }
 }

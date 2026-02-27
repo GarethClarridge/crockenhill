@@ -30,7 +30,14 @@ class ExtractSermon implements ShouldQueue
     public function handle(VideoExtractionService $videoExtractor, VideoStorageService $storageService, StorageAdapterHelper $storageHelper): void
     {
         try {
-            if ($this->processingLog->fresh()->isCancelled()) {
+            $processingLog = $this->processingLog->fresh();
+            if (! $processingLog instanceof MediaProcessingLog) {
+                throw new \Exception('Processing log not found in database');
+            }
+
+            $this->processingLog = $processingLog;
+
+            if ($this->processingLog->isCancelled()) {
                 Log::info('ExtractSermon job skipped: processing cancelled', [
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
@@ -47,28 +54,29 @@ class ExtractSermon implements ShouldQueue
                 'sermon_end_time' => $this->processingLog->sermon_end_time,
             ]);
 
-            if (! $this->processingLog->sermon_start_time || ! $this->processingLog->sermon_end_time) {
+            if ($this->processingLog->sermon_start_time === null || $this->processingLog->sermon_end_time === null) {
                 throw new \Exception('Sermon segment times not found in processing log');
             }
 
             $sermonSegment = $this->createSermonSegment();
 
-            $tempDisk = config('media-processing.storage.temp_disk');
+            $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
             $isS3TempDisk = $this->isS3Disk($tempDisk);
+            $sourceFilePath = $this->requireSourceFilePath();
 
             if ($isS3TempDisk) {
-                if (! Storage::disk($tempDisk)->exists($this->processingLog->source_file_path)) {
-                    throw new \Exception('Original video file not found on S3: '.$this->processingLog->source_file_path);
+                if (! Storage::disk($tempDisk)->exists($sourceFilePath)) {
+                    throw new \Exception('Original video file not found on S3: '.$sourceFilePath);
                 }
 
                 $videoPath = $storageHelper->downloadToTemp(
-                    $this->processingLog->source_file_path,
+                    $sourceFilePath,
                     $tempDisk,
                     'local',
                     'temp/extraction'
                 );
             } else {
-                $videoPath = Storage::disk($tempDisk)->path($this->processingLog->source_file_path);
+                $videoPath = Storage::disk($tempDisk)->path($sourceFilePath);
 
                 // Wait for file to be available (handles async upload/storage delays)
                 $maxAttempts = 5;
@@ -183,10 +191,16 @@ class ExtractSermon implements ShouldQueue
 
     private function createSermonSegment(): LivestreamSegment
     {
+        $startTime = $this->processingLog->sermon_start_time;
+        $endTime = $this->processingLog->sermon_end_time;
+        if ($startTime === null || $endTime === null) {
+            throw new \LogicException('Sermon segment times are required for extraction');
+        }
+
         return new LivestreamSegment(
-            startTime: $this->processingLog->sermon_start_time,
-            endTime: $this->processingLog->sermon_end_time,
-            duration: $this->processingLog->sermon_end_time - $this->processingLog->sermon_start_time,
+            startTime: $startTime,
+            endTime: $endTime,
+            duration: $endTime - $startTime,
             classification: 'speech',
             avgRms: 0.0, // Not needed for extraction
             peakRms: 0.0, // Not needed for extraction
@@ -224,5 +238,15 @@ class ExtractSermon implements ShouldQueue
 
         // For local paths, use file_exists
         return file_exists($fullPath);
+    }
+
+    private function requireSourceFilePath(): string
+    {
+        $sourceFilePath = $this->processingLog->source_file_path;
+        if (! is_string($sourceFilePath) || $sourceFilePath === '') {
+            throw new \Exception('No source video path found in processing log');
+        }
+
+        return $sourceFilePath;
     }
 }

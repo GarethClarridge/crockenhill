@@ -91,7 +91,12 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             $this->processingLog->update(['transcript_file_path' => $transcriptPath]);
 
             // Update sermon
-            $this->processingLog->sermon->update(['transcript_file_path' => $transcriptPath]);
+            $sermon = $this->processingLog->sermon;
+            if (! $sermon instanceof Sermon) {
+                throw new \Exception("No sermon found for processing log: {$this->processingLog->processing_id}");
+            }
+
+            $sermon->update(['transcript_file_path' => $transcriptPath]);
 
             // Update processing log and mark step as complete
             $this->processingLog->updateStep('transcription_completed');

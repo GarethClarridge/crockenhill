@@ -46,7 +46,12 @@ class AudioChunkingService
             ]);
 
             $audio = $ffmpeg->open($filePath);
-            $duration = $audio->getStreams()->first()->get('duration');
+            $stream = $audio->getStreams()->first();
+            if ($stream === null) {
+                throw new TranscriptionException('Failed to get audio duration: no audio stream found.');
+            }
+
+            $duration = $stream->get('duration');
 
             return (float) $duration;
         } catch (Exception $e) {

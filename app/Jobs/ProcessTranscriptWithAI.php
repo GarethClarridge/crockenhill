@@ -129,6 +129,10 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 'ai_fields_applied' => array_keys($updateData),
             ]);
 
+            if (! $sermon instanceof \App\Models\Sermon) {
+                throw new \Exception("No sermon found for processing log: {$this->processingLog->processing_id}");
+            }
+
             $sermon->update($updateData);
 
             // Update processing log and mark step as complete
@@ -275,7 +279,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
         $title = trim($title);
 
         if (empty($title) || strlen($title) < 3) {
-            return 'Sermon - '.$this->processingLog->created_at->format('F j, Y');
+            return 'Sermon - '.($this->processingLog->created_at ?? now())->format('F j, Y');
         }
 
         return Str::title($title);

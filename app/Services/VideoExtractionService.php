@@ -268,7 +268,7 @@ class VideoExtractionService
         $tempPath = storage_path('app/temp/'.Str::uuid().'.mp4');
 
         try {
-            $video = $this->ffmpeg->open($inputPath);
+            $video = $this->requireFfmpeg()->open($inputPath);
 
             // Apply time filters to extract the specific segment
             $video
@@ -330,7 +330,7 @@ class VideoExtractionService
             $useS3Processing = $pathInfo['use_temp_processing'];
 
             /** @var \FFMpeg\Media\Video $video */
-            $video = $this->ffmpeg->open($inputVideoPath);
+            $video = $this->requireFfmpeg()->open($inputVideoPath);
 
             $format = new Mp3;
 
@@ -503,5 +503,14 @@ class VideoExtractionService
         ?string $outputFilename = null
     ): array {
         return $this->extractOptimizedAudio($inputVideoPath, $segment, $outputFilename);
+    }
+
+    private function requireFfmpeg(): FFMpeg
+    {
+        if (! $this->ffmpeg instanceof FFMpeg) {
+            throw new VideoProcessingException('FFmpeg is unavailable in the current environment.');
+        }
+
+        return $this->ffmpeg;
     }
 }

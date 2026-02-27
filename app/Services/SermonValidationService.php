@@ -286,7 +286,7 @@ class SermonValidationService
         }
 
         // Don't retry if it's too old (more than 7 days)
-        if ($processingLog->created_at->diffInDays(now()) > 7) {
+        if ($processingLog->created_at !== null && $processingLog->created_at->diffInDays(now()) > 7) {
             return false;
         }
 

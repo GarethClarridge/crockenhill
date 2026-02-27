@@ -27,7 +27,14 @@ class GenerateRmsLog implements ShouldQueue
     public function handle(VideoSegmentationService $segmentationService): void
     {
         try {
-            if ($this->processingLog->fresh()->isCancelled()) {
+            $processingLog = $this->processingLog->fresh();
+            if (! $processingLog instanceof MediaProcessingLog) {
+                throw new \Exception('Processing log not found in database');
+            }
+
+            $this->processingLog = $processingLog;
+
+            if ($this->processingLog->isCancelled()) {
                 Log::info('GenerateRmsLog job skipped: processing cancelled', [
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
@@ -45,8 +52,9 @@ class GenerateRmsLog implements ShouldQueue
             // Update status to show RMS generation is starting
             $this->processingLog->markAsProcessing('rms_generation');
 
-            $videoPath = Storage::disk(config('media-processing.storage.temp_disk'))
-                ->path($this->processingLog->source_file_path);
+            $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+            $videoPath = Storage::disk($tempDisk)
+                ->path($this->requireSourceFilePath());
 
             // Wait for file to be available (handles async upload/storage delays)
             $maxAttempts = 5;
@@ -112,5 +120,15 @@ class GenerateRmsLog implements ShouldQueue
         );
 
         // Cleanup will be handled by the chain failure handler
+    }
+
+    private function requireSourceFilePath(): string
+    {
+        $sourceFilePath = $this->processingLog->source_file_path;
+        if (! is_string($sourceFilePath) || $sourceFilePath === '') {
+            throw new \Exception('No source video path found in processing log');
+        }
+
+        return $sourceFilePath;
     }
 }

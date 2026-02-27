@@ -59,14 +59,14 @@ class LivestreamStatusService
     {
         $segments = $processingLog->segments->map(function ($segment) {
             return new \App\Data\LivestreamSegment(
-                startTime: $segment->start_time,
-                endTime: $segment->end_time,
-                duration: $segment->duration,
+                startTime: (float) ($segment->start_time ?? 0.0),
+                endTime: (float) ($segment->end_time ?? 0.0),
+                duration: (float) ($segment->duration ?? 0.0),
                 classification: $segment->classification,
-                avgRms: $segment->avg_rms,
-                peakRms: $segment->peak_rms,
+                avgRms: (float) ($segment->avg_rms ?? 0.0),
+                peakRms: (float) ($segment->peak_rms ?? 0.0),
                 isSermonCandidate: $segment->is_sermon_candidate,
-                segmentOrder: $segment->segment_order,
+                segmentOrder: (int) ($segment->segment_order ?? 0),
                 metadata: $segment->metadata,
             );
         })->toArray();
@@ -80,8 +80,10 @@ class LivestreamStatusService
             processingId: $processingLog->processing_id,
             status: $processingLog->status->value,
             originalFilename: $processingLog->original_filename,
-            fileSize: $processingLog->file_size,
-            fileFormat: $processingLog->processing_metadata['format'] ?? 'unknown',
+            fileSize: (int) ($processingLog->file_size ?? 0),
+            fileFormat: is_string($processingLog->processing_metadata['format'] ?? null)
+                ? $processingLog->processing_metadata['format']
+                : 'unknown',
             duration: $processingLog->duration,
             sermonStartTime: $processingLog->sermon_start_time,
             sermonEndTime: $processingLog->sermon_end_time,

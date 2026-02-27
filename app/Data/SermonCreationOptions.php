@@ -50,7 +50,7 @@ class SermonCreationOptions
     public static function fromAudioUpload(MediaProcessingLog $log, array $aiAnalysis): self
     {
         return new self(
-            audioFilePath: $log->source_file_path,
+            audioFilePath: self::requireAudioFilePath($log->source_file_path, $log->processing_id),
             originalFilename: $log->original_filename,
             sourceType: SermonSourceType::AudioUpload,
             transcriptFilePath: $log->transcript_file_path,
@@ -68,7 +68,7 @@ class SermonCreationOptions
     public static function fromVideoUpload(MediaProcessingLog $log, array $aiAnalysis): self
     {
         return new self(
-            audioFilePath: $log->audio_file_path,
+            audioFilePath: self::requireAudioFilePath($log->audio_file_path, $log->processing_id),
             originalFilename: $log->original_filename,
             sourceType: SermonSourceType::VideoUpload,
             videoFilePath: $log->video_file_path,
@@ -87,7 +87,7 @@ class SermonCreationOptions
     public static function fromLivestream(MediaProcessingLog $log, array $metadata): self
     {
         return new self(
-            audioFilePath: $log->audio_file_path,
+            audioFilePath: self::requireAudioFilePath($log->audio_file_path, $log->processing_id),
             originalFilename: $metadata['original_filename'] ?? $log->original_filename,
             sourceType: SermonSourceType::Livestream,
             videoFilePath: $metadata['video_file_path'] ?? null,
@@ -96,5 +96,14 @@ class SermonCreationOptions
             segmentEndTime: $metadata['segment_end_time'] ?? null,
             titleStrategy: TitleGenerationStrategy::FILENAME_ONLY,
         );
+    }
+
+    private static function requireAudioFilePath(?string $audioFilePath, string $processingId): string
+    {
+        if (! is_string($audioFilePath) || $audioFilePath === '') {
+            throw new \InvalidArgumentException("Missing audio file path for processing log {$processingId}");
+        }
+
+        return $audioFilePath;
     }
 }
