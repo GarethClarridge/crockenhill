@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\MediaUpload;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
 use App\Livewire\Traits\HasConditionalLogging;
@@ -47,6 +48,16 @@ class Form extends Component
     public ?string $cancelledMessage = null;
 
     public bool $showProcessingStatus = false;
+
+    private UnifiedMediaProcessor $processor;
+
+    protected MediaValidationService $validation;
+
+    public function boot(UnifiedMediaProcessor $processor, MediaValidationService $validation): void
+    {
+        $this->processor = $processor;
+        $this->validation = $validation;
+    }
 
     public function mount(): void
     {
@@ -290,7 +301,7 @@ class Form extends Component
 
     private function getProcessor(): UnifiedMediaProcessor
     {
-        return app(UnifiedMediaProcessor::class);
+        return $this->processor;
     }
 
     private function findAccessibleProcessingLog(string $processingId): ?MediaProcessingLog
@@ -330,26 +341,13 @@ class Form extends Component
 
     public function render(): View
     {
-        $validation = app(MediaValidationService::class);
-
-        $maxFileSize = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->maxFileSizeForDisplay($this->mediaType)
-            : null;
-        $allowedExtensions = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->allowedExtensionsForDisplay($this->mediaType)
-            : null;
-        $maxFileSizeBytes = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->maxFileSizeBytes($this->mediaType)
-            : null;
-        $acceptAttribute = $this->mediaType && in_array($this->mediaType, $validation->supportedTypes(), true)
-            ? $validation->acceptAttribute($this->mediaType)
-            : '';
+        $mediaType = MediaType::tryFrom($this->mediaType);
 
         return view('livewire.media-upload.form', [
-            'maxFileSize' => $maxFileSize,
-            'allowedExtensions' => $allowedExtensions,
-            'maxFileSizeBytes' => $maxFileSizeBytes,
-            'acceptAttribute' => $acceptAttribute,
+            'maxFileSize' => $mediaType ? $this->validation->maxFileSizeForDisplay($mediaType) : null,
+            'allowedExtensions' => $mediaType ? $this->validation->allowedExtensionsForDisplay($mediaType) : null,
+            'maxFileSizeBytes' => $mediaType ? $this->validation->maxFileSizeBytes($mediaType) : null,
+            'acceptAttribute' => $mediaType ? $this->validation->acceptAttribute($mediaType) : '',
         ]);
     }
 }

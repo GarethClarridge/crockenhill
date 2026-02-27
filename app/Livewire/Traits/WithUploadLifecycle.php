@@ -14,6 +14,7 @@ use Illuminate\Validation\ValidationException;
  * @property bool $showProcessingStatus
  * @property int $progressPercentage
  * @property string $currentStep
+ * @property MediaValidationService $validation
  */
 trait WithUploadLifecycle
 {
@@ -202,11 +203,9 @@ trait WithUploadLifecycle
      */
     protected function getDynamicRules(): array
     {
-        $validation = app(MediaValidationService::class);
-
         $mediaType = MediaType::tryFrom($this->mediaType);
         $fileRules = $mediaType !== null
-            ? $validation->rulesForType($mediaType)
+            ? $this->validation->rulesForType($mediaType)
             : ['file' => 'required|file'];
 
         $rules = $this->rules;
@@ -225,13 +224,12 @@ trait WithUploadLifecycle
      */
     protected function getDynamicMessages(): array
     {
-        $validation = app(MediaValidationService::class);
         $mediaType = MediaType::tryFrom($this->mediaType);
         $maxSize = $mediaType !== null
-            ? $validation->maxFileSizeForDisplay($mediaType)
+            ? $this->validation->maxFileSizeForDisplay($mediaType)
             : '100MB';
         $extensions = $mediaType !== null
-            ? $validation->allowedExtensionsForDisplay($mediaType)
+            ? $this->validation->allowedExtensionsForDisplay($mediaType)
             : 'MP3, WAV, M4A, MP4, MOV, AVI, MKV';
 
         return [

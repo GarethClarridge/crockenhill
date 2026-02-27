@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Preachers;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
+use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -12,13 +14,13 @@ use Livewire\WithPagination;
 
 class ListPreachers extends Component
 {
-    use WithNotifications, WithPagination;
+    use WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
 
-    private const DEFAULT_SORT_COLUMN = 'name';
+    protected const DEFAULT_SORT_COLUMN = 'name';
 
-    private const DEFAULT_SORT_DIRECTION = 'asc';
+    protected const DEFAULT_SORT_DIRECTION = 'asc';
 
-    private const ALLOWED_SORT_COLUMNS = [
+    protected const ALLOWED_SORT_COLUMNS = [
         'name',
         'slug',
         'is_active',
@@ -26,8 +28,6 @@ class ListPreachers extends Component
         'created_at',
         'updated_at',
     ];
-
-    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
     public string $search = '';
 
@@ -42,7 +42,7 @@ class ListPreachers extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
+        $this->authorizeAdmin();
     }
 
     public function updatedSearch(): void
@@ -52,7 +52,7 @@ class ListPreachers extends Component
 
     public function delete(Preacher $preacher): void
     {
-        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
+        $this->authorizeAdmin();
 
         $preacher->delete();
 
@@ -73,16 +73,5 @@ class ListPreachers extends Component
         return view('livewire.admin.preachers.list-preachers', [
             'preachers' => $preachers,
         ])->layout('layouts.admin', ['title' => 'Preachers', 'heading' => 'Preachers']);
-    }
-
-    private function sanitizeSorting(): void
-    {
-        if (! in_array($this->sortBy, self::ALLOWED_SORT_COLUMNS, true)) {
-            $this->sortBy = self::DEFAULT_SORT_COLUMN;
-        }
-
-        if (! in_array($this->sortDirection, self::ALLOWED_SORT_DIRECTIONS, true)) {
-            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
-        }
     }
 }

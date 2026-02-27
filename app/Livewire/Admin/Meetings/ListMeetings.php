@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\Meetings;
 
 use App\Enums\MeetingType;
 use App\Livewire\Traits\WithNotifications;
+use App\Livewire\Traits\WithSortableListing;
 use App\Models\Meeting;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -13,13 +14,13 @@ use Livewire\WithPagination;
 
 class ListMeetings extends Component
 {
-    use WithNotifications, WithPagination;
+    use WithNotifications, WithPagination, WithSortableListing;
 
-    private const DEFAULT_SORT_COLUMN = 'updated_at';
+    protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
-    private const DEFAULT_SORT_DIRECTION = 'desc';
+    protected const DEFAULT_SORT_DIRECTION = 'desc';
 
-    private const ALLOWED_SORT_COLUMNS = [
+    protected const ALLOWED_SORT_COLUMNS = [
         'slug',
         'day',
         'start_time',
@@ -29,8 +30,6 @@ class ListMeetings extends Component
         'created_at',
         'updated_at',
     ];
-
-    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
     public string $search = '';
 
@@ -44,23 +43,6 @@ class ListMeetings extends Component
 
     /** @var array<int, string> */
     protected array $queryString = ['search', 'typeFilter', 'recurringFilter'];
-
-    public function sort(string $column): void
-    {
-        if (! in_array($column, self::ALLOWED_SORT_COLUMNS, true)) {
-            $this->sortBy = self::DEFAULT_SORT_COLUMN;
-            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
-
-            return;
-        }
-
-        if ($this->sortBy === $column) {
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortBy = $column;
-            $this->sortDirection = 'asc';
-        }
-    }
 
     public function updatedSearch(): void
     {
@@ -100,16 +82,5 @@ class ListMeetings extends Component
             'headers' => $headers,
             'types' => MeetingType::cases(),
         ])->layout('layouts.admin', ['title' => 'Meetings', 'heading' => 'Meetings']);
-    }
-
-    private function sanitizeSorting(): void
-    {
-        if (! in_array($this->sortBy, self::ALLOWED_SORT_COLUMNS, true)) {
-            $this->sortBy = self::DEFAULT_SORT_COLUMN;
-        }
-
-        if (! in_array($this->sortDirection, self::ALLOWED_SORT_DIRECTIONS, true)) {
-            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
-        }
     }
 }

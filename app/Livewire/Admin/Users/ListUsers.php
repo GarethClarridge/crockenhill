@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\View\View;
@@ -12,7 +13,7 @@ use Livewire\WithPagination;
 
 class ListUsers extends Component
 {
-    use WithNotifications, WithPagination;
+    use WithAdminAuthorization, WithNotifications, WithPagination;
 
     public string $search = '';
 
@@ -25,7 +26,6 @@ class ListUsers extends Component
 
     public function mount(): void
     {
-        // Ensure only admins can access this component
         $this->authorizeAdmin();
     }
 
@@ -36,7 +36,6 @@ class ListUsers extends Component
 
     public function delete(User $user): void
     {
-        // Defense in depth: verify admin status
         $this->authorizeAdmin();
 
         if ($user->id === auth()->id()) {
@@ -51,7 +50,6 @@ class ListUsers extends Component
 
     public function toggleAdmin(User $user): void
     {
-        // Defense in depth: verify admin status
         $this->authorizeAdmin();
 
         if ($user->id === auth()->id()) {
@@ -90,10 +88,5 @@ class ListUsers extends Component
             'users' => $users,
             'headers' => $headers,
         ])->layout('layouts.admin', ['title' => 'Users', 'heading' => 'Users']);
-    }
-
-    private function authorizeAdmin(): void
-    {
-        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
     }
 }

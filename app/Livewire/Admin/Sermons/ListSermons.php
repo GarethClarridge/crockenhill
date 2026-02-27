@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
+use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Support\Collection;
@@ -16,13 +18,13 @@ use Livewire\WithPagination;
 
 class ListSermons extends Component
 {
-    use WithNotifications, WithPagination;
+    use WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
 
-    private const DEFAULT_SORT_COLUMN = 'date';
+    protected const DEFAULT_SORT_COLUMN = 'date';
 
-    private const DEFAULT_SORT_DIRECTION = 'desc';
+    protected const DEFAULT_SORT_DIRECTION = 'desc';
 
-    private const ALLOWED_SORT_COLUMNS = [
+    protected const ALLOWED_SORT_COLUMNS = [
         'title',
         'date',
         'service',
@@ -31,8 +33,6 @@ class ListSermons extends Component
         'created_at',
         'updated_at',
     ];
-
-    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
     public string $search = '';
 
@@ -57,7 +57,6 @@ class ListSermons extends Component
 
     public function mount(): void
     {
-        // Ensure only admins can access this component
         $this->authorizeAdmin();
     }
 
@@ -68,7 +67,6 @@ class ListSermons extends Component
 
     public function delete(Sermon $sermon): void
     {
-        // Defense in depth: verify admin status
         $this->authorizeAdmin();
 
         $sermon->delete();
@@ -81,8 +79,6 @@ class ListSermons extends Component
     }
 
     /**
-     * Get active preachers for filter dropdown, keyed by id.
-     *
      * @return Collection<int, string>
      */
     protected function getPreachers(): Collection
@@ -93,8 +89,6 @@ class ListSermons extends Component
     }
 
     /**
-     * Get cached list of series for filter dropdown.
-     *
      * @return Collection<int, string>
      */
     protected function getSeries(): Collection
@@ -145,21 +139,5 @@ class ListSermons extends Component
             'seriesList' => $this->getSeries(),
             'headers' => $headers,
         ])->layout('layouts.admin', ['title' => 'Sermons', 'heading' => 'Sermons']);
-    }
-
-    private function sanitizeSorting(): void
-    {
-        if (! in_array($this->sortBy, self::ALLOWED_SORT_COLUMNS, true)) {
-            $this->sortBy = self::DEFAULT_SORT_COLUMN;
-        }
-
-        if (! in_array($this->sortDirection, self::ALLOWED_SORT_DIRECTIONS, true)) {
-            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
-        }
-    }
-
-    private function authorizeAdmin(): void
-    {
-        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
     }
 }

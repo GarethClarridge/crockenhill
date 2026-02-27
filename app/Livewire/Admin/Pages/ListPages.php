@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\Pages;
 
 use App\Enums\PageArea;
 use App\Livewire\Traits\WithNotifications;
+use App\Livewire\Traits\WithSortableListing;
 use App\Models\Page;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -13,20 +14,18 @@ use Livewire\WithPagination;
 
 class ListPages extends Component
 {
-    use WithNotifications, WithPagination;
+    use WithNotifications, WithPagination, WithSortableListing;
 
-    private const DEFAULT_SORT_COLUMN = 'updated_at';
+    protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
-    private const DEFAULT_SORT_DIRECTION = 'desc';
+    protected const DEFAULT_SORT_DIRECTION = 'desc';
 
-    private const ALLOWED_SORT_COLUMNS = [
+    protected const ALLOWED_SORT_COLUMNS = [
         'heading',
         'area',
         'navigation',
         'updated_at',
     ];
-
-    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
     public string $search = '';
 
@@ -43,23 +42,6 @@ class ListPages extends Component
 
     /** @var array<int, string> */
     protected array $queryString = ['search', 'areaFilter', 'navigationFilter'];
-
-    public function sort(string $column): void
-    {
-        if (! in_array($column, self::ALLOWED_SORT_COLUMNS, true)) {
-            $this->sortBy = self::DEFAULT_SORT_COLUMN;
-            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
-
-            return;
-        }
-
-        if ($this->sortBy === $column) {
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortBy = $column;
-            $this->sortDirection = 'asc';
-        }
-    }
 
     public function updatedSearch(): void
     {
@@ -107,16 +89,5 @@ class ListPages extends Component
             'headers' => $headers,
             'areas' => PageArea::cases(),
         ])->layout('layouts.admin', ['title' => 'Pages', 'heading' => 'Pages']);
-    }
-
-    private function sanitizeSorting(): void
-    {
-        if (! in_array($this->sortBy, self::ALLOWED_SORT_COLUMNS, true)) {
-            $this->sortBy = self::DEFAULT_SORT_COLUMN;
-        }
-
-        if (! in_array($this->sortDirection, self::ALLOWED_SORT_DIRECTIONS, true)) {
-            $this->sortDirection = self::DEFAULT_SORT_DIRECTION;
-        }
     }
 }

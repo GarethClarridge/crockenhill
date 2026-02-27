@@ -319,7 +319,7 @@ Exit criteria:
 
 - One canonical enum-driven source exists for media/source types across API, jobs, models, and Livewire.
 
-## Phase 11: Livewire Admin/List Deduplication (P2)
+## Phase 11: Livewire Admin/List Deduplication (P2) ✅
 
 Target files:
 
@@ -330,10 +330,26 @@ Target files:
 
 Tasks:
 
-- [ ] Extract shared sortable/filterable list behavior (`sort`, sort sanitization, query-string normalization, page reset) into one reusable trait/helper.
-- [ ] Remove repeated authorization checks in component actions where middleware/policies already enforce access.
-- [ ] Remove container lookups (`app(...)`) from Livewire render/action paths in favor of injected dependencies.
-- [ ] Keep components focused on UI state; move repeated query composition/state transitions to dedicated helpers.
+- [x] Extract shared sortable/filterable list behavior (`sort`, sort sanitization, query-string normalization, page reset) into one reusable trait/helper.
+- [x] Remove repeated authorization checks in component actions where middleware/policies already enforce access.
+- [x] Remove container lookups (`app(...)`) from Livewire render/action paths in favor of injected dependencies.
+- [x] Keep components focused on UI state; move repeated query composition/state transitions to dedicated helpers.
+
+Files added:
+- `app/Livewire/Traits/WithSortableListing.php` — shared `sort()` and `sanitizeSorting()` using `static::ALLOWED_SORT_COLUMNS` constants
+- `app/Livewire/Traits/WithAdminAuthorization.php` — shared `authorizeAdmin()` method
+
+Files changed:
+- `app/Livewire/Admin/Meetings/ListMeetings.php` — uses `WithSortableListing`; constants changed to `protected`
+- `app/Livewire/Admin/Pages/ListPages.php` — uses `WithSortableListing`; constants changed to `protected`
+- `app/Livewire/Admin/Sermons/ListSermons.php` — uses `WithSortableListing` + `WithAdminAuthorization`; constants changed to `protected`
+- `app/Livewire/Admin/Preachers/ListPreachers.php` — uses `WithSortableListing` + `WithAdminAuthorization`; constants changed to `protected`
+- `app/Livewire/Admin/Users/ListUsers.php` — uses `WithAdminAuthorization`
+- `app/Livewire/MediaUpload/Form.php` — services resolved via `boot()` DI instead of `app()`; `render()` uses `MediaType::tryFrom()` for type-safe validation calls
+- `app/Livewire/Traits/WithUploadLifecycle.php` — uses `$this->validation` property instead of `app()`
+
+Files deleted:
+- `app/Livewire/Admin/Components/ResourceTable.php` — unused abstract base class (no component extended it)
 
 Exit criteria:
 
