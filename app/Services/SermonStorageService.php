@@ -172,7 +172,7 @@ class SermonStorageService
     public function getStorageStats(): array
     {
         $stats = [
-            'total_sermons' => Sermon::count(),
+            'total_sermons' => 0,
             'patterns' => [
                 'legacy' => 0,
                 'storage' => 0,
@@ -186,6 +186,8 @@ class SermonStorageService
         Sermon::query()
             ->select(['id', 'audio_file_path', 'filetype'])
             ->chunk(self::STATS_CHUNK_SIZE, function ($sermons) use (&$stats) {
+                $stats['total_sermons'] += $sermons->count();
+
                 foreach ($sermons as $sermon) {
                     $info = $this->getSermonFileInfo($sermon);
                     $stats['patterns'][$info['type']]++;
