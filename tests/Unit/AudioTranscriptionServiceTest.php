@@ -6,6 +6,7 @@ use App\Services\AudioChunkingService;
 use App\Services\AudioTranscriptionService;
 use App\Services\BritishEnglishConverter;
 use App\Services\SermonProcessingLogger;
+use App\Services\TranscriptFormatterService;
 use App\Services\TranscriptStorageService;
 use Exception;
 use Illuminate\Support\Facades\Storage;
@@ -35,9 +36,9 @@ class AudioTranscriptionServiceTest extends TestCase
 
         $logger = app(SermonProcessingLogger::class);
         $storageService = app(TranscriptStorageService::class);
-        $converter = app(BritishEnglishConverter::class);
+        $formatter = new TranscriptFormatterService(app(BritishEnglishConverter::class));
         $chunkingService = new AudioChunkingService($logger);
-        $this->service = new AudioTranscriptionService($logger, $storageService, $converter, $chunkingService);
+        $this->service = new AudioTranscriptionService($logger, $storageService, $chunkingService, $formatter);
     }
 
     #[Test]
@@ -50,9 +51,9 @@ class AudioTranscriptionServiceTest extends TestCase
 
         $logger = app(SermonProcessingLogger::class);
         $storageService = app(TranscriptStorageService::class);
-        $converter = app(BritishEnglishConverter::class);
+        $formatter = new TranscriptFormatterService(app(BritishEnglishConverter::class));
         $chunkingService = new AudioChunkingService($logger);
-        $service = new AudioTranscriptionService($logger, $storageService, $converter, $chunkingService);
+        $service = new AudioTranscriptionService($logger, $storageService, $chunkingService, $formatter);
 
         // The exception should be thrown when trying to transcribe, not during construction
         Storage::put('test-audio.mp3', 'fake audio content');
@@ -135,12 +136,8 @@ class AudioTranscriptionServiceTest extends TestCase
     {
         $rawTranscript = "This is the first paragraph. It contains some content.\n\nThis is the second paragraph with more content.";
 
-        // Use reflection to test the private method
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('formatAsMarkdown');
-        $method->setAccessible(true);
-
-        $result = $method->invoke($this->service, $rawTranscript);
+        $formatter = new TranscriptFormatterService(app(BritishEnglishConverter::class));
+        $result = $formatter->formatAsMarkdown($rawTranscript);
 
         $this->assertStringContainsString('This is the first paragraph', $result);
         $this->assertStringContainsString('This is the second paragraph', $result);
@@ -271,13 +268,11 @@ class AudioTranscriptionServiceTest extends TestCase
     #[Test]
     public function it_formats_markdown_with_proper_paragraph_breaks(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('formatAsMarkdown');
-        $method->setAccessible(true);
+        $formatter = new TranscriptFormatterService(app(BritishEnglishConverter::class));
 
         // Test with double line breaks
         $transcript = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.";
-        $result = $method->invoke($this->service, $transcript);
+        $result = $formatter->formatAsMarkdown($transcript);
 
         $this->assertStringContainsString('First paragraph.', $result);
         $this->assertStringContainsString('Second paragraph.', $result);
@@ -285,7 +280,7 @@ class AudioTranscriptionServiceTest extends TestCase
 
         // Test with long pauses (multiple spaces after period)
         $transcript = 'First sentence.   Second sentence after pause.';
-        $result = $method->invoke($this->service, $transcript);
+        $result = $formatter->formatAsMarkdown($transcript);
 
         // The formatAsMarkdown method splits on multiple spaces after periods
         $this->assertStringContainsString('First sentence', $result);

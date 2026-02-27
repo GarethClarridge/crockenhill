@@ -7,6 +7,7 @@ use App\Models\Sermon;
 use App\Services\FrameExtractionService;
 use App\Services\StorageAdapterHelper;
 use App\Services\ThumbnailGenerationService;
+use App\Services\ThumbnailTextHelper;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -40,7 +41,7 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         ]);
 
         $this->frameExtractionService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
-        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class));
+        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class), new ThumbnailTextHelper);
     }
 
     // ---- storeThumbnail tests ----
@@ -151,15 +152,15 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         $this->assertStringContainsString('videos/test.mp4', $result);
     }
 
-    // ---- fallbackTextWrap tests (remains on ThumbnailGenerationService) ----
+    // ---- fallbackTextWrap tests (on ThumbnailTextHelper) ----
 
     #[Test]
     public function it_wraps_text_by_character_estimation(): void
     {
-        $method = $this->getPrivateMethod('fallbackTextWrap');
+        $helper = new ThumbnailTextHelper;
 
         $longText = 'This is a very long sermon title that should definitely be wrapped across multiple lines';
-        $result = $method->invoke($this->service, $longText, 200, 24);
+        $result = $helper->fallbackTextWrap($longText, 200, 24);
 
         $lines = explode("\n", $result);
         $this->assertGreaterThan(1, count($lines));
@@ -174,30 +175,30 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
     #[Test]
     public function it_handles_single_word_in_fallback_wrap(): void
     {
-        $method = $this->getPrivateMethod('fallbackTextWrap');
+        $helper = new ThumbnailTextHelper;
 
-        $result = $method->invoke($this->service, 'Hello', 400, 24);
+        $result = $helper->fallbackTextWrap('Hello', 400, 24);
         $this->assertEquals('Hello', $result);
     }
 
     #[Test]
     public function it_handles_empty_text_in_fallback_wrap(): void
     {
-        $method = $this->getPrivateMethod('fallbackTextWrap');
+        $helper = new ThumbnailTextHelper;
 
-        $result = $method->invoke($this->service, '', 400, 24);
+        $result = $helper->fallbackTextWrap('', 400, 24);
         $this->assertEquals('', $result);
     }
 
-    // ---- calculateTextBounds tests (remains on ThumbnailGenerationService) ----
+    // ---- calculateTextBounds tests (on ThumbnailTextHelper) ----
 
     #[Test]
     public function it_estimates_text_bounds_without_gd_font(): void
     {
-        $method = $this->getPrivateMethod('calculateTextBounds');
+        $helper = new ThumbnailTextHelper;
 
         // Pass null fontPath to force fallback estimation
-        $bounds = $method->invoke($this->service, 'Test Text', 24, null);
+        $bounds = $helper->calculateTextBounds('Test Text', 24, null);
 
         $this->assertArrayHasKey('width', $bounds);
         $this->assertArrayHasKey('height', $bounds);
@@ -208,10 +209,10 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
     #[Test]
     public function it_scales_estimated_bounds_with_font_size(): void
     {
-        $method = $this->getPrivateMethod('calculateTextBounds');
+        $helper = new ThumbnailTextHelper;
 
-        $bounds24 = $method->invoke($this->service, 'Test Text', 24, null);
-        $bounds48 = $method->invoke($this->service, 'Test Text', 48, null);
+        $bounds24 = $helper->calculateTextBounds('Test Text', 24, null);
+        $bounds48 = $helper->calculateTextBounds('Test Text', 48, null);
 
         // Larger font should produce larger bounds
         $this->assertGreaterThan($bounds24['width'], $bounds48['width']);
@@ -221,10 +222,10 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
     #[Test]
     public function it_handles_multiline_text_bounds(): void
     {
-        $method = $this->getPrivateMethod('calculateTextBounds');
+        $helper = new ThumbnailTextHelper;
 
-        $singleLine = $method->invoke($this->service, 'One line', 24, null);
-        $multiLine = $method->invoke($this->service, "Line one\nLine two\nLine three", 24, null);
+        $singleLine = $helper->calculateTextBounds('One line', 24, null);
+        $multiLine = $helper->calculateTextBounds("Line one\nLine two\nLine three", 24, null);
 
         // Multi-line should be taller
         $this->assertGreaterThan($singleLine['height'], $multiLine['height']);
@@ -251,41 +252,32 @@ class ThumbnailGenerationServiceStorageTest extends TestCase
         $this->assertEquals(300.0, $timestamp);
     }
 
-    // ---- calculateResponsiveFontSize tests (remains on ThumbnailGenerationService) ----
+    // ---- calculateResponsiveFontSize tests (on ThumbnailTextHelper) ----
 
     #[Test]
     public function it_scales_font_size_proportionally(): void
     {
-        $method = $this->getPrivateMethod('calculateResponsiveFontSize');
+        $helper = new ThumbnailTextHelper;
 
         // Same width as reference should return base size
-        $this->assertEquals(48, $method->invoke($this->service, 48, 1280, 1280));
+        $this->assertEquals(48, $helper->calculateResponsiveFontSize(48, 1280, 1280));
 
         // Double width should return double size (capped at 2x)
-        $this->assertEquals(96, $method->invoke($this->service, 48, 2560, 1280));
+        $this->assertEquals(96, $helper->calculateResponsiveFontSize(48, 2560, 1280));
 
         // Half width should return half size (capped at 0.5x)
-        $this->assertEquals(24, $method->invoke($this->service, 48, 640, 1280));
+        $this->assertEquals(24, $helper->calculateResponsiveFontSize(48, 640, 1280));
     }
 
     #[Test]
     public function it_clamps_font_scaling_to_bounds(): void
     {
-        $method = $this->getPrivateMethod('calculateResponsiveFontSize');
+        $helper = new ThumbnailTextHelper;
 
         // Very large width should cap at 2x
-        $this->assertEquals(96, $method->invoke($this->service, 48, 5000, 1280));
+        $this->assertEquals(96, $helper->calculateResponsiveFontSize(48, 5000, 1280));
 
         // Very small width should cap at 0.5x
-        $this->assertEquals(24, $method->invoke($this->service, 48, 100, 1280));
-    }
-
-    private function getPrivateMethod(string $methodName): \ReflectionMethod
-    {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod($methodName);
-        $method->setAccessible(true);
-
-        return $method;
+        $this->assertEquals(24, $helper->calculateResponsiveFontSize(48, 100, 1280));
     }
 }

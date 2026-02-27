@@ -5,7 +5,9 @@ namespace Tests\Unit;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\BritishEnglishConverter;
+use App\Services\SermonAnalysisPromptBuilder;
 use App\Services\SermonAnalysisService;
+use App\Services\SermonAnalysisValidator;
 use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use OpenAI\Exceptions\ErrorException;
@@ -17,6 +19,10 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     use RefreshDatabase;
 
     private SermonAnalysisService $service;
+
+    private SermonAnalysisValidator $validator;
+
+    private SermonAnalysisPromptBuilder $promptBuilder;
 
     protected function setUp(): void
     {
@@ -30,9 +36,10 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         ]);
 
         $logger = app(\App\Services\SermonProcessingLogger::class);
-        $converter = app(BritishEnglishConverter::class);
         $repository = app(SermonRepository::class);
-        $this->service = new SermonAnalysisService($logger, $converter, $repository);
+        $this->validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $this->promptBuilder = new SermonAnalysisPromptBuilder($this->validator);
+        $this->service = new SermonAnalysisService($logger, $repository, $this->validator, $this->promptBuilder);
     }
 
     #[Test]
@@ -48,9 +55,10 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->expectExceptionMessage('OpenAI API key not configured');
 
         $logger = app(\App\Services\SermonProcessingLogger::class);
-        $converter = app(BritishEnglishConverter::class);
         $repository = app(SermonRepository::class);
-        new SermonAnalysisService($logger, $converter, $repository);
+        $validator = new SermonAnalysisValidator(app(BritishEnglishConverter::class));
+        $promptBuilder = new SermonAnalysisPromptBuilder($validator);
+        new SermonAnalysisService($logger, $repository, $validator, $promptBuilder);
     }
 
     #[Test]
@@ -103,82 +111,70 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     #[Test]
     public function it_validates_and_cleans_title_correctly(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('validateAndCleanTitle');
-        $method->setAccessible(true);
-
         // Test normal title
-        $result = $method->invoke($this->service, 'God\'s Amazing Love');
+        $result = $this->validator->validateAndCleanTitle('God\'s Amazing Love');
         $this->assertEquals('God\'s Amazing Love', $result);
 
         // Test title with quotes
-        $result = $method->invoke($this->service, '"The Heart of the Gospel"');
+        $result = $this->validator->validateAndCleanTitle('"The Heart of the Gospel"');
         $this->assertEquals('The Heart of the Gospel', $result);
 
         // Test long title (should be truncated to 12 words)
         $longTitle = 'This is a very long sermon title that exceeds the twelve word limit and should be truncated properly';
-        $result = $method->invoke($this->service, $longTitle);
+        $result = $this->validator->validateAndCleanTitle($longTitle);
         $words = explode(' ', $result);
         $this->assertLessThanOrEqual(12, count($words));
 
         // Test empty title
-        $result = $method->invoke($this->service, '');
+        $result = $this->validator->validateAndCleanTitle('');
         $this->assertEquals('Untitled sermon', $result);
 
         // Test very short title
-        $result = $method->invoke($this->service, 'Hi');
+        $result = $this->validator->validateAndCleanTitle('Hi');
         $this->assertEquals('Untitled sermon', $result);
 
         // Test title with single quotes
-        $result = $method->invoke($this->service, '\'God\'s Love\'');
+        $result = $this->validator->validateAndCleanTitle('\'God\'s Love\'');
         $this->assertEquals('God\'s Love', $result);
     }
 
     #[Test]
     public function it_validates_bible_reference_format(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('validateBibleReference');
-        $method->setAccessible(true);
-
         // Test valid references
-        $this->assertEquals('John 3:16', $method->invoke($this->service, 'John 3:16'));
-        $this->assertEquals('1 John 2:1-5', $method->invoke($this->service, '1 John 2:1-5'));
-        $this->assertEquals('Romans 8:28-39', $method->invoke($this->service, 'Romans 8:28-39'));
-        $this->assertEquals('2 Corinthians 5:17', $method->invoke($this->service, '2 Corinthians 5:17'));
-        $this->assertEquals('Psalm 23', $method->invoke($this->service, 'Psalm 23'));
+        $this->assertEquals('John 3:16', $this->validator->validateBibleReference('John 3:16'));
+        $this->assertEquals('1 John 2:1-5', $this->validator->validateBibleReference('1 John 2:1-5'));
+        $this->assertEquals('Romans 8:28-39', $this->validator->validateBibleReference('Romans 8:28-39'));
+        $this->assertEquals('2 Corinthians 5:17', $this->validator->validateBibleReference('2 Corinthians 5:17'));
+        $this->assertEquals('Psalm 23', $this->validator->validateBibleReference('Psalm 23'));
 
         // Test invalid references
-        $this->assertNull($method->invoke($this->service, 'Not a reference'));
-        $this->assertNull($method->invoke($this->service, 'Random text'));
-        $this->assertNull($method->invoke($this->service, ''));
-        $this->assertNull($method->invoke($this->service, 'Book'));
-        $this->assertNull($method->invoke($this->service, '123'));
+        $this->assertNull($this->validator->validateBibleReference('Not a reference'));
+        $this->assertNull($this->validator->validateBibleReference('Random text'));
+        $this->assertNull($this->validator->validateBibleReference(''));
+        $this->assertNull($this->validator->validateBibleReference('Book'));
+        $this->assertNull($this->validator->validateBibleReference('123'));
     }
 
     #[Test]
     public function it_generates_fallback_title_from_transcript(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('generateFallbackTitle');
-        $method->setAccessible(true);
-
         // Test with meaningful content
         $transcript = 'Good morning everyone. Today we are going to explore the wonderful truth about God\'s love and mercy in the book of John.';
-        $result = $method->invoke($this->service, $transcript);
+        $result = $this->promptBuilder->generateFallbackTitle($transcript);
 
         $this->assertNotEmpty($result);
         $this->assertNotEquals('Sermon - '.date('F j, Y'), $result); // Should not fall back to date
 
         // Test with transcript that should fall back to date
         $transcript = 'Good morning welcome today we are going to look at';
-        $result = $method->invoke($this->service, $transcript);
+        $result = $this->promptBuilder->generateFallbackTitle($transcript);
 
         $this->assertStringContainsString('Sermon - ', $result);
 
         // Test with transcript containing meaningful words
         $transcript = 'The grace of our Lord Jesus Christ is sufficient for all our needs and troubles in this life.';
-        $result = $method->invoke($this->service, $transcript);
+        $result = $this->promptBuilder->generateFallbackTitle($transcript);
 
         $this->assertNotEmpty($result);
         $this->assertStringContainsString('grace', strtolower($result));
@@ -187,10 +183,6 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     #[Test]
     public function it_validates_and_cleans_analysis_data(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('validateAndCleanAnalysisData');
-        $method->setAccessible(true);
-
         $transcript = 'Sample transcript content for testing purposes with enough words to pass validation.';
 
         $analysisData = [
@@ -200,7 +192,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
             'points' => ['First point', 'Second point', 'Third point'],
         ];
 
-        $result = $method->invoke($this->service, $analysisData, $transcript);
+        $result = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
 
         $this->assertEquals('God\'s Amazing Love', $result['title']);
         $this->assertEquals('John Study', $result['series']);
@@ -212,10 +204,6 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     #[Test]
     public function it_handles_null_and_empty_analysis_data(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('validateAndCleanAnalysisData');
-        $method->setAccessible(true);
-
         $transcript = 'Sample transcript content for testing purposes with enough words to pass validation.';
 
         $analysisData = [
@@ -225,7 +213,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
             'points' => [],
         ];
 
-        $result = $method->invoke($this->service, $analysisData, $transcript);
+        $result = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
 
         $this->assertEquals('Untitled sermon', $result['title']);
         $this->assertNull($result['series']);
@@ -240,7 +228,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
             'points' => ['', '  ', 'Valid Point'],
         ];
 
-        $result = $method->invoke($this->service, $analysisData, $transcript);
+        $result = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
 
         $this->assertEquals('Valid Title', $result['title']);
         $this->assertNull($result['series']);
@@ -275,28 +263,24 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     #[Test]
     public function it_validates_transcript_with_various_conditions(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('validateTranscript');
-        $method->setAccessible(true);
-
         // Test minimum length requirement
         $shortTranscript = str_repeat('a', 99); // Just under 100 chars
-        $this->assertFalse($method->invoke($this->service, $shortTranscript));
+        $this->assertFalse($this->validator->validateTranscript($shortTranscript));
 
         $validLengthTranscript = str_repeat('word ', 25); // 100+ chars, 25 words
-        $this->assertTrue($method->invoke($this->service, $validLengthTranscript));
+        $this->assertTrue($this->validator->validateTranscript($validLengthTranscript));
 
         // Test word count requirement
         $fewWordsTranscript = 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen'; // 19 words
-        $this->assertFalse($method->invoke($this->service, $fewWordsTranscript));
+        $this->assertFalse($this->validator->validateTranscript($fewWordsTranscript));
 
         $enoughWordsTranscript = 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone'; // 21 words
-        $this->assertTrue($method->invoke($this->service, $enoughWordsTranscript));
+        $this->assertTrue($this->validator->validateTranscript($enoughWordsTranscript));
 
         // Test empty and whitespace
-        $this->assertFalse($method->invoke($this->service, ''));
-        $this->assertFalse($method->invoke($this->service, '   '));
-        $this->assertFalse($method->invoke($this->service, "\n\t  \n"));
+        $this->assertFalse($this->validator->validateTranscript(''));
+        $this->assertFalse($this->validator->validateTranscript('   '));
+        $this->assertFalse($this->validator->validateTranscript("\n\t  \n"));
     }
 
     #[Test]
@@ -328,14 +312,10 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     #[Test]
     public function it_builds_comprehensive_analysis_prompt(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('buildAnalysisPrompt');
-        $method->setAccessible(true);
-
         $transcript = 'This is a sample sermon transcript about God\'s love and grace.';
         $existingSeries = ['John Study', 'Romans Study', 'Christmas Messages'];
 
-        $prompt = $method->invoke($this->service, $transcript, $existingSeries);
+        $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
 
         $this->assertStringContainsString('John Study', $prompt);
         $this->assertStringContainsString('Romans Study', $prompt);
@@ -348,7 +328,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->assertStringContainsString('points', $prompt);
 
         // Test with empty series
-        $prompt = $method->invoke($this->service, $transcript, []);
+        $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, []);
         $this->assertStringContainsString('None available', $prompt);
     }
 
@@ -364,12 +344,17 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         $this->assertTrue($reflection->hasMethod('extractBiblePassage'));
         $this->assertTrue($reflection->hasMethod('extractSermonPoints'));
 
-        // Test that key private methods exist
+        // Test that key private methods still exist on this service
         $this->assertTrue($reflection->hasMethod('isNonRetryableError'));
-        $this->assertTrue($reflection->hasMethod('validateTranscript'));
         $this->assertTrue($reflection->hasMethod('getExistingSeries'));
-        $this->assertTrue($reflection->hasMethod('buildAnalysisPrompt'));
-        $this->assertTrue($reflection->hasMethod('validateAndCleanAnalysisData'));
+
+        // Test that moved methods now live on the collaborator classes
+        $validatorReflection = new \ReflectionClass($this->validator);
+        $this->assertTrue($validatorReflection->hasMethod('validateTranscript'));
+        $this->assertTrue($validatorReflection->hasMethod('validateAndCleanAnalysisData'));
+
+        $promptBuilderReflection = new \ReflectionClass($this->promptBuilder);
+        $this->assertTrue($promptBuilderReflection->hasMethod('buildAnalysisPrompt'));
     }
 
     #[Test]
@@ -416,10 +401,6 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
     #[Test]
     public function it_handles_analysis_data_with_mixed_types(): void
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('validateAndCleanAnalysisData');
-        $method->setAccessible(true);
-
         $transcript = 'Sample transcript content for testing purposes with enough words to pass validation.';
 
         // Test with mixed data types
@@ -430,7 +411,7 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
             'points' => 'string instead of array', // Should be handled
         ];
 
-        $result = $method->invoke($this->service, $analysisData, $transcript);
+        $result = $this->validator->validateAndCleanAnalysisData($analysisData, $transcript);
 
         $this->assertEquals('123', $result['title']); // Current behavior: numeric values are kept as-is
         $this->assertNull($result['series']); // Invalid series becomes null

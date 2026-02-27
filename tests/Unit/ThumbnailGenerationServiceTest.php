@@ -7,6 +7,7 @@ use App\Models\Sermon;
 use App\Services\FrameExtractionService;
 use App\Services\StorageAdapterHelper;
 use App\Services\ThumbnailGenerationService;
+use App\Services\ThumbnailTextHelper;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -37,7 +38,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         ]);
 
         $this->frameExtractionService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
-        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class));
+        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class), new ThumbnailTextHelper);
     }
 
     #[Test]
@@ -57,7 +58,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         config(['thumbnail-generation.enabled' => false]);
 
         // Recreate service with new config
-        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class));
+        $this->service = new ThumbnailGenerationService($this->frameExtractionService, app(StorageAdapterHelper::class), new ThumbnailTextHelper);
 
         $sermon = Sermon::factory()->create([
             'title' => 'Test Sermon',
@@ -110,16 +111,14 @@ class ThumbnailGenerationServiceTest extends TestCase
     #[Test]
     public function it_can_calculate_responsive_font_sizes()
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('calculateResponsiveFontSize');
-        $method->setAccessible(true);
+        $helper = new ThumbnailTextHelper;
 
         // Test scaling up (but limited)
-        $scaledSize = $method->invoke($this->service, 48, 2560, 1280);
+        $scaledSize = $helper->calculateResponsiveFontSize(48, 2560, 1280);
         $this->assertEquals(96, $scaledSize); // 2x scale
 
         // Test scaling down (but limited)
-        $scaledSize = $method->invoke($this->service, 48, 320, 1280);
+        $scaledSize = $helper->calculateResponsiveFontSize(48, 320, 1280);
         $this->assertEquals(24, $scaledSize); // 0.5x scale (minimum)
     }
 
@@ -181,7 +180,7 @@ class ThumbnailGenerationServiceTest extends TestCase
         ]);
 
         $frameService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
-        $service = new ThumbnailGenerationService($frameService, app(StorageAdapterHelper::class));
+        $service = new ThumbnailGenerationService($frameService, app(StorageAdapterHelper::class), new ThumbnailTextHelper);
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'test_video');
@@ -243,15 +242,12 @@ class ThumbnailGenerationServiceTest extends TestCase
     #[Test]
     public function it_calculates_text_bounds_for_different_font_sizes()
     {
-        $reflection = new \ReflectionClass($this->service);
-        $method = $reflection->getMethod('calculateTextBounds');
-        $method->setAccessible(true);
-
+        $helper = new ThumbnailTextHelper;
         $text = 'Test Text';
 
         // Test different font sizes
-        $bounds24 = $method->invoke($this->service, $text, 24, null);
-        $bounds48 = $method->invoke($this->service, $text, 48, null);
+        $bounds24 = $helper->calculateTextBounds($text, 24, null);
+        $bounds48 = $helper->calculateTextBounds($text, 48, null);
 
         $this->assertIsArray($bounds24);
         $this->assertIsArray($bounds48);

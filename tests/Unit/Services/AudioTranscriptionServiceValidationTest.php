@@ -6,6 +6,7 @@ use App\Services\AudioChunkingService;
 use App\Services\AudioTranscriptionService;
 use App\Services\BritishEnglishConverter;
 use App\Services\SermonProcessingLogger;
+use App\Services\TranscriptFormatterService;
 use App\Services\TranscriptStorageService;
 use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,9 +43,9 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         Config::set('media-processing.storage.sermon_disk', 'local');
 
         $storageService = app(TranscriptStorageService::class);
-        $converter = app(BritishEnglishConverter::class);
+        $formatter = new TranscriptFormatterService(app(BritishEnglishConverter::class));
         $chunkingService = new AudioChunkingService($this->mockLogger);
-        $this->service = new AudioTranscriptionService($this->mockLogger, $storageService, $converter, $chunkingService);
+        $this->service = new AudioTranscriptionService($this->mockLogger, $storageService, $chunkingService, $formatter);
     }
 
     public function test_service_requires_openai_api_key(): void
@@ -53,9 +54,9 @@ class AudioTranscriptionServiceValidationTest extends TestCase
         Config::set('openai.api_key', '');
 
         $storageService = app(TranscriptStorageService::class);
-        $converter = app(BritishEnglishConverter::class);
+        $formatter = new TranscriptFormatterService(app(BritishEnglishConverter::class));
         $chunkingService = new AudioChunkingService($this->mockLogger);
-        $service = new AudioTranscriptionService($this->mockLogger, $storageService, $converter, $chunkingService);
+        $service = new AudioTranscriptionService($this->mockLogger, $storageService, $chunkingService, $formatter);
 
         // Create a test file to trigger the validation in transcribe method
         $testFilePath = 'test_validation_audio.mp3';
@@ -231,6 +232,31 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
         // Cleanup
         Storage::disk('public')->delete($testFilePath);
+    }
+
+    public function test_is_non_retryable_error_always_returns_false_due_to_zero_code(): void
+    {
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('isNonRetryableError');
+        $method->setAccessible(true);
+
+        // Note: OpenAI's ErrorException extends Exception but parent::__construct
+        // is called without a code, so getCode() always returns 0.
+        // This means isNonRetryableError() will always return false with the current
+        // implementation. We test the actual behaviour here to capture the baseline.
+        $nonRetryableCodes = [400, 401, 413];
+        foreach ($nonRetryableCodes as $code) {
+            $exception = new \OpenAI\Exceptions\ErrorException([
+                'message' => 'Test error',
+                'type' => 'test_error',
+                'code' => (string) $code,
+            ], $code);
+
+            // getCode() returns 0 because ErrorException doesn't pass code to parent
+            $this->assertEquals(0, $exception->getCode());
+            // So isNonRetryableError always returns false
+            $this->assertFalse($method->invoke($this->service, $exception));
+        }
     }
 
     protected function tearDown(): void

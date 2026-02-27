@@ -4,7 +4,9 @@ namespace Tests\Performance;
 
 use App\Models\Sermon;
 use App\Services\FrameExtractionService;
+use App\Services\StorageAdapterHelper;
 use App\Services\ThumbnailGenerationService;
+use App\Services\ThumbnailTextHelper;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -32,8 +34,8 @@ class ThumbnailGenerationPerformanceTest extends TestCase
             'codec' => 'h264',
         ]);
 
-        $frameExtractionService = new FrameExtractionService($videoService);
-        $this->service = new ThumbnailGenerationService($frameExtractionService);
+        $frameExtractionService = new FrameExtractionService($videoService, app(StorageAdapterHelper::class));
+        $this->service = new ThumbnailGenerationService($frameExtractionService, app(StorageAdapterHelper::class), new ThumbnailTextHelper);
     }
 
     #[Test]
