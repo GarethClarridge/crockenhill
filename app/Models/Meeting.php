@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
-use App\Services\CalendarService;
+use App\Services\GoogleCalendarSyncService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -341,7 +341,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public function createEvent(array $eventData): Event
     {
-        return app(CalendarService::class)->createEventForMeeting($this->slug, $eventData);
+        return app(GoogleCalendarSyncService::class)->createEventForMeeting($this->slug, $eventData);
     }
 
     /**

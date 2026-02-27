@@ -6,6 +6,7 @@ use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\User;
 use App\Services\CalendarService;
+use App\Services\GoogleCalendarSyncService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -251,12 +252,12 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_handles_sync_failure_with_error_session_message(): void
     {
-        $mockService = $this->createMock(CalendarService::class);
+        $mockService = $this->createMock(GoogleCalendarSyncService::class);
         $mockService->expects($this->once())
             ->method('syncFromGoogleCalendar')
             ->willThrowException(new \Exception('Google API unavailable'));
 
-        $this->app->instance(CalendarService::class, $mockService);
+        $this->app->instance(GoogleCalendarSyncService::class, $mockService);
 
         $this->actingAs($this->adminUser);
         $response = $this->post('/church/members/calendar/sync');
@@ -271,7 +272,7 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_handles_successful_sync_with_success_session_message(): void
     {
-        $mockService = $this->createMock(CalendarService::class);
+        $mockService = $this->createMock(GoogleCalendarSyncService::class);
         $mockService->expects($this->once())
             ->method('syncFromGoogleCalendar')
             ->willReturn([
@@ -282,7 +283,7 @@ class CalendarAdminControllerTest extends TestCase
                 'end_date' => '2028-01-01',
             ]);
 
-        $this->app->instance(CalendarService::class, $mockService);
+        $this->app->instance(GoogleCalendarSyncService::class, $mockService);
 
         $this->actingAs($this->adminUser);
         $response = $this->post('/church/members/calendar/sync');

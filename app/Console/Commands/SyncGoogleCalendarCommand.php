@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\CalendarService;
+use App\Services\GoogleCalendarSyncService;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -13,7 +13,7 @@ class SyncGoogleCalendarCommand extends Command
 
     protected $description = 'Syncs events from Google Calendar using the configured window';
 
-    public function handle(CalendarService $calendarService): int
+    public function handle(GoogleCalendarSyncService $calendarService): int
     {
         $this->info('Starting Google Calendar sync...');
 

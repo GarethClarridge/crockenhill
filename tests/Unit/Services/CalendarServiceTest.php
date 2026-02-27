@@ -7,7 +7,6 @@ use App\Models\Meeting;
 use App\Services\CalendarService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -177,72 +176,6 @@ class CalendarServiceTest extends TestCase
 
         $event->refresh();
         $this->assertEquals('sunday-morning', $event->meeting_slug);
-    }
-
-    #[Test]
-    public function it_caches_events_for_meeting(): void
-    {
-        Cache::flush();
-
-        $slug = 'sunday-morning';
-        CalendarEvent::factory()->create([
-            'meeting_slug' => $slug,
-            'start_datetime' => Carbon::now()->addDays(1),
-        ]);
-
-        $cacheKey = "meeting_events_{$slug}_all_all";
-        $this->assertFalse(Cache::has($cacheKey));
-
-        $this->service->getCachedEventsForMeeting($slug);
-
-        $this->assertTrue(Cache::has($cacheKey));
-    }
-
-    #[Test]
-    public function it_returns_cached_events_on_second_call(): void
-    {
-        Cache::flush();
-
-        $slug = 'sunday-morning';
-        CalendarEvent::factory()->create([
-            'meeting_slug' => $slug,
-            'start_datetime' => Carbon::now()->addDays(1),
-        ]);
-
-        $first = $this->service->getCachedEventsForMeeting($slug);
-
-        // Add more events - should not appear because of cache
-        CalendarEvent::factory()->create([
-            'meeting_slug' => $slug,
-            'start_datetime' => Carbon::now()->addDays(2),
-        ]);
-
-        $second = $this->service->getCachedEventsForMeeting($slug);
-
-        $this->assertCount($first->count(), $second);
-    }
-
-    #[Test]
-    public function clear_event_cache_for_specific_meeting_slug(): void
-    {
-        Cache::flush();
-
-        $slug = 'sunday-morning';
-        CalendarEvent::factory()->create([
-            'meeting_slug' => $slug,
-            'start_datetime' => Carbon::now()->addDays(1),
-        ]);
-
-        $this->service->getCachedEventsForMeeting($slug);
-
-        $cacheKey = "meeting_events_{$slug}_all_all";
-        $this->assertTrue(Cache::has($cacheKey));
-
-        $this->service->clearEventCache($slug);
-
-        // Cache::forget with wildcard isn't supported by the driver; this just verifies the method runs
-        // The test validates the method doesn't throw
-        $this->assertTrue(true);
     }
 
     #[Test]
