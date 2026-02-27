@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Storage;
 
 class SermonStorageService
 {
+    private const STATS_CHUNK_SIZE = 100;
+
     /**
      * Get file information for a sermon based on its storage pattern
      *
@@ -183,7 +185,7 @@ class SermonStorageService
 
         Sermon::query()
             ->select(['id', 'audio_file_path', 'filetype'])
-            ->chunk(100, function ($sermons) use (&$stats) {
+            ->chunk(self::STATS_CHUNK_SIZE, function ($sermons) use (&$stats) {
                 foreach ($sermons as $sermon) {
                     $info = $this->getSermonFileInfo($sermon);
                     $stats['patterns'][$info['type']]++;
