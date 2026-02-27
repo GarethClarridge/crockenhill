@@ -76,6 +76,15 @@ trait WithUploadLifecycle
             return;
         }
 
+        if ($this->processingId !== null || $this->tempFilePath !== null || $this->showProcessingStatus) {
+            $this->logInfo('Upload completion already handled, ignoring duplicate trigger', [
+                'processing_id' => $this->processingId,
+                'temp_file_path' => $this->tempFilePath,
+            ]);
+
+            return;
+        }
+
         if (! $this->mediaFile) {
             $this->handleUploadError('File upload completed but file is missing');
 
@@ -136,7 +145,7 @@ trait WithUploadLifecycle
 
     public function uploadMedia(): void
     {
-        $this->logInfo('Manual upload triggered (JavaScript fallback)');
+        $this->logInfo('Manual upload trigger received');
         $this->uploadComplete();
     }
 

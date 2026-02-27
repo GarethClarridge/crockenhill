@@ -9,11 +9,18 @@ use Tests\TestCase;
 
 class MediaUploadControllerTest extends TestCase
 {
-    private function timeoutHandlerSource(): string
+    private function controllerSource(): string
     {
         $source = file_get_contents(resource_path('js/livewire/media-upload-controller.js'));
 
         $this->assertIsString($source);
+
+        return $source;
+    }
+
+    private function timeoutHandlerSource(): string
+    {
+        $source = $this->controllerSource();
 
         preg_match('/resetUploadTimeout\(\)\s*\{(.*?)\n\s*\},\n\n\s*registerUploadListeners\(\)/s', $source, $matches);
 
@@ -38,5 +45,23 @@ class MediaUploadControllerTest extends TestCase
 
         $this->assertStringNotContainsString("component.cancelUpload('mediaFile');", $timeoutHandler);
         $this->assertStringContainsString('this.resetUploadTimeout();', $timeoutHandler);
+    }
+
+    #[Test]
+    public function upload_finish_handler_guards_against_duplicate_processing_requests(): void
+    {
+        $source = $this->controllerSource();
+
+        $this->assertStringContainsString('if (this.processingTriggered) {', $source);
+        $this->assertStringContainsString('this.processingTriggered = true;', $source);
+    }
+
+    #[Test]
+    public function upload_start_resets_the_processing_trigger_guard(): void
+    {
+        $source = $this->controllerSource();
+
+        $this->assertStringContainsString("this.registerListener('livewire-upload-start'", $source);
+        $this->assertStringContainsString('this.processingTriggered = false;', $source);
     }
 }

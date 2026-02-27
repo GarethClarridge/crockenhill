@@ -279,6 +279,7 @@ class Form extends Component
     private function resetProcessingState(): void
     {
         $this->processingId = null;
+        $this->tempFilePath = null;
         $this->status = 'idle';
         $this->currentStep = '';
         $this->progressPercentage = 0;

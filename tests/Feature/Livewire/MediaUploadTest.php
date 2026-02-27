@@ -144,6 +144,32 @@ class MediaUploadTest extends TestCase
     }
 
     #[Test]
+    public function it_ignores_duplicate_upload_complete_triggers_for_the_same_file(): void
+    {
+        $this->actingAs($this->admin);
+
+        $expectedId = '00000000-0000-0000-0000-000000000123';
+        $file = UploadedFile::fake()->create('sermon.mp3', 1024);
+
+        $mockResult = \App\Services\ProcessingResult::success($expectedId, 'Started');
+
+        $mockProcessor = $this->createMock(UnifiedMediaProcessor::class);
+        $mockProcessor->expects($this->once())
+            ->method('process')
+            ->willReturn($mockResult);
+
+        $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
+
+        Livewire::test(MediaUpload::class)
+            ->set('mediaType', 'audio')
+            ->set('mediaFile', $file)
+            ->call('uploadComplete')
+            ->call('uploadComplete')
+            ->assertSet('processingId', $expectedId)
+            ->assertSet('status', 'processing');
+    }
+
+    #[Test]
     public function it_can_cancel_upload()
     {
         $this->actingAs($this->admin);

@@ -142,10 +142,12 @@ class MediaUploadAutoSubmitTest extends TestCase
             ->set('mediaType', 'audio')
             ->set('isUploading', true)
             ->set('uploadProgress', 75)
+            ->set('tempFilePath', 'temp/livewire-upload/test.mp3')
             ->call('retryUpload')
             ->assertSet('isUploading', false)
             ->assertSet('uploadCancelled', false)
             ->assertSet('uploadProgress', 0)
+            ->assertSet('tempFilePath', null)
             ->assertSet('mediaFile', null)
             ->assertSet('showUploadForm', true)
             ->assertSet('showProcessingStatus', false);

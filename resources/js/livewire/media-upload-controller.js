@@ -18,6 +18,7 @@ export const mediaUploadController = (config = {}) => {
         maxFileSizeLabel: config.maxFileSizeLabel ?? 'N/A',
         lastProgressUpdate: 0,
         progressThrottleMs: PROGRESS_THROTTLE_MS,
+        processingTriggered: false,
         uploadTimeout: null,
         lastActivityTime: Date.now(),
         listeners: [],
@@ -75,6 +76,7 @@ export const mediaUploadController = (config = {}) => {
                     return;
                 }
 
+                this.processingTriggered = false;
                 this.$wire.set('isUploading', true);
                 this.$wire.set('status', 'uploading');
                 this.resetUploadTimeout();
@@ -101,6 +103,11 @@ export const mediaUploadController = (config = {}) => {
                     return;
                 }
 
+                if (this.processingTriggered) {
+                    return;
+                }
+
+                this.processingTriggered = true;
                 this.clearUploadTimeout();
                 this.$wire.call('uploadComplete');
             });
@@ -110,6 +117,7 @@ export const mediaUploadController = (config = {}) => {
                     return;
                 }
 
+                this.processingTriggered = false;
                 this.clearUploadTimeout();
                 this.$wire.call('handleUploadError', `Upload failed: ${event.detail.error || 'Unknown error'}`);
             });
@@ -147,6 +155,7 @@ export const mediaUploadController = (config = {}) => {
 
         cancelUpload() {
             this.clearUploadTimeout();
+            this.processingTriggered = false;
             this.$wire.call('cancelUpload');
 
             const component = findLivewireComponent(this.componentId);
