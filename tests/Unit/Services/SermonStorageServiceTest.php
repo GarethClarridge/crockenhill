@@ -20,11 +20,11 @@ class SermonStorageServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new SermonStorageService();
+        $this->service = new SermonStorageService;
 
         Storage::fake('public');
         Storage::fake('do_spaces');
-        
+
         Config::set('media-processing.storage.sermon_disk', 'public');
         Config::set('media-processing.storage.legacy_disk', 'public');
     }
@@ -144,11 +144,11 @@ class SermonStorageServiceTest extends TestCase
         $result = $this->service->moveFile($sermon, 'target_disk');
 
         $this->assertTrue($result);
-        
+
         // Check target
         Storage::disk('target_disk')->assertExists('sermons/move-me.mp3');
         $this->assertEquals('test content', Storage::disk('target_disk')->get('sermons/move-me.mp3'));
-        
+
         // Service doesn't delete source by default (commented out in code), verify this assumption
         Storage::disk('source_disk')->assertExists('sermons/move-me.mp3');
     }
@@ -165,5 +165,42 @@ class SermonStorageServiceTest extends TestCase
         $result = $this->service->moveFile($sermon, 'target_disk');
 
         $this->assertFalse($result);
+    }
+
+    #[Test]
+    public function it_calculates_storage_stats_correctly(): void
+    {
+        // Clear any existing sermons
+        Sermon::query()->delete();
+
+        // Create a mix of sermons with different patterns and disks
+        Sermon::factory()->create([
+            'audio_file_path' => 'legacy-sermon',
+            'filetype' => 'mp3',
+        ]);
+        Storage::disk('public')->put('legacy/sermons/legacy-sermon.mp3', 'abc'); // 3 bytes
+
+        Sermon::factory()->create([
+            'audio_file_path' => 'sermons/new-sermon.mp3',
+            'filetype' => 'mp3',
+        ]);
+        Storage::disk('public')->put('sermons/new-sermon.mp3', 'defgh'); // 5 bytes
+
+        Sermon::factory()->create([
+            'audio_file_path' => 'sermons/missing.mp3',
+        ]);
+
+        $stats = $this->service->getStorageStats();
+
+        $this->assertEquals(3, $stats['total_sermons']);
+        $this->assertEquals(1, $stats['patterns']['legacy']);
+        $this->assertEquals(2, $stats['patterns']['storage']);
+        $this->assertEquals(8, $stats['total_size']);
+        $this->assertEquals(1, $stats['missing_files']);
+
+        $this->assertArrayHasKey('public', $stats['disks']);
+        $this->assertEquals(3, $stats['disks']['public']['count']);
+        $this->assertEquals(8, $stats['disks']['public']['size']);
+        $this->assertEquals(1, $stats['disks']['public']['missing']);
     }
 }
