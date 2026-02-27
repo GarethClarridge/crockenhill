@@ -169,9 +169,8 @@ class SermonStorageService
      */
     public function getStorageStats(): array
     {
-        $sermons = Sermon::all();
         $stats = [
-            'total_sermons' => $sermons->count(),
+            'total_sermons' => Sermon::count(),
             'patterns' => [
                 'legacy' => 0,
                 'storage' => 0,
@@ -182,30 +181,34 @@ class SermonStorageService
             'missing_files' => 0,
         ];
 
-        foreach ($sermons as $sermon) {
-            $info = $this->getSermonFileInfo($sermon);
-            $stats['patterns'][$info['type']]++;
+        Sermon::query()
+            ->select(['id', 'audio_file_path', 'filetype'])
+            ->chunk(100, function ($sermons) use (&$stats) {
+                foreach ($sermons as $sermon) {
+                    $info = $this->getSermonFileInfo($sermon);
+                    $stats['patterns'][$info['type']]++;
 
-            $disk = $info['disk'];
-            if (! isset($stats['disks'][$disk])) {
-                $stats['disks'][$disk] = [
-                    'count' => 0,
-                    'size' => 0,
-                    'missing' => 0,
-                ];
-            }
+                    $disk = $info['disk'];
+                    if (! isset($stats['disks'][$disk])) {
+                        $stats['disks'][$disk] = [
+                            'count' => 0,
+                            'size' => 0,
+                            'missing' => 0,
+                        ];
+                    }
 
-            $stats['disks'][$disk]['count']++;
+                    $stats['disks'][$disk]['count']++;
 
-            if (Storage::disk($disk)->exists($info['path'])) {
-                $size = Storage::disk($disk)->size($info['path']);
-                $stats['disks'][$disk]['size'] += $size;
-                $stats['total_size'] += $size;
-            } else {
-                $stats['disks'][$disk]['missing']++;
-                $stats['missing_files']++;
-            }
-        }
+                    try {
+                        $size = Storage::disk($disk)->size($info['path']);
+                        $stats['disks'][$disk]['size'] += $size;
+                        $stats['total_size'] += $size;
+                    } catch (\Exception $e) {
+                        $stats['disks'][$disk]['missing']++;
+                        $stats['missing_files']++;
+                    }
+                }
+            });
 
         return $stats;
     }
