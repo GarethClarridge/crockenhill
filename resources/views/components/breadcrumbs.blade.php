@@ -65,9 +65,19 @@ return [
   {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}
 </script>
 
-<nav class="my-6" aria-label="Breadcrumb">
-  <ol class="inline-flex items-center space-x-1 md:space-x-2">
-    @foreach ($breadcrumbItems as $index => $item)
+<div class="my-6 flex flex-wrap items-center justify-between gap-4" x-data="{
+    copied: false,
+    copy() {
+        if (!navigator.clipboard) return;
+        navigator.clipboard.writeText('{{ url()->current() }}').then(() => {
+            this.copied = true;
+            setTimeout(() => this.copied = false, 2000);
+        });
+    }
+}">
+  <nav aria-label="Breadcrumb">
+    <ol class="inline-flex flex-wrap items-center space-x-1 md:space-x-2">
+      @foreach ($breadcrumbItems as $index => $item)
     @if ($index === 0)
     {{-- Home item with icon --}}
     <li class="inline-flex items-center">
@@ -99,6 +109,21 @@ return [
       </a>
     </li>
     @endif
-    @endforeach
-  </ol>
-</nav>
+      @endforeach
+    </ol>
+  </nav>
+
+  <button
+    type="button"
+    x-show="navigator.clipboard"
+    @click="copy()"
+    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-cbc-teal-dark hover:text-cbc-teal bg-white border border-gray-200 hover:border-cbc-teal-light/30 rounded-md shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-1"
+    aria-label="Copy page link"
+    title="Copy link to clipboard"
+    x-cloak
+  >
+    <x-heroicon-o-link x-show="!copied" class="w-4 h-4" />
+    <x-heroicon-o-check x-show="copied" class="w-4 h-4 text-cbc-teal" x-cloak />
+    <span x-text="copied ? 'Copied!' : 'Copy link'"></span>
+  </button>
+</div>
