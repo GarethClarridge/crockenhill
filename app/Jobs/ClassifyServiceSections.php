@@ -74,11 +74,45 @@ class ClassifyServiceSections implements ShouldQueue
             $sections = $result['sections'];
             $syncService->sync($this->processingLog, $sections);
 
+            $identifiedCount = 0;
+            $manualReviewCount = 0;
+            $highConfidenceCount = 0;
+            $lowConfidenceCount = 0;
+            $noneConfidenceCount = 0;
+
+            foreach ($sections as $section) {
+                if ($section['status'] === 'identified') {
+                    $identifiedCount++;
+                }
+
+                if ($section['needs_manual_review'] === true) {
+                    $manualReviewCount++;
+                }
+
+                $confidenceLevel = $section['metadata']['confidence_level'] ?? null;
+                if ($confidenceLevel === 'high') {
+                    $highConfidenceCount++;
+                }
+
+                if ($confidenceLevel === 'low') {
+                    $lowConfidenceCount++;
+                }
+
+                if ($confidenceLevel === 'none') {
+                    $noneConfidenceCount++;
+                }
+            }
+
             $this->processingLog->updateStep('section_classification_complete');
 
             Log::info('Service section classification completed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'sections_count' => count($sections),
+                'identified_count' => $identifiedCount,
+                'manual_review_count' => $manualReviewCount,
+                'high_confidence_count' => $highConfidenceCount,
+                'low_confidence_count' => $lowConfidenceCount,
+                'none_confidence_count' => $noneConfidenceCount,
             ]);
         } catch (\Throwable $exception) {
             Log::error('Service section classification failed', [
