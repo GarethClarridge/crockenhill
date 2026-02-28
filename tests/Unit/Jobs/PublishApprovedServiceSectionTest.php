@@ -154,4 +154,31 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $job->handle($sermonCreationService, app(MediaProcessingIdentityResolver::class));
     }
+
+    #[Test]
+    public function it_is_a_no_op_when_section_is_already_published_with_linked_sermon(): void
+    {
+        config([
+            'media-processing.section_publishing.enabled' => true,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $sermon = Sermon::factory()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'published_sermon_id' => $sermon->id,
+        ]);
+
+        $sermonCreationService = $this->createMock(SermonCreationService::class);
+        $sermonCreationService->expects($this->never())->method('createSermon');
+
+        $job = new PublishApprovedServiceSection($section->id);
+        $job->handle($sermonCreationService, app(MediaProcessingIdentityResolver::class));
+
+        $section->refresh();
+        $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
+        $this->assertSame($sermon->id, $section->published_sermon_id);
+    }
 }

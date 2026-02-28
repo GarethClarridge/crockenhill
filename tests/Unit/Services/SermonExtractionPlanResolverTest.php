@@ -63,6 +63,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 1,
             'start_time' => 300.0,
             'end_time' => 600.0,
             'needs_manual_review' => false,
@@ -72,6 +73,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::SERMON->value,
+            'section_order' => 2,
             'start_time' => 630.0,
             'end_time' => 2100.0,
             'needs_manual_review' => false,
@@ -102,6 +104,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 1,
             'start_time' => 300.0,
             'end_time' => 600.0,
             'needs_manual_review' => false,
@@ -111,6 +114,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::SERMON->value,
+            'section_order' => 2,
             'start_time' => 1500.0,
             'end_time' => 2400.0,
             'needs_manual_review' => false,
@@ -170,6 +174,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 1,
             'start_time' => 500.0,
             'end_time' => 1200.0,
             'needs_manual_review' => false,
@@ -179,6 +184,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::SERMON->value,
+            'section_order' => 2,
             'start_time' => 1000.0,
             'end_time' => 2400.0,
             'needs_manual_review' => false,

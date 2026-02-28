@@ -1,412 +1,425 @@
-# Song Catalog and Usage Tracking Plan
+# Song Catalog and Usage Tracking Plan (Revised V1)
 
 ## Overview
 
-This plan implements the deferred song import enhancement as a proper first-class domain:
+This revised plan implements the deferred song import enhancement with a proper first-class `Song` domain, while keeping v1 lean for the current reality:
 
-1. Import the local OpenLP songs SQLite database into application tables with full song content.
-2. Link imported church service song items to canonical songs.
-3. Build admin UI for "most used songs" and per-song details (lyrics, authors, usage history).
+1. Single source database (`songs (1).sqlite`)
+2. 1,166 source songs
+3. Small duplicate-key set
+4. Admin-only usage
 
-This is designed for Laravel 12 + Livewire 3 in the existing TALL project, and reuses current service tracking structures rather than introducing parallel usage pipelines.
+Core outcomes:
+
+1. Import song content (including lyrics/authors)
+2. Link service song items to canonical songs
+3. Provide admin UI for most-used songs and song details
 
 ---
 
 ## Goals
 
-1. Introduce a canonical `Song` model with lyrics and metadata available for UI display.
-2. Preserve and expose author relationships.
-3. Reliably link `church_service_items` (`type='songs'`) to canonical songs.
-4. Support usage reporting from real service records (not estimates).
-5. Keep the implementation operationally simple and deterministic.
+1. Add a canonical `Song` model with enough content for real display (lyrics, authors, metadata).
+2. Keep matching deterministic and explainable.
+3. Derive usage directly from `church_service_items` (no duplicate usage ledger).
+4. Avoid speculative schema/workflow complexity in v1.
 
-## Non-goals (for this phase)
+## Non-goals (v1)
 
-1. Manual conflict resolver UI for ambiguous/non-deterministic matches.
-2. Fuzzy/AI-based song matching.
-3. Public-facing song catalog pages.
-4. Editing songs in the admin UI (import remains source-of-truth).
+1. Manual resolver UI for ambiguous matches.
+2. Fuzzy/AI-based matching.
+3. Public-facing song pages.
+4. Song editing workflow in admin.
+5. Multi-source import abstraction.
+
+---
+
+## Key Decisions from Review
+
+1. `song_source_records` table is removed for v1.
+2. `songs` schema is reduced to columns with direct UI/reporting value.
+3. Canonical key generation is a static model method (`Song::canonicalizeKey()`), not a standalone service.
+4. Lyrics parsing stays as a dedicated service (`OpenLpLyricsParser`).
+5. Command responsibilities are split:
+   - `service-tracking:sync-songs`
+   - `service-tracking:link-songs`
+6. Songbook data is imported in v1.
 
 ---
 
 ## Current State Summary
 
-1. Service import is implemented and stores song keys in `church_service_items.openlp_search_title`.
-2. Service records and item lifecycle are already stable (`ChurchService`, `ChurchServiceItem`, soft-delete handling).
-3. Real source DB (`songs (1).sqlite`) contains:
-   - `songs` (1166 rows)
-   - `authors` + `authors_songs`
-   - `song_books` + `songs_songbooks`
-4. Lyrics in source are OpenLP song XML content, not plain text.
-5. Source contains duplicate `search_title` values; matching must be deterministic and collision-safe.
+1. OpenLP service import already stores `openlp_search_title` on `church_service_items`.
+2. Parser currently stores full OpenLP song key from `header.data.title`.
+3. That key includes `@` segments (example: `who am i that the highest king@who you say i am`).
+4. Source DB has `songs`, `authors`, `authors_songs`, `song_books`, `songs_songbooks`.
 
----
+Critical implication:
 
-## Design Principles
-
-1. Deterministic first: exact key-based linking before any heuristics.
-2. Canonical model: one app-level song record per normalized search key.
-3. Source traceability: preserve source identifiers and timestamps.
-4. Operational simplicity: one sync command, one linker service, no extra queues required.
-5. Laravel conventions: migrations, Eloquent relationships, typed services, focused tests.
+1. Canonical linking must use the full key including the `@...` suffix.
+2. Do not split on `@` in v1 matching.
 
 ---
 
 ## Data Model
 
-## 1) `songs` table (new, canonical catalog)
+## 1) `songs` table (new)
 
-One record per canonical song identity.
+Canonical app songs.
 
-Proposed columns:
+Columns:
 
 1. `id` (bigint PK)
-2. `canonical_key` (string, unique)  
-   - Normalized from source/OpenLP `search_title`
+2. `canonical_key` (string unique)
 3. `title` (string)
 4. `alternate_title` (string nullable)
-5. `lyrics_xml` (longText)  
-   - Raw OpenLP XML
-6. `lyrics_plain` (longText nullable)  
-   - Extracted plain text for display/search
-7. `lyrics_structure` (json nullable)  
-   - Parsed verses/chorus structure for future rendering
-8. `verse_order` (string nullable)
-9. `copyright` (string nullable)
-10. `comments` (longText nullable)
-11. `ccli_number` (string nullable)
-12. `theme_name` (string nullable)
-13. `search_title_raw` (string)  
-14. `search_lyrics` (longText nullable)
-15. `source_last_modified` (dateTime nullable)
-16. `is_active` (boolean default true)
-17. `import_metadata` (json nullable)  
-   - e.g. duplicate source IDs merged into canonical record
-18. timestamps
+5. `lyrics_xml` (longText)
+6. `lyrics_plain` (longText nullable)
+7. `verse_order` (string nullable)
+8. `copyright` (string nullable)
+9. `comments` (longText nullable)
+10. `ccli_number` (string nullable)
+11. `import_metadata` (json nullable)  
+    - includes source IDs, duplicate merge info, parse warnings
+12. timestamps
+13. `deleted_at` (soft deletes)
 
 Indexes:
 
 1. unique(`canonical_key`)
-2. index(`is_active`)
-3. index(`source_last_modified`)
+2. index(`ccli_number`)
+3. index(`deleted_at`)
+
+Notes:
+
+1. No `lyrics_structure` in v1.
+2. No `search_lyrics` in v1.
+3. No `search_title_raw` in v1.
+4. No `is_active` in v1 (soft deletes are the lifecycle mechanism).
+5. No `theme_name` in v1.
 
 ## 2) `song_authors` table (new)
 
-Proposed columns:
+Columns:
 
 1. `id` (bigint PK)
-2. `display_name` (string, unique)
+2. `display_name` (string unique)
 3. `first_name` (string nullable)
 4. `last_name` (string nullable)
 5. timestamps
 
 ## 3) `song_author_song` table (new pivot)
 
-Proposed columns:
+Columns:
 
 1. `song_id` FK cascade
 2. `song_author_id` FK cascade
-3. `author_type` (string default `''`)  
-4. composite PK/unique (`song_id`, `song_author_id`, `author_type`)
+3. `author_type` (string default `''`)
 
-## 4) `song_source_records` table (new, traceability)
+Constraints:
 
-Tracks source rows mapped into canonical songs.
+1. unique(`song_id`, `song_author_id`, `author_type`)
 
-Proposed columns:
+## 4) `song_books` table (new)
+
+Columns:
 
 1. `id` (bigint PK)
-2. `song_id` FK cascade
-3. `source` (string, e.g. `openlp_sqlite`)
-4. `source_song_id` (unsigned bigint)
-5. `source_last_modified` (dateTime nullable)
-6. `source_title` (string nullable)
-7. `source_search_title` (string nullable)
-8. timestamps
+2. `source_book_id` (unsigned bigint unique)
+3. `name` (string)
+4. `publisher` (string nullable)
+5. timestamps
 
-Indexes/constraints:
+## 5) `song_book_song` table (new pivot)
 
-1. unique(`source`, `source_song_id`)
-2. index(`song_id`)
+Columns:
 
-## 5) `church_service_items` change
+1. `song_id` FK cascade
+2. `song_book_id` FK cascade
+3. `entry` (string)
 
-Add nullable FK:
+Constraints:
 
-1. `song_id` -> `songs.id` (`nullOnDelete`)
+1. unique(`song_id`, `song_book_id`, `entry`)
+
+## 6) `church_service_items` update
+
+Add:
+
+1. `song_id` nullable FK to `songs.id` (`nullOnDelete`)
 
 Indexes:
 
 1. index(`song_id`)
 2. index(`type`, `song_id`)
 
-This keeps usage grounded in existing service items (no duplicate usage ledger table).
-
 ---
 
 ## Domain Models
 
-Add:
+## New models
 
 1. `App\Models\Song`
 2. `App\Models\SongAuthor`
-3. `App\Models\SongSourceRecord`
+3. `App\Models\SongBook`
 
-Update:
+## Model updates
 
-1. `App\Models\ChurchServiceItem` -> `belongsTo(Song::class)`
+1. `App\Models\ChurchServiceItem` adds `belongsTo(Song::class)`
 
-Relationships:
+## Song model helpers
 
-1. `Song::authors()` many-to-many
-2. `Song::sourceRecords()` hasMany
-3. `Song::serviceItems()` hasMany
-4. `Song::churchServices()` hasManyThrough (optional convenience)
+Add static helper:
+
+```php
+public static function canonicalizeKey(string $value): string
+```
+
+Behavior:
+
+1. `trim`
+2. `lowercase`
+3. collapse internal whitespace
+
+No punctuation/symbol stripping in v1 (including `@`).
 
 ---
 
-## Import & Sync Architecture
+## Import Architecture
 
-## Configuration
+## Config
 
 Extend `config/service-tracking.php`:
 
 ```php
 'songs' => [
     'sqlite_path' => env('OPENLP_SONGS_DB_PATH'),
-    'source_name' => 'openlp_sqlite',
 ],
 ```
 
-Add to `.env.example`:
+`.env.example`:
 
 ```ini
 OPENLP_SONGS_DB_PATH=
 ```
 
-## Import Command
+## Command 1: Sync Catalog
 
-Create Artisan command:
+`service-tracking:sync-songs {--path=} {--dry-run}`
 
-`service-tracking:sync-songs {--path=} {--dry-run} {--link-services} {--deactivate-missing}`
+Responsibilities:
 
-Behavior:
+1. Load source songs/authors/songbooks from SQLite.
+2. Build canonical song map by `Song::canonicalizeKey(source search_title)`.
+3. Merge duplicate source rows sharing the same canonical key.
+4. Upsert `songs`, `song_authors`, `song_author_song`, `song_books`, `song_book_song`.
+5. Emit metrics summary.
 
-1. Resolve SQLite path (`--path` overrides config).
-2. Validate file exists/readable and has required tables.
-3. Read source songs and related authors.
-4. Canonicalize by normalized search key.
-5. Upsert canonical `songs`, `song_authors`, pivot links, and `song_source_records`.
-6. Optionally deactivate canonical songs not present in latest source scan.
-7. Optionally run service-item linker (`--link-services`).
-8. Print metrics table (created/updated/linked/unmatched/duplicates merged).
+Duplicate merge strategy:
 
-Implementation note:
+1. Group by canonical key.
+2. Choose representative row by newest source `last_modified`.
+3. Store all grouped source song IDs in `songs.import_metadata.source_song_ids`.
+4. Store duplicate count in metadata.
 
-Use a dedicated temporary runtime SQLite connection via `DB::connection(...)` (Laravel multiple connection pattern), without changing default MySQL app connection.
+Missing-source handling in v1:
 
-## Canonicalization Rules
+1. Do not auto-delete/soft-delete songs during sync.
+2. Keep lifecycle simple and non-destructive.
+3. Add explicit pruning behavior only if/when needed later.
 
-Canonical key (`canonical_key`) should be generated identically for importer and linker:
+## Command 2: Link Service Items
 
-1. lowercase
-2. trim
-3. collapse internal whitespace
+`service-tracking:link-songs {--dry-run}`
 
-No punctuation stripping in v1 (to avoid accidental collisions).  
-If a future mismatch pattern appears, extend rules with explicit migration and backfill.
+Responsibilities:
 
-## Duplicate Source Handling
+1. Process active song items (`type='songs'`, `deleted_at IS NULL`).
+2. Canonicalize `openlp_search_title`.
+3. Match exactly against `songs.canonical_key`.
+4. Set `church_service_items.song_id` when deterministic match exists.
+5. Leave unmatched rows with `song_id = null`.
+6. Emit metrics summary.
 
-Source can contain duplicate `search_title` rows. Strategy:
-
-1. Merge into one canonical `songs` row by `canonical_key`.
-2. Choose representative content from most recently modified source row.
-3. Preserve all contributing source rows in `song_source_records`.
-4. Record duplicate count and source IDs in `songs.import_metadata`.
-
-This yields stable UI/reporting while preserving auditability.
+No fallback to `source_title` in v1 to avoid false positives.
 
 ---
 
 ## Lyrics Handling
 
-Create `App\Services\OpenLpLyricsParser`:
+Create `App\Services\OpenLpLyricsParser`.
 
 Input:
 
-1. OpenLP lyrics XML string from source `songs.lyrics`
+1. OpenLP XML in source `songs.lyrics`
 
 Output:
 
-1. `lyrics_plain` (display-friendly text)
-2. `lyrics_structure` JSON (verses with type/label/text)
+1. `lyrics_plain` for display/search
 
-Parser behavior:
+Behavior:
 
 1. Parse XML safely.
-2. Extract `<verse type="..." label="..."><![CDATA[...]]></verse>`.
-3. Normalize line endings and trim surrounding whitespace.
-4. Preserve order for rendering and verse-order reconciliation.
-5. Fail gracefully: if XML parse fails, keep raw XML and set `lyrics_plain` to null; set warning in metadata.
+2. Extract verse text from lyric XML.
+3. Preserve verse order in flattened plain text.
+4. Fail gracefully; keep `lyrics_xml` even if parsing fails.
+5. Record parse warnings in `songs.import_metadata`.
+
+This service remains separate because it is non-trivial and test-worthy.
 
 ---
 
-## Service Item Linking Strategy
+## Service Import Integration
 
-Create `App\Services\ChurchServiceSongLinker`.
+After each OpenLP service import:
 
-Linking source:
+1. Continue parser + service item sync flow as-is.
+2. Run linker service for that service's song items only.
 
-1. Primary key: normalized `church_service_items.openlp_search_title`
+Touch points:
 
-Rules:
+1. `ChurchServiceController@store`
+2. `UploadChurchService::save`
 
-1. Only process active song items (`type='songs'` and `deleted_at IS NULL`).
-2. Deterministic exact key match only in v1.
-3. If no key or no catalog match, keep `song_id = null`.
-4. Return structured metrics: linked, already linked, missing key, no match.
-
-Integration points:
-
-1. After OpenLP service import in API controller.
-2. After OpenLP service import in Livewire upload flow.
-3. In sync command with `--link-services`.
-
-Backfill command option:
-
-1. `--link-services` performs full relink across existing service items.
+This ensures newly imported services are link-at-ingest, while `service-tracking:link-songs` handles historical backfill.
 
 ---
 
 ## Admin UI (Livewire)
 
-## 1) Most Used Songs page
+## 1) Most Used Songs
 
 Route:
 
 1. `GET /admin/services/songs` -> `App\Livewire\Admin\ChurchServices\ListSongs`
 
-Features:
+Columns:
 
-1. Search by title, alternate title, author, CCLI.
-2. Filter by active/inactive.
-3. Sort by usage count (default desc), last used date, title.
-4. Usage stats columns:
-   - `usage_count` (service item count)
-   - `services_count` (distinct church services)
-   - `last_used_date` (max church service date)
-5. Row action to song detail page.
+1. title
+2. authors
+3. usage count (song service items)
+4. distinct services count
+5. last used date
 
-Data source:
+Filters:
 
-Derived query over `songs` + `church_service_items` + `church_services`.
+1. search (title, alternate title, author, CCLI)
+2. service slot (`morning`/`evening`/`other`)
+3. date range (optional if easy in v1)
 
-## 2) Song detail page
+## 2) Song Detail
 
 Route:
 
 1. `GET /admin/services/songs/{song}` -> `App\Livewire\Admin\ChurchServices\ShowSong`
 
-Features:
+Content:
 
-1. Song metadata (title, alt title, CCLI, theme, authors).
-2. Lyrics display from parsed plain text (fallback to XML snippet if plain unavailable).
-3. Recent usage table with date/service and link to service detail.
-4. Source traceability summary (source rows count, last sync timestamps).
+1. song metadata
+2. authors
+3. songbook entries
+4. full lyrics (`lyrics_plain`, with fallback note if parse warning)
+5. recent usage history linked to service detail pages
 
-## 3) Navigation updates
+## 3) Navigation
 
-Add links from existing service admin pages:
-
-1. "Songs" link on service list page.
-2. Optional button on member admin home under Sermons section.
+Add links from existing service admin pages to song pages.
 
 ---
 
-## Query Strategy for Usage Metrics
+## Usage Query Strategy
 
-Use aggregate subqueries or grouped joins from `songs`:
+Usage remains derived from existing linked service items.
 
-1. `usage_count`: count of active `church_service_items` for each `song_id`
+Metrics:
+
+1. `usage_count`: count of active `church_service_items` per `song_id`
 2. `services_count`: count distinct `church_service_id`
 3. `last_used_date`: max related `church_services.date`
 
-This avoids maintaining a separate denormalized usage table.
-
-If performance becomes an issue later, add a cached read model as a separate optimization phase.
+No dedicated `song_usages` table in v1.
 
 ---
 
 ## Implementation Phases
 
-## Phase 1: Schema and Models
+## Phase 1: Schema + Models
 
 Deliver:
 
-1. Migrations for `songs`, `song_authors`, `song_author_song`, `song_source_records`
-2. Migration adding `church_service_items.song_id`
-3. New models + relationships
+1. Migrations:
+   - `songs`
+   - `song_authors`
+   - `song_author_song`
+   - `song_books`
+   - `song_book_song`
+   - add `church_service_items.song_id`
+2. Models and relationships.
+3. `Song::canonicalizeKey()`.
 
 Tests:
 
-1. Model relation tests for songs/authors/source records
-2. Schema tests for new indexes/FKs
+1. model relationship tests
+2. canonicalization tests on `Song` model
+3. schema/index/FK tests
 
-## Phase 2: Import Core
+## Phase 2: Import + Parsing
 
 Deliver:
 
 1. `OpenLpLyricsParser`
-2. `SongCanonicalKeyGenerator` (shared canonicalization utility)
-3. `SongCatalogSyncService`
-4. `service-tracking:sync-songs` command
+2. `SongCatalogSyncService`
+3. `service-tracking:sync-songs`
 
 Tests:
 
-1. Unit tests for canonical key generation
-2. Unit tests for lyrics parsing
-3. Feature tests for command (happy path, dry-run, missing file, duplicate merges)
+1. lyrics parser unit tests
+2. sync command feature tests:
+   - happy path
+   - dry-run
+   - invalid path
+   - duplicate key merge behavior
+   - author/songbook import
 
 ## Phase 3: Linking
 
 Deliver:
 
-1. `ChurchServiceSongLinker` service
-2. Integration into API and Livewire service upload flows
-3. Backfill path via command `--link-services`
+1. `ChurchServiceSongLinker`
+2. `service-tracking:link-songs`
+3. integration after service upload (API + Livewire)
 
 Tests:
 
-1. Unit tests for linking outcomes
-2. Feature tests validating `song_id` assignment after service import
-3. Regression tests for unmatched behavior (no false positives)
+1. linker unit tests
+2. feature tests for service-upload linking
+3. feature tests for full backfill linking command
+4. explicit `@` key parity tests between imported songs and service items
 
 ## Phase 4: Admin UI
 
 Deliver:
 
-1. `ListSongs` Livewire component + Blade view
-2. `ShowSong` Livewire component + Blade view
-3. Routes and navigation links
+1. `ListSongs` Livewire + Blade
+2. `ShowSong` Livewire + Blade
+3. route/navigation updates
 
 Tests:
 
-1. Livewire feature tests for list/filter/sort/pagination
-2. Livewire feature tests for detail page and usage history
+1. Livewire list filter/sort/pagination
+2. Livewire detail content/usage assertions
 
-## Phase 5: Hardening and Operations
+## Phase 5: Hardening
 
 Deliver:
 
-1. Command metrics logging (import + linking)
-2. Optional scheduler entry (weekly sync) behind config flag
-3. Runbook additions (how to run sync, check unmatched items)
+1. command metrics and logging polish
+2. operational notes/runbook additions
 
 Tests:
 
-1. Command output/metrics assertions
-2. Smoke test for scheduled invocation
+1. command metric assertions
+2. regression checks around linking idempotency
 
 ---
 
@@ -416,43 +429,41 @@ Tests:
 
 1. `app/Models/Song.php`
 2. `app/Models/SongAuthor.php`
-3. `app/Models/SongSourceRecord.php`
+3. `app/Models/SongBook.php`
 4. `app/Services/OpenLpLyricsParser.php`
-5. `app/Services/SongCanonicalKeyGenerator.php`
-6. `app/Services/SongCatalogSyncService.php`
-7. `app/Services/ChurchServiceSongLinker.php`
-8. `app/Console/Commands/SyncSongsCatalogCommand.php`
+5. `app/Services/SongCatalogSyncService.php`
+6. `app/Services/ChurchServiceSongLinker.php`
+7. `app/Console/Commands/SyncSongsCommand.php`
+8. `app/Console/Commands/LinkSongsCommand.php`
 9. `app/Livewire/Admin/ChurchServices/ListSongs.php`
 10. `app/Livewire/Admin/ChurchServices/ShowSong.php`
 11. `resources/views/livewire/admin/church-services/list-songs.blade.php`
 12. `resources/views/livewire/admin/church-services/show-song.blade.php`
-13. migrations for all schema additions above
-14. focused tests under `tests/Unit/...` and `tests/Feature/...`
+13. new migrations listed above
+14. focused tests under `tests/Unit` and `tests/Feature`
 
 ## Existing files to update
 
-1. `app/Models/ChurchServiceItem.php` (song relation)
-2. `app/Http/Controllers/Api/ChurchServiceController.php` (invoke linker)
-3. `app/Livewire/Admin/ChurchServices/UploadChurchService.php` (invoke linker)
-4. `routes/web.php` (song admin routes)
-5. `config/service-tracking.php` (songs config)
-6. `.env.example` (path variable)
-7. `bootstrap/app.php` (optional scheduling entry)
-8. relevant admin blade pages for navigation links
+1. `app/Models/ChurchServiceItem.php`
+2. `app/Http/Controllers/Api/ChurchServiceController.php`
+3. `app/Livewire/Admin/ChurchServices/UploadChurchService.php`
+4. `routes/web.php`
+5. `config/service-tracking.php`
+6. `.env.example`
+7. relevant admin navigation views
 
 ---
 
-## Testing Plan (Required)
+## Testing and Quality Gates
 
 Run with Sail:
 
-1. `vendor/bin/sail artisan test --compact --filter=SongCanonicalKeyGenerator`
-2. `vendor/bin/sail artisan test --compact --filter=OpenLpLyricsParser`
-3. `vendor/bin/sail artisan test --compact --filter=SyncSongsCatalog`
-4. `vendor/bin/sail artisan test --compact --filter=ChurchServiceSongLinker`
-5. `vendor/bin/sail artisan test --compact --filter=AdminSong`
-6. `vendor/bin/sail composer phpstan`
-7. `vendor/bin/sail bin pint --dirty`
+1. `vendor/bin/sail artisan test --compact --filter=Song`
+2. `vendor/bin/sail artisan test --compact --filter=SyncSongs`
+3. `vendor/bin/sail artisan test --compact --filter=LinkSongs`
+4. `vendor/bin/sail artisan test --compact --filter=AdminSong`
+5. `vendor/bin/sail composer phpstan`
+6. `vendor/bin/sail bin pint --dirty`
 
 Before merge:
 
@@ -460,62 +471,28 @@ Before merge:
 
 ---
 
-## Rollout Plan
+## Rollout
 
-1. Deploy schema + code with feature hidden behind route availability (admin-only).
-2. Set `OPENLP_SONGS_DB_PATH` in environment.
-3. Run first dry-run sync.
-4. Run full sync with `--link-services`.
-5. Validate:
-   - song count imported
-   - percentage of service song items linked
-   - top songs page shows expected results
-6. Enable optional weekly scheduler only after first successful cycles.
-
-Rollback:
-
-1. Disable scheduler/command usage.
-2. Keep imported tables (read-only impact, low risk).
-3. Unlink service items by setting `song_id` null if required.
-
----
-
-## Risks and Mitigations
-
-1. Source duplicate keys map unexpected content  
-   - Mitigation: deterministic merge + source traceability + duplicate metrics.
-2. Lyrics XML parse edge cases  
-   - Mitigation: preserve raw XML and non-fatal parser behavior.
-3. Unlinked historical song items  
-   - Mitigation: backfill linker + unmatched metrics report.
-4. Query performance on usage leaderboard  
-   - Mitigation: correct indexing first; add cached read model only if needed.
-
----
-
-## Simplicity Check
-
-What we intentionally avoid:
-
-1. No separate `song_usages` event table.
-2. No fuzzy matching in first release.
-3. No edit workflows for song content.
-4. No additional queue graph for import.
-
-Why this is still "proper":
-
-1. First-class `Song` domain exists.
-2. Full content (lyrics/authors/metadata) is imported and queryable.
-3. Usage stats come from real linked service records.
-4. Source provenance is preserved.
+1. Deploy migrations + code.
+2. Set `OPENLP_SONGS_DB_PATH`.
+3. Run dry-run sync:
+   - `vendor/bin/sail artisan service-tracking:sync-songs --dry-run`
+4. Run actual sync:
+   - `vendor/bin/sail artisan service-tracking:sync-songs`
+5. Backfill links:
+   - `vendor/bin/sail artisan service-tracking:link-songs`
+6. Verify:
+   - imported songs count
+   - linked service song item count
+   - top songs UI correctness
 
 ---
 
 ## Acceptance Criteria
 
-1. Admin can view a song list ranked by usage from service data.
-2. Admin can open a song detail page and read lyrics + see authors.
-3. New OpenLP service uploads automatically link song items to catalog songs when keys match.
-4. Sync command can import/update/deactivate songs and print reliable metrics.
-5. All tests and quality gates pass under Sail.
+1. Songs are imported with lyrics and authors from source SQLite.
+2. Songbooks and entries are imported and visible in song detail context.
+3. Service song items can be linked deterministically to songs via canonical keys.
+4. Admin can view most-used songs and per-song detail with lyrics and usage history.
+5. Plan remains lean: no `song_source_records`, no usage ledger table, no fuzzy matching.
 

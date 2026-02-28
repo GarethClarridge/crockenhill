@@ -159,9 +159,7 @@ class ServiceSectionSyncService
         }
 
         return [
-            'publication_status' => $isPublishableType
-                ? ServiceSectionPublicationStatus::PENDING_APPROVAL->value
-                : ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
             'published_sermon_id' => null,
             'published_at' => null,
             'extracted_video_path' => null,
@@ -170,7 +168,10 @@ class ServiceSectionSyncService
             'unpublished_expires_at' => null,
             'metadata' => array_merge(
                 $incomingPayload['metadata'],
-                ['superseded' => $supersedeMetadata]
+                [
+                    'superseded' => $supersedeMetadata,
+                    'publishable_type_after_supersede' => $isPublishableType,
+                ]
             ),
         ];
     }
@@ -181,20 +182,11 @@ class ServiceSectionSyncService
             return;
         }
 
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
-        $metadata['superseded'] = [
-            'at' => CarbonImmutable::now()->toIso8601String(),
-            'reason' => 'stale_row_removed',
-            'previous_signature' => $this->buildSignatureFromExisting($section),
-            'previous_published_sermon_id' => $section->published_sermon_id,
-        ];
-
-        $section->update([
-            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
-            'published_sermon_id' => null,
-            'published_at' => null,
-            'unpublished_expires_at' => null,
-            'metadata' => $metadata,
+        Log::warning('Published service section removed as stale after classification refresh', [
+            'service_section_id' => $section->id,
+            'processing_log_id' => $section->media_processing_log_id,
+            'published_sermon_id' => $section->published_sermon_id,
+            'signature' => $this->buildSignatureFromExisting($section),
         ]);
     }
 

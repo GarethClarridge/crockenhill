@@ -9,6 +9,7 @@ use App\Jobs\PublishApprovedServiceSection;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ServiceSection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -49,6 +50,12 @@ class ListSectionPublications extends Component
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
             $this->error('Section not found.');
+
+            return;
+        }
+
+        if (! $this->hasExtractedMedia($section)) {
+            $this->error('Section media is missing. Reclassify and prepare candidates again.');
 
             return;
         }
@@ -118,6 +125,8 @@ class ListSectionPublications extends Component
     public function render(): View
     {
         $search = trim($this->search);
+        $escapedSearch = $this->escapeLike($search);
+        $searchPattern = '%'.$escapedSearch.'%';
 
         $sections = ServiceSection::query()
             ->with([
@@ -125,11 +134,11 @@ class ListSectionPublications extends Component
                 'publishedSermon:id,title,slug',
             ])
             ->when($this->publicationStatus !== '', fn ($query) => $query->where('publication_status', $this->publicationStatus))
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($query) use ($search): void {
-                    $query->where('title', 'like', "%{$search}%")
-                        ->orWhere('section_type', 'like', "%{$search}%")
-                        ->orWhereHas('processingLog', fn ($query) => $query->where('processing_id', 'like', "%{$search}%"));
+            ->when($search !== '', function ($query) use ($searchPattern): void {
+                $query->where(function ($query) use ($searchPattern): void {
+                    $query->where('title', 'like', $searchPattern)
+                        ->orWhere('section_type', 'like', $searchPattern)
+                        ->orWhereHas('processingLog', fn ($query) => $query->where('processing_id', 'like', $searchPattern));
                 });
             })
             ->orderByDesc('updated_at')
@@ -152,5 +161,25 @@ class ListSectionPublications extends Component
         ) {
             abort(404);
         }
+    }
+
+    private function hasExtractedMedia(ServiceSection $section): bool
+    {
+        $videoPath = $section->extracted_video_path;
+        $audioPath = $section->extracted_audio_path;
+
+        if (! is_string($videoPath) || $videoPath === '' || ! is_string($audioPath) || $audioPath === '') {
+            return false;
+        }
+
+        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+
+        return Storage::disk($sermonDisk)->exists($videoPath)
+            && Storage::disk($sermonDisk)->exists($audioPath);
+    }
+
+    private function escapeLike(string $value): string
+    {
+        return addcslashes($value, '\%_');
     }
 }

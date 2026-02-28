@@ -109,4 +109,34 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
         $this->assertNotNull($section->unpublished_expires_at);
     }
+
+    #[Test]
+    public function it_keeps_admin_approved_sections_when_they_become_ineligible(): void
+    {
+        config([
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.extract_types' => ['childrens_talk'],
+            'media-processing.section_publishing.require_high_confidence' => true,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'metadata' => ['confidence_level' => 'low'],
+        ]);
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
+
+        $job = new PrepareSectionPublicationCandidates($processingLog);
+        $job->handle($videoExtractor, app(StorageAdapterHelper::class));
+
+        $section->refresh();
+        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->publication_status);
+    }
 }

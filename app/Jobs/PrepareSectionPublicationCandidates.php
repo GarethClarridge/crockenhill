@@ -86,6 +86,14 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
             $eligibleByConfidence = ! $requireHighConfidence || $confidence === 'high';
 
             if (! $eligibleByType || ! $eligibleByStatus || ! $eligibleByConfidence) {
+                if (
+                    $section->publication_status === ServiceSectionPublicationStatus::PUBLISHED
+                    || $section->publication_status === ServiceSectionPublicationStatus::APPROVED
+                    || $section->publication_status === ServiceSectionPublicationStatus::REJECTED
+                ) {
+                    continue;
+                }
+
                 $this->moveToNotApplicable($section);
 
                 continue;

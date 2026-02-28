@@ -6,6 +6,7 @@ namespace Tests\Feature\Livewire;
 
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Livewire\Admin\ChurchServices\ListSectionPublications;
 use App\Models\MediaProcessingLog;
@@ -13,6 +14,7 @@ use App\Models\ServiceSection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -46,12 +48,16 @@ class AdminSectionPublicationQueueTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'title' => "Children's Talk",
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_order' => 1,
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
         ]);
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'title' => 'Rejected Section',
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::REJECTED->value,
         ]);
 
@@ -67,7 +73,10 @@ class AdminSectionPublicationQueueTest extends TestCase
     public function approve_action_marks_section_approved_and_dispatches_publish_job(): void
     {
         Queue::fake();
+        Storage::fake('public');
         $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
 
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-17',
@@ -77,7 +86,12 @@ class AdminSectionPublicationQueueTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'.mp3',
         ]);
+
+        Storage::disk('public')->put('sermons/sections/'.$run->id.'/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-'.$run->id.'.mp3', 'audio');
 
         Livewire::test(ListSectionPublications::class)
             ->call('approve', $section->id)
@@ -86,6 +100,40 @@ class AdminSectionPublicationQueueTest extends TestCase
         $section->refresh();
         $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->publication_status);
         Queue::assertPushed(PublishApprovedServiceSection::class);
+    }
+
+    #[Test]
+    public function approve_action_blocks_when_extracted_media_is_missing(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-18',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/'.$run->id.'/missing-video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'-missing.mp3',
+        ]);
+
+        Livewire::test(ListSectionPublications::class)
+            ->call('approve', $section->id)
+            ->assertDispatched(
+                'notify',
+                type: 'error',
+                message: 'Section media is missing. Reclassify and prepare candidates again.'
+            );
+
+        $section->refresh();
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        Queue::assertNothingPushed();
     }
 
     #[Test]
