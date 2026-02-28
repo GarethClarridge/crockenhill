@@ -279,7 +279,10 @@ class AdminChurchServiceTest extends TestCase
             ->call('reclassify', $processingRun->id)
             ->assertDispatched('notify', type: 'success', message: 'Section reclassification queued');
 
-        Queue::assertPushed(ClassifyServiceSections::class, 1);
+        Queue::assertPushed(
+            ClassifyServiceSections::class,
+            fn (ClassifyServiceSections $job): bool => $job->preservesRunStatus()
+        );
     }
 
     #[Test]

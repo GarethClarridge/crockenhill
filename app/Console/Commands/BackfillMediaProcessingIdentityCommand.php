@@ -6,8 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
-use Carbon\CarbonImmutable;
-use Carbon\Exceptions\InvalidFormatException;
+use App\Services\MediaProcessingIdentityResolver;
 use Illuminate\Console\Command;
 
 class BackfillMediaProcessingIdentityCommand extends Command
@@ -18,7 +17,7 @@ class BackfillMediaProcessingIdentityCommand extends Command
 
     protected $description = 'Backfill extracted_date/extracted_service from processing_metadata for historical media logs';
 
-    public function handle(): int
+    public function handle(MediaProcessingIdentityResolver $identityResolver): int
     {
         $dryRun = (bool) $this->option('dry-run');
         $chunkSize = max(1, (int) $this->option('chunk'));
@@ -51,13 +50,13 @@ class BackfillMediaProcessingIdentityCommand extends Command
             'skipped_no_changes_required' => 0,
         ];
 
-        $query->orderBy('id')->chunkById($chunkSize, function ($logs) use (&$metrics, $dryRun): void {
+        $query->orderBy('id')->chunkById($chunkSize, function ($logs) use (&$metrics, $dryRun, $identityResolver): void {
             foreach ($logs as $log) {
                 $metrics['processed']++;
 
                 $metadata = is_array($log->processing_metadata) ? $log->processing_metadata : [];
-                $parsedDate = $this->parseDate($metadata['extracted_date'] ?? null);
-                $parsedService = $this->parseService($metadata['extracted_service'] ?? null);
+                $parsedDate = $identityResolver->parseDate($metadata['extracted_date'] ?? null);
+                $parsedService = $identityResolver->parseService($metadata['extracted_service'] ?? null);
 
                 $payload = [];
 
@@ -106,37 +105,5 @@ class BackfillMediaProcessingIdentityCommand extends Command
         );
 
         return self::SUCCESS;
-    }
-
-    private function parseDate(mixed $value): ?string
-    {
-        if (! is_string($value) || $value === '') {
-            return null;
-        }
-
-        try {
-            $date = CarbonImmutable::createFromFormat('Y-m-d', $value);
-        } catch (InvalidFormatException) {
-            return null;
-        }
-
-        if (! $date instanceof CarbonImmutable) {
-            return null;
-        }
-
-        if ($date->format('Y-m-d') !== $value) {
-            return null;
-        }
-
-        return $value;
-    }
-
-    private function parseService(mixed $value): ?SermonService
-    {
-        if (! is_string($value) || $value === '') {
-            return null;
-        }
-
-        return SermonService::tryFrom($value);
     }
 }

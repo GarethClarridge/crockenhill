@@ -994,53 +994,293 @@ vendor/bin/sail artisan test --parallel --compact
 
 ---
 
-## Phase 3 Design (Draft)
-
-> **This section is a working draft.** Will be refined after Phase 2.
+## Phase 3 Implementation Plan
 
 ### Goal
 
-Advanced extraction and publishing: Bible+Sermon combination, children's talk extraction, and retention policies.
+Deliver advanced section-aware extraction and controlled additional section publishing, while keeping the architecture additive and simple:
+- Bible reading + sermon-aware extraction for the main sermon artifact
+- Children's talk extraction with **manual admin approval** before publish
+- Retention cleanup for unpublished extracted section assets
 
-### Sermon Extraction Rules
+### Confirmed Decisions for Phase 3
 
-In `ExtractSermon`:
-1. Identify `BibleReading` and `Sermon` sections
-2. Adjacent case: extend sermon start to bible reading start (single extraction span)
-3. Non-adjacent case: extract both spans and concat with FFmpeg
-4. Keep existing fallback to baseline sermon bounds when no valid section pairing exists
+1. Additional section publishing uses a **manual approval queue** (with admin UI).
+2. Bible-to-sermon adjacency threshold is **60 seconds**.
+3. Non-adjacent Bible+Sermon extraction uses **hard join concat** (no filler gap).
+4. Published additional section sermons inherit the **service from the originating run**.
+5. Bible reading is **not** independently published in Phase 3.
+6. Previously linked section publish state can be **superseded** by newer classification output.
 
-### Additional Sections (Children's Talk)
+### Outcomes (Must Be True)
 
-**Extraction** — `ExtractAdditionalSections` (new):
-- Extract configured section types from source video
-- Mark `ServiceSection.status=extracted`
+1. `ExtractSermon` can produce sermon media from:
+   - high-confidence sermon section only, or
+   - high-confidence bible+sermon pairing (adjacent merge or non-adjacent hard join).
+2. Children's talk candidates are extracted and queued for review, not auto-published.
+3. Admins can approve/reject candidates from a dedicated Livewire queue page.
+4. Approved candidates publish a `Sermon` linked back to the source section.
+5. Reclassification can supersede stale publish links/candidates deterministically.
+6. Unpublished extracted assets are deleted by TTL cleanup.
 
-**Publishing** — `PublishAdditionalSections` (new):
-- Create `Sermon` with `source_type=livestream`, `service=other`, minimal metadata
-- Link `service_sections.sermon_id`
-- Full AI analysis remains optional/config-driven
+### Scope
 
-**Retention:**
-- Keep extracted assets for published sections
-- Auto-clean unpublished extracted assets via TTL policy
+In scope:
+- Main sermon extraction plan resolver (Bible+Sermon aware)
+- FFmpeg concat support for non-adjacent spans
+- Children's talk extraction + manual approval queue + publish flow
+- Supersede semantics on classifier refresh
+- Retention cleanup command + scheduler integration
 
-### Phase 3 Configuration (Draft)
+Out of scope:
+- Auto-publishing additional sections
+- Publishing Bible reading as a standalone sermon
+- New public API surface
+- Historical replay/migration of old section publications
+
+### Data Model (Minimal, Additive)
+
+Extend `service_sections` with publication/extraction state (keep classification state separate):
+
+| Column | Type | Notes |
+|---|---|---|
+| `publication_status` | string | `not_applicable`, `pending_approval`, `approved`, `rejected`, `published` |
+| `approved_by_user_id` | bigint FK nullable | Admin approver (`users.id`, null on delete) |
+| `approved_at` | timestamp nullable | Approval timestamp |
+| `published_sermon_id` | bigint FK nullable | Linked published sermon (`sermons.id`, null on delete) |
+| `published_at` | timestamp nullable | Publish timestamp |
+| `extracted_video_path` | string nullable | Extracted clip path |
+| `extracted_audio_path` | string nullable | Extracted audio path |
+| `extracted_at` | timestamp nullable | Extraction timestamp |
+| `unpublished_expires_at` | timestamp nullable | TTL cutoff for cleanup |
+
+Indexes:
+- `publication_status`
+- `unpublished_expires_at`
+- `published_sermon_id`
+
+Notes:
+- Keep `status` (`identified` / `skipped`) as **classification-only**.
+- Do not add a separate publication history table in Phase 3.
+
+### Domain Design
+
+#### 1) Main Sermon Extraction Strategy
+
+Add `SermonExtractionPlanResolver` (new service) used by `ExtractSermon`.
+
+Resolution order:
+1. Locate high-confidence identified `sermon` section.
+2. Locate high-confidence identified `bible_reading` section.
+3. If both exist:
+   - If bible ends within `adjacent_gap_seconds` (60s) before sermon start: single-span extraction from bible start to sermon end.
+   - Else if non-adjacent concat enabled: extract two spans and hard-join via FFmpeg concat.
+4. If no valid pairing exists: existing fallback to baseline `media_processing_logs.sermon_start_time/end_time`.
+
+Output is a small DTO-like array:
+- `mode`: `single_span` | `concat_spans` | `baseline`
+- `segments`: one or two `[start,end]` entries
+- `source`: `service_sections` or `processing_log`
+- `metadata`: strategy details for diagnostics
+
+#### 2) FFmpeg Concat Support
+
+Extend `VideoExtractionService` with a focused method for multi-span hard join:
+- Extract each span to temporary clip files
+- Build concat list file
+- FFmpeg concat demuxer to final section/sermon video clip
+- Extract optimized audio from merged clip
+- Cleanup temp clip/list files in `finally`
+
+Keep this as a service-level utility, not a separate orchestration layer.
+
+#### 3) Children's Talk Candidate Extraction
+
+Add job: `PrepareSectionPublicationCandidates`.
+
+Behavior:
+1. Load publishable section types from config (`childrens_talk` only in Phase 3).
+2. Select `identified` sections with required confidence.
+3. Extract media if not already extracted.
+4. Set:
+   - `publication_status = pending_approval`
+   - `unpublished_expires_at = now() + retain_unpublished_hours`
+5. Do not publish automatically.
+
+Dispatching:
+- Trigger after `SubmitToProcessing` completes.
+- Run as a non-blocking follow-up job so failures do not fail the main livestream sermon pipeline.
+
+#### 4) Manual Approval + Publishing
+
+Add job: `PublishApprovedServiceSection`.
+
+Behavior:
+1. Lock section row and re-check preconditions:
+   - `publication_status = approved`
+   - not superseded by newer classification signature
+   - extract paths exist
+2. Build sermon creation payload from section:
+   - `source_type = livestream`
+   - `service` inherited from processing run identity (`extracted_service` column first, metadata fallback)
+   - date inherited from run identity
+   - `segment_start_time` / `segment_end_time` from section bounds
+3. Create `Sermon` via existing `SermonCreationService`.
+4. Link section:
+   - `published_sermon_id`
+   - `published_at`
+   - `publication_status = published`
+   - clear `unpublished_expires_at`
+
+#### 5) Supersede Semantics (Simple)
+
+No history table in Phase 3.
+
+When classification sync updates a section and its classification signature changes materially (type/title/bounds/item link):
+- Clear stale publication linkage and approval fields
+- Reset publish lifecycle based on type:
+  - publishable type -> `pending_approval` (after candidate preparation)
+  - non-publishable type -> `not_applicable`
+- Store supersede diagnostics in `metadata` (previous signature, timestamp, previous sermon link if present)
+
+This treats old links/candidates as superseded without introducing revision tables.
+
+### Admin UI (Livewire, TALL-Aligned)
+
+Add a dedicated admin queue surface, patterned after existing sermon admin listings:
+
+Routes:
+- `GET /admin/services/section-publications` -> `ListSectionPublications`
+- `GET /admin/services/section-publications/{serviceSection}` -> `ShowSectionPublication`
+
+Capabilities:
+- Filter by `publication_status` (default `pending_approval`)
+- Show section context:
+  - service date/service
+  - processing run id
+  - section type/title/time
+  - confidence and review diagnostics
+- Actions:
+  - approve (sets `approved_*`, dispatches publish job)
+  - reject
+  - optional requeue (reject -> pending)
+
+Auth:
+- Existing `auth + verified + admin` middleware path (no new API endpoint needed).
+
+### Configuration
 
 Add to `config/media-processing.php`:
 
 ```php
-'section_publishing' => [
-    'publish' => [
-        'childrens_talk' => true,
+'section_extraction' => [
+    'enhanced_sermon' => [
+        'enabled' => env('SERVICE_SECTION_ENHANCED_SERMON_ENABLED', true),
+        'adjacent_gap_seconds' => 60,
+        'allow_non_adjacent_concat' => env('SERVICE_SECTION_ALLOW_NON_ADJACENT_CONCAT', true),
     ],
-    'extract' => [
-        'childrens_talk' => true,
-        'bible_reading' => true,
-        'sermon' => true,
-    ],
-    'retain_unpublished_hours' => 48,
 ],
+
+'section_publishing' => [
+    'enabled' => env('SERVICE_SECTION_PUBLISHING_ENABLED', true),
+    'manual_approval_required' => true,
+    'extract_types' => [
+        'childrens_talk',
+    ],
+    'publishable_types' => [
+        'childrens_talk',
+    ],
+    'require_high_confidence' => env('SERVICE_SECTION_PUBLISH_REQUIRE_HIGH_CONFIDENCE', true),
+    'retain_unpublished_hours' => (int) env('SERVICE_SECTION_RETAIN_UNPUBLISHED_HOURS', 48),
+],
+```
+
+### Retention and Cleanup
+
+Add command:
+- `media:cleanup-unpublished-section-assets {--hours=48} {--dry-run}`
+
+Behavior:
+- Find sections with:
+  - `publication_status` in (`pending_approval`, `rejected`, `approved`)
+  - `published_sermon_id` null
+  - `unpublished_expires_at <= now()`
+- Delete extracted files if present
+- Null extracted paths + `extracted_at` + `unpublished_expires_at`
+
+Schedule in `bootstrap/app.php` using `withSchedule(...)` (Laravel 12 convention).
+
+### Implementation Sequence (PR-Sized)
+
+#### PR 1 - Schema + Enums + Model Updates
+- Migration for Phase 3 `service_sections` columns/indexes/FKs
+- `ServiceSectionPublicationStatus` enum
+- `ServiceSection` casts/relations updates
+- Schema/model tests
+
+#### PR 2 - Sermon Extraction Plan Resolver + Concat
+- Add `SermonExtractionPlanResolver`
+- Update `ExtractSermon` to execute resolver output
+- Extend `VideoExtractionService` concat support
+- Unit tests for adjacent, non-adjacent hard join, fallback
+
+#### PR 3 - Candidate Extraction + Supersede Reset Rules
+- Add `PrepareSectionPublicationCandidates` job
+- Integrate dispatch after `SubmitToProcessing`
+- Update sync rules to clear stale publish state on signature change
+- Service/job tests for idempotency and supersede behavior
+
+#### PR 4 - Admin Manual Approval Queue (Livewire)
+- New queue list/show Livewire components + Blade views
+- Admin approve/reject actions
+- Route registration under existing admin group
+- Livewire feature tests
+
+#### PR 5 - Publish Job + Cleanup Command
+- Add `PublishApprovedServiceSection` job
+- Add cleanup command and schedule registration
+- Feature tests for publish flow and cleanup dry-run/write mode
+
+#### PR 6 - Full Validation + Canary
+- Full tests + static analysis + formatting
+- Enable flags for canary admins
+- Observe publish queue throughput and extraction stability
+
+### Test Plan (Required)
+
+Unit:
+- `SermonExtractionPlanResolverTest`
+- `VideoExtractionServiceConcatTest`
+- `PrepareSectionPublicationCandidatesTest`
+- `PublishApprovedServiceSectionTest`
+- `ServiceSectionSyncService` supersede tests
+
+Feature/Livewire:
+- `AdminSectionPublicationQueueTest` (list/filter/approve/reject/authz)
+- Existing `AdminChurchServiceTest` updates for publication status indicators
+
+Console:
+- `CleanupUnpublishedSectionAssetsCommandTest` (dry-run + delete)
+
+Integration:
+- Livestream pipeline test ensuring Phase 3 additions do not regress main sermon chain behavior.
+
+### Quality Gates (Before Merge)
+
+Run with Sail:
+
+```bash
+vendor/bin/sail artisan test --compact --filter=SectionPublication
+vendor/bin/sail artisan test --compact --filter=ExtractSermon
+vendor/bin/sail artisan test --compact --filter=AdminChurchService
+vendor/bin/sail composer phpstan
+vendor/bin/sail bin pint --dirty
+```
+
+Then full validation:
+
+```bash
+vendor/bin/sail artisan test --parallel --compact
 ```
 
 ---

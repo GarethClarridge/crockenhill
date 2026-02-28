@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\SermonService;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -15,6 +14,14 @@ use Illuminate\Support\Collection;
 
 class ServiceSectionClassifier
 {
+    private MediaProcessingIdentityResolver $identityResolver;
+
+    public function __construct(
+        ?MediaProcessingIdentityResolver $identityResolver = null
+    ) {
+        $this->identityResolver = $identityResolver ?? new MediaProcessingIdentityResolver;
+    }
+
     /**
      * @return array{
      *     skipped: bool,
@@ -30,30 +37,25 @@ class ServiceSectionClassifier
      *         status: string,
      *         needs_manual_review: bool,
      *         source_segment_ids: array<int, int>,
-     *         metadata: array<string, mixed>
+     *         metadata: array{
+     *             confidence_level: 'high'|'low'|'none',
+     *             classification_mode: 'openlp_aligned',
+     *             expected_segment_class: string,
+     *             matched_segment_class?: string,
+     *             review_reason?: string,
+     *             anomalies?: array<int, string>
+     *         }
      *     }>
      * }
      */
     public function classify(MediaProcessingLog $processingLog): array
     {
         $churchService = $this->resolveChurchService($processingLog);
-        $requiresMatchingService = (bool) config(
-            'media-processing.section_classification.require_matching_church_service',
-            true
-        );
-
-        if (! $churchService instanceof ChurchService && $requiresMatchingService) {
-            return [
-                'skipped' => true,
-                'skip_reason' => 'no_matching_church_service',
-                'sections' => [],
-            ];
-        }
 
         if (! $churchService instanceof ChurchService) {
             return [
                 'skipped' => true,
-                'skip_reason' => 'no_church_service_available',
+                'skip_reason' => 'no_matching_church_service',
                 'sections' => [],
             ];
         }
@@ -74,6 +76,7 @@ class ServiceSectionClassifier
         $usedSegmentIds = [];
         $segmentPointer = 0;
         $sections = [];
+        $previousMatchedSegment = null;
 
         foreach ($serviceItems as $item) {
             $expectedSegmentClass = $this->expectedSegmentClassForItemType($item->type);
@@ -126,6 +129,17 @@ class ServiceSectionClassifier
                 $matchedSegmentClass = null;
             }
 
+            $anomalies = $this->detectAnomalies($previousMatchedSegment, $matchedSegment);
+            if ($anomalies !== []) {
+                $needsManualReview = true;
+
+                if ($confidenceLevel === 'high') {
+                    $confidenceLevel = 'low';
+                }
+
+                $reviewReason = 'segment_overlap_or_order_anomaly';
+            }
+
             $metadata = [
                 'confidence_level' => $confidenceLevel,
                 'classification_mode' => 'openlp_aligned',
@@ -138,6 +152,10 @@ class ServiceSectionClassifier
 
             if ($reviewReason !== '') {
                 $metadata['review_reason'] = $reviewReason;
+            }
+
+            if ($anomalies !== []) {
+                $metadata['anomalies'] = $anomalies;
             }
 
             $sections[] = [
@@ -153,6 +171,10 @@ class ServiceSectionClassifier
                 'source_segment_ids' => $sourceSegmentIds,
                 'metadata' => $metadata,
             ];
+
+            if ($matchedSegment instanceof LivestreamSegment) {
+                $previousMatchedSegment = $matchedSegment;
+            }
         }
 
         return [
@@ -164,54 +186,16 @@ class ServiceSectionClassifier
 
     private function resolveChurchService(MediaProcessingLog $processingLog): ?ChurchService
     {
-        $identity = $this->resolveIdentity($processingLog);
+        $identity = $this->identityResolver->resolve($processingLog);
 
         if ($identity === null) {
             return null;
         }
 
         return ChurchService::query()
-            ->whereDate('date', $identity['date'])
+            ->where('date', $identity['date'])
             ->where('service', $identity['service']->value)
             ->first();
-    }
-
-    /**
-     * @return array{date: string, service: SermonService}|null
-     */
-    private function resolveIdentity(MediaProcessingLog $processingLog): ?array
-    {
-        $columnDate = $processingLog->extracted_date?->format('Y-m-d');
-        $columnService = $processingLog->extracted_service;
-
-        if (is_string($columnDate) && $columnService instanceof SermonService) {
-            return [
-                'date' => $columnDate,
-                'service' => $columnService,
-            ];
-        }
-
-        $metadata = $processingLog->processing_metadata ?? [];
-        $metadataDate = $metadata['extracted_date'] ?? null;
-        $metadataService = $metadata['extracted_service'] ?? null;
-
-        if (! is_string($metadataDate) || $metadataDate === '') {
-            return null;
-        }
-
-        if (! is_string($metadataService) || $metadataService === '') {
-            return null;
-        }
-
-        $service = SermonService::tryFrom($metadataService);
-        if (! $service instanceof SermonService) {
-            return null;
-        }
-
-        return [
-            'date' => $metadataDate,
-            'service' => $service,
-        ];
     }
 
     private function expectedSegmentClassForItemType(string $itemType): string
@@ -308,5 +292,39 @@ class ServiceSectionClassifier
         }
 
         return ['segment' => null, 'index' => null];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function detectAnomalies(?LivestreamSegment $previousSegment, ?LivestreamSegment $currentSegment): array
+    {
+        if (
+            ! $previousSegment instanceof LivestreamSegment
+            || ! $currentSegment instanceof LivestreamSegment
+        ) {
+            return [];
+        }
+
+        $anomalies = [];
+        $previousEnd = (float) $previousSegment->end_time;
+        $currentStart = (float) $currentSegment->start_time;
+
+        if ($currentStart < $previousEnd) {
+            $anomalies[] = 'segment_overlap_detected';
+        }
+
+        $previousOrder = $previousSegment->segment_order;
+        $currentOrder = $currentSegment->segment_order;
+
+        if (
+            is_int($previousOrder)
+            && is_int($currentOrder)
+            && $currentOrder <= $previousOrder
+        ) {
+            $anomalies[] = 'segment_order_anomaly_detected';
+        }
+
+        return $anomalies;
     }
 }

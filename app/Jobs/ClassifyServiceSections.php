@@ -22,7 +22,8 @@ class ClassifyServiceSections implements ShouldQueue
     public int $timeout = 600;
 
     public function __construct(
-        private MediaProcessingLog $processingLog
+        private MediaProcessingLog $processingLog,
+        private bool $preserveRunStatus = false
     ) {}
 
     public function handle(ServiceSectionClassifier $classifier, ServiceSectionSyncService $syncService): void
@@ -44,16 +45,21 @@ class ClassifyServiceSections implements ShouldQueue
             }
 
             if (! (bool) config('media-processing.section_classification.enabled', true)) {
-                $this->processingLog->updateStep('section_classification_skipped');
+                if (! $this->preserveRunStatus) {
+                    $this->processingLog->updateStep('section_classification_skipped');
+                }
 
                 Log::info('Service section classification skipped: feature disabled', [
                     'processing_id' => $this->processingLog->processing_id,
+                    'preserve_status' => $this->preserveRunStatus,
                 ]);
 
                 return;
             }
 
-            $this->processingLog->markAsProcessing('classifying_sections');
+            if (! $this->preserveRunStatus) {
+                $this->processingLog->markAsProcessing('classifying_sections');
+            }
 
             $result = $classifier->classify($this->processingLog);
             $skipped = $result['skipped'];
@@ -61,11 +67,14 @@ class ClassifyServiceSections implements ShouldQueue
             if ($skipped) {
                 $skipReason = $result['skip_reason'] ?? 'skipped';
 
-                $this->processingLog->updateStep('section_classification_skipped');
+                if (! $this->preserveRunStatus) {
+                    $this->processingLog->updateStep('section_classification_skipped');
+                }
 
                 Log::info('Service section classification skipped', [
                     'processing_id' => $this->processingLog->processing_id,
                     'reason' => $skipReason,
+                    'preserve_status' => $this->preserveRunStatus,
                 ]);
 
                 return;
@@ -89,7 +98,7 @@ class ClassifyServiceSections implements ShouldQueue
                     $manualReviewCount++;
                 }
 
-                $confidenceLevel = $section['metadata']['confidence_level'] ?? null;
+                $confidenceLevel = $section['metadata']['confidence_level'];
                 if ($confidenceLevel === 'high') {
                     $highConfidenceCount++;
                 }
@@ -103,7 +112,9 @@ class ClassifyServiceSections implements ShouldQueue
                 }
             }
 
-            $this->processingLog->updateStep('section_classification_complete');
+            if (! $this->preserveRunStatus) {
+                $this->processingLog->updateStep('section_classification_complete');
+            }
 
             Log::info('Service section classification completed', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -113,21 +124,30 @@ class ClassifyServiceSections implements ShouldQueue
                 'high_confidence_count' => $highConfidenceCount,
                 'low_confidence_count' => $lowConfidenceCount,
                 'none_confidence_count' => $noneConfidenceCount,
+                'preserve_status' => $this->preserveRunStatus,
             ]);
         } catch (\Throwable $exception) {
             Log::error('Service section classification failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $exception->getMessage(),
                 'trace' => $exception->getTraceAsString(),
+                'preserve_status' => $this->preserveRunStatus,
             ]);
 
-            $this->processingLog->markAsFailed(
-                'Service section classification failed: '.$exception->getMessage(),
-                'classifying_sections'
-            );
+            if (! $this->preserveRunStatus) {
+                $this->processingLog->markAsFailed(
+                    'Service section classification failed: '.$exception->getMessage(),
+                    'classifying_sections'
+                );
+            }
 
             throw $exception;
         }
+    }
+
+    public function preservesRunStatus(): bool
+    {
+        return $this->preserveRunStatus;
     }
 
     public function failed(\Throwable $exception): void
@@ -136,11 +156,14 @@ class ClassifyServiceSections implements ShouldQueue
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
+            'preserve_status' => $this->preserveRunStatus,
         ]);
 
-        $this->processingLog->markAsFailed(
-            'Service section classification failed after '.$this->tries.' attempts: '.$exception->getMessage(),
-            'classifying_sections'
-        );
+        if (! $this->preserveRunStatus) {
+            $this->processingLog->markAsFailed(
+                'Service section classification failed after '.$this->tries.' attempts: '.$exception->getMessage(),
+                'classifying_sections'
+            );
+        }
     }
 }

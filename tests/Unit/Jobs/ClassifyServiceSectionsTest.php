@@ -26,7 +26,6 @@ class ClassifyServiceSectionsTest extends TestCase
     public function it_writes_sections_for_successful_classification(): void
     {
         config(['media-processing.section_classification.enabled' => true]);
-        config(['media-processing.section_classification.require_matching_church_service' => true]);
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-22',
@@ -82,7 +81,6 @@ class ClassifyServiceSectionsTest extends TestCase
     public function it_records_skipped_step_when_no_matching_church_service(): void
     {
         config(['media-processing.section_classification.enabled' => true]);
-        config(['media-processing.section_classification.require_matching_church_service' => true]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'status' => 'pending',
@@ -109,7 +107,6 @@ class ClassifyServiceSectionsTest extends TestCase
     public function it_marks_processing_failed_when_classifier_throws_unrecoverable_error(): void
     {
         config(['media-processing.section_classification.enabled' => true]);
-        config(['media-processing.section_classification.require_matching_church_service' => false]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'status' => 'pending',
@@ -136,5 +133,44 @@ class ClassifyServiceSectionsTest extends TestCase
                 $processingLog->error_message ?? ''
             );
         }
+    }
+
+    #[Test]
+    public function it_preserves_run_status_when_reclassifying_existing_completed_run(): void
+    {
+        config(['media-processing.section_classification.enabled' => true]);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-30',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Opening Song',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'status' => 'completed',
+            'current_step' => 'completed',
+            'extracted_date' => '2026-03-30',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        LivestreamSegment::factory()->song()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'segment_order' => 1,
+        ]);
+
+        $job = new ClassifyServiceSections($processingLog, preserveRunStatus: true);
+        $job->handle(new ServiceSectionClassifier, new ServiceSectionSyncService);
+
+        $processingLog->refresh();
+
+        $this->assertSame('completed', $processingLog->status->value);
+        $this->assertSame('completed', $processingLog->current_step);
+        $this->assertDatabaseCount('service_sections', 1);
     }
 }

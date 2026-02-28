@@ -10,7 +10,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\MediaProcessingIdentityResolver;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -73,7 +73,7 @@ class ShowChurchService extends Component
             return;
         }
 
-        ClassifyServiceSections::dispatch($processingLog)
+        ClassifyServiceSections::dispatch($processingLog, preserveRunStatus: true)
             ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
 
         $this->success('Section reclassification queued');
@@ -85,46 +85,30 @@ class ShowChurchService extends Component
     private function relatedProcessingRuns(): EloquentCollection
     {
         $serviceDate = $this->churchService->date->toDateString();
-        $serviceType = $this->churchService->service->value;
+        $serviceType = $this->churchService->service;
+        $resolver = $this->identityResolver();
 
-        return MediaProcessingLog::query()
+        $query = MediaProcessingLog::query()
             ->livestream()
-            ->where(function (Builder $query) use ($serviceDate, $serviceType): void {
-                $query->where(function (Builder $query) use ($serviceDate, $serviceType): void {
-                    $query->whereDate('extracted_date', $serviceDate)
-                        ->where('extracted_service', $serviceType);
-                })->orWhere(function (Builder $query) use ($serviceDate, $serviceType): void {
-                    $query->where('processing_metadata->extracted_date', $serviceDate)
-                        ->where('processing_metadata->extracted_service', $serviceType);
-                });
-            })
             ->with([
                 'serviceSections' => fn ($query) => $query->orderBy('section_order')->orderBy('id'),
             ])
-            ->orderByDesc('created_at')
-            ->get();
+            ->orderByDesc('created_at');
+
+        return $resolver->scopeMatchesIdentity($query, $serviceDate, $serviceType)->get();
     }
 
     private function processingLogMatchesService(MediaProcessingLog $processingLog): bool
     {
         $serviceDate = $this->churchService->date->toDateString();
-        $serviceType = $this->churchService->service->value;
+        $serviceType = $this->churchService->service;
 
-        $columnDate = $processingLog->extracted_date?->toDateString();
-        $columnService = $processingLog->extracted_service?->value;
+        return $this->identityResolver()->matchesService($processingLog, $serviceDate, $serviceType);
+    }
 
-        if (is_string($columnDate) && is_string($columnService)) {
-            return $columnDate === $serviceDate && $columnService === $serviceType;
-        }
-
-        $metadata = $processingLog->processing_metadata ?? [];
-        $metadataDate = $metadata['extracted_date'] ?? null;
-        $metadataService = $metadata['extracted_service'] ?? null;
-
-        return is_string($metadataDate)
-            && is_string($metadataService)
-            && $metadataDate === $serviceDate
-            && $metadataService === $serviceType;
+    private function identityResolver(): MediaProcessingIdentityResolver
+    {
+        return app(MediaProcessingIdentityResolver::class);
     }
 
     private function abortIfDisabled(): void
