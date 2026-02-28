@@ -1,92 +1,516 @@
-# Integrated Plan: Church Service Tracking
+# Church Service Tracking Plan (Refactor-Aligned)
 
 ## Overview
 
-A unified system for tracking church services, combining up to three data sources:
+This plan implements church service tracking as a **separate domain surface** from media processing, while reusing shared internal infrastructure.
 
-1. **OpenLP upload** — `.osz` files provide the planned order of service (songs, readings, etc.) before or after the service
-2. **Livestream processing** — automated audio/video analysis detects and classifies actual service sections with timestamps
-3. **Email import** *(optional enhancement)* — a planned order of service emailed before the service happens, providing an early prior for livestream classification
+- **Service Tracking domain**: order of service ingestion, service/item lifecycle, and review workflow.
+- **Media Processing domain**: upload, segmentation, extraction, transcription, AI analysis, and processing status.
 
-All sources contribute to a single `ChurchService` record per service date+slot. The order of service feeds into the livestream classification pipeline as a strong prior for identifying sections. Song tracking falls out naturally from the order of service data.
+The two domains integrate through explicit data contracts (service date/slot and indexed lookup columns), not by merging endpoints, controllers, or foreign keys.
 
-### Operational assumptions and resilience rules
+## Confirmed Decisions
 
-1. **Filename-first identity is the default**. If upload filenames follow `YYYY-MM-DD AM|PM`, use that as the primary date/service signal (high trust in current workflow).
-2. **No single signal is treated as infallible**. Parser compares the upload filename and embedded `.osj` filename; mismatches are recorded in metadata for review.
-3. **Automatic fallback before manual fallback**. If primary parsing fails, use secondary automatic signals (`.osj` entry name). Manual override remains optional for exceptional cases.
-4. **Preserve links on re-upload**. Re-importing a service must update items in place where possible, not delete all rows.
-5. **Do not rely on ingest order**. OpenLP uploads will often arrive first (small files), but classification must still work when livestream processing finishes first.
+1. Use a **separate ability** for service ingestion: `service:upload`.
+2. Use a **separate endpoint surface** under `/api/services`.
+3. OpenLP single-file upload remains **synchronous** (`201`).
+4. Session-authenticated admins are allowed (same behavior pattern as media APIs).
+5. A `ChurchService` can be linked to **multiple** livestream processing runs over time (via date/service lookup).
+6. Add **indexed extracted date/service columns** on `media_processing_logs` while keeping JSON metadata (Phase 2).
+7. Low-confidence parses are still persisted and marked `needs_review`.
+8. Unknown slot defaults to `other`.
+9. Filename vs embedded `.osj` mismatch is accepted with warning/confidence drop; hard-fail only if date cannot be inferred.
+10. Do **not** store raw `.osz` / `.osj` files.
+11. Re-upload sync prioritizes item ID preservation.
+12. Stale unmatched items are soft-deleted (not hard-deleted immediately).
+13. Manual admin editing is out of Phase 1; deferred to Phase 2.
+14. Multi-site is out of scope.
+15. Historical OpenLP bulk import is deferred.
+16. Email order import is deferred.
+17. Song DB import is deferred until OpenLP + section matching stabilizes.
+18. Rollout is phased + feature-flagged + canary-ready with rollback switches.
 
 ---
 
-## Data Model
+## Architecture: Separate Surface, Shared Internals
 
-### `ChurchService` — one per service date+slot
+### Service Tracking Surface (new)
 
-The canonical record of a service. Created by whichever source arrives first.
+- API routes under `/api/services/...`
+- Dedicated controller, request, resource, and middleware
+- Token ability: `service:upload`
+
+### Media Processing Surface (existing)
+
+- Existing `/api/media/...` endpoints stay focused on media lifecycle
+- No church-service-specific payloads or behaviors added to media upload APIs
+
+### Shared Internals (reused in Phase 2+)
+
+- Existing queue infrastructure and job chaining patterns
+- Existing `MediaProcessingLog` lifecycle
+- Existing segmentation output (`LivestreamSegment`)
+- Existing extraction/transcription/thumbnail services where applicable
+
+Integration occurs at the data layer and pipeline extension points, not at endpoint-layer coupling.
+
+---
+
+## Phase 1 Data Model
+
+### 1) `church_services` (new)
+
+One row per service date + slot.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | bigint | |
-| `date` | date | |
-| `service` | string | `SermonService` enum value (`morning`, `evening`, `other`) |
-| `source` | string | `ServiceItemSource` enum — which source last populated the items |
-| `original_filename` | string, nullable | `.osz` filename if uploaded |
-| `identity_confidence` | double | 0.0–1.0 confidence for parsed date/service |
-| `identity_metadata` | json, nullable | Parser diagnostics (`filename_match`, `osj_name`, mismatch flags) |
-| `media_processing_log_id` | bigint FK, nullable | → `media_processing_logs.id`, set null on delete; linked when a livestream is processed for this service |
+| `id` | bigint | PK |
+| `date` | date | Service date |
+| `service` | string | Cast to `SermonService` enum (`morning`, `evening`, `other`) |
+| `source` | string | `'openlp'` initially; new sources added when needed |
+| `original_filename` | string nullable | Upload filename |
+| `needs_review` | boolean default false | Set on low confidence / mismatch scenarios |
+| `import_metadata` | json nullable | Parse diagnostics: confidence score, mismatch flags, parse method, warnings |
 | `timestamps` | | |
 
-Unique constraint on `(date, service)` — one record per slot.
+Notes:
+- **Reuses existing `SermonService` enum** for the `service` column — no new enum needed.
+- `source` is a plain string, not an enum. Only `'openlp'` exists in Phase 1. When email/manual sources arrive, we'll promote to an enum with priority logic at that point.
+- Parse diagnostics (confidence, filename mismatch, parse method) are consolidated into `import_metadata` JSON. The `needs_review` boolean is the only workflow-relevant flag and gets its own column for queryability.
 
-### `ChurchServiceItem` — ordered items within a service
+Constraints:
+- Unique index: `(date, service)`
 
-Populated from OpenLP. Optionally enriched with timing data from the livestream pipeline.
+### 2) `church_service_items` (new)
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | bigint | |
-| `church_service_id` | bigint FK | → `church_services.id`, cascade delete |
-| `position` | unsignedInteger | Order within the service |
-| `type` | string | OpenLP plugin name: `songs`, `bibles`, `presentations`, `custom` |
-| `title` | string | Cleaned display title used by app/classifier |
-| `source_title` | string, nullable | Raw `serviceitem.header.title` from OpenLP |
-| `openlp_search_title` | string, nullable | Song key from `serviceitem.header.data.title` (when plugin is `songs`) |
-| `metadata` | json, nullable | Plugin-specific details (footer values, display slide labels, parser notes) |
-| `timestamps` | | |
-
-Unique index on `(church_service_id, position)`. Index on `(church_service_id, type)`.
-
-### `ServiceSection` — detected sections from livestream analysis
-
-Created by the classification pipeline. Linked back to `ChurchServiceItem` when alignment succeeds.
+Ordered service items from OpenLP.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | bigint | |
-| `media_processing_log_id` | bigint FK | → `media_processing_logs.id`, cascade delete |
-| `church_service_item_id` | bigint FK, nullable | → `church_service_items.id`, set null on delete; set when a detected section is matched to a planned item |
+| `id` | bigint | PK |
+| `church_service_id` | bigint FK | Cascade delete |
+| `position` | unsignedInteger | Sequence in service |
+| `type` | string | OpenLP plugin (`songs`, `bibles`, `presentations`, `custom`) |
+| `title` | string | Normalized display title |
+| `source_title` | string nullable | Raw OpenLP title |
+| `openlp_search_title` | string nullable | OpenLP song key |
+| `metadata` | json nullable | Plugin-specific metadata |
+| `created_at`/`updated_at` | timestamps | |
+| `deleted_at` | soft delete timestamp | Soft-delete stale unmatched rows |
+
+Constraints:
+- Index: `(church_service_id, position)` — non-unique; position uniqueness enforced in application code within the sync transaction. MySQL does not support partial unique indexes, and soft-deleted rows would defeat a composite unique index including `deleted_at` (MySQL treats NULLs as distinct).
+- Index: `(church_service_id, type)`
+
+### No changes to `media_processing_logs` in Phase 1
+
+The indexed `extracted_date`/`extracted_service` columns and any FK linking are deferred to Phase 2 when the classifier pipeline needs them. In Phase 1, the two domains are completely independent.
+
+---
+
+## Phase 1 API Surface
+
+### Auth & Middleware
+
+Create `EnsureServiceTrackingAccess` middleware following the same pattern as `EnsureMediaProcessingAccess`:
+- Require authenticated admin user with verified email
+- If PAT is used, require `service:upload` ability
+- Session-authenticated admins pass through (no ability check)
+
+Register as middleware alias `service.access` in `bootstrap/app.php`.
+
+**Middleware is the single canonical enforcement point.** The controller does not duplicate auth/ability checks — it relies entirely on route middleware (`auth:sanctum` + `service.access`). This matches the existing `MediaController` pattern and prevents auth logic drift across layers.
+
+### Ability
+
+Add to `App\Enums\ApiTokenAbility`:
+
+```php
+case SERVICE_UPLOAD = 'service:upload';
+```
+
+### Endpoints (Phase 1)
+
+- `POST /api/services/openlp` — Synchronous upload + parse + upsert. Returns `201` with `ChurchServiceResource`.
+- `GET /api/services/{churchService}` — Read endpoint for admin/integration. Returns `ChurchServiceResource`.
+
+### API Resources
+
+- `ChurchServiceResource` — wraps `ChurchService` with nested items.
+- `ChurchServiceItemResource` — wraps `ChurchServiceItem`.
+
+Follow the same patterns as the existing `SermonResource`.
+
+No church-service routes are added under `/api/media/*`.
+
+---
+
+## OpenLP Upload Flow (Phase 1)
+
+### Request
+
+`UploadChurchServiceRequest`:
+- Authorization: admin user (via middleware)
+- Validation: `.osz` upload (`zip` content), max size suitable for embedded presentation assets
+
+### Parser (`OpenLpServiceParser`)
+
+`parse(UploadedFile $file): OpenLpParseResult`
+
+1. Open `.osz` as zip
+2. Locate `.osj` entry
+3. Parse JSON
+4. Infer date/service:
+   - Primary: upload filename pattern
+   - Secondary: embedded `.osj` filename
+   - Unknown slot -> `other` (uses `SermonService::OTHER`)
+   - If date cannot be inferred -> validation error
+5. Compare filename vs embedded identity:
+   - On mismatch: accept, lower confidence, record in import metadata
+   - Set `needs_review=true` when confidence below threshold
+6. Extract items with plugin-specific normalization
+7. Return data object with parsed service + items + confidence + diagnostics
+
+Note: raw `.osz`/`.osj` is not retained.
+
+### OpenLP `.osj` Format Reference
+
+> **Validated against real `.osz` files** from the church's OpenLP install (`2024-11-17 AM.osz`, `2024-11-17 PM.osz`).
+
+The `.osz` file is a zip archive containing:
+- One `.osj` file (JSON service data)
+- Zero or more embedded presentation files (`.pptx`, etc.)
+
+The `.osj` is a JSON array. The **first element** is always an `openlp_core` metadata object (not a service item — must be skipped). Subsequent elements are service items:
+
+```json
+[
+  {
+    "openlp_core": {
+      "lite-service": false,
+      "service-theme": ""
+    }
+  },
+  {
+    "serviceitem": {
+      "header": {
+        "name": "songs",
+        "plugin": "songs",
+        "title": "O How The Grace Of God #749",
+        "search": "",
+        "data": {
+          "title": "o how the grace of god 749@ 749 o how the grace of god",
+          "authors": "Emanuel T. Sibomana (c.1910-75)"
+        }
+      },
+      "data": [ ... ]
+    }
+  }
+]
+```
+
+**Critical finding: `header.search` is always empty.** The actual song matching key is `header.data.title` (a lowercase composite string like `"o how the grace of god 749@ 749 o how the grace of god"`). The plan's `openlp_search_title` column must be populated from `header.data.title`, not `header.search`.
+
+Field mapping to schema columns:
+
+| Plugin | `title` (display) | `openlp_search_title` (matching key) | `source_title` (raw) | Notes |
+|---|---|---|---|---|
+| **songs** | Normalized from `header.title` | `header.data.title` | `header.title` | `header.data` is a dict with `title` + `authors` |
+| **bibles** | `header.footer[0]` (e.g., "Luke 15:1-32") | — | `header.title` | `header.title` includes full copyright; use `footer[0]` for clean reference |
+| **presentations** | `header.title` (filename) | — | `header.title` | `header.data` is an empty string, not a dict |
+| **custom** | `header.title` (e.g., "Reading") | — | `header.title` | `header.data` is an empty string |
+
+Notes on real data quirks:
+- **`header.data` type varies**: dict for songs (with `title`/`authors`), empty string for presentations/custom/bibles. Parser must check type before accessing.
+- **Bible titles are verbose**: `header.title` includes the full version/copyright string. The clean reference is in `header.footer[0]`.
+- **Custom items use `header.theme`** for styling context (e.g., `"Reading"`, `"SecretBible"`), which may be useful metadata.
+- The `openlp_search_title` field is only populated for songs — it's the key used for stable matching on re-upload. All other plugin types rely on `source_title` for matching.
+
+#### Date and Slot Inference
+
+Filenames use **AM/PM** format, not Morning/Evening:
+- `2024-11-17 AM.osz` → date `2024-11-17`, service `morning`
+- `2024-11-17 PM.osz` → date `2024-11-17`, service `evening`
+
+Parser must map: `AM` → `SermonService::MORNING`, `PM` → `SermonService::EVENING`, unknown → `SermonService::OTHER`.
+
+**Known mismatch case**: The `2024-11-17 AM.osz` file contains an `.osj` named `2024-11-17 PM.osj` — the embedded filename disagrees with the upload filename. This is a real-world occurrence of the mismatch scenario described in the confidence rules. The parser must:
+1. Prefer the `.osz` upload filename for identity
+2. Note the mismatch in `import_metadata`
+3. Lower confidence accordingly
+
+### Upsert Behavior
+
+`ChurchServiceController@store`:
+- Find or create `ChurchService` by `(date, service)`
+- On re-upload of same date+slot: update metadata, sync items
+- Sync items in-place via `ChurchServiceItemSyncService`
+- Return `201` with `ChurchServiceResource`
+
+### Re-upload Sync Rules
+
+`ChurchServiceItemSyncService`:
+
+The sync algorithm handles re-uploads where items may have been reordered, added, or removed. All operations wrapped in a DB transaction.
+
+**Match priority (in order):**
+1. **Stable match**: existing item with same `type` AND (`openlp_search_title` match OR `source_title` match)
+2. **Position fallback**: existing item at same `position` with same `type`
+3. **No match**: treat as new item
+
+**Operations:**
+1. For each incoming item, attempt stable match, then position fallback
+2. Update matched rows in-place (preserve ID, update position/title/metadata)
+3. Create new rows for unmatched incoming items
+4. Soft-delete existing rows that weren't matched by any incoming item
+
+**Conflict resolution:**
+- If two incoming items would match the same existing row, the first match wins; the second incoming item is treated as new
+- If a stable match and position fallback point to different existing rows, stable match wins
+
+---
+
+## Phase 1 Configuration
+
+`config/service-tracking.php`:
+
+```php
+return [
+    'enabled' => env('SERVICE_TRACKING_ENABLED', true),
+    'confidence' => [
+        'review_below' => 0.60,
+    ],
+    'upload' => [
+        'max_size_kb' => 600 * 1024, // 600MB — real files can reach ~542MB with embedded presentations
+    ],
+];
+```
+
+---
+
+## Phase 1 Test Plan (TDD)
+
+Tests are written **before** implementation. Each section is split into **must-have** tests (write first, block implementation) and **hardening** tests (write after the core path works). Must-have tests cover the happy path and critical failure modes. Hardening tests cover edge cases and conflict resolution.
+
+### 1. Parser Tests (`tests/Unit/Services/OpenLpServiceParserTest.php`)
+
+Write these first — the parser is the foundation.
+
+**Must-have:**
+
+| Test | Description |
+|---|---|
+| `test_parses_valid_osz_file` | Valid `.osz` with `.osj` inside returns correct date, service, and items |
+| `test_extracts_date_and_morning_from_am_filename` | `2024-11-17 AM.osz` → date `2024-11-17`, service `morning` |
+| `test_extracts_date_and_evening_from_pm_filename` | `2024-11-17 PM.osz` → date `2024-11-17`, service `evening` |
+| `test_unknown_slot_defaults_to_other` | `2024-01-07.osz` (no slot keyword) → service `other` |
+| `test_fails_when_no_date_can_be_inferred` | Neither filename nor `.osj` contains a parseable date → exception |
+| `test_extracts_song_items_with_data_title_as_search_key` | Songs parsed with `header.data.title` as `openlp_search_title`, not `header.search` |
+| `test_extracts_bible_reference_from_footer` | Bible items use `footer[0]` for clean title, not the verbose `header.title` |
+| `test_preserves_item_order` | Items returned in the order they appear in the `.osj` |
+| `test_rejects_non_zip_file` | Non-zip file throws validation exception |
+| `test_rejects_zip_without_osj` | Valid zip but no `.osj` entry → exception |
+| `test_skips_openlp_core_metadata_entry` | First array element (`openlp_core`) is not treated as a service item |
+
+**Hardening:**
+
+| Test | Description |
+|---|---|
+| `test_falls_back_to_osj_filename_for_date` | Upload filename has no date, but embedded `.osj` name does |
+| `test_filename_osj_mismatch_lowers_confidence` | `.osz` named `AM` but contains `PM.osj` → accepted with low confidence + mismatch flag (real-world case) |
+| `test_sets_needs_review_when_confidence_below_threshold` | Confidence below config threshold → `needs_review = true` |
+| `test_extracts_presentation_items` | Presentation items parsed; handles `header.data` as empty string |
+| `test_extracts_custom_items` | Custom slide items parsed; handles `header.data` as empty string |
+| `test_handles_empty_service_items` | `.osj` with empty items array → valid parse, zero items |
+
+### 2. Sync Service Tests (`tests/Unit/Services/ChurchServiceItemSyncServiceTest.php`)
+
+**Must-have:**
+
+| Test | Description |
+|---|---|
+| `test_creates_items_for_new_service` | Fresh service with no existing items → all items created |
+| `test_stable_match_by_search_title` | Re-upload with same songs in different positions → matched by `openlp_search_title`, IDs preserved |
+| `test_position_fallback_when_no_title_match` | No title match but same type+position → matched by position |
+| `test_soft_deletes_unmatched_stale_items` | Existing item not in re-upload → soft-deleted |
+| `test_updates_position_on_reorder` | Same items in different order → positions updated, IDs preserved |
+| `test_wraps_in_transaction` | If any operation fails, nothing is committed |
+
+**Hardening:**
+
+| Test | Description |
+|---|---|
+| `test_stable_match_by_source_title` | Item without search title matched by `source_title` |
+| `test_stable_match_wins_over_position_fallback` | Stable match and position would match different rows → stable wins |
+| `test_two_incoming_items_matching_same_existing` | First match wins, second becomes new row |
+| `test_restores_soft_deleted_item_on_rematch` | Previously soft-deleted item matches again → restored |
+| `test_handles_empty_incoming_items` | Re-upload with zero items → all existing items soft-deleted |
+| `test_enforces_position_uniqueness_for_active_items` | Two active items cannot share the same position within a service |
+
+### 3. Controller / Feature Tests (`tests/Feature/Api/ChurchServiceControllerTest.php`)
+
+**Must-have:**
+
+| Test | Description |
+|---|---|
+| `test_upload_creates_service_and_items` | Valid `.osz` upload → 201, service and items in DB |
+| `test_upload_returns_church_service_resource` | Response shape matches `ChurchServiceResource` structure |
+| `test_re_upload_same_date_slot_updates_service` | Second upload for same date+service → updates, not duplicate |
+| `test_requires_authentication` | Unauthenticated → 401 |
+| `test_requires_admin` | Non-admin authenticated user → 403 |
+| `test_rejects_non_osz_file` | `.txt` file → 422 |
+| `test_show_returns_service_with_items` | GET endpoint returns service with nested items |
+
+**Hardening:**
+
+| Test | Description |
+|---|---|
+| `test_requires_verified_email` | Admin with unverified email → 403 |
+| `test_pat_requires_service_upload_ability` | PAT without `service:upload` → 403 |
+| `test_pat_with_correct_ability_succeeds` | PAT with `service:upload` → 201 |
+| `test_session_auth_admin_succeeds` | Session-authenticated admin (no PAT) → 201 |
+| `test_rejects_oversized_file` | File exceeding max size → 422 |
+| `test_show_requires_authentication` | Unauthenticated GET → 401 |
+
+### 4. Model Tests (`tests/Unit/Models/`)
+
+**Must-have:**
+
+| Test | Description |
+|---|---|
+| `test_church_service_casts_service_to_sermon_service_enum` | `service` attribute returns `SermonService` instance |
+| `test_church_service_has_many_items` | Relationship returns `ChurchServiceItem` collection |
+| `test_church_service_unique_date_service` | Duplicate date+service → integrity constraint violation |
+| `test_church_service_item_soft_deletes` | Soft-deleted items excluded from default queries, included with `withTrashed` |
+
+**Hardening:**
+
+| Test | Description |
+|---|---|
+| `test_church_service_item_cascade_on_service_delete` | Deleting service cascades to items |
+
+### 5. Request Validation Tests (`tests/Unit/Http/Requests/UploadChurchServiceRequestTest.php`)
+
+**Must-have:**
+
+| Test | Description |
+|---|---|
+| `test_file_is_required` | Missing file → validation fails |
+| `test_file_must_be_valid_type` | Wrong MIME type → validation fails |
+| `test_file_max_size_enforced` | Oversized file → validation fails |
+
+### Running Tests
+
+```bash
+# During development — run the specific area you're working on
+vendor/bin/sail artisan test --compact --filter=OpenLpServiceParser
+vendor/bin/sail artisan test --compact --filter=ChurchServiceItemSync
+vendor/bin/sail artisan test --compact --filter=ChurchServiceController
+
+# All church service tests
+vendor/bin/sail artisan test --compact --filter=ChurchService
+
+# Full suite before PR
+vendor/bin/sail artisan test --parallel --compact
+```
+
+### Quality Gates
+
+Every change must pass:
+1. `vendor/bin/sail composer phpstan` (0 errors)
+2. `vendor/bin/sail bin pint --dirty`
+
+---
+
+## Phase 1 Delivery Summary
+
+### Prerequisites
+
+- ~~Obtain real `.osz` files~~ — **Done.** Two files validated (`2024-11-17 AM.osz`, `2024-11-17 PM.osz`). Format reference and field mappings updated to match actual data. Key corrections: `header.search` is always empty (use `header.data.title` for song matching), filenames use AM/PM not Morning/Evening, bible titles need `footer[0]` extraction, `header.data` type varies by plugin.
+
+### Deliver
+- Migration: `church_services` + `church_service_items` tables
+- Models: `ChurchService` + `ChurchServiceItem` with factories
+- Enum addition: `SERVICE_UPLOAD` case on `ApiTokenAbility`
+- Parser: `OpenLpServiceParser` service
+- Sync: `ChurchServiceItemSyncService`
+- Controller: `ChurchServiceController` (store + show)
+- Request: `UploadChurchServiceRequest`
+- Resources: `ChurchServiceResource` + `ChurchServiceItemResource`
+- Middleware: `EnsureServiceTrackingAccess`
+- Config: `config/service-tracking.php`
+- Routes: `/api/services/openlp` (POST) + `/api/services/{churchService}` (GET)
+- Tests: must-have tier first (blocks implementation), hardening tier before PR
+
+**Explicitly out of scope in Phase 1:**
+- `service_sections` table and all section/classifier logic
+- Changes to `media_processing_logs`
+- Pipeline integration (`ClassifyServiceSections` job)
+- Manual editing UI
+- Email import
+- Song DB import
+- Historical bulk import
+
+---
+
+## Phase 2 Design (Draft)
+
+> **This section is a working draft.** Designs here will be revisited and refined after Phase 1 is in production and real-world usage informs requirements.
+
+### Phase 2 Goal
+
+Add section classification to the livestream processing pipeline, linking detected service sections to OpenLP order-of-service data, and provide a review queue for low-confidence results.
+
+### `service_sections` Table (Draft)
+
+Business-level detected sections (classification output).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint | PK |
+| `media_processing_log_id` | bigint FK | Cascade delete |
+| `church_service_item_id` | bigint FK nullable | Set null on delete |
 | `section_type` | string | `ServiceSectionType` enum |
-| `section_order` | unsignedInteger | Position in the detected service |
-| `title` | string, nullable | Song name, Bible reference, etc. |
-| `start_time` | decimal(10,3) | Seconds from start of original video |
-| `end_time` | decimal(10,3) | |
-| `duration` | decimal(10,3) | |
-| `confidence` | double | 0.0–1.0 |
+| `section_order` | unsignedInteger | Order in detected service |
+| `title` | string nullable | Derived section title |
+| `start_time` | float | Seconds — matches existing `LivestreamSegment` convention |
+| `end_time` | float | Seconds |
+| `duration` | float | Seconds |
+| `confidence` | float | 0.0-1.0 |
 | `confidence_source` | string | `ServiceSectionConfidenceSource` enum |
 | `status` | string | `ServiceSectionStatus` enum |
-| `extracted_file_path` | string, nullable | Set after extraction |
-| `sermon_id` | bigint FK, nullable | → `sermons.id`, set null on delete |
-| `source_segment_ids` | json | IDs of contributing `LivestreamSegment` records |
-| `metadata` | json, nullable | Speaker, transcript excerpt, notes |
+| `needs_manual_review` | boolean default false | Review queue signal |
+| `manual_review_reason` | string nullable | Why flagged |
+| `extracted_file_path` | string nullable | Extracted media path |
+| `sermon_id` | unsignedInteger nullable FK | Matches current `sermons.id` PK type |
+| `source_segment_ids` | json | Source `LivestreamSegment` IDs |
+| `metadata` | json nullable | Extra notes/transcript hints |
 | `timestamps` | | |
 
----
+Notes:
+- Time columns use `float` to match existing `LivestreamSegment` and `MediaProcessingLog` conventions.
+- `confidence_source` is a backed enum — it drives classifier branching and review behavior, and the codebase uses enums consistently for typed string columns.
+- Unique composite on `(media_processing_log_id, section_order)` for idempotent refresh upserts.
 
-## New Enums
+### `media_processing_logs` Changes (Draft)
 
-### `ServiceSectionType`
+Add indexed extracted identity columns for cross-domain lookup:
+
+| Column | Type | Notes |
+|---|---|---|
+| `extracted_date` | date nullable | Indexed |
+| `extracted_service` | string nullable | Indexed; values align with `SermonService` |
+| `church_service_id` | bigint nullable FK | Set null on delete; resolved cache, not structural coupling |
+
+Indexes:
+- `(extracted_date, extracted_service)` — primary cross-domain lookup
+- `church_service_id` — optional resolved link
+
+Cross-domain lookup uses `(extracted_date, extracted_service)` to join against `church_services.(date, service)`. The nullable `church_service_id` FK is a **resolved cache** — set by the classifier after successful lookup, providing traceability and query performance. It is not required for correctness; the `(date, service)` join is the source of truth. This way, if date/service inference is later corrected, the FK can be re-resolved without structural migration.
+
+### Enums (Draft)
+
+#### `ServiceSectionType`
 
 ```php
 enum ServiceSectionType: string
@@ -102,7 +526,7 @@ enum ServiceSectionType: string
 }
 ```
 
-### `ServiceSectionStatus`
+#### `ServiceSectionStatus`
 
 ```php
 enum ServiceSectionStatus: string
@@ -114,634 +538,144 @@ enum ServiceSectionStatus: string
 }
 ```
 
-### `ServiceSectionConfidenceSource`
+#### `ServiceSectionConfidenceSource`
 
 ```php
 enum ServiceSectionConfidenceSource: string
 {
     case Heuristic = 'heuristic';
-    case AiTranscript = 'ai_transcript';
     case OrderOfService = 'order_of_service';
+    case AiTranscript = 'ai_transcript';
 }
 ```
 
-### `ServiceItemSource`
+### Pipeline Integration (Draft)
 
-Tracks which source last populated the `ChurchServiceItem` records on a `ChurchService`. Higher-priority sources overwrite lower-priority ones; lower-priority sources do not overwrite higher.
+Add `ClassifyServiceSections` after `AnalyzeSegments` in livestream chain.
 
-```php
-enum ServiceItemSource: string
-{
-    case Email = 'email';     // priority 1 — planned order, least precise
-    case OpenLp = 'openlp';   // priority 2 — what the operator actually ran
-    case Manual = 'manual';   // priority 3 — human-corrected
-}
-```
+Target chain:
+1. `AnalyzeSegments`
+2. `ClassifyServiceSections` (new, default-on)
+3. `ExtractSermon`
+4. Existing downstream jobs
 
-| Priority | Source | Typical timing | Reliability |
-|---|---|---|---|
-| 1 (lowest) | Email | Days before the service | Planned, may change on the day |
-| 2 | OpenLP | After the service | What the operator actually ran |
-| 3 (highest) | Manual | Any time | Human-corrected |
+Classifier behavior:
+1. Load `LivestreamSegment` rows for run
+2. Create baseline `ServiceSection` rows from heuristics (works without OpenLP)
+3. Resolve `ChurchService` by `(extracted_date, extracted_service)` lookup
+4. If found, align sections to `ChurchServiceItem` order when confidence supports it
+5. Mark low-confidence/split candidates with `needs_manual_review=true`
+6. Upsert idempotently by `(media_processing_log_id, section_order)` in refresh mode
+7. Bound updates:
+   - May refine `sermon_start_time/end_time` only when confidence beats baseline
+   - Must not auto-update after publish; require explicit manual reclassify endpoint
 
----
+### Review Queue (Draft)
 
-## New Files
+Low-confidence and split-candidate sections surfaced via:
+- `service_sections.needs_manual_review=true`
+- `manual_review_reason` and metadata context
 
-| File | Purpose |
-|---|---|
-| `app/Models/ChurchService.php` | Parent model — one per service date+slot |
-| `app/Models/ChurchServiceItem.php` | Individual items within a service |
-| `app/Models/ServiceSection.php` | Detected section from livestream analysis |
-| `app/Enums/ServiceSectionType.php` | Section type enum |
-| `app/Enums/ServiceSectionStatus.php` | Section status enum |
-| `app/Enums/ServiceSectionConfidenceSource.php` | Confidence source enum |
-| `app/Enums/ServiceItemSource.php` | Tracks which source populated service items |
-| `app/Http/Controllers/Api/ChurchServiceController.php` | API controller for .osz upload |
-| `app/Http/Requests/UploadChurchServiceRequest.php` | Validates .osz file upload |
-| `app/Services/OpenLpServiceParser.php` | Parses .osz → structured array |
-| `app/Services/ChurchServiceItemSyncService.php` | In-place sync of service items on re-upload (preserves IDs/links) |
-| `app/Services/ClassificationBackfillService.php` | Re-run classification when OpenLP arrives after livestream |
-| `app/Jobs/ClassifyServiceSections.php` | Heuristic section classification and optional sermon-time refinement |
-| `app/Http/Resources/ChurchServiceResource.php` | API response shape |
-| `database/factories/ChurchServiceFactory.php` | Test factory |
-| `database/factories/ChurchServiceItemFactory.php` | Test factory |
-| `database/factories/ServiceSectionFactory.php` | Test factory |
-| `tests/Feature/ChurchServiceApiTest.php` | Feature tests for .osz upload |
-| `tests/Feature/ServiceSectionTest.php` | Feature tests for section classification |
+Admin review UI/actions:
+- List/filter pending reviews
+- Approve/relabel/retime sections
+- Trigger manual reclassify for a service/run
+- Manual admin editing for order-of-service data
 
-## Modified Files
+Email notifications are optional (digest/alerts), not the primary review mechanism.
 
-| File | Change |
-|---|---|
-| `app/Enums/ApiTokenAbility.php` | Add `SERVICE_UPLOAD = 'service:upload'` case |
-| `routes/api.php` | Add `POST /api/services` route |
-| `config/media-processing.php` | Add `section_classification` config block |
-| `app/Services/ProcessingPipelineBuilder.php` | Wire classification jobs into livestream pipeline (Phase 3+) |
-| `app/Jobs/ExtractSermon.php` | Respect classifier-refined sermon time bounds (if present) |
+### Phase 2 Configuration (Draft)
 
----
-
-## Phase 1 — OpenLP Upload & Service Record
-
-Self-contained. Delivers the order of service data and the unified `ChurchService` record.
-
-### 1a. Migrations
-
-**`create_church_services_table`**
-
-- `id`, `date` (date), `service` (string, non-null, default `other`), `source` (string), `original_filename` (string, nullable)
-- `identity_confidence` (double, default `1.0`), `identity_metadata` (json nullable)
-- `media_processing_log_id` (bigint FK nullable, set null on delete), `timestamps`
-- Unique index on `(date, service)`
-
-**`create_church_service_items_table`**
-
-- `id`, `church_service_id` (FK → cascade delete), `position` (unsignedInteger), `type` (string), `title` (string)
-- `source_title` (string nullable), `openlp_search_title` (string nullable), `metadata` (json nullable), `timestamps`
-- Unique index on `(church_service_id, position)`
-- Index on `(church_service_id, type)`
-
-### 1b. Models
-
-**`ChurchService`**
-- Casts: `date` → `'date'`, `service` → `SermonService::class`, `source` → `ServiceItemSource::class`, `identity_metadata` → `'array'`
-- Relationships: `hasMany(ChurchServiceItem)` ordered by `position`, `belongsTo(MediaProcessingLog)`, `hasMany(ServiceSection)` through `MediaProcessingLog` (or via accessor)
-- Fillable: `date`, `service`, `source`, `original_filename`, `identity_confidence`, `identity_metadata`, `media_processing_log_id`
-
-**`ChurchServiceItem`**
-- Fillable: `church_service_id`, `position`, `type`, `title`, `source_title`, `openlp_search_title`, `metadata`
-- Casts: `metadata` → `'array'`
-- Relationships: `belongsTo(ChurchService)`, `hasOne(ServiceSection)` (nullable back-link)
-
-### 1c. `OpenLpServiceParser`
+Add to `config/media-processing.php`:
 
 ```php
-public function parse(UploadedFile $file): array
-```
-
-1. Open the `.osz` file as a `ZipArchive`
-2. Find the `.osj` entry (iterate entries, match extension)
-3. `json_decode()` the contents
-4. Determine `date` + `service` using a resilience policy:
-   - Primary: uploaded filename (`YYYY-MM-DD AM|PM`)
-   - Secondary: embedded `.osj` filename
-   - On mismatch: keep upload filename result (trusted default), store mismatch in `identity_metadata`, lower `identity_confidence` (for example `0.95`)
-   - If slot cannot be inferred, set `service = SermonService::OTHER`
-   - If date cannot be inferred from either signal, fail validation with a clear error
-5. Skip the `openlp_core` config entry
-6. For each `serviceitem`, extract plugin-specific values:
-   - `songs`: `title = header.title`, `openlp_search_title = header.data.title` (exact OpenLP song key), `source_title = header.title`
-   - `bibles`: `title = header.footer[0]` when present (clean reference), fallback to `header.title`; keep full original in `source_title`
-   - `presentations`: prefer first meaningful `data[*].display_title` (for example “Welcome”) else fallback to `header.title` filename
-   - `custom`: `title = header.title`, with first slide/body hint in `metadata`
-7. Return:
-   - `date`, `service`, `identity_confidence`, `identity_metadata`
-   - `items` as `position`, `type`, `title`, `source_title`, `openlp_search_title`, `metadata`
-
-### 1d. `UploadChurchServiceRequest`
-
-- `authorize()`: `$this->user()->is_admin`
-- Rules: `['file' => ['required', 'file', 'mimes:zip', 'extensions:osz,zip', 'max:102400']]`
-- Custom message for unsupported file type
-- Optional emergency override fields for rare parser failures: `date` and `service` (not required in normal flow)
-
-### 1e. `ChurchServiceController`
-
-```php
-public function store(UploadChurchServiceRequest $request): JsonResponse
-{
-    $parsed = $this->parser->parse($request->file('file'));
-    $incomingSource = ServiceItemSource::OpenLp;
-
-    $service = ChurchService::firstOrNew(
-        ['date' => $parsed['date'], 'service' => $parsed['service']]
-    );
-
-    // Only replace items if the incoming source is at least as authoritative
-    if (! $service->exists || $incomingSource->priority() >= $service->source->priority()) {
-        $service->fill([
-            'date' => $parsed['date'],
-            'service' => $parsed['service'],
-            'source' => $incomingSource,
-            'original_filename' => $request->file('file')->getClientOriginalName(),
-            'identity_confidence' => $parsed['identity_confidence'],
-            'identity_metadata' => $parsed['identity_metadata'],
-        ]);
-        $service->save();
-
-        $this->itemSync->sync($service, $parsed['items']);
-        $this->classificationBackfill->dispatchForService($service); // Phase 3+
-    } else {
-        $service->update([
-            'original_filename' => $request->file('file')->getClientOriginalName(),
-            'identity_confidence' => $parsed['identity_confidence'],
-            'identity_metadata' => $parsed['identity_metadata'],
-        ]);
-    }
-
-    return (new ChurchServiceResource($service->load('items')))
-        ->response()
-        ->setStatusCode(201);
-}
-```
-
-Uses `firstOrNew` + source priority check so a higher-authority source overwrites a lower one (OpenLP overwrites email), but not vice versa. The `priority()` method on `ServiceItemSource` returns the numeric priority (1, 2, or 3).
-
-`ChurchServiceItemSyncService` performs in-place updates to preserve existing item IDs where possible:
-
-1. Match incoming items to existing rows by stable content key (`type + openlp_search_title/source_title`) first
-2. Fallback match by `position` when content-key match is unavailable
-3. Update matched rows in place, create unmatched incoming rows, delete only unmatched stale rows
-4. Wrap in a DB transaction to avoid partial sync
-
-`ClassificationBackfillService` keeps ingest order resilient:
-
-1. Find recent livestream `MediaProcessingLog` rows for the same date/service via `processing_metadata.extracted_date` + `processing_metadata.extracted_service`
-2. For runs already segmented/classified, re-dispatch `ClassifyServiceSections` in idempotent "refresh" mode
-3. Skip if existing `ServiceSection` rows are already high-confidence and linked
-
-### 1f. `ChurchServiceResource`
-
-```json
-{
-    "id": 1,
-    "date": "2024-11-17",
-    "service": "morning",
-    "original_filename": "2024-11-17 AM.osz",
-    "identity_confidence": 0.95,
-    "identity_metadata": {
-        "upload_filename": "2024-11-17 AM.osz",
-        "embedded_osj_filename": "2024-11-17 PM.osj",
-        "filename_mismatch": true
-    },
-    "items": [
-        {
-            "position": 1,
-            "type": "songs",
-            "title": "Jesus Shall Reign #491(i)",
-            "openlp_search_title": "jesus shall reign 491 i @ 491 i jesus shall reign"
-        },
-        {
-            "position": 2,
-            "type": "presentations",
-            "title": "Welcome",
-            "source_title": "Notices2024Looped.pptx"
-        },
-        {
-            "position": 3,
-            "type": "bibles",
-            "title": "Luke 15:1-32",
-            "source_title": "Luke 15:1-32 New International Version (Anglicised)..."
-        }
-    ]
-}
-```
-
-### 1g. Route
-
-```php
-Route::post('services', [ChurchServiceController::class, 'store'])
-    ->middleware([
-        'auth:sanctum',
-        'ability:' . ApiTokenAbility::SERVICE_UPLOAD->value,
-        'throttle:api',
-    ])
-    ->name('api.services.store');
-```
-
-### 1h. `ApiTokenAbility` Enum
-
-Add: `case SERVICE_UPLOAD = 'service:upload';`
-
-### 1i. Tests
-
-- Happy path: valid AM and PM `.osz` files parsed and stored correctly
-- Returns 201 with correct JSON structure
-- Returns 401 without authentication
-- Returns 403 without `service:upload` ability
-- Returns 422 for non-`.osz` files
-- Items stored in correct order with plugin-aware title extraction (song/bible/presentation/custom)
-- Filename/embedded `.osj` mismatch is recorded in metadata, while filename-derived slot is kept as primary
-- Re-upload for same date+service syncs in place (preserves `ChurchServiceItem` IDs where content still matches)
-- Existing `ServiceSection.church_service_item_id` links survive re-upload when items still match
-- Songs with `openlp_search_title` are stored for deterministic later matching
-
-### 1j. Verification
-
-```bash
-vendor/bin/sail artisan migrate
-vendor/bin/sail artisan test --compact tests/Feature/ChurchServiceApiTest.php
-vendor/bin/sail artisan test --parallel --compact
-vendor/bin/sail composer phpstan
-vendor/bin/sail bin pint --dirty
-```
-
----
-
-## Phase 2 — Service Section Data Foundation
-
-### 2a. Migration
-
-**`create_service_sections_table`**
-
-All columns as defined in the data model above.
-
-### 2b. Enums
-
-`ServiceSectionType`, `ServiceSectionStatus`, `ServiceSectionConfidenceSource` as defined above.
-
-### 2c. `ServiceSection` Model
-
-- Casts: `section_type` → `ServiceSectionType::class`, `status` → `ServiceSectionStatus::class`, `confidence_source` → `ServiceSectionConfidenceSource::class`, `source_segment_ids` → `'array'`, `metadata` → `'array'`
-- Relationships: `belongsTo(MediaProcessingLog)`, `belongsTo(ChurchServiceItem)` (nullable), `belongsTo(Sermon)` (nullable)
-- Fillable: all columns except `id` and timestamps
-
-### 2d. Factory + Tests
-
-- `ServiceSectionFactory` with states for each section type and status
-- Basic model tests: creation, relationships, casts
-
----
-
-## Phase 3 — Heuristic Classification
-
-Wire `ClassifyServiceSections` into the livestream pipeline after `AnalyzeSegments`.
-
-### 3a. `ClassifyServiceSections` Job
-
-1. Load `LivestreamSegment` records for this processing run, ordered by position
-2. Look up the `ChurchService` for the matching date+service (from `MediaProcessingLog` metadata)
-3. If found, link `ChurchService.media_processing_log_id` to this processing run
-4. Map song segments to `ServiceSectionType::Song`; populate `title` from matched `ChurchServiceItem` where available
-5. For speech segments, apply tiered alignment:
-   - If order contains explicit speech anchors (Bible/custom/presentation items with semantic labels), align by song-boundary windows + position
-   - If order is sparse (for example songs-only), avoid over-labeling and classify non-sermon speech as `Other` unless confidence is strong
-6. Where order predicts two speech types between the same song boundaries but one segment is detected, mark as **split candidate** (in `metadata`)
-7. Create `ServiceSection` records; set `church_service_item_id` FK where alignment succeeded
-8. Set `confidence_source = 'order_of_service'` where aligned, `'heuristic'` where only duration/position rules applied
-9. If a `Sermon` section is identified with stronger confidence than the baseline from `AnalyzeSegments`, update `media_processing_logs.sermon_start_time/end_time`; otherwise keep existing values
-10. In refresh mode, upsert existing `ServiceSection` rows (`media_processing_log_id + section_order`) instead of insert-only, so reclassification is idempotent
-
-**Fallback without order of service**: duration heuristics only — longest speech segment remains sermon candidate, low-confidence speech defaults to `Other` (do not force welcome/prayer labels).
-
-### 3b. Pipeline Modification
-
-Insert `ClassifyServiceSections` after `AnalyzeSegments` in `ProcessingPipelineBuilder`.
-
-Contract with existing pipeline:
-
-1. `AnalyzeSegments` still provides baseline sermon bounds
-2. `ClassifyServiceSections` may refine bounds when confident
-3. `ExtractSermon` continues reading bounds from `media_processing_logs.sermon_start_time/end_time` (no double source of truth)
-
-### 3c. Config
-
-```php
-// config/media-processing.php
 'section_classification' => [
-    'enabled' => true,
-    'use_ai' => true,
-    'ai_confidence_threshold' => 0.6,
-    'sermon_time_refinement' => [
-        'enabled' => true,
-        'min_confidence' => 0.7,
+    'enabled' => env('SERVICE_SECTION_CLASSIFICATION_ENABLED', true),
+    'use_ai_for_split_candidates' => env('SERVICE_SECTION_AI_SPLIT_ENABLED', false),
+    'confidence' => [
+        'sermon_refine_min' => 0.70,
+        'manual_review_below' => 0.60,
     ],
-    'extract' => [
-        'bible_reading' => false,
-        'childrens_talk' => true,
-        'sermon' => true,
-    ],
-    'publish' => [
-        'childrens_talk' => true,
-    ],
-    'include_bible_reading_in_sermon' => true,
 ],
 ```
 
-### 3d. Tests
+### Phase 2 Endpoints (Draft)
 
-- Classification with order of service: sections match expected types and link to `ChurchServiceItem` records
-- Classification with sparse order (songs-only `.osz`): songs map correctly; non-sermon speech defaults to `Other` unless high confidence
-- Classification without order of service: falls back to heuristics
-- Split candidate detection
-- `media_processing_logs.sermon_start_time/end_time` refinement only when classifier confidence exceeds threshold
-- Idempotent refresh mode updates links/titles without creating duplicate `ServiceSection` rows
-- OpenLP uploaded after livestream completion triggers refresh classification/backfill
-- Pipeline integration: job runs in correct position
+- `POST /api/services/{churchService}/reclassify` — explicit manual refresh mode (required for post-publish bound changes)
 
 ---
 
-## Phase 4 — Bible Reading + Sermon Combination
+## Phase 3 Design (Draft)
 
-Modify `ExtractSermon` to optionally prepend the Bible reading.
+> **This section is a working draft.** Will be refined after Phase 2.
 
-1. After `ClassifyServiceSections` has run, check whether a `BibleReading` section immediately precedes the `Sermon` section
-2. If so and `include_bible_reading_in_sermon` is enabled: extend `sermon_start_time` back to the start of the `BibleReading` section (single FFmpeg stream copy)
-3. If not adjacent: use FFmpeg concat to join the two segments
+### Goal
 
-Tests covering adjacent and non-adjacent cases.
+Advanced extraction and publishing: Bible+Sermon combination, children's talk extraction, and retention policies.
 
----
+### Sermon Extraction Rules
 
-## Phase 5 — Children's Talk Extraction & Publishing
+In `ExtractSermon`:
+1. Identify `BibleReading` and `Sermon` sections
+2. Adjacent case: extend sermon start to bible reading start (single extraction span)
+3. Non-adjacent case: extract both spans and concat with FFmpeg
+4. Keep existing fallback to baseline sermon bounds when no valid section pairing exists
 
-### 5a. `ExtractAdditionalSections` Job
+### Additional Sections (Children's Talk)
 
-Extract audio/video for any section flagged for extraction in config.
+**Extraction** — `ExtractAdditionalSections` (new):
+- Extract configured section types from source video
+- Mark `ServiceSection.status=extracted`
 
-### 5b. `PublishAdditionalSections` Job
+**Publishing** — `PublishAdditionalSections` (new):
+- Create `Sermon` with `source_type=livestream`, `service=other`, minimal metadata
+- Link `service_sections.sermon_id`
+- Full AI analysis remains optional/config-driven
 
-For sections flagged for publishing:
+**Retention:**
+- Keep extracted assets for published sections
+- Auto-clean unpublished extracted assets via TTL policy
 
-1. Create a `Sermon` record with `source_type` matching the parent livestream, `service = SermonService::OTHER`, title from the section
-2. Generate a thumbnail from the extracted video
-3. Link `ServiceSection.sermon_id` to the new `Sermon` record
-4. Optionally skip AI analysis (children's talk doesn't need sermon points)
+### Phase 3 Configuration (Draft)
 
----
+Add to `config/media-processing.php`:
 
-## Phase 6 — AI Transcript Splitting
-
-For split candidates (where one audio segment contains two expected sections):
-
-### 6a. `TranscribeSplitCandidates` Job
-
-Transcribe only the flagged segments (cheaper than transcribing the whole video). Store transcript in `ServiceSection.metadata`.
-
-### 6b. `AiClassifySections` Job
-
-Send transcript + expected section types to AI. AI identifies the boundary timestamp. Split the original `ServiceSection` into two records with corrected times and `confidence_source = 'ai_transcript'`.
-
-Flag low-confidence sections for manual review via `ManualReviewRequired` mailable.
-
-Both jobs skipped when `section_classification.use_ai` is `false`.
-
----
-
-## Song Tracking
-
-### Without a Song Model (Phase 1)
-
-`ChurchServiceItem` records with `type = 'songs'` already capture every song per service. Basic queries work immediately:
-
-| Question | Query |
-|---|---|
-| Songs sung this year | `ChurchServiceItem::where('type', 'songs')->whereHas('churchService', fn ($q) => $q->whereYear('date', 2026))` |
-| When did we last sing X? | Filter by `title LIKE '%...'`, order by `churchService.date` desc |
-| How often do we sing X? | Group by `title`, count |
-| Full order of service for a date | `ChurchService::where('date', ...)->with('items')` |
-| Songs with actual timestamps | `ChurchServiceItem::has('serviceSection')->with('serviceSection')` |
-
-### With a Song Model (Optional Enhancement)
-
-A canonical `Song` model enables richer queries, deduplication, and display of lyrics/copyright/author data. The data source is the OpenLP songs SQLite database, which contains 1,166 songs with full metadata.
-
----
-
-## Revised Livestream Pipeline (after all phases)
-
-```
-[existing]
-PerformVisualAnalysis + GenerateRmsLog  (parallel)
-    ↓
-AnalyzeSegments
-    ↓
-[Phase 3]
-ClassifyServiceSections
-    ↓
-[Phase 6, optional]
-TranscribeSplitCandidates
-AiClassifySections
-    ↓
-[Phase 4, modified]
-ExtractSermon                           ← optionally prepends bible reading
-    ↓
-[Phase 5]
-ExtractAdditionalSections
-    ↓
-[existing]
-SubmitToProcessing
-IdentifySpeaker
-TranscribeAudio
-ProcessTranscriptWithAI
-GenerateThumbnail
-    ↓
-[Phase 5]
-PublishAdditionalSections
-    ↓
-[existing]
-CleanupTemporaryFiles
-```
-
-Backfill path when OpenLP arrives after livestream processing:
-
-```
-OpenLP upload
-    ↓
-ClassificationBackfillService
-    ↓
-ClassifyServiceSections (refresh mode, idempotent upsert)
+```php
+'section_publishing' => [
+    'publish' => [
+        'childrens_talk' => true,
+    ],
+    'extract' => [
+        'childrens_talk' => true,
+        'bible_reading' => true,
+        'sermon' => true,
+    ],
+    'retain_unpublished_hours' => 48,
+],
 ```
 
 ---
 
-## Optional Enhancement — Email Import
+## Phase 4: Hardening and Canary Rollout (Draft)
 
-An emailed order of service can arrive days before the service, giving the livestream pipeline an early prior even when the OpenLP file hasn't been uploaded yet.
-
-### How It Works
-
-The email parser (however implemented) produces the same output shape as the OpenLP parser: `date`, `service`, and ordered items. It feeds into the same `ChurchService::firstOrNew` + `ChurchServiceItemSyncService::sync(...)` flow, just with `source = ServiceItemSource::Email`.
-
-Because email has the lowest source priority, it will never overwrite items that came from OpenLP or manual entry. But if it arrives first, its items are immediately available for the classification pipeline to use.
-
-### Possible Ingestion Approaches
-
-- **Laravel Mailbox route** — incoming email parsed automatically (requires mailbox hosting or a webhook from Mailgun/Postmark)
-- **Admin paste form** — a simple textarea where an admin pastes the emailed order of service, parsed with basic pattern matching or AI
-- **AI-assisted parsing** — send the email body to an LLM to extract structured items (most flexible for varied email formats)
-
-### What's Needed
-
-| File | Purpose |
-|---|---|
-| `app/Services/EmailServiceParser.php` | Parses email text → structured items array |
-| Import route or mailbox handler | Ingestion endpoint |
-| Tests | Parsing accuracy, source priority enforcement |
-
-The `ServiceItemSource` enum and source priority logic are already in place from Phase 1 — the email import just needs a parser and an ingestion mechanism.
-
-### Not Required for Phase 1
-
-The email import is fully optional. The schema supports it from day one (the `source` column exists), but the parser and ingestion mechanism can be built whenever the need arises. The OpenLP upload is the primary source and works independently.
+Deliver:
+- Rollout controls and canary guardrails
+- Observability dashboards/alerts
+- Rollback runbook for feature toggles
+- Canary user IDs config: `env('SERVICE_TRACKING_CANARY_USER_IDS', '')`
 
 ---
 
-## Optional Enhancement — Song Database Import
+## Deferred Enhancements (Explicitly Not In Scope)
 
-A canonical `Song` model populated from the OpenLP songs SQLite database. Enables richer song tracking, lyrics display, copyright/CCLI reporting, and deduplication of `ChurchServiceItem` titles.
+1. Email order-of-service import
+2. Song DB import and song resolver UI
+3. Historical OpenLP bulk import
 
-### Source Data (OpenLP Songs Database)
+Future song import note:
+- Use `OPENLP_SONGS_DB_PATH`
+- Cadence: manual or weekly sync
+- Ambiguous matches remain marked; manual resolver can come later
 
-The OpenLP songs database (`songs.sqlite`) contains:
-
-- **1,166 songs** — title, lyrics (OpenLP XML format with verse labels), copyright, CCLI number
-- **588 authors** — with typed relationships: words, music, translation, words+music
-- **2 songbooks** — "Praise" (physical hymn book) and "Praise Online" (digital supplement)
-- **Songbook entries** — hymn numbers linking songs to songbooks (e.g. song → Praise #491)
-
-For song items, `.osz` payloads also carry OpenLP's internal search key at `serviceitem.header.data.title`. In sample files this key matches `songs.search_title` exactly, making it the most reliable linker.
-
-Not all songs have hymn numbers (especially Praise Online), hymn formatting is inconsistent (`#491(i)` vs entry `491`, `#23B` vs `23`), and `search_title` can be non-unique for duplicate songs. So matching must be deterministic and ambiguity-aware.
-
-### Data Model
-
-**`songs` table**
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | bigint | |
-| `title` | string | Canonical title |
-| `lyrics` | text, nullable | Stored as plain text (converted from OpenLP XML on import) |
-| `copyright` | string, nullable | |
-| `ccli_number` | string, nullable | CCLI licence number |
-| `songbook_entries` | json, nullable | `[{"songbook": "Praise", "entry": "491"}, ...]` |
-| `primary_hymn_number` | string, nullable | Optional denormalized primary entry for quick filtering |
-| `authors` | json, nullable | `[{"name": "Isaac Watts", "type": "words"}, ...]` |
-| `search_title` | string | OpenLP search key (from source DB) |
-| `normalized_title` | string | App-level normalized title used only as fallback matcher |
-| `openlp_id` | unsignedInteger, nullable | Original ID from OpenLP database, for sync |
-| `timestamps` | | |
-
-Unique index on `openlp_id`. Index on `search_title`. Index on `normalized_title`. Index on `primary_hymn_number`.
-
-**`church_service_items` table** — add column:
-
-| Column | Type | Notes |
-|---|---|---|
-| `song_id` | bigint FK, nullable | → `songs.id`, set null on delete |
-| `song_match_status` | string, nullable | `matched`, `ambiguous`, `unmatched` |
-| `song_match_method` | string, nullable | `openlp_search_title`, `hymn_disambiguation`, `normalized_title` |
-
-### Linking Strategy
-
-`ChurchServiceItem` song rows should carry both:
-
-- Human title (`title` / `source_title`)
-- OpenLP key (`openlp_search_title`)
-
-**Match order**:
-
-1. **Exact OpenLP key match** — `church_service_items.openlp_search_title = songs.search_title`.
-   - If exactly one song matches: link directly (`song_match_method = openlp_search_title`).
-2. **Disambiguation for non-unique keys**:
-   - Parse hymn token from display title (`#491`, `#491(i)`, `#23B`, etc.) and compare against normalized `songbook_entries`
-   - Compare `normalized_title`
-   - Optionally compare author hints from OpenLP footer text
-   - If still non-unique: do **not** auto-link; mark as `song_match_status = ambiguous`.
-3. **Fallback when OpenLP key missing**:
-   - Use strict `normalized_title` unique match only
-4. **No safe match**:
-   - Keep `song_id = null`, `song_match_status = unmatched`
-
-No first-match behavior is allowed for ambiguous candidates.
-
-This can run at insert time (in parser/controller sync) and as a batch reconciliation command for historical backfill.
-
-### Import Command
-
-An Artisan command to import/sync from the OpenLP SQLite database:
-
-```
-php artisan songs:import {path-to-sqlite}
-```
-
-1. Read songs from the SQLite database
-2. For each song: upsert by `openlp_id`
-3. Convert lyrics from OpenLP XML to plain text
-4. Flatten authors into JSON array
-5. Import all songbook entries (`songs_songbooks`) into `songbook_entries` JSON and compute `primary_hymn_number`
-6. Compute/store `normalized_title` for fallback matching
-7. Report: created, updated, skipped, ambiguous-key counts
-
-The command is idempotent — safe to re-run after adding songs in OpenLP. A `--dry-run` flag shows what would change without writing.
-
-### Enriched Queries
-
-| Question | Query |
-|---|---|
-| Songs sung this year with full metadata | `Song::whereHas('serviceItems.churchService', fn ($q) => $q->whereYear('date', 2026))` |
-| CCLI reporting (songs used in period) | `Song::whereHas('serviceItems.churchService', fn ($q) => $q->whereBetween('date', [...]))->withCount('serviceItems')` |
-| Song lyrics for display | `Song::where('primary_hymn_number', '491')->first()->lyrics` |
-| Songs never sung in a service | `Song::doesntHave('serviceItems')` |
-
-### What's Needed
-
-| File | Purpose |
-|---|---|
-| `app/Models/Song.php` | Song model |
-| `database/factories/SongFactory.php` | Test factory |
-| Migration: `create_songs_table` | Songs table |
-| Migration: `add_song_link_columns_to_church_service_items_table` | `song_id`, `song_match_status`, `song_match_method` |
-| `app/Console/Commands/ImportSongsCommand.php` | Artisan import command |
-| Tests | Import command, linking logic |
-
-### Not Required for Phase 1
-
-Song linking remains a progressive enhancement. Phase 1 works with title strings and `openlp_search_title` only. The import command and `Song` model can be added later, then existing `ChurchServiceItem` rows backfilled by re-running the linker.
-
----
-
-## Implementation Order
-
-| Phase | Dependencies | Delivers |
-|---|---|---|
-| **1 — OpenLP Upload** | None | `ChurchService`, `ChurchServiceItem`, API endpoint, parser |
-| **2 — Section Data Foundation** | Phase 1 schema available (`church_services`, `church_service_items`) | `ServiceSection` model, enums, factory |
-| **3 — Heuristic Classification** | Phases 1 + 2 | Sections detected and linked to order of service, plus late-upload reclassification backfill |
-| **4 — Bible Reading + Sermon** | Phase 3 | Combined sermon extraction |
-| **5 — Children's Talk** | Phase 3 | Additional section extraction and publishing |
-| **6 — AI Splitting** | Phase 3 | Transcript-based section boundary detection |
-
-Phase 1 is the natural starting point because it establishes service/order data and identity metadata. Phase 2 should follow once those tables exist so foreign keys and alignment links can be enforced cleanly.
+Future source priority note:
+- When a second source (email/manual) is added, introduce a `ServiceItemSource` enum with `priority()` method to govern which source wins on conflict. Not needed until then.

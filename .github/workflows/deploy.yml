@@ -27,6 +27,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Guard deploy view cache safety
+        run: |
+          set -euo pipefail
+          workflow=".github/workflows/deploy.yml"
+
+          if ! grep -Fq "php artisan optimize --except=views" "$workflow"; then
+            echo "Deploy workflow must use: php artisan optimize --except=views"
+            exit 1
+          fi
+
+          if grep -E "php artisan (view:cache|view:clear)\\b" "$workflow"; then
+            echo "Deploy workflow must not run view:cache or view:clear."
+            exit 1
+          fi
+
+          if grep -F "php artisan optimize" "$workflow" | grep -Fv -- "--except=views" >/dev/null; then
+            echo "Found unsafe optimize command. Use --except=views."
+            exit 1
+          fi
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
