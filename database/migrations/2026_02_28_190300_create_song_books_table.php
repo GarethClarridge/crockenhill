@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('song_books')) {
+            return;
+        }
+
         Schema::create('song_books', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('source_book_id')->unique();

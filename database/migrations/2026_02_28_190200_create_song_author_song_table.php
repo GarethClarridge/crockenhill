@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('song_author_song')) {
+            return;
+        }
+
         Schema::create('song_author_song', function (Blueprint $table): void {
             $table->foreignId('song_id')->constrained()->cascadeOnDelete();
             $table->foreignId('song_author_id')->constrained()->cascadeOnDelete();

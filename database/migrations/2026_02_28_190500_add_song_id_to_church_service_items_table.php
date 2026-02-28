@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('church_service_items') || Schema::hasColumn('church_service_items', 'song_id')) {
+            return;
+        }
+
         Schema::table('church_service_items', function (Blueprint $table): void {
             $table->foreignId('song_id')
                 ->nullable()
