@@ -104,6 +104,20 @@ class PublishApprovedServiceSection implements ShouldQueue
                 throw new \RuntimeException('Unable to resolve processing identity for section publication');
             }
 
+            $sectionMetadata = is_array($section->metadata) ? $section->metadata : [];
+            $publicationMetadata = is_array($sectionMetadata['publication'] ?? null)
+                ? $sectionMetadata['publication']
+                : [];
+            $approvedSignature = $publicationMetadata['approved_signature'] ?? null;
+            if (! is_string($approvedSignature) || $approvedSignature === '') {
+                throw new \RuntimeException('Section approval signature is missing; re-approve before publishing');
+            }
+
+            $currentSignature = $section->classificationSignature();
+            if (! hash_equals($approvedSignature, $currentSignature)) {
+                throw new \RuntimeException('Section classification changed since approval; re-approve before publishing');
+            }
+
             if (! $section->transitionTo(ServiceSectionPublicationStatus::PUBLISHED)) {
                 throw new \RuntimeException('Invalid state transition when publishing approved section');
             }

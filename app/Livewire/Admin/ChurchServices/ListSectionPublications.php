@@ -59,6 +59,12 @@ class ListSectionPublications extends Component
             return;
         }
 
+        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $publicationMetadata = is_array($metadata['publication'] ?? null) ? $metadata['publication'] : [];
+        $publicationMetadata['approved_signature'] = $section->classificationSignature();
+        $publicationMetadata['approved_at'] = now()->toIso8601String();
+        $metadata['publication'] = $publicationMetadata;
+        $section->metadata = $metadata;
         $section->save();
 
         PublishApprovedServiceSection::dispatch($section->id)
@@ -140,7 +146,10 @@ class ListSectionPublications extends Component
 
     private function abortIfDisabled(): void
     {
-        if (! (bool) config('service-tracking.enabled', true)) {
+        if (
+            ! (bool) config('service-tracking.enabled', true)
+            || ! (bool) config('media-processing.section_publishing.enabled', true)
+        ) {
             abort(404);
         }
     }

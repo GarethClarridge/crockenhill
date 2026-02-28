@@ -13,6 +13,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ServiceSectionSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -142,6 +143,14 @@ class ServiceSectionSyncServiceTest extends TestCase
     #[Test]
     public function it_supersedes_published_link_and_resets_publishable_rows_when_signature_changes(): void
     {
+        Storage::fake('public');
+        Storage::fake('local');
+
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.storage.temp_disk' => 'local',
+        ]);
+
         $processingLog = MediaProcessingLog::factory()->livestream()->create();
         $churchServiceItem = ChurchServiceItem::factory()->create();
         $publishedSermon = Sermon::factory()->create();
@@ -157,10 +166,13 @@ class ServiceSectionSyncServiceTest extends TestCase
             'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
             'published_sermon_id' => $publishedSermon->id,
             'published_at' => now(),
-            'extracted_video_path' => 'sermons/sections/1/video.mp4',
-            'extracted_audio_path' => 'sermons/audio/section.mp3',
+            'extracted_video_path' => 'sermons/sections/'.$churchServiceItem->id.'/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-'.$churchServiceItem->id.'.mp3',
             'extracted_at' => now(),
         ]);
+
+        Storage::disk('public')->put((string) $section->extracted_video_path, 'video');
+        Storage::disk('public')->put((string) $section->extracted_audio_path, 'audio');
 
         $this->service->sync($processingLog, [
             $this->sectionData(
@@ -185,11 +197,21 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertIsArray($section->metadata);
         $this->assertArrayHasKey('superseded', $section->metadata);
         $this->assertDatabaseHas('sermons', ['id' => $publishedSermon->id]);
+        Storage::disk('public')->assertMissing('sermons/sections/'.$churchServiceItem->id.'/video.mp4');
+        Storage::disk('public')->assertMissing('sermons/audio/section-'.$churchServiceItem->id.'.mp3');
     }
 
     #[Test]
     public function it_removes_stale_rows_after_detaching_published_links(): void
     {
+        Storage::fake('public');
+        Storage::fake('local');
+
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.storage.temp_disk' => 'local',
+        ]);
+
         $processingLog = MediaProcessingLog::factory()->livestream()->create();
         $itemOne = ChurchServiceItem::factory()->create();
         $itemTwo = ChurchServiceItem::factory()->create();
@@ -210,7 +232,12 @@ class ServiceSectionSyncServiceTest extends TestCase
             'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
             'published_sermon_id' => $publishedSermon->id,
+            'extracted_video_path' => 'sermons/sections/'.$itemTwo->id.'/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-'.$itemTwo->id.'.mp3',
         ]);
+
+        Storage::disk('public')->put('sermons/sections/'.$itemTwo->id.'/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-'.$itemTwo->id.'.mp3', 'audio');
 
         $this->service->sync($processingLog, [
             $this->sectionData(
@@ -223,6 +250,8 @@ class ServiceSectionSyncServiceTest extends TestCase
 
         $this->assertDatabaseMissing('service_sections', ['id' => $stalePublished->id]);
         $this->assertDatabaseHas('sermons', ['id' => $publishedSermon->id]);
+        Storage::disk('public')->assertMissing('sermons/sections/'.$itemTwo->id.'/video.mp4');
+        Storage::disk('public')->assertMissing('sermons/audio/section-'.$itemTwo->id.'.mp3');
     }
 
     /**

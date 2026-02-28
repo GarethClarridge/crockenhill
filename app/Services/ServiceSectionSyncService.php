@@ -10,6 +10,7 @@ use App\Models\ServiceSection;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class ServiceSectionSyncService
 {
@@ -63,6 +64,8 @@ class ServiceSectionSyncService
                     $signatureChanged = $this->hasMaterialSignatureChange($existing, $payload);
 
                     if ($signatureChanged) {
+                        $this->cleanupExtractedAssets($existing);
+
                         $payload = array_merge(
                             $payload,
                             $this->supersededReplacementPayload($existing, $payload)
@@ -100,6 +103,7 @@ class ServiceSectionSyncService
                 ->get();
 
             foreach ($staleSections as $staleSection) {
+                $this->cleanupExtractedAssets($staleSection);
                 $this->detachPublishedLinkBeforeStaleDelete($staleSection);
                 $staleSection->delete();
             }
@@ -247,5 +251,40 @@ class ServiceSectionSyncService
         $publishableTypes = config('media-processing.section_publishing.publishable_types', ['childrens_talk']);
 
         return is_array($publishableTypes) && in_array($sectionType, $publishableTypes, true);
+    }
+
+    private function cleanupExtractedAssets(ServiceSection $section): void
+    {
+        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        $this->deletePathOnKnownDisks($section->extracted_video_path, [$sermonDisk, $tempDisk]);
+        $this->deletePathOnKnownDisks($section->extracted_audio_path, [$sermonDisk, $tempDisk]);
+    }
+
+    /**
+     * @param  array<int, string>  $disks
+     */
+    private function deletePathOnKnownDisks(?string $path, array $disks): void
+    {
+        if (! is_string($path) || $path === '') {
+            return;
+        }
+
+        foreach ($disks as $disk) {
+            try {
+                if (Storage::disk($disk)->exists($path)) {
+                    Storage::disk($disk)->delete($path);
+
+                    return;
+                }
+            } catch (\Throwable $throwable) {
+                Log::warning('Failed to clean up extracted section asset on disk', [
+                    'disk' => $disk,
+                    'path' => $path,
+                    'error' => $throwable->getMessage(),
+                ]);
+            }
+        }
     }
 }

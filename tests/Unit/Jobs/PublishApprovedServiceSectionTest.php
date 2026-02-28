@@ -46,6 +46,13 @@ class PublishApprovedServiceSectionTest extends TestCase
             'duration' => 400.0,
             'title' => "Children's Talk",
         ]);
+        $section->metadata = array_merge($section->metadata ?? [], [
+            'publication' => [
+                'approved_signature' => $section->classificationSignature(),
+                'approved_at' => now()->toIso8601String(),
+            ],
+        ]);
+        $section->save();
 
         Storage::disk('public')->put('sermons/sections/10/video.mp4', 'video');
         Storage::disk('public')->put('sermons/audio/section-10.mp3', 'audio');
@@ -102,5 +109,49 @@ class PublishApprovedServiceSectionTest extends TestCase
         $section->refresh();
         $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
         $this->assertNull($section->published_sermon_id);
+    }
+
+    #[Test]
+    public function it_rejects_publish_when_section_signature_differs_from_approval_signature(): void
+    {
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-24',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'extracted_video_path' => 'sermons/sections/12/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-12.mp3',
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+                'publication' => [
+                    'approved_signature' => 'outdated-signature',
+                    'approved_at' => now()->subMinute()->toIso8601String(),
+                ],
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/12/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-12.mp3', 'audio');
+
+        $sermonCreationService = $this->createMock(SermonCreationService::class);
+        $sermonCreationService->expects($this->never())->method('createSermon');
+
+        $job = new PublishApprovedServiceSection($section->id);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Section classification changed since approval');
+
+        $job->handle($sermonCreationService, app(MediaProcessingIdentityResolver::class));
     }
 }

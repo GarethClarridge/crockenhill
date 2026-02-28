@@ -153,4 +153,44 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame(250.0, $plan['segments'][0]['start_time']);
         $this->assertSame(1900.0, $plan['segments'][0]['end_time']);
     }
+
+    #[Test]
+    public function it_ignores_bible_section_when_it_overlaps_sermon_start(): void
+    {
+        config([
+            'media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60,
+            'media-processing.section_extraction.enhanced_sermon.allow_non_adjacent_concat' => true,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::SERMON->value,
+            'start_time' => 1000.0,
+            'end_time' => 2400.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('single_span', $plan['mode']);
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertSame(1000.0, $plan['segments'][0]['start_time']);
+        $this->assertSame(2400.0, $plan['segments'][0]['end_time']);
+        $this->assertSame('sermon_only_invalid_bible_timing', $plan['metadata']['strategy']);
+    }
 }

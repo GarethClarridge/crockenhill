@@ -58,6 +58,23 @@ class SermonExtractionPlanResolver
         $adjacentGapSeconds = (float) config('media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds', 60);
         $gapSeconds = (float) $sermonSection->start_time - (float) $bibleSection->end_time;
 
+        if ($gapSeconds < 0.0) {
+            return [
+                'mode' => 'single_span',
+                'source' => 'service_sections',
+                'segments' => [[
+                    'start_time' => (float) $sermonSection->start_time,
+                    'end_time' => (float) $sermonSection->end_time,
+                ]],
+                'metadata' => [
+                    'strategy' => 'sermon_only_invalid_bible_timing',
+                    'sermon_section_id' => $sermonSection->id,
+                    'bible_section_id' => $bibleSection->id,
+                    'gap_seconds' => $gapSeconds,
+                ],
+            ];
+        }
+
         if ($gapSeconds >= 0.0 && $gapSeconds <= $adjacentGapSeconds) {
             return [
                 'mode' => 'single_span',
@@ -75,7 +92,10 @@ class SermonExtractionPlanResolver
             ];
         }
 
-        if ((bool) config('media-processing.section_extraction.enhanced_sermon.allow_non_adjacent_concat', true)) {
+        if (
+            $gapSeconds > $adjacentGapSeconds
+            && (bool) config('media-processing.section_extraction.enhanced_sermon.allow_non_adjacent_concat', true)
+        ) {
             return [
                 'mode' => 'concat_spans',
                 'source' => 'service_sections',

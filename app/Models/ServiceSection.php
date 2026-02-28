@@ -185,4 +185,29 @@ class ServiceSection extends Model
 
         return true;
     }
+
+    /**
+     * @return array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float
+     * }
+     */
+    public function classificationSignaturePayload(): array
+    {
+        return [
+            'church_service_item_id' => $this->church_service_item_id,
+            'section_type' => $this->section_type->value,
+            'title' => $this->title,
+            'start_time' => (float) $this->start_time,
+            'end_time' => (float) $this->end_time,
+        ];
+    }
+
+    public function classificationSignature(): string
+    {
+        return hash('sha256', (string) json_encode($this->classificationSignaturePayload()));
+    }
 }
