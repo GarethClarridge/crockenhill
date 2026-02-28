@@ -3,7 +3,10 @@
 namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
+use App\Enums\ServiceSectionStatus;
+use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
@@ -48,17 +51,16 @@ class ExtractSermon implements ShouldQueue
             // Update status to show sermon extraction is starting
             $this->processingLog->markAsProcessing('extraction');
 
+            $extractionBounds = $this->resolveExtractionBounds();
+
             Log::info('Starting sermon extraction', [
                 'processing_id' => $this->processingLog->processing_id,
-                'sermon_start_time' => $this->processingLog->sermon_start_time,
-                'sermon_end_time' => $this->processingLog->sermon_end_time,
+                'sermon_start_time' => $extractionBounds['start_time'],
+                'sermon_end_time' => $extractionBounds['end_time'],
+                'bounds_source' => $extractionBounds['source'],
             ]);
 
-            if ($this->processingLog->sermon_start_time === null || $this->processingLog->sermon_end_time === null) {
-                throw new \Exception('Sermon segment times not found in processing log');
-            }
-
-            $sermonSegment = $this->createSermonSegment();
+            $sermonSegment = $this->createSermonSegment($extractionBounds['start_time'], $extractionBounds['end_time']);
 
             $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
             $isS3TempDisk = $this->isS3Disk($tempDisk);
@@ -189,14 +191,8 @@ class ExtractSermon implements ShouldQueue
         }
     }
 
-    private function createSermonSegment(): LivestreamSegment
+    private function createSermonSegment(float $startTime, float $endTime): LivestreamSegment
     {
-        $startTime = $this->processingLog->sermon_start_time;
-        $endTime = $this->processingLog->sermon_end_time;
-        if ($startTime === null || $endTime === null) {
-            throw new \LogicException('Sermon segment times are required for extraction');
-        }
-
         return new LivestreamSegment(
             startTime: $startTime,
             endTime: $endTime,
@@ -207,6 +203,68 @@ class ExtractSermon implements ShouldQueue
             isSermonCandidate: true,
             segmentOrder: 0
         );
+    }
+
+    /**
+     * @return array{start_time: float, end_time: float, source: string}
+     */
+    private function resolveExtractionBounds(): array
+    {
+        $preferClassifiedSection = (bool) config(
+            'media-processing.section_classification.prefer_high_confidence_sermon_section',
+            true
+        );
+
+        if ($preferClassifiedSection) {
+            $preferredSection = $this->findPreferredSermonSection();
+
+            if ($preferredSection instanceof ServiceSection) {
+                return [
+                    'start_time' => (float) $preferredSection->start_time,
+                    'end_time' => (float) $preferredSection->end_time,
+                    'source' => 'service_section',
+                ];
+            }
+        }
+
+        $baselineStart = $this->processingLog->sermon_start_time;
+        $baselineEnd = $this->processingLog->sermon_end_time;
+
+        if (! is_float($baselineStart) || ! is_float($baselineEnd) || $baselineEnd <= $baselineStart) {
+            throw new \Exception('Sermon segment times not found in processing log');
+        }
+
+        return [
+            'start_time' => $baselineStart,
+            'end_time' => $baselineEnd,
+            'source' => 'processing_log',
+        ];
+    }
+
+    private function findPreferredSermonSection(): ?ServiceSection
+    {
+        $candidateSections = ServiceSection::query()
+            ->where('media_processing_log_id', $this->processingLog->id)
+            ->where('section_type', ServiceSectionType::SERMON->value)
+            ->where('status', ServiceSectionStatus::IDENTIFIED->value)
+            ->where('needs_manual_review', false)
+            ->get()
+            ->filter(function (ServiceSection $section): bool {
+                $metadata = $section->metadata ?? [];
+                $confidenceLevel = $metadata['confidence_level'] ?? null;
+
+                if ($confidenceLevel !== 'high') {
+                    return false;
+                }
+
+                return $section->end_time > $section->start_time;
+            })
+            ->sortByDesc('duration')
+            ->values();
+
+        $first = $candidateSections->first();
+
+        return $first instanceof ServiceSection ? $first : null;
     }
 
     public function failed(\Throwable $exception): void
