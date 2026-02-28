@@ -39,6 +39,44 @@ XML;
     }
 
     #[Test]
+    public function it_applies_verse_order_when_present(): void
+    {
+        $lyricsXml = <<<'XML'
+<song>
+  <lyrics>
+    <verse type="v" label="1">Verse one</verse>
+    <verse type="c" label="1">Chorus one</verse>
+    <verse type="v" label="2">Verse two</verse>
+  </lyrics>
+</song>
+XML;
+
+        $result = $this->parser->parse($lyricsXml, 'c1 v1 c1 v2');
+
+        $this->assertSame("Chorus one\n\nVerse one\n\nChorus one\n\nVerse two", $result['lyrics_plain']);
+        $this->assertSame([], $result['warnings']);
+    }
+
+    #[Test]
+    public function it_warns_when_verse_order_references_missing_verses_and_appends_unreferenced_verses(): void
+    {
+        $lyricsXml = <<<'XML'
+<song>
+  <lyrics>
+    <verse type="v" label="1">Verse one</verse>
+    <verse type="c" label="1">Chorus one</verse>
+    <verse type="v" label="2">Verse two</verse>
+  </lyrics>
+</song>
+XML;
+
+        $result = $this->parser->parse($lyricsXml, 'c1 b1');
+
+        $this->assertSame("Chorus one\n\nVerse one\n\nVerse two", $result['lyrics_plain']);
+        $this->assertSame(['Verse order referenced missing verse keys: b1.'], $result['warnings']);
+    }
+
+    #[Test]
     public function it_returns_warning_for_invalid_xml(): void
     {
         $result = $this->parser->parse('<song><lyrics><verse>Broken');

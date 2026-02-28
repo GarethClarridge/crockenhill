@@ -87,6 +87,9 @@ class AdminSongCatalogTest extends TestCase
             ->set('search', 'Writer Two')
             ->assertSee('Song B')
             ->assertDontSee('Song A')
+            ->set('search', 'song b@')
+            ->assertSee('Song B')
+            ->assertDontSee('Song A')
             ->set('search', '')
             ->set('serviceFilter', SermonService::MORNING->value)
             ->assertViewHas('songs', function ($songs) use ($songA, $songB): bool {
@@ -94,6 +97,35 @@ class AdminSongCatalogTest extends TestCase
 
                 return (int) $collection[$songA->id]->usage_count === 1
                     && (int) $collection[$songB->id]->usage_count === 0;
+            });
+    }
+
+    #[Test]
+    public function admin_can_sort_song_list_by_clicking_table_header_actions(): void
+    {
+        $this->actingAs($this->admin);
+
+        Song::factory()->create([
+            'title' => 'Zulu Song',
+            'canonical_key' => 'zulu song@',
+        ]);
+        Song::factory()->create([
+            'title' => 'Alpha Song',
+            'canonical_key' => 'alpha song@',
+        ]);
+
+        Livewire::test(ListSongs::class)
+            ->call('sort', 'title')
+            ->assertSet('sortBy', 'title')
+            ->assertSet('sortDirection', 'asc')
+            ->assertViewHas('songs', function ($songs): bool {
+                return $songs->getCollection()->pluck('title')->values()->all() === ['Alpha Song', 'Zulu Song'];
+            })
+            ->call('sort', 'title')
+            ->assertSet('sortBy', 'title')
+            ->assertSet('sortDirection', 'desc')
+            ->assertViewHas('songs', function ($songs): bool {
+                return $songs->getCollection()->pluck('title')->values()->all() === ['Zulu Song', 'Alpha Song'];
             });
     }
 

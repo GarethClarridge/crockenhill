@@ -29,6 +29,7 @@ class SongCatalogSyncService
      *     songs_upserted:int,
      *     songs_created:int,
      *     songs_updated:int,
+     *     songs_restored:int,
      *     song_authors_upserted:int,
      *     song_books_upserted:int,
      *     song_author_links_synced:int,
@@ -52,6 +53,7 @@ class SongCatalogSyncService
             'songs_upserted' => 0,
             'songs_created' => 0,
             'songs_updated' => 0,
+            'songs_restored' => 0,
             'song_authors_upserted' => 0,
             'song_books_upserted' => 0,
             'song_author_links_synced' => 0,
@@ -67,7 +69,7 @@ class SongCatalogSyncService
         }
 
         if ($dryRun) {
-            return $metrics;
+            return $this->buildDryRunMetrics($metrics, $sourceData, $songGroups);
         }
 
         DB::transaction(function () use (&$metrics, $sourceData, $songGroups): void {
@@ -78,7 +80,7 @@ class SongCatalogSyncService
             $metrics['song_books_upserted'] = $bookUpsertedCount;
 
             foreach ($songGroups as $canonicalKey => $groupRows) {
-                [$song, $created, $parseWarnings] = $this->upsertSongFromGroup($canonicalKey, $groupRows);
+                [$song, $created, $restored, $parseWarnings] = $this->upsertSongFromGroup($canonicalKey, $groupRows);
 
                 $metrics['songs_upserted']++;
 
@@ -86,6 +88,10 @@ class SongCatalogSyncService
                     $metrics['songs_created']++;
                 } else {
                     $metrics['songs_updated']++;
+                }
+
+                if ($restored) {
+                    $metrics['songs_restored']++;
                 }
 
                 if ($parseWarnings > 0) {
@@ -107,6 +113,106 @@ class SongCatalogSyncService
                 $metrics['song_book_links_synced'] += count($bookPivotRows);
             }
         });
+
+        return $metrics;
+    }
+
+    /**
+     * @param  array{
+     *     path:string,
+     *     dry_run:bool,
+     *     source_songs:int,
+     *     canonical_groups:int,
+     *     duplicate_groups:int,
+     *     duplicate_rows:int,
+     *     songs_upserted:int,
+     *     songs_created:int,
+     *     songs_updated:int,
+     *     songs_restored:int,
+     *     song_authors_upserted:int,
+     *     song_books_upserted:int,
+     *     song_author_links_synced:int,
+     *     song_book_links_synced:int,
+     *     groups_with_parse_warnings:int
+     * }  $metrics
+     * @param  array{
+     *     songs:list<array<string,mixed>>,
+     *     authors:list<array<string,mixed>>,
+     *     author_links:list<array<string,mixed>>,
+     *     books:list<array<string,mixed>>,
+     *     book_links:list<array<string,mixed>>
+     * }  $sourceData
+     * @param  array<string, list<array<string,mixed>>>  $songGroups
+     * @return array{
+     *     path:string,
+     *     dry_run:bool,
+     *     source_songs:int,
+     *     canonical_groups:int,
+     *     duplicate_groups:int,
+     *     duplicate_rows:int,
+     *     songs_upserted:int,
+     *     songs_created:int,
+     *     songs_updated:int,
+     *     songs_restored:int,
+     *     song_authors_upserted:int,
+     *     song_books_upserted:int,
+     *     song_author_links_synced:int,
+     *     song_book_links_synced:int,
+     *     groups_with_parse_warnings:int
+     * }
+     */
+    private function buildDryRunMetrics(array $metrics, array $sourceData, array $songGroups): array
+    {
+        [$validAuthorIds, $authorUpsertedCount] = $this->previewSongAuthorUpserts($sourceData['authors']);
+        $metrics['song_authors_upserted'] = $authorUpsertedCount;
+
+        [$validBookIds, $bookUpsertedCount] = $this->previewSongBookUpserts($sourceData['books']);
+        $metrics['song_books_upserted'] = $bookUpsertedCount;
+
+        /** @var array<string, bool> $existingCanonicalKeys */
+        $existingCanonicalKeys = Song::withTrashed()
+            ->whereIn('canonical_key', array_keys($songGroups))
+            ->get(['canonical_key', 'deleted_at'])
+            ->mapWithKeys(static fn (Song $song): array => [$song->canonical_key => $song->deleted_at !== null])
+            ->all();
+
+        $authorLinksBySourceSongId = $this->groupLinksBySourceSongId($sourceData['author_links']);
+        $bookLinksBySourceSongId = $this->groupLinksBySourceSongId($sourceData['book_links']);
+
+        foreach ($songGroups as $canonicalKey => $groupRows) {
+            $metrics['songs_upserted']++;
+
+            if (array_key_exists($canonicalKey, $existingCanonicalKeys)) {
+                $metrics['songs_updated']++;
+
+                if ($existingCanonicalKeys[$canonicalKey] === true) {
+                    $metrics['songs_restored']++;
+                }
+            } else {
+                $metrics['songs_created']++;
+            }
+
+            $representative = $this->selectRepresentativeSong($groupRows);
+            $parsedLyrics = $this->lyricsParser->parse(
+                (string) ($representative['lyrics'] ?? ''),
+                $this->stringOrNull($representative['verse_order'] ?? null),
+            );
+            if ($parsedLyrics['warnings'] !== []) {
+                $metrics['groups_with_parse_warnings']++;
+            }
+
+            $metrics['song_author_links_synced'] += $this->countDryRunAuthorLinks(
+                $groupRows,
+                $authorLinksBySourceSongId,
+                $validAuthorIds
+            );
+
+            $metrics['song_book_links_synced'] += $this->countDryRunBookLinks(
+                $groupRows,
+                $bookLinksBySourceSongId,
+                $validBookIds
+            );
+        }
 
         return $metrics;
     }
@@ -300,7 +406,7 @@ class SongCatalogSyncService
 
     /**
      * @param  list<array<string,mixed>>  $groupRows
-     * @return array{0: Song, 1: bool, 2: int}
+     * @return array{0: Song, 1: bool, 2: bool, 3: int}
      */
     private function upsertSongFromGroup(string $canonicalKey, array $groupRows): array
     {
@@ -312,7 +418,10 @@ class SongCatalogSyncService
         ));
         sort($sourceSongIds);
 
-        $parsedLyrics = $this->lyricsParser->parse((string) ($representative['lyrics'] ?? ''));
+        $parsedLyrics = $this->lyricsParser->parse(
+            (string) ($representative['lyrics'] ?? ''),
+            $this->stringOrNull($representative['verse_order'] ?? null),
+        );
         $warnings = $parsedLyrics['warnings'];
 
         $importMetadata = [
@@ -344,6 +453,7 @@ class SongCatalogSyncService
             ->first();
 
         $created = false;
+        $restored = false;
 
         if ($song instanceof Song) {
             $song->fill($attributes);
@@ -351,13 +461,14 @@ class SongCatalogSyncService
 
             if ($song->trashed()) {
                 $song->restore();
+                $restored = true;
             }
         } else {
             $song = Song::query()->create($attributes);
             $created = true;
         }
 
-        return [$song, $created, count($warnings)];
+        return [$song, $created, $restored, count($warnings)];
     }
 
     /**
@@ -444,6 +555,156 @@ class SongCatalogSyncService
         }
 
         return $rows;
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $authorRows
+     * @return array{0: array<int, bool>, 1: int}
+     */
+    private function previewSongAuthorUpserts(array $authorRows): array
+    {
+        $validAuthorIds = [];
+        $upsertCount = 0;
+
+        foreach ($authorRows as $authorRow) {
+            $displayName = $this->stringOrNull($authorRow['display_name'] ?? null);
+            $sourceAuthorId = $this->intOrNull($authorRow['id'] ?? null);
+
+            if ($displayName === null || $sourceAuthorId === null) {
+                continue;
+            }
+
+            $validAuthorIds[$sourceAuthorId] = true;
+            $upsertCount++;
+        }
+
+        return [$validAuthorIds, $upsertCount];
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $bookRows
+     * @return array{0: array<int, bool>, 1: int}
+     */
+    private function previewSongBookUpserts(array $bookRows): array
+    {
+        $validBookIds = [];
+        $upsertCount = 0;
+
+        foreach ($bookRows as $bookRow) {
+            $sourceBookId = $this->intOrNull($bookRow['id'] ?? null);
+            $bookName = $this->stringOrNull($bookRow['name'] ?? null);
+
+            if ($sourceBookId === null || $bookName === null) {
+                continue;
+            }
+
+            $validBookIds[$sourceBookId] = true;
+            $upsertCount++;
+        }
+
+        return [$validBookIds, $upsertCount];
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $links
+     * @return array<int, list<array<string,mixed>>>
+     */
+    private function groupLinksBySourceSongId(array $links): array
+    {
+        $linksBySourceSongId = [];
+
+        foreach ($links as $link) {
+            $sourceSongId = $this->intOrNull($link['song_id'] ?? null);
+            if ($sourceSongId === null) {
+                continue;
+            }
+
+            if (! array_key_exists($sourceSongId, $linksBySourceSongId)) {
+                $linksBySourceSongId[$sourceSongId] = [];
+            }
+
+            $linksBySourceSongId[$sourceSongId][] = $link;
+        }
+
+        return $linksBySourceSongId;
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $groupRows
+     * @param  array<int, list<array<string,mixed>>>  $authorLinksBySourceSongId
+     * @param  array<int, bool>  $validAuthorIds
+     */
+    private function countDryRunAuthorLinks(array $groupRows, array $authorLinksBySourceSongId, array $validAuthorIds): int
+    {
+        $sourceSongIds = array_values(array_filter(
+            array_map(fn (array $row): ?int => $this->intOrNull($row['id'] ?? null), $groupRows),
+            static fn (?int $id): bool => $id !== null
+        ));
+
+        $count = 0;
+        $seen = [];
+
+        foreach ($sourceSongIds as $sourceSongId) {
+            $authorLinks = $authorLinksBySourceSongId[$sourceSongId] ?? [];
+
+            foreach ($authorLinks as $authorLink) {
+                $sourceAuthorId = $this->intOrNull($authorLink['author_id'] ?? null);
+                if ($sourceAuthorId === null || ! array_key_exists($sourceAuthorId, $validAuthorIds)) {
+                    continue;
+                }
+
+                $authorType = $this->stringOrNull($authorLink['author_type'] ?? null) ?? '';
+                $dedupeKey = $sourceAuthorId.'|'.$authorType;
+
+                if (array_key_exists($dedupeKey, $seen)) {
+                    continue;
+                }
+
+                $seen[$dedupeKey] = true;
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * @param  list<array<string,mixed>>  $groupRows
+     * @param  array<int, list<array<string,mixed>>>  $bookLinksBySourceSongId
+     * @param  array<int, bool>  $validBookIds
+     */
+    private function countDryRunBookLinks(array $groupRows, array $bookLinksBySourceSongId, array $validBookIds): int
+    {
+        $sourceSongIds = array_values(array_filter(
+            array_map(fn (array $row): ?int => $this->intOrNull($row['id'] ?? null), $groupRows),
+            static fn (?int $id): bool => $id !== null
+        ));
+
+        $count = 0;
+        $seen = [];
+
+        foreach ($sourceSongIds as $sourceSongId) {
+            $bookLinks = $bookLinksBySourceSongId[$sourceSongId] ?? [];
+
+            foreach ($bookLinks as $bookLink) {
+                $sourceBookId = $this->intOrNull($bookLink['songbook_id'] ?? null);
+                if ($sourceBookId === null || ! array_key_exists($sourceBookId, $validBookIds)) {
+                    continue;
+                }
+
+                $entry = (string) ($bookLink['entry'] ?? '');
+                $dedupeKey = $sourceBookId.'|'.$entry;
+
+                if (array_key_exists($dedupeKey, $seen)) {
+                    continue;
+                }
+
+                $seen[$dedupeKey] = true;
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     /**

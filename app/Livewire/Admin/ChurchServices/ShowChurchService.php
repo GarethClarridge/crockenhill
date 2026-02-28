@@ -28,7 +28,10 @@ class ShowChurchService extends Component
         $this->abortIfDisabled();
 
         $this->churchService = $churchService->load([
-            'items' => fn ($query) => $query->orderBy('position')->orderBy('id'),
+            'items' => fn ($query) => $query
+                ->with('song:id,title')
+                ->orderBy('position')
+                ->orderBy('id'),
         ]);
     }
 

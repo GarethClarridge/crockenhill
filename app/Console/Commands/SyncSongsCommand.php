@@ -46,6 +46,7 @@ class SyncSongsCommand extends Command
                 ['Songs upserted', (string) $metrics['songs_upserted']],
                 ['Songs created', (string) $metrics['songs_created']],
                 ['Songs updated', (string) $metrics['songs_updated']],
+                ['Songs restored', (string) $metrics['songs_restored']],
                 ['Song authors upserted', (string) $metrics['song_authors_upserted']],
                 ['Song books upserted', (string) $metrics['song_books_upserted']],
                 ['Song-author links synced', (string) $metrics['song_author_links_synced']],

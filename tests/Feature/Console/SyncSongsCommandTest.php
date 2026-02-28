@@ -7,6 +7,7 @@ namespace Tests\Feature\Console;
 use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\SongBook;
+use App\Services\SongCatalogSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PDO;
 use PHPUnit\Framework\Attributes\Test;
@@ -79,6 +80,68 @@ class SyncSongsCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_respects_verse_order_when_generating_plain_lyrics_during_sync(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'song-sync-verse-order-');
+        if ($path === false) {
+            self::fail('Failed to allocate temporary sqlite file.');
+        }
+
+        $this->temporaryFiles[] = $path;
+
+        $pdo = new PDO('sqlite:'.$path);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $pdo->exec('CREATE TABLE songs (
+            id INTEGER PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            alternate_title VARCHAR(255) NULL,
+            lyrics TEXT NOT NULL,
+            verse_order VARCHAR(128) NULL,
+            copyright VARCHAR(255) NULL,
+            comments TEXT NULL,
+            ccli_number VARCHAR(64) NULL,
+            theme_name VARCHAR(128) NULL,
+            search_title VARCHAR(255) NOT NULL,
+            search_lyrics TEXT NOT NULL,
+            create_date DATETIME NULL,
+            last_modified DATETIME NULL,
+            temporary BOOLEAN NULL
+        )');
+        $pdo->exec('CREATE TABLE authors (
+            id INTEGER PRIMARY KEY,
+            first_name VARCHAR(128) NULL,
+            last_name VARCHAR(128) NULL,
+            display_name VARCHAR(255) NOT NULL
+        )');
+        $pdo->exec('CREATE TABLE authors_songs (
+            author_id INTEGER NOT NULL,
+            song_id INTEGER NOT NULL,
+            author_type VARCHAR(255) NOT NULL DEFAULT ""
+        )');
+        $pdo->exec('CREATE TABLE song_books (
+            id INTEGER PRIMARY KEY,
+            name VARCHAR(128) NOT NULL,
+            publisher VARCHAR(128) NULL
+        )');
+        $pdo->exec('CREATE TABLE songs_songbooks (
+            songbook_id INTEGER NOT NULL,
+            song_id INTEGER NOT NULL,
+            entry VARCHAR(255) NOT NULL
+        )');
+
+        $pdo->exec("INSERT INTO songs (id, title, alternate_title, lyrics, verse_order, copyright, comments, ccli_number, theme_name, search_title, search_lyrics, create_date, last_modified, temporary) VALUES
+            (1, 'Verse Order Test', NULL, '<song><lyrics><verse type=\"v\" label=\"1\">Verse line</verse><verse type=\"c\" label=\"1\">Chorus line</verse></lyrics></song>', 'c1 v1', NULL, NULL, NULL, NULL, 'verse order test@', '', NULL, '2025-01-01 10:00:00', 0)");
+
+        $this->artisan('service-tracking:sync-songs', ['--path' => $path])
+            ->assertExitCode(0);
+
+        $song = Song::query()->where('canonical_key', 'verse order test@')->firstOrFail();
+
+        $this->assertSame("Chorus line\n\nVerse line", $song->lyrics_plain);
+    }
+
+    #[Test]
     public function dry_run_does_not_write_to_catalog_tables(): void
     {
         $path = $this->createSourceSqlite();
@@ -90,6 +153,48 @@ class SyncSongsCommandTest extends TestCase
         $this->assertDatabaseCount('songs', 0);
         $this->assertDatabaseCount('song_authors', 0);
         $this->assertDatabaseCount('song_books', 0);
+    }
+
+    #[Test]
+    public function dry_run_reports_projected_sync_metrics_without_writing_changes(): void
+    {
+        $path = $this->createSourceSqlite();
+
+        Song::factory()->create([
+            'canonical_key' => 'stand up stand up for jesus@',
+        ]);
+
+        $metrics = app(SongCatalogSyncService::class)->sync(path: $path, dryRun: true);
+
+        $this->assertSame(3, $metrics['songs_upserted']);
+        $this->assertSame(2, $metrics['songs_created']);
+        $this->assertSame(1, $metrics['songs_updated']);
+        $this->assertSame(0, $metrics['songs_restored']);
+        $this->assertSame(1, $metrics['groups_with_parse_warnings']);
+        $this->assertSame(3, $metrics['song_authors_upserted']);
+        $this->assertSame(2, $metrics['song_books_upserted']);
+        $this->assertSame(3, $metrics['song_author_links_synced']);
+        $this->assertSame(3, $metrics['song_book_links_synced']);
+
+        $this->assertDatabaseCount('songs', 1);
+        $this->assertDatabaseCount('song_authors', 0);
+        $this->assertDatabaseCount('song_books', 0);
+    }
+
+    #[Test]
+    public function dry_run_reports_soft_deleted_song_restores_without_restoring_in_database(): void
+    {
+        $path = $this->createSourceSqlite();
+
+        $trashedSong = Song::factory()->create([
+            'canonical_key' => 'stand up stand up for jesus@',
+        ]);
+        $trashedSong->delete();
+
+        $metrics = app(SongCatalogSyncService::class)->sync(path: $path, dryRun: true);
+
+        $this->assertSame(1, $metrics['songs_restored']);
+        $this->assertTrue($trashedSong->fresh()?->trashed() ?? false);
     }
 
     #[Test]
@@ -151,8 +256,8 @@ class SyncSongsCommandTest extends TestCase
         )');
 
         $pdo->exec("INSERT INTO songs (id, title, alternate_title, lyrics, verse_order, copyright, comments, ccli_number, theme_name, search_title, search_lyrics, create_date, last_modified, temporary) VALUES
-            (1, 'Who You Say I Am', NULL, '<song><lyrics><verse>Old lyric line</verse></lyrics></song>', 'v1 c1', NULL, NULL, '111111', NULL, 'who am i that the highest king@who you say i am', '', NULL, '2024-01-01 10:00:00', 0),
-            (2, 'Who You Say I Am (Updated)', NULL, '<song><lyrics><verse>New lyric line</verse></lyrics></song>', 'v1 c1', NULL, NULL, '111111', NULL, 'who am i that the highest king@who you say i am', '', NULL, '2025-01-01 10:00:00', 0),
+            (1, 'Who You Say I Am', NULL, '<song><lyrics><verse type=\"v\" label=\"1\">Old lyric line</verse></lyrics></song>', 'v1', NULL, NULL, '111111', NULL, 'who am i that the highest king@who you say i am', '', NULL, '2024-01-01 10:00:00', 0),
+            (2, 'Who You Say I Am (Updated)', NULL, '<song><lyrics><verse type=\"v\" label=\"1\">New lyric line</verse></lyrics></song>', 'v1', NULL, NULL, '111111', NULL, 'who am i that the highest king@who you say i am', '', NULL, '2025-01-01 10:00:00', 0),
             (3, 'Stand Up Stand Up', NULL, '<song><lyrics><verse>Stand up line</verse></lyrics></song>', NULL, NULL, NULL, '222222', NULL, 'stand up stand up for jesus@', '', NULL, '2024-05-01 10:00:00', 0),
             (4, 'Broken Xml Song', NULL, '<song><lyrics><verse>Broken', NULL, NULL, NULL, '333333', NULL, 'broken xml song@', '', NULL, '2024-06-01 10:00:00', 0)");
 

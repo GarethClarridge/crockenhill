@@ -85,6 +85,14 @@
                                     </td>
                                     <td class="px-4 py-3">
                                         <p class="text-sm font-medium">{{ $item->title }}</p>
+                                        @if($item->song)
+                                            <a
+                                                href="{{ route('admin.services.songs.show', $item->song) }}"
+                                                class="text-xs text-green-700 hover:text-green-800 no-underline"
+                                                wire:navigate>
+                                                View linked song
+                                            </a>
+                                        @endif
                                         @if($item->source_title && $item->source_title !== $item->title)
                                             <p class="text-xs text-gray-500">Source: {{ $item->source_title }}</p>
                                         @endif

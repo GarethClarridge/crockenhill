@@ -17,7 +17,7 @@
 
     <div class="flex flex-wrap gap-4">
         <x-input
-            placeholder="Search title, author, alternate title, CCLI..."
+            placeholder="Search title, canonical key, author, alternate title, CCLI..."
             wire:model.live.debounce="search"
             icon="magnifying-glass"
             clearable
@@ -49,15 +49,39 @@
     </div>
 
     <x-card>
+        @php
+            $headers = [
+                ['label' => 'Song', 'column' => 'title'],
+                ['label' => 'Authors', 'column' => null],
+                ['label' => 'Usage', 'column' => 'usage_count'],
+                ['label' => 'Distinct Services', 'column' => 'services_count'],
+                ['label' => 'Last Used', 'column' => 'last_used_date'],
+            ];
+        @endphp
+
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Song</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Authors</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Usage</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Distinct Services</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Last Used</th>
+                        @foreach($headers as $header)
+                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                @if($header['column'] === null)
+                                    <span>{{ $header['label'] }}</span>
+                                @else
+                                    <button
+                                        type="button"
+                                        wire:click="sort('{{ $header['column'] }}')"
+                                        class="inline-flex items-center gap-1 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:text-gray-700">
+                                        <span>{{ $header['label'] }}</span>
+                                        @if($sortBy === $header['column'])
+                                            <span aria-hidden="true">{{ $sortDirection === 'asc' ? 'ASC' : 'DESC' }}</span>
+                                        @else
+                                            <span aria-hidden="true" class="text-gray-300">--</span>
+                                        @endif
+                                    </button>
+                                @endif
+                            </th>
+                        @endforeach
                         <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
                     </tr>
                 </thead>

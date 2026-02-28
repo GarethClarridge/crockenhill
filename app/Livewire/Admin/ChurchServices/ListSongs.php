@@ -93,6 +93,7 @@ class ListSongs extends Component
                 $query->where(function (Builder $searchQuery) use ($search): void {
                     $searchQuery->where('songs.title', 'like', "%{$search}%")
                         ->orWhere('songs.alternate_title', 'like', "%{$search}%")
+                        ->orWhere('songs.canonical_key', 'like', "%{$search}%")
                         ->orWhere('songs.ccli_number', 'like', "%{$search}%")
                         ->orWhereHas('authors', fn (Builder $authorQuery) => $authorQuery->where('display_name', 'like', "%{$search}%"));
                 });

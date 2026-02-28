@@ -201,6 +201,11 @@ class AdminChurchServiceTest extends TestCase
             ],
         ]);
 
+        $song = Song::factory()->create([
+            'title' => 'Opening Hymn',
+            'canonical_key' => 'opening hymn@',
+        ]);
+
         ChurchServiceItem::factory()->create([
             'church_service_id' => $service->id,
             'position' => 2,
@@ -213,10 +218,12 @@ class AdminChurchServiceTest extends TestCase
             'position' => 1,
             'type' => 'songs',
             'title' => 'Opening Hymn',
+            'song_id' => $song->id,
         ]);
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->assertSeeInOrder(['Opening Hymn', 'Closing Prayer'])
+            ->assertSee(route('admin.services.songs.show', $song))
             ->assertSee('Upload filename and embedded .osj filename identities do not match.')
             ->assertSee('40%');
     }
