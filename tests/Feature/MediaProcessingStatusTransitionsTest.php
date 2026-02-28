@@ -154,7 +154,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
             'livestream rms generation' => [ProcessingStatus::PROCESSING, 'rms_generation', 20],
             'livestream segmentation' => [ProcessingStatus::PROCESSING, 'segmentation', 30],
             'livestream analyzing segments' => [ProcessingStatus::PROCESSING, 'analyzing_segments', 40],
-            'livestream extracting sermon' => [ProcessingStatus::PROCESSING, 'extracting_sermon', 50],
+            'livestream extracting sermon' => [ProcessingStatus::PROCESSING, 'extracting_sermon', 55],
             'livestream creating sermon' => [ProcessingStatus::PROCESSING, 'creating_sermon', 60],
             'livestream transcribing' => [ProcessingStatus::PROCESSING, 'transcribing_audio', 70],
             'livestream ai analysis' => [ProcessingStatus::PROCESSING, 'ai_analysis_completed', 85],

@@ -243,28 +243,18 @@ class ExtractSermon implements ShouldQueue
 
     private function findPreferredSermonSection(): ?ServiceSection
     {
-        $candidateSections = ServiceSection::query()
+        $preferredSection = ServiceSection::query()
             ->where('media_processing_log_id', $this->processingLog->id)
             ->where('section_type', ServiceSectionType::SERMON->value)
             ->where('status', ServiceSectionStatus::IDENTIFIED->value)
             ->where('needs_manual_review', false)
-            ->get()
-            ->filter(function (ServiceSection $section): bool {
-                $metadata = $section->metadata ?? [];
-                $confidenceLevel = $metadata['confidence_level'] ?? null;
+            ->where('metadata->confidence_level', 'high')
+            ->whereColumn('end_time', '>', 'start_time')
+            ->orderByDesc('duration')
+            ->orderByDesc('id')
+            ->first();
 
-                if ($confidenceLevel !== 'high') {
-                    return false;
-                }
-
-                return $section->end_time > $section->start_time;
-            })
-            ->sortByDesc('duration')
-            ->values();
-
-        $first = $candidateSections->first();
-
-        return $first instanceof ServiceSection ? $first : null;
+        return $preferredSection instanceof ServiceSection ? $preferredSection : null;
     }
 
     public function failed(\Throwable $exception): void

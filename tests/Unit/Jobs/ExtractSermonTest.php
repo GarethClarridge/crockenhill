@@ -298,6 +298,88 @@ class ExtractSermonTest extends TestCase
     }
 
     #[Test]
+    public function it_uses_processing_log_times_when_section_preference_is_disabled(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+        config(['media-processing.section_classification.prefer_high_confidence_sermon_section' => false]);
+
+        $tempDir = storage_path('app/livestreams');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        $videoFile = $tempDir.'/classified-disabled.mp4';
+        file_put_contents($videoFile, str_repeat("\x00", 1024));
+
+        $extractedDir = storage_path('app/extracted');
+        if (! is_dir($extractedDir)) {
+            mkdir($extractedDir, 0755, true);
+        }
+        $extractedAudioFile = $extractedDir.'/classified-disabled.mp3';
+        file_put_contents($extractedAudioFile, str_repeat("\xFF\xFB", 512));
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 200.0,
+            'sermon_end_time' => 2200.0,
+            'source_file_path' => 'livestreams/classified-disabled.mp4',
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'sermon',
+            'start_time' => 600.0,
+            'end_time' => 1800.0,
+            'duration' => 1200.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+            ],
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->with(
+                $this->anything(),
+                $this->callback(function ($segment): bool {
+                    return $segment instanceof \App\Data\LivestreamSegment
+                        && $segment->startTime === 200.0
+                        && $segment->endTime === 2200.0;
+                }),
+                $this->anything()
+            )
+            ->willReturn('extracted/classified-disabled-video.mp4');
+
+        $mockExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->willReturn([
+                'audio_path' => 'extracted/classified-disabled.mp3',
+                'full_path' => $extractedAudioFile,
+                'original_size' => 10485760,
+                'final_size' => 5242880,
+                'compression_applied' => true,
+                'compression_ratio' => 0.5,
+                'valid_for_transcription' => true,
+            ]);
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        $job = new ExtractSermon($log);
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
+
+        $log->refresh();
+        $this->assertSame('extraction_complete', $log->current_step);
+        $this->assertSame('extracted/classified-disabled-video.mp4', $log->video_file_path);
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
+    #[Test]
     public function it_marks_as_failed_when_extraction_throws(): void
     {
         config(['media-processing.storage.temp_disk' => 'local']);

@@ -134,11 +134,12 @@ enum ProcessingStep: string
             self::ClassifyingSections => 45,
 
             self::SectionClassificationComplete,
-            self::SectionClassificationSkipped => 50,
+            self::SectionClassificationSkipped => 52,
 
             self::Extraction,
-            self::ExtractingSermon,
-            self::ExtractionComplete => 50,
+            self::ExtractingSermon => 55,
+
+            self::ExtractionComplete => 58,
 
             self::SermonCreation,
             self::CreatingSermon,

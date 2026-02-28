@@ -1010,7 +1010,7 @@ Deliver advanced section-aware extraction and controlled additional section publ
 3. Non-adjacent Bible+Sermon extraction uses **hard join concat** (no filler gap).
 4. Published additional section sermons inherit the **service from the originating run**.
 5. Bible reading is **not** independently published in Phase 3.
-6. Previously linked section publish state can be **superseded** by newer classification output.
+6. Previously linked section publish state can be **superseded** by newer classification output, and supersede performs **automatic unpublish**.
 
 ### Outcomes (Must Be True)
 
@@ -1020,7 +1020,7 @@ Deliver advanced section-aware extraction and controlled additional section publ
 2. Children's talk candidates are extracted and queued for review, not auto-published.
 3. Admins can approve/reject candidates from a dedicated Livewire queue page.
 4. Approved candidates publish a `Sermon` linked back to the source section.
-5. Reclassification can supersede stale publish links/candidates deterministically.
+5. Reclassification supersedes stale links/candidates deterministically and auto-unpublishes previously published section sermons.
 6. Unpublished extracted assets are deleted by TTL cleanup.
 
 ### Scope
@@ -1037,6 +1037,8 @@ Out of scope:
 - Publishing Bible reading as a standalone sermon
 - New public API surface
 - Historical replay/migration of old section publications
+- Approval audit trail fields / reasons
+- Mandatory media preview before approval
 
 ### Data Model (Minimal, Additive)
 
@@ -1045,8 +1047,6 @@ Extend `service_sections` with publication/extraction state (keep classification
 | Column | Type | Notes |
 |---|---|---|
 | `publication_status` | string | `not_applicable`, `pending_approval`, `approved`, `rejected`, `published` |
-| `approved_by_user_id` | bigint FK nullable | Admin approver (`users.id`, null on delete) |
-| `approved_at` | timestamp nullable | Approval timestamp |
 | `published_sermon_id` | bigint FK nullable | Linked published sermon (`sermons.id`, null on delete) |
 | `published_at` | timestamp nullable | Publish timestamp |
 | `extracted_video_path` | string nullable | Extracted clip path |
@@ -1058,10 +1058,33 @@ Indexes:
 - `publication_status`
 - `unpublished_expires_at`
 - `published_sermon_id`
+- Unique: `published_sermon_id` (nullable unique; prevents one sermon being linked to multiple sections)
 
 Notes:
 - Keep `status` (`identified` / `skipped`) as **classification-only**.
 - Do not add a separate publication history table in Phase 3.
+
+### Publication State Machine (Required)
+
+Allowed status transitions:
+
+| From | To | Trigger |
+|---|---|---|
+| `not_applicable` | `pending_approval` | candidate prep identifies publishable section |
+| `pending_approval` | `approved` | admin approval |
+| `pending_approval` | `rejected` | admin rejection |
+| `approved` | `published` | successful publish job |
+| `approved` | `rejected` | admin reversal before publish |
+| `rejected` | `pending_approval` | manual requeue |
+| `published` | `pending_approval` | supersede for publishable replacement section |
+| `published` | `not_applicable` | supersede to non-publishable section type |
+| `pending_approval` | `not_applicable` | supersede to non-publishable section type |
+| `approved` | `not_applicable` | supersede to non-publishable section type |
+| `rejected` | `not_applicable` | supersede to non-publishable section type |
+
+Enforcement:
+- All writes must validate transitions in one central service.
+- Invalid transitions are rejected and logged as errors.
 
 ### Domain Design
 
@@ -1118,6 +1141,7 @@ Add job: `PublishApprovedServiceSection`.
 Behavior:
 1. Lock section row and re-check preconditions:
    - `publication_status = approved`
+   - `published_sermon_id` is null
    - not superseded by newer classification signature
    - extract paths exist
 2. Build sermon creation payload from section:
@@ -1132,18 +1156,33 @@ Behavior:
    - `publication_status = published`
    - clear `unpublished_expires_at`
 
+Idempotency requirements:
+- Job middleware uses `WithoutOverlapping` keyed by `service_section_id`.
+- Publish executes inside a DB transaction with `lockForUpdate()` on the section row.
+- Retries are safe: if section is already `published` with a sermon link, exit without side effects.
+
 #### 5) Supersede Semantics (Simple)
 
 No history table in Phase 3.
 
 When classification sync updates a section and its classification signature changes materially (type/title/bounds/item link):
-- Clear stale publication linkage and approval fields
+- If `published_sermon_id` is set, auto-unpublish:
+  - delete the linked section-published sermon record
+  - null `published_sermon_id` + `published_at`
 - Reset publish lifecycle based on type:
   - publishable type -> `pending_approval` (after candidate preparation)
   - non-publishable type -> `not_applicable`
 - Store supersede diagnostics in `metadata` (previous signature, timestamp, previous sermon link if present)
 
 This treats old links/candidates as superseded without introducing revision tables.
+
+### Concurrency and Duplicate Protection (Required)
+
+1. Candidate-prep job uses `WithoutOverlapping` keyed by `media_processing_log_id`.
+2. Publish job uses `WithoutOverlapping` keyed by `service_section_id`.
+3. Status transitions and sermon link writes happen inside transactions with row locks.
+4. Publish preconditions are revalidated inside the transaction (never trust stale UI state).
+5. Unique index on `service_sections.published_sermon_id` prevents duplicate section linkage.
 
 ### Admin UI (Livewire, TALL-Aligned)
 
@@ -1161,7 +1200,7 @@ Capabilities:
   - section type/title/time
   - confidence and review diagnostics
 - Actions:
-  - approve (sets `approved_*`, dispatches publish job)
+  - approve (sets `publication_status = approved`, dispatches publish job)
   - reject
   - optional requeue (reject -> pending)
 
@@ -1216,6 +1255,7 @@ Schedule in `bootstrap/app.php` using `withSchedule(...)` (Laravel 12 convention
 - Migration for Phase 3 `service_sections` columns/indexes/FKs
 - `ServiceSectionPublicationStatus` enum
 - `ServiceSection` casts/relations updates
+- Publication state transition service scaffold
 - Schema/model tests
 
 #### PR 2 - Sermon Extraction Plan Resolver + Concat
@@ -1227,7 +1267,7 @@ Schedule in `bootstrap/app.php` using `withSchedule(...)` (Laravel 12 convention
 #### PR 3 - Candidate Extraction + Supersede Reset Rules
 - Add `PrepareSectionPublicationCandidates` job
 - Integrate dispatch after `SubmitToProcessing`
-- Update sync rules to clear stale publish state on signature change
+- Update sync rules to clear stale publish state on signature change and auto-unpublish linked sermons
 - Service/job tests for idempotency and supersede behavior
 
 #### PR 4 - Admin Manual Approval Queue (Livewire)
@@ -1254,6 +1294,8 @@ Unit:
 - `PrepareSectionPublicationCandidatesTest`
 - `PublishApprovedServiceSectionTest`
 - `ServiceSectionSyncService` supersede tests
+- Publication state machine transition tests (valid + invalid paths)
+- Concurrency/idempotency tests for duplicate publish prevention
 
 Feature/Livewire:
 - `AdminSectionPublicationQueueTest` (list/filter/approve/reject/authz)

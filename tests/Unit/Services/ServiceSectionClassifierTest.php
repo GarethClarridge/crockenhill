@@ -233,4 +233,59 @@ class ServiceSectionClassifierTest extends TestCase
         $this->assertSame('segment_overlap_or_order_anomaly', $secondSection['metadata']['review_reason']);
         $this->assertContains('segment_overlap_detected', $secondSection['metadata']['anomalies']);
     }
+
+    #[Test]
+    public function it_flags_segment_order_anomalies_for_review_without_overlap(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-29',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Song One',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'songs',
+            'title' => 'Song Two',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-03-29',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        LivestreamSegment::factory()->song()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'segment_order' => 1,
+            'start_time' => 100.0,
+            'end_time' => 300.0,
+            'duration' => 200.0,
+        ]);
+
+        LivestreamSegment::factory()->song()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'segment_order' => 1,
+            'start_time' => 320.0,
+            'end_time' => 520.0,
+            'duration' => 200.0,
+        ]);
+
+        $result = $this->service->classify($processingLog);
+
+        $this->assertCount(2, $result['sections']);
+        $secondSection = $result['sections'][1];
+
+        $this->assertTrue($secondSection['needs_manual_review']);
+        $this->assertSame('low', $secondSection['metadata']['confidence_level']);
+        $this->assertSame('segment_overlap_or_order_anomaly', $secondSection['metadata']['review_reason']);
+        $this->assertContains('segment_order_anomaly_detected', $secondSection['metadata']['anomalies']);
+        $this->assertNotContains('segment_overlap_detected', $secondSection['metadata']['anomalies']);
+    }
 }
