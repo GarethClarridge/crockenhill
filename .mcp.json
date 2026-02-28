@@ -1,11 +1,12 @@
 {
     "mcpServers": {
         "laravel-boost": {
-            "command": "vendor/bin/sail",
+            "command": "/Users/garethclarridge/Projects/crockenhill/vendor/bin/sail",
             "args": [
                 "artisan",
                 "boost:mcp"
-            ]
+            ],
+            "cwd": "/Users/garethclarridge/Projects/crockenhill"
         }
     }
 }

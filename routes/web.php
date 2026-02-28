@@ -133,6 +133,11 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/sermons', App\Livewire\Admin\Sermons\ListSermons::class)->name('sermons.index');
     Route::get('/sermons/{sermon:slug}/edit', App\Livewire\Admin\Sermons\EditSermon::class)->name('sermons.edit');
 
+    // Church Services
+    Route::get('/services', App\Livewire\Admin\ChurchServices\ListChurchServices::class)->name('services.index');
+    Route::get('/services/upload', App\Livewire\Admin\ChurchServices\UploadChurchService::class)->name('services.upload');
+    Route::get('/services/{churchService}', App\Livewire\Admin\ChurchServices\ShowChurchService::class)->name('services.show');
+
     // Preachers
     Route::get('/preachers', App\Livewire\Admin\Preachers\ListPreachers::class)->name('preachers.index');
     Route::get('/preachers/create', App\Livewire\Admin\Preachers\CreatePreacher::class)->name('preachers.create');

@@ -42,6 +42,20 @@
           Manage sermons
         </div>
       </x-button>
+
+      <x-button link="{{ route('admin.services.upload') }}">
+        <div class="flex items-center justify-center">
+          <x-heroicon-s-arrow-up-tray class="h-5 w-5 mr-2" />
+          Upload service order
+        </div>
+      </x-button>
+
+      <x-button link="{{ route('admin.services.index') }}">
+        <div class="flex items-center justify-center">
+          <x-heroicon-s-queue-list class="h-5 w-5 mr-2" />
+          View services
+        </div>
+      </x-button>
     </div>
   </div>
   @endcan

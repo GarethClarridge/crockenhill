@@ -7,7 +7,7 @@ This plan implements church service tracking as a **separate domain surface** fr
 - **Service Tracking domain**: order of service ingestion, service/item lifecycle, and review workflow.
 - **Media Processing domain**: upload, segmentation, extraction, transcription, AI analysis, and processing status.
 
-The two domains integrate through explicit data contracts (service date/slot and indexed lookup columns), not by merging endpoints, controllers, or foreign keys.
+The two domains integrate through explicit data contracts (service date/slot and indexed lookup columns), not by merging endpoints or controllers. In Phase 2, an optional nullable FK (`media_processing_logs.church_service_id`) may be used as a resolved-link cache for traceability/performance.
 
 ## Confirmed Decisions
 
@@ -253,6 +253,9 @@ Parser must map: `AM` → `SermonService::MORNING`, `PM` → `SermonService::EVE
 
 The sync algorithm handles re-uploads where items may have been reordered, added, or removed. All operations wrapped in a DB transaction.
 
+**Concurrency guard (required):**
+- Lock the parent service row at the start of sync (`SELECT ... FOR UPDATE` / Eloquent `lockForUpdate()`) so two concurrent uploads for the same `(date, service)` cannot interleave and produce duplicate active positions.
+
 **Match priority (in order):**
 1. **Stable match**: existing item with same `type` AND (`openlp_search_title` match OR `source_title` match)
 2. **Position fallback**: existing item at same `position` with same `type`
@@ -477,7 +480,7 @@ Business-level detected sections (classification output).
 | `end_time` | float | Seconds |
 | `duration` | float | Seconds |
 | `confidence` | float | 0.0-1.0 |
-| `confidence_source` | string | `ServiceSectionConfidenceSource` enum |
+| `confidence_source` | string | Backed enum cast: `ServiceSectionConfidenceSource` |
 | `status` | string | `ServiceSectionStatus` enum |
 | `needs_manual_review` | boolean default false | Review queue signal |
 | `manual_review_reason` | string nullable | Why flagged |
@@ -489,7 +492,7 @@ Business-level detected sections (classification output).
 
 Notes:
 - Time columns use `float` to match existing `LivestreamSegment` and `MediaProcessingLog` conventions.
-- `confidence_source` is a backed enum — it drives classifier branching and review behavior, and the codebase uses enums consistently for typed string columns.
+- `confidence_source` uses a backed enum cast (`ServiceSectionConfidenceSource`) — it drives classifier branching and review behavior, and the codebase uses enums consistently for typed string columns.
 - Unique composite on `(media_processing_log_id, section_order)` for idempotent refresh upserts.
 
 ### `media_processing_logs` Changes (Draft)

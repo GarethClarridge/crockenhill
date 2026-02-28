@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ApiTokenAbility;
+use App\Http\Controllers\Api\ChurchServiceController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\SermonApiController;
 use Illuminate\Http\Request;
@@ -21,6 +22,22 @@ Route::prefix('sermons')->name('api.sermons.')->group(function () {
         ->middleware('throttle:api')
         ->name('show');
 });
+
+Route::prefix('services')
+    ->name('api.services.')
+    ->middleware([
+        'auth:sanctum',
+        'service.access',
+    ])
+    ->group(function () {
+        Route::post('openlp', [ChurchServiceController::class, 'store'])
+            ->middleware('throttle:api')
+            ->name('openlp.store');
+
+        Route::get('{churchService}', [ChurchServiceController::class, 'show'])
+            ->middleware('throttle:api')
+            ->name('show');
+    });
 
 // Unified media processing endpoints
 Route::prefix('media')->name('api.media.')->group(function () {
