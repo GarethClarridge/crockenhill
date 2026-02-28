@@ -68,9 +68,11 @@ return [
 <div class="my-6 flex flex-wrap items-center justify-between gap-4" x-data="{
     copied: false,
     copy() {
-        navigator.clipboard.writeText(window.location.href);
-        this.copied = true;
-        setTimeout(() => this.copied = false, 2000);
+        if (!navigator.clipboard) return;
+        navigator.clipboard.writeText('{{ url()->current() }}').then(() => {
+            this.copied = true;
+            setTimeout(() => this.copied = false, 2000);
+        });
     }
 }">
   <nav aria-label="Breadcrumb">
@@ -112,10 +114,13 @@ return [
   </nav>
 
   <button
+    type="button"
+    x-show="navigator.clipboard"
     @click="copy()"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-cbc-teal-dark hover:text-cbc-teal bg-white border border-gray-200 hover:border-cbc-teal-light/30 rounded-md shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-1"
+    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-cbc-teal-dark hover:text-cbc-teal bg-white border border-gray-200 hover:border-cbc-teal-light/30 rounded-md shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-1"
     aria-label="Copy page link"
     title="Copy link to clipboard"
+    x-cloak
   >
     <x-heroicon-o-link x-show="!copied" class="w-4 h-4" />
     <x-heroicon-o-check x-show="copied" class="w-4 h-4 text-cbc-teal" x-cloak />
