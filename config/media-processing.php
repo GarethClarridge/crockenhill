@@ -155,7 +155,39 @@ return [
     */
     'section_classification' => [
         'enabled' => env('SERVICE_SECTION_CLASSIFICATION_ENABLED', true),
+        'require_matching_church_service' => env('SERVICE_SECTION_REQUIRE_MATCHING_SERVICE', true),
         'prefer_high_confidence_sermon_section' => env('SERVICE_SECTION_PREFER_HIGH_CONFIDENCE_SERMON', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Section Extraction (Phase 3)
+    |--------------------------------------------------------------------------
+    */
+    'section_extraction' => [
+        'enhanced_sermon' => [
+            'enabled' => env('SERVICE_SECTION_ENHANCED_SERMON_ENABLED', true),
+            'adjacent_gap_seconds' => 60,
+            'allow_non_adjacent_concat' => env('SERVICE_SECTION_ALLOW_NON_ADJACENT_CONCAT', true),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Section Publishing (Phase 3)
+    |--------------------------------------------------------------------------
+    */
+    'section_publishing' => [
+        'enabled' => env('SERVICE_SECTION_PUBLISHING_ENABLED', true),
+        'manual_approval_required' => true,
+        'extract_types' => [
+            'childrens_talk',
+        ],
+        'publishable_types' => [
+            'childrens_talk',
+        ],
+        'require_high_confidence' => env('SERVICE_SECTION_PUBLISH_REQUIRE_HIGH_CONFIDENCE', true),
+        'retain_unpublished_hours' => (int) env('SERVICE_SECTION_RETAIN_UNPUBLISHED_HOURS', 48),
     ],
 
     /*

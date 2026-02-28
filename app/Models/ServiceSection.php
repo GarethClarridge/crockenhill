@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @property int $id
@@ -25,9 +27,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $needs_manual_review
  * @property array<int, int> $source_segment_ids
  * @property array<string, mixed>|null $metadata
+ * @property ServiceSectionPublicationStatus $publication_status
+ * @property int|null $published_sermon_id
+ * @property string|null $extracted_video_path
+ * @property string|null $extracted_audio_path
+ * @property \Illuminate\Support\Carbon|null $published_at
+ * @property \Illuminate\Support\Carbon|null $extracted_at
+ * @property \Illuminate\Support\Carbon|null $unpublished_expires_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read ChurchServiceItem|null $churchServiceItem
+ * @property-read Sermon|null $publishedSermon
  * @property-read MediaProcessingLog $processingLog
  *
  * @method static \Database\Factories\ServiceSectionFactory factory(...$parameters)
@@ -58,6 +68,13 @@ class ServiceSection extends Model
         'needs_manual_review',
         'source_segment_ids',
         'metadata',
+        'publication_status',
+        'published_sermon_id',
+        'published_at',
+        'extracted_video_path',
+        'extracted_audio_path',
+        'extracted_at',
+        'unpublished_expires_at',
     ];
 
     /**
@@ -75,6 +92,11 @@ class ServiceSection extends Model
             'needs_manual_review' => 'boolean',
             'source_segment_ids' => 'array',
             'metadata' => 'array',
+            'publication_status' => ServiceSectionPublicationStatus::class,
+            'published_sermon_id' => 'integer',
+            'published_at' => 'datetime',
+            'extracted_at' => 'datetime',
+            'unpublished_expires_at' => 'datetime',
         ];
     }
 
@@ -93,5 +115,74 @@ class ServiceSection extends Model
     {
         return $this->belongsTo(ChurchServiceItem::class, 'church_service_item_id')
             ->withTrashed();
+    }
+
+    /**
+     * @return BelongsTo<Sermon, $this>
+     */
+    public function publishedSermon(): BelongsTo
+    {
+        return $this->belongsTo(Sermon::class, 'published_sermon_id');
+    }
+
+    public function isPublishableType(): bool
+    {
+        $publishableTypes = config('media-processing.section_publishing.publishable_types', ['childrens_talk']);
+        if (! is_array($publishableTypes)) {
+            return false;
+        }
+
+        return in_array($this->section_type->value, $publishableTypes, true);
+    }
+
+    public function canTransitionTo(ServiceSectionPublicationStatus $target): bool
+    {
+        $current = $this->publication_status;
+        $allowed = match ($current) {
+            ServiceSectionPublicationStatus::NOT_APPLICABLE => [
+                ServiceSectionPublicationStatus::PENDING_APPROVAL,
+            ],
+            ServiceSectionPublicationStatus::PENDING_APPROVAL => [
+                ServiceSectionPublicationStatus::APPROVED,
+                ServiceSectionPublicationStatus::REJECTED,
+                ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            ],
+            ServiceSectionPublicationStatus::APPROVED => [
+                ServiceSectionPublicationStatus::PUBLISHED,
+                ServiceSectionPublicationStatus::REJECTED,
+                ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            ],
+            ServiceSectionPublicationStatus::REJECTED => [
+                ServiceSectionPublicationStatus::PENDING_APPROVAL,
+                ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            ],
+            ServiceSectionPublicationStatus::PUBLISHED => [
+                ServiceSectionPublicationStatus::PENDING_APPROVAL,
+                ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            ],
+        };
+
+        if ($target === $current) {
+            return true;
+        }
+
+        return in_array($target, $allowed, true);
+    }
+
+    public function transitionTo(ServiceSectionPublicationStatus $target): bool
+    {
+        if (! $this->canTransitionTo($target)) {
+            Log::error('Invalid service section publication transition attempted', [
+                'service_section_id' => $this->id,
+                'from' => $this->publication_status->value,
+                'to' => $target->value,
+            ]);
+
+            return false;
+        }
+
+        $this->publication_status = $target;
+
+        return true;
     }
 }

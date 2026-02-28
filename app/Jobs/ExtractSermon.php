@@ -3,10 +3,8 @@
 namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
-use App\Enums\ServiceSectionStatus;
-use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
-use App\Models\ServiceSection;
+use App\Services\SermonExtractionPlanResolver;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
@@ -30,8 +28,12 @@ class ExtractSermon implements ShouldQueue
         private MediaProcessingLog $processingLog
     ) {}
 
-    public function handle(VideoExtractionService $videoExtractor, VideoStorageService $storageService, StorageAdapterHelper $storageHelper): void
-    {
+    public function handle(
+        VideoExtractionService $videoExtractor,
+        VideoStorageService $storageService,
+        StorageAdapterHelper $storageHelper,
+        SermonExtractionPlanResolver $planResolver
+    ): void {
         try {
             $processingLog = $this->processingLog->fresh();
             if (! $processingLog instanceof MediaProcessingLog) {
@@ -51,16 +53,20 @@ class ExtractSermon implements ShouldQueue
             // Update status to show sermon extraction is starting
             $this->processingLog->markAsProcessing('extraction');
 
-            $extractionBounds = $this->resolveExtractionBounds();
+            $extractionPlan = $planResolver->resolve($this->processingLog);
+            $firstSegment = $extractionPlan['segments'][0] ?? null;
+            if (! is_array($firstSegment)) {
+                throw new \Exception('Invalid sermon extraction plan: no extraction segments were resolved');
+            }
 
             Log::info('Starting sermon extraction', [
                 'processing_id' => $this->processingLog->processing_id,
-                'sermon_start_time' => $extractionBounds['start_time'],
-                'sermon_end_time' => $extractionBounds['end_time'],
-                'bounds_source' => $extractionBounds['source'],
+                'sermon_start_time' => $firstSegment['start_time'],
+                'sermon_end_time' => $firstSegment['end_time'],
+                'bounds_source' => $extractionPlan['source'],
+                'mode' => $extractionPlan['mode'],
+                'segment_count' => count($extractionPlan['segments']),
             ]);
-
-            $sermonSegment = $this->createSermonSegment($extractionBounds['start_time'], $extractionBounds['end_time']);
 
             $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
             $isS3TempDisk = $this->isS3Disk($tempDisk);
@@ -99,17 +105,40 @@ class ExtractSermon implements ShouldQueue
             }
 
             try {
-                $sermonVideoPath = $videoExtractor->extractSegmentAsFile(
-                    $videoPath,
-                    $sermonSegment,
-                    $this->processingLog->processing_id.'_sermon.mp4'
-                );
+                if ($extractionPlan['mode'] === 'concat_spans') {
+                    $sermonVideoPath = $videoExtractor->extractConcatenatedSegmentAsFile(
+                        $videoPath,
+                        $extractionPlan['segments'],
+                        $this->processingLog->processing_id.'_sermon.mp4'
+                    );
 
-                $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
-                    $videoPath,
-                    $sermonSegment,
-                    $this->processingLog->processing_id.'_sermon.mp3'
-                );
+                    $sermonVideoAbsolutePath = Storage::disk($tempDisk)->path($sermonVideoPath);
+                    $concatDuration = $this->totalPlannedDuration($extractionPlan['segments']);
+                    $audioSegment = $this->createSermonSegment(0.0, $concatDuration);
+
+                    $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
+                        $sermonVideoAbsolutePath,
+                        $audioSegment,
+                        $this->processingLog->processing_id.'_sermon.mp3'
+                    );
+                } else {
+                    $sermonSegment = $this->createSermonSegment(
+                        (float) $firstSegment['start_time'],
+                        (float) $firstSegment['end_time']
+                    );
+
+                    $sermonVideoPath = $videoExtractor->extractSegmentAsFile(
+                        $videoPath,
+                        $sermonSegment,
+                        $this->processingLog->processing_id.'_sermon.mp4'
+                    );
+
+                    $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
+                        $videoPath,
+                        $sermonSegment,
+                        $this->processingLog->processing_id.'_sermon.mp3'
+                    );
+                }
 
                 $sermonAudioPath = $audioExtractionResult['audio_path'];
             } finally {
@@ -205,58 +234,6 @@ class ExtractSermon implements ShouldQueue
         );
     }
 
-    /**
-     * @return array{start_time: float, end_time: float, source: string}
-     */
-    private function resolveExtractionBounds(): array
-    {
-        $preferClassifiedSection = (bool) config(
-            'media-processing.section_classification.prefer_high_confidence_sermon_section',
-            true
-        );
-
-        if ($preferClassifiedSection) {
-            $preferredSection = $this->findPreferredSermonSection();
-
-            if ($preferredSection instanceof ServiceSection) {
-                return [
-                    'start_time' => (float) $preferredSection->start_time,
-                    'end_time' => (float) $preferredSection->end_time,
-                    'source' => 'service_section',
-                ];
-            }
-        }
-
-        $baselineStart = $this->processingLog->sermon_start_time;
-        $baselineEnd = $this->processingLog->sermon_end_time;
-
-        if (! is_float($baselineStart) || ! is_float($baselineEnd) || $baselineEnd <= $baselineStart) {
-            throw new \Exception('Sermon segment times not found in processing log');
-        }
-
-        return [
-            'start_time' => $baselineStart,
-            'end_time' => $baselineEnd,
-            'source' => 'processing_log',
-        ];
-    }
-
-    private function findPreferredSermonSection(): ?ServiceSection
-    {
-        $preferredSection = ServiceSection::query()
-            ->where('media_processing_log_id', $this->processingLog->id)
-            ->where('section_type', ServiceSectionType::SERMON->value)
-            ->where('status', ServiceSectionStatus::IDENTIFIED->value)
-            ->where('needs_manual_review', false)
-            ->where('metadata->confidence_level', 'high')
-            ->whereColumn('end_time', '>', 'start_time')
-            ->orderByDesc('duration')
-            ->orderByDesc('id')
-            ->first();
-
-        return $preferredSection instanceof ServiceSection ? $preferredSection : null;
-    }
-
     public function failed(\Throwable $exception): void
     {
         Log::error('ExtractSermon job failed permanently', [
@@ -296,5 +273,23 @@ class ExtractSermon implements ShouldQueue
         }
 
         return $sourceFilePath;
+    }
+
+    /**
+     * @param  array<int, array{start_time: float, end_time: float}>  $segments
+     */
+    private function totalPlannedDuration(array $segments): float
+    {
+        $duration = 0.0;
+
+        foreach ($segments as $segment) {
+            $duration += max(0.0, (float) $segment['end_time'] - (float) $segment['start_time']);
+        }
+
+        if ($duration <= 0.0) {
+            throw new \Exception('Invalid extraction plan duration');
+        }
+
+        return $duration;
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
@@ -43,6 +44,13 @@ class ServiceSectionFactory extends Factory
                 'confidence_level' => 'high',
                 'classification_mode' => 'openlp_aligned',
             ],
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE,
+            'published_sermon_id' => null,
+            'published_at' => null,
+            'extracted_video_path' => null,
+            'extracted_audio_path' => null,
+            'extracted_at' => null,
+            'unpublished_expires_at' => null,
         ];
     }
 }

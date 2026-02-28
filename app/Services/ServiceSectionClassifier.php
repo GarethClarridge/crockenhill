@@ -51,8 +51,17 @@ class ServiceSectionClassifier
     public function classify(MediaProcessingLog $processingLog): array
     {
         $churchService = $this->resolveChurchService($processingLog);
+        $requireMatchingService = (bool) config('media-processing.section_classification.require_matching_church_service', true);
 
         if (! $churchService instanceof ChurchService) {
+            if (! $requireMatchingService) {
+                return [
+                    'skipped' => false,
+                    'skip_reason' => null,
+                    'sections' => [],
+                ];
+            }
+
             return [
                 'skipped' => true,
                 'skip_reason' => 'no_matching_church_service',

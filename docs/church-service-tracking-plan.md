@@ -1010,7 +1010,7 @@ Deliver advanced section-aware extraction and controlled additional section publ
 3. Non-adjacent Bible+Sermon extraction uses **hard join concat** (no filler gap).
 4. Published additional section sermons inherit the **service from the originating run**.
 5. Bible reading is **not** independently published in Phase 3.
-6. Previously linked section publish state can be **superseded** by newer classification output, and supersede performs **automatic unpublish**.
+6. Previously linked section publish state can be **superseded** by newer classification output, and supersede returns the section to a pending/non-applicable state without deleting sermons.
 
 ### Outcomes (Must Be True)
 
@@ -1020,7 +1020,7 @@ Deliver advanced section-aware extraction and controlled additional section publ
 2. Children's talk candidates are extracted and queued for review, not auto-published.
 3. Admins can approve/reject candidates from a dedicated Livewire queue page.
 4. Approved candidates publish a `Sermon` linked back to the source section.
-5. Reclassification supersedes stale links/candidates deterministically and auto-unpublishes previously published section sermons.
+5. Reclassification supersedes stale links/candidates deterministically and moves publishable replacements back to `pending_approval`.
 6. Unpublished extracted assets are deleted by TTL cleanup.
 
 ### Scope
@@ -1063,6 +1063,8 @@ Indexes:
 Notes:
 - Keep `status` (`identified` / `skipped`) as **classification-only**.
 - Do not add a separate publication history table in Phase 3.
+- Do not add approval audit fields in Phase 3 (`approved_by_user_id`, `approved_at` remain out of scope).
+- Keep `published_sermon_id` as the link of record; add reciprocal Eloquent relation/scopes for discoverability (no extra FK column on `sermons`).
 
 ### Publication State Machine (Required)
 
@@ -1083,7 +1085,7 @@ Allowed status transitions:
 | `rejected` | `not_applicable` | supersede to non-publishable section type |
 
 Enforcement:
-- All writes must validate transitions in one central service.
+- Implement transition guards with lightweight helper methods (model-level or small domain helper), not a separate generic state-machine service.
 - Invalid transitions are rejected and logged as errors.
 
 ### Domain Design
@@ -1114,6 +1116,7 @@ Extend `VideoExtractionService` with a focused method for multi-span hard join:
 - FFmpeg concat demuxer to final section/sermon video clip
 - Extract optimized audio from merged clip
 - Cleanup temp clip/list files in `finally`
+- Use the existing `media-processing.storage.temp_disk` path conventions for all intermediate concat artifacts.
 
 Keep this as a service-level utility, not a separate orchestration layer.
 
@@ -1131,8 +1134,8 @@ Behavior:
 5. Do not publish automatically.
 
 Dispatching:
-- Trigger after `SubmitToProcessing` completes.
-- Run as a non-blocking follow-up job so failures do not fail the main livestream sermon pipeline.
+- Dispatch explicitly at the end of `SubmitToProcessing::handle()` as a non-blocking follow-up.
+- Failures must not fail the main livestream sermon pipeline.
 
 #### 4) Manual Approval + Publishing
 
@@ -1149,15 +1152,16 @@ Behavior:
    - `service` inherited from processing run identity (`extracted_service` column first, metadata fallback)
    - date inherited from run identity
    - `segment_start_time` / `segment_end_time` from section bounds
-3. Create `Sermon` via existing `SermonCreationService`.
-4. Link section:
+3. Build options via `SermonCreationOptions::fromServiceSection(ServiceSection $section, MediaProcessingLog $log)`.
+4. Create `Sermon` via existing `SermonCreationService`.
+5. Link section:
    - `published_sermon_id`
    - `published_at`
    - `publication_status = published`
    - clear `unpublished_expires_at`
 
 Idempotency requirements:
-- Job middleware uses `WithoutOverlapping` keyed by `service_section_id`.
+- Job middleware uses `WithoutOverlapping` keyed by `service_section_id` with `releaseAfter(60)` and `expireAfter(300)`.
 - Publish executes inside a DB transaction with `lockForUpdate()` on the section row.
 - Retries are safe: if section is already `published` with a sermon link, exit without side effects.
 
@@ -1166,31 +1170,36 @@ Idempotency requirements:
 No history table in Phase 3.
 
 When classification sync updates a section and its classification signature changes materially (type/title/bounds/item link):
-- If `published_sermon_id` is set, auto-unpublish:
-  - delete the linked section-published sermon record
+- If `published_sermon_id` is set, detach and supersede non-destructively:
+  - preserve the linked sermon record (no delete)
   - null `published_sermon_id` + `published_at`
 - Reset publish lifecycle based on type:
   - publishable type -> `pending_approval` (after candidate preparation)
   - non-publishable type -> `not_applicable`
-- Store supersede diagnostics in `metadata` (previous signature, timestamp, previous sermon link if present)
+- Store supersede diagnostics in `metadata` (previous signature, timestamp, previous sermon link if present).
+- Emit admin-facing notification/log when a previously published section is superseded.
 
 This treats old links/candidates as superseded without introducing revision tables.
 
+Service-section sync safety requirement:
+- `ServiceSectionSyncService` must not raw-delete stale rows that currently link to published sermons.
+- Before stale-row deletion, run supersede-detach handling for rows with `published_sermon_id` and only then continue replacement logic.
+
 ### Concurrency and Duplicate Protection (Required)
 
-1. Candidate-prep job uses `WithoutOverlapping` keyed by `media_processing_log_id`.
-2. Publish job uses `WithoutOverlapping` keyed by `service_section_id`.
+1. Candidate-prep job uses `WithoutOverlapping` keyed by `media_processing_log_id` with `releaseAfter(60)` and `expireAfter(300)`.
+2. Publish job uses `WithoutOverlapping` keyed by `service_section_id` with `releaseAfter(60)` and `expireAfter(300)`.
 3. Status transitions and sermon link writes happen inside transactions with row locks.
 4. Publish preconditions are revalidated inside the transaction (never trust stale UI state).
 5. Unique index on `service_sections.published_sermon_id` prevents duplicate section linkage.
+6. Prevent lifecycle operations from deleting `media_processing_logs` rows that still have section-publish linkage expectations.
 
 ### Admin UI (Livewire, TALL-Aligned)
 
 Add a dedicated admin queue surface, patterned after existing sermon admin listings:
 
-Routes:
+Route:
 - `GET /admin/services/section-publications` -> `ListSectionPublications`
-- `GET /admin/services/section-publications/{serviceSection}` -> `ShowSectionPublication`
 
 Capabilities:
 - Filter by `publication_status` (default `pending_approval`)
@@ -1202,7 +1211,7 @@ Capabilities:
 - Actions:
   - approve (sets `publication_status = approved`, dispatches publish job)
   - reject
-  - optional requeue (reject -> pending)
+  - requeue (reject -> pending)
 
 Auth:
 - Existing `auth + verified + admin` middleware path (no new API endpoint needed).
@@ -1255,23 +1264,23 @@ Schedule in `bootstrap/app.php` using `withSchedule(...)` (Laravel 12 convention
 - Migration for Phase 3 `service_sections` columns/indexes/FKs
 - `ServiceSectionPublicationStatus` enum
 - `ServiceSection` casts/relations updates
-- Publication state transition service scaffold
+- Lightweight transition guard helper (`validateTransition()` pattern)
 - Schema/model tests
 
 #### PR 2 - Sermon Extraction Plan Resolver + Concat
 - Add `SermonExtractionPlanResolver`
-- Update `ExtractSermon` to execute resolver output
+- Replace `ExtractSermon` Phase 2 private bound-selection methods with resolver-driven behavior
 - Extend `VideoExtractionService` concat support
 - Unit tests for adjacent, non-adjacent hard join, fallback
 
 #### PR 3 - Candidate Extraction + Supersede Reset Rules
 - Add `PrepareSectionPublicationCandidates` job
-- Integrate dispatch after `SubmitToProcessing`
-- Update sync rules to clear stale publish state on signature change and auto-unpublish linked sermons
+- Dispatch from end of `SubmitToProcessing::handle()`
+- Update sync rules to clear stale publish state on signature change with non-destructive supersede-detach flow
 - Service/job tests for idempotency and supersede behavior
 
 #### PR 4 - Admin Manual Approval Queue (Livewire)
-- New queue list/show Livewire components + Blade views
+- Single queue Livewire component + Blade view with inline actions
 - Admin approve/reject actions
 - Route registration under existing admin group
 - Livewire feature tests
@@ -1296,6 +1305,7 @@ Unit:
 - `ServiceSectionSyncService` supersede tests
 - Publication state machine transition tests (valid + invalid paths)
 - Concurrency/idempotency tests for duplicate publish prevention
+- `SermonCreationOptions::fromServiceSection` factory tests
 
 Feature/Livewire:
 - `AdminSectionPublicationQueueTest` (list/filter/approve/reject/authz)
@@ -1306,6 +1316,7 @@ Console:
 
 Integration:
 - Livestream pipeline test ensuring Phase 3 additions do not regress main sermon chain behavior.
+- Ensure `media-processing.section_classification.require_matching_church_service` behavior is either implemented or removed (no dead config).
 
 ### Quality Gates (Before Merge)
 

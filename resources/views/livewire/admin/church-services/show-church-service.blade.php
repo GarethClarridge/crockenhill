@@ -7,6 +7,9 @@
             <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
                 Back to Services
             </x-button>
+            <x-button link="{{ route('admin.services.section-publications') }}" variant="outline" inline>
+                Section Queue
+            </x-button>
             <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
                 Upload Another
             </x-button>
@@ -138,6 +141,7 @@
                                                 <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Time</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Confidence</th>
                                                 <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Review</th>
+                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Publication</th>
                                             </tr>
                                         </thead>
                                         <tbody class="divide-y divide-gray-200 bg-white">
@@ -166,6 +170,24 @@
                                                             <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
                                                                 Clear
                                                             </span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-3 py-2 text-sm">
+                                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ match($section->publication_status) {
+                                                            \App\Enums\ServiceSectionPublicationStatus::PENDING_APPROVAL => 'bg-amber-100 text-amber-800',
+                                                            \App\Enums\ServiceSectionPublicationStatus::APPROVED => 'bg-sky-100 text-sky-800',
+                                                            \App\Enums\ServiceSectionPublicationStatus::REJECTED => 'bg-rose-100 text-rose-800',
+                                                            \App\Enums\ServiceSectionPublicationStatus::PUBLISHED => 'bg-emerald-100 text-emerald-800',
+                                                            default => 'bg-gray-100 text-gray-700',
+                                                        } }}">
+                                                            {{ $section->publication_status->label() }}
+                                                        </span>
+                                                        @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PUBLISHED && $section->publishedSermon)
+                                                            <p class="mt-1 text-xs">
+                                                                <a href="{{ route('showSermon', $section->publishedSermon) }}" class="text-emerald-700 hover:text-emerald-900">
+                                                                    View sermon
+                                                                </a>
+                                                            </p>
                                                         @endif
                                                     </td>
                                                 </tr>

@@ -91,7 +91,10 @@ class ShowChurchService extends Component
         $query = MediaProcessingLog::query()
             ->livestream()
             ->with([
-                'serviceSections' => fn ($query) => $query->orderBy('section_order')->orderBy('id'),
+                'serviceSections' => fn ($query) => $query
+                    ->with('publishedSermon:id,title,slug')
+                    ->orderBy('section_order')
+                    ->orderBy('id'),
             ])
             ->orderByDesc('created_at');
 

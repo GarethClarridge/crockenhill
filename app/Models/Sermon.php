@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Contracts\Sitemapable;
@@ -62,6 +63,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $thumbnail_url
  * @property-read ?string $plain_thumbnail_file_path
  * @property-read string $canonical_url
+ * @property-read ServiceSection|null $publishedServiceSection
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
  * @method static Builder|Sermon newModelQuery()
@@ -251,6 +253,14 @@ class Sermon extends Model implements Sitemapable
     public function preacherProfile(): BelongsTo
     {
         return $this->belongsTo(Preacher::class, 'preacher_id');
+    }
+
+    /**
+     * @return HasOne<ServiceSection, $this>
+     */
+    public function publishedServiceSection(): HasOne
+    {
+        return $this->hasOne(ServiceSection::class, 'published_sermon_id');
     }
 
     /**

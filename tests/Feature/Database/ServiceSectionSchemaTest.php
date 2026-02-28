@@ -35,6 +35,13 @@ class ServiceSectionSchemaTest extends TestCase
             'needs_manual_review',
             'source_segment_ids',
             'metadata',
+            'publication_status',
+            'published_sermon_id',
+            'published_at',
+            'extracted_video_path',
+            'extracted_audio_path',
+            'extracted_at',
+            'unpublished_expires_at',
             'created_at',
             'updated_at',
         ]));
@@ -48,6 +55,9 @@ class ServiceSectionSchemaTest extends TestCase
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_log_type_index'));
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_needs_review_index'));
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_church_service_item_index'));
+        $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_publication_status_index'));
+        $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_unpublished_expires_at_index'));
+        $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_published_sermon_id_unique'));
         $this->assertTrue(Schema::hasIndex('media_processing_logs', 'media_processing_logs_extracted_identity_index'));
     }
 

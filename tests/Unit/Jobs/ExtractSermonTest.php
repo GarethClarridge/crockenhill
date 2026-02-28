@@ -41,7 +41,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('info')->once()->with('ExtractSermon job skipped: processing cancelled', \Mockery::any());
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
     }
 
     #[Test]
@@ -63,7 +63,7 @@ class ExtractSermonTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Sermon segment times not found');
 
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
     }
 
     #[Test]
@@ -117,7 +117,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
 
         $log->refresh();
         $this->assertEquals('extraction_complete', $log->current_step);
@@ -204,7 +204,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
 
         $log->refresh();
         $this->assertSame('extraction_complete', $log->current_step);
@@ -287,7 +287,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
 
         $log->refresh();
         $this->assertSame('extraction_complete', $log->current_step);
@@ -369,7 +369,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
 
         $log->refresh();
         $this->assertSame('extraction_complete', $log->current_step);
@@ -377,6 +377,114 @@ class ExtractSermonTest extends TestCase
 
         @unlink($videoFile);
         @unlink($extractedAudioFile);
+    }
+
+    #[Test]
+    public function it_uses_concat_extraction_plan_for_non_adjacent_bible_and_sermon_sections(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+        config(['media-processing.section_classification.prefer_high_confidence_sermon_section' => true]);
+        config(['media-processing.section_extraction.enhanced_sermon.allow_non_adjacent_concat' => true]);
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $tempDir = storage_path('app/livestreams');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        $videoFile = $tempDir.'/classified-concat.mp4';
+        file_put_contents($videoFile, str_repeat("\x00", 1024));
+
+        $extractedDir = storage_path('app/extracted');
+        if (! is_dir($extractedDir)) {
+            mkdir($extractedDir, 0755, true);
+        }
+        $extractedAudioFile = $extractedDir.'/classified-concat.mp3';
+        file_put_contents($extractedAudioFile, str_repeat("\xFF\xFB", 512));
+
+        $concatVideo = storage_path('app/temp/concat-sermon.mp4');
+        if (! is_dir(dirname($concatVideo))) {
+            mkdir(dirname($concatVideo), 0755, true);
+        }
+        file_put_contents($concatVideo, str_repeat("\x00", 1024));
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => null,
+            'sermon_end_time' => null,
+            'source_file_path' => 'livestreams/classified-concat.mp4',
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'bible_reading',
+            'section_order' => 1,
+            'start_time' => 120.0,
+            'end_time' => 300.0,
+            'duration' => 180.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+            ],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'sermon',
+            'section_order' => 2,
+            'start_time' => 900.0,
+            'end_time' => 2100.0,
+            'duration' => 1200.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+            ],
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->once())
+            ->method('extractConcatenatedSegmentAsFile')
+            ->willReturn('temp/concat-sermon.mp4');
+
+        $mockExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->with(
+                $concatVideo,
+                $this->callback(function ($segment): bool {
+                    return $segment instanceof \App\Data\LivestreamSegment
+                        && $segment->startTime === 0.0
+                        && $segment->endTime === 1380.0;
+                }),
+                $this->anything()
+            )
+            ->willReturn([
+                'audio_path' => 'extracted/classified-concat.mp3',
+                'full_path' => $extractedAudioFile,
+                'original_size' => 10485760,
+                'final_size' => 5242880,
+                'compression_applied' => true,
+                'compression_ratio' => 0.5,
+                'valid_for_transcription' => true,
+            ]);
+
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        $job = new ExtractSermon($log);
+        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+
+        $log->refresh();
+        $this->assertSame('extraction_complete', $log->current_step);
+        $this->assertSame('temp/concat-sermon.mp4', $log->video_file_path);
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+        @unlink($concatVideo);
     }
 
     #[Test]
@@ -411,7 +519,7 @@ class ExtractSermonTest extends TestCase
         $job = new ExtractSermon($log);
 
         try {
-            $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
+            $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
             $this->assertEquals('FFmpeg segfault', $e->getMessage());
@@ -468,7 +576,7 @@ class ExtractSermonTest extends TestCase
         $job = new ExtractSermon($log);
 
         try {
-            $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class));
+            $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
             $this->assertStringContainsString('file does not exist', $e->getMessage());

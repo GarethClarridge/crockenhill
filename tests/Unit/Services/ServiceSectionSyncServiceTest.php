@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ServiceSectionSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -135,6 +137,92 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertDatabaseMissing('service_sections', ['id' => $originalOrderTwo->id]);
         $this->assertSame('Closing Prayer', $newOrderThree->title);
         $this->assertDatabaseCount('service_sections', 2);
+    }
+
+    #[Test]
+    public function it_supersedes_published_link_and_resets_publishable_rows_when_signature_changes(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $churchServiceItem = ChurchServiceItem::factory()->create();
+        $publishedSermon = Sermon::factory()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $churchServiceItem->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_order' => 1,
+            'title' => 'Children Talk',
+            'start_time' => 120.0,
+            'end_time' => 360.0,
+            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'published_sermon_id' => $publishedSermon->id,
+            'published_at' => now(),
+            'extracted_video_path' => 'sermons/sections/1/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section.mp3',
+            'extracted_at' => now(),
+        ]);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: $churchServiceItem->id,
+                sectionOrder: 1,
+                sectionType: ServiceSectionType::CHILDRENS_TALK->value,
+                title: 'Children Talk Updated',
+                startTime: 130.0,
+                endTime: 390.0,
+                duration: 260.0
+            ),
+        ]);
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertNull($section->published_sermon_id);
+        $this->assertNull($section->published_at);
+        $this->assertNull($section->extracted_video_path);
+        $this->assertNull($section->extracted_audio_path);
+        $this->assertNull($section->unpublished_expires_at);
+        $this->assertIsArray($section->metadata);
+        $this->assertArrayHasKey('superseded', $section->metadata);
+        $this->assertDatabaseHas('sermons', ['id' => $publishedSermon->id]);
+    }
+
+    #[Test]
+    public function it_removes_stale_rows_after_detaching_published_links(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $itemOne = ChurchServiceItem::factory()->create();
+        $itemTwo = ChurchServiceItem::factory()->create();
+        $publishedSermon = Sermon::factory()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $itemOne->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 1,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $stalePublished = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $itemTwo->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'section_order' => 2,
+            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'published_sermon_id' => $publishedSermon->id,
+        ]);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: $itemOne->id,
+                sectionOrder: 1,
+                sectionType: ServiceSectionType::WELCOME->value,
+                title: 'Welcome'
+            ),
+        ]);
+
+        $this->assertDatabaseMissing('service_sections', ['id' => $stalePublished->id]);
+        $this->assertDatabaseHas('sermons', ['id' => $publishedSermon->id]);
     }
 
     /**

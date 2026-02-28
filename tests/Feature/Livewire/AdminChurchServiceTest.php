@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire;
 
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\ClassifyServiceSections;
@@ -223,6 +224,7 @@ class AdminChurchServiceTest extends TestCase
                 'confidence_level' => 'low',
                 'review_reason' => 'expected_type_mismatch',
             ],
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -240,6 +242,7 @@ class AdminChurchServiceTest extends TestCase
             'metadata' => [
                 'confidence_level' => 'high',
             ],
+            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
         ]);
 
         ServiceSection::factory()->create([
@@ -256,7 +259,9 @@ class AdminChurchServiceTest extends TestCase
             ->assertSee('High')
             ->assertSee('Low')
             ->assertSee('Needs review')
-            ->assertSee('expected type mismatch');
+            ->assertSee('expected type mismatch')
+            ->assertSee('Published')
+            ->assertSee('Pending Approval');
     }
 
     #[Test]

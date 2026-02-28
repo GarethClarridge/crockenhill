@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Jobs;
 
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -9,6 +10,7 @@ use App\Services\SermonCreationService;
 use App\Services\SermonMetadataIntegrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -16,6 +18,13 @@ use Tests\TestCase;
 class SubmitToProcessingTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake();
+    }
 
     #[Test]
     public function it_has_correct_retry_configuration(): void
@@ -112,6 +121,7 @@ class SubmitToProcessingTest extends TestCase
         $log->refresh();
         $this->assertEquals($createdSermon->id, $log->sermon_id);
         $this->assertEquals('transcription', $log->current_step);
+        Queue::assertPushed(PrepareSectionPublicationCandidates::class);
     }
 
     #[Test]

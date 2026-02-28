@@ -5,6 +5,7 @@ namespace App\Data;
 use App\Enums\SermonSourceType;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 
 class SermonCreationOptions
 {
@@ -95,6 +96,28 @@ class SermonCreationOptions
             segmentStartTime: $metadata['segment_start_time'] ?? null,
             segmentEndTime: $metadata['segment_end_time'] ?? null,
             titleStrategy: TitleGenerationStrategy::FILENAME_ONLY,
+        );
+    }
+
+    public static function fromServiceSection(
+        ServiceSection $section,
+        MediaProcessingLog $log,
+        string $date,
+        string $service
+    ): self {
+        return new self(
+            audioFilePath: self::requireAudioFilePath($section->extracted_audio_path, $log->processing_id),
+            originalFilename: $section->title ?: $log->original_filename,
+            sourceType: SermonSourceType::Livestream,
+            videoFilePath: $section->extracted_video_path,
+            livestreamProcessingId: $log->processing_id,
+            segmentStartTime: $section->start_time,
+            segmentEndTime: $section->end_time,
+            titleStrategy: TitleGenerationStrategy::FILENAME_ONLY,
+            service: $service,
+            date: $date,
+            customTitle: $section->title,
+            duration: (float) $section->duration,
         );
     }
 

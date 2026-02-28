@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Models;
 
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -23,12 +25,15 @@ class ServiceSectionTest extends TestCase
         $section = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::SERMON->value,
             'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
         ]);
 
         $this->assertInstanceOf(ServiceSectionType::class, $section->section_type);
         $this->assertSame(ServiceSectionType::SERMON, $section->section_type);
         $this->assertInstanceOf(ServiceSectionStatus::class, $section->status);
         $this->assertSame(ServiceSectionStatus::IDENTIFIED, $section->status);
+        $this->assertInstanceOf(ServiceSectionPublicationStatus::class, $section->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
     }
 
     #[Test]
@@ -56,5 +61,29 @@ class ServiceSectionTest extends TestCase
 
         $this->assertNotNull($section->churchServiceItem);
         $this->assertSame($churchServiceItem->id, $section->churchServiceItem?->id);
+    }
+
+    #[Test]
+    public function it_belongs_to_published_sermon_when_linked(): void
+    {
+        $sermon = Sermon::factory()->create();
+        $section = ServiceSection::factory()->create([
+            'published_sermon_id' => $sermon->id,
+            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+        ]);
+
+        $this->assertSame($sermon->id, $section->publishedSermon?->id);
+    }
+
+    #[Test]
+    public function it_validates_publication_status_transitions(): void
+    {
+        $section = ServiceSection::factory()->create([
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+        ]);
+
+        $this->assertTrue($section->canTransitionTo(ServiceSectionPublicationStatus::APPROVED));
+        $this->assertTrue($section->transitionTo(ServiceSectionPublicationStatus::APPROVED));
+        $this->assertFalse($section->canTransitionTo(ServiceSectionPublicationStatus::PENDING_APPROVAL));
     }
 }

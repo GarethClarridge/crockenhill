@@ -172,6 +172,117 @@ class VideoExtractionService
     }
 
     /**
+     * Extract and hard-join multiple spans using FFmpeg concat demuxer.
+     *
+     * @param  array<int, array{start_time: float, end_time: float}>  $segments
+     */
+    public function extractConcatenatedSegmentAsFile(
+        string $inputPath,
+        array $segments,
+        ?string $outputFilename = null
+    ): string {
+        $normalizedSegments = collect($segments)
+            ->filter(fn (array $segment): bool => $segment['end_time'] > $segment['start_time'])
+            ->values();
+
+        if ($normalizedSegments->isEmpty()) {
+            throw new VideoProcessingException('No valid segments provided for concatenation');
+        }
+
+        if ($normalizedSegments->count() === 1) {
+            $segment = $normalizedSegments->first();
+
+            return $this->extractSegmentAsFile(
+                $inputPath,
+                (object) [
+                    'start_time' => (float) $segment['start_time'],
+                    'end_time' => (float) $segment['end_time'],
+                ],
+                $outputFilename
+            );
+        }
+
+        $tempDisk = config('media-processing.storage.temp_disk', 'local');
+        $concatFileRelativePath = 'temp/concat/'.Str::uuid().'.txt';
+        $concatFileAbsolutePath = Storage::disk($tempDisk)->path($concatFileRelativePath);
+        $outputRelativePath = 'temp/'.($outputFilename ?? Str::uuid().'.mp4');
+        $outputAbsolutePath = Storage::disk($tempDisk)->path($outputRelativePath);
+        $clipRelativePaths = [];
+
+        Storage::disk($tempDisk)->makeDirectory(dirname($concatFileRelativePath));
+        Storage::disk($tempDisk)->makeDirectory(dirname($outputRelativePath));
+
+        try {
+            foreach ($normalizedSegments as $index => $segment) {
+                $clipRelativePaths[] = $this->extractSegmentAsFile(
+                    $inputPath,
+                    (object) [
+                        'start_time' => (float) $segment['start_time'],
+                        'end_time' => (float) $segment['end_time'],
+                    ],
+                    'concat-part-'.$index.'-'.Str::uuid().'.mp4'
+                );
+            }
+
+            $concatListContent = $this->buildConcatListContent($clipRelativePaths, $tempDisk);
+            file_put_contents($concatFileAbsolutePath, $concatListContent);
+
+            $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path');
+            $concatCommand = [
+                $ffmpegPath,
+                '-f', 'concat',
+                '-safe', '0',
+                '-i', escapeshellarg($concatFileAbsolutePath),
+                '-c', 'copy',
+                '-y',
+                escapeshellarg($outputAbsolutePath),
+            ];
+
+            $concatCommandString = implode(' ', $concatCommand);
+            exec($concatCommandString.' 2>&1', $concatOutput, $concatReturnCode);
+
+            if ($concatReturnCode !== 0) {
+                Log::warning('FFmpeg concat stream copy failed; retrying with re-encode fallback', [
+                    'command' => $concatCommandString,
+                    'output' => implode("\n", $concatOutput),
+                ]);
+
+                $fallbackCommand = [
+                    $ffmpegPath,
+                    '-f', 'concat',
+                    '-safe', '0',
+                    '-i', escapeshellarg($concatFileAbsolutePath),
+                    '-c:v', 'libx264',
+                    '-c:a', 'aac',
+                    '-y',
+                    escapeshellarg($outputAbsolutePath),
+                ];
+
+                $fallbackCommandString = implode(' ', $fallbackCommand);
+                exec($fallbackCommandString.' 2>&1', $fallbackOutput, $fallbackReturnCode);
+
+                if ($fallbackReturnCode !== 0) {
+                    throw new VideoProcessingException('FFmpeg concat failed: '.implode("\n", $fallbackOutput));
+                }
+            }
+
+            if (! $this->fileExists($outputAbsolutePath, $tempDisk)) {
+                throw new VideoProcessingException('Concatenated output file was not created');
+            }
+
+            return $outputRelativePath;
+        } finally {
+            foreach ($clipRelativePaths as $clipRelativePath) {
+                Storage::disk($tempDisk)->delete($clipRelativePath);
+            }
+
+            if (file_exists($concatFileAbsolutePath)) {
+                unlink($concatFileAbsolutePath);
+            }
+        }
+    }
+
+    /**
      * Extract video segment and return as UploadedFile (for processing pipelines)
      */
     public function extractSegmentAsUpload(string $inputPath, object $segment, ?string $outputFilename = null): UploadedFile
@@ -512,5 +623,21 @@ class VideoExtractionService
         }
 
         return $this->ffmpeg;
+    }
+
+    /**
+     * @param  array<int, string>  $clipRelativePaths
+     */
+    private function buildConcatListContent(array $clipRelativePaths, string $disk): string
+    {
+        $lines = [];
+
+        foreach ($clipRelativePaths as $clipRelativePath) {
+            $absolutePath = Storage::disk($disk)->path($clipRelativePath);
+            $safeAbsolutePath = str_replace("'", "'\\''", $absolutePath);
+            $lines[] = "file '{$safeAbsolutePath}'";
+        }
+
+        return implode("\n", $lines)."\n";
     }
 }

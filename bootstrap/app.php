@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('calendar:sync')->cron('0 */4 * * *');
         $schedule->command('media:cleanup-temp-files --hours=24')->everySixHours();
+        $schedule->command('media:cleanup-unpublished-section-assets --hours=48')
+            ->everySixHours()
+            ->withoutOverlapping(30);
     })
     ->withMiddleware(function (Middleware $middleware) {
         $trustedProxies = env('TRUSTED_PROXIES');
