@@ -15,12 +15,29 @@ class SermonTranscriptTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Ensure all common candidate disks are faked to avoid hitting real storage
+        // and to prevent exceptions during candidate disk traversal.
+        Storage::fake('local');
+        Storage::fake('public');
+        Storage::fake('do_spaces');
+
+        // Set predictable base configuration for candidate disks
+        Config::set('media-processing.storage.transcript_disk', 'local');
+        Config::set('media-processing.storage.sermon_disk', 'public');
+    }
+
     #[Test]
     public function get_transcript_returns_null_when_no_path_set(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => null]);
         $this->assertNull($sermon->transcript);
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => '']);
         $this->assertNull($sermon->transcript);
     }
@@ -35,6 +52,7 @@ class SermonTranscriptTest extends TestCase
         $content = 'This is the transcript content.';
         Storage::disk('transcripts')->put($path, $content);
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => $path]);
 
         $this->assertEquals($content, $sermon->transcript);
@@ -55,6 +73,7 @@ class SermonTranscriptTest extends TestCase
         // Missing on primary, exists on secondary
         Storage::disk('sermons')->put($path, $content);
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => $path]);
 
         $this->assertEquals($content, $sermon->transcript);
@@ -63,13 +82,13 @@ class SermonTranscriptTest extends TestCase
     #[Test]
     public function get_transcript_logs_warning_and_returns_null_when_not_found_on_any_disk(): void
     {
-        Storage::fake('local');
-        Storage::fake('public');
-
         Log::shouldReceive('warning')
-            ->atLeast()->once()
-            ->withAnyArgs();
+            ->once()
+            ->with('Transcript file not found on any configured disk', \Mockery::on(function ($args) {
+                return ($args['transcript_file_path'] ?? '') === 'missing.md';
+            }));
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => 'missing.md']);
 
         $this->assertNull($sermon->transcript);
@@ -78,15 +97,19 @@ class SermonTranscriptTest extends TestCase
     #[Test]
     public function has_transcript_returns_correct_boolean(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => 'path/to/transcript.md']);
         $this->assertTrue($sermon->hasTranscript());
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => null]);
         $this->assertFalse($sermon->hasTranscript());
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => '']);
         $this->assertFalse($sermon->hasTranscript());
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => '   ']);
         $this->assertFalse($sermon->hasTranscript());
     }
@@ -95,20 +118,24 @@ class SermonTranscriptTest extends TestCase
     public function is_automated_checks_transcript_path_and_logs(): void
     {
         // Only transcript path
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => 'path.md']);
         $this->assertTrue($sermon->isAutomated());
 
         // Only processing logs
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create(['transcript_file_path' => null]);
         MediaProcessingLog::factory()->create(['sermon_id' => $sermon->id]);
         $this->assertTrue($sermon->isAutomated());
 
         // Both
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create(['transcript_file_path' => 'path.md']);
         MediaProcessingLog::factory()->create(['sermon_id' => $sermon->id]);
         $this->assertTrue($sermon->isAutomated());
 
         // Neither
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create(['transcript_file_path' => null]);
         $this->assertFalse($sermon->isAutomated());
     }
@@ -116,9 +143,11 @@ class SermonTranscriptTest extends TestCase
     #[Test]
     public function is_manual_is_inverse_of_is_automated(): void
     {
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => 'path.md']);
         $this->assertFalse($sermon->isManual());
 
+        /** @var Sermon $sermon */
         $sermon = Sermon::factory()->create(['transcript_file_path' => null]);
         $this->assertTrue($sermon->isManual());
     }
