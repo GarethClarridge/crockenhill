@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
+use App\Enums\SermonService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $original_filename
  * @property int|null $file_size
  * @property float|null $duration
+ * @property \Illuminate\Support\Carbon|null $extracted_date
+ * @property SermonService|null $extracted_service
  * @property string|null $source_file_path
  * @property string|null $stored_file_path
  * @property string|null $audio_file_path
@@ -47,6 +50,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read User|null $owner
  * @property-read Sermon|null $sermon
  * @property-read \Illuminate\Database\Eloquent\Collection<int, LivestreamSegment> $segments
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ServiceSection> $serviceSections
  */
 class MediaProcessingLog extends Model
 {
@@ -64,6 +68,8 @@ class MediaProcessingLog extends Model
         'original_filename',
         'file_size',
         'duration',
+        'extracted_date',
+        'extracted_service',
 
         // File paths
         'source_file_path',
@@ -115,6 +121,8 @@ class MediaProcessingLog extends Model
             'visual_samples' => 'array',
             'song_clusters' => 'array',
             'duration' => 'float',
+            'extracted_date' => 'date',
+            'extracted_service' => SermonService::class,
             'sermon_start_time' => 'float',
             'sermon_end_time' => 'float',
             'adaptive_threshold' => 'float',
@@ -150,6 +158,14 @@ class MediaProcessingLog extends Model
     public function segments(): HasMany
     {
         return $this->hasMany(LivestreamSegment::class, 'media_processing_log_id');
+    }
+
+    /**
+     * @return HasMany<ServiceSection, $this>
+     */
+    public function serviceSections(): HasMany
+    {
+        return $this->hasMany(ServiceSection::class, 'media_processing_log_id');
     }
 
     // Scopes

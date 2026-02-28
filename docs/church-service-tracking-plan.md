@@ -456,155 +456,541 @@ Every change must pass:
 
 ---
 
-## Phase 2 Design (Draft)
+## Phase 2 Implementation Plan
 
-> **This section is a working draft.** Designs here will be revisited and refined after Phase 1 is in production and real-world usage informs requirements.
+### Goal
 
-### Phase 2 Goal
+Add deterministic section classification to livestream processing, aligned to OpenLP order-of-service data, while keeping the implementation minimal and fully additive to the current pipeline.
 
-Add section classification to the livestream processing pipeline, linking detected service sections to OpenLP order-of-service data, and provide a review queue for low-confidence results.
+### Phase 2 Outcomes (Must Be True)
 
-### `service_sections` Table (Draft)
+1. Every livestream run with a matching `ChurchService` has `service_sections` rows generated idempotently.
+2. Runs are linkable to `church_services` via indexed identity columns on `media_processing_logs` (`extracted_date`, `extracted_service`).
+3. `ExtractSermon` can prefer a high-confidence classified sermon section at read-time, with safe fallback to existing baseline log fields.
+4. Admins can inspect classified sections from existing service admin pages and retrigger classification from Livewire.
+5. Existing `/api/media/*` and `/api/services/*` surfaces remain unchanged in Phase 2.
 
-Business-level detected sections (classification output).
+### Scope
+
+In scope:
+- Data model for classified sections
+- Cross-domain lookup contract using date/service identity
+- Classifier job integration into livestream chain
+- Minimal admin visibility/actions in existing Livewire service pages
+- Test coverage across jobs, services, and Livewire
+
+Out of scope (still Phase 3+):
+- Publishing additional sections (children's talk, etc.)
+- Bible-reading + sermon concat logic
+- Email order import
+- Song DB sync/import
+
+---
+
+### Data Model
+
+#### 1) `service_sections` table (new)
+
+Business-level section output (minimal Phase 2 schema only).
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | bigint | PK |
 | `media_processing_log_id` | bigint FK | Cascade delete |
-| `church_service_item_id` | bigint FK nullable | Set null on delete |
-| `section_type` | string | `ServiceSectionType` enum |
-| `section_order` | unsignedInteger | Order in detected service |
-| `title` | string nullable | Derived section title |
-| `start_time` | float | Seconds — matches existing `LivestreamSegment` convention |
+| `church_service_item_id` | bigint FK nullable | Null on delete; matched OpenLP item |
+| `section_type` | string | `ServiceSectionType` enum value |
+| `section_order` | unsignedInteger | Order within the run |
+| `title` | string nullable | Display title (OpenLP title when matched) |
+| `start_time` | float | Seconds from livestream start |
 | `end_time` | float | Seconds |
 | `duration` | float | Seconds |
-| `confidence` | float | 0.0-1.0 |
-| `confidence_source` | string | Backed enum cast: `ServiceSectionConfidenceSource` |
-| `status` | string | `ServiceSectionStatus` enum |
-| `needs_manual_review` | boolean default false | Review queue signal |
-| `manual_review_reason` | string nullable | Why flagged |
-| `extracted_file_path` | string nullable | Extracted media path |
-| `sermon_id` | unsignedInteger nullable FK | Matches current `sermons.id` PK type |
-| `source_segment_ids` | json | Source `LivestreamSegment` IDs |
-| `metadata` | json nullable | Extra notes/transcript hints |
-| `timestamps` | | |
+| `status` | string | `ServiceSectionStatus` enum value (`identified`, `skipped`) |
+| `needs_manual_review` | boolean default false | Review queue flag |
+| `source_segment_ids` | json | Contributing `livestream_segments.id` values |
+| `metadata` | json nullable | Diagnostics including `confidence_level`, `classification_mode`, `review_reason` |
+| `timestamps` |  | |
 
-Notes:
-- Time columns use `float` to match existing `LivestreamSegment` and `MediaProcessingLog` conventions.
-- `confidence_source` uses a backed enum cast (`ServiceSectionConfidenceSource`) — it drives classifier branching and review behavior, and the codebase uses enums consistently for typed string columns.
-- Unique composite on `(media_processing_log_id, section_order)` for idempotent refresh upserts.
+Indexes and constraints:
+- Unique: `(media_processing_log_id, section_order)` for idempotent refresh writes
+- Index: `(media_processing_log_id, section_type)`
+- Index: `(needs_manual_review)`
+- Index: `(church_service_item_id)`
 
-### `media_processing_logs` Changes (Draft)
-
-Add indexed extracted identity columns for cross-domain lookup:
+#### 2) `media_processing_logs` additions (new columns)
 
 | Column | Type | Notes |
 |---|---|---|
-| `extracted_date` | date nullable | Indexed |
-| `extracted_service` | string nullable | Indexed; values align with `SermonService` |
-| `church_service_id` | bigint nullable FK | Set null on delete; resolved cache, not structural coupling |
+| `extracted_date` | date nullable | Indexed lookup key |
+| `extracted_service` | string nullable | Indexed, aligned to `SermonService` values |
 
 Indexes:
-- `(extracted_date, extracted_service)` — primary cross-domain lookup
-- `church_service_id` — optional resolved link
+- `(extracted_date, extracted_service)`
 
-Cross-domain lookup uses `(extracted_date, extracted_service)` to join against `church_services.(date, service)`. The nullable `church_service_id` FK is a **resolved cache** — set by the classifier after successful lookup, providing traceability and query performance. It is not required for correctness; the `(date, service)` join is the source of truth. This way, if date/service inference is later corrected, the FK can be re-resolved without structural migration.
+Contract:
+- `(extracted_date, extracted_service)` is the source-of-truth lookup contract.
+- No cached FK to `church_services` in Phase 2.
 
-### Enums (Draft)
+Migration/backfill notes:
+- Add columns nullable first (safe deploy).
+- Classifier falls back to `processing_metadata.extracted_*` when new columns are null.
+- Optional one-off backfill command can be run after deploy to populate historical rows.
 
-#### `ServiceSectionType`
+---
+
+### Enums and Models
+
+Add enums:
 
 ```php
 enum ServiceSectionType: string
 {
-    case Welcome = 'welcome';
-    case Prayer = 'prayer';
-    case Notices = 'notices';
-    case Song = 'song';
-    case ChildrensTalk = 'childrens_talk';
-    case BibleReading = 'bible_reading';
-    case Sermon = 'sermon';
-    case Other = 'other';
+    case WELCOME = 'welcome';
+    case PRAYER = 'prayer';
+    case NOTICES = 'notices';
+    case SONG = 'song';
+    case CHILDRENS_TALK = 'childrens_talk';
+    case BIBLE_READING = 'bible_reading';
+    case SERMON = 'sermon';
+    case OTHER = 'other';
 }
 ```
-
-#### `ServiceSectionStatus`
 
 ```php
 enum ServiceSectionStatus: string
 {
-    case Identified = 'identified';
-    case Extracted = 'extracted';
-    case Published = 'published';
-    case Skipped = 'skipped';
+    case IDENTIFIED = 'identified';
+    case SKIPPED = 'skipped';
 }
 ```
 
-#### `ServiceSectionConfidenceSource`
+`ServiceSectionConfidenceSource` is intentionally deferred. In Phase 2, confidence/source details are stored in `metadata` as strings.
 
-```php
-enum ServiceSectionConfidenceSource: string
-{
-    case Heuristic = 'heuristic';
-    case OrderOfService = 'order_of_service';
-    case AiTranscript = 'ai_transcript';
-}
-```
+Add model:
+- `App\Models\ServiceSection` with casts for enums, floats, bools, json
+- Relationships:
+  - `belongsTo(MediaProcessingLog::class)`
+  - `belongsTo(ChurchServiceItem::class)->withTrashed()`
 
-### Pipeline Integration (Draft)
+Update existing models:
+- `MediaProcessingLog`:
+  - add fillable/casts for `extracted_date`, `extracted_service`
+  - add `hasMany(ServiceSection::class)`
+- `ChurchServiceItem`:
+  - add `hasMany(ServiceSection::class)`
 
-Add `ClassifyServiceSections` after `AnalyzeSegments` in livestream chain.
+---
 
-Target chain:
+### Classification Pipeline Design
+
+#### New services (lean)
+
+1. `ServiceSectionClassifier`
+- Pure classification orchestration:
+  - resolve matching `ChurchService` via extracted date/service
+  - map `ChurchServiceItem` types/titles to section types
+  - align segments to OpenLP items by sequence
+  - assign confidence level (`high`/`low`/`none`) in metadata
+  - set review flags
+- Returns a deterministic DTO collection for sync.
+
+2. `ServiceSectionSyncService`
+- Transactional upsert into `service_sections`.
+- Upsert key: `(media_processing_log_id, section_order)`.
+- Refresh mode behavior: update/replace classified rows for the run idempotently.
+
+#### New job: `ClassifyServiceSections`
+
+Queue + chain placement:
 1. `AnalyzeSegments`
-2. `ClassifyServiceSections` (new, default-on)
+2. `ClassifyServiceSections` (new)
 3. `ExtractSermon`
 4. Existing downstream jobs
 
-Classifier behavior:
-1. Load `LivestreamSegment` rows for run
-2. Create baseline `ServiceSection` rows from heuristics (works without OpenLP)
-3. Resolve `ChurchService` by `(extracted_date, extracted_service)` lookup
-4. If found, align sections to `ChurchServiceItem` order when confidence supports it
-5. Mark low-confidence/split candidates with `needs_manual_review=true`
-6. Upsert idempotently by `(media_processing_log_id, section_order)` in refresh mode
-7. Bound updates:
-   - May refine `sermon_start_time/end_time` only when confidence beats baseline
-   - Must not auto-update after publish; require explicit manual reclassify endpoint
+Job behavior:
+1. `updateStep('classifying_sections')`
+2. Load run segments ordered by `segment_order`, then `start_time`
+3. Resolve extracted identity (`columns` first, `processing_metadata` fallback)
+4. Find matching `ChurchService` by `(date, service)`
+5. If no service is found:
+   - write no `service_sections`
+   - `updateStep('section_classification_skipped')`
+   - return early
+6. Classify by aligning ordered OpenLP items with ordered segments
+7. Set metadata fields:
+   - `confidence_level`: `high`, `low`, or `none`
+   - `classification_mode`: `openlp_aligned`
+   - `review_reason` when flagged
+8. Sync via `ServiceSectionSyncService`
+9. `updateStep('section_classification_complete')`
 
-### Review Queue (Draft)
+Failure handling:
+- On classifier exception, mark run failed like existing jobs.
+- Do not bypass to extraction on hard failure.
 
-Low-confidence and split-candidate sections surfaced via:
-- `service_sections.needs_manual_review=true`
-- `manual_review_reason` and metadata context
+---
 
-Admin review UI/actions:
-- List/filter pending reviews
-- Approve/relabel/retime sections
-- Trigger manual reclassify for a service/run
-- Manual admin editing for order-of-service data
+### Confidence and Review Rules
 
-Email notifications are optional (digest/alerts), not the primary review mechanism.
+Confidence model (Phase 2):
+- `high`: section aligned to OpenLP item in expected sequence
+- `low`: partially aligned or ambiguous match
+- `none`: no reliable alignment
 
-### Phase 2 Configuration (Draft)
+Review flag:
+- `needs_manual_review=true` when:
+  - `confidence_level !== 'high'`
+  - expected OpenLP item cannot be matched
+  - segment overlap or order anomaly is detected
+
+`review_reason` is stored in `metadata`, not as a dedicated column.
+
+---
+
+### ExtractSermon Integration (Phase 2 Boundaries)
+
+`ExtractSermon` changes in Phase 2:
+- Read high-confidence classified sermon bounds at extraction time:
+  - preferred source: `service_sections` (`section_type=sermon`, `metadata.confidence_level='high'`, not flagged)
+  - fallback source: existing `media_processing_logs.sermon_start_time/end_time`
+- Do not mutate `media_processing_logs.sermon_start_time/end_time` in the classifier job.
+
+Guardrail:
+- Classification remains additive and cannot corrupt baseline extraction fields.
+
+---
+
+### Admin Surface
+
+#### Livewire admin UI
+
+Phase 2 keeps UI scope minimal by extending existing service views:
+- Enhance `ShowChurchService` to display related classified runs/sections for that `(date, service)`.
+- Show read-only section diagnostics:
+  - section type, title, time range, confidence level, review flag/reason
+
+Actions:
+- Add a `Reclassify` action per run from Livewire (dispatch job directly).
+
+Routing:
+- No new API endpoint in Phase 2.
+- No standalone review queue page in Phase 2.
+
+---
+
+### Configuration
 
 Add to `config/media-processing.php`:
 
 ```php
 'section_classification' => [
     'enabled' => env('SERVICE_SECTION_CLASSIFICATION_ENABLED', true),
-    'use_ai_for_split_candidates' => env('SERVICE_SECTION_AI_SPLIT_ENABLED', false),
-    'confidence' => [
-        'sermon_refine_min' => 0.70,
-        'manual_review_below' => 0.60,
-    ],
+    'require_matching_church_service' => env('SERVICE_SECTION_REQUIRE_MATCHING_SERVICE', true),
+    'prefer_high_confidence_sermon_section' => env('SERVICE_SECTION_PREFER_HIGH_CONFIDENCE_SERMON', true),
 ],
 ```
 
-### Phase 2 Endpoints (Draft)
+Feature flag behavior:
+- `enabled=false`: skip classifier entirely (Phase 1 behavior).
+- `require_matching_church_service=true`: classifier no-ops when no matching OpenLP service exists.
 
-- `POST /api/services/{churchService}/reclassify` — explicit manual refresh mode (required for post-publish bound changes)
+---
+
+### Implementation Sequence
+
+1. Data foundation
+- migrations for `service_sections` + `media_processing_logs` columns/indexes
+- enums + model + factories
+
+2. Domain services
+- classifier + sync service (resolver/type mapping as private classifier methods)
+
+3. Pipeline wiring
+- `ClassifyServiceSections` job
+- `ProcessingPipelineBuilder` insertion
+- `ProcessingStep` additions (`classifying_sections`, `section_classification_complete`, `section_classification_skipped`)
+
+4. Extraction integration
+- `ExtractSermon` read-time preference for high-confidence classified sermon section (no shared-state mutation)
+
+5. Admin visibility/actions
+- extend existing `ShowChurchService` Livewire/view
+- add Livewire reclassify action (job dispatch)
+
+6. Hardening
+- logging/diagnostics
+- canary defaults and rollback checks
+
+---
+
+### PR-Sized Execution Checklist
+
+#### PR 1 - Schema + Model Foundation
+
+Scope:
+- Add migration for `service_sections` (Phase 2 minimal columns only).
+- Add migration to `media_processing_logs` for `extracted_date` + `extracted_service` and index.
+- Add `ServiceSectionType` + `ServiceSectionStatus` enums.
+- Add `App\Models\ServiceSection` + factory.
+- Add model relationships:
+  - `MediaProcessingLog::serviceSections()`
+  - `ChurchServiceItem::serviceSections()`
+- Add `MediaProcessingLog` casts/fillable for `extracted_date` + `extracted_service`.
+
+Tests:
+- `ServiceSection` model/relationship tests.
+- Migration integrity test (indexes, FK behavior).
+
+Quality gate:
+- `vendor/bin/sail artisan test --compact --filter=ServiceSection`
+- `vendor/bin/sail composer phpstan`
+- `vendor/bin/sail bin pint --dirty`
+
+Merge criteria:
+- No Phase 3 columns in schema.
+- Zero phpstan errors.
+
+#### PR 2 - Classifier + Sync Services
+
+Scope:
+- Add `ServiceSectionClassifier` service.
+- Keep service matching and type mapping as private methods in classifier.
+- Add ternary confidence model in metadata (`high|low|none`).
+- Add `ServiceSectionSyncService` (idempotent transactional upsert by `(media_processing_log_id, section_order)`).
+
+Tests:
+- `ServiceSectionClassifierTest`:
+  - skips when no matching `ChurchService` and config requires match
+  - aligns ordered OpenLP items to ordered segments
+  - sets confidence metadata + review flags
+- `ServiceSectionSyncServiceTest`:
+  - creates on first run
+  - updates/replaces idempotently on rerun
+
+Quality gate:
+- `vendor/bin/sail artisan test --compact --filter=ServiceSectionClassifier`
+- `vendor/bin/sail artisan test --compact --filter=ServiceSectionSyncService`
+- `vendor/bin/sail composer phpstan`
+- `vendor/bin/sail bin pint --dirty`
+
+Merge criteria:
+- No new API/UI surface yet.
+- Classifier is pure domain logic (no queue coupling).
+
+#### PR 3 - Pipeline Job Integration
+
+Scope:
+- Add `ClassifyServiceSections` job.
+- Wire job into livestream chain:
+  - `AnalyzeSegments -> ClassifyServiceSections -> ExtractSermon`.
+- Add processing steps:
+  - `classifying_sections`
+  - `section_classification_complete`
+  - `section_classification_skipped`
+- Respect config gates:
+  - `section_classification.enabled`
+  - `section_classification.require_matching_church_service`
+
+Tests:
+- `ClassifyServiceSectionsTest` (success, skipped, failure paths).
+- Update `ProcessingPipelineBuilderTest` expected order/count.
+- Update livestream integration test that asserts batch/chain job order.
+
+Quality gate:
+- `vendor/bin/sail artisan test --compact --filter=ClassifyServiceSections`
+- `vendor/bin/sail artisan test --compact --filter=ProcessingPipelineBuilder`
+- `vendor/bin/sail composer phpstan`
+- `vendor/bin/sail bin pint --dirty`
+
+Merge criteria:
+- Pipeline remains backward-compatible when feature flag disabled.
+
+#### PR 4 - ExtractSermon Read-Time Preference
+
+Scope:
+- Update `ExtractSermon` to optionally read high-confidence sermon section from `service_sections`.
+- Keep fallback to existing `media_processing_logs.sermon_start_time/end_time`.
+- Do not mutate baseline sermon times in classifier/job.
+
+Tests:
+- `ExtractSermonWithSectionsTest`:
+  - prefers high-confidence classified sermon section
+  - falls back when section missing/low-confidence/flagged
+  - preserves existing behavior when classifier disabled or skipped
+
+Quality gate:
+- `vendor/bin/sail artisan test --compact --filter=ExtractSermon`
+- `vendor/bin/sail composer phpstan`
+- `vendor/bin/sail bin pint --dirty`
+
+Merge criteria:
+- Existing extraction tests still pass unchanged.
+- No writes to `sermon_start_time/end_time` in classifier flow.
+
+#### PR 5 - Minimal Admin Visibility in Existing Service Page
+
+Scope:
+- Extend `ShowChurchService` Livewire component and Blade view.
+- Display related processing runs for same `(date, service)` identity.
+- Display classified sections (type/title/time/confidence/review) read-only.
+
+Tests:
+- Extend `AdminChurchServiceTest` to assert sections are rendered and ordered.
+- Access control assertions (admin only).
+
+Quality gate:
+- `vendor/bin/sail artisan test --compact --filter=AdminChurchService`
+- `vendor/bin/sail composer phpstan`
+- `vendor/bin/sail bin pint --dirty`
+
+Merge criteria:
+- No new standalone review queue page.
+- UI remains additive to existing service admin route.
+
+#### PR 6 - Livewire Reclassify Action (No New API)
+
+Scope:
+- Add reclassify action to existing Livewire service page.
+- Dispatch `ClassifyServiceSections` for selected run from Livewire action.
+- Add guardrails:
+  - admin-only
+  - processing type must be livestream
+  - matching service identity required
+
+Tests:
+- Extend `AdminChurchServiceTest`:
+  - action dispatches classifier job
+  - unauthorized/non-admin blocked
+  - validation for invalid run IDs
+
+Quality gate:
+- `vendor/bin/sail artisan test --compact --filter=AdminChurchService`
+- `vendor/bin/sail composer phpstan`
+- `vendor/bin/sail bin pint --dirty`
+
+Merge criteria:
+- No `/api/services/{churchService}/reclassify` endpoint added.
+
+#### PR 7 - Hardening + Backfill Utility (Optional but Recommended)
+
+Scope:
+- Add optional artisan command to backfill `media_processing_logs.extracted_date/extracted_service` from `processing_metadata` for historical rows.
+- Add operational logs/metrics around classification outcomes:
+  - matched
+  - low-confidence
+  - skipped-no-service
+
+Tests:
+- Command tests for dry run and write mode.
+- Job/service tests for backfill-read fallback behavior.
+
+Quality gate:
+- `vendor/bin/sail artisan test --compact --filter=ClassifyServiceSections`
+- `vendor/bin/sail artisan test --compact --filter=Backfill`
+- `vendor/bin/sail composer phpstan`
+- `vendor/bin/sail bin pint --dirty`
+
+Merge criteria:
+- Command is safe/idempotent.
+- No behavior change to active processing when command is not run.
+
+#### PR 8 - Final Validation + Canary Enablement
+
+Scope:
+- Run full suite and static checks.
+- Enable feature flag for canary admins only.
+- Validate canary acceptance checks.
+
+Validation commands:
+- `vendor/bin/sail artisan test --parallel --compact`
+- `vendor/bin/sail composer phpstan`
+- `vendor/bin/sail bin pint --dirty`
+
+Canary acceptance checks:
+- Classifier produces sections for matching services.
+- Runs without matching service cleanly skip classification.
+- Extraction regression is zero on canary sample.
+- Low-confidence rows visible in service admin view.
+
+Rollback:
+- Set `SERVICE_SECTION_CLASSIFICATION_ENABLED=false`.
+- Confirm livestream chain reverts to baseline behavior.
+
+---
+
+### Test Plan (Required)
+
+#### Unit tests
+
+1. `ServiceSectionClassifierTest`
+- skips classification when no matching `ChurchService` and required-by-config
+- OpenLP alignment by order
+- confidence level assignment (`high`/`low`/`none`) and review flags in metadata
+
+2. `ServiceSectionSyncServiceTest`
+- idempotent upsert by `(run, order)`
+- stale rows replaced/updated correctly
+
+3. `ExtractSermonWithSectionsTest`
+- prefers high-confidence sermon section
+- falls back to baseline when missing/low-confidence sections
+- does not require classifier to mutate `media_processing_logs.sermon_*`
+
+#### Job tests
+
+1. `ClassifyServiceSectionsTest`
+- writes sections for successful run
+- records skipped step when no matching service
+- fails run correctly on unrecoverable classifier error
+
+2. Update `ProcessingPipelineBuilderTest`
+- assert new livestream chain order and job counts
+
+#### Feature tests
+
+1. `LivestreamProcessingIntegrationTest` update
+- assert classifier job appears between `AnalyzeSegments` and `ExtractSermon`
+
+#### Livewire tests
+
+1. Extend `AdminChurchServiceTest`
+- show page renders classified sections
+- reclassify action dispatches classification job
+- access control for admin-only action
+
+---
+
+### Quality Gates (Before Merge)
+
+Run with Sail:
+
+```bash
+vendor/bin/sail artisan test --compact --filter=ServiceSection
+vendor/bin/sail artisan test --compact --filter=ClassifyServiceSections
+vendor/bin/sail artisan test --compact --filter=ProcessingPipelineBuilder
+vendor/bin/sail composer phpstan
+vendor/bin/sail bin pint --dirty
+```
+
+Then full validation:
+
+```bash
+vendor/bin/sail artisan test --parallel --compact
+```
+
+---
+
+### Rollout and Risk Controls
+
+1. Deploy schema + code with classifier disabled by env.
+2. Enable classifier for canary admins only (existing feature-flag process).
+3. Verify:
+   - no extraction regressions
+   - section rows generated for canary runs
+   - low-confidence cases are visible and flagged in the service admin page
+4. Enable globally after 1-2 weeks of stable canary usage.
+5. Rollback path:
+   - set `SERVICE_SECTION_CLASSIFICATION_ENABLED=false`
+   - pipeline immediately reverts to existing baseline extraction behavior.
 
 ---
 

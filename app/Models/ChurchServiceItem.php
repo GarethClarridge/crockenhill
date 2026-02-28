@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  * @property-read ChurchService $churchService
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ServiceSection> $serviceSections
  *
  * @method static \Database\Factories\ChurchServiceItemFactory factory(...$parameters)
  * @method static Builder<ChurchServiceItem> newModelQuery()
@@ -68,5 +70,13 @@ class ChurchServiceItem extends Model
     public function churchService(): BelongsTo
     {
         return $this->belongsTo(ChurchService::class);
+    }
+
+    /**
+     * @return HasMany<ServiceSection, $this>
+     */
+    public function serviceSections(): HasMany
+    {
+        return $this->hasMany(ServiceSection::class);
     }
 }
