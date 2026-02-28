@@ -14,7 +14,6 @@ class DatabaseSeeder extends Seeder
             SermonSeeder::class,
             PageSeeder::class,
             MeetingSeeder::class,
-            TranscriptSeeder::class,
         ]);
     }
 }

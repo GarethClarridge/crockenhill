@@ -11,20 +11,24 @@ class MockTranscriptionService implements TranscriptionServiceInterface
 {
     private const TRANSCRIPT_DIRECTORY = 'transcripts';
 
-    private const DEFAULT_TRANSCRIPT_PATH = 'transcripts/sermon_7.md';
+    private const MOCK_TRANSCRIPT = <<<'TRANSCRIPT'
+Good morning, everyone. Today we're going to be looking at Romans chapter 8, verse 28, and our first point is the scope of God's sovereignty. The apostle Paul writes, "And we know that in all things God works for the good of those who love him, who have been called according to his purpose." Paul is not limiting this promise to comfortable seasons; he includes uncertainty, disappointment, and delay. In every season, the Lord is active, wise, and present with his people.
+
+Our second point is how believers respond when life is hard. We are not called to deny pain, but to bring it honestly before God in prayer while remaining rooted in Scripture. Christian hope is not passive optimism; it is active trust that God can redeem what we cannot yet understand. As we walk through trials, faith grows through obedience, patience, and mutual encouragement in the church.
+
+Our third point is the purpose of this promise in daily mission. When we remember God's faithful providence, we become steadier in service, kinder in speech, and more courageous in witness. We forgive more quickly, we persevere in doing good, and we care for people who are weary. The same grace that sustains us also equips us to strengthen others and point them to Christ.
+TRANSCRIPT;
 
     public function __construct(
         private readonly SermonProcessingLogger $logger
     ) {}
 
     /**
-     * Mock transcription that returns the sermon_7.md content
+     * Mock transcription that returns static in-code content
      *
      * @param  string  $audioFilePath  Path to the audio file (not actually used)
      * @param  string  $processingId  Processing ID for logging
-     * @return string The mock transcribed text from sermon_7.md
-     *
-     * @throws Exception When mock transcript cannot be loaded
+     * @return string The mock transcribed text
      */
     public function transcribe(string $audioFilePath, string $processingId = 'unknown', ?string $disk = null): string
     {
@@ -40,12 +44,7 @@ class MockTranscriptionService implements TranscriptionServiceInterface
             ]
         );
 
-        // Try to load the default transcript
-        $transcript = $this->loadDefaultTranscript();
-
-        if (empty($transcript)) {
-            throw new Exception('Failed to load mock transcript content');
-        }
+        $transcript = self::MOCK_TRANSCRIPT;
 
         $processingTime = microtime(true) - $startTime;
 
@@ -276,52 +275,6 @@ class MockTranscriptionService implements TranscriptionServiceInterface
         $filename = $this->getTranscriptFilename($sermonId);
 
         return self::TRANSCRIPT_DIRECTORY.'/'.$filename;
-    }
-
-    /**
-     * Load the default transcript content from sermon_7.md
-     *
-     * @return string The default transcript content
-     *
-     * @throws Exception When default transcript cannot be loaded
-     */
-    private function loadDefaultTranscript(): string
-    {
-        $storage = Storage::disk($this->transcriptDisk());
-
-        if (! $storage->exists(self::DEFAULT_TRANSCRIPT_PATH)) {
-            throw new Exception('Default transcript file not found: '.self::DEFAULT_TRANSCRIPT_PATH);
-        }
-
-        try {
-            $content = $storage->get(self::DEFAULT_TRANSCRIPT_PATH);
-
-            if (! is_string($content)) {
-                throw new Exception('Default transcript file could not be read');
-            }
-
-            if (empty(trim($content))) {
-                throw new Exception('Default transcript file is empty');
-            }
-
-            Log::info('Loaded default transcript for mock transcription', [
-                'source_file' => self::DEFAULT_TRANSCRIPT_PATH,
-                'disk' => $this->transcriptDisk(),
-                'content_length' => strlen($content),
-                'word_count' => str_word_count($content),
-                'mock' => true,
-            ]);
-
-            return $content;
-        } catch (Exception $e) {
-            Log::error('Failed to load default transcript', [
-                'source_file' => self::DEFAULT_TRANSCRIPT_PATH,
-                'disk' => $this->transcriptDisk(),
-                'error' => $e->getMessage(),
-                'mock' => true,
-            ]);
-            throw new Exception('Failed to load default transcript: '.$e->getMessage());
-        }
     }
 
     private function transcriptDisk(): string

@@ -27,26 +27,25 @@ class MockTranscriptionServiceTest extends TestCase
         $this->transcriptionService = new MockTranscriptionService($this->mockLogger);
     }
 
-    public function test_it_returns_sermon_7_content_for_transcription()
+    public function test_it_returns_in_code_mock_content_for_transcription()
     {
-        // Create the default transcript file for testing
-        Storage::put('transcripts/sermon_7.md', 'This is mock transcript content from sermon 7.');
+        $result = $this->transcriptionService->transcribe('fake/audio/path.mp3', 'test-processing-id');
+
+        $this->assertIsString($result);
+        $this->assertStringContainsString('Romans chapter 8, verse 28', $result);
+        $this->assertStringContainsString('God works for the good of those who love him', $result);
+    }
+
+    public function test_it_does_not_depend_on_default_transcript_file_for_transcription()
+    {
+        Storage::delete('transcripts/sermon_7.md');
 
         $result = $this->transcriptionService->transcribe('fake/audio/path.mp3', 'test-processing-id');
 
         $this->assertIsString($result);
-        $this->assertEquals('This is mock transcript content from sermon 7.', $result);
-    }
-
-    public function test_it_throws_exception_when_default_transcript_missing()
-    {
-        // Ensure the default transcript doesn't exist
-        Storage::delete('transcripts/sermon_7.md');
-
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Default transcript file not found');
-
-        $this->transcriptionService->transcribe('fake/audio/path.mp3', 'test-processing-id');
+        $this->assertStringContainsString('Romans chapter 8, verse 28', $result);
+        $this->assertStringContainsString('God works for the good of those who love him', $result);
+        $this->assertFalse(Storage::exists('transcripts/sermon_7.md'));
     }
 
     public function test_it_can_store_and_retrieve_transcript()
@@ -129,13 +128,9 @@ class MockTranscriptionServiceTest extends TestCase
             ->with('test-id', 'mock_transcription', 'completed', Mockery::type('array'))
             ->once();
 
-        // Create the default transcript file
-        Storage::put('transcripts/sermon_7.md', 'Mock content for logging test.');
-
         $result = $this->transcriptionService->transcribe('test/path.mp3', 'test-id');
 
-        // Add assertion to avoid risky test warning
-        $this->assertEquals('Mock content for logging test.', $result);
+        $this->assertStringContainsString('Romans chapter 8, verse 28', $result);
 
         // Mockery will automatically verify the expectations
     }

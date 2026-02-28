@@ -596,9 +596,6 @@ class SermonProcessingJobChainTest extends TestCase
         // Create the file in storage so retry can access it
         Storage::put('sermons/test-audio.mp3', 'fake audio content');
 
-        // Create the default transcript file for the mock transcription service
-        Storage::put('transcripts/sermon_7.md', 'Test sermon transcript content');
-
         $processingLog = MediaProcessingLog::create([
             'processing_id' => 'failed-test-id',
             'processing_type' => 'audio',
