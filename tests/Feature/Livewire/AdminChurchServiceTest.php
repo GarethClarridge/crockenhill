@@ -16,6 +16,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -132,6 +133,45 @@ class AdminChurchServiceTest extends TestCase
             'original_filename' => '2024-11-17 AM.osz',
         ]);
         $this->assertDatabaseCount('church_service_items', 2);
+    }
+
+    #[Test]
+    public function upload_component_links_song_items_to_catalog_after_import(): void
+    {
+        $this->actingAs($this->admin);
+
+        $song = Song::factory()->create([
+            'canonical_key' => 'song one@',
+            'title' => 'Song One Canonical',
+        ]);
+
+        $openLpUpload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '2024-11-17 AM.osz',
+            osjName: '2024-11-17 AM.osj',
+            payload: OpenLpArchiveFactory::payload([
+                OpenLpArchiveFactory::serviceItem(
+                    OpenLpArchiveFactory::songHeader('Song One', 'song one@')
+                ),
+            ]),
+        );
+
+        $archiveContents = file_get_contents($openLpUpload->getRealPath());
+        if ($archiveContents === false) {
+            self::fail('Failed to read generated OpenLP archive.');
+        }
+
+        $upload = UploadedFile::fake()
+            ->createWithContent('2024-11-17 AM.osz', $archiveContents)
+            ->mimeType('application/zip');
+
+        Livewire::test(UploadChurchService::class)
+            ->set('file', $upload)
+            ->call('save');
+
+        $this->assertDatabaseHas('church_service_items', [
+            'openlp_search_title' => 'song one@',
+            'song_id' => $song->id,
+        ]);
     }
 
     #[Test]

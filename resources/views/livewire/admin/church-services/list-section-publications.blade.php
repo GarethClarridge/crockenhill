@@ -5,9 +5,14 @@
             <p class="text-gray-600">Review and publish extracted service sections</p>
         </div>
 
-        <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
-            Back to Services
-        </x-button>
+        <div class="flex gap-2">
+            <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
+                Song Catalog
+            </x-button>
+            <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
+                Back to Services
+            </x-button>
+        </div>
     </div>
 
     <div class="flex flex-wrap gap-4">

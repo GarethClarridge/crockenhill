@@ -9,6 +9,7 @@ use App\Http\Requests\UploadChurchServiceRequest;
 use App\Http\Resources\ChurchServiceResource;
 use App\Models\ChurchService;
 use App\Services\ChurchServiceItemSyncService;
+use App\Services\ChurchServiceSongLinker;
 use App\Services\OpenLpServiceParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
@@ -19,6 +20,7 @@ class ChurchServiceController extends Controller
     public function __construct(
         private readonly OpenLpServiceParser $parser,
         private readonly ChurchServiceItemSyncService $itemSyncService,
+        private readonly ChurchServiceSongLinker $songLinker,
     ) {}
 
     public function store(UploadChurchServiceRequest $request): JsonResponse
@@ -48,6 +50,7 @@ class ChurchServiceController extends Controller
         $churchService->save();
 
         $this->itemSyncService->sync($churchService, $parsed->items);
+        $this->songLinker->linkForService($churchService);
 
         $churchService->refresh()->load([
             'items' => fn ($query) => $query->orderBy('position')->orderBy('id'),

@@ -8,6 +8,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Services\ChurchServiceItemSyncService;
+use App\Services\ChurchServiceSongLinker;
 use App\Services\OpenLpServiceParser;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
@@ -70,6 +71,7 @@ class UploadChurchService extends Component
         try {
             $parser = app(OpenLpServiceParser::class);
             $itemSyncService = app(ChurchServiceItemSyncService::class);
+            $songLinker = app(ChurchServiceSongLinker::class);
 
             $parsed = $parser->parse($uploadedFile);
 
@@ -87,6 +89,7 @@ class UploadChurchService extends Component
             $churchService->save();
 
             $itemSyncService->sync($churchService, $parsed->items);
+            $songLinker->linkForService($churchService);
 
             $this->file = null;
             $this->success('Service imported successfully', redirectTo: route('admin.services.show', $churchService));

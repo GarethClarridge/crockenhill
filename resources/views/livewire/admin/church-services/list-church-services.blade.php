@@ -4,9 +4,14 @@
             <h1 class="font-display text-3xl">Services</h1>
             <p class="text-gray-600">View imported order-of-service records</p>
         </div>
-        <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
-            Upload Service
-        </x-button>
+        <div class="flex gap-2">
+            <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
+                Song Catalog
+            </x-button>
+            <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
+                Upload Service
+            </x-button>
+        </div>
     </div>
 
     <div class="flex flex-wrap gap-4">

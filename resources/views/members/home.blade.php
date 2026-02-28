@@ -56,6 +56,13 @@
           View services
         </div>
       </x-button>
+
+      <x-button link="{{ route('admin.services.songs.index') }}">
+        <div class="flex items-center justify-center">
+          <x-heroicon-s-musical-note class="h-5 w-5 mr-2" />
+          Song catalog
+        </div>
+      </x-button>
     </div>
   </div>
   @endcan

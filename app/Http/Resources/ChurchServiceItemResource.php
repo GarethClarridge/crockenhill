@@ -24,6 +24,7 @@ class ChurchServiceItemResource extends JsonResource
             'title' => $this->title,
             'source_title' => $this->source_title,
             'openlp_search_title' => $this->openlp_search_title,
+            'song_id' => $this->song_id,
             'metadata' => $this->metadata,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

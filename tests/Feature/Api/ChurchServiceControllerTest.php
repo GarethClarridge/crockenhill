@@ -8,6 +8,7 @@ use App\Enums\ApiTokenAbility;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\Song;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -51,6 +52,35 @@ class ChurchServiceControllerTest extends TestCase
     }
 
     #[Test]
+    public function test_upload_links_song_items_to_canonical_song_catalog(): void
+    {
+        $song = Song::factory()->create([
+            'canonical_key' => 'song one@',
+            'title' => 'Song One Canonical',
+        ]);
+
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '2024-11-17 AM.osz',
+            osjName: '2024-11-17 AM.osj',
+            payload: OpenLpArchiveFactory::payload([
+                OpenLpArchiveFactory::serviceItem(
+                    OpenLpArchiveFactory::songHeader('Song One', 'song one@')
+                ),
+            ]),
+        );
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->postJson('/api/services/openlp', ['file' => $upload])
+            ->assertCreated()
+            ->assertJsonPath('data.items.0.song_id', $song->id);
+
+        $this->assertDatabaseHas('church_service_items', [
+            'openlp_search_title' => 'song one@',
+            'song_id' => $song->id,
+        ]);
+    }
+
+    #[Test]
     public function test_upload_returns_church_service_resource(): void
     {
         $upload = $this->validOpenLpUpload();
@@ -75,6 +105,7 @@ class ChurchServiceControllerTest extends TestCase
                         'title',
                         'source_title',
                         'openlp_search_title',
+                        'song_id',
                         'metadata',
                     ],
                 ],

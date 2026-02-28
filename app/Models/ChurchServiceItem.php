@@ -19,11 +19,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $title
  * @property string|null $source_title
  * @property string|null $openlp_search_title
+ * @property int|null $song_id
  * @property array<string, mixed>|null $metadata
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
  * @property-read ChurchService $churchService
+ * @property-read Song|null $song
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ServiceSection> $serviceSections
  *
  * @method static \Database\Factories\ChurchServiceItemFactory factory(...$parameters)
@@ -50,6 +52,7 @@ class ChurchServiceItem extends Model
         'title',
         'source_title',
         'openlp_search_title',
+        'song_id',
         'metadata',
     ];
 
@@ -60,6 +63,7 @@ class ChurchServiceItem extends Model
     {
         return [
             'position' => 'integer',
+            'song_id' => 'integer',
             'metadata' => 'array',
         ];
     }
@@ -70,6 +74,14 @@ class ChurchServiceItem extends Model
     public function churchService(): BelongsTo
     {
         return $this->belongsTo(ChurchService::class);
+    }
+
+    /**
+     * @return BelongsTo<Song, $this>
+     */
+    public function song(): BelongsTo
+    {
+        return $this->belongsTo(Song::class);
     }
 
     /**

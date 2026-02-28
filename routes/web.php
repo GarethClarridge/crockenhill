@@ -136,6 +136,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     // Church Services
     Route::get('/services', App\Livewire\Admin\ChurchServices\ListChurchServices::class)->name('services.index');
     Route::get('/services/upload', App\Livewire\Admin\ChurchServices\UploadChurchService::class)->name('services.upload');
+    Route::get('/services/songs', App\Livewire\Admin\ChurchServices\ListSongs::class)->name('services.songs.index');
+    Route::get('/services/songs/{song}', App\Livewire\Admin\ChurchServices\ShowSong::class)->name('services.songs.show');
     Route::get('/services/section-publications', App\Livewire\Admin\ChurchServices\ListSectionPublications::class)->name('services.section-publications');
     Route::get('/services/{churchService}', App\Livewire\Admin\ChurchServices\ShowChurchService::class)->name('services.show');
 

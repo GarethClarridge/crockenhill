@@ -5,6 +5,9 @@
             <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
                 Back to Services
             </x-button>
+            <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
+                Song Catalog
+            </x-button>
             <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray">
                 Import
             </x-form-button>
