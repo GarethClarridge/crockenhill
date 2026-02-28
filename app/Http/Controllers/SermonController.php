@@ -145,7 +145,15 @@ class SermonController extends Controller
 
     public function getSerieses(): View
     {
-        $series = Sermon::select('series')->distinct()->get();
+        /**
+         * Performance Optimization: Use pluck() for a single column to avoid instantiating
+         * full Eloquent models, and sort alphabetically for a better user experience.
+         */
+        $series = Sermon::query()
+            ->whereNotNull('series')
+            ->distinct()
+            ->orderBy('series')
+            ->pluck('series');
 
         return view('sermons.serieses', [
             'series' => $series,
