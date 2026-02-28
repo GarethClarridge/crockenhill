@@ -192,9 +192,11 @@ jobs:
             # Restart all services
             docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 
-            # Clear caches and optimize
+            # Clear caches and optimize.
+            # Skip views to avoid clearing runtime-generated Blade files
+            # while live PHP-FPM workers are serving traffic.
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
-              php artisan optimize
+              php artisan optimize --except=views
 
             # Cleanup old images
             docker image prune -f
