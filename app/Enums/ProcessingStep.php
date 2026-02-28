@@ -33,6 +33,9 @@ enum ProcessingStep: string
     case Segmentation = 'segmentation';
     case Segmenting = 'segmenting';
     case AnalyzingSegments = 'analyzing_segments';
+    case ClassifyingSections = 'classifying_sections';
+    case SectionClassificationComplete = 'section_classification_complete';
+    case SectionClassificationSkipped = 'section_classification_skipped';
     case Extraction = 'extraction';
     case ExtractingSermon = 'extracting_sermon';
     case ExtractionComplete = 'extraction_complete';
@@ -127,6 +130,11 @@ enum ProcessingStep: string
 
             self::AnalyzingSegments,
             self::Segmenting => 40,
+
+            self::ClassifyingSections => 45,
+
+            self::SectionClassificationComplete,
+            self::SectionClassificationSkipped => 50,
 
             self::Extraction,
             self::ExtractingSermon,

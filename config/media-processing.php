@@ -150,6 +150,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Service Section Classification
+    |--------------------------------------------------------------------------
+    */
+    'section_classification' => [
+        'enabled' => env('SERVICE_SECTION_CLASSIFICATION_ENABLED', true),
+        'require_matching_church_service' => env('SERVICE_SECTION_REQUIRE_MATCHING_SERVICE', true),
+        'prefer_high_confidence_sermon_section' => env('SERVICE_SECTION_PREFER_HIGH_CONFIDENCE_SERMON', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Audio Extraction for Transcription
     |--------------------------------------------------------------------------
     */

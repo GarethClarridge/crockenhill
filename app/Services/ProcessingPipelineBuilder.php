@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Jobs\AnalyzeSegments;
+use App\Jobs\ClassifyServiceSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\ExtractAudioFromVideo;
@@ -92,6 +93,7 @@ class ProcessingPipelineBuilder
     {
         return [
             new AnalyzeSegments($log),
+            new ClassifyServiceSections($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new IdentifySpeaker($log),

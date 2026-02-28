@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Jobs\AnalyzeSegments;
+use App\Jobs\ClassifyServiceSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\ExtractAudioFromVideo;
@@ -159,15 +160,16 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildLivestreamChainJobs($log);
 
-        $this->assertCount(8, $jobs);
+        $this->assertCount(9, $jobs);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[0]);
-        $this->assertInstanceOf(ExtractSermon::class, $jobs[1]);
-        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[2]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[3]);
-        $this->assertInstanceOf(TranscribeAudio::class, $jobs[4]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[5]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[6]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[7]);
+        $this->assertInstanceOf(ClassifyServiceSections::class, $jobs[1]);
+        $this->assertInstanceOf(ExtractSermon::class, $jobs[2]);
+        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[3]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[4]);
+        $this->assertInstanceOf(TranscribeAudio::class, $jobs[5]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[6]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[7]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[8]);
     }
 
     #[Test]
@@ -178,6 +180,7 @@ class ProcessingPipelineBuilderTest extends TestCase
         $jobs = $this->builder->buildLivestreamChainJobs($log);
 
         $jobClasses = array_map(fn ($job) => get_class($job), $jobs);
+        $this->assertContains(ClassifyServiceSections::class, $jobClasses);
         $this->assertContains(ExtractSermon::class, $jobClasses);
         $this->assertContains(SubmitToProcessing::class, $jobClasses);
     }
