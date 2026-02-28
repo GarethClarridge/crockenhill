@@ -132,6 +132,34 @@ class SongCatalogSchemaTest extends TestCase
     }
 
     #[Test]
+    public function song_fk_migrations_match_legacy_integer_song_primary_key_type(): void
+    {
+        Schema::dropIfExists('song_author_song');
+        Schema::dropIfExists('song_book_song');
+
+        if (Schema::hasColumn('church_service_items', 'song_id')) {
+            Schema::table('church_service_items', function (Blueprint $table): void {
+                $table->dropConstrainedForeignId('song_id');
+            });
+        }
+
+        DB::statement('ALTER TABLE songs MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT');
+
+        $songAuthorSongMigration = require database_path('migrations/2026_02_28_190200_create_song_author_song_table.php');
+        $songBookSongMigration = require database_path('migrations/2026_02_28_190400_create_song_book_song_table.php');
+        $addSongIdMigration = require database_path('migrations/2026_02_28_190500_add_song_id_to_church_service_items_table.php');
+
+        $songAuthorSongMigration->up();
+        $songBookSongMigration->up();
+        $addSongIdMigration->up();
+
+        $songsIdColumnType = $this->columnType('songs', 'id');
+        $this->assertSame($songsIdColumnType, $this->columnType('song_author_song', 'song_id'));
+        $this->assertSame($songsIdColumnType, $this->columnType('song_book_song', 'song_id'));
+        $this->assertSame($songsIdColumnType, $this->columnType('church_service_items', 'song_id'));
+    }
+
+    #[Test]
     public function force_deleting_song_sets_song_id_to_null_on_church_service_item(): void
     {
         $song = Song::factory()->create();
@@ -143,5 +171,28 @@ class SongCatalogSchemaTest extends TestCase
         $item->refresh();
 
         $this->assertNull($item->song_id);
+    }
+
+    private function columnType(string $tableName, string $columnName): ?string
+    {
+        $column = DB::selectOne(
+            'SELECT COLUMN_TYPE AS column_type
+                FROM information_schema.columns
+                WHERE table_schema = database()
+                  AND table_name = ?
+                  AND column_name = ?
+                LIMIT 1',
+            [$tableName, $columnName],
+        );
+
+        $columnData = is_object($column)
+            ? get_object_vars($column)
+            : (is_array($column) ? $column : []);
+
+        $columnType = $columnData['column_type'] ?? null;
+
+        return is_string($columnType)
+            ? strtolower($columnType)
+            : null;
     }
 }
