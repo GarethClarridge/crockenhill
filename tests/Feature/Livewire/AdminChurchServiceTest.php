@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire;
 
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionStatus;
+use App\Enums\ServiceSectionType;
+use App\Jobs\ClassifyServiceSections;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\UploadChurchService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
@@ -175,16 +181,152 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function show_component_displays_classified_sections_for_related_livestream_runs(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-02-22',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Service Opening',
+        ]);
+
+        $matchingRun = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-02-22',
+            'extracted_service' => SermonService::MORNING,
+        ]);
+
+        $nonMatchingRun = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-02-23',
+            'extracted_service' => SermonService::MORNING,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $matchingRun->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'title' => 'Closing Song',
+            'start_time' => 120.0,
+            'end_time' => 360.0,
+            'duration' => 240.0,
+            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'needs_manual_review' => true,
+            'source_segment_ids' => [3],
+            'metadata' => [
+                'confidence_level' => 'low',
+                'review_reason' => 'expected_type_mismatch',
+            ],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $matchingRun->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 1,
+            'title' => 'Welcome',
+            'start_time' => 0.0,
+            'end_time' => 120.0,
+            'duration' => 120.0,
+            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'needs_manual_review' => false,
+            'source_segment_ids' => [1],
+            'metadata' => [
+                'confidence_level' => 'high',
+            ],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $nonMatchingRun->id,
+            'church_service_item_id' => $item->id,
+            'title' => 'Should Not Appear',
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Classified Livestream Runs')
+            ->assertSee($matchingRun->processing_id)
+            ->assertDontSee($nonMatchingRun->processing_id)
+            ->assertSeeInOrder(['Welcome', 'Closing Song'])
+            ->assertSee('High')
+            ->assertSee('Low')
+            ->assertSee('Needs review')
+            ->assertSee('expected type mismatch');
+    }
+
+    #[Test]
+    public function reclassify_action_dispatches_classifier_for_matching_livestream_run(): void
+    {
+        Queue::fake();
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-04-05',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $processingRun = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-04-05',
+            'extracted_service' => SermonService::MORNING,
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->call('reclassify', $processingRun->id)
+            ->assertDispatched('notify', type: 'success', message: 'Section reclassification queued');
+
+        Queue::assertPushed(ClassifyServiceSections::class, 1);
+    }
+
+    #[Test]
+    public function reclassify_action_rejects_invalid_or_non_matching_runs(): void
+    {
+        Queue::fake();
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-04-12',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $videoRun = MediaProcessingLog::factory()->video()->create([
+            'extracted_date' => '2026-04-12',
+            'extracted_service' => SermonService::MORNING,
+        ]);
+
+        $mismatchedRun = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-04-19',
+            'extracted_service' => SermonService::MORNING,
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->call('reclassify', 999999)
+            ->assertDispatched('notify', type: 'error', message: 'Processing run not found.')
+            ->call('reclassify', $videoRun->id)
+            ->assertDispatched('notify', type: 'error', message: 'Only livestream runs can be reclassified.')
+            ->call('reclassify', $mismatchedRun->id)
+            ->assertDispatched('notify', type: 'error', message: 'Selected run does not belong to this service.');
+
+        Queue::assertNothingPushed();
+    }
+
+    #[Test]
     public function non_admin_cannot_access_service_admin_components(): void
     {
         $user = User::factory()->create([
             'is_admin' => false,
             'email_verified_at' => now(),
         ]);
+        $service = ChurchService::factory()->create();
 
         $this->actingAs($user);
 
         Livewire::test(ListChurchServices::class)->assertForbidden();
         Livewire::test(UploadChurchService::class)->assertForbidden();
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])->assertForbidden();
     }
 }

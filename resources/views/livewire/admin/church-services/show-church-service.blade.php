@@ -98,6 +98,90 @@
                     </table>
                 </div>
             </x-card>
+
+            <x-card heading="Classified Livestream Runs">
+                <div class="space-y-4">
+                    @forelse($processingRuns as $processingRun)
+                        <div class="rounded-lg border border-gray-200 p-4" wire:key="processing-run-{{ $processingRun->id }}">
+                            <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-medium">Run {{ $processingRun->processing_id }}</p>
+                                    <p class="text-xs text-gray-500">
+                                        Status: {{ $processingRun->status->label() }} · Updated {{ $processingRun->updated_at?->diffForHumans() ?? 'Unknown' }}
+                                    </p>
+                                </div>
+
+                                <x-form-button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    icon="arrow-path"
+                                    wire:click="reclassify({{ $processingRun->id }})"
+                                    wire:target="reclassify({{ $processingRun->id }})"
+                                >
+                                    Reclassify
+                                </x-form-button>
+                            </div>
+
+                            @if($processingRun->serviceSections->isEmpty())
+                                <p class="text-sm text-gray-500">
+                                    No classified sections available for this run yet.
+                                </p>
+                            @else
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Order</th>
+                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
+                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Title</th>
+                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Time</th>
+                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Confidence</th>
+                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Review</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-200 bg-white">
+                                            @foreach($processingRun->serviceSections as $section)
+                                                @php
+                                                    $confidence = $section->metadata['confidence_level'] ?? 'unknown';
+                                                    $reviewReason = $section->metadata['review_reason'] ?? null;
+                                                @endphp
+                                                <tr wire:key="section-{{ $section->id }}">
+                                                    <td class="px-3 py-2 text-sm font-medium">{{ $section->section_order }}</td>
+                                                    <td class="px-3 py-2 text-sm">{{ $section->section_type->label() }}</td>
+                                                    <td class="px-3 py-2 text-sm">{{ $section->title ?: '-' }}</td>
+                                                    <td class="px-3 py-2 text-xs text-gray-600">
+                                                        {{ number_format($section->start_time, 1) }}s - {{ number_format($section->end_time, 1) }}s
+                                                    </td>
+                                                    <td class="px-3 py-2 text-sm">{{ ucfirst((string) $confidence) }}</td>
+                                                    <td class="px-3 py-2 text-sm">
+                                                        @if($section->needs_manual_review)
+                                                            <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-800">
+                                                                Needs review
+                                                            </span>
+                                                            @if(is_string($reviewReason) && $reviewReason !== '')
+                                                                <p class="mt-1 text-xs text-gray-500">{{ str_replace('_', ' ', $reviewReason) }}</p>
+                                                            @endif
+                                                        @else
+                                                            <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                                                                Clear
+                                                            </span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endif
+                        </div>
+                    @empty
+                        <p class="text-sm text-gray-500">
+                            No related livestream runs found for this service.
+                        </p>
+                    @endforelse
+                </div>
+            </x-card>
         </div>
 
         <div class="space-y-6">
