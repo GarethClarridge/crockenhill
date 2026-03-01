@@ -17,3 +17,8 @@
 **Vulnerability:** Several routes for editing sermons and managing meetings relied solely on `auth` middleware or controller-level authorization, missing route-level `admin` middleware for defense-in-depth.
 **Learning:** Relying only on policy checks in controllers is technically correct but less robust than combining it with route-level middleware.
 **Prevention:** Apply administrative middleware (`admin`) to all routes that perform administrative actions, even if they are already guarded by policies.
+
+## 2026-02-28 - [XSS in JSON-LD Structured Data]
+**Vulnerability:** User-controlled strings (like sermon titles or page headings) were being rendered inside `<script type="application/ld+json">` tags using the raw `{!! json_encode($data) !!}` directive without sufficient escaping flags. An attacker could inject `</script><script>alert(1)</script>` to break out of the JSON block and execute arbitrary JavaScript.
+**Learning:** Default `json_encode` does not escape `<` and `>` characters. In a Blade template, using `{!! !!}` bypasses Laravel's automatic HTML escaping, creating an XSS vector if the JSON is placed inside a script tag.
+**Prevention:** Always use `JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT` flags when encoding JSON for use within a `<script>` tag. `JSON_HEX_TAG` specifically converts `<` and `>` to `\u003C` and `\u003E`, preventing script termination.
