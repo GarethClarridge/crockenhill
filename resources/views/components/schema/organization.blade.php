@@ -24,5 +24,5 @@
   'telephone' => config('organization.phone'),
   'email' => config('organization.email_admin'),
   'sameAs' => array_values(config('organization.social')),
-], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
+], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>

@@ -107,4 +107,15 @@ return [
     'cipher' => 'AES-256-CBC',
 
     'test_token' => env('TEST_TOKEN'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Trusted Proxies
+    |--------------------------------------------------------------------------
+    |
+    | The trusted proxies for the application.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES'),
 ];
