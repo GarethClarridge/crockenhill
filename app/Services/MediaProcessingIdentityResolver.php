@@ -100,7 +100,7 @@ class MediaProcessingIdentityResolver
 
         return $query->where(function (Builder $query) use ($date, $serviceValue): void {
             $query->where(function (Builder $query) use ($date, $serviceValue): void {
-                $query->where('extracted_date', $date)
+                $query->whereDate('extracted_date', $date)
                     ->where('extracted_service', $serviceValue);
             })->orWhere(function (Builder $query) use ($date, $serviceValue): void {
                 $query->where(function (Builder $query): void {
