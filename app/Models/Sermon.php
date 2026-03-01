@@ -134,6 +134,8 @@ class Sermon extends Model implements Sitemapable
     {
         return [
             'date' => 'date',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
             'points' => 'array',
             'service' => SermonService::class,
             'segment_start_time' => 'float',
@@ -173,7 +175,7 @@ class Sermon extends Model implements Sitemapable
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
 
-        return \Illuminate\Support\Facades\Storage::disk($disk)->url($this->thumbnail_file_path);
+        return \Illuminate\Support\Facades\Storage::disk((string) $disk)->url($this->thumbnail_file_path);
     }
 
     public function getPlainThumbnailFilePathAttribute(): ?string
@@ -585,7 +587,9 @@ class Sermon extends Model implements Sitemapable
             return null;
         }
 
-        return \Illuminate\Support\Facades\Storage::disk(config('media-processing.storage.sermon_disk'))->url($this->video_file_path);
+        $disk = config('media-processing.storage.sermon_disk', 'public');
+
+        return \Illuminate\Support\Facades\Storage::disk((string) $disk)->url($this->video_file_path);
     }
 
     /**
@@ -730,17 +734,21 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Convert the sermon to a sitemap tag.
+     *
+     * Performance Optimization: Uses casted updated_at and avoids redundant method calls
+     * to resolve storage URLs during bulk sitemap generation.
      */
     /**
      * @return Url|string|array<string, mixed>
      */
     public function toSitemapTag(): Url|string|array
     {
-        $year = $this->date->format('Y');
-        $month = $this->date->format('m');
+        $date = $this->date;
+        $year = $date->format('Y');
+        $month = $date->format('m');
 
         // Calculate priority based on recency (use absolute value for past dates)
-        $daysOld = abs(now()->diffInDays($this->date, false));
+        $daysOld = abs(now()->diffInDays($date, false));
         $priority = $daysOld < 30 ? 0.8 : 0.6;
 
         // Change frequency based on age
@@ -748,43 +756,38 @@ class Sermon extends Model implements Sitemapable
             ? Url::CHANGE_FREQUENCY_MONTHLY
             : Url::CHANGE_FREQUENCY_YEARLY;
 
-        // Use updated_at if valid, otherwise fall back to date
-        // Note: old records may have invalid updated_at values (0000-00-00) that aren't null
-        // Also, timestamps are disabled so updated_at returns as string, not Carbon
-        $lastModified = $this->date;
-        if ($this->updated_at) {
-            $updatedAt = \Carbon\Carbon::parse($this->updated_at);
-            if ($updatedAt->year > 0) {
-                $lastModified = $updatedAt;
-            }
-        }
+        // Use casted updated_at if valid (year > 0), otherwise fall back to date
+        /** @var ?Carbon $updatedAt */
+        $updatedAt = $this->updated_at;
+        $lastModified = ($updatedAt && $updatedAt->year > 0) ? $updatedAt : $date;
 
         $url = Url::create("/christ/sermons/{$year}/{$month}/{$this->slug}")
             ->setLastModificationDate($lastModified)
             ->setChangeFrequency($changeFreq)
             ->setPriority($priority);
 
-        if ($this->hasVideo() && $this->video_url) {
-            $thumbnailUrl = $this->thumbnail_url;
-            if ($thumbnailUrl) {
-                $videoOptions = [];
-                if ($this->duration && $this->duration > 0) {
-                    $videoOptions['duration'] = (int) $this->duration;
-                }
-                $url->addVideo(
-                    $thumbnailUrl,
-                    $this->title,
-                    $this->summary ?? $this->title,
-                    $this->video_url,
-                    null,
-                    $videoOptions
-                );
+        // Access properties directly if possible to avoid multiple accessor calls
+        $videoUrl = $this->video_url;
+        $thumbnailUrl = $this->thumbnail_url;
+
+        if ($videoUrl && $thumbnailUrl) {
+            $videoOptions = [];
+            if ($this->duration && $this->duration > 0) {
+                $videoOptions['duration'] = (int) $this->duration;
             }
+            $url->addVideo(
+                $thumbnailUrl,
+                $this->title,
+                $this->summary ?? $this->title,
+                $videoUrl,
+                null,
+                $videoOptions
+            );
         }
 
-        if ($this->hasThumbnail() && $this->thumbnail_url) {
+        if ($thumbnailUrl) {
             $url->addImage(
-                $this->thumbnail_url,
+                $thumbnailUrl,
                 $this->meta_description, // Caption
                 '', // Geo location
                 $this->title // Title

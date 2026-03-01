@@ -43,7 +43,7 @@ class SitemapService
             ->add(
                 Page::query()
                     ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
-                    ->with(['media', 'meeting'])
+                    ->with(['media'])
                     ->where('admin', 'no')
                     ->get()
             )

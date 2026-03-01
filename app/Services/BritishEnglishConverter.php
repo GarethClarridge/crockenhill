@@ -12,6 +12,16 @@ class BritishEnglishConverter
     private const CACHE_TTL = 86400; // 24 hours
 
     /**
+     * @var array<int, string>|null Cached regex patterns
+     */
+    private ?array $patterns = null;
+
+    /**
+     * @var array<int, string>|null Cached replacements
+     */
+    private ?array $replacements = null;
+
+    /**
      * Convert American English text to British English
      *
      * Performance Optimization: Uses array-based preg_replace to process all corrections
@@ -24,13 +34,18 @@ class BritishEnglishConverter
      */
     public function convert(string $text): string
     {
-        $corrections = $this->getCorrections();
+        if ($this->patterns === null || $this->replacements === null) {
+            $corrections = $this->getCorrections();
 
-        if (empty($corrections)) {
-            return $text;
+            if (empty($corrections)) {
+                return $text;
+            }
+
+            $this->patterns = array_keys($corrections);
+            $this->replacements = array_values($corrections);
         }
 
-        return (string) preg_replace(array_keys($corrections), array_values($corrections), $text);
+        return (string) preg_replace($this->patterns, $this->replacements, $text);
     }
 
     /**
