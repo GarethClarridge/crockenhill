@@ -3,6 +3,16 @@
 namespace Tests\Feature;
 
 use App\Enums\SermonSourceType;
+use App\Jobs\AnalyzeSegments;
+use App\Jobs\ClassifyServiceSections;
+use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\ExtractSermon;
+use App\Jobs\GenerateThumbnail;
+use App\Jobs\IdentifySpeaker;
+use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\SendCompletionNotification;
+use App\Jobs\SubmitToProcessing;
+use App\Jobs\TranscribeAudio;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -103,6 +113,73 @@ class LivestreamProcessingIntegrationTest extends TestCase
                 && in_array(\App\Jobs\GenerateRmsLog::class, $classes)
                 && count($classes) === 2;
         });
+    }
+
+    public function test_livestream_chain_includes_completion_notification_job()
+    {
+        $videoFile = UploadedFile::fake()->create('livestream.mp4', 50000, 'video/mp4');
+
+        $mockSegmentationService = $this->createMock(VideoSegmentationService::class);
+        $mockSegmentationService->method('validateVideoFile')->willReturn(true);
+        $mockSegmentationService->method('getVideoMetadata')->willReturn([
+            'duration' => 3600.0,
+            'format' => 'mp4',
+            'size' => 50000,
+        ]);
+
+        $mockStorageService = $this->createMock(VideoStorageService::class);
+        $mockStorageService->method('validateStorageSpace')->willReturn(true);
+        $mockStorageService->method('storeUploadedVideo')->willReturn([
+            'original_filename' => 'livestream.mp4',
+            'temp_path' => 'livestreams/temp_livestream.mp4',
+            'full_path' => storage_path('app/livestreams/temp_livestream.mp4'),
+            'file_size' => 50000,
+            'mime_type' => 'video/mp4',
+        ]);
+
+        Storage::put('livestreams/temp_livestream.mp4', 'fake video content');
+
+        $this->app->instance(VideoSegmentationService::class, $mockSegmentationService);
+        $this->app->instance(VideoStorageService::class, $mockStorageService);
+
+        $service = app(LivestreamSegmentationService::class);
+        $result = $service->startProcessing($videoFile);
+
+        $this->assertNotNull($result->processingId);
+
+        $pendingBatch = null;
+
+        Bus::assertBatched(function (PendingBatch $batch) use (&$pendingBatch) {
+            $pendingBatch = $batch;
+
+            return true;
+        });
+
+        $this->assertNotNull($pendingBatch);
+
+        $thenCallbacks = $pendingBatch->thenCallbacks();
+        $this->assertNotEmpty($thenCallbacks);
+
+        $thenCallback = $thenCallbacks[0];
+        if (is_object($thenCallback) && method_exists($thenCallback, 'getClosure')) {
+            $thenCallback = $thenCallback->getClosure();
+        }
+
+        $fakeBatch = Bus::dispatchFakeBatch('livestream-chain-callback-test');
+        $thenCallback($fakeBatch);
+
+        Bus::assertChained([
+            AnalyzeSegments::class,
+            ClassifyServiceSections::class,
+            ExtractSermon::class,
+            SubmitToProcessing::class,
+            IdentifySpeaker::class,
+            TranscribeAudio::class,
+            ProcessTranscriptWithAI::class,
+            GenerateThumbnail::class,
+            SendCompletionNotification::class,
+            CleanupTemporaryFiles::class,
+        ]);
     }
 
     public function test_segmentation_analysis_integration()

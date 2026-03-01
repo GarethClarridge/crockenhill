@@ -2,12 +2,26 @@
 
 namespace Tests\Feature\Livewire;
 
+use App\Jobs\AnalyzeSegments;
+use App\Jobs\ClassifyServiceSections;
+use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\ExtractSermon;
+use App\Jobs\GenerateThumbnail;
+use App\Jobs\IdentifySpeaker;
+use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\SendCompletionNotification;
+use App\Jobs\SubmitToProcessing;
+use App\Jobs\TranscribeAudio;
 use App\Livewire\MediaUpload;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\UnifiedMediaProcessor;
+use App\Services\VideoSegmentationService;
+use App\Services\VideoStorageService;
+use Illuminate\Bus\PendingBatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -245,5 +259,78 @@ class MediaUploadTest extends TestCase
             ->set('mediaFile', $file)
             ->set('mediaType', 'video')
             ->assertSet('mediaFile', null);
+    }
+
+    #[Test]
+    public function it_dispatches_livestream_chain_with_completion_notification_from_livewire_upload(): void
+    {
+        $this->actingAs($this->admin);
+        Bus::fake();
+
+        $file = UploadedFile::fake()->create('livestream.mp4', 50000, 'video/mp4');
+
+        $mockSegmentationService = $this->createMock(VideoSegmentationService::class);
+        $mockSegmentationService->method('validateVideoFile')->willReturn(true);
+        $mockSegmentationService->method('getVideoMetadata')->willReturn([
+            'duration' => 3600.0,
+            'format' => 'mp4',
+            'size' => 50000,
+        ]);
+
+        $mockStorageService = $this->createMock(VideoStorageService::class);
+        $mockStorageService->method('validateStorageSpace')->willReturn(true);
+        $mockStorageService->method('storeUploadedVideo')->willReturn([
+            'original_filename' => 'livestream.mp4',
+            'temp_path' => 'livestreams/temp_livestream.mp4',
+            'full_path' => storage_path('app/livestreams/temp_livestream.mp4'),
+            'file_size' => 50000,
+            'mime_type' => 'video/mp4',
+        ]);
+
+        Storage::put('livestreams/temp_livestream.mp4', 'fake video content');
+
+        $this->app->instance(VideoSegmentationService::class, $mockSegmentationService);
+        $this->app->instance(VideoStorageService::class, $mockStorageService);
+
+        Livewire::test(MediaUpload::class)
+            ->set('mediaType', 'livestream')
+            ->set('mediaFile', $file)
+            ->call('uploadComplete')
+            ->assertSet('status', 'processing')
+            ->assertSet('errorMessage', null);
+
+        $pendingBatch = null;
+
+        Bus::assertBatched(function (PendingBatch $batch) use (&$pendingBatch) {
+            $pendingBatch = $batch;
+
+            return true;
+        });
+
+        $this->assertNotNull($pendingBatch);
+
+        $thenCallbacks = $pendingBatch->thenCallbacks();
+        $this->assertNotEmpty($thenCallbacks);
+
+        $thenCallback = $thenCallbacks[0];
+        if (is_object($thenCallback) && method_exists($thenCallback, 'getClosure')) {
+            $thenCallback = $thenCallback->getClosure();
+        }
+
+        $fakeBatch = Bus::dispatchFakeBatch('media-upload-livestream-chain-test');
+        $thenCallback($fakeBatch);
+
+        Bus::assertChained([
+            AnalyzeSegments::class,
+            ClassifyServiceSections::class,
+            ExtractSermon::class,
+            SubmitToProcessing::class,
+            IdentifySpeaker::class,
+            TranscribeAudio::class,
+            ProcessTranscriptWithAI::class,
+            GenerateThumbnail::class,
+            SendCompletionNotification::class,
+            CleanupTemporaryFiles::class,
+        ]);
     }
 }

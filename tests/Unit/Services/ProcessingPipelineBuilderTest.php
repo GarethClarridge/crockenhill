@@ -160,7 +160,7 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildLivestreamChainJobs($log);
 
-        $this->assertCount(9, $jobs);
+        $this->assertCount(10, $jobs);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[0]);
         $this->assertInstanceOf(ClassifyServiceSections::class, $jobs[1]);
         $this->assertInstanceOf(ExtractSermon::class, $jobs[2]);
@@ -169,7 +169,8 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(TranscribeAudio::class, $jobs[5]);
         $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[6]);
         $this->assertInstanceOf(GenerateThumbnail::class, $jobs[7]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[8]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[8]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[9]);
     }
 
     #[Test]
@@ -305,6 +306,26 @@ class ProcessingPipelineBuilderTest extends TestCase
         foreach ([$audioPipeline, $videoPipeline, $livestreamPipeline] as $pipeline) {
             $classes = array_map(fn ($job) => get_class($job), $pipeline);
             $this->assertContains(IdentifySpeaker::class, $classes);
+        }
+    }
+
+    #[Test]
+    public function all_pipelines_include_completion_notification_step(): void
+    {
+        $audioLog = MediaProcessingLog::factory()->audio()->pending()->create();
+        $videoLog = MediaProcessingLog::factory()->video()->pending()->create();
+        $livestreamLog = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $audioPipeline = $this->builder->buildAudioPipeline($audioLog);
+        $videoPipeline = $this->builder->buildDirectVideoPipeline($videoLog);
+        $livestreamPipeline = array_merge(
+            $this->builder->buildLivestreamParallelJobs($livestreamLog),
+            $this->builder->buildLivestreamChainJobs($livestreamLog),
+        );
+
+        foreach ([$audioPipeline, $videoPipeline, $livestreamPipeline] as $pipeline) {
+            $classes = array_map(fn ($job) => get_class($job), $pipeline);
+            $this->assertContains(SendCompletionNotification::class, $classes);
         }
     }
 

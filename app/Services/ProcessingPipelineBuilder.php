@@ -100,6 +100,7 @@ class ProcessingPipelineBuilder
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
             new GenerateThumbnail($log),
+            new SendCompletionNotification($log),
             new CleanupTemporaryFiles($log),
         ];
     }
