@@ -1,7 +1,7 @@
 {{-- Organization Schema.org JSON-LD markup for SEO --}}
 <script type="application/ld+json">
 {!! json_encode([
-  '@context' => 'https://schema.org',
+  '@' . 'context' => 'https://schema.org',
   '@type' => 'Church',
   'name' => config('organization.name'),
   '@id' => config('app.url'),
@@ -24,5 +24,5 @@
   'telephone' => config('organization.phone'),
   'email' => config('organization.email_admin'),
   'sameAs' => array_values(config('organization.social')),
-], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
+], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>

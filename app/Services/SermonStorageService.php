@@ -18,6 +18,11 @@ class SermonStorageService
      */
     public function getSermonFileInfo(Sermon $sermon): array
     {
+        // Security check: Prevent path traversal
+        if ($sermon->audio_file_path && str_contains($sermon->audio_file_path, '..')) {
+            throw new \InvalidArgumentException('Invalid audio file path: Path traversal detected.');
+        }
+
         // Determine which storage pattern this sermon uses
         if ($sermon->filetype && ! str_contains($sermon->audio_file_path, '/')) {
             // Legacy pattern

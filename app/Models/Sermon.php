@@ -360,6 +360,11 @@ class Sermon extends Model implements Sitemapable
 
         $path = trim((string) $this->transcript_file_path);
 
+        // Security check: Prevent path traversal
+        if (str_contains($path, '..')) {
+            return null;
+        }
+
         foreach ($this->getTranscriptReadDisks() as $disk) {
             try {
                 $storage = \Illuminate\Support\Facades\Storage::disk($disk);

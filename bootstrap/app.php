@@ -17,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('media:cleanup-temp-files --hours=24')->everySixHours();
     })
     ->withMiddleware(function (Middleware $middleware) {
-        $trustedProxies = env('TRUSTED_PROXIES');
+        $trustedProxies = config('app.trusted_proxies');
 
         if (is_string($trustedProxies) && trim($trustedProxies) !== '') {
             $middleware->trustProxies(at: $trustedProxies);
