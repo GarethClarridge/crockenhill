@@ -43,7 +43,11 @@ class SitemapService
             ->add(
                 Page::query()
                     ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
-                    ->with(['media', 'meeting'])
+                    /**
+                     * Performance Optimization: Only eager load 'media' (needed for images),
+                     * and remove 'meeting' as it is not utilized in sitemap generation.
+                     */
+                    ->with(['media'])
                     ->where('admin', 'no')
                     ->get()
             )

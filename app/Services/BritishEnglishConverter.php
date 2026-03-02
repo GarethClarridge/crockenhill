@@ -11,6 +11,12 @@ class BritishEnglishConverter
 
     private const CACHE_TTL = 86400; // 24 hours
 
+    /** @var array<int, string>|null */
+    private ?array $patterns = null;
+
+    /** @var array<int, string>|null */
+    private ?array $replacements = null;
+
     /**
      * Convert American English text to British English
      *
@@ -19,18 +25,27 @@ class BritishEnglishConverter
      * preg_replace multiple times. This is significantly more efficient when
      * dealing with large word lists or long transcripts.
      *
+     * Derived regex patterns and replacements are cached in local class properties
+     * after the first extraction to avoid redundant array operations and cache
+     * lookups across multiple calls in the same request or job.
+     *
      * @param  string  $text  Text to convert
      * @return string Converted text
      */
     public function convert(string $text): string
     {
-        $corrections = $this->getCorrections();
+        if ($this->patterns === null || $this->replacements === null) {
+            $corrections = $this->getCorrections();
 
-        if (empty($corrections)) {
-            return $text;
+            if (empty($corrections)) {
+                return $text;
+            }
+
+            $this->patterns = array_keys($corrections);
+            $this->replacements = array_values($corrections);
         }
 
-        return (string) preg_replace(array_keys($corrections), array_values($corrections), $text);
+        return (string) preg_replace($this->patterns, $this->replacements, $text);
     }
 
     /**
@@ -185,6 +200,8 @@ class BritishEnglishConverter
     public function clearCache(): void
     {
         Cache::forget(self::CACHE_KEY);
+        $this->patterns = null;
+        $this->replacements = null;
     }
 
     /**
