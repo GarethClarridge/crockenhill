@@ -92,7 +92,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Directories and permissions
 RUN mkdir -p /run/php /var/log/supervisor \
     && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
-    && mkdir -p storage/app/livewire-tmp storage/app/temp \
+    && mkdir -p storage/app/livewire-tmp storage/app/temp storage/app/public \
     && chown -R www:www storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
