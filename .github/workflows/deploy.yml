@@ -27,6 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Guard bootstrap middleware safety
+        run: ./scripts/check-bootstrap-safety.sh
+
       - name: Guard deploy view cache safety
         run: |
           set -euo pipefail
@@ -144,14 +147,71 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  smoke:
+    name: Smoke (Image /up)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Smoke test built image
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          APP_KEY="base64:$(openssl rand -base64 32)"
+
+          cleanup() {
+            docker rm -f crockenhill-smoke >/dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          docker pull "$IMAGE"
+
+          docker run -d --name crockenhill-smoke -p 18080:80 \
+            -e APP_ENV=production \
+            -e APP_DEBUG=false \
+            -e APP_KEY="$APP_KEY" \
+            -e SESSION_DRIVER=array \
+            -e CACHE_STORE=array \
+            -e QUEUE_CONNECTION=sync \
+            -e DB_CONNECTION=sqlite \
+            -e DB_DATABASE=/tmp/smoke.sqlite \
+            "$IMAGE"
+
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/up >/dev/null; then
+              echo "Smoke check passed."
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Smoke check failed. Container logs:"
+          docker logs crockenhill-smoke
+          exit 1
+
   deploy:
     name: Deploy
-    needs: build
+    needs: [build, smoke]
     runs-on: ubuntu-latest
     environment: production
 
