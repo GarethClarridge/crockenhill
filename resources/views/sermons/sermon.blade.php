@@ -234,20 +234,48 @@ use Illuminate\Support\Str;
       $transcriptContent = $sermon->transcript;
     @endphp
     @if (is_string($transcriptContent) && trim($transcriptContent) !== '')
-    <div x-data="{ expanded: false }" class="mt-6 py-6 border-b border-gray-200">
-      <div class="flex items-center justify-between">
+    <div x-data="{
+        expanded: false,
+        copied: false,
+        async copyTranscript() {
+          if (!('clipboard' in navigator)) {
+            return;
+          }
+
+          await navigator.clipboard.writeText(@js($transcriptContent));
+          this.copied = true;
+          setTimeout(() => this.copied = false, 2000);
+        }
+      }" class="mt-6 py-6 border-b border-gray-200">
+      <div class="flex flex-wrap items-center justify-between gap-4">
         <h2 class="text-xl font-semibold text-gray-900 flex items-center">
           <x-heroicon-o-document-text class="h-5 w-5 mr-2" />
           Automated transcript (may contain errors)
         </h2>
-        <button
-          class="text-sm text-gray-600 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded px-2 py-1 flex items-center"
-          @click="expanded = !expanded"
-          :aria-expanded="expanded"
-          aria-controls="transcript-content">
-          <span x-text="expanded ? 'Hide Transcript' : 'Show Full Transcript'">Show Full Transcript</span>
-          <x-heroicon-o-chevron-down class="h-4 w-4 inline ml-1 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" />
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            x-show="'clipboard' in navigator"
+            @click="copyTranscript()"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-cbc-teal-dark hover:text-cbc-teal bg-white border border-gray-200 hover:border-cbc-teal-light/30 rounded-md shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-1"
+            aria-label="Copy transcript"
+            title="Copy transcript to clipboard"
+            x-cloak
+          >
+            <x-heroicon-o-clipboard-document x-show="!copied" class="w-4 h-4" />
+            <x-heroicon-o-check x-show="copied" class="w-4 h-4 text-cbc-teal" x-cloak />
+            <span x-text="copied ? 'Copied!' : 'Copy Transcript'">Copy Transcript</span>
+          </button>
+
+          <button
+            class="text-sm text-gray-600 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 rounded px-2 py-1 flex items-center"
+            @click="expanded = !expanded"
+            :aria-expanded="expanded"
+            aria-controls="transcript-content">
+            <span x-text="expanded ? 'Hide Transcript' : 'Show Full Transcript'">Show Full Transcript</span>
+            <x-heroicon-o-chevron-down class="h-4 w-4 inline ml-1 transition-transform duration-200" x-bind:class="expanded ? 'rotate-180' : ''" />
+          </button>
+        </div>
       </div>
 
       <div id="transcript-content"

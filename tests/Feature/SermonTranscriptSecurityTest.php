@@ -30,4 +30,36 @@ class SermonTranscriptSecurityTest extends TestCase
         // It should be null because of the path traversal check
         $this->assertNull($transcript);
     }
+
+    public function test_transcript_copy_payload_is_safely_encoded(): void
+    {
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.transcript_disk' => 'public',
+            'media-processing.storage.sermon_disk' => 'public',
+        ]);
+
+        $maliciousTranscript = 'Text </script><script>alert("x")</script>';
+        Storage::disk('public')->put('transcripts/malicious.txt', $maliciousTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Transcript Copy Test',
+            'slug' => 'transcript-copy-test',
+            'date' => '2023-10-22',
+            'transcript_file_path' => 'transcripts/malicious.txt',
+        ]);
+
+        $response = $this->get(sprintf(
+            '/christ/sermons/%s/%s/%s',
+            $sermon->date->format('Y'),
+            $sermon->date->format('m'),
+            $sermon->slug
+        ));
+
+        $response->assertStatus(200);
+        $response->assertSee('Copy Transcript');
+        $response->assertDontSee('</script><script>alert("x")</script>', false);
+        $response->assertSee('\u003C\/script\u003E\u003Cscript\u003Ealert(\u0022x\u0022)\u003C\/script\u003E', false);
+    }
 }
