@@ -119,6 +119,7 @@ jobs:
       packages: write
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
+      image_sha: ${{ steps.image.outputs.sha }}
 
     steps:
       - uses: actions/checkout@v4
@@ -142,6 +143,14 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest
 
+      - name: Resolve deterministic image tag
+        id: image
+        run: |
+          set -euo pipefail
+          image_repo="${REGISTRY}/${IMAGE_NAME}"
+          image_repo="${image_repo,,}"
+          echo "sha=${image_repo}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -149,7 +158,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta.outputs.tags }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ steps.image.outputs.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -171,7 +180,7 @@ jobs:
 
       - name: Smoke test built image
         env:
-          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          IMAGE: ${{ needs.build.outputs.image_sha }}
         run: |
           set -euo pipefail
 
