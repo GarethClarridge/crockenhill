@@ -27,6 +27,10 @@ class BritishEnglishConverter
      * in class properties after the first load to avoid redundant cache hits and
      * array_keys/array_values operations during bulk processing.
      *
+     * Derived regex patterns and replacements are cached in local class properties
+     * after the first extraction to avoid redundant array operations and cache
+     * lookups across multiple calls in the same request or job.
+     *
      * @param  string  $text  Text to convert
      * @return string Converted text
      */
