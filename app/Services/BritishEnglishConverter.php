@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
@@ -11,26 +13,37 @@ class BritishEnglishConverter
 
     private const CACHE_TTL = 86400; // 24 hours
 
+    /** @var array<int, string>|null */
+    private ?array $patterns = null;
+
+    /** @var array<int, string>|null */
+    private ?array $replacements = null;
+
     /**
      * Convert American English text to British English
      *
      * Performance Optimization: Uses array-based preg_replace to process all corrections
-     * in a single pass through the regex engine, rather than looping and calling
-     * preg_replace multiple times. This is significantly more efficient when
-     * dealing with large word lists or long transcripts.
+     * in a single pass through the regex engine. Patterns and replacements are memoized
+     * in class properties after the first load to avoid redundant cache hits and
+     * array_keys/array_values operations during bulk processing.
      *
      * @param  string  $text  Text to convert
      * @return string Converted text
      */
     public function convert(string $text): string
     {
-        $corrections = $this->getCorrections();
+        if ($this->patterns === null || $this->replacements === null) {
+            $corrections = $this->getCorrections();
 
-        if (empty($corrections)) {
-            return $text;
+            if (empty($corrections)) {
+                return $text;
+            }
+
+            $this->patterns = array_keys($corrections);
+            $this->replacements = array_values($corrections);
         }
 
-        return (string) preg_replace(array_keys($corrections), array_values($corrections), $text);
+        return (string) preg_replace($this->patterns, $this->replacements, $text);
     }
 
     /**
@@ -185,6 +198,8 @@ class BritishEnglishConverter
     public function clearCache(): void
     {
         Cache::forget(self::CACHE_KEY);
+        $this->patterns = null;
+        $this->replacements = null;
     }
 
     /**
