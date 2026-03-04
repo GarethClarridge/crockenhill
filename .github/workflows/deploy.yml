@@ -190,8 +190,9 @@ jobs:
             fi
             echo "Waiting for Selenium ($i/30)..."; sleep 2
           done
+          STATUS="000"
           for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/up)
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/up 2>/dev/null || echo "000")
             echo "App server /up status: $STATUS"
             if [ "$STATUS" = "200" ]; then
               echo "App server ready"; break
