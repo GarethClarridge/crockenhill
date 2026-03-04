@@ -4,7 +4,6 @@ namespace Tests\Browser\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
-use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
@@ -66,9 +65,9 @@ class LoginTest extends DuskTestCase
 
     public function test_rate_limiting_blocks_after_five_attempts(): void
     {
-        $email = 'ratelimit@example.com';
-
-        RateLimiter::clear('login|'.$email.'|127.0.0.1');
+        // Use a unique email per run to avoid cross-process rate limiter state
+        // (array cache is in-memory in the serve process, not clearable from the test process)
+        $email = 'ratelimit-'.uniqid().'@example.com';
 
         $this->browse(function (Browser $browser) use ($email) {
             for ($i = 0; $i < 5; $i++) {
@@ -76,7 +75,7 @@ class LoginTest extends DuskTestCase
                     ->type('input[type="email"]', $email)
                     ->type('input[type="password"]', 'wrong-password')
                     ->press('Login')
-                    ->pause(300);
+                    ->pause(500);
             }
 
             $browser->visit('/login')
