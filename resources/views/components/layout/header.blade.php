@@ -2,11 +2,11 @@
 
 <div class="w-100 grid grid-cols-7 justify-between bg-cbc-pattern bg-cover text-white lg:grid-cols-12">
 
-  <a class="p-2" href="/" wire:navigate>
+  <a class="p-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" href="/" wire:navigate aria-label="Home">
     <img src="/svg/IconWhite.svg" class="inline-block max-h-8 align-top" alt="Crockenhill Baptist Church logo" width="30" height="32">
   </a>
 
-  <a class="col-span-5 flex text-center font-display text-xl min-[400px]:text-2xl" href="/" wire:navigate>
+  <a class="col-span-5 flex text-center font-display text-xl min-[400px]:text-2xl rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" href="/" wire:navigate>
     <span class="mx-auto my-auto inline-block align-middle pb-1">
       Crockenhill Baptist Church
     </span>
@@ -15,21 +15,24 @@
   <div class="col-span-5 my-auto hidden w-100 pb-1 lg:block">
     <ul class="mx-auto flex fill-white font-display text-l">
       <li>
-        <a class="flex items-center justify-between px-8 py-2 fill-white" href="/christ" wire:navigate>
+        <a class="flex items-center justify-between px-8 py-2 fill-white rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ request()->is('christ*') ? 'bg-white/20' : 'hover:bg-white/10' }}"
+           href="/christ" wire:navigate @if(request()->is('christ*')) aria-current="page" @endif>
           <x-icon-cross class="mr-2 h-5 w-5" />
           <span>Christ</span>
         </a>
       </li>
 
       <li>
-        <a class="flex items-center justify-between px-8 py-2 fill-white" href="/church" wire:navigate>
+        <a class="flex items-center justify-between px-8 py-2 fill-white rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ request()->is('church*') ? 'bg-white/20' : 'hover:bg-white/10' }}"
+           href="/church" wire:navigate @if(request()->is('church*')) aria-current="page" @endif>
           <x-icon-church class="mr-2 h-5 w-5" />
           <span>Church</span>
         </a>
       </li>
 
       <li>
-        <a class="flex items-center justify-between px-8 py-2 fill-white" href="/community" wire:navigate>
+        <a class="flex items-center justify-between px-8 py-2 fill-white rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ request()->is('community*') ? 'bg-white/20' : 'hover:bg-white/10' }}"
+           href="/community" wire:navigate @if(request()->is('community*')) aria-current="page" @endif>
           <x-heroicon-s-user-group class="mr-2 h-5 w-5" />
           <span>Community</span>
         </a>
@@ -38,10 +41,10 @@
   </div>
 
   <button
-    class="ms-4 flex items-center justify-end rounded px-3 py-1 text-right align-right font-normal leading-normal no-underline select-none whitespace-no-wrap focus:outline-none focus:ring-2 focus:ring-white transition-all duration-200"
+    class="ms-4 flex items-center justify-end rounded px-3 py-1 text-right align-right font-normal leading-normal no-underline select-none whitespace-no-wrap focus:outline-none focus-visible:ring-2 focus-visible:ring-white transition-all duration-200"
     type="button"
     role="button"
-    aria-label="Navigation"
+    :aria-label="expanded ? 'Close navigation menu' : 'Open navigation menu'"
     @click="expanded = ! expanded"
     @keydown.window.escape="expanded = false"
     :aria-expanded="expanded"
@@ -53,7 +56,7 @@
 
 </div>
 
-<div x-show="expanded" x-transition id="mobile-menu" class="absolute z-30 w-screen bg-gradient-to-r from-green-100/80 to-emerald-100/80 p-6 font-display text-lg leading-loose backdrop-blur-sm" tabindex="-1" x-cloak>
+<div x-show="expanded" x-transition id="mobile-menu" @click.outside="expanded = false" class="absolute z-30 w-screen bg-gradient-to-r from-green-100/80 to-emerald-100/80 p-6 font-display text-lg leading-loose backdrop-blur-sm" tabindex="-1" x-cloak>
   <ul class="mt-3 grid grid-cols-1 gap-8 text-center md:grid-cols-3">
 
     <li>
