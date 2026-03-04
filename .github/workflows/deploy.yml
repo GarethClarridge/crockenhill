@@ -124,6 +124,12 @@ jobs:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
+      selenium:
+        image: selenium/standalone-chromium
+        ports:
+          - 4444:4444
+        options: --shm-size=2g --add-host=host-docker-internal:host-gateway
+
     steps:
       - uses: actions/checkout@v4
 
@@ -136,10 +142,6 @@ jobs:
 
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      - name: Start Selenium
-        run: |
-          docker run -d --name selenium --network=host --shm-size=2g selenium/standalone-chromium
 
       - name: Cache Composer
         uses: actions/cache@v4
@@ -178,7 +180,7 @@ jobs:
       - name: Start application server
         env:
           APP_ENV: ci
-        run: php artisan serve --host=127.0.0.1 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
+        run: php artisan serve --host=0.0.0.0 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
 
       - name: Wait for Selenium and app server
         run: |
