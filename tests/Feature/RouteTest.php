@@ -373,6 +373,21 @@ class RouteTest extends TestCase
     }
 
     #[Test]
+    public function christmas_route_does_not_mark_christ_navigation_as_current(): void
+    {
+        $response = $this->get('/christmas');
+        $response->assertStatus(200);
+
+        $content = (string) $response->getContent();
+        $christNavIsActive = preg_match('/<a[^>]*href="\/christ"[^>]*aria-current="page"[^>]*>/', $content) === 1;
+
+        $this->assertFalse(
+            $christNavIsActive,
+            'The /christ navigation item should not be marked current on /christmas.'
+        );
+    }
+
+    #[Test]
     public function hamburger_nav_button_is_visible_at_all_viewport_sizes(): void
     {
         // Regression: the hamburger button was hidden on desktop due to a merge conflict

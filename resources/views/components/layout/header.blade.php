@@ -1,5 +1,11 @@
 {{-- Alpine.js is automatically loaded by Livewire 3 --}}
 
+@php
+  $isChristSection = request()->is('christ') || request()->is('christ/*');
+  $isChurchSection = request()->is('church') || request()->is('church/*');
+  $isCommunitySection = request()->is('community') || request()->is('community/*');
+@endphp
+
 <div class="w-100 grid grid-cols-7 justify-between bg-cbc-pattern bg-cover text-white lg:grid-cols-12">
 
   <a class="p-2" href="/" wire:navigate>
@@ -12,25 +18,28 @@
     </span>
   </a>
 
-  <div class="col-span-5 my-auto hidden w-100 pb-1 lg:block">
-    <ul class="mx-auto flex fill-white font-display text-l">
-      <li>
-        <a class="flex items-center justify-between px-8 py-2 fill-white" href="/christ" wire:navigate>
-          <x-icon-cross class="mr-2 h-5 w-5" />
+  <div class="col-span-5 hidden h-full w-100 self-stretch lg:block">
+    <ul class="mx-auto flex h-full items-stretch fill-white font-display text-l">
+      <li class="flex">
+        <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $isChristSection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
+           href="/christ" wire:navigate @if($isChristSection) aria-current="page" @endif>
+          <x-icon-cross class="h-5 w-5 shrink-0" />
           <span>Christ</span>
         </a>
       </li>
 
-      <li>
-        <a class="flex items-center justify-between px-8 py-2 fill-white" href="/church" wire:navigate>
-          <x-icon-church class="mr-2 h-5 w-5" />
+      <li class="flex">
+        <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $isChurchSection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
+           href="/church" wire:navigate @if($isChurchSection) aria-current="page" @endif>
+          <x-icon-church class="h-5 w-5 shrink-0" />
           <span>Church</span>
         </a>
       </li>
 
-      <li>
-        <a class="flex items-center justify-between px-8 py-2 fill-white" href="/community" wire:navigate>
-          <x-heroicon-s-user-group class="mr-2 h-5 w-5" />
+      <li class="flex">
+        <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $isCommunitySection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
+           href="/community" wire:navigate @if($isCommunitySection) aria-current="page" @endif>
+          <x-heroicon-s-user-group class="h-5 w-5 shrink-0" />
           <span>Community</span>
         </a>
       </li>
