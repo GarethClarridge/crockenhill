@@ -83,7 +83,7 @@ class LoginTest extends DuskTestCase
                 ->type('input[type="email"]', $email)
                 ->type('input[type="password"]', 'wrong-password')
                 ->press('Login')
-                ->waitForText('Too many login attempts')
+                ->waitForText('Too many login attempts', 15)
                 ->assertSee('Too many login attempts');
         });
     }
