@@ -18,7 +18,7 @@ This file provides guidance to Claude Code when working with this Laravel church
 - **Style Guide**: Always read `docs/design-style-guide.md` before any UI work. It defines brand tokens, component conventions, spacing, and legacy anti-patterns to avoid.
 - **Component Gallery**: Browse all shared components rendered live at `/dev/components` (local only).
 - **Visual References**: See `docs/design-references/` for screenshots of key page types (gitignored — regenerate using commands in the style guide).
-- **Custom skill**: Use the `frontend-design` skill when building or modifying any UI. It is project-specific and overrides generic design advice.
+- **Custom skill**: Use the `frontend-design` skill when building or modifying any UI. Defined at `.claude/skills/frontend-design.md` — project-specific and overrides generic design advice.
 
 ## Architecture Highlights
 
