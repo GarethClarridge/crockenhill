@@ -126,9 +126,7 @@ jobs:
 
       selenium:
         image: selenium/standalone-chromium
-        ports:
-          - 4444:4444
-        options: --shm-size=2g
+        options: --shm-size=2g --network=host
 
     steps:
       - uses: actions/checkout@v4
