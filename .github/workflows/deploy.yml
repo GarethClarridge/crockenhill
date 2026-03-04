@@ -151,6 +151,7 @@ jobs:
         run: |
           mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
           cp .env.example .env
+          echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
 
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction
