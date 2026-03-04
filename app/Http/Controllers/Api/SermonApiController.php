@@ -15,7 +15,19 @@ class SermonApiController extends Controller
      */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Sermon::query()->with('preacherProfile');
+        /**
+         * Performance Optimization: Eager load preacherProfile and limit retrieved columns
+         * for both Sermon and Preacher models to required fields for the API resource
+         * to reduce memory usage and DB I/O.
+         */
+        $query = Sermon::query()
+            ->select([
+                'id', 'title', 'slug', 'date', 'service', 'preacher', 'preacher_id',
+                'preacher_source', 'preacher_confidence', 'needs_preacher_review',
+                'series', 'reference', 'points', 'audio_file_path', 'thumbnail_file_path',
+                'thumbnail_metadata',
+            ])
+            ->with('preacherProfile:id,name,slug,image_path');
 
         // Search functionality
         if ($request->has('search')) {

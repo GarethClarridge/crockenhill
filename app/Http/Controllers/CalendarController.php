@@ -15,7 +15,13 @@ class CalendarController extends Controller
 
     public function index(): View
     {
-        $allEvents = CalendarEvent::with('meeting')
+        /**
+         * Performance Optimization: Limits retrieved columns for calendar events and eager-loaded
+         * meetings to required fields to reduce memory usage and DB I/O.
+         */
+        $allEvents = CalendarEvent::query()
+            ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+            ->with('meeting:id,slug')
             ->upcoming()
             ->confirmed()
             ->whereBetween('start_datetime', [now(), now()->addMonths(6)])
