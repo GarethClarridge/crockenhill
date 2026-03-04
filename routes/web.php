@@ -206,5 +206,5 @@ if (app()->isLocal()) {
 }
 
 // Catch-all dynamic page routes (these must be last!)
-Route::get('/{area}', [PageController::class, 'showPage'])->name('pages.showArea');
-Route::get('/{area}/{slug}', [PageController::class, 'show'])->name('pages.showPublic');
+Route::get('/{area}', [PageController::class, 'showPage'])->where('area', '(?!_dusk).*')->name('pages.showArea');
+Route::get('/{area}/{slug}', [PageController::class, 'show'])->where('area', '(?!_dusk).*')->name('pages.showPublic');

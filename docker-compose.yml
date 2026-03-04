@@ -26,6 +26,7 @@ services:
         depends_on:
             - mysql
             - redis
+            - selenium
     queue.worker:
         build:
             context: './docker/8.4'
@@ -91,6 +92,14 @@ services:
             interval: 10s
             timeout: 3s
             retries: 3
+    selenium:
+        image: 'selenium/standalone-chromium'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        volumes:
+            - '/dev/shm:/dev/shm'
+        networks:
+            - sail
     mailpit:
         image: axllent/mailpit:latest
         ports:

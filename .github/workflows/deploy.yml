@@ -110,9 +110,88 @@ jobs:
       - name: Tests (Dedicated)
         run: php artisan test --group=dedicated
 
+  dusk:
+    name: Browser Tests (Dusk)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: testing
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      selenium:
+        image: selenium/standalone-chromium
+        options: --shm-size=2g
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, redis
+          coverage: none
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Prepare Laravel environment
+        run: |
+          mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+          cp .env.example .env
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install and build frontend
+        run: npm ci && npm run build
+
+      - name: Configure Laravel for Dusk
+        run: |
+          php artisan key:generate
+          APP_KEY=$(grep ^APP_KEY= .env | cut -d= -f2-)
+          echo "APP_KEY=${APP_KEY}" >> .env.dusk.ci
+
+      - name: Run migrations
+        run: |
+          DB_HOST=127.0.0.1 DB_DATABASE=testing DB_USERNAME=root DB_PASSWORD= php artisan migrate --force
+
+      - name: Start application server
+        run: php artisan serve --host=127.0.0.1 --port=8000 --no-reload &
+
+      - name: Run Dusk tests
+        env:
+          APP_ENV: dusk.ci
+        run: php artisan dusk
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dusk-screenshots
+          path: tests/Browser/screenshots
+
   build:
     name: Build & Push
-    needs: test
+    needs: [test, dusk]
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -1,0 +1,61 @@
+<?php
+
+namespace Tests\Browser;
+
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTruncation;
+use Laravel\Dusk\Browser;
+use Tests\DuskTestCase;
+
+class MembersTest extends DuskTestCase
+{
+    use DatabaseTruncation;
+
+    public function test_members_area_requires_auth(): void
+    {
+        $this->browse(function (Browser $browser) {
+            $browser->visit('/church/members')
+                ->waitForLocation('/login')
+                ->assertPathIs('/login');
+        });
+    }
+
+    public function test_authenticated_user_sees_welcome_message(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Jane Doe',
+        ]);
+
+        $this->browse(function (Browser $browser) use ($user) {
+            $browser->loginAs($user)
+                ->visit('/church/members')
+                ->assertSee('Welcome back');
+        });
+    }
+
+    public function test_admin_sees_admin_actions(): void
+    {
+        $admin = User::factory()->crockenhillAdmin()->create();
+
+        $this->browse(function (Browser $browser) use ($admin) {
+            $browser->loginAs($admin)
+                ->visit('/church/members')
+                ->assertSee('Sermons')
+                ->assertSee('Upload sermon')
+                ->assertSee('Manage sermons');
+        });
+    }
+
+    public function test_non_admin_only_sees_account_section(): void
+    {
+        $user = User::factory()->create();
+
+        $this->browse(function (Browser $browser) use ($user) {
+            $browser->loginAs($user)
+                ->visit('/church/members')
+                ->assertDontSee('Upload sermon')
+                ->assertDontSee('Manage sermons')
+                ->assertSee('Account');
+        });
+    }
+}
