@@ -178,7 +178,7 @@ jobs:
       - name: Start application server
         env:
           APP_ENV: ci
-        run: php artisan serve --host=127.0.0.1 --port=8000 --no-reload &
+        run: php artisan serve --host=127.0.0.1 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
 
       - name: Wait for Selenium and app server
         run: |
@@ -188,7 +188,15 @@ jobs:
             fi
             echo "Waiting for Selenium ($i/30)..."; sleep 2
           done
-          until curl -sf http://127.0.0.1:8000/up; do sleep 1; done
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8000/up; then
+              echo "App server ready"; break
+            fi
+            echo "Waiting for app server ($i/30)..."
+            cat storage/logs/serve.log || true
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:8000/up || { echo "App server failed to start"; cat storage/logs/serve.log; exit 1; }
 
       - name: Run Dusk tests
         env:
