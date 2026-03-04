@@ -169,7 +169,7 @@ jobs:
         run: |
           php artisan key:generate
           APP_KEY=$(grep ^APP_KEY= .env | cut -d= -f2-)
-          echo "APP_KEY=${APP_KEY}" >> .env.dusk.ci
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env.dusk.ci
 
       - name: Run migrations
         run: |
