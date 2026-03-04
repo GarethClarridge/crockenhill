@@ -178,9 +178,9 @@ jobs:
           DB_HOST=127.0.0.1 DB_DATABASE=testing DB_USERNAME=root DB_PASSWORD= php artisan migrate --force
 
       - name: Start application server
-        env:
-          APP_ENV: ci
-        run: php artisan serve --host=0.0.0.0 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
+        run: |
+          cp .env.dusk.ci .env
+          php artisan serve --host=0.0.0.0 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
 
       - name: Wait for Selenium and app server
         run: |
