@@ -4,6 +4,7 @@ namespace Tests\Browser;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
@@ -31,6 +32,30 @@ class NavigationTest extends DuskTestCase
         });
     }
 
+    public function test_section_pages_render_content(): void
+    {
+        $this->browse(function (Browser $browser) {
+            $browser->visit('/christ')
+                ->assertSee('Christ');
+
+            $browser->visit('/church')
+                ->assertSee('Church');
+
+            $browser->visit('/community')
+                ->assertSee('Community');
+        });
+    }
+
+    public function test_logo_link_navigates_to_homepage(): void
+    {
+        $this->browse(function (Browser $browser) {
+            $browser->visit('/christ')
+                ->click('header a[href="/"]')
+                ->waitForLocation('/')
+                ->assertPathIs('/');
+        });
+    }
+
     public function test_mobile_menu_opens_and_closes(): void
     {
         $this->browse(function (Browser $browser) {
@@ -45,6 +70,36 @@ class NavigationTest extends DuskTestCase
                 ->waitUntil('document.querySelector("#mobile-menu").style.display === "none"')
                 ->assertPresent('#mobile-menu')
                 ->assertNotPresent('#mobile-menu[style="display: block;"]');
+        });
+    }
+
+    public function test_mobile_menu_section_buttons_navigate(): void
+    {
+        $this->browse(function (Browser $browser) {
+            $browser->resize(375, 812)
+                ->visit('/')
+                ->click('button[aria-controls="mobile-menu"]')
+                ->waitUntil('document.querySelector("#mobile-menu").style.display !== "none"')
+                ->click('#mobile-menu a[href="/church"]')
+                ->waitForLocation('/church')
+                ->assertPathIs('/church');
+        });
+    }
+
+    public function test_mobile_menu_sub_links_navigate(): void
+    {
+        $this->artisan('db:seed', ['--class' => 'PageSeeder']);
+        Cache::forget('nav_pages');
+
+        $this->browse(function (Browser $browser) {
+            $browser->resize(375, 812)
+                ->visit('/')
+                ->click('button[aria-controls="mobile-menu"]')
+                ->waitUntil('document.querySelector("#mobile-menu").style.display !== "none"')
+                ->waitFor('a[href="/church/find-us"]')
+                ->click('a[href="/church/find-us"]')
+                ->waitForLocation('/church/find-us')
+                ->assertPathIs('/church/find-us');
         });
     }
 

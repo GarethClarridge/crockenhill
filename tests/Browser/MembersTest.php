@@ -58,4 +58,30 @@ class MembersTest extends DuskTestCase
                 ->assertSee('Account');
         });
     }
+
+    public function test_admin_upload_sermon_link_navigates(): void
+    {
+        $admin = User::factory()->crockenhillAdmin()->create();
+
+        $this->browse(function (Browser $browser) use ($admin) {
+            $browser->loginAs($admin)
+                ->visit('/church/members')
+                ->clickLink('Upload sermon')
+                ->waitForLocation('/church/members/sermon-upload')
+                ->assertPathIs('/church/members/sermon-upload');
+        });
+    }
+
+    public function test_admin_manage_sermons_link_navigates(): void
+    {
+        $admin = User::factory()->crockenhillAdmin()->create();
+
+        $this->browse(function (Browser $browser) use ($admin) {
+            $browser->loginAs($admin)
+                ->visit('/church/members')
+                ->clickLink('Manage sermons')
+                ->waitForLocation('/admin/sermons')
+                ->assertPathIs('/admin/sermons');
+        });
+    }
 }
