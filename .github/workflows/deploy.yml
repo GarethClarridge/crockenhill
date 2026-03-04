@@ -180,6 +180,7 @@ jobs:
       - name: Run Dusk tests
         env:
           APP_ENV: dusk.ci
+          DUSK_DRIVER_URL: http://localhost:4444/wd/hub
         run: php artisan dusk
 
       - name: Upload failure screenshots
