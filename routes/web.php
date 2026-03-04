@@ -203,6 +203,8 @@ if (app()->isLocal()) {
     Route::get('500', function () {
         abort(500);
     });
+
+    Route::view('/dev/components', 'dev.components')->name('dev.components');
 }
 
 // Catch-all dynamic page routes (these must be last!)

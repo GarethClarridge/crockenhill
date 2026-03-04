@@ -13,6 +13,13 @@ This file provides guidance to Claude Code when working with this Laravel church
 **Tech Stack**: TALL (Tailwind, Alpine.js, Livewire, Laravel) + FFmpeg for media processing
 **Storage**: Hybrid local/cloud system with DigitalOcean Spaces integration
 
+## Design System
+
+- **Style Guide**: Always read `docs/design-style-guide.md` before any UI work. It defines brand tokens, component conventions, spacing, and legacy anti-patterns to avoid.
+- **Component Gallery**: Browse all shared components rendered live at `/dev/components` (local only).
+- **Visual References**: See `docs/design-references/` for screenshots of key page types (gitignored — regenerate using commands in the style guide).
+- **Custom skill**: Use the `frontend-design` skill when building or modifying any UI. It is project-specific and overrides generic design advice.
+
 ## Architecture Highlights
 
 ### Core Models

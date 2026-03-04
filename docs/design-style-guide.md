@@ -2,6 +2,40 @@
 
 This guide captures the current UI language in this Laravel 12 + Livewire + Tailwind v3 project and defines the standards for new feature work.
 
+## Visual References
+
+Screenshots of key page types live in `docs/design-references/`. They are gitignored — regenerate locally using the commands below.
+
+| File | URL | What it shows |
+|------|-----|---------------|
+| `home-desktop.png` | `http://localhost/` | Full-page desktop: hero, nav, card grids, CTA gradient border |
+| `home-mobile.png` | `http://localhost/` | Mobile: hamburger nav, stacked hero, responsive cards |
+| `sermons-index-desktop.png` | `http://localhost/christ/sermons` | Sermon card grid, filter bar, listing layout (desktop) |
+| `sermons-index-mobile.png` | `http://localhost/christ/sermons` | Sermon cards stacked, mobile filter bar |
+| `content-page-desktop.png` | `http://localhost/church` | Standard public page: heading, prose rail, related pages |
+| `section-page.png` | `http://localhost/church` | Section landing page pattern |
+| `component-gallery-desktop.png` | `http://localhost/dev/components` | All shared components with all variants |
+
+### Regenerating screenshots
+
+```bash
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+OUT="docs/design-references"
+mkdir -p "$OUT"
+
+# Full-page desktop (1440px wide)
+for url_slug in "/:home-desktop" "/christ/sermons:sermons-index-desktop" "/church:content-page-desktop" "/dev/components:component-gallery-desktop"; do
+  url="${url_slug%%:*}"; name="${url_slug##*:}"
+  "$CHROME" --headless=new --window-size=1440,5000 --screenshot="$OUT/$name.png" --hide-scrollbars "http://localhost$url" 2>/dev/null
+done
+
+# Mobile viewport (375px wide)
+for url_slug in "/:home-mobile" "/christ/sermons:sermons-index-mobile"; do
+  url="${url_slug%%:*}"; name="${url_slug##*:}"
+  "$CHROME" --headless=new --window-size=375,5000 --screenshot="$OUT/$name.png" --hide-scrollbars "http://localhost$url" 2>/dev/null
+done
+```
+
 ## 1. Scope and Goals
 
 - Keep public pages warm, welcoming, and content-led.
@@ -198,7 +232,35 @@ When adding UI, ensure keyboard operation for all interactive controls.
 - Fast scanning: dense but readable tables, badges, compact filters.
 - Consistent top action row: title + primary action + filters + table.
 
-## 10. Legacy Patterns to Avoid in New Work
+## 10. Design Rationale
+
+Understanding *why* a decision was made helps apply it correctly in new situations.
+
+### Why centered prose rails at `max-w-2xl`?
+The congregation skews older. Shorter line lengths (≈65–70 characters) reduce reading fatigue and improve comprehension. It also keeps sermon text and devotional content feeling intimate rather than like a news feed.
+
+### Why teal gradient / `bg-cbc-pattern` for primary CTAs — not plain green?
+Green is used for admin actions (save, create) throughout the interface. Reusing it on public pages would blur the distinction between admin UI and public brand. The teal gradient and pattern texture carry warmth and reinforce the church identity without conflicting with the admin green.
+
+### Why `wire:navigate` on internal links?
+Livewire's navigation preserves the SPA feel (progress bar, no full reload) and keeps Alpine component state across navigations. Omitting it causes noticeable white flashes and slower perceived performance.
+
+### Why `x-button` / `x-form-button` components instead of raw elements?
+Consistency in focus rings, loading states, icon sizing, and variant colour ramps is only achievable through a shared component. One-off button styling tends to drift (wrong focus ring colour, missing `disabled` state during Livewire loading), which degrades both accessibility and visual cohesion.
+
+### Why Oswald for headings, Lato for body?
+Oswald is condensed and authoritative — it works well at large display sizes in the hero and section headings. Lato is highly legible at small sizes and reads comfortably for older users on screens and in prose. The pairing provides clear typographic hierarchy without relying on weight alone.
+
+### Why `bg-slate-200` body background instead of white?
+A pure white body would make white card surfaces disappear — there would be no visual depth. The soft slate background creates the layered card-on-surface effect that gives the layout its structure. It also reduces eye strain for users reading long sermon content.
+
+### Why `prose` for body copy instead of manual typography classes?
+Sermon transcripts and page content come from a CMS and may contain arbitrary HTML (headings, lists, blockquotes, links). Tailwind's `prose` plugin applies a carefully tuned typographic scale to all these elements consistently. Manual classes would need to be reapplied each time new content types appear.
+
+### Why avoid `@layer components` SCSS unless strictly necessary?
+Utility classes are visible at the call site — you can read a template and understand immediately what it looks like. Extracted component classes hide that context, making it harder to trace why something looks a certain way. Only extract to `@layer components` when the exact same multi-class pattern repeats 4+ times across unrelated files.
+
+## 11. Legacy Patterns to Avoid in New Work
 
 Some older pages still use older styling conventions. Do not copy these into new features.
 
@@ -224,7 +286,7 @@ Legacy examples (use as migration targets, not design references):
 - `resources/views/livewire/auth/*.blade.php`
 - `resources/views/errors/{403,404,500}.blade.php`
 
-## 11. New Feature UI Checklist
+## 12. New Feature UI Checklist
 
 Before merging UI work:
 
@@ -236,7 +298,7 @@ Before merging UI work:
 6. Keyboard and focus behavior verified.
 7. No new legacy-style indigo focus/input patterns introduced.
 
-## 12. Quick Starter Patterns
+## 13. Quick Starter Patterns
 
 ### Standard Admin Page Shell
 

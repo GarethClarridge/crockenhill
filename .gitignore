@@ -45,6 +45,9 @@ package-lock.json
 Homestead.json
 Homestead.yaml
 
+# Design reference screenshots (local dev tooling — regenerate from live site)
+/docs/design-references/
+
 # Media files (except test fixtures)
 *.mp3
 *.mp4
