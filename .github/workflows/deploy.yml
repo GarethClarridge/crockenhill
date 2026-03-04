@@ -126,6 +126,8 @@ jobs:
 
       selenium:
         image: selenium/standalone-chromium
+        ports:
+          - 4444:4444
         options: --shm-size=2g
 
     steps:
@@ -175,11 +177,18 @@ jobs:
           DB_HOST=127.0.0.1 DB_DATABASE=testing DB_USERNAME=root DB_PASSWORD= php artisan migrate --force
 
       - name: Start application server
+        env:
+          APP_ENV: ci
         run: php artisan serve --host=127.0.0.1 --port=8000 --no-reload &
+
+      - name: Wait for Selenium and app server
+        run: |
+          until curl -sf http://localhost:4444/status | grep -q '"ready":true'; do sleep 2; done
+          until curl -sf http://127.0.0.1:8000/up; do sleep 1; done
 
       - name: Run Dusk tests
         env:
-          APP_ENV: dusk.ci
+          APP_ENV: ci
           DUSK_DRIVER_URL: http://localhost:4444/wd/hub
         run: php artisan dusk
 
