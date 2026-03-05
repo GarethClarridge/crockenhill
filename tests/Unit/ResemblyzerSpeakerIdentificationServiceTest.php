@@ -58,4 +58,3 @@ class ResemblyzerSpeakerIdentificationServiceTest extends TestCase
         $this->assertSame('Invalid extraction script output', $result->errorMessage);
     }
 }
-

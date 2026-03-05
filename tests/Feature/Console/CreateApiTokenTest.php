@@ -40,7 +40,7 @@ class CreateApiTokenTest extends TestCase
         $this->artisan('api:create-token', [
             'email' => 'custom@test.com',
             'name' => 'Custom Name',
-            '--abilities' => ['read', 'write']
+            '--abilities' => ['read', 'write'],
         ])->assertExitCode(0);
 
         $token = $user->tokens->first();

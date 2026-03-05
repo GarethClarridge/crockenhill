@@ -18,6 +18,7 @@ class ProcessingLogsViewerTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected string $processingId = 'test-processing-id-123';
 
     protected function setUp(): void
@@ -58,7 +59,7 @@ class ProcessingLogsViewerTest extends TestCase
             logs: $logCollection,
             metrics: [
                 'total_execution_time' => 300,
-                'peak_memory_usage' => 52428800 // 50MB
+                'peak_memory_usage' => 52428800, // 50MB
             ]
         );
 
@@ -67,7 +68,7 @@ class ProcessingLogsViewerTest extends TestCase
         $mockController->method('getProcessingStatusWithLogs')->willReturn($response);
 
         $this->app->instance(MediaController::class, $mockController);
-        
+
         return $response;
     }
 
@@ -77,7 +78,7 @@ class ProcessingLogsViewerTest extends TestCase
         $this->actingAs($this->admin);
         $this->mockControllerResponse('processing', 45, [
             ['message' => 'First step started', 'step' => 'init'],
-            ['message' => 'Processing audio', 'step' => 'audio']
+            ['message' => 'Processing audio', 'step' => 'audio'],
         ]);
 
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
@@ -109,9 +110,9 @@ class ProcessingLogsViewerTest extends TestCase
 
         // Note: autoRefresh is disabled by default in testing environment in the component's mount
         $component = Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId]);
-        
+
         $initialValue = $component->get('autoRefresh');
-        
+
         $component->call('toggleAutoRefresh')
             ->assertSet('autoRefresh', ! $initialValue);
     }
@@ -156,7 +157,7 @@ class ProcessingLogsViewerTest extends TestCase
     public function it_calculates_correct_status_color()
     {
         $this->actingAs($this->admin);
-        
+
         // Test green for completed
         $this->mockControllerResponse('completed');
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])

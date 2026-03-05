@@ -20,7 +20,7 @@ class MiddlewareTest extends TestCase
         $this->actingAs($user);
 
         $request = Request::create('/admin', 'GET');
-        $middleware = new EnsureUserIsAdmin();
+        $middleware = new EnsureUserIsAdmin;
 
         $response = $middleware->handle($request, function () {
             return response('passed');
@@ -36,7 +36,7 @@ class MiddlewareTest extends TestCase
         $this->actingAs($user);
 
         $request = Request::create('/admin', 'GET');
-        $middleware = new EnsureUserIsAdmin();
+        $middleware = new EnsureUserIsAdmin;
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         $this->expectExceptionMessage('Unauthorized action.');
@@ -48,7 +48,7 @@ class MiddlewareTest extends TestCase
     public function it_aborts_for_guest_users(): void
     {
         $request = Request::create('/admin', 'GET');
-        $middleware = new EnsureUserIsAdmin();
+        $middleware = new EnsureUserIsAdmin;
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         $this->expectExceptionMessage('Unauthorized action.');
