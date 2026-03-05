@@ -52,4 +52,45 @@ class ConfigValidationTest extends TestCase
     {
         $this->assertSame('lax', config('session.same_site'));
     }
+
+    #[Test]
+    public function transcription_service_resolves_from_canonical_config_key(): void
+    {
+        $this->assertNotNull(
+            config('media-processing.transcription.service'),
+            'media-processing.transcription.service must resolve to a value'
+        );
+
+        $this->assertNull(
+            config('media-processing.transcription.service_type'),
+            'The deprecated service_type key must not exist in config'
+        );
+    }
+
+    #[Test]
+    public function trusted_proxies_config_key_exists_as_canonical_reference(): void
+    {
+        // The bootstrap reads env('TRUSTED_PROXIES') directly (config() is unsafe at that stage).
+        // This key exists in config/app.php as the canonical documentation of the env variable.
+        $this->assertArrayHasKey(
+            'trusted_proxies',
+            config('app'),
+            'app.trusted_proxies config key must exist'
+        );
+    }
+
+    #[Test]
+    public function storage_disks_resolve_from_canonical_env_keys(): void
+    {
+        // Both keys must resolve to a non-empty string disk name.
+        $this->assertNotEmpty(
+            config('media-processing.storage.sermon_disk'),
+            'media-processing.storage.sermon_disk must resolve to a disk name'
+        );
+
+        $this->assertNotEmpty(
+            config('media-processing.storage.transcript_disk'),
+            'media-processing.storage.transcript_disk must resolve to a disk name'
+        );
+    }
 }

@@ -15,7 +15,7 @@ class AppServiceProviderBindingsTest extends TestCase
     public function core_service_contracts_resolve_from_the_container(): void
     {
         config()->set('media-processing.analysis.service', 'mock');
-        config()->set('media-processing.transcription.service_type', 'mock');
+        config()->set('media-processing.transcription.service', 'mock');
 
         $this->app->forgetInstance(SermonAnalysisInterface::class);
         $this->app->forgetInstance(TranscriptionServiceInterface::class);

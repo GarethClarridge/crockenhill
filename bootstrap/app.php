@@ -20,7 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping(30);
     })
     ->withMiddleware(function (Middleware $middleware) {
-        // Config repository is not guaranteed to be bound at this bootstrap stage.
+        // The config repository is not guaranteed to be bound at this bootstrap stage.
+        // Read directly from env(); app.trusted_proxies in config/app.php is the canonical reference.
         $trustedProxies = env('TRUSTED_PROXIES');
 
         if (is_string($trustedProxies) && trim($trustedProxies) !== '') {

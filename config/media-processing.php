@@ -47,7 +47,9 @@ return [
     |--------------------------------------------------------------------------
     */
     'storage' => [
+        // SERMON_STORAGE_DISK is the canonical key; falls back to the default filesystem disk.
         'sermon_disk' => env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'public')),
+        // TRANSCRIPT_STORAGE_DISK is the canonical key; falls back to sermon disk, then filesystem disk.
         'transcript_disk' => env('TRANSCRIPT_STORAGE_DISK', env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'public'))),
         'temp_disk' => 'local',
         'paths' => [
