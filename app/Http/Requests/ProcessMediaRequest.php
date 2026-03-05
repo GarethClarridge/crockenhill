@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\MediaType;
 use App\Services\MediaValidationService;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -31,11 +32,11 @@ class ProcessMediaRequest extends FormRequest
      */
     public function rules(): array
     {
-        $type = $this->input('type', 'audio');
+        $mediaType = MediaType::tryFrom($this->input('type', ''));
         $validation = $this->validationService();
 
-        $fileRules = in_array($type, $validation->supportedTypes(), true)
-            ? $validation->rulesForType($type)
+        $fileRules = $mediaType !== null
+            ? $validation->rulesForType($mediaType)
             : ['file' => 'required|file'];
 
         return [
@@ -51,14 +52,14 @@ class ProcessMediaRequest extends FormRequest
      */
     public function messages(): array
     {
-        $type = $this->input('type', 'audio');
+        $mediaType = MediaType::tryFrom($this->input('type', ''));
         $validation = $this->validationService();
 
-        $maxSize = in_array($type, $validation->supportedTypes(), true)
-            ? $validation->maxFileSizeForDisplay($type)
+        $maxSize = $mediaType !== null
+            ? $validation->maxFileSizeForDisplay($mediaType)
             : '100MB';
-        $extensions = in_array($type, $validation->supportedTypes(), true)
-            ? $validation->allowedExtensionsForDisplay($type)
+        $extensions = $mediaType !== null
+            ? $validation->allowedExtensionsForDisplay($mediaType)
             : 'MP3, WAV, M4A, MP4, MOV, AVI, MKV';
 
         return [
