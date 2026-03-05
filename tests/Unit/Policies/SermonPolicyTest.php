@@ -21,41 +21,26 @@ class SermonPolicyTest extends TestCase
         ]);
 
         $this->assertTrue($user->can('viewAny', Sermon::class));
-    }
-
-    #[Test]
-    public function it_denies_admins_with_unverified_emails(): void
-    {
-        $user = User::factory()->create([
-            'is_admin' => true,
-            'email_verified_at' => null,
-        ]);
-
-        $this->assertFalse($user->can('viewAny', Sermon::class));
-    }
-
-    #[Test]
-    public function it_allows_users_with_crockenhill_domain(): void
-    {
-        $user = User::factory()->create([
-            'email' => 'staff@crockenhill.org',
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-
         $this->assertTrue($user->can('create', Sermon::class));
     }
 
     #[Test]
-    public function it_denies_regular_users(): void
+    public function it_denies_non_admin_users_regardless_of_email_domain(): void
     {
-        $user = User::factory()->create([
+        $regularUser = User::factory()->create([
             'email' => 'regular@gmail.com',
             'is_admin' => false,
             'email_verified_at' => now(),
         ]);
 
-        $this->assertFalse($user->can('create', Sermon::class));
+        $crockenhillUser = User::factory()->create([
+            'email' => 'staff@crockenhill.org',
+            'is_admin' => false,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->assertFalse($regularUser->can('create', Sermon::class));
+        $this->assertFalse($crockenhillUser->can('create', Sermon::class));
     }
 
     #[Test]
@@ -70,5 +55,19 @@ class SermonPolicyTest extends TestCase
         $this->assertTrue($user->can('view', $sermon));
         $this->assertTrue($user->can('update', $sermon));
         $this->assertTrue($user->can('delete', $sermon));
+    }
+
+    #[Test]
+    public function it_denies_non_admin_users_from_modifying_sermons(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => false,
+            'email_verified_at' => now(),
+        ]);
+        $sermon = Sermon::factory()->create();
+
+        $this->assertFalse($user->can('view', $sermon));
+        $this->assertFalse($user->can('update', $sermon));
+        $this->assertFalse($user->can('delete', $sermon));
     }
 }

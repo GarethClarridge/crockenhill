@@ -20,7 +20,7 @@
   </div>
 
   {{-- Sermons Section --}}
-  @can('edit-sermons')
+  @can('manage-sermons')
   <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
     <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
       <h3 class="text-lg font-medium text-gray-900 flex items-center">
@@ -68,7 +68,7 @@
   @endcan
 
   {{-- Calendar & Meetings Section --}}
-  @can('edit-meetings')
+  @can('manage-meetings')
   <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
     <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
       <h3 class="text-lg font-medium text-gray-900 flex items-center">
@@ -113,7 +113,7 @@
   @endcan
 
   {{-- Content Section --}}
-  @can('edit-pages')
+  @can('manage-pages')
   <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
     <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
       <h3 class="text-lg font-medium text-gray-900 flex items-center">

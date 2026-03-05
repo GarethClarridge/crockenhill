@@ -21,30 +21,26 @@ class PagePolicyTest extends TestCase
         ]);
 
         $this->assertTrue($user->can('viewAny', Page::class));
-    }
-
-    #[Test]
-    public function it_allows_users_with_crockenhill_domain(): void
-    {
-        $user = User::factory()->create([
-            'email' => 'staff@crockenhill.org',
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-
         $this->assertTrue($user->can('create', Page::class));
     }
 
     #[Test]
-    public function it_denies_regular_users(): void
+    public function it_denies_non_admin_users_regardless_of_email_domain(): void
     {
-        $user = User::factory()->create([
+        $regularUser = User::factory()->create([
             'email' => 'regular@gmail.com',
             'is_admin' => false,
             'email_verified_at' => now(),
         ]);
 
-        $this->assertFalse($user->can('create', Page::class));
+        $crockenhillUser = User::factory()->create([
+            'email' => 'staff@crockenhill.org',
+            'is_admin' => false,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->assertFalse($regularUser->can('create', Page::class));
+        $this->assertFalse($crockenhillUser->can('create', Page::class));
     }
 
     #[Test]
@@ -59,5 +55,19 @@ class PagePolicyTest extends TestCase
         $this->assertTrue($user->can('view', $page));
         $this->assertTrue($user->can('update', $page));
         $this->assertTrue($user->can('delete', $page));
+    }
+
+    #[Test]
+    public function it_denies_non_admin_users_from_modifying_pages(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => false,
+            'email_verified_at' => now(),
+        ]);
+        $page = Page::factory()->create();
+
+        $this->assertFalse($user->can('view', $page));
+        $this->assertFalse($user->can('update', $page));
+        $this->assertFalse($user->can('delete', $page));
     }
 }

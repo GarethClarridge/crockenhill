@@ -21,30 +21,26 @@ class MeetingPolicyTest extends TestCase
         ]);
 
         $this->assertTrue($user->can('viewAny', Meeting::class));
-    }
-
-    #[Test]
-    public function it_allows_users_with_crockenhill_domain(): void
-    {
-        $user = User::factory()->create([
-            'email' => 'staff@crockenhill.org',
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-
         $this->assertTrue($user->can('create', Meeting::class));
     }
 
     #[Test]
-    public function it_denies_regular_users(): void
+    public function it_denies_non_admin_users_regardless_of_email_domain(): void
     {
-        $user = User::factory()->create([
+        $regularUser = User::factory()->create([
             'email' => 'regular@gmail.com',
             'is_admin' => false,
             'email_verified_at' => now(),
         ]);
 
-        $this->assertFalse($user->can('create', Meeting::class));
+        $crockenhillUser = User::factory()->create([
+            'email' => 'staff@crockenhill.org',
+            'is_admin' => false,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->assertFalse($regularUser->can('create', Meeting::class));
+        $this->assertFalse($crockenhillUser->can('create', Meeting::class));
     }
 
     #[Test]
@@ -59,5 +55,19 @@ class MeetingPolicyTest extends TestCase
         $this->assertTrue($user->can('view', $meeting));
         $this->assertTrue($user->can('update', $meeting));
         $this->assertTrue($user->can('delete', $meeting));
+    }
+
+    #[Test]
+    public function it_denies_non_admin_users_from_modifying_meetings(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => false,
+            'email_verified_at' => now(),
+        ]);
+        $meeting = Meeting::factory()->create();
+
+        $this->assertFalse($user->can('view', $meeting));
+        $this->assertFalse($user->can('update', $meeting));
+        $this->assertFalse($user->can('delete', $meeting));
     }
 }

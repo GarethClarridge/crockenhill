@@ -10,7 +10,6 @@ use App\Policies\PagePolicy;
 use App\Policies\SermonPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -20,7 +19,6 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        // 'Crockenhill\Model' => 'Crockenhill\Policies\ModelPolicy', // Original placeholder
         Meeting::class => MeetingPolicy::class,
         Sermon::class => SermonPolicy::class,
         Page::class => PagePolicy::class,
@@ -33,40 +31,16 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        Gate::before(function ($user, $ability) {
-            if (is_object($user) && method_exists($user, 'hasVerifiedEmail') && ! $user->hasVerifiedEmail()) {
-                return false;
-            }
-
-            $email = is_object($user) && isset($user->email) && is_string($user->email)
-                ? $user->email
-                : null;
-
-            if ($email !== null && Str::endsWith($email, '@crockenhill.org')) {
-                return true;
-            }
-
-            return null; // Explicitly return null if no decision is made by this `before` callback
+        Gate::define('manage-sermons', function ($user) {
+            return $user->is_admin && $user->hasVerifiedEmail();
         });
 
-        Gate::define('see-member-content', function ($user) {
-            $member_emails = [
-                '', // Placeholder
-                '',  // Placeholder
-            ];
-
-            $email = is_object($user) && isset($user->email) && is_string($user->email)
-                ? $user->email
-                : null;
-            if ($email !== null) {
-                return in_array($email, $member_emails, true);
-            }
-
-            return false;
+        Gate::define('manage-meetings', function ($user) {
+            return $user->is_admin && $user->hasVerifiedEmail();
         });
 
-        // Gate::define('edit-sermons', ...) // Removed, handled by SermonPolicy
-        // Gate::define('edit-songs', ...) // Removed as unused and logic would be part of SermonPolicy if relevant
-        // Gate::define('edit-pages', ...) // Removed, handled by PagePolicy
+        Gate::define('manage-pages', function ($user) {
+            return $user->is_admin && $user->hasVerifiedEmail();
+        });
     }
 }

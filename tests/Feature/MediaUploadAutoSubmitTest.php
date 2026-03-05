@@ -22,13 +22,12 @@ class MediaUploadAutoSubmitTest extends TestCase
     {
         parent::setUp();
 
-        // Create authenticated user with sermon creation permission
-        // Must use @crockenhill.org domain for permission (see SermonPolicy)
-        // Must have verified email (see Gate::before in AuthServiceProvider)
+        // Create an admin user with a verified email to pass SermonPolicy::create()
         // Use unique email to avoid conflicts with database seeder during parallel tests
         $this->user = User::factory()->create([
-            'email' => 'test-'.uniqid().'@crockenhill.org',
+            'email' => 'test-'.uniqid().'@example.com',
             'password' => bcrypt('password'),
+            'is_admin' => true,
             'email_verified_at' => now(),
         ]);
 
