@@ -59,11 +59,21 @@ class ListMeetings extends Component
     {
         $this->sanitizeSorting();
 
+        /**
+         * Performance Optimization: Limits retrieved columns for meetings and eager-loaded
+         * page to required fields to reduce memory usage and DB I/O. Unused
+         * calendarEvents relationship is removed from eager loading.
+         * Search conditions are grouped to ensure correct query logic with filters.
+         */
         $meetings = Meeting::query()
-            ->with(['page', 'calendarEvents'])
-            ->when($this->search, fn ($q) => $q->whereHas('page', fn ($q2) => $q2->where('heading', 'like', "%{$this->search}%"))
+            ->select([
+                'id', 'slug', 'who', 'day', 'start_time', 'end_time',
+                'type', 'is_recurring', 'frequency', 'location', 'page_id', 'created_at', 'updated_at',
+            ])
+            ->with('page:id,heading')
+            ->when($this->search, fn ($q) => $q->where(fn ($sub) => $sub->whereHas('page', fn ($q2) => $q2->where('heading', 'like', "%{$this->search}%"))
                 ->orWhere('day', 'like', "%{$this->search}%")
-                ->orWhere('who', 'like', "%{$this->search}%"))
+                ->orWhere('who', 'like', "%{$this->search}%")))
             ->when($this->typeFilter, fn ($q) => $q->where('type', $this->typeFilter))
             ->when($this->recurringFilter !== null, fn ($q) => $q->where('is_recurring', $this->recurringFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
