@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ProcessMediaRequest;
 use App\Http\Requests\UpdateSermonRequest;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use App\Services\PreacherResolutionService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +24,7 @@ class SermonAdminController extends Controller
     public function __construct(
         private readonly PreacherResolutionService $preacherResolutionService,
         private readonly UnifiedMediaProcessor $mediaProcessor,
+        private readonly SermonRepository $sermonRepository,
     ) {}
 
     /**
@@ -32,7 +34,7 @@ class SermonAdminController extends Controller
     {
         $this->authorize('update', $sermon);
 
-        $series = array_unique(\App\Models\Sermon::pluck('series')->all()); // Used FQCN for Sermon
+        $series = $this->sermonRepository->getSeriesForDisplay();
 
         // Breadcrumbs removed
 

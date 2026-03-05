@@ -30,4 +30,17 @@ class SermonRepository
             return [];
         }
     }
+
+    /**
+     * Get all distinct sermon series sorted alphabetically for display in UI.
+     *
+     * @return array<int, string>
+     */
+    public function getSeriesForDisplay(): array
+    {
+        $series = $this->getExistingSeries();
+        sort($series);
+
+        return $series;
+    }
 }

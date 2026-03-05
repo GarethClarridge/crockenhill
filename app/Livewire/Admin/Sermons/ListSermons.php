@@ -10,6 +10,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
@@ -94,12 +95,7 @@ class ListSermons extends Component
     protected function getSeries(): Collection
     {
         return Cache::remember('sermon_series', now()->addHours(24), function () {
-            return Sermon::whereNotNull('series')
-                ->distinct()
-                ->pluck('series')
-                ->filter()
-                ->sort()
-                ->values();
+            return collect(app(SermonRepository::class)->getSeriesForDisplay());
         });
     }
 

@@ -14,6 +14,7 @@ use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Repositories\SermonRepository;
 use App\Services\AudioTranscriptionService;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonJobPipelineService;
@@ -368,7 +369,7 @@ class SermonProcessingJobChainTest extends TestCase
 
         // Create and execute the job
         $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockAnalysisService);
+        $job->handle($mockAnalysisService, new SermonRepository);
 
         // Assert sermon was updated
         $sermon->refresh();
@@ -736,7 +737,7 @@ class SermonProcessingJobChainTest extends TestCase
         $processingLog->update(['current_step' => 'ai_analysis_completed']);
 
         $updateJob = new UpdateSermonRecord($sermon->id);
-        $updateJob->handle($mockAnalysisService);
+        $updateJob->handle($mockAnalysisService, new SermonRepository);
 
         // Verify sermon was updated
         $sermon->refresh();

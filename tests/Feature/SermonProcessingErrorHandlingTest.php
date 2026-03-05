@@ -10,6 +10,7 @@ use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use App\Services\AudioTranscriptionService;
 use App\Services\SermonAnalysisService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -208,7 +209,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             ->willReturn($this->createMockSermonAnalysis('Test Sermon'));
 
         $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockAnalysisService);
+        $job->handle($mockAnalysisService, new SermonRepository);
 
         // Should handle slug conflict by generating unique slug
         $sermon->refresh();

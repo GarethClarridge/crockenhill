@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -143,17 +144,9 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getSerieses(): View
+    public function getSerieses(SermonRepository $sermonRepository): View
     {
-        /**
-         * Performance Optimization: Use pluck() for a single column to avoid instantiating
-         * full Eloquent models, and sort alphabetically for a better user experience.
-         */
-        $series = Sermon::query()
-            ->whereNotNull('series')
-            ->distinct()
-            ->orderBy('series')
-            ->pluck('series');
+        $series = collect($sermonRepository->getSeriesForDisplay());
 
         return view('sermons.serieses', [
             'series' => $series,

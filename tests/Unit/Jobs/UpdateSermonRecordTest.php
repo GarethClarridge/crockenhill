@@ -8,6 +8,7 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -64,7 +65,7 @@ class UpdateSermonRecordTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockService);
+        $job->handle($mockService, new SermonRepository);
 
         $sermon->refresh();
         $this->assertEquals('The Good Shepherd', $sermon->title);
@@ -99,7 +100,7 @@ class UpdateSermonRecordTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockService);
+        $job->handle($mockService, new SermonRepository);
 
         $sermon->refresh();
         $this->assertEquals('the-good-shepherd-1', $sermon->slug);
@@ -126,7 +127,7 @@ class UpdateSermonRecordTest extends TestCase
         Log::shouldReceive('warning')->atLeast()->once();
 
         $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockService);
+        $job->handle($mockService, new SermonRepository);
 
         $sermon->refresh();
         $this->assertNotEmpty($sermon->title);
@@ -154,7 +155,7 @@ class UpdateSermonRecordTest extends TestCase
         Log::shouldReceive('warning')->atLeast()->once();
 
         $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockService);
+        $job->handle($mockService, new SermonRepository);
 
         $sermon->refresh();
         // Falls back to basic analysis — keeps existing good title
@@ -174,7 +175,7 @@ class UpdateSermonRecordTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Sermon not found');
 
-        $job->handle($mockService);
+        $job->handle($mockService, new SermonRepository);
     }
 
     #[Test]
@@ -192,7 +193,7 @@ class UpdateSermonRecordTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Processing log not found');
 
-        $job->handle($mockService);
+        $job->handle($mockService, new SermonRepository);
     }
 
     #[Test]

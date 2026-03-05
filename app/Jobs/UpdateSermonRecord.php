@@ -6,6 +6,7 @@ use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -37,7 +38,7 @@ class UpdateSermonRecord implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(SermonAnalysisInterface $analysisService): void
+    public function handle(SermonAnalysisInterface $analysisService, SermonRepository $sermonRepository): void
     {
         try {
             Log::info('Starting sermon record update', [
@@ -61,7 +62,7 @@ class UpdateSermonRecord implements ShouldQueue
             $processingLog->updateStep('updating_sermon_record');
 
             // Get the analysis results - either from previous job or regenerate
-            $analysis = $this->getOrGenerateAnalysis($sermon, $analysisService);
+            $analysis = $this->getOrGenerateAnalysis($sermon, $analysisService, $sermonRepository);
 
             // Generate final slug from AI-generated title
             $finalSlug = $this->generateUniqueSlug($analysis->title, $sermon->id);
@@ -122,7 +123,7 @@ class UpdateSermonRecord implements ShouldQueue
     /**
      * Get existing analysis or generate new one if needed
      */
-    private function getOrGenerateAnalysis(Sermon $sermon, SermonAnalysisInterface $analysisService): SermonAnalysis
+    private function getOrGenerateAnalysis(Sermon $sermon, SermonAnalysisInterface $analysisService, SermonRepository $sermonRepository): SermonAnalysis
     {
         try {
             // Check if we have a transcript to work with
@@ -142,7 +143,7 @@ class UpdateSermonRecord implements ShouldQueue
                 'transcript_length' => strlen($transcript),
             ]);
 
-            $existingSeries = $this->getExistingSeries();
+            $existingSeries = $sermonRepository->getExistingSeries();
             $analysis = $analysisService->analyzeSermon($transcript, $existingSeries);
 
             return $analysis;
@@ -205,30 +206,6 @@ class UpdateSermonRecord implements ShouldQueue
         $service = $sermon->service ? $sermon->service->value : '';
 
         return "Sermon - {$sermon->date->format('F j, Y')} {$service}";
-    }
-
-    /**
-     * Get existing sermon series from database
-     *
-     * @return array<int, string>
-     */
-    private function getExistingSeries(): array
-    {
-        try {
-            return Sermon::whereNotNull('series')
-                ->where('series', '!=', '')
-                ->distinct()
-                ->pluck('series')
-                ->filter()
-                ->values()
-                ->toArray();
-        } catch (\Exception $e) {
-            Log::warning('Failed to retrieve existing series', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
-        }
     }
 
     /**
