@@ -92,9 +92,9 @@ Church
     Who are we?
   </x-h2>
 
-  <x-text>
+  <x-h3>A loving community...</x-h3>
 
-    <h3 class="my-5">A loving community...</h3>
+  <x-text>
     <p>
       Church is so much more than what takes place in organised
       groups and services. We want to be a church who support
@@ -103,8 +103,11 @@ Church
       and more like Jesus, and to show those we rub shoulders
       with every day something of the love of God.
     </p>
+  </x-text>
 
-    <h3 class="my-5">...of ordinary people...</h3>
+  <x-h3>...of ordinary people...</x-h3>
+
+  <x-text>
     <p>
       Our church is made up of people of all ages and backgrounds.
       In fact, people just like you! So whether you'd call yourself
@@ -115,8 +118,11 @@ Church
       so as a church we provide opportunities for everyone
       to learn, serve and grow in their faith.
     </p>
+  </x-text>
 
-    <h3 class="my-5">...who have been saved by Jesus,...</h3>
+  <x-h3>...who have been saved by Jesus,...</x-h3>
+
+  <x-text>
     <p>
       We know that we all naturally rebel against God. We want to
       live life our own way, putting ourselves first. But God
@@ -130,8 +136,11 @@ Church
       relationship with God our Father, and now lives
       in us by his Holy Spirit, guiding our lives day by day.
     </p>
+  </x-text>
 
-    <h3 class="my-5">...who take the Bible seriously,...</h3>
+  <x-h3>...who take the Bible seriously,...</x-h3>
+
+  <x-text>
     <p>
       If you come to our services you'll notice we spend a lot of
       time reading and explaining the Bible. We believe the Bible
@@ -145,8 +154,11 @@ Church
       praying and singing on Sunday to working in the office on
       Monday. From bringing up our children to loving our friends.
     </p>
+  </x-text>
 
-    <h3 class="my-5">...and who want to tell everyone about Jesus.</h3>
+  <x-h3>...and who want to tell everyone about Jesus.</x-h3>
+
+  <x-text>
     <p>
       We know we've been given a wonderful gift by God, and we
       don't want to keep it to ourselves! Much of our energy as a
@@ -168,12 +180,9 @@ Church
     What kind of church are we?
   </x-h2>
 
+  <x-h3>An <i>evangelical</i> church</x-h3>
+
   <x-text>
-
-    <h3 class="h2 mb-5">
-      An <i>evangelical</i> church
-    </h3>
-
     <p>
       We believe that the gospel
       (<i>evangel</i> in Latin) is the
@@ -193,10 +202,11 @@ Church
         statement of faith
       </a>.
     </p>
+  </x-text>
 
-    <h3 class="h2 mb-5">
-      A <i>baptist</i> church
-    </h3>
+  <x-h3>A <i>baptist</i> church</x-h3>
+
+  <x-text>
     <p>
       Our church <a href="/church/history">started life as "Union Chapel"</a>, a mixture
       of Baptists and Congregationalists.
@@ -216,11 +226,11 @@ Church
       people for Christ. We don't require members to be baptised as
       adults where they believe their infant baptism is biblical.
     </p>
+  </x-text>
 
-    <h3 class="h2 mb-5">
-      An <i>independent</i> church
-    </h3>
+  <x-h3>An <i>independent</i> church</x-h3>
 
+  <x-text>
     <p>
       Despite being a Baptist church, we're not a member of
       <a href="https://www.baptist.org.uk/">

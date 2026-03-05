@@ -40,13 +40,13 @@
       @if ($sermon->preacher != null)
       <li class="flex items-center">
         <x-heroicon-o-user class="h-5 w-5 mr-2 text-gray-500" />
-        <a href="{{ $sermon->preacher_url }}" wire:navigate class="hover:text-emerald-700 transition-colors">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
+        <a href="{{ $sermon->preacher_url }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
       </li>
       @endif
       @if ($sermon->series != null)
       <li class="flex items-center">
         <x-heroicon-o-tag class="h-5 w-5 mr-2 text-gray-500" />
-        <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" wire:navigate class="hover:text-emerald-700 transition-colors">{{ $sermon->series }}</a>
+        <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->series }}</a>
       </li>
       @endif
       @if ($sermon->reference != null)

@@ -1,7 +1,7 @@
 @props(['link', 'variant' => 'default', 'size' => 'md', 'icon' => null, 'inline' => false])
 
 @php
-$baseClasses = 'no-underline rounded-md focus:outline-none focus:ring-2 focus:ring-[#145557] focus:ring-offset-2 transition-all inline-flex items-center justify-center';
+$baseClasses = 'no-underline rounded-md focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 transition-all inline-flex items-center justify-center';
 
 $sizeClasses = [
     'xs' => 'px-2 py-1 text-xs',
@@ -16,7 +16,7 @@ $variantClasses = [
     'primary' => 'bg-green-500 hover:bg-green-600 text-white',
     'secondary' => 'bg-gray-500 hover:bg-gray-600 text-white',
     'feature' => 'bg-[#1d686a] hover:bg-[#165355] text-white shadow-sm',
-    'featureOutline' => 'border border-transparent bg-slate-100/90 text-[#145557] hover:bg-white shadow-none focus:ring-[#1d686a]',
+    'featureOutline' => 'border border-transparent bg-slate-100/90 text-[#145557] hover:bg-white shadow-none focus:ring-cbc-teal',
     'outline' => 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700',
     'danger' => 'bg-red-600 hover:bg-red-700 text-white',
     'ghost' => 'hover:bg-gray-100 text-gray-600',

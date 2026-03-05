@@ -12,9 +12,9 @@ $sizeClasses = [
 ];
 
 $variantClasses = [
-    'primary' => 'bg-green-500 hover:bg-green-600 focus:ring-green-500 text-white',
+    'primary' => 'bg-green-500 hover:bg-green-600 focus:ring-cbc-teal text-white',
     'secondary' => 'bg-gray-500 hover:bg-gray-600 focus:ring-gray-500 text-white',
-    'outline' => 'border border-gray-300 bg-white hover:bg-gray-50 focus:ring-green-500 text-gray-700',
+    'outline' => 'border border-gray-300 bg-white hover:bg-gray-50 focus:ring-cbc-teal text-gray-700',
     'danger' => 'bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white',
     'ghost' => 'hover:bg-gray-100 focus:ring-gray-500 text-gray-600',
 ];
