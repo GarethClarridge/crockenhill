@@ -167,13 +167,7 @@ class Sermon extends Model implements Sitemapable
 
     public function getThumbnailUrlAttribute(): ?string
     {
-        if (! $this->thumbnail_file_path) {
-            return null;
-        }
-
-        $disk = config('thumbnail-generation.storage.disk', 'public');
-
-        return \Illuminate\Support\Facades\Storage::disk($disk)->url($this->thumbnail_file_path);
+        return resolve(\App\Services\SermonStorageService::class)->getThumbnailUrl($this);
     }
 
     public function getPlainThumbnailFilePathAttribute(): ?string
@@ -555,67 +549,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function getVideoUrlAttribute(): ?string
     {
-        if (! $this->video_file_path) {
-            return null;
-        }
-
-        return \Illuminate\Support\Facades\Storage::disk(config('media-processing.storage.sermon_disk'))->url($this->video_file_path);
-    }
-
-    /**
-     * Get the segment duration for livestream sermons
-     *
-     * @return float|null Duration in seconds or null if not from livestream
-     */
-    public function getSegmentDuration(): ?float
-    {
-        if (! $this->isFromLivestream() || ! $this->segment_start_time || ! $this->segment_end_time) {
-            return null;
-        }
-
-        return $this->segment_end_time - $this->segment_start_time;
-    }
-
-    /**
-     * Get formatted segment duration
-     *
-     * @return string|null Formatted duration or null
-     */
-    public function getSegmentDurationFormatted(): ?string
-    {
-        $duration = $this->getSegmentDuration();
-
-        if ($duration === null) {
-            return null;
-        }
-
-        $minutes = floor($duration / 60);
-        $seconds = $duration % 60;
-
-        return sprintf('%dm %ds', $minutes, $seconds);
-    }
-
-    /**
-     * Get livestream metadata with defaults.
-     *
-     * @return array<string, mixed>
-     */
-    public function getLivestreamInfo(): array
-    {
-        if (! $this->isFromLivestream()) {
-            return [];
-        }
-
-        return [
-            'processing_id' => $this->livestream_processing_id,
-            'original_filename' => optional($this->livestreamProcessing)->original_filename,
-            'segment_start_time' => $this->segment_start_time,
-            'segment_end_time' => $this->segment_end_time,
-            'segment_duration' => $this->getSegmentDuration(),
-            'segment_duration_formatted' => $this->getSegmentDurationFormatted(),
-            'has_video' => $this->hasVideo(),
-            'video_url' => $this->getVideoUrlAttribute(),
-        ];
+        return resolve(\App\Services\SermonStorageService::class)->getVideoUrl($this);
     }
 
     /**
@@ -704,68 +638,12 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Convert the sermon to a sitemap tag.
-     */
-    /**
+     *
      * @return Url|string|array<string, mixed>
      */
     public function toSitemapTag(): Url|string|array
     {
-        $year = $this->date->format('Y');
-        $month = $this->date->format('m');
-
-        // Calculate priority based on recency (use absolute value for past dates)
-        $daysOld = abs(now()->diffInDays($this->date, false));
-        $priority = $daysOld < 30 ? 0.8 : 0.6;
-
-        // Change frequency based on age
-        $changeFreq = $daysOld < 365
-            ? Url::CHANGE_FREQUENCY_MONTHLY
-            : Url::CHANGE_FREQUENCY_YEARLY;
-
-        // Use updated_at if valid, otherwise fall back to date
-        // Note: old records may have invalid updated_at values (0000-00-00) that aren't null
-        // Also, timestamps are disabled so updated_at returns as string, not Carbon
-        $lastModified = $this->date;
-        if ($this->updated_at) {
-            $updatedAt = \Carbon\Carbon::parse($this->updated_at);
-            if ($updatedAt->year > 0) {
-                $lastModified = $updatedAt;
-            }
-        }
-
-        $url = Url::create("/christ/sermons/{$year}/{$month}/{$this->slug}")
-            ->setLastModificationDate($lastModified)
-            ->setChangeFrequency($changeFreq)
-            ->setPriority($priority);
-
-        if ($this->hasVideo() && $this->video_url) {
-            $thumbnailUrl = $this->thumbnail_url;
-            if ($thumbnailUrl) {
-                $videoOptions = [];
-                if ($this->duration && $this->duration > 0) {
-                    $videoOptions['duration'] = (int) $this->duration;
-                }
-                $url->addVideo(
-                    $thumbnailUrl,
-                    $this->title,
-                    $this->summary ?? $this->title,
-                    $this->video_url,
-                    null,
-                    $videoOptions
-                );
-            }
-        }
-
-        if ($this->hasThumbnail() && $this->thumbnail_url) {
-            $url->addImage(
-                $this->thumbnail_url,
-                $this->meta_description, // Caption
-                '', // Geo location
-                $this->title // Title
-            );
-        }
-
-        return $url;
+        return app(\App\Presenters\SermonSitemapPresenter::class)->toSitemapTag($this);
     }
 
     /**

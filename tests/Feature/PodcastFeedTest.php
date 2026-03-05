@@ -35,6 +35,10 @@ class PodcastFeedTest extends TestCase
             ->andReturnUsing(fn (Sermon $sermon) => "https://example.com/sermons/{$sermon->audio_file_path}");
         $mock->shouldReceive('getFileSize')
             ->andReturn(10485760); // 10MB default
+        $mock->shouldReceive('getThumbnailUrl')
+            ->andReturn(null);
+        $mock->shouldReceive('getVideoUrl')
+            ->andReturn(null);
 
         $this->app->instance(SermonStorageService::class, $mock);
     }

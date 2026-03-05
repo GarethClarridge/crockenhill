@@ -168,6 +168,53 @@ class SermonStorageServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_video_url_for_sermon_with_video_path(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+
+        $url = $this->service->getVideoUrl($sermon);
+
+        $this->assertStringContainsString('/storage/sermons/1/video.mp4', $url);
+    }
+
+    #[Test]
+    public function it_returns_null_video_url_when_no_video_path(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => null,
+        ]);
+
+        $this->assertNull($this->service->getVideoUrl($sermon));
+    }
+
+    #[Test]
+    public function it_returns_thumbnail_url_for_sermon_with_thumbnail_path(): void
+    {
+        Storage::fake('thumb_disk');
+        Config::set('thumbnail-generation.storage.disk', 'thumb_disk');
+
+        $sermon = Sermon::factory()->create([
+            'thumbnail_file_path' => 'thumbnails/sermon-1.jpg',
+        ]);
+
+        $url = $this->service->getThumbnailUrl($sermon);
+
+        $this->assertStringContainsString('thumbnails/sermon-1.jpg', $url);
+    }
+
+    #[Test]
+    public function it_returns_null_thumbnail_url_when_no_thumbnail_path(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'thumbnail_file_path' => null,
+        ]);
+
+        $this->assertNull($this->service->getThumbnailUrl($sermon));
+    }
+
+    #[Test]
     public function it_calculates_storage_stats_correctly(): void
     {
         // Clear any existing sermons

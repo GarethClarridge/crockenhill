@@ -23,6 +23,92 @@ class SermonMetadataIntegrationServiceTest extends TestCase
         $this->service = app(SermonMetadataIntegrationService::class);
     }
 
+    // --- getSegmentDuration() ---
+
+    #[Test]
+    public function it_returns_segment_duration_for_livestream_sermon(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'source_type' => SermonSourceType::Livestream,
+            'segment_start_time' => 120.0,
+            'segment_end_time' => 3720.0,
+        ]);
+
+        $this->assertEquals(3600.0, $this->service->getSegmentDuration($sermon));
+    }
+
+    #[Test]
+    public function it_returns_null_segment_duration_for_non_livestream_sermon(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'source_type' => SermonSourceType::Manual,
+            'segment_start_time' => 120.0,
+            'segment_end_time' => 3720.0,
+        ]);
+
+        $this->assertNull($this->service->getSegmentDuration($sermon));
+    }
+
+    #[Test]
+    public function it_returns_null_segment_duration_when_times_missing(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'source_type' => SermonSourceType::Livestream,
+            'segment_start_time' => null,
+            'segment_end_time' => null,
+        ]);
+
+        $this->assertNull($this->service->getSegmentDuration($sermon));
+    }
+
+    // --- getSegmentDurationFormatted() ---
+
+    #[Test]
+    public function it_returns_formatted_segment_duration(): void
+    {
+        $sermon = Sermon::factory()->make([
+            'source_type' => SermonSourceType::Livestream,
+            'segment_start_time' => 60.0,
+            'segment_end_time' => 2790.0, // 2730s = 45m 30s
+        ]);
+
+        $this->assertEquals('45m 30s', $this->service->getSegmentDurationFormatted($sermon));
+    }
+
+    // --- getLivestreamInfo() ---
+
+    #[Test]
+    public function it_returns_livestream_info_array_for_livestream_sermon(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'source_type' => SermonSourceType::Livestream,
+            'segment_start_time' => 60.0,
+            'segment_end_time' => 3660.0,
+            'video_file_path' => null,
+        ]);
+
+        $info = $this->service->getLivestreamInfo($sermon);
+
+        $this->assertArrayHasKey('processing_id', $info);
+        $this->assertArrayHasKey('segment_start_time', $info);
+        $this->assertArrayHasKey('segment_end_time', $info);
+        $this->assertArrayHasKey('segment_duration', $info);
+        $this->assertArrayHasKey('segment_duration_formatted', $info);
+        $this->assertArrayHasKey('has_video', $info);
+        $this->assertArrayHasKey('video_url', $info);
+        $this->assertEquals(3600.0, $info['segment_duration']);
+    }
+
+    #[Test]
+    public function it_returns_empty_array_for_non_livestream_sermon(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'source_type' => SermonSourceType::Manual,
+        ]);
+
+        $this->assertEquals([], $this->service->getLivestreamInfo($sermon));
+    }
+
     // --- linkVideoToSermon() ---
 
     #[Test]

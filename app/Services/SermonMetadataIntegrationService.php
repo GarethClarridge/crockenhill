@@ -193,6 +193,58 @@ class SermonMetadataIntegrationService
     }
 
     /**
+     * Get the segment duration for a livestream sermon in seconds
+     */
+    public function getSegmentDuration(Sermon $sermon): ?float
+    {
+        if (! $sermon->isFromLivestream() || ! $sermon->segment_start_time || ! $sermon->segment_end_time) {
+            return null;
+        }
+
+        return $sermon->segment_end_time - $sermon->segment_start_time;
+    }
+
+    /**
+     * Get formatted segment duration (e.g. "45m 30s")
+     */
+    public function getSegmentDurationFormatted(Sermon $sermon): ?string
+    {
+        $duration = $this->getSegmentDuration($sermon);
+
+        if ($duration === null) {
+            return null;
+        }
+
+        $minutes = floor($duration / 60);
+        $seconds = $duration % 60;
+
+        return sprintf('%dm %ds', $minutes, $seconds);
+    }
+
+    /**
+     * Get livestream metadata for a sermon
+     *
+     * @return array<string, mixed>
+     */
+    public function getLivestreamInfo(Sermon $sermon): array
+    {
+        if (! $sermon->isFromLivestream()) {
+            return [];
+        }
+
+        return [
+            'processing_id' => $sermon->livestream_processing_id,
+            'original_filename' => optional($sermon->livestreamProcessing)->original_filename,
+            'segment_start_time' => $sermon->segment_start_time,
+            'segment_end_time' => $sermon->segment_end_time,
+            'segment_duration' => $this->getSegmentDuration($sermon),
+            'segment_duration_formatted' => $this->getSegmentDurationFormatted($sermon),
+            'has_video' => $sermon->hasVideo(),
+            'video_url' => $sermon->video_url,
+        ];
+    }
+
+    /**
      * Get video information for a sermon
      *
      * @param  int  $sermonId  The sermon ID
@@ -219,7 +271,7 @@ class SermonMetadataIntegrationService
 
             // Add livestream-specific information
             if ($sermon->isFromLivestream()) {
-                $info['livestream_info'] = $sermon->getLivestreamInfo();
+                $info['livestream_info'] = $this->getLivestreamInfo($sermon);
             }
         }
 
@@ -261,10 +313,10 @@ class SermonMetadataIntegrationService
 
         // Add duration if available from livestream metadata
         if ($sermon->isFromLivestream()) {
-            $duration = $sermon->getSegmentDuration();
+            $duration = $this->getSegmentDuration($sermon);
             if ($duration) {
                 $previewData['duration'] = $duration;
-                $previewData['duration_formatted'] = $sermon->getSegmentDurationFormatted();
+                $previewData['duration_formatted'] = $this->getSegmentDurationFormatted($sermon);
             }
         }
 

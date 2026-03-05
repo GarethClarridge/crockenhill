@@ -1,0 +1,138 @@
+<?php
+
+namespace Tests\Unit\Presenters;
+
+use App\Models\Sermon;
+use App\Presenters\SermonSitemapPresenter;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
+use Spatie\Sitemap\Tags\Url;
+use Tests\TestCase;
+
+class SermonSitemapPresenterTest extends TestCase
+{
+    private SermonSitemapPresenter $presenter;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->presenter = new SermonSitemapPresenter;
+    }
+
+    #[Test]
+    public function recent_sermon_gets_high_priority_and_monthly_frequency(): void
+    {
+        /** @var Sermon $sermon */
+        $sermon = Sermon::factory()->make([
+            'slug' => 'recent-sermon',
+            'date' => now()->subDays(15),
+        ]);
+
+        $tag = $this->presenter->toSitemapTag($sermon);
+
+        $this->assertEquals(0.8, $tag->priority);
+        $this->assertEquals('monthly', $tag->changeFrequency);
+    }
+
+    #[Test]
+    public function old_sermon_gets_lower_priority_and_yearly_frequency(): void
+    {
+        /** @var Sermon $sermon */
+        $sermon = Sermon::factory()->make([
+            'slug' => 'old-sermon',
+            'date' => now()->subYears(2),
+        ]);
+
+        $tag = $this->presenter->toSitemapTag($sermon);
+
+        $this->assertEquals(0.6, $tag->priority);
+        $this->assertEquals('yearly', $tag->changeFrequency);
+    }
+
+    #[Test]
+    public function sermon_with_video_and_thumbnail_produces_video_and_image_entries(): void
+    {
+        Storage::fake('public');
+        Storage::fake('sermons');
+        Config::set('thumbnail-generation.storage.disk', 'public');
+        Config::set('media-processing.storage.sermon_disk', 'sermons');
+
+        /** @var Sermon $sermon */
+        $sermon = Sermon::factory()->make([
+            'title' => 'Presenter Test Sermon',
+            'summary' => 'A test summary.',
+            'video_file_path' => 'videos/test.mp4',
+            'thumbnail_file_path' => 'thumbnails/test.jpg',
+            'duration' => 1800,
+            'date' => '2026-02-15',
+            'slug' => 'presenter-test',
+        ]);
+
+        $tag = $this->presenter->toSitemapTag($sermon);
+
+        $this->assertInstanceOf(Url::class, $tag);
+        $this->assertCount(1, $tag->videos);
+        $this->assertCount(1, $tag->images);
+        $this->assertEquals('Presenter Test Sermon', $tag->videos[0]->title);
+        $this->assertEquals('A test summary.', $tag->videos[0]->description);
+        $this->assertEquals(1800, $tag->videos[0]->options['duration']);
+    }
+
+    #[Test]
+    public function sermon_without_thumbnail_produces_no_video_entry(): void
+    {
+        /** @var Sermon $sermon */
+        $sermon = Sermon::factory()->make([
+            'video_file_path' => 'videos/test.mp4',
+            'thumbnail_file_path' => null,
+            'date' => '2026-02-15',
+            'slug' => 'no-thumb',
+        ]);
+
+        $tag = $this->presenter->toSitemapTag($sermon);
+
+        $this->assertCount(0, $tag->videos);
+    }
+
+    #[Test]
+    public function sermon_without_summary_falls_back_to_title_for_video_description(): void
+    {
+        Storage::fake('public');
+        Storage::fake('sermons');
+        Config::set('thumbnail-generation.storage.disk', 'public');
+        Config::set('media-processing.storage.sermon_disk', 'sermons');
+
+        /** @var Sermon $sermon */
+        $sermon = Sermon::factory()->make([
+            'title' => 'No Summary Sermon',
+            'summary' => null,
+            'video_file_path' => 'videos/test.mp4',
+            'thumbnail_file_path' => 'thumbnails/test.jpg',
+            'date' => '2026-02-15',
+            'slug' => 'no-summary',
+        ]);
+
+        $tag = $this->presenter->toSitemapTag($sermon);
+
+        $this->assertCount(1, $tag->videos);
+        $this->assertEquals('No Summary Sermon', $tag->videos[0]->description);
+    }
+
+    #[Test]
+    public function it_builds_correct_url_path(): void
+    {
+        /** @var Sermon $sermon */
+        $sermon = Sermon::factory()->make([
+            'slug' => 'test-sermon',
+            'date' => '2025-06-15',
+            'video_file_path' => null,
+            'thumbnail_file_path' => null,
+        ]);
+
+        $tag = $this->presenter->toSitemapTag($sermon);
+
+        $this->assertStringContainsString('/christ/sermons/2025/06/test-sermon', $tag->url);
+    }
+}

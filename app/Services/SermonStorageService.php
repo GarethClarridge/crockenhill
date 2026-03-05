@@ -58,6 +58,32 @@ class SermonStorageService
     }
 
     /**
+     * Get the video URL for a sermon
+     */
+    public function getVideoUrl(Sermon $sermon): ?string
+    {
+        if (! $sermon->video_file_path) {
+            return null;
+        }
+
+        return Storage::disk(config('media-processing.storage.sermon_disk'))->url($sermon->video_file_path);
+    }
+
+    /**
+     * Get the thumbnail URL for a sermon
+     */
+    public function getThumbnailUrl(Sermon $sermon): ?string
+    {
+        if (! $sermon->thumbnail_file_path) {
+            return null;
+        }
+
+        $disk = config('thumbnail-generation.storage.disk', 'public');
+
+        return Storage::disk($disk)->url($sermon->thumbnail_file_path);
+    }
+
+    /**
      * Get the public URL for a sermon file
      */
     public function getPublicUrl(Sermon $sermon): string
