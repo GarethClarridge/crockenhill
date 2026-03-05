@@ -5,50 +5,74 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\PageArea;
+use App\Livewire\Admin\Pages\EditPage;
 use App\Models\Page;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PageEditorPreviewSecurityTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
-    #[Test]
-    public function legacy_page_editor_preview_strips_script_tags_from_markdown(): void
+    private User $admin;
+
+    protected function setUp(): void
     {
-        $page = Page::factory()->create([
-            'area' => PageArea::CHURCH->value,
-            'slug' => 'legacy-preview-script-tag',
-            'heading' => 'Legacy Preview Script Tag',
-            'markdown' => '<script>alert("legacy-preview-xss")</script>'."\n\n".'Safe preview content.',
-            'body' => '',
-            'description' => 'Legacy preview security test',
-            'admin' => 'yes',
+        parent::setUp();
+
+        $this->admin = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => now(),
         ]);
-
-        $view = $this->withViewErrors([])->view('pages.edit', ['page' => $page]);
-
-        $view->assertSee('Safe preview content.');
-        $view->assertDontSee('<script>alert("legacy-preview-xss")</script>', false);
     }
 
     #[Test]
-    public function legacy_page_editor_preview_blocks_javascript_links_from_markdown(): void
+    public function page_editor_strips_script_tags_from_markdown_when_saved(): void
     {
+        $this->actingAs($this->admin);
+
         $page = Page::factory()->create([
             'area' => PageArea::CHURCH->value,
-            'slug' => 'legacy-preview-javascript-link',
-            'heading' => 'Legacy Preview Javascript Link',
-            'markdown' => '[Click me](javascript:alert("legacy-preview-link"))',
-            'body' => '',
-            'description' => 'Legacy preview link security test',
-            'admin' => 'yes',
+            'slug' => 'preview-script-tag',
+            'heading' => 'Preview Script Tag',
+            'markdown' => '',
+            'description' => 'Preview security test',
         ]);
 
-        $view = $this->withViewErrors([])->view('pages.edit', ['page' => $page]);
+        Livewire::test(EditPage::class, ['page' => $page])
+            ->set('markdown', '<script>alert("xss")</script>'."\n\n".'Safe content.')
+            ->call('save');
 
-        $view->assertSee('Click me');
-        $view->assertDontSee('javascript:alert("legacy-preview-link")', false);
+        $page->refresh();
+
+        $this->assertStringContainsString('Safe content.', $page->body);
+        $this->assertStringNotContainsString('<script>', $page->body);
+        $this->assertStringNotContainsString('alert("xss")', $page->body);
+    }
+
+    #[Test]
+    public function page_editor_blocks_javascript_links_from_markdown_when_saved(): void
+    {
+        $this->actingAs($this->admin);
+
+        $page = Page::factory()->create([
+            'area' => PageArea::CHURCH->value,
+            'slug' => 'preview-javascript-link',
+            'heading' => 'Preview Javascript Link',
+            'markdown' => '',
+            'description' => 'Preview link security test',
+        ]);
+
+        Livewire::test(EditPage::class, ['page' => $page])
+            ->set('markdown', '[Click me](javascript:alert("link"))')
+            ->call('save');
+
+        $page->refresh();
+
+        $this->assertStringContainsString('Click me', $page->body);
+        $this->assertStringNotContainsString('javascript:', $page->body);
     }
 }
