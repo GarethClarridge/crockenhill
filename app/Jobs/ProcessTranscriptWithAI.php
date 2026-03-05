@@ -6,12 +6,12 @@ use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Models\MediaProcessingLog;
 use App\Repositories\SermonRepository;
+use App\Services\TranscriptStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
@@ -221,54 +221,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
     private function loadTranscriptFromStorage(string $transcriptPath): ?string
     {
-        $path = trim($transcriptPath);
-        if ($path === '') {
-            return null;
-        }
-
-        foreach ($this->getTranscriptReadDisks() as $disk) {
-            try {
-                $storage = Storage::disk($disk);
-
-                if (! $storage->exists($path)) {
-                    continue;
-                }
-
-                $transcript = $storage->get($path);
-
-                return is_string($transcript) ? $transcript : null;
-            } catch (\Exception $e) {
-                Log::warning('Failed to read transcript during AI processing', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'disk' => $disk,
-                    'transcript_file_path' => $path,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function getTranscriptReadDisks(): array
-    {
-        $transcriptDisk = (string) config('media-processing.storage.transcript_disk', '');
-        $sermonDisk = (string) config('media-processing.storage.sermon_disk', '');
-        $defaultDisk = (string) config('filesystems.default', '');
-
-        $diskCandidates = [
-            $transcriptDisk,
-            $sermonDisk,
-            $defaultDisk,
-            'local',
-            'public',
-            'do_spaces',
-        ];
-
-        return array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
+        return app(TranscriptStorageService::class)->readTranscriptFromPath($transcriptPath);
     }
 
     private function generateFallbackTitle(): string

@@ -139,6 +139,88 @@ class TranscriptStorageServiceTest extends TestCase
         $this->assertEquals('transcripts/sermon_42.md', $path);
     }
 
+    // --- getTranscriptReadDisks() ---
+
+    #[Test]
+    public function it_returns_configured_disks_in_priority_order(): void
+    {
+        config([
+            'media-processing.storage.transcript_disk' => 'do_spaces',
+            'media-processing.storage.sermon_disk' => 'public',
+            'filesystems.default' => 'local',
+        ]);
+
+        $disks = $this->service->getTranscriptReadDisks();
+
+        // Configured disks appear before hardcoded fallbacks; duplicates are removed
+        $this->assertSame(['do_spaces', 'public', 'local'], $disks);
+    }
+
+    #[Test]
+    public function it_deduplicates_disk_candidates(): void
+    {
+        config([
+            'media-processing.storage.transcript_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'local',
+            'filesystems.default' => 'local',
+        ]);
+
+        $disks = $this->service->getTranscriptReadDisks();
+
+        $this->assertSame(['local', 'public', 'do_spaces'], $disks);
+    }
+
+    // --- readTranscriptFromPath() ---
+
+    #[Test]
+    public function it_reads_transcript_from_primary_disk(): void
+    {
+        Storage::fake('primary');
+        config(['media-processing.storage.transcript_disk' => 'primary']);
+
+        Storage::disk('primary')->put('transcripts/sermon_1.md', 'Primary content');
+
+        $result = $this->service->readTranscriptFromPath('transcripts/sermon_1.md');
+
+        $this->assertSame('Primary content', $result);
+    }
+
+    #[Test]
+    public function it_falls_back_to_next_disk_when_primary_missing(): void
+    {
+        Storage::fake('primary');
+        Storage::fake('fallback');
+        config([
+            'media-processing.storage.transcript_disk' => 'primary',
+            'media-processing.storage.sermon_disk' => 'fallback',
+        ]);
+
+        Storage::disk('fallback')->put('transcripts/sermon_2.md', 'Fallback content');
+
+        $result = $this->service->readTranscriptFromPath('transcripts/sermon_2.md');
+
+        $this->assertSame('Fallback content', $result);
+    }
+
+    #[Test]
+    public function it_returns_null_when_path_is_empty(): void
+    {
+        $this->assertNull($this->service->readTranscriptFromPath(''));
+        $this->assertNull($this->service->readTranscriptFromPath('   '));
+    }
+
+    #[Test]
+    public function it_returns_null_when_not_found_on_any_disk(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Storage::fake('do_spaces');
+
+        $result = $this->service->readTranscriptFromPath('transcripts/missing.md');
+
+        $this->assertNull($result);
+    }
+
     // --- round-trip test ---
 
     #[Test]

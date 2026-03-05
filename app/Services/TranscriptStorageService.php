@@ -215,6 +215,66 @@ class TranscriptStorageService
         return self::TRANSCRIPT_DIRECTORY.'/'.$filename;
     }
 
+    /**
+     * Read transcript content from a given path, trying all candidate read disks in priority order.
+     *
+     * @param  string  $transcriptPath  The storage path to the transcript file
+     * @return string|null The transcript content, or null if not found on any disk
+     */
+    public function readTranscriptFromPath(string $transcriptPath): ?string
+    {
+        $path = trim($transcriptPath);
+
+        if ($path === '') {
+            return null;
+        }
+
+        foreach ($this->getTranscriptReadDisks() as $disk) {
+            try {
+                $storage = Storage::disk($disk);
+
+                if (! $storage->exists($path)) {
+                    continue;
+                }
+
+                $content = $storage->get($path);
+
+                return is_string($content) ? $content : null;
+            } catch (Exception $e) {
+                Log::warning('Failed to read transcript from disk', [
+                    'disk' => $disk,
+                    'transcript_file_path' => $path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the ordered list of disks to try when reading a transcript.
+     *
+     * @return array<int, string>
+     */
+    public function getTranscriptReadDisks(): array
+    {
+        $transcriptDisk = (string) config('media-processing.storage.transcript_disk', '');
+        $sermonDisk = (string) config('media-processing.storage.sermon_disk', '');
+        $defaultDisk = (string) config('filesystems.default', '');
+
+        $diskCandidates = [
+            $transcriptDisk,
+            $sermonDisk,
+            $defaultDisk,
+            'local',
+            'public',
+            'do_spaces',
+        ];
+
+        return array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
+    }
+
     private function transcriptDisk(): string
     {
         return (string) config('media-processing.storage.transcript_disk', config('media-processing.storage.sermon_disk', config('filesystems.default', 'public')));

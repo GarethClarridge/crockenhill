@@ -380,34 +380,19 @@ class Sermon extends Model implements Sitemapable
             return null;
         }
 
-        foreach ($this->getTranscriptReadDisks() as $disk) {
-            try {
-                $storage = \Illuminate\Support\Facades\Storage::disk($disk);
+        /** @var \App\Services\TranscriptStorageService $service */
+        $service = app(\App\Services\TranscriptStorageService::class);
+        $transcript = $service->readTranscriptFromPath($path);
 
-                if (! $storage->exists($path)) {
-                    continue;
-                }
-
-                $transcript = $storage->get($path);
-
-                return is_string($transcript) ? $transcript : null;
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Failed to read transcript file from disk', [
-                    'sermon_id' => $this->id,
-                    'disk' => $disk,
-                    'transcript_file_path' => $path,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        if ($transcript === null) {
+            \Illuminate\Support\Facades\Log::warning('Transcript file not found on any configured disk', [
+                'sermon_id' => $this->id,
+                'transcript_file_path' => $path,
+                'disks_checked' => $service->getTranscriptReadDisks(),
+            ]);
         }
 
-        \Illuminate\Support\Facades\Log::warning('Transcript file not found on any configured disk', [
-            'sermon_id' => $this->id,
-            'transcript_file_path' => $path,
-            'disks_checked' => $this->getTranscriptReadDisks(),
-        ]);
-
-        return null;
+        return $transcript;
     }
 
     /**
@@ -451,27 +436,6 @@ class Sermon extends Model implements Sitemapable
     public function getTranscriptPath(): ?string
     {
         return $this->transcript_file_path;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function getTranscriptReadDisks(): array
-    {
-        $transcriptDisk = (string) config('media-processing.storage.transcript_disk', '');
-        $sermonDisk = (string) config('media-processing.storage.sermon_disk', '');
-        $defaultDisk = (string) config('filesystems.default', '');
-
-        $diskCandidates = [
-            $transcriptDisk,
-            $sermonDisk,
-            $defaultDisk,
-            'local',
-            'public',
-            'do_spaces',
-        ];
-
-        return array_values(array_filter(array_unique($diskCandidates), fn (string $disk): bool => $disk !== ''));
     }
 
     /**
