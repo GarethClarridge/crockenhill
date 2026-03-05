@@ -11,7 +11,6 @@ use App\Http\Controllers\PodcastFeedController;
 use App\Http\Controllers\SermonAssetController;
 use App\Http\Controllers\SermonController;
 use App\Http\Controllers\SitemapController;
-use App\Models\Meeting;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -116,8 +115,18 @@ Route::get('verify-email', function () {
 
 // Admin routes (Livewire)
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    // Redirect /admin to members home - all admin functions accessible from there
+    // Redirect /admin to members home dashboard
     Route::redirect('/', '/church/members')->name('dashboard');
+
+    // Calendar admin routes
+    Route::get('/calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('calendar.uncategorized');
+    Route::post('/calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('calendar.categorize');
+    Route::get('/calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('calendar.patterns');
+    Route::post('/calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('calendar.sync');
+
+    // Sermon upload
+    Route::get('/sermon-upload', [SermonAdminController::class, 'upload'])->name('sermon-upload.create');
+    Route::post('/sermon-upload', [SermonAdminController::class, 'processMedia'])->name('sermon-upload.store');
 
     // Pages
     Route::get('/pages', App\Livewire\Admin\Pages\ListPages::class)->name('pages.index');
@@ -156,30 +165,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/users/{user}/edit', App\Livewire\Admin\Users\EditUser::class)->name('users.edit');
 });
 
-// Redirect old admin routes to new admin
-Route::middleware('auth')->group(function () {
-    Route::redirect('/church/members/pages', '/admin/pages');
-    Route::redirect('/church/members/pages/create', '/admin/pages/create');
-    Route::redirect('/church/members/meetings', '/admin/meetings');
-    Route::redirect('/church/members/meetings/create', '/admin/meetings/create');
-    Route::get('/church/members/pages/{page}/edit', fn (Page $page) => redirect("/admin/pages/{$page->slug}/edit"));
-    Route::get('/church/members/meetings/{meeting}/edit', fn (Meeting $meeting) => redirect("/admin/meetings/{$meeting->slug}/edit"));
-});
-
-Route::group(['middleware' => 'auth', 'prefix' => 'church/members'], function () {
+Route::middleware('auth')->prefix('church/members')->group(function () {
     Route::get('', MemberController::class)->name('memberHome');
-
-    // Calendar admin routes
-    Route::middleware('admin')->group(function () {
-        Route::get('calendar/uncategorized', [CalendarAdminController::class, 'uncategorizedEvents'])->name('admin.calendar.uncategorized');
-        Route::post('calendar/categorize', [CalendarAdminController::class, 'categorizeEvent'])->name('admin.calendar.categorize');
-        Route::get('calendar/patterns', [CalendarAdminController::class, 'patternManagement'])->name('admin.calendar.patterns');
-        Route::post('calendar/sync', [CalendarAdminController::class, 'syncCalendar'])->name('admin.calendar.sync');
-
-        // Unified media upload route (replaces smart-upload)
-        Route::get('sermon-upload', [SermonAdminController::class, 'upload'])->name('admin.sermon-upload.create');
-        Route::post('sermon-upload', [SermonAdminController::class, 'processMedia'])->name('admin.sermon-upload.store');
-    });
 });
 
 Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware(['auth', 'admin']);

@@ -90,7 +90,7 @@ class SermonAdminControllerTest extends TestCase
     #[Test]
     public function admin_can_access_upload_page(): void
     {
-        $response = $this->actingAs($this->admin)->get('/church/members/sermon-upload');
+        $response = $this->actingAs($this->admin)->get('/admin/sermon-upload');
 
         $response->assertStatus(200);
         $response->assertViewIs('sermons.upload');
@@ -110,7 +110,7 @@ class SermonAdminControllerTest extends TestCase
 
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
-        $response = $this->actingAs($this->admin)->post('/church/members/sermon-upload', [
+        $response = $this->actingAs($this->admin)->post('/admin/sermon-upload', [
             'file' => $file,
             'type' => 'audio',
         ]);
@@ -132,7 +132,7 @@ class SermonAdminControllerTest extends TestCase
 
         $this->app->instance(UnifiedMediaProcessor::class, $mockProcessor);
 
-        $response = $this->actingAs($this->admin)->post('/church/members/sermon-upload', [
+        $response = $this->actingAs($this->admin)->post('/admin/sermon-upload', [
             'file' => $file,
             'type' => 'audio',
         ]);

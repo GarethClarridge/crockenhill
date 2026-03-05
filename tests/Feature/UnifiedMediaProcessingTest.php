@@ -141,7 +141,7 @@ class UnifiedMediaProcessingTest extends TestCase
 
         $audioFile = UploadedFile::fake()->create('sermon.mp3', 5000, 'audio/mpeg');
 
-        $response = $this->post('/church/members/sermon-upload', [
+        $response = $this->post('/admin/sermon-upload', [
             'file' => $audioFile,
             'type' => 'audio',
         ]);

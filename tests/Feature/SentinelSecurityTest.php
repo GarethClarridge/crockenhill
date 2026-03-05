@@ -19,11 +19,11 @@ class SentinelSecurityTest extends TestCase
         $user = User::factory()->create(['is_admin' => false]);
 
         // Attempt to access upload page as non-admin
-        $response = $this->actingAs($user)->get('/church/members/sermon-upload');
+        $response = $this->actingAs($user)->get('/admin/sermon-upload');
         $response->assertStatus(403);
 
         // Attempt to post upload as non-admin
-        $response = $this->actingAs($user)->post('/church/members/sermon-upload', [
+        $response = $this->actingAs($user)->post('/admin/sermon-upload', [
             'type' => 'audio',
             'file' => UploadedFile::fake()->create('sermon.mp3', 100),
         ]);
@@ -55,7 +55,7 @@ class SentinelSecurityTest extends TestCase
                 ->andThrow(new \Exception('Sensitive database error or path: /secret/path'));
         });
 
-        $response = $this->actingAs($admin)->post('/church/members/sermon-upload', [
+        $response = $this->actingAs($admin)->post('/admin/sermon-upload', [
             'type' => 'audio',
             'file' => UploadedFile::fake()->create('sermon.mp3', 100),
         ]);

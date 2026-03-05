@@ -37,12 +37,12 @@ class UserFactory extends Factory
     }
 
     /**
-     * Create a user with @crockenhill.org email for Filament admin access.
+     * Create an admin user with a verified email.
      */
     public function crockenhillAdmin(): static
     {
         return $this->state(fn (array $attributes) => [
-            'email' => $this->faker->unique()->userName().'@crockenhill.org',
+            'is_admin' => true,
             'email_verified_at' => now(),
         ]);
     }

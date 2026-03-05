@@ -33,7 +33,7 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_requires_authentication_for_uncategorized_events(): void
     {
-        $response = $this->get('/church/members/calendar/uncategorized');
+        $response = $this->get('/admin/calendar/uncategorized');
 
         $response->assertRedirect('/login');
     }
@@ -46,7 +46,7 @@ class CalendarAdminControllerTest extends TestCase
         ]);
 
         $this->actingAs($user);
-        $response = $this->get('/church/members/calendar/uncategorized');
+        $response = $this->get('/admin/calendar/uncategorized');
 
         $response->assertForbidden();
     }
@@ -57,7 +57,7 @@ class CalendarAdminControllerTest extends TestCase
         config(['calendar.uncategorized_slug' => 'uncategorized']);
 
         $this->actingAs($this->adminUser);
-        $response = $this->get('/church/members/calendar/uncategorized');
+        $response = $this->get('/admin/calendar/uncategorized');
 
         $response->assertStatus(200);
         $response->assertViewIs('admin.calendar.uncategorized');
@@ -74,7 +74,7 @@ class CalendarAdminControllerTest extends TestCase
         CalendarEvent::factory()->count(3)->create(['meeting_slug' => 'sunday-morning']);
 
         $this->actingAs($this->adminUser);
-        $response = $this->get('/church/members/calendar/uncategorized');
+        $response = $this->get('/admin/calendar/uncategorized');
 
         $response->assertStatus(200);
         $uncategorizedEvents = $response->viewData('uncategorizedEvents');
@@ -88,7 +88,7 @@ class CalendarAdminControllerTest extends TestCase
         Meeting::factory()->create(['slug' => 'a-meeting']);
 
         $this->actingAs($this->adminUser);
-        $response = $this->get('/church/members/calendar/uncategorized');
+        $response = $this->get('/admin/calendar/uncategorized');
 
         $response->assertStatus(200);
         $meetings = $response->viewData('meetings');
@@ -103,7 +103,7 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_requires_authentication_for_categorize_event(): void
     {
-        $response = $this->post('/church/members/calendar/categorize', [
+        $response = $this->post('/admin/calendar/categorize', [
             'event_id' => 1,
             'meeting_slug' => 'sunday-morning',
         ]);
@@ -119,7 +119,7 @@ class CalendarAdminControllerTest extends TestCase
         ]);
 
         $this->actingAs($user);
-        $response = $this->post('/church/members/calendar/categorize', [
+        $response = $this->post('/admin/calendar/categorize', [
             'event_id' => 1,
             'meeting_slug' => 'sunday-morning',
         ]);
@@ -145,7 +145,7 @@ class CalendarAdminControllerTest extends TestCase
         $this->app->instance(CalendarService::class, $mockService);
 
         $this->actingAs($this->adminUser);
-        $response = $this->post('/church/members/calendar/categorize', [
+        $response = $this->post('/admin/calendar/categorize', [
             'event_id' => $event->id,
             'meeting_slug' => 'sunday-morning',
         ]);
@@ -160,7 +160,7 @@ class CalendarAdminControllerTest extends TestCase
         $meeting = Meeting::factory()->create(['slug' => 'sunday-morning']);
 
         $this->actingAs($this->adminUser);
-        $response = $this->post('/church/members/calendar/categorize', [
+        $response = $this->post('/admin/calendar/categorize', [
             'event_id' => 99999, // nonexistent
             'meeting_slug' => 'sunday-morning',
         ]);
@@ -174,7 +174,7 @@ class CalendarAdminControllerTest extends TestCase
         $event = CalendarEvent::factory()->create();
 
         $this->actingAs($this->adminUser);
-        $response = $this->post('/church/members/calendar/categorize', [
+        $response = $this->post('/admin/calendar/categorize', [
             'event_id' => $event->id,
             'meeting_slug' => 'nonexistent-meeting',
         ]);
@@ -186,7 +186,7 @@ class CalendarAdminControllerTest extends TestCase
     public function it_validates_required_fields_for_categorize(): void
     {
         $this->actingAs($this->adminUser);
-        $response = $this->post('/church/members/calendar/categorize', []);
+        $response = $this->post('/admin/calendar/categorize', []);
 
         $response->assertSessionHasErrors(['event_id', 'meeting_slug']);
     }
@@ -196,7 +196,7 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_requires_authentication_for_pattern_management(): void
     {
-        $response = $this->get('/church/members/calendar/patterns');
+        $response = $this->get('/admin/calendar/patterns');
 
         $response->assertRedirect('/login');
     }
@@ -209,7 +209,7 @@ class CalendarAdminControllerTest extends TestCase
         ]);
 
         $this->actingAs($user);
-        $response = $this->get('/church/members/calendar/patterns');
+        $response = $this->get('/admin/calendar/patterns');
 
         $response->assertForbidden();
     }
@@ -218,7 +218,7 @@ class CalendarAdminControllerTest extends TestCase
     public function it_shows_pattern_management_page(): void
     {
         $this->actingAs($this->adminUser);
-        $response = $this->get('/church/members/calendar/patterns');
+        $response = $this->get('/admin/calendar/patterns');
 
         $response->assertStatus(200);
         $response->assertViewIs('admin.calendar.patterns');
@@ -231,7 +231,7 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_requires_authentication_for_sync_calendar(): void
     {
-        $response = $this->post('/church/members/calendar/sync');
+        $response = $this->post('/admin/calendar/sync');
 
         $response->assertRedirect('/login');
     }
@@ -244,7 +244,7 @@ class CalendarAdminControllerTest extends TestCase
         ]);
 
         $this->actingAs($user);
-        $response = $this->post('/church/members/calendar/sync');
+        $response = $this->post('/admin/calendar/sync');
 
         $response->assertForbidden();
     }
@@ -260,7 +260,7 @@ class CalendarAdminControllerTest extends TestCase
         $this->app->instance(GoogleCalendarSyncService::class, $mockService);
 
         $this->actingAs($this->adminUser);
-        $response = $this->post('/church/members/calendar/sync');
+        $response = $this->post('/admin/calendar/sync');
 
         $response->assertRedirect();
         $response->assertSessionHas('error');
@@ -286,7 +286,7 @@ class CalendarAdminControllerTest extends TestCase
         $this->app->instance(GoogleCalendarSyncService::class, $mockService);
 
         $this->actingAs($this->adminUser);
-        $response = $this->post('/church/members/calendar/sync');
+        $response = $this->post('/admin/calendar/sync');
 
         $response->assertRedirect();
         $response->assertSessionHas('success');

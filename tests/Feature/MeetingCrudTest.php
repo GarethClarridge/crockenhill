@@ -11,10 +11,8 @@ use Tests\TestCase;
 /**
  * Tests for Meeting CRUD operations.
  *
- * Note: Meeting admin is available at /admin/meetings.
- * The legacy routes at /church/members/meetings now redirect to /admin/meetings.
- * This test file verifies the redirects work correctly and tests the
- * public meeting show functionality.
+ * Meeting admin is at the canonical /admin/meetings path.
+ * Legacy /church/members/meetings paths have been removed.
  */
 class MeetingCrudTest extends TestCase
 {
@@ -45,29 +43,29 @@ class MeetingCrudTest extends TestCase
     }
 
     #[Test]
-    public function test_legacy_meeting_index_redirects_to_admin()
+    public function test_admin_meetings_index_is_accessible()
     {
         $this->actingAs($this->adminUser);
-        $response = $this->get('/church/members/meetings');
-        $response->assertRedirect('/admin/meetings');
+        $response = $this->get('/admin/meetings');
+        $response->assertStatus(200);
     }
 
     #[Test]
-    public function test_legacy_meeting_create_redirects_to_admin()
+    public function test_admin_meetings_create_is_accessible()
     {
         $this->actingAs($this->adminUser);
-        $response = $this->get('/church/members/meetings/create');
-        $response->assertRedirect('/admin/meetings/create');
+        $response = $this->get('/admin/meetings/create');
+        $response->assertStatus(200);
     }
 
     #[Test]
-    public function test_legacy_meeting_edit_redirects_to_admin()
+    public function test_admin_meetings_edit_is_accessible()
     {
         $meeting = Meeting::factory()->create();
 
         $this->actingAs($this->adminUser);
-        $response = $this->get("/church/members/meetings/{$meeting->slug}/edit");
-        $response->assertRedirect("/admin/meetings/{$meeting->slug}/edit");
+        $response = $this->get("/admin/meetings/{$meeting->slug}/edit");
+        $response->assertStatus(200);
     }
 
     #[Test]

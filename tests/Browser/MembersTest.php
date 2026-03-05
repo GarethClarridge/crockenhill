@@ -67,8 +67,8 @@ class MembersTest extends DuskTestCase
             $browser->loginAs($admin)
                 ->visit('/church/members')
                 ->clickLink('Upload sermon')
-                ->waitForLocation('/church/members/sermon-upload')
-                ->assertPathIs('/church/members/sermon-upload');
+                ->waitForLocation('/admin/sermon-upload')
+                ->assertPathIs('/admin/sermon-upload');
         });
     }
 
