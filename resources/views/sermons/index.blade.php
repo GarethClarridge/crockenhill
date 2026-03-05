@@ -3,9 +3,9 @@
 @section('full_width_content')
 
 @section('dynamic_content')
-@can ('edit-sermons')
+@can('manage-sermons')
 <div class="px-6 max-w-2xl mx-auto mt-6 my-12">
-  <x-button link=/church/members/sermon-upload>
+  <x-button link="{{ route('admin.sermon-upload.create') }}">
     Upload a new sermon
   </x-button>
 </div>

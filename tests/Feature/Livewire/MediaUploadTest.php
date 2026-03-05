@@ -37,7 +37,7 @@ class MediaUploadTest extends TestCase
     {
         parent::setUp();
 
-        $this->admin = User::factory()->crockenhillAdmin()->create(['is_admin' => true]);
+        $this->admin = User::factory()->crockenhillAdmin()->create();
 
         // Fake disks used by the component
         Storage::fake('local');

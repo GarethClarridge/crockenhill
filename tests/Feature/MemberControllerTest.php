@@ -59,4 +59,25 @@ class MemberControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertDontSeeText('Redirecting');
     }
+
+    #[Test]
+    public function admin_dashboard_route_redirects_to_members_home(): void
+    {
+        $admin = User::factory()->admin()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        $this->actingAs($admin);
+        $response = $this->get(route('admin.dashboard'));
+
+        $response->assertRedirect('/church/members');
+    }
+
+    #[Test]
+    public function admin_dashboard_route_requires_authentication(): void
+    {
+        $response = $this->get(route('admin.dashboard'));
+
+        $response->assertRedirect('/login');
+    }
 }
