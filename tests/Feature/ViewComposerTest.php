@@ -104,6 +104,20 @@ class ViewComposerTest extends TestCase
     }
 
     #[Test]
+    public function it_populates_header_with_members_link_for_authenticated_users(): void
+    {
+        $user = \App\Models\User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertOk();
+        $response->assertSee('/church/members');
+    }
+
+    #[Test]
     public function it_uses_members_links_for_second_level_members_route(): void
     {
         $membersSlug = 'view-composer-members-link';

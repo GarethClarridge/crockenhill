@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\View\Composers\ChurchPageComposer;
 use App\View\Composers\CommunityPageComposer;
 use App\View\Composers\FooterComposer;
+use App\View\Composers\HeaderComposer;
 use App\View\Composers\HomePageComposer;
 use App\View\Composers\LayoutPageComposer;
 use App\View\Composers\PhotoSelectorComposer;
@@ -28,6 +29,7 @@ class ViewServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        View::composer('components.layout.header', HeaderComposer::class);
         View::composer('includes.footer', FooterComposer::class);
         View::composer('includes.photo-selector', PhotoSelectorComposer::class);
         View::composer('layouts/page', LayoutPageComposer::class);

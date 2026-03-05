@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Providers;
+
+use App\Models\Meeting;
+use App\Models\Page;
+use App\Models\Sermon;
+use App\Observers\SitemapCacheObserver;
+use Illuminate\Support\ServiceProvider;
+
+class ModelObserverServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        //
+    }
+
+    public function boot(): void
+    {
+        Sermon::observe(SitemapCacheObserver::class);
+        Page::observe(SitemapCacheObserver::class);
+        Meeting::observe(SitemapCacheObserver::class);
+    }
+}
