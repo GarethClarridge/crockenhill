@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Enums\MediaType;
@@ -35,87 +37,16 @@ class GenerateThumbnail implements ShouldQueue
 
     private ?string $disk = null;
 
-    private ?MediaProcessingLog $processingLog = null;
+    private MediaProcessingLog $processingLog;
 
     /**
      * Create a new job instance.
-     *
-     * FLEXIBLE CONSTRUCTOR PATTERN - Supports backward compatibility with legacy code.
-     *
-     * This job supports multiple construction patterns to maintain backward compatibility
-     * while integrating with the modern MediaProcessingLog-based architecture.
-     *
-     * RECOMMENDED USAGE (Modern - Job Chains):
-     * ---------------------------------------
-     * new GenerateThumbnail($processingLog)
-     *
-     * This is the preferred pattern used by ProcessingPipelineBuilder for all modern
-     * media processing workflows (audio, video, livestream). The job extracts all
-     * necessary information from the MediaProcessingLog record.
-     *
-     * Example:
-     * ```php
-     * $pipelineBuilder = app(ProcessingPipelineBuilder::class);
-     * $jobs = $pipelineBuilder->buildDirectVideoPipeline($processingLog);
-     * Bus::chain($jobs)->dispatch(); // Includes GenerateThumbnail($processingLog)
-     * ```
-     *
-     * LEGACY USAGE (Backward Compatibility):
-     * --------------------------------------
-     * new GenerateThumbnail($sermonId, $videoPath)
-     * new GenerateThumbnail($sermonId, $videoPath, $disk)
-     *
-     * These patterns are maintained for backward compatibility with existing code
-     * that dispatches thumbnail generation outside of the processing pipeline.
-     * The disk parameter is optional - if omitted, the service will auto-detect.
-     *
-     * Example:
-     * ```php
-     * // Direct dispatch for existing sermon with video
-     * GenerateThumbnail::dispatch($sermon->id, $sermon->video_file_path);
-     * ```
-     *
-     * WHY THIS PATTERN:
-     * ----------------
-     * The variadic constructor allows the job to work seamlessly in both contexts:
-     * - Modern processing pipelines (unified architecture)
-     * - Legacy direct dispatch (existing integrations)
-     *
-     * This pragmatic approach avoids breaking changes while encouraging migration
-     * to the unified MediaProcessingLog-based architecture.
-     *
-     * @param  mixed  ...$args  Variable arguments matching one of the supported patterns
-     *
-     * @throws \InvalidArgumentException If arguments don't match any supported pattern
-     *
-     * @see ProcessingPipelineBuilder::buildDirectVideoPipeline() For modern usage
-     * @see ProcessingPipelineBuilder::buildLivestreamPipeline() For livestream usage
      */
-    public function __construct(...$args)
+    public function __construct(MediaProcessingLog $processingLog)
     {
-        if (count($args) === 2 && is_int($args[0]) && is_string($args[1])) {
-            // Legacy constructor: GenerateThumbnail($sermonId, $videoPath)
-            $this->sermonId = $args[0];
-            $this->videoPath = $args[1];
-            $this->disk = null; // Assume local path for legacy usage
-        } elseif (count($args) === 3 && is_int($args[0]) && is_string($args[1]) && is_string($args[2])) {
-            // Extended constructor: GenerateThumbnail($sermonId, $videoPath, $disk)
-            $this->sermonId = $args[0];
-            $this->videoPath = $args[1];
-            $this->disk = $args[2];
-        } elseif (count($args) === 1 && $args[0] instanceof MediaProcessingLog) {
-            // Job chain constructor: GenerateThumbnail($processingLog)
-            $this->processingLog = $args[0];
-        } else {
-            throw new \InvalidArgumentException('GenerateThumbnail expects ($sermonId, $videoPath), ($sermonId, $videoPath, $disk), or ($processingLog)');
-        }
-
-        // Legacy/direct dispatch uses a dedicated queue.
-        // Chain-based dispatch (processing log constructor) inherits chain queue
-        // to prevent the pipeline stalling when a dedicated thumbnail worker is absent.
-        if (! $this->processingLog) {
-            $this->onQueue(config('thumbnail-generation.queue.name', 'thumbnails'));
-        }
+        $this->processingLog = $processingLog;
+        $this->sermonId = $processingLog->sermon_id;
+        $this->videoPath = $processingLog->video_file_path;
     }
 
     /**
@@ -140,16 +71,13 @@ class GenerateThumbnail implements ShouldQueue
     public function handle(ThumbnailGenerationService $thumbnailService): void
     {
         try {
-            // Resolve sermon ID and video path from processing log if needed
-            if ($this->processingLog) {
-                $this->resolveFromProcessingLog();
-            }
+            $this->resolveFromProcessingLog();
 
             if (! $this->sermonId || ! $this->videoPath) {
                 Log::error('Missing sermon ID or video path for thumbnail generation', [
                     'sermon_id' => $this->sermonId,
                     'video_path' => $this->videoPath,
-                    'processing_id' => $this->processingLog?->processing_id,
+                    'processing_id' => $this->processingLog->processing_id,
                 ]);
 
                 return;
@@ -224,10 +152,6 @@ class GenerateThumbnail implements ShouldQueue
      */
     private function resolveFromProcessingLog(): void
     {
-        if (! $this->processingLog) {
-            return;
-        }
-
         // Get sermon ID from processing log
         $this->sermonId = $this->processingLog->sermon_id;
 
@@ -317,7 +241,7 @@ class GenerateThumbnail implements ShouldQueue
         Log::warning('GenerateThumbnail job failed permanently', [
             'sermon_id' => $this->sermonId,
             'video_path' => $this->videoPath,
-            'processing_id' => $this->processingLog?->processing_id,
+            'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);

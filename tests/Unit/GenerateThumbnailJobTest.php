@@ -1,14 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit;
 
 use App\Data\ThumbnailResult;
+use App\Enums\MediaType;
 use App\Jobs\GenerateThumbnail;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\ThumbnailGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -16,255 +20,264 @@ class GenerateThumbnailJobTest extends TestCase
 {
     use RefreshDatabase;
 
-    #[Test]
-    public function it_can_instantiate_job()
+    protected function setUp(): void
     {
-        $job = new GenerateThumbnail(123, '/path/to/video.mp4');
+        parent::setUp();
 
-        $this->assertInstanceOf(GenerateThumbnail::class, $job);
-        $this->assertEquals(123, $job->getSermonId());
-        $this->assertEquals('/path/to/video.mp4', $job->getVideoPath());
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+        ]);
     }
 
     #[Test]
-    public function it_has_correct_job_configuration()
+    public function it_can_instantiate_job_from_processing_log(): void
     {
-        $job = new GenerateThumbnail(123, '/path/to/video.mp4');
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
 
-        $this->assertEquals(1, $job->tries);
-        $this->assertEquals(300, $job->timeout);
-    }
+        $log = $this->createProcessingLog($sermon, 'sermons/1/video.mp4');
 
-    #[Test]
-    public function it_sets_correct_queue_from_config()
-    {
-        config(['thumbnail-generation.queue.name' => 'custom-thumbnails']);
-
-        $job = new GenerateThumbnail(123, '/path/to/video.mp4');
-
-        $this->assertEquals('custom-thumbnails', $job->queue);
-    }
-
-    #[Test]
-    public function it_uses_default_queue_when_config_missing()
-    {
-        config(['thumbnail-generation.queue.name' => null]);
-
-        $job = new GenerateThumbnail(123, '/path/to/video.mp4');
-
-        // When config is null, Laravel's config helper returns the default value
-        $expectedQueue = config('thumbnail-generation.queue.name', 'thumbnails');
-        $this->assertEquals($expectedQueue, $job->queue);
-    }
-
-    #[Test]
-    public function it_does_not_override_queue_for_processing_log_constructor()
-    {
-        config(['thumbnail-generation.queue.name' => 'custom-thumbnails']);
-
-        $log = MediaProcessingLog::factory()->video()->create();
         $job = new GenerateThumbnail($log);
 
+        $this->assertInstanceOf(GenerateThumbnail::class, $job);
+        $this->assertSame($sermon->id, $job->getSermonId());
+        $this->assertSame('sermons/1/video.mp4', $job->getVideoPath());
+    }
+
+    #[Test]
+    public function it_has_correct_job_configuration(): void
+    {
+        $job = new GenerateThumbnail(MediaProcessingLog::factory()->video()->create());
+
+        $this->assertSame(1, $job->tries);
+        $this->assertSame(300, $job->timeout);
         $this->assertNull($job->queue);
     }
 
     #[Test]
-    public function it_handles_successful_thumbnail_generation()
+    public function it_handles_successful_thumbnail_generation(): void
     {
-        // Create a sermon
-        $sermon = Sermon::factory()->create();
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+        $log = $this->createProcessingLog($sermon, 'sermons/1/video.mp4');
 
-        // Create a temporary file to simulate video
-        $tempFile = tempnam(sys_get_temp_dir(), 'test_video');
-        file_put_contents($tempFile, 'fake video content');
+        Storage::disk('public')->put('sermons/1/video.mp4', 'fake video content');
 
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->once())
             ->method('generateThumbnail')
-            ->with($this->callback(fn ($s) => $s->id === $sermon->id), $tempFile, null)
+            ->with($this->callback(fn (Sermon $model): bool => $model->is($sermon)), 'sermons/1/video.mp4', 'public')
             ->willReturn(ThumbnailResult::success(
                 'sermons/thumbnails/test.jpg',
                 ['width' => 1280, 'height' => 720]
             ));
 
         Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('warning')->never(); // Should not have warnings on success
+        Log::shouldReceive('warning')->never();
 
-        // Create and handle the job
-        $job = new GenerateThumbnail($sermon->id, $tempFile);
+        $job = new GenerateThumbnail($log);
         $job->handle($mockService);
 
-        // Verify sermon was updated
         $sermon->refresh();
-        $this->assertEquals('sermons/thumbnails/test.jpg', $sermon->thumbnail_file_path);
+        $this->assertSame('sermons/thumbnails/test.jpg', $sermon->thumbnail_file_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
-        $this->assertEquals(['width' => 1280, 'height' => 720], $sermon->thumbnail_metadata);
-
-        // Cleanup
-        unlink($tempFile);
+        $this->assertSame(['width' => 1280, 'height' => 720], $sermon->thumbnail_metadata);
     }
 
     #[Test]
-    public function it_handles_failed_thumbnail_generation()
+    public function it_handles_failed_thumbnail_generation(): void
     {
-        // Create a sermon
-        $sermon = Sermon::factory()->create();
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+        $log = $this->createProcessingLog($sermon, 'sermons/1/video.mp4');
 
-        // Create a temporary file to simulate video
-        $tempFile = tempnam(sys_get_temp_dir(), 'test_video');
-        file_put_contents($tempFile, 'fake video content');
+        Storage::disk('public')->put('sermons/1/video.mp4', 'fake video content');
 
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->once())
             ->method('generateThumbnail')
-            ->with($this->callback(fn ($s) => $s->id === $sermon->id), $tempFile, null)
+            ->with($this->callback(fn (Sermon $model): bool => $model->is($sermon)), 'sermons/1/video.mp4', 'public')
             ->willReturn(ThumbnailResult::skipped('Test failure'));
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
 
-        // Create and handle the job
-        $job = new GenerateThumbnail($sermon->id, $tempFile);
+        $job = new GenerateThumbnail($log);
         $job->handle($mockService);
 
-        // Verify sermon was NOT updated
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
         $this->assertNull($sermon->thumbnail_generated_at);
         $this->assertNull($sermon->thumbnail_metadata);
-
-        // Cleanup
-        unlink($tempFile);
     }
 
     #[Test]
-    public function it_handles_missing_sermon_gracefully()
+    public function it_handles_missing_sermon_gracefully(): void
     {
-        // Create a temporary file to simulate video
-        $tempFile = tempnam(sys_get_temp_dir(), 'test_video');
-        file_put_contents($tempFile, 'fake video content');
+        $log = new MediaProcessingLog([
+            'processing_type' => MediaType::Video,
+            'sermon_id' => 999,
+            'video_file_path' => 'sermons/999/video.mp4',
+        ]);
 
-        // Mock the thumbnail service (should not be called)
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->never())->method('generateThumbnail');
 
-        // Mock Log to verify warning is logged
         Log::shouldReceive('info')->once();
         Log::shouldReceive('warning')->once()->with(
             'Sermon not found for thumbnail generation',
             ['sermon_id' => 999]
         );
 
-        // Create and handle the job with non-existent sermon ID
-        $job = new GenerateThumbnail(999, $tempFile);
+        $job = new GenerateThumbnail($log);
         $job->handle($mockService);
-
-        // Cleanup
-        unlink($tempFile);
     }
 
     #[Test]
-    public function it_handles_missing_video_file_gracefully()
+    public function it_handles_missing_video_file_gracefully(): void
     {
-        // Create a sermon
-        $sermon = Sermon::factory()->create();
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/missing.mp4',
+        ]);
+        $log = $this->createProcessingLog($sermon, 'sermons/1/missing.mp4');
 
-        // Mock the thumbnail service (should not be called)
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->never())->method('generateThumbnail');
 
-        // Mock Log to verify warning is logged
         Log::shouldReceive('info')->once();
         Log::shouldReceive('warning')->once()->with(
             'Video file not found for thumbnail generation',
             [
                 'sermon_id' => $sermon->id,
-                'video_path' => '/nonexistent/video.mp4',
-                'disk' => null, // Added disk parameter in the new implementation
+                'video_path' => 'sermons/1/missing.mp4',
+                'disk' => 'public',
             ]
         );
 
-        // Create and handle the job with non-existent video file
-        $job = new GenerateThumbnail($sermon->id, '/nonexistent/video.mp4');
+        $job = new GenerateThumbnail($log);
         $job->handle($mockService);
     }
 
     #[Test]
-    public function it_handles_service_exceptions_gracefully()
+    public function it_handles_service_exceptions_gracefully(): void
     {
-        // Create a sermon
-        $sermon = Sermon::factory()->create();
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+        $log = $this->createProcessingLog($sermon, 'sermons/1/video.mp4');
 
-        // Create a temporary file to simulate video
-        $tempFile = tempnam(sys_get_temp_dir(), 'test_video');
-        file_put_contents($tempFile, 'fake video content');
+        Storage::disk('public')->put('sermons/1/video.mp4', 'fake video content');
 
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->once())
             ->method('generateThumbnail')
-            ->with($this->callback(fn ($s) => $s->id === $sermon->id), $tempFile, null)
+            ->with($this->callback(fn (Sermon $model): bool => $model->is($sermon)), 'sermons/1/video.mp4', 'public')
             ->willThrowException(new \Exception('Service error'));
 
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
 
-        // Create and handle the job - should not throw exception
-        $job = new GenerateThumbnail($sermon->id, $tempFile);
+        $job = new GenerateThumbnail($log);
         $job->handle($mockService);
 
-        // Verify sermon was NOT updated
         $sermon->refresh();
         $this->assertNull($sermon->thumbnail_file_path);
-
-        // Cleanup
-        unlink($tempFile);
     }
 
     #[Test]
-    public function it_has_correct_job_tags()
+    public function it_resolves_livestream_video_path_from_processing_metadata(): void
     {
-        $job = new GenerateThumbnail(123, '/path/to/video.mp4');
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_id' => $sermon->id,
+            'video_file_path' => null,
+            'processing_metadata' => [
+                'final_video_path' => 'sermons/1/final-video.mp4',
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/1/final-video.mp4', 'fake video content');
+
+        $mockService = $this->createMock(ThumbnailGenerationService::class);
+        $mockService->expects($this->once())
+            ->method('generateThumbnail')
+            ->with($this->callback(fn (Sermon $model): bool => $model->is($sermon)), 'sermons/1/final-video.mp4', 'public')
+            ->willReturn(ThumbnailResult::skipped('Not needed for this test'));
+
+        Log::shouldReceive('debug')->atLeast()->once();
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->atLeast()->once();
+
+        $job = new GenerateThumbnail($log);
+        $job->handle($mockService);
+    }
+
+    #[Test]
+    public function it_has_correct_job_tags(): void
+    {
+        $sermon = Sermon::factory()->create();
+        $job = new GenerateThumbnail($this->createProcessingLog($sermon, 'sermons/1/video.mp4'));
 
         $tags = $job->tags();
 
         $this->assertContains('thumbnail-generation', $tags);
-        $this->assertContains('sermon:123', $tags);
+        $this->assertContains('sermon:'.$sermon->id, $tags);
         $this->assertContains('non-critical', $tags);
     }
 
     #[Test]
-    public function it_has_correct_retry_until_time()
+    public function it_has_correct_retry_until_time(): void
     {
-        $job = new GenerateThumbnail(123, '/path/to/video.mp4');
+        $job = new GenerateThumbnail(MediaProcessingLog::factory()->video()->create());
 
         $retryUntil = $job->retryUntil();
 
         $this->assertInstanceOf(\DateTime::class, $retryUntil);
-        // Should be approximately 24 hours from now
         $this->assertEqualsWithDelta(
             now()->addDay()->timestamp,
             $retryUntil->getTimestamp(),
-            120 // Allow 2 minute tolerance
+            120
         );
     }
 
     #[Test]
-    public function it_handles_job_failure_gracefully()
+    public function it_handles_job_failure_gracefully(): void
     {
-        $job = new GenerateThumbnail(123, '/path/to/video.mp4');
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+        $job = new GenerateThumbnail($this->createProcessingLog($sermon, 'sermons/1/video.mp4'));
 
-        // Mock Log to verify failure is logged
         Log::shouldReceive('warning')->once()->with(
             'GenerateThumbnail job failed permanently',
-            \Mockery::on(function ($context) {
-                return $context['sermon_id'] === 123 &&
-                       $context['video_path'] === '/path/to/video.mp4' &&
-                       $context['error'] === 'Test failure' &&
-                       isset($context['attempts']);
+            \Mockery::on(function (array $context) use ($sermon): bool {
+                return $context['sermon_id'] === $sermon->id &&
+                    $context['video_path'] === 'sermons/1/video.mp4' &&
+                    $context['error'] === 'Test failure' &&
+                    isset($context['attempts']);
             })
         );
 
-        // Call failed method - should not throw exception
         $job->failed(new \Exception('Test failure'));
+    }
+
+    private function createProcessingLog(
+        Sermon $sermon,
+        string $videoPath,
+        MediaType $type = MediaType::Video
+    ): MediaProcessingLog {
+        return MediaProcessingLog::factory()->create([
+            'processing_type' => $type,
+            'sermon_id' => $sermon->id,
+            'video_file_path' => $videoPath,
+        ]);
     }
 }
