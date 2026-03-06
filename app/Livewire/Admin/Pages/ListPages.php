@@ -9,7 +9,6 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Page;
 use Illuminate\View\View;
-use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -34,6 +33,8 @@ class ListPages extends Component
 
     public ?bool $navigationFilter = null;
 
+    public bool $hasFilters = false;
+
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
@@ -55,14 +56,6 @@ class ListPages extends Component
         $this->resetPage();
     }
 
-    #[Computed]
-    public function hasFilters(): bool
-    {
-        return ! empty($this->search)
-            || $this->areaFilter !== null
-            || $this->navigationFilter !== null;
-    }
-
     public function delete(Page $page): void
     {
         $page->delete();
@@ -79,6 +72,10 @@ class ListPages extends Component
     public function render(): View
     {
         $this->sanitizeSorting();
+
+        $this->hasFilters = ! empty($this->search)
+            || $this->areaFilter !== null
+            || $this->navigationFilter !== null;
 
         $pages = Page::query()
             ->select(['id', 'slug', 'heading', 'description', 'area', 'navigation', 'updated_at'])
