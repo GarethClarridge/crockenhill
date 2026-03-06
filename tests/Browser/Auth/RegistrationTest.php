@@ -35,8 +35,8 @@ class RegistrationTest extends DuskTestCase
             $browser->visit('/register')
                 ->type('#name', 'New Test User')
                 ->type('#email', 'newuser@example.com')
-                ->type('#password', 'password123')
-                ->type('#password_confirmation', 'password123')
+                ->type('#password', 'StrongPass123!@#Unique')
+                ->type('#password_confirmation', 'StrongPass123!@#Unique')
                 ->press('Register')
                 ->waitForLocation('/verify-email')
                 ->assertPathIs('/verify-email');
