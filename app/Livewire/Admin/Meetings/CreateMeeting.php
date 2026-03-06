@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Meetings;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Meeting;
 use App\Models\Page;
@@ -12,12 +13,19 @@ use Livewire\Component;
 
 class CreateMeeting extends Component
 {
-    use MeetingForm, WithNotifications;
+    use MeetingForm, WithAdminAuthorization, WithNotifications;
 
     public ?Meeting $meeting = null;
 
+    public function mount(): void
+    {
+        $this->authorizeAdmin();
+    }
+
     public function save(): void
     {
+        $this->authorizeAdmin();
+
         $validated = $this->validate();
 
         $meeting = Meeting::create([

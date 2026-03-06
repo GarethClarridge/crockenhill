@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\PreacherSource;
 use App\Enums\SermonService;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -15,7 +16,7 @@ use Livewire\Component;
 
 class EditSermon extends Component
 {
-    use WithNotifications;
+    use WithAdminAuthorization, WithNotifications;
 
     public Sermon $sermon;
 
@@ -70,6 +71,8 @@ class EditSermon extends Component
 
     public function mount(Sermon $sermon): void
     {
+        $this->authorizeAdmin();
+
         $service = $sermon->service;
         if (! $service instanceof SermonService) {
             throw new \UnexpectedValueException('Sermon service is required.');
@@ -109,6 +112,8 @@ class EditSermon extends Component
 
     public function save(): void
     {
+        $this->authorizeAdmin();
+
         $validated = $this->validate();
 
         // If a preacher_id is selected, use it; otherwise look up or create by name

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Meetings;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Meeting;
 use App\Models\Page;
@@ -12,12 +13,14 @@ use Livewire\Component;
 
 class EditMeeting extends Component
 {
-    use MeetingForm, WithNotifications;
+    use MeetingForm, WithAdminAuthorization, WithNotifications;
 
     public Meeting $meeting;
 
     public function mount(Meeting $meeting): void
     {
+        $this->authorizeAdmin();
+
         $this->meeting = $meeting;
         $this->slug = $meeting->slug;
         $this->type = $meeting->type->value;
@@ -37,6 +40,8 @@ class EditMeeting extends Component
 
     public function save(): void
     {
+        $this->authorizeAdmin();
+
         $validated = $this->validate();
 
         $this->meeting->update([

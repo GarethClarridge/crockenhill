@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -12,7 +13,7 @@ use Livewire\Component;
 
 class EditUser extends Component
 {
-    use WithNotifications;
+    use WithAdminAuthorization, WithNotifications;
 
     public User $user;
 
@@ -49,6 +50,8 @@ class EditUser extends Component
 
     public function mount(User $user): void
     {
+        $this->authorizeAdmin();
+
         $this->user = $user;
         $this->name = $user->name;
         $this->email = $user->email;
@@ -57,6 +60,8 @@ class EditUser extends Component
 
     public function save(): void
     {
+        $this->authorizeAdmin();
+
         if ($this->user->id === auth()->id() && ! $this->isAdmin) {
             $this->error('Cannot remove your own admin status');
 
