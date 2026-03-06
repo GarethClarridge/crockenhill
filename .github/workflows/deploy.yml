@@ -253,9 +253,9 @@ jobs:
 
       - name: Prepare Laravel environment
         run: |
-          mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+          mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
           cp .env.example .env
-          echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
+          echo "VIEW_COMPILED_PATH=$(pwd)/storage/framework/views" >> .env
 
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction
