@@ -9,6 +9,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Page;
 use Illuminate\View\View;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -46,6 +47,20 @@ class ListPages extends Component
     public function updatedSearch(): void
     {
         $this->resetPage();
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'areaFilter', 'navigationFilter']);
+        $this->resetPage();
+    }
+
+    #[Computed]
+    public function hasFilters(): bool
+    {
+        return ! empty($this->search)
+            || $this->areaFilter !== null
+            || $this->navigationFilter !== null;
     }
 
     public function delete(Page $page): void

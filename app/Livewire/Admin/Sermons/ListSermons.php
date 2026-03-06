@@ -14,6 +14,7 @@ use App\Repositories\SermonRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -64,6 +65,24 @@ class ListSermons extends Component
     public function updatedSearch(): void
     {
         $this->resetPage();
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months']);
+        $this->resetPage();
+    }
+
+    #[Computed]
+    public function hasFilters(): bool
+    {
+        return ! empty($this->search)
+            || $this->serviceFilter !== null
+            || $this->preacherFilter !== null
+            || $this->seriesFilter !== null
+            || $this->hasVideoFilter === true
+            || $this->needsReviewFilter === true
+            || $this->last12Months === false;
     }
 
     public function delete(Sermon $sermon): void

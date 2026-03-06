@@ -27,6 +27,12 @@
             class="w-40"
         />
 
+        <div x-show="$wire.hasFilters" x-transition x-cloak>
+            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                Clear Filters
+            </x-form-button>
+        </div>
+
         <div x-show="$wire.selected.length > 0" x-transition x-cloak>
             <x-form-button variant="danger" size="sm" icon="trash"
                 wire:click="deleteSelected" wire:confirm="Delete selected pages?">
