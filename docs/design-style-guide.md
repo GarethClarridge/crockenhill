@@ -104,6 +104,7 @@ Rule: for new primary public CTAs, use teal gradient or cbc pattern, not generic
 
 - Primary page title (public): `text-6xl font-display`
 - Section heading: shared `<x-h2>` (`text-3xl sm:text-4xl`, gradient text treatment)
+- Sub-section heading: shared `<x-h3>` (`text-2xl sm:text-3xl`, centred teal-dark display font)
 - Admin page heading: `text-3xl font-display`
 - Body copy: prose blocks via `prose`
 
@@ -141,10 +142,10 @@ Use shared components:
 
 Preferred variants:
 
-- Primary action: `primary` (green)
-- Destructive: `danger`
+- Primary action: `primary` (cbc-pattern branded button)
+- Public CTA inside teal gradient border: `secondary` (slate bg, teal text)
 - Neutral secondary: `outline` or `ghost`
-- Feature/public CTA: `feature` or `featureOutline`
+- Destructive: `danger` (cbc-crimson)
 
 Rule: do not introduce plain `<a>` or `<button>` styling when an existing button component fits.
 
@@ -160,7 +161,7 @@ Use shared controls:
 Patterns already built in:
 
 - Label + hint + error states
-- Focus ring consistency (`focus:ring-green-500`)
+- Focus ring consistency (`focus:ring-cbc-teal`)
 - Optional loading indicators and clearable input behavior
 
 Livewire rule: use `wire:model.live` for responsive filters/forms where immediate feedback is intended.
@@ -240,7 +241,7 @@ Understanding *why* a decision was made helps apply it correctly in new situatio
 The congregation skews older. Shorter line lengths (≈65–70 characters) reduce reading fatigue and improve comprehension. It also keeps sermon text and devotional content feeling intimate rather than like a news feed.
 
 ### Why teal gradient / `bg-cbc-pattern` for primary CTAs — not plain green?
-Green is used for admin actions (save, create) throughout the interface. Reusing it on public pages would blur the distinction between admin UI and public brand. The teal gradient and pattern texture carry warmth and reinforce the church identity without conflicting with the admin green.
+The `primary` variant uses the cbc-pattern texture — a strong branded treatment suited to primary actions. The `secondary` variant (slate bg / teal text) is designed to sit inside a teal gradient border, giving public CTAs warmth and brand identity without being overpowering.
 
 ### Why `wire:navigate` on internal links?
 Livewire's navigation preserves the SPA feel (progress bar, no full reload) and keeps Alpine component state across navigations. Omitting it causes noticeable white flashes and slower perceived performance.
@@ -332,7 +333,7 @@ Before merging UI work:
 ```blade
 <div class="mx-auto w-full max-w-[34rem] px-6 text-center">
   <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
-    <x-button link="/target" variant="featureOutline" size="lg" class="w-full rounded-[11px]">
+    <x-button link="/target" variant="secondary" size="lg" class="w-full rounded-[11px]">
       Call to action
     </x-button>
   </div>

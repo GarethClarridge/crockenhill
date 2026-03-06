@@ -71,6 +71,10 @@
                 <x-h2>Strengthening Believers</x-h2>
             </div>
             <div>
+                <p class="mb-2 text-xs uppercase tracking-widest text-gray-400">x-h3 — Sub-section heading (font-display teal-dark, centred)</p>
+                <x-h3>Our Sunday Services</x-h3>
+            </div>
+            <div>
                 <p class="mb-2 text-xs uppercase tracking-widest text-gray-400">Admin heading (font-display text-3xl)</p>
                 <h1 class="font-display text-3xl">Manage Sermons</h1>
             </div>
@@ -105,11 +109,8 @@
             <div>
                 <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Variants (size: md)</p>
                 <div class="flex flex-wrap gap-4">
-                    <x-button link="#" variant="default" inline>default</x-button>
                     <x-button link="#" variant="primary" inline>primary</x-button>
                     <x-button link="#" variant="secondary" inline>secondary</x-button>
-                    <x-button link="#" variant="feature" inline>feature</x-button>
-                    <x-button link="#" variant="featureOutline" inline>featureOutline</x-button>
                     <x-button link="#" variant="outline" inline>outline</x-button>
                     <x-button link="#" variant="danger" inline>danger</x-button>
                     <x-button link="#" variant="ghost" inline>ghost</x-button>
@@ -141,10 +142,10 @@
 
             {{-- Public CTA pattern --}}
             <div>
-                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Public CTA (featureOutline inside teal gradient border)</p>
+                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Public CTA (secondary inside teal gradient border)</p>
                 <div class="mx-auto w-full max-w-[34rem] text-center">
                     <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
-                        <x-button link="#" variant="featureOutline" size="lg" class="w-full rounded-[11px]">
+                        <x-button link="#" variant="secondary" size="lg" class="w-full rounded-[11px]">
                             Join Us This Sunday
                         </x-button>
                     </div>

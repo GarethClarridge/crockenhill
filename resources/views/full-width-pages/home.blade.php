@@ -95,7 +95,7 @@
 
   <div class="mx-auto mb-8 mt-8 w-full max-w-[34rem] px-6 text-center sm:px-0">
     <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px] shadow-[0_10px_24px_rgba(20,85,87,0.18)]">
-      <x-button link="/community/sunday-mornings" variant="featureOutline" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
+      <x-button link="/community/sunday-mornings" variant="secondary" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
         <div class="flex items-center justify-center gap-2">
           <span>What to expect on Sunday mornings</span>
           <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-cbc-teal" />
@@ -182,7 +182,7 @@
 
   <div class="mx-auto mb-8 mt-6 w-full max-w-[34rem] px-6 text-center sm:px-0">
     <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px] shadow-[0_10px_24px_rgba(20,85,87,0.18)]">
-      <x-button link="/christ" variant="featureOutline" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
+      <x-button link="/christ" variant="secondary" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
         <div class="flex items-center justify-center gap-2">
           <span>Explore the good news about Jesus</span>
           <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-cbc-teal" />
