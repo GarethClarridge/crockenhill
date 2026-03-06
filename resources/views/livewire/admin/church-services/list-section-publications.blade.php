@@ -74,7 +74,7 @@
                                     \App\Enums\ServiceSectionPublicationStatus::PENDING_APPROVAL => 'bg-amber-100 text-amber-800',
                                     \App\Enums\ServiceSectionPublicationStatus::APPROVED => 'bg-sky-100 text-sky-800',
                                     \App\Enums\ServiceSectionPublicationStatus::REJECTED => 'bg-rose-100 text-rose-800',
-                                    \App\Enums\ServiceSectionPublicationStatus::PUBLISHED => 'bg-emerald-100 text-emerald-800',
+                                    \App\Enums\ServiceSectionPublicationStatus::PUBLISHED => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
                                     default => 'bg-gray-100 text-gray-700',
                                 } }}">
                                     {{ $section->publication_status->label() }}

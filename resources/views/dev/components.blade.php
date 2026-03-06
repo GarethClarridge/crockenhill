@@ -25,7 +25,6 @@
                 ['cbc-teal.deeper',  '#0f4143', 'teal.deeper'],
                 ['cbc-teal.darkest', '#134e4a', 'teal.darkest'],
                 ['cbc-crimson',      '#6b0f1a', 'crimson'],
-                ['cbc-emerald',      '#08a386', 'emerald'],
                 ['cbc-rose-muted',   '#c07c84', 'rose-muted'],
             ] as [$key, $hex, $label])
             <div>

@@ -19,7 +19,7 @@
   <div class="flex flex-col flex-1 p-6">
     @if (($sermon->title != null) && ! $sermon->hasPlainThumbnail())
       <a class="group" href="/christ/sermons/{{ $sermon->date->format('Y') }}/{{ $sermon->date->format('m') }}/{{ $sermon->slug }}" wire:navigate>
-        <h4 class="font-display text-2xl text-gray-900 group-hover:underline decoration-emerald-600 underline-offset-4">
+        <h4 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h4>
       </a>
