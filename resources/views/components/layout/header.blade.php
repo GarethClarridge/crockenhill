@@ -62,7 +62,7 @@
 
 </div>
 
-<div x-show="expanded" x-transition id="mobile-menu" class="absolute z-30 w-screen bg-gradient-to-r from-green-100/80 to-emerald-100/80 p-6 font-display text-lg leading-loose backdrop-blur-sm" tabindex="-1" x-cloak>
+<div x-show="expanded" x-transition id="mobile-menu" class="absolute z-30 w-screen bg-gradient-to-r from-cbc-teal/10 to-cbc-teal-light/10 p-6 font-display text-lg leading-loose backdrop-blur-sm" tabindex="-1" x-cloak>
   <ul class="mt-3 grid grid-cols-1 gap-8 text-center md:grid-cols-3">
 
     <li>

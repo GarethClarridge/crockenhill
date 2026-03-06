@@ -50,7 +50,7 @@
                                 Needs review
                             </span>
                         @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cbc-teal-light/15 text-cbc-teal-dark">
                                 Ready
                             </span>
                         @endif
@@ -178,7 +178,7 @@
                                                                 <p class="mt-1 text-xs text-gray-500">{{ str_replace('_', ' ', $reviewReason) }}</p>
                                                             @endif
                                                         @else
-                                                            <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                                                            <span class="inline-flex items-center rounded-full bg-cbc-teal-light/15 px-2.5 py-0.5 text-xs font-medium text-cbc-teal-dark">
                                                                 Clear
                                                             </span>
                                                         @endif
@@ -188,14 +188,14 @@
                                                             \App\Enums\ServiceSectionPublicationStatus::PENDING_APPROVAL => 'bg-amber-100 text-amber-800',
                                                             \App\Enums\ServiceSectionPublicationStatus::APPROVED => 'bg-sky-100 text-sky-800',
                                                             \App\Enums\ServiceSectionPublicationStatus::REJECTED => 'bg-rose-100 text-rose-800',
-                                                            \App\Enums\ServiceSectionPublicationStatus::PUBLISHED => 'bg-emerald-100 text-emerald-800',
+                                                            \App\Enums\ServiceSectionPublicationStatus::PUBLISHED => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
                                                             default => 'bg-gray-100 text-gray-700',
                                                         } }}">
                                                             {{ $section->publication_status->label() }}
                                                         </span>
                                                         @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PUBLISHED && $section->publishedSermon)
                                                             <p class="mt-1 text-xs">
-                                                                <a href="{{ route('showSermon', $section->publishedSermon) }}" class="text-emerald-700 hover:text-emerald-900">
+                                                                <a href="{{ route('showSermon', $section->publishedSermon) }}" class="text-cbc-teal hover:text-cbc-teal-dark">
                                                                     View sermon
                                                                 </a>
                                                             </p>

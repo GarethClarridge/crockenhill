@@ -49,6 +49,8 @@ class ListSermons extends Component
 
     public bool $last12Months = true;
 
+    public bool $hasFilters = false;
+
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
@@ -63,6 +65,12 @@ class ListSermons extends Component
 
     public function updatedSearch(): void
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months']);
         $this->resetPage();
     }
 
@@ -102,6 +110,14 @@ class ListSermons extends Component
     public function render(): View
     {
         $this->sanitizeSorting();
+
+        $this->hasFilters = ! empty($this->search)
+            || $this->serviceFilter !== null
+            || $this->preacherFilter !== null
+            || $this->seriesFilter !== null
+            || $this->hasVideoFilter === true
+            || $this->needsReviewFilter === true
+            || $this->last12Months === false;
 
         $query = Sermon::query()
             ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path'])

@@ -21,7 +21,7 @@
                     <p>Sorry, that page doesn't seem to exist.</p>
 
                     <div class="px-6 grid grid-cols-1 gap-2 max-w-2xl mx-auto mt-6">
-                      <x-button link="/" variant="feature">Go to the homepage</x-button>
+                      <x-button link="/" variant="primary">Go to the homepage</x-button>
                     </div>
 
                 </article>

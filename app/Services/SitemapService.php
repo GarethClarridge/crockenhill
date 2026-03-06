@@ -36,7 +36,7 @@ class SitemapService
             // Eager load relationships to prevent N+1 queries during sitemap generation
             ->add(
                 Sermon::query()
-                    ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'thumbnail_file_path', 'summary', 'duration', 'meta_description', 'preacher', 'preacher_id', 'reference', 'series'])
+                    ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'thumbnail_file_path', 'thumbnail_metadata', 'summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description'])
                     ->with('preacherProfile:id,name,slug')
                     ->get()
             )

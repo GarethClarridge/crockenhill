@@ -29,6 +29,12 @@
         <x-toggle label="Has Video" wire:model.live="hasVideoFilter" />
         <x-toggle label="Needs Review" wire:model.live="needsReviewFilter" />
         <x-toggle label="Last 12 Months" wire:model.live="last12Months" />
+
+        <div x-show="$wire.hasFilters" x-transition x-cloak>
+            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                Clear Filters
+            </x-form-button>
+        </div>
     </div>
 
     {{-- Table --}}

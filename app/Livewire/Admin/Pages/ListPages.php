@@ -33,6 +33,8 @@ class ListPages extends Component
 
     public ?bool $navigationFilter = null;
 
+    public bool $hasFilters = false;
+
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
@@ -45,6 +47,12 @@ class ListPages extends Component
 
     public function updatedSearch(): void
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'areaFilter', 'navigationFilter']);
         $this->resetPage();
     }
 
@@ -64,6 +72,10 @@ class ListPages extends Component
     public function render(): View
     {
         $this->sanitizeSorting();
+
+        $this->hasFilters = ! empty($this->search)
+            || $this->areaFilter !== null
+            || $this->navigationFilter !== null;
 
         $pages = Page::query()
             ->select(['id', 'slug', 'heading', 'description', 'area', 'navigation', 'updated_at'])

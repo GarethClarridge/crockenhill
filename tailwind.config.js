@@ -25,7 +25,6 @@ module.exports = {
           darkest: '#134e4a',
         },
         'cbc-crimson': '#6b0f1a',
-        'cbc-emerald': '#08a386',
         'cbc-rose-muted': '#c07c84',
       },
     }
