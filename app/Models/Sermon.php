@@ -449,6 +449,13 @@ class Sermon extends Model implements Sitemapable
      */
     public function isAutomated(): bool
     {
+        /**
+         * Performance Optimization: Check if relationship is already loaded to prevent N+1 queries.
+         */
+        if ($this->relationLoaded('processingLogs')) {
+            return ! empty($this->transcript_file_path) || $this->processingLogs->isNotEmpty();
+        }
+
         return ! empty($this->transcript_file_path) || $this->processingLogs()->exists();
     }
 
@@ -469,6 +476,16 @@ class Sermon extends Model implements Sitemapable
      */
     public function getProcessingStatus(): ?\App\Enums\ProcessingStatus
     {
+        /**
+         * Performance Optimization: Use loaded relationship if available to prevent N+1 queries.
+         */
+        if ($this->relationLoaded('processingLogs')) {
+            /** @var \App\Models\MediaProcessingLog|null $latestLog */
+            $latestLog = $this->processingLogs->sortByDesc('created_at')->first();
+
+            return $latestLog?->status;
+        }
+
         /** @var \App\Models\MediaProcessingLog|null $latestLog */
         $latestLog = $this->processingLogs()->latest()->first();
 
