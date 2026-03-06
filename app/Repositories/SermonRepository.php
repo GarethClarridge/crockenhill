@@ -18,6 +18,7 @@ class SermonRepository
             return Sermon::whereNotNull('series')
                 ->where('series', '!=', '')
                 ->distinct()
+                ->orderBy('series')
                 ->pluck('series')
                 ->filter()
                 ->values()
