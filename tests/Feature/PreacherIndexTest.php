@@ -85,13 +85,14 @@ class PreacherIndexTest extends TestCase
     public function it_displays_sermon_counts_for_each_preacher(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'Counting Preacher', 'is_active' => true]);
-        Sermon::factory()->count(3)->create(['preacher_id' => $preacher->id]);
+        Sermon::factory()->count(13)->create(['preacher_id' => $preacher->id]);
 
         $response = $this->get('/christ/sermons/preachers');
 
         $response->assertSee('Counting Preacher');
-        // The view likely displays the count next to the name.
-        // We verify that the count '3' is present in the response.
-        $response->assertSee('3');
+        $response->assertSeeInOrder([
+            'Counting Preacher',
+            '13',
+        ]);
     }
 }
