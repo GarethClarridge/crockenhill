@@ -277,11 +277,10 @@ jobs:
           echo "DB_USERNAME=root" >> .env
           echo "DB_PASSWORD=" >> .env
           echo "SESSION_DRIVER=array" >> .env
-          echo "CACHE_STORE=array" >> .env
-          echo "CACHE_DRIVER=array" >> .env
-          echo "REDIS_HOST=127.0.0.1" >> .env
           echo "QUEUE_CONNECTION=sync" >> .env
           echo "TRANSCRIPTION_SERVICE_TYPE=mock" >> .env
+          sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=array/' .env
+          sed -i 's/^REDIS_HOST=.*/REDIS_HOST=127.0.0.1/' .env
 
       - name: Run migrations and seed
         run: |
