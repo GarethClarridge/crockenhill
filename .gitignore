@@ -8,6 +8,7 @@
 .env.*
 !.env.example
 !.env.dusk.ci
+!.env.jules
 
 # IDE and editor files
 /.idea

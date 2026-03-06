@@ -74,6 +74,52 @@ A skill is a set of local instructions in a `SKILL.md` file.
 - Do not introduce legacy patterns called out in the style guide (for example, indigo focus-ring chains and one-off raw form/button markup where shared components exist).
 - Before finishing UI changes, validate mobile layout, internal `wire:navigate` links, loading/empty/error/success states, and keyboard/focus behavior.
 
+## Jules / Remote CI environment
+
+When running outside Laravel Sail (e.g. in Jules, Codex, or other remote VM agents):
+
+### Environment setup
+- The setup script `jules-setup.sh` installs PHP 8.4, Composer, MySQL, and Redis natively via apt (no Docker pulls — avoids Docker Hub rate limits).
+- `.env.jules` is copied to `.env` during setup — it points DB/Redis to `127.0.0.1` instead of Sail's Docker service names.
+- `APP_KEY` is generated automatically by the setup script.
+
+### Running commands WITHOUT Sail
+Do **not** prefix commands with `vendor/bin/sail` — run them directly:
+- `php artisan test --parallel --compact` — run all tests
+- `php artisan test --compact tests/Feature/ExampleTest.php` — run a single file
+- `php artisan test --compact --filter=testName` — run a single test
+- `composer phpstan` — static analysis (must stay at 0 errors)
+- `./vendor/bin/pint --dirty` — format changed files
+- `php artisan migrate --force --no-interaction` — run migrations
+
+### What's different from local
+- MySQL and Redis are installed natively (not via Docker/Sail containers).
+- No Selenium/Dusk — browser tests are skipped.
+- No Mailpit — mail driver is set to `log`.
+- Queue is `sync` — jobs execute immediately.
+- Transcription and analysis use `mock` services.
+
+### Testing databases
+The setup script creates:
+- `crockenhill` — main database
+- `testing` — base testing database
+- `crockenhill_test_*` — wildcard grant for parallel test worker databases
+
+### Checking services
+If tests fail with connection errors, verify services are running:
+```bash
+sudo service mysql status                  # should show "active (running)"
+sudo mysqladmin ping -ppassword            # should respond "mysqld is alive"
+sudo service redis-server status           # should show "active (running)"
+redis-cli ping                             # should respond "PONG"
+```
+
+### Restarting services (if snapshot loses service state)
+```bash
+sudo service mysql start
+sudo service redis-server start
+```
+
 ## Project context quick map
 
 - Core domains: pages, sermons, meetings, livestream segmentation/extraction.
