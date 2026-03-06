@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\View\View;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
@@ -21,10 +22,28 @@ class ResetPassword extends Component
 {
     public string $token = '';
 
-    #[Validate('required|email')]
     public string $email = '';
 
-    #[Validate('required|string|min:8|confirmed')]
+    /**
+     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password>>
+     */
+    public function rules(): array
+    {
+        return [
+            'email' => ['required', 'email'],
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                PasswordRule::min(12)
+                    ->letters()
+                    ->numbers()
+                    ->symbols()
+                    ->uncompromised(),
+            ],
+        ];
+    }
+
     public string $password = '';
 
     public string $password_confirmation = '';

@@ -27,8 +27,8 @@ class AuthRateLimitingTest extends TestCase
         $component = Livewire::test(Register::class)
             ->set('name', 'Test User')
             ->set('email', 'test@example.com')
-            ->set('password', 'password123')
-            ->set('password_confirmation', 'password123');
+            ->set('password', 'StrongPass123!@#Unique')
+            ->set('password_confirmation', 'StrongPass123!@#Unique');
 
         for ($i = 0; $i < 3; $i++) {
             $component->call('register');
@@ -48,8 +48,8 @@ class AuthRateLimitingTest extends TestCase
 
         $component = Livewire::test(Register::class)
             ->set('name', 'Test User')
-            ->set('password', 'password123')
-            ->set('password_confirmation', 'password123');
+            ->set('password', 'StrongPass123!@#Unique')
+            ->set('password_confirmation', 'StrongPass123!@#Unique');
 
         for ($i = 0; $i < 3; $i++) {
             $component->set('email', "user{$i}@example.com")
@@ -83,8 +83,8 @@ class AuthRateLimitingTest extends TestCase
         $registerComponent = Livewire::test(Register::class)
             ->set('name', 'Test User')
             ->set('email', 'test-unique@example.com')
-            ->set('password', 'password123')
-            ->set('password_confirmation', 'password123');
+            ->set('password', 'StrongPass123!@#Unique')
+            ->set('password_confirmation', 'StrongPass123!@#Unique');
 
         $registerComponent->call('register')
             ->assertHasNoErrors();
@@ -119,8 +119,8 @@ class AuthRateLimitingTest extends TestCase
 
         $component = Livewire::test(ResetPassword::class, ['token' => $token])
             ->set('email', $user->email)
-            ->set('password', 'new-password123')
-            ->set('password_confirmation', 'new-password123');
+            ->set('password', 'StrongPass123!@#Unique')
+            ->set('password_confirmation', 'StrongPass123!@#Unique');
 
         for ($i = 0; $i < 5; $i++) {
             // We use wrong token/email to cause failure and hit rate limiter

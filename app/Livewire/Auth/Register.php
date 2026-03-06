@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
@@ -18,13 +19,31 @@ use Livewire\Features\SupportRedirects\Redirector;
 
 class Register extends Component
 {
-    #[Validate('required|string|max:255')]
     public string $name = '';
 
-    #[Validate('required|email|max:255|unique:users')]
     public string $email = '';
 
-    #[Validate('required|string|min:8|confirmed')]
+    /**
+     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password>>
+     */
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users'],
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                Password::min(12)
+                    ->letters()
+                    ->numbers()
+                    ->symbols()
+                    ->uncompromised(),
+            ],
+        ];
+    }
+
     public string $password = '';
 
     public string $password_confirmation = '';
