@@ -27,8 +27,8 @@ class LivewireAuthComponentsTest extends TestCase
         Livewire::test(RegisterComponent::class)
             ->set('name', 'Livewire User')
             ->set('email', 'livewire-user@example.com')
-            ->set('password', 'password123')
-            ->set('password_confirmation', 'password123')
+            ->set('password', 'StrongPass123!@#Unique')
+            ->set('password_confirmation', 'StrongPass123!@#Unique')
             ->call('register')
             ->assertHasNoErrors()
             ->assertRedirect(route('verification.notice'));
@@ -42,7 +42,7 @@ class LivewireAuthComponentsTest extends TestCase
         }
 
         $this->assertSame('Livewire User', $user->name);
-        $this->assertTrue(Hash::check('password123', $user->password));
+        $this->assertTrue(Hash::check('StrongPass123!@#Unique', $user->password));
         $this->assertAuthenticatedAs($user);
         Notification::assertSentTo($user, VerifyEmailNotification::class);
     }
