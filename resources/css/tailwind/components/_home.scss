@@ -71,11 +71,13 @@
         visibility: hidden;
         transform: translateY(20px);
         will-change: opacity, transform;
+        pointer-events: none;
 
         &:focus-within {
             opacity: 1;
             visibility: visible;
             transform: none;
+            pointer-events: auto;
         }
     }
 
@@ -169,12 +171,14 @@
         opacity: 0;
         visibility: hidden;
         transform: translateY(20px);
+        pointer-events: none;
     }
 
     to {
         opacity: 1;
         visibility: visible;
         transform: translateY(0);
+        pointer-events: auto;
     }
 }
 
@@ -194,5 +198,6 @@
         opacity: 1;
         visibility: visible;
         transform: translateY(0);
+        pointer-events: auto;
     }
 }

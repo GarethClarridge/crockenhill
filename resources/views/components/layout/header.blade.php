@@ -23,7 +23,7 @@
       <li class="flex">
         <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $isChristSection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
            href="/christ" wire:navigate @if($isChristSection) aria-current="page" @endif>
-          <x-icon-cross class="h-5 w-5 shrink-0" />
+          <x-icon-cross class="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>Christ</span>
         </a>
       </li>
@@ -31,7 +31,7 @@
       <li class="flex">
         <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $isChurchSection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
            href="/church" wire:navigate @if($isChurchSection) aria-current="page" @endif>
-          <x-icon-church class="h-5 w-5 shrink-0" />
+          <x-icon-church class="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>Church</span>
         </a>
       </li>
@@ -39,7 +39,7 @@
       <li class="flex">
         <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $isCommunitySection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
            href="/community" wire:navigate @if($isCommunitySection) aria-current="page" @endif>
-          <x-heroicon-s-user-group class="h-5 w-5 shrink-0" />
+          <x-heroicon-s-user-group class="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>Community</span>
         </a>
       </li>
@@ -68,7 +68,7 @@
     <li>
       <a class="inline-block rounded-md bg-gradient-to-r from-teal-600 to-teal-800 px-6 py-3 text-xl text-white fill-white" href="/christ" wire:navigate>
         <div class="flex items-center justify-center">
-          <x-icon-cross class="mr-2 h-5 w-5" />
+          <x-icon-cross class="mr-2 h-5 w-5" aria-hidden="true" />
           <span>Christ</span>
         </div>
       </a>
@@ -88,7 +88,7 @@
     <li>
       <a class="inline-block rounded-md bg-gradient-to-r from-teal-600 to-teal-800 px-6 py-3 text-xl text-white fill-white" href="/church" wire:navigate>
         <div class="flex items-center justify-center">
-          <x-icon-church class="mr-2 h-5 w-5" />
+          <x-icon-church class="mr-2 h-5 w-5" aria-hidden="true" />
           <span>Church</span>
         </div>
       </a>
@@ -108,7 +108,7 @@
     <li>
       <a class="inline-block rounded-md bg-gradient-to-r from-teal-600 to-teal-800 px-6 py-3 text-xl text-white fill-white" href="/community" wire:navigate>
         <div class="flex items-center justify-center">
-          <x-heroicon-s-user-group class="mr-2 h-5 w-5" />
+          <x-heroicon-s-user-group class="mr-2 h-5 w-5" aria-hidden="true" />
           <span>Community</span>
         </div>
       </a>

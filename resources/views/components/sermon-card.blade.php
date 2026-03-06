@@ -27,31 +27,31 @@
     <ul class="mt-4 space-y-2 prose">
       @if (($sermon->date != null))
       <li class="flex items-center">
-        <x-heroicon-s-calendar class="h-5 w-5 mr-2 text-gray-500" />
+        <x-heroicon-s-calendar class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         {{ $sermon->date->format('j F Y') }}
       </li>
       @endif
       @if ($sermon->service != null)
       <li class="flex items-center">
-        <x-heroicon-o-clock class="h-5 w-5 mr-2 text-gray-500" />
+        <x-heroicon-o-clock class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         {{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}
       </li>
       @endif
       @if ($sermon->preacher != null)
       <li class="flex items-center">
-        <x-heroicon-o-user class="h-5 w-5 mr-2 text-gray-500" />
+        <x-heroicon-o-user class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         <a href="{{ $sermon->preacher_url }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
       </li>
       @endif
       @if ($sermon->series != null)
       <li class="flex items-center">
-        <x-heroicon-o-tag class="h-5 w-5 mr-2 text-gray-500" />
+        <x-heroicon-o-tag class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->series }}</a>
       </li>
       @endif
       @if ($sermon->reference != null)
       <li class="flex items-center">
-        <x-heroicon-o-book-open class="h-5 w-5 mr-2 text-gray-500" />
+        <x-heroicon-o-book-open class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         {{ $sermon->reference }}
       </li>
       @endif
