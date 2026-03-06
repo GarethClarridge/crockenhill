@@ -281,6 +281,7 @@ jobs:
           echo "TRANSCRIPTION_SERVICE_TYPE=mock" >> .env
           sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=array/' .env
           sed -i 's/^REDIS_HOST=.*/REDIS_HOST=127.0.0.1/' .env
+          sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
 
       - name: Run migrations and seed
         run: |
@@ -298,7 +299,7 @@ jobs:
             echo "Waiting for app server ($i/30)... HTTP $STATUS"; sleep 2
             if [ "$STATUS" = "200" ]; then echo "App server ready"; break; fi
           done
-          [ "$STATUS" = "200" ] || { echo "App server failed to start"; cat storage/logs/serve.log; exit 1; }
+          [ "$STATUS" = "200" ] || { echo "App server failed to start"; cat storage/logs/serve.log; echo "=== Laravel log ==="; cat storage/logs/laravel.log 2>/dev/null || echo "(no laravel.log)"; exit 1; }
 
       - name: Warm up audited URLs
         run: |
