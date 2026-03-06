@@ -31,13 +31,13 @@ $cardClasses = match($variant) {
                 <div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mb-3">
                     @if($showDate)
                         <div class="flex items-center">
-                            <x-heroicon-o-calendar class="h-4 w-4 mr-1" />
+                            <x-heroicon-o-calendar class="h-4 w-4 mr-1" aria-hidden="true" />
                             {{ $event->start_datetime->format($dateFormat) }}
                         </div>
                     @endif
                     
                     <div class="flex items-center">
-                        <x-heroicon-o-clock class="h-4 w-4 mr-1" />
+                        <x-heroicon-o-clock class="h-4 w-4 mr-1" aria-hidden="true" />
                         {{ $event->start_datetime->format($timeFormat) }}
                         @if($event->end_datetime)
                             - {{ $event->end_datetime->format($timeFormat) }}
@@ -46,14 +46,14 @@ $cardClasses = match($variant) {
                     
                     @if($event->location)
                         <div class="flex items-center">
-                            <x-heroicon-o-map-pin class="h-4 w-4 mr-1" />
+                            <x-heroicon-o-map-pin class="h-4 w-4 mr-1" aria-hidden="true" />
                             {{ $event->location }}
                         </div>
                     @endif
                     
                     @if($event->speaker)
                         <div class="flex items-center">
-                            <x-heroicon-o-user class="h-4 w-4 mr-1" />
+                            <x-heroicon-o-user class="h-4 w-4 mr-1" aria-hidden="true" />
                             {{ $event->speaker }}
                         </div>
                     @endif
@@ -152,13 +152,13 @@ $cardClasses = match($variant) {
         <ul class="mx-6 px-6 mb-6 pb-6 prose">
             @if($showDate)
                 <li class="my-2 flex items-center">
-                    <x-heroicon-s-calendar class="h-5 w-5 mr-2" />
+                    <x-heroicon-s-calendar class="h-5 w-5 mr-2" aria-hidden="true" />
                     {{ $event->start_datetime->format($dateFormat) }}
                 </li>
             @endif
             
             <li class="my-2 flex items-center">
-                <x-heroicon-o-clock class="h-5 w-5 mr-2" />
+                <x-heroicon-o-clock class="h-5 w-5 mr-2" aria-hidden="true" />
                 {{ $event->start_datetime->format($timeFormat) }}
                 @if($event->end_datetime)
                     - {{ $event->end_datetime->format($timeFormat) }}
@@ -167,21 +167,21 @@ $cardClasses = match($variant) {
             
             @if($event->location)
                 <li class="my-2 flex items-center">
-                    <x-heroicon-o-map-pin class="h-5 w-5 mr-2" />
+                    <x-heroicon-o-map-pin class="h-5 w-5 mr-2" aria-hidden="true" />
                     {{ $event->location }}
                 </li>
             @endif
             
             @if($event->speaker)
                 <li class="my-2 flex items-center">
-                    <x-heroicon-o-user class="h-5 w-5 mr-2" />
+                    <x-heroicon-o-user class="h-5 w-5 mr-2" aria-hidden="true" />
                     {{ $event->speaker }}
                 </li>
             @endif
             
             @if($showMeetingBadge)
                 <li class="my-2 flex items-center">
-                    <x-heroicon-o-tag class="h-5 w-5 mr-2" />
+                    <x-heroicon-o-tag class="h-5 w-5 mr-2" aria-hidden="true" />
                     @if($meeting)
                         <a href="/community/{{ $meeting->slug }}" class="hover:underline">{{ $meeting->slug }}</a>
                     @else

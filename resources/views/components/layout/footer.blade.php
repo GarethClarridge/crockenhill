@@ -20,25 +20,25 @@
       <ul class="mx-auto mb-0 max-w-xs list-none space-y-2 text-left text-cbc-teal-dark">
         <li class="my-2">
           <div class="flex items-center">
-            <x-heroicon-s-phone class="mr-2 h-5 w-5" />
+            <x-heroicon-s-phone class="mr-2 h-5 w-5" aria-hidden="true" />
             <a class="underline decoration-current/50 underline-offset-2 hover:text-cbc-teal-dark" href="tel:{{ config('organization.phone') }}">{{ config('organization.phone_display') }}</a>
           </div>
         </li>
         <li class="my-2">
           <div class="flex items-center">
-            <x-heroicon-s-envelope class="mr-2 h-5 w-5" />
+            <x-heroicon-s-envelope class="mr-2 h-5 w-5" aria-hidden="true" />
             <a class="underline decoration-current/50 underline-offset-2 hover:text-cbc-teal-dark" href="mailto:{{ config('organization.email_public') }}">{{ config('organization.email_public') }}</a>
           </div>
         </li>
         <li class="my-2">
           <div class="flex items-center">
-            <x-icon-facebook class="mr-1 h-5 w-5 text-cbc-teal-dark" />
+            <x-icon-facebook class="mr-1 h-5 w-5 text-cbc-teal-dark" aria-hidden="true" />
             <a class="underline decoration-current/50 underline-offset-2 hover:text-cbc-teal-dark" href="{{ config('organization.social.facebook') }}">Like us on Facebook</a>
           </div>
         </li>
         <li class="my-2">
           <div class="flex items-center">
-            <x-icon-youtube class="mr-1 h-5 w-5 text-cbc-teal-dark" />
+            <x-icon-youtube class="mr-1 h-5 w-5 text-cbc-teal-dark" aria-hidden="true" />
             <a class="underline decoration-current/50 underline-offset-2 hover:text-cbc-teal-dark" href="{{ config('organization.social.youtube') }}">Subscribe on YouTube</a>
           </div>
         </li>

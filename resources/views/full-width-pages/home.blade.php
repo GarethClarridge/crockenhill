@@ -98,7 +98,7 @@
       <x-button link="/community/sunday-mornings" variant="secondary" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
         <div class="flex items-center justify-center gap-2">
           <span>What to expect on Sunday mornings</span>
-          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-cbc-teal" />
+          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-cbc-teal" aria-hidden="true" />
         </div>
       </x-button>
     </div>
@@ -185,7 +185,7 @@
       <x-button link="/christ" variant="secondary" size="lg" class="w-full rounded-[11px] px-7 py-3 tracking-tight">
         <div class="flex items-center justify-center gap-2">
           <span>Explore the good news about Jesus</span>
-          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-cbc-teal" />
+          <x-heroicon-s-arrow-right-circle class="h-6 w-6 text-cbc-teal" aria-hidden="true" />
         </div>
       </x-button>
     </div>

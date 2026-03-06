@@ -122,8 +122,8 @@ return [
     title="Copy link to clipboard"
     x-cloak
   >
-    <x-heroicon-o-link x-show="!copied" class="w-4 h-4" />
-    <x-heroicon-o-check x-show="copied" class="w-4 h-4 text-cbc-teal" x-cloak />
+    <x-heroicon-o-link x-show="!copied" class="w-4 h-4" aria-hidden="true" />
+    <x-heroicon-o-check x-show="copied" class="w-4 h-4 text-cbc-teal" aria-hidden="true" x-cloak />
     <span x-text="copied ? 'Copied!' : 'Copy link'"></span>
   </button>
 </div>

@@ -100,7 +100,7 @@ use Illuminate\Support\Str;
     <dl class="space-y-6">
       @if ($sermon->date != null)
       <div class="flex items-center">
-        <x-heroicon-s-calendar class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />
+        <x-heroicon-s-calendar class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" aria-hidden="true" />
         <div>
           <dt class="sr-only">Date</dt>
           <dd class="text-gray-900 font-medium">{{ $sermon->date->format('j F Y') }}</dd>
@@ -110,7 +110,7 @@ use Illuminate\Support\Str;
 
       @if ($sermon->service != null)
       <div class="flex items-center">
-        <x-heroicon-o-clock class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />
+        <x-heroicon-o-clock class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" aria-hidden="true" />
         <div>
           <dt class="sr-only">Service</dt>
           <dd class="text-gray-900 font-medium">{{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}</dd>
@@ -120,7 +120,7 @@ use Illuminate\Support\Str;
 
       @if ($sermon->preacher != null)
       <div class="flex items-center">
-        <x-heroicon-o-user class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />
+        <x-heroicon-o-user class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" aria-hidden="true" />
         <div>
           <dt class="sr-only">Preacher</dt>
           <dd class="text-gray-900 font-medium">
@@ -132,7 +132,7 @@ use Illuminate\Support\Str;
 
       @if ($sermon->series != null)
       <div class="flex items-center">
-        <x-heroicon-o-tag class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />
+        <x-heroicon-o-tag class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" aria-hidden="true" />
         <div>
           <dt class="sr-only">Series</dt>
           <dd class="text-gray-900 font-medium">
@@ -144,7 +144,7 @@ use Illuminate\Support\Str;
 
       @if ($sermon->reference != null)
       <div class="flex items-center md:col-span-2">
-        <x-heroicon-o-book-open class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />
+        <x-heroicon-o-book-open class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" aria-hidden="true" />
         <div>
           <dt class="sr-only">Bible Reference</dt>
           <dd class="text-gray-900 font-medium">{{ $sermon->reference }}</dd>
