@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Preachers;
 
 use App\Contracts\SpeakerIdentificationInterface;
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
@@ -16,7 +17,7 @@ use Livewire\Component;
 
 class EditPreacher extends Component
 {
-    use WithNotifications;
+    use WithAdminAuthorization, WithNotifications;
 
     public Preacher $preacher;
 
@@ -32,7 +33,7 @@ class EditPreacher extends Component
 
     public function mount(Preacher $preacher): void
     {
-        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
+        $this->authorizeAdmin();
 
         $this->preacher = $preacher;
         $this->name = $preacher->name;
@@ -62,6 +63,8 @@ class EditPreacher extends Component
 
     public function save(): void
     {
+        $this->authorizeAdmin();
+
         $validated = $this->validate();
 
         $this->preacher->update([
@@ -76,6 +79,8 @@ class EditPreacher extends Component
 
     public function addAlias(): void
     {
+        $this->authorizeAdmin();
+
         $this->validateOnly('newAlias');
 
         $alias = strtolower(trim($this->newAlias));
@@ -95,6 +100,8 @@ class EditPreacher extends Component
 
     public function removeAlias(int $aliasId): void
     {
+        $this->authorizeAdmin();
+
         PreacherAlias::where('id', $aliasId)
             ->where('preacher_id', $this->preacher->id)
             ->delete();
@@ -104,6 +111,8 @@ class EditPreacher extends Component
 
     public function recomputeProfile(int $profileId): void
     {
+        $this->authorizeAdmin();
+
         $profile = SpeakerProfile::where('id', $profileId)
             ->where('preacher_id', $this->preacher->id)
             ->firstOrFail();
@@ -139,6 +148,8 @@ class EditPreacher extends Component
 
     public function removeProfile(int $profileId): void
     {
+        $this->authorizeAdmin();
+
         SpeakerProfile::where('id', $profileId)
             ->where('preacher_id', $this->preacher->id)
             ->update(['is_active' => false]);

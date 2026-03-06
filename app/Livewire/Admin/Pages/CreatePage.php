@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Pages;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
 use Illuminate\View\View;
@@ -11,12 +12,19 @@ use Livewire\Component;
 
 class CreatePage extends Component
 {
-    use PageForm, WithNotifications;
+    use PageForm, WithAdminAuthorization, WithNotifications;
 
     public ?Page $page = null;
 
+    public function mount(): void
+    {
+        $this->authorizeAdmin();
+    }
+
     public function save(): void
     {
+        $this->authorizeAdmin();
+
         $validated = $this->validate();
 
         $page = Page::create([
