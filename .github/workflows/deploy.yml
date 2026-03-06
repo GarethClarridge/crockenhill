@@ -295,8 +295,8 @@ jobs:
           STATUS="000"
           for i in $(seq 1 30); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/up 2>/dev/null || echo "000")
+            echo "Waiting for app server ($i/30)... HTTP $STATUS"; sleep 2
             if [ "$STATUS" = "200" ]; then echo "App server ready"; break; fi
-            echo "Waiting for app server ($i/30)..."; sleep 2
           done
           [ "$STATUS" = "200" ] || { echo "App server failed to start"; cat storage/logs/serve.log; exit 1; }
 
