@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\Features\SupportRedirects\Redirector;
 
