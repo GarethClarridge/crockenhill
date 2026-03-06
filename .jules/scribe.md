@@ -17,3 +17,7 @@
 ## 2026-02-28 - [Testing BinaryFileResponse and Naming Conventions]
 **Learning:** `BinaryFileResponse` (returned by `response()->file()`) can be verified in feature tests using `assertStatus` and `assertHeader`. When using PHPUnit `#[Test]` attributes, method names should not have the `test_` prefix to avoid redundancy and follow strict project conventions.
 **Action:** Use `#[Test]` with descriptive, non-prefixed method names like `can_serve_audio_locally`.
+
+## 2026-03-06 - [Cross-Driver Migrations & Presenter Data Fallbacks]
+**Learning:** Using raw MySQL schema queries like `information_schema` in migrations blocks SQLite-based testing environments. Additionally, view presenters like `DeepPagePresenter` can inadvertently hide CMS content if they hardcode defaults that shadow passed-in view data.
+**Action:** Patch migrations to be driver-aware and ensure view presenters use null-coalescing (`??`) or explicit checks to prioritize controller-provided data over fallback defaults.

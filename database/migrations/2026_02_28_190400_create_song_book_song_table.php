@@ -43,6 +43,10 @@ return new class extends Migration
 
     private function songsIdColumnType(): string
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return 'unsignedBigInteger';
+        }
+
         $songsIdColumn = DB::selectOne(
             'SELECT COLUMN_TYPE AS column_type
                 FROM information_schema.columns

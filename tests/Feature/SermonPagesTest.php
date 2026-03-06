@@ -9,6 +9,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonPagesTest extends TestCase
@@ -53,7 +54,8 @@ class SermonPagesTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_sermon_index_page_renders(): void
+    #[Test]
+    public function sermon_index_page_renders(): void
     {
         $response = $this->get('/christ/sermons');
         $response->assertStatus(200);
@@ -65,7 +67,8 @@ class SermonPagesTest extends TestCase
         $this->assertStringContainsString('sermons', $response->getContent());
     }
 
-    public function test_sermon_show_page_renders(): void
+    #[Test]
+    public function sermon_show_page_renders(): void
     {
         $sermon = Sermon::first();
         $url = "/christ/sermons/{$sermon->slug}";
@@ -75,7 +78,8 @@ class SermonPagesTest extends TestCase
         $response->assertSee($sermon->service->label());
     }
 
-    public function test_sermon_transcript_strips_script_tags_from_markdown(): void
+    #[Test]
+    public function sermon_transcript_strips_script_tags_from_markdown(): void
     {
         Storage::fake('local');
 
@@ -94,7 +98,8 @@ class SermonPagesTest extends TestCase
         $response->assertDontSee('<script>alert("transcript-xss")</script>', false);
     }
 
-    public function test_sermon_transcript_blocks_javascript_links_from_markdown(): void
+    #[Test]
+    public function sermon_transcript_blocks_javascript_links_from_markdown(): void
     {
         Storage::fake('local');
 
@@ -113,7 +118,8 @@ class SermonPagesTest extends TestCase
         $response->assertDontSee('javascript:alert("transcript-link")', false);
     }
 
-    public function test_sermon_page_handles_missing_transcript_file_without_crashing(): void
+    #[Test]
+    public function sermon_page_handles_missing_transcript_file_without_crashing(): void
     {
         Storage::fake('local');
 
@@ -128,7 +134,8 @@ class SermonPagesTest extends TestCase
         $response->assertDontSee('Automated transcript (may contain errors)');
     }
 
-    public function test_sermon_all_page_renders(): void
+    #[Test]
+    public function sermon_all_page_renders(): void
     {
         $response = $this->get('/christ/sermons/all');
         $response->assertStatus(200);
@@ -137,7 +144,8 @@ class SermonPagesTest extends TestCase
         $response->assertSee('Other Test Sermon');
     }
 
-    public function test_grouped_sermon_lists_render_date_heading_above_cards_grid(): void
+    #[Test]
+    public function grouped_sermon_lists_render_date_heading_above_cards_grid(): void
     {
         $response = $this->get('/christ/sermons');
 
@@ -149,7 +157,8 @@ class SermonPagesTest extends TestCase
         ], false);
     }
 
-    public function test_sermon_service_page_renders(): void
+    #[Test]
+    public function sermon_service_page_renders(): void
     {
         foreach (SermonService::cases() as $service) {
             $response = $this->get("/christ/sermons/{$service->value}");
@@ -158,7 +167,8 @@ class SermonPagesTest extends TestCase
         }
     }
 
-    public function test_sermon_preacher_page_renders(): void
+    #[Test]
+    public function sermon_preacher_page_renders(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'Test Preacher', 'slug' => 'test-preacher']);
         Sermon::factory()->create(['preacher' => 'Test Preacher', 'preacher_id' => $preacher->id]);
@@ -168,7 +178,8 @@ class SermonPagesTest extends TestCase
         $response->assertSee('Test Preacher');
     }
 
-    public function test_sermon_show_page_uses_single_preacher_url_prefix(): void
+    #[Test]
+    public function sermon_show_page_uses_single_preacher_url_prefix(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'Test Preacher', 'slug' => 'test-preacher']);
         $sermon = Sermon::factory()->create([
@@ -183,11 +194,40 @@ class SermonPagesTest extends TestCase
         $response->assertDontSee('/christ/sermons//christ/sermons/preachers/', false);
     }
 
-    public function test_sermon_series_page_renders(): void
+    #[Test]
+    public function sermon_series_page_renders(): void
     {
         $sermon = Sermon::factory()->inSeries('Test Series')->create();
         $response = $this->get('/christ/sermons/series/test-series');
         $response->assertStatus(200);
         $response->assertSee('Test Series');
+    }
+
+    #[Test]
+    public function sermon_show_with_date_route_renders(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'date' => '2024-03-15',
+            'slug' => 'dated-test-sermon',
+        ]);
+
+        $response = $this->get('/christ/sermons/2024/03/dated-test-sermon');
+        $response->assertStatus(200);
+        $response->assertSee($sermon->title);
+    }
+
+    #[Test]
+    public function sermon_show_with_date_route_returns_404_on_mismatch(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'date' => '2024-03-15',
+            'slug' => 'mismatch-dated-sermon',
+        ]);
+
+        // Wrong year
+        $this->get('/christ/sermons/2023/03/mismatch-dated-sermon')->assertStatus(404);
+
+        // Wrong month
+        $this->get('/christ/sermons/2024/04/mismatch-dated-sermon')->assertStatus(404);
     }
 }

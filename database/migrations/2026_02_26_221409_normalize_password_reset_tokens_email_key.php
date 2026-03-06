@@ -37,6 +37,10 @@ return new class extends Migration
 
     private function hasPrimaryKeyOnEmail(): bool
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return false;
+        }
+
         $primaryKeyOnEmail = DB::table('information_schema.key_column_usage')
             ->select('constraint_name')
             ->whereRaw('table_schema = database()')
