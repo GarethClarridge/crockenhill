@@ -46,6 +46,8 @@ class SermonFactory extends Factory
                 null,
                 [$this->faker->sentence(), $this->faker->sentence(), $this->faker->sentence()],
             ]),
+            'show_summary' => true,
+            'show_points' => true,
         ];
     }
 
