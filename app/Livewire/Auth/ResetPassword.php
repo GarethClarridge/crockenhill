@@ -38,6 +38,7 @@ class ResetPassword extends Component
                 PasswordRule::min(12)
                     ->letters()
                     ->numbers()
+                    ->symbols()
                     ->uncompromised(),
             ],
         ];

@@ -38,6 +38,7 @@ class Register extends Component
                 Password::min(12)
                     ->letters()
                     ->numbers()
+                    ->symbols()
                     ->uncompromised(),
             ],
         ];
