@@ -3,6 +3,10 @@
 Derived from [architectural-review.md](architectural-review.md). Each item is a single PR.
 Items are ordered by priority: low-risk deletions first, then consolidation, then refactoring.
 
+> **Sequencing note**: Some items interact with the [church service backlog](church-service-backlog.md).
+> Items marked ⏸️ should be deferred until the noted church service phase is complete.
+> Items marked 🔗 should be coordinated with the noted church service work.
+
 ---
 
 ## Priority 1: Dead Code Removal
@@ -82,12 +86,14 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 - Inline `applyGracefulDegradation()` and `cancelProcessing()` into their callers
 - Delete service
 
-### PR 12. Inline `SermonStatusManagementService`
+### PR 12. Inline `SermonStatusManagementService` ⏸️
+> Defer until after church service Phase 3. The new pipeline introduces review states and confidence-based status logic that will change the callers you'd inline into.
 - Simple DB queries + formatting
 - Move methods to model scopes or inline into controllers
 - Delete service
 
-### PR 13. Inline `SermonAudioProcessingService`
+### PR 13. Inline `SermonAudioProcessingService` ⏸️
+> Defer until after church service Phase 3. Phase 3.5 reworks the processing pipeline — inlining into `UnifiedMediaProcessor` now means Phase 3 refactors that consolidated code again.
 - Duplicates audio branch from `UnifiedMediaProcessor`
 - Consolidate into `UnifiedMediaProcessor`
 - Delete service
@@ -112,7 +118,8 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 - Remove ~40 env vars from `.env.example`
 - Target: 245 → ~50 lines
 
-### PR 17. Simplify `media-processing.php`
+### PR 17. Simplify `media-processing.php` ⏸️
+> Defer until after church service Phase 3. Phase 3.1 adds new config keys (e.g. `section_classification.transcribe_speech_segments`). Simplify after the new keys are settled.
 - Delete dead keys: `processing.timeout`, `processing.max_concurrent_jobs`, `analysis.model`
 - Move `visual_analysis.*` thresholds to service constants
 - Keep environment-varying config: storage disks, queue names, notification toggles, file size limits
@@ -138,12 +145,14 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 
 ## Priority 6: Model Refactoring
 
-### PR 20. Slim down Sermon model
+### PR 20. Slim down Sermon model 🔗
+> Do before church service Phase 4 (4.1 adds `content_type` and new scopes to this model).
 - Remove rarely-used scopes (audit usage first; keep ~6 of 14)
 - Remove instance methods that duplicate scopes (e.g. `isFromLivestream()` vs `scopeFromLivestream()`)
 - Extract storage URL accessors (`getAudioUrlAttribute`, `getThumbnailUrlAttribute`, `getVideoUrlAttribute`) to a presenter
 
-### PR 21. Clean up MediaProcessingLog model
+### PR 21. Clean up MediaProcessingLog model 🔗
+> Coordinate with church service 1.1 (adds `church_service_id` FK and relationships to this model). Do 1.1 first or combine.
 - Remove backward-compat `storedFilePath()` accessor (fix callers to use `source_file_path`)
 - Extract `scopeVisibleTo()` to middleware or policy
 
@@ -172,5 +181,5 @@ These items need further investigation or a decision before acting:
 - **Alpine.js duplication**: Livewire 3 auto-includes Alpine, but it's also in `package.json`. Check for duplicate instances.
 - **`spatie/laravel-data` replacement**: 7 DTOs use it but none use advanced features. Could replace with plain PHP classes. Low priority — only worth doing if upgrading the package becomes painful.
 - **`SermonProcessingLogger` / `ProcessingLogService` overlap**: These two services have overlapping responsibilities (logging, statistics, report generation). Merging or splitting cleanly is a larger refactor — scope it when tackling the processing pipeline.
-- **`SermonJobPipelineService` split**: 349 lines mixing dispatching, retry logic, and pipeline state. Benefits from splitting but touches many callers.
+- **`SermonJobPipelineService` split**: 349 lines mixing dispatching, retry logic, and pipeline state. Benefits from splitting but touches many callers. **→ Fold into church service Phase 3.5** — that work rewrites the pipeline chain anyway, making it the natural time to split.
 - **`SermonValidationService` split**: Mixes file validation, data validation, and state queries. Worth separating but needs careful caller analysis.

@@ -86,6 +86,12 @@ npm ci --no-progress
 echo "=== Building frontend assets ==="
 npm run build
 
+echo "=== Creating storage directories ==="
+# These are gitignored and must be created after a fresh clone
+mkdir -p storage/framework/{cache,sessions,testing,views}
+mkdir -p storage/app/public
+mkdir -p storage/logs
+
 echo "=== Setting up .env ==="
 cp .env.jules .env
 php artisan key:generate --no-interaction

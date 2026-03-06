@@ -95,6 +95,7 @@ Create a new job, for example `FetchBibleTextForSermon`, that:
 Pipeline updates:
 - Insert new job in audio/video/livestream chains in `app/Services/ProcessingPipelineBuilder.php`.
 - Keep `SendCompletionNotification` and completion paths resilient even when this enrichment job fails after retries.
+- **Cross-backlog note**: [Church service Phase 3.5](church-service-backlog.md) also reworks the pipeline chain (adding transcription, classification, and alignment steps). If that work lands first, verify the insertion point — the bible text job should still run after `ProcessTranscriptWithAI`, which remains in the pipeline.
 
 ### 6. Manual Edit Trigger
 When admin updates a sermon reference in `app/Livewire/Admin/Sermons/EditSermon.php`:
