@@ -2,13 +2,13 @@
 
 ## Goal
 
-Add reliable, repeatable Lighthouse audits for key public pages so performance, accessibility, and best-practices regressions are caught before deploy.
+Add reliable, repeatable Lighthouse audits for key public pages so performance, accessibility, and best-practices regressions are caught on deploy.
 
 ## Recommended Approach
 
 Use **Lighthouse CI (LHCI)** with:
 - Local runs for quick feedback (`vendor/bin/sail npm run lighthouse:ci`)
-- GitHub Actions runs on pull requests and `master`
+- GitHub Actions runs on push to `master` (as a job in the existing `deploy.yml`)
 - Assertion-based quality gates (fail CI on regressions)
 - Optional historical reporting in a lightweight server later
 
@@ -38,17 +38,17 @@ Keep admin/authenticated pages out of phase 1 to avoid login/session complexity.
    - In CI: `php artisan serve` with built assets (runs directly on Ubuntu runner, not Sail).
    - Locally: run against the Sail app at `http://localhost`.
 2. Finalize 5-8 URLs for stable auditing (avoid highly dynamic pages initially).
-3. Run one manual Lighthouse pass locally to record baseline metrics:
+3. Run one manual Lighthouse pass locally to set initial thresholds from the first run.
    ```bash
    vendor/bin/sail npx @lhci/cli collect --url=http://localhost/ --numberOfRuns=1
-   vendor/bin/sail npx @lhci/cli upload --target=filesystem --outputDir=./baseline
+   vendor/bin/sail npx @lhci/cli upload --target=filesystem --outputDir=./.lighthouseci
    ```
 4. Note: most phase-1 pages require seeded data to render correctly (View Composers
    query `Page::all()`, SermonController queries sermons, CalendarController queries
    events). Ensure `vendor/bin/sail artisan db:seed` has been run before collecting baselines.
 
 Deliverable:
-- Baseline score table saved in `docs/lighthouse-baseline.md`.
+- Initial thresholds set in `lighthouserc.json` based on first run scores.
 
 ## Phase 1: Install LHCI and local command
 
@@ -59,9 +59,10 @@ Deliverable:
    - optional `lighthouse:collect`: collect only
 3. Create `lighthouserc.json` in repo root with:
    - `ci.collect.url` list (phase-1 URLs)
-   - `numberOfRuns: 3` for stability
+   - `ci.collect.numberOfRuns: 3` for local stability, `1` for CI (controlled via env override)
    - `settings.preset: "desktop"` (mobile can be added in phase 5)
-   - `settings.chromeFlags: ["--no-sandbox"]` for CI compatibility
+   - `settings.chromeFlags: ["--no-sandbox", "--headless"]`
+   - `settings.maxWaitForLoad: 45000` (cold Laravel apps in CI can be slow)
 4. Add `.lighthouseci/` to `.gitignore` (LHCI generates report artifacts in this directory).
 
 Deliverable:
@@ -82,7 +83,7 @@ Add targeted audit thresholds for critical items:
 - `total-blocking-time`
 
 Guidelines:
-- Start with realistic thresholds based on baseline, then tighten.
+- Start with realistic thresholds based on first run, then tighten.
 - Prefer category + a few key audit assertions rather than too many brittle checks.
 
 Deliverable:
@@ -90,46 +91,53 @@ Deliverable:
 
 ## Phase 3: CI workflow integration
 
-**Option A (recommended):** Add a `lighthouse` job to the existing `deploy.yml` workflow,
-running after the `test` job. This avoids duplicating the PHP/Node/Composer/build setup
-that the `test` job already performs. The lighthouse job can reuse the same checkout,
-dependency cache, and build steps.
+Add a `lighthouse` job to the existing `deploy.yml` workflow. This runs on push to
+`master` only, matching the existing trigger. It avoids duplicating setup steps and
+keeps Lighthouse alongside the other quality gates. The Dusk job provides a good
+template for the "start server and wait" pattern.
 
-**Option B:** Create a standalone `.github/workflows/lighthouse.yml`. Simpler to reason
-about, but duplicates all setup steps from `deploy.yml`. Better suited if Lighthouse
-should also run on PRs (the current `deploy.yml` only triggers on push to `master`).
+Steps:
 
-Whichever option is chosen:
-
-1. Trigger on pull requests and push to `master`.
-2. Setup Node 22 and PHP 8.4 (matching existing workflow).
-3. Install PHP + Composer dependencies.
-4. Build frontend assets (`npm ci && npm run build`).
-5. Prepare `.env`, generate key, run migrations.
-6. **Seed the database** (`php artisan db:seed`) — most phase-1 pages depend on
+1. Setup Node 22 and PHP 8.4 (matching existing workflow).
+2. Install PHP + Composer dependencies.
+3. Build frontend assets (`npm install && npm run build`).
+4. Prepare `.env`, generate key, run migrations.
+5. **Seed the database** (`php artisan db:seed`) — most phase-1 pages depend on
    Page, Sermon, and Meeting records to render correctly.
-7. Set `TRANSCRIPTION_SERVICE_TYPE=mock` in `.env` to prevent the `/up` health
+6. Set `TRANSCRIPTION_SERVICE_TYPE=mock` in `.env` to prevent the `/up` health
    check from failing on missing OpenAI credentials.
-8. Start app server in background (`php artisan serve --host=127.0.0.1 --port=8000 &`).
-9. Wait for health endpoint: `until curl -sf http://127.0.0.1:8000/up; do sleep 2; done`.
-10. **Warm-up request** to prime OPcache and config: `curl -sf http://127.0.0.1:8000/ > /dev/null`.
-11. Run `npm run lighthouse:ci`.
-12. Upload LHCI artifacts (`.lighthouseci/`) as workflow artifacts.
+7. Start app server in background (`php artisan serve --host=127.0.0.1 --port=8000 &`).
+8. Wait for health endpoint (use Dusk job's pattern):
+   ```bash
+   for i in $(seq 1 30); do
+     STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/up 2>/dev/null || echo "000")
+     if [ "$STATUS" = "200" ]; then echo "App server ready"; break; fi
+     echo "Waiting for app server ($i/30)..."; sleep 2
+   done
+   [ "$STATUS" = "200" ] || { echo "App server failed to start"; exit 1; }
+   ```
+9. **Warm-up requests** to all audited URLs (prime OPcache, config, and View Composers):
+   ```bash
+   for url in / /christ /church /community /calendar /christ/sermons; do
+     curl -sf "http://127.0.0.1:8000${url}" > /dev/null
+   done
+   ```
+10. Run `npx @lhci/cli autorun --collect.numberOfRuns=1` (override to 1 run in CI for speed).
+11. Upload LHCI artifacts (`.lighthouseci/`) as workflow artifacts with `if: always()`
+    so reports are available even on failure.
 
 Note: LHCI requires Chrome/Chromium. GitHub's `ubuntu-latest` runners include Chrome,
-but the `--no-sandbox` flag is needed (configured in `lighthouserc.json`).
+but the `--no-sandbox` and `--headless` flags are needed (configured in `lighthouserc.json`).
 
 Deliverable:
-- Lighthouse status check appears in PRs.
+- Lighthouse runs as part of the deploy pipeline on every push to `master`.
 
 ## Phase 4: Regression workflow and developer UX
 
 1. Add a short section to `readme.md`:
    - How to run Lighthouse locally
    - How to update thresholds intentionally
-2. Add PR guidance:
-   - If Lighthouse fails, include reason and mitigation in PR notes.
-3. Keep thresholds in version control and review changes like code.
+2. Keep thresholds in version control and review changes like code.
 
 Deliverable:
 - Team can run and interpret audits consistently.
@@ -157,7 +165,8 @@ Deliverable:
       "numberOfRuns": 3,
       "settings": {
         "preset": "desktop",
-        "chromeFlags": ["--no-sandbox"]
+        "chromeFlags": ["--no-sandbox", "--headless"],
+        "maxWaitForLoad": 45000
       },
       "url": [
         "http://127.0.0.1:8000/",
@@ -187,15 +196,19 @@ Deliverable:
 Notes:
 - `preset: "desktop"` disables mobile throttling for stable CI results. Mobile can be added in phase 5.
 - `--no-sandbox` is required for Chrome in CI runners (GitHub Actions runs as root-like user).
+- `--headless` is explicit to avoid surprises (LHCI defaults to headless, but being explicit is safer).
+- `maxWaitForLoad: 45000` gives cold Laravel apps extra time on first load in CI.
 - `filesystem` upload keeps reports local (uploaded as workflow artifacts). Avoids `temporary-public-storage` which publishes reports to a publicly accessible Google endpoint.
 - Use `warn` for performance initially if desired, then move to `error` once stabilized.
+- In CI, override `numberOfRuns` to 1 via CLI flag for speed. Locally, the config default of 3 provides more stable results.
 
 ---
 
 ## Risks and Mitigations
 
 - CI flakiness from dynamic content or cold starts:
-  - Mitigate with `numberOfRuns: 3`, stable URLs, and warm-up request before audits.
+  - Mitigate with warm-up requests to all audited URLs, `maxWaitForLoad: 45000`, and stable URLs.
+  - Use `numberOfRuns: 1` in CI to keep runtime reasonable; increase if flakiness is observed.
 - Pages rendering empty or erroring without seed data:
   - Always run `db:seed` in CI before Lighthouse collection. The homepage, church,
     community, sermons, and calendar pages all depend on database records.
@@ -203,22 +216,20 @@ Notes:
   - Set `TRANSCRIPTION_SERVICE_TYPE=mock` in CI to disable the OpenAI health check.
   - Storage health check should pass as long as `storage/` directories exist.
 - Chrome not available or sandboxing issues in CI:
-  - GitHub `ubuntu-latest` includes Chrome. Use `--no-sandbox` chrome flag in config.
+  - GitHub `ubuntu-latest` includes Chrome. Use `--no-sandbox` and `--headless` chrome flags in config.
 - Overly strict thresholds causing noisy failures:
-  - Start from baseline + incremental hardening.
+  - Start from first-run scores + incremental hardening.
 - Slow CI runtime:
-  - Keep initial URL list small; expand gradually.
-- Workflow duplication if using a standalone lighthouse workflow:
-  - Consider adding Lighthouse as a job in the existing `deploy.yml` to share setup steps.
+  - `numberOfRuns: 1` in CI. Keep initial URL list small; expand gradually.
 
 ---
 
 ## Definition of Done
 
 1. `vendor/bin/sail npm run lighthouse:ci` is documented and works locally.
-2. Lighthouse runs automatically in GitHub Actions on PRs and `master` pushes.
+2. Lighthouse runs automatically in GitHub Actions on push to `master`.
 3. CI enforces agreed thresholds for key public routes.
-4. Results are available in workflow artifacts for debugging.
+4. Results are available in workflow artifacts for debugging (uploaded with `if: always()`).
 5. `.lighthouseci/` is in `.gitignore`.
 6. Threshold updates follow normal code review.
 
@@ -227,5 +238,5 @@ Notes:
 ## Suggested Task Breakdown (PRs)
 
 1. PR 1: Add LHCI dependency, scripts, `lighthouserc.json` with desktop preset, and `.gitignore` entry.
-2. PR 2: Add Lighthouse CI job/workflow with seeding, warm-up, and artifact upload.
+2. PR 2: Add Lighthouse CI job to `deploy.yml` with seeding, warm-up, and artifact upload.
 3. PR 3: Readme docs + tighten assertions based on first stable runs.

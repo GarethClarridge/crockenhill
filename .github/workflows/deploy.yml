@@ -218,9 +218,105 @@ jobs:
           name: dusk-screenshots
           path: tests/Browser/screenshots
 
+  lighthouse:
+    name: Lighthouse Audits
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: testing
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, redis
+          coverage: none
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - name: Prepare Laravel environment
+        run: |
+          mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+          cp .env.example .env
+          echo "VIEW_COMPILED_PATH=storage/framework/views" >> .env
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install and build frontend
+        run: npm install && npm run build
+
+      - name: Configure Laravel for Lighthouse
+        run: |
+          php artisan key:generate
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_DATABASE=testing" >> .env
+          echo "DB_USERNAME=root" >> .env
+          echo "DB_PASSWORD=" >> .env
+          echo "SESSION_DRIVER=array" >> .env
+          echo "QUEUE_CONNECTION=sync" >> .env
+          echo "TRANSCRIPTION_SERVICE_TYPE=mock" >> .env
+
+      - name: Run migrations and seed
+        run: |
+          php artisan migrate --force
+          php artisan db:seed --force
+
+      - name: Start application server
+        run: php artisan serve --host=127.0.0.1 --port=8000 --no-reload >storage/logs/serve.log 2>&1 &
+
+      - name: Wait for app server
+        run: |
+          STATUS="000"
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/up 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then echo "App server ready"; break; fi
+            echo "Waiting for app server ($i/30)..."; sleep 2
+          done
+          [ "$STATUS" = "200" ] || { echo "App server failed to start"; cat storage/logs/serve.log; exit 1; }
+
+      - name: Warm up audited URLs
+        run: |
+          for url in / /christ /church /community /calendar /christ/sermons; do
+            curl -sf "http://127.0.0.1:8000${url}" > /dev/null
+          done
+
+      - name: Run Lighthouse CI
+        run: npx lhci autorun --collect.numberOfRuns=1
+
+      - name: Upload Lighthouse report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci
+
   build:
     name: Build & Push
-    needs: [test, dusk]
+    needs: [test, dusk, lighthouse]
     runs-on: ubuntu-latest
     permissions:
       contents: read

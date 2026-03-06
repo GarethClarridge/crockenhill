@@ -37,6 +37,9 @@
 *.cache
 *.backup
 
+# Lighthouse CI report artifacts
+/.lighthouseci/
+
 # Lock files
 composer.lock
 package-lock.json
