@@ -13,11 +13,14 @@ class DeepPagePresenter implements PagePresenter
 
     public function present(Request $request, View $view): array
     {
+        $viewData = $view->getData();
         $area = $request->segment(1);
         $slug = $request->segment(2);
-        $description = '<meta name="description" content="'.(string) $slug.': '.(string) $request->segment(3).'">';
+        $description = (isset($viewData['description']) && $viewData['description'] !== '')
+            ? $viewData['description']
+            : '<meta name="description" content="'.(string) $slug.': '.(string) $request->segment(3).'">';
 
-        $providedHeading = $view->getData()['heading'] ?? null;
+        $providedHeading = $viewData['heading'] ?? null;
         if (is_string($providedHeading) && $providedHeading !== '') {
             $heading = $providedHeading;
         } else {
@@ -28,8 +31,8 @@ class DeepPagePresenter implements PagePresenter
         return [
             'description' => $description,
             'heading' => $heading,
-            'content' => '',
-            'headingpicture' => '/images/headings/large/'.(string) $slug.'.webp',
+            'content' => $viewData['content'] ?? '',
+            'headingpicture' => $viewData['headingpicture'] ?? '/images/headings/large/'.(string) $slug.'.webp',
             'area' => $area,
             'slug' => $slug,
             'links' => $this->resolveLinks($request, $slug, $area),
