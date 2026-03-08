@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ChurchServiceItemSource;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $church_service_id
  * @property int $position
  * @property string $type
+ * @property ChurchServiceItemSource|null $source
  * @property string $title
  * @property string|null $source_title
  * @property string|null $openlp_search_title
@@ -49,6 +51,7 @@ class ChurchServiceItem extends Model
         'church_service_id',
         'position',
         'type',
+        'source',
         'title',
         'source_title',
         'openlp_search_title',
@@ -63,6 +66,7 @@ class ChurchServiceItem extends Model
     {
         return [
             'position' => 'integer',
+            'source' => ChurchServiceItemSource::class,
             'song_id' => 'integer',
             'metadata' => 'array',
         ];

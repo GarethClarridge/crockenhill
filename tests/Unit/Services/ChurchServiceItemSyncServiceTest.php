@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\Song;
 use App\Services\ChurchServiceItemSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -34,12 +36,16 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song One', 'Song One', 'song one@'),
             $this->incomingItem(2, 'bibles', 'Luke 15:1-32', 'Luke 15 full title', null),
-        ]);
+        ], ChurchServiceItemSource::OPENLP);
 
         $this->assertDatabaseCount('church_service_items', 2);
 
         $churchService->refresh()->load('items');
         $this->assertCount(2, $churchService->items);
+        $this->assertSame(
+            [ChurchServiceItemSource::OPENLP, ChurchServiceItemSource::OPENLP],
+            $churchService->items->pluck('source')->all()
+        );
     }
 
     #[Test]
@@ -68,7 +74,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song B (Updated)', 'Song B', 'song b@'),
             $this->incomingItem(2, 'songs', 'Song A (Updated)', 'Song A', 'song a@'),
-        ]);
+        ], ChurchServiceItemSource::OPENLP);
 
         $itemA->refresh();
         $itemB->refresh();
@@ -88,6 +94,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
+            'source' => ChurchServiceItemSource::MANUAL->value,
             'title' => 'Reading',
             'source_title' => null,
             'openlp_search_title' => null,
@@ -95,7 +102,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Prayer', null, null),
-        ]);
+        ], ChurchServiceItemSource::MANUAL);
 
         $existing->refresh();
 
@@ -128,7 +135,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song One', 'Song One', 'song one@'),
-        ]);
+        ], ChurchServiceItemSource::OPENLP);
 
         $this->assertNull($kept->fresh()?->deleted_at);
         $this->assertSoftDeleted('church_service_items', ['id' => $stale->id]);
@@ -145,6 +152,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
+            'source' => ChurchServiceItemSource::MANUAL->value,
             'title' => 'Reading',
             'source_title' => 'Reading',
             'openlp_search_title' => null,
@@ -154,6 +162,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 2,
             'type' => 'custom',
+            'source' => ChurchServiceItemSource::MANUAL->value,
             'title' => 'Prayer',
             'source_title' => 'Prayer',
             'openlp_search_title' => null,
@@ -162,7 +171,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Prayer', 'Prayer', null),
             $this->incomingItem(2, 'custom', 'Reading', 'Reading', null),
-        ]);
+        ], ChurchServiceItemSource::MANUAL);
 
         $this->assertSame(2, $first->fresh()?->position);
         $this->assertSame(1, $second->fresh()?->position);
@@ -183,7 +192,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
                     // missing type should throw after first write attempt
                     'title' => 'Invalid Item',
                 ],
-            ]);
+            ], ChurchServiceItemSource::OPENLP);
         } finally {
             $this->assertDatabaseCount('church_service_items', 0);
         }
@@ -206,7 +215,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song One (Restored)', 'Song One', 'song one@'),
-        ]);
+        ], ChurchServiceItemSource::OPENLP);
 
         $refreshed = ChurchServiceItem::withTrashed()->findOrFail($trashedItem->id);
 
@@ -223,6 +232,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'bibles',
+            'source' => ChurchServiceItemSource::MANUAL->value,
             'title' => 'Luke 15:1-32',
             'source_title' => 'Luke 15:1-32 (NIV)',
             'openlp_search_title' => null,
@@ -230,7 +240,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->service->sync($churchService, [
             $this->incomingItem(2, 'bibles', 'Luke 15:1-32 (Updated)', 'Luke 15:1-32 (NIV)', null),
-        ]);
+        ], ChurchServiceItemSource::MANUAL);
 
         $existing->refresh();
 
@@ -269,7 +279,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song B (Moved)', 'Song B', 'song b@'),
             $this->incomingItem(2, 'songs', 'Song A (Moved)', 'Song A', 'song a@'),
-        ]);
+        ], ChurchServiceItemSource::OPENLP);
 
         $itemAtPos1->refresh();
         $itemAtPos2->refresh();
@@ -289,6 +299,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
+            'source' => ChurchServiceItemSource::MANUAL->value,
             'title' => 'Reading',
             'source_title' => 'Reading',
             'openlp_search_title' => null,
@@ -299,7 +310,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'custom', 'Reading (First)', 'Reading', null),
             $this->incomingItem(2, 'custom', 'Reading (Second)', 'Reading', null),
-        ]);
+        ], ChurchServiceItemSource::MANUAL);
 
         $existing->refresh();
 
@@ -331,7 +342,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'title' => 'Luke 15:1-32',
         ]);
 
-        $this->service->sync($churchService, []);
+        $this->service->sync($churchService, [], ChurchServiceItemSource::OPENLP);
 
         $this->assertSoftDeleted('church_service_items', ['id' => $itemA->id]);
         $this->assertSoftDeleted('church_service_items', ['id' => $itemB->id]);
@@ -347,18 +358,131 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->service->sync($churchService, [
             $this->incomingItem(1, 'songs', 'Song One', 'Song One', 'song one@'),
             $this->incomingItem(1, 'bibles', 'Luke 15:1-32', 'Luke 15 full title', null),
+        ], ChurchServiceItemSource::OPENLP);
+    }
+
+    #[Test]
+    public function test_openlp_enriches_email_song_items_without_removing_email_speech_items(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'source' => 'email',
         ]);
+
+        $song = Song::factory()->create();
+
+        $prayer = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => ChurchServiceItemSource::EMAIL->value,
+            'title' => 'Opening Prayer',
+            'source_title' => 'Opening Prayer',
+            'metadata' => ['speaker' => 'Leader'],
+        ]);
+
+        $emailSong = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::EMAIL->value,
+            'title' => 'Amazing Grace',
+            'source_title' => 'Amazing Grace',
+            'openlp_search_title' => null,
+            'song_id' => null,
+            'metadata' => ['email_note' => 'from_email'],
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(
+                1,
+                'songs',
+                'Amazing Grace',
+                'Amazing Grace',
+                'amazing grace@',
+                ['authors' => 'John Newton'],
+                $song->id,
+            ),
+        ], ChurchServiceItemSource::OPENLP);
+
+        $prayer->refresh();
+        $emailSong->refresh();
+
+        $this->assertNull($prayer->deleted_at);
+        $this->assertSame(ChurchServiceItemSource::EMAIL, $prayer->source);
+        $this->assertSame(1, $prayer->position);
+
+        $this->assertSame(ChurchServiceItemSource::OPENLP, $emailSong->source);
+        $this->assertSame(2, $emailSong->position);
+        $this->assertSame('amazing grace@', $emailSong->openlp_search_title);
+        $this->assertSame($song->id, $emailSong->song_id);
+        $this->assertSame('from_email', $emailSong->metadata['email_note']);
+        $this->assertSame('John Newton', $emailSong->metadata['authors']);
+        $this->assertDatabaseCount('church_service_items', 2);
+    }
+
+    #[Test]
+    public function test_email_adds_speech_items_without_removing_openlp_song_metadata(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'source' => 'openlp',
+        ]);
+
+        $song = Song::factory()->create();
+
+        $openLpSong = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::OPENLP->value,
+            'title' => 'Amazing Grace',
+            'source_title' => 'Amazing Grace',
+            'openlp_search_title' => 'amazing grace@',
+            'song_id' => $song->id,
+            'metadata' => ['authors' => 'John Newton'],
+        ]);
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(
+                1,
+                'custom',
+                'Opening Prayer',
+                'Opening Prayer',
+                null,
+                ['speaker' => 'Leader'],
+            ),
+        ], ChurchServiceItemSource::EMAIL);
+
+        $openLpSong->refresh();
+
+        $this->assertNull($openLpSong->deleted_at);
+        $this->assertSame(ChurchServiceItemSource::OPENLP, $openLpSong->source);
+        $this->assertSame('amazing grace@', $openLpSong->openlp_search_title);
+        $this->assertSame($song->id, $openLpSong->song_id);
+        $this->assertSame('John Newton', $openLpSong->metadata['authors']);
+
+        $prayer = ChurchServiceItem::query()
+            ->where('church_service_id', $churchService->id)
+            ->where('type', 'custom')
+            ->firstOrFail();
+
+        $this->assertSame(ChurchServiceItemSource::EMAIL, $prayer->source);
+        $this->assertSame('Opening Prayer', $prayer->title);
+        $this->assertSame(['speaker' => 'Leader'], $prayer->metadata);
+        $this->assertCount(2, $churchService->items()->get());
     }
 
     /**
-     * @return array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}
+     * @param  array<string, mixed>|null  $metadata
+     * @return array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}
      */
     private function incomingItem(
         int $position,
         string $type,
         string $title,
         ?string $sourceTitle,
-        ?string $openLpSearchTitle
+        ?string $openLpSearchTitle,
+        ?array $metadata = null,
+        ?int $songId = null,
     ): array {
         return [
             'position' => $position,
@@ -366,7 +490,8 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'title' => $title,
             'source_title' => $sourceTitle,
             'openlp_search_title' => $openLpSearchTitle,
-            'metadata' => null,
+            'song_id' => $songId,
+            'metadata' => $metadata,
         ];
     }
 }

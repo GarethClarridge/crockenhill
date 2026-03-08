@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -24,6 +25,7 @@ class ChurchServiceItemFactory extends Factory
             'church_service_id' => ChurchService::factory(),
             'position' => $this->faker->numberBetween(1, 12),
             'type' => $this->faker->randomElement(['songs', 'bibles', 'presentations', 'custom']),
+            'source' => ChurchServiceItemSource::OPENLP->value,
             'title' => $this->faker->sentence(3),
             'source_title' => $this->faker->optional()->sentence(4),
             'openlp_search_title' => $this->faker->optional()->slug(),

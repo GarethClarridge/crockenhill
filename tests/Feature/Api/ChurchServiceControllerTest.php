@@ -164,7 +164,7 @@ class ChurchServiceControllerTest extends TestCase
     }
 
     #[Test]
-    public function test_upload_triggers_reconciliation_again_after_items_are_synced(): void
+    public function test_upload_dispatches_reconciliation_for_matching_completed_processing(): void
     {
         Queue::fake();
 
@@ -179,7 +179,7 @@ class ChurchServiceControllerTest extends TestCase
             ->postJson('/api/services/openlp', ['file' => $upload])
             ->assertCreated();
 
-        Queue::assertPushed(ReconcileServiceSections::class, 2);
+        Queue::assertPushed(ReconcileServiceSections::class, 1);
     }
 
     #[Test]
