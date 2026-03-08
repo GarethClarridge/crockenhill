@@ -3,10 +3,8 @@
 namespace App\Providers;
 
 use App\Models\Meeting;
-use App\Models\Page;
 use App\Models\Sermon;
 use App\Policies\MeetingPolicy;
-use App\Policies\PagePolicy;
 use App\Policies\SermonPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
@@ -21,7 +19,6 @@ class AuthServiceProvider extends ServiceProvider
     protected $policies = [
         Meeting::class => MeetingPolicy::class,
         Sermon::class => SermonPolicy::class,
-        Page::class => PagePolicy::class,
     ];
 
     /**

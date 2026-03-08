@@ -36,7 +36,7 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 - ~~Remove `CalendarController::meetingsIndex()` method~~ — removed
 
 ### PR 4. Delete unused authorization code ⏸️
-> Blocked — none of this is actually dead yet. Prerequisites before this PR can proceed:
+> Partially complete — dead pieces removed (`PagePolicy`, `StoreMeetingRequest`). Remaining work is still blocked on live callers:
 >
 > **Gates** (`manage-sermons`, `manage-meetings`, `manage-pages`) are used in three `@can` blocks in views:
 > - `resources/views/sermons/index.blade.php` — `@can('manage-sermons')` guards the upload button
@@ -48,18 +48,13 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 > - `MeetingController::index()` — `authorize('viewAny', Meeting::class)`
 > - `MeetingController::destroy()` — `authorize('delete', $meeting)`
 > - `UpdateMeetingRequest::authorize()` — `can('update', $meeting)`
-> - `StoreMeetingRequest::authorize()` — `can('create', Meeting::class)`
 >
-> The policy can only be deleted once `MeetingController::index()`, `update()`, and `destroy()` are removed (see parking lot note on dead resource routes) and `StoreMeetingRequest` is deleted alongside `store()`.
->
-> **`PagePolicy`** has no direct `authorize()` callers in production code — Livewire components use `authorizeAdmin()` instead — but it is registered and tested. Safe to delete once the registration is removed and policy tests are deleted.
+> The policy can only be deleted once `MeetingController::index()`, `update()`, and `destroy()` are removed (see parking lot note on dead resource routes).
 
 - Delete `MeetingPolicy` (after removing remaining dead `MeetingController` methods)
-- Delete `PagePolicy` (no live callers; just needs deregistering)
 - Remove 3 gates from `AuthServiceProvider` (`manage-sermons`, `manage-meetings`, `manage-pages`) (after replacing `@can` in views)
 - Remove policy registrations from `AuthServiceProvider`
-- Delete `StoreMeetingRequest` (only used by the now-deleted `store()` method — missed in PR 3)
-- Delete `AuthorizationGatesTest`, `MeetingPolicyTest`, `PagePolicyTest`
+- Delete `AuthorizationGatesTest`, `MeetingPolicyTest`
 
 ### PR 5. Remove unused dependencies ✅
 - ~~npm: remove `lodash`, `ajv`, `cross-env`~~ — removed

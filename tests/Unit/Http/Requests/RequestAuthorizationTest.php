@@ -3,7 +3,6 @@
 namespace Tests\Unit\Http\Requests;
 
 use App\Http\Requests\ProcessMediaRequest;
-use App\Http\Requests\StoreMeetingRequest;
 use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Meeting;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,15 +14,6 @@ class RequestAuthorizationTest extends TestCase
     public function process_media_request_denies_guests(): void
     {
         $request = \Mockery::mock(ProcessMediaRequest::class)->makePartial();
-        $request->shouldReceive('user')->andReturn(null);
-
-        $this->assertFalse($request->authorize());
-    }
-
-    #[Test]
-    public function store_meeting_request_denies_guests(): void
-    {
-        $request = \Mockery::mock(StoreMeetingRequest::class)->makePartial();
         $request->shouldReceive('user')->andReturn(null);
 
         $this->assertFalse($request->authorize());
