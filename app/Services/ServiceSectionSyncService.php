@@ -16,7 +16,7 @@ class ServiceSectionSyncService
 {
     /**
      * @param  array<int, array{
-     *     church_service_item_id: int,
+     *     church_service_item_id: int|null,
      *     section_type: string,
      *     section_order: int,
      *     title: ?string,
@@ -112,7 +112,7 @@ class ServiceSectionSyncService
 
     /**
      * @param  array{
-     *     church_service_item_id: int,
+     *     church_service_item_id: int|null,
      *     section_type: string,
      *     title: ?string,
      *     start_time: float,
@@ -127,7 +127,7 @@ class ServiceSectionSyncService
 
     /**
      * @param  array{
-     *     church_service_item_id: int,
+     *     church_service_item_id: int|null,
      *     section_type: string,
      *     title: ?string,
      *     start_time: float,
@@ -212,7 +212,7 @@ class ServiceSectionSyncService
 
     /**
      * @param  array{
-     *     church_service_item_id: int,
+     *     church_service_item_id: int|null,
      *     section_type: string,
      *     title: ?string,
      *     start_time: float,
@@ -220,7 +220,7 @@ class ServiceSectionSyncService
      *     metadata: array<string, mixed>
      * }  $payload
      * @return array{
-     *     church_service_item_id: int,
+     *     church_service_item_id: int|null,
      *     section_type: string,
      *     title: ?string,
      *     start_time: float,

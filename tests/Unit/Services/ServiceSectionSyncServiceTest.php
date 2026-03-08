@@ -255,9 +255,35 @@ class ServiceSectionSyncServiceTest extends TestCase
         Storage::disk('public')->assertMissing('sermons/audio/section-'.$itemTwo->id.'.mp3');
     }
 
+    #[Test]
+    public function it_allows_sections_without_a_church_service_item_reference(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: null,
+                sectionOrder: 1,
+                sectionType: ServiceSectionType::SERMON->value,
+                startTime: 300.0,
+                endTime: 1800.0,
+                duration: 1500.0,
+                needsManualReview: false,
+                classificationMode: 'audio_only'
+            ),
+        ]);
+
+        $this->assertDatabaseHas('service_sections', [
+            'media_processing_log_id' => $processingLog->id,
+            'section_order' => 1,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SERMON->value,
+        ]);
+    }
+
     /**
      * @return array{
-     *     church_service_item_id: int,
+     *     church_service_item_id: int|null,
      *     section_type: string,
      *     section_order: int,
      *     title: ?string,
@@ -271,14 +297,15 @@ class ServiceSectionSyncServiceTest extends TestCase
      * }
      */
     private function sectionData(
-        int $churchServiceItemId,
+        ?int $churchServiceItemId,
         int $sectionOrder,
         string $sectionType,
         ?string $title = null,
         float $startTime = 60.0,
         float $endTime = 180.0,
         float $duration = 120.0,
-        bool $needsManualReview = false
+        bool $needsManualReview = false,
+        string $classificationMode = 'openlp_aligned'
     ): array {
         return [
             'church_service_item_id' => $churchServiceItemId,
@@ -293,7 +320,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             'source_segment_ids' => [1],
             'metadata' => [
                 'confidence_level' => 'high',
-                'classification_mode' => 'openlp_aligned',
+                'classification_mode' => $classificationMode,
             ],
         ];
     }

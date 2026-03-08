@@ -27,7 +27,7 @@ class ServiceSectionClassifier
      *     skipped: bool,
      *     skip_reason: ?string,
      *     sections: array<int, array{
-     *         church_service_item_id: int,
+     *         church_service_item_id: int|null,
      *         section_type: string,
      *         section_order: int,
      *         title: ?string,
@@ -37,44 +37,29 @@ class ServiceSectionClassifier
      *         status: string,
      *         needs_manual_review: bool,
      *         source_segment_ids: array<int, int>,
-     *         metadata: array{
-     *             confidence_level: 'high'|'low'|'none',
-     *             classification_mode: 'openlp_aligned',
-     *             expected_segment_class: string,
-     *             matched_segment_class?: string,
-     *             review_reason?: string,
-     *             anomalies?: array<int, string>
-     *         }
+     *         metadata: array<string, mixed>
      *     }>
      * }
      */
     public function classify(MediaProcessingLog $processingLog): array
     {
         $churchService = $this->resolveChurchService($processingLog);
-        $requireMatchingService = (bool) config('media-processing.section_classification.require_matching_church_service', true);
-
-        if (! $churchService instanceof ChurchService) {
-            if (! $requireMatchingService) {
-                return [
-                    'skipped' => false,
-                    'skip_reason' => null,
-                    'sections' => [],
-                ];
-            }
-
-            return [
-                'skipped' => true,
-                'skip_reason' => 'no_matching_church_service',
-                'sections' => [],
-            ];
-        }
 
         /** @var Collection<int, LivestreamSegment> $segments */
         $segments = LivestreamSegment::query()
             ->where('media_processing_log_id', $processingLog->id)
             ->orderBy('segment_order')
             ->orderBy('start_time')
+            ->orderBy('id')
             ->get();
+
+        if (! $churchService instanceof ChurchService) {
+            return [
+                'skipped' => false,
+                'skip_reason' => null,
+                'sections' => $this->classifyFromAudioOnlySegments($segments),
+            ];
+        }
 
         /** @var Collection<int, ChurchServiceItem> $serviceItems */
         $serviceItems = $churchService->items()
@@ -82,6 +67,32 @@ class ServiceSectionClassifier
             ->orderBy('id')
             ->get();
 
+        return [
+            'skipped' => false,
+            'skip_reason' => null,
+            'sections' => $this->classifyAgainstChurchService($segments, $serviceItems),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, LivestreamSegment>  $segments
+     * @param  Collection<int, ChurchServiceItem>  $serviceItems
+     * @return array<int, array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }>
+     */
+    private function classifyAgainstChurchService(Collection $segments, Collection $serviceItems): array
+    {
         $usedSegmentIds = [];
         $segmentPointer = 0;
         $sections = [];
@@ -186,11 +197,7 @@ class ServiceSectionClassifier
             }
         }
 
-        return [
-            'skipped' => false,
-            'skip_reason' => null,
-            'sections' => $sections,
-        ];
+        return $sections;
     }
 
     private function resolveChurchService(MediaProcessingLog $processingLog): ?ChurchService
@@ -226,6 +233,163 @@ class ServiceSectionClassifier
     private function expectedSegmentClassForItemType(string $itemType): string
     {
         return strtolower($itemType) === 'songs' ? 'song' : 'speech';
+    }
+
+    /**
+     * @param  Collection<int, LivestreamSegment>  $segments
+     * @return array<int, array{
+     *     church_service_item_id: int|null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: ?string,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }>
+     */
+    private function classifyFromAudioOnlySegments(Collection $segments): array
+    {
+        /** @var Collection<int, LivestreamSegment> $audibleSegments */
+        $audibleSegments = $segments
+            ->filter(fn (LivestreamSegment $segment): bool => in_array($segment->classification, ['song', 'speech'], true))
+            ->values();
+
+        /** @var Collection<int, LivestreamSegment> $speechSegments */
+        $speechSegments = $audibleSegments
+            ->filter(fn (LivestreamSegment $segment): bool => $segment->classification === 'speech')
+            ->values();
+
+        $sermonSegment = $this->resolveAudioOnlySermonSegment($speechSegments);
+        $sermonSegmentId = $sermonSegment?->id;
+        $sections = [];
+
+        foreach ($audibleSegments as $index => $segment) {
+            $sectionOrder = $index + 1;
+
+            if ($segment->classification === 'song') {
+                $sections[] = $this->makeAudioOnlySection(
+                    $segment,
+                    $sectionOrder,
+                    ServiceSectionType::SONG,
+                    'low',
+                    true,
+                    'audio_only_song_segment'
+                );
+
+                continue;
+            }
+
+            if ($sermonSegmentId !== null && $segment->id === $sermonSegmentId) {
+                $sections[] = $this->makeAudioOnlySection(
+                    $segment,
+                    $sectionOrder,
+                    ServiceSectionType::SERMON,
+                    'high',
+                    false,
+                    null,
+                    ['sermon_detection_strategy' => 'single_dominant_speech_block']
+                );
+
+                continue;
+            }
+
+            $sections[] = $this->makeAudioOnlySection(
+                $segment,
+                $sectionOrder,
+                ServiceSectionType::OTHER,
+                'low',
+                true,
+                $sermonSegmentId === null ? 'no_high_confidence_sermon_candidate' : 'audio_only_speech_segment'
+            );
+        }
+
+        return $sections;
+    }
+
+    /**
+     * @param  Collection<int, LivestreamSegment>  $speechSegments
+     */
+    private function resolveAudioOnlySermonSegment(Collection $speechSegments): ?LivestreamSegment
+    {
+        /** @var Collection<int, LivestreamSegment> $qualifyingSpeechSegments */
+        $qualifyingSpeechSegments = $speechSegments
+            ->filter(fn (LivestreamSegment $segment): bool => $segment->duration >= 1200.0)
+            ->values();
+
+        if ($qualifyingSpeechSegments->count() !== 1) {
+            return null;
+        }
+
+        $candidate = $qualifyingSpeechSegments->first();
+
+        if (! $candidate instanceof LivestreamSegment) {
+            return null;
+        }
+
+        $nextLongestDuration = (float) $speechSegments
+            ->reject(fn (LivestreamSegment $segment): bool => $segment->id === $candidate->id)
+            ->max('duration');
+
+        if ($nextLongestDuration > 0.0 && $candidate->duration < ($nextLongestDuration * 1.5)) {
+            return null;
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * @param  'high'|'low'|'none'  $confidenceLevel
+     * @param  array<string, mixed>  $extraMetadata
+     * @return array{
+     *     church_service_item_id: null,
+     *     section_type: string,
+     *     section_order: int,
+     *     title: null,
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     status: string,
+     *     needs_manual_review: bool,
+     *     source_segment_ids: array<int, int>,
+     *     metadata: array<string, mixed>
+     * }
+     */
+    private function makeAudioOnlySection(
+        LivestreamSegment $segment,
+        int $sectionOrder,
+        ServiceSectionType $sectionType,
+        string $confidenceLevel,
+        bool $needsManualReview,
+        ?string $reviewReason,
+        array $extraMetadata = []
+    ): array {
+        $metadata = array_merge([
+            'confidence_level' => $confidenceLevel,
+            'classification_mode' => 'audio_only',
+            'detected_segment_class' => $segment->classification,
+        ], $extraMetadata);
+
+        if ($reviewReason !== null) {
+            $metadata['review_reason'] = $reviewReason;
+        }
+
+        return [
+            'church_service_item_id' => null,
+            'section_type' => $sectionType->value,
+            'section_order' => $sectionOrder,
+            'title' => null,
+            'start_time' => (float) $segment->start_time,
+            'end_time' => (float) $segment->end_time,
+            'duration' => (float) $segment->duration,
+            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'needs_manual_review' => $needsManualReview,
+            'source_segment_ids' => [$segment->id],
+            'metadata' => $metadata,
+        ];
     }
 
     private function sectionTypeFromItem(ChurchServiceItem $item): ServiceSectionType

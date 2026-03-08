@@ -80,7 +80,7 @@ class ClassifyServiceSectionsTest extends TestCase
     }
 
     #[Test]
-    public function it_records_skipped_step_when_no_matching_church_service(): void
+    public function it_completes_classification_with_audio_only_sections_when_no_matching_church_service(): void
     {
         config(['media-processing.section_classification.enabled' => true]);
 
@@ -101,8 +101,14 @@ class ClassifyServiceSectionsTest extends TestCase
         $processingLog->refresh();
 
         $this->assertSame('processing', $processingLog->status->value);
-        $this->assertSame('section_classification_skipped', $processingLog->current_step);
-        $this->assertDatabaseCount('service_sections', 0);
+        $this->assertSame('section_classification_complete', $processingLog->current_step);
+        $this->assertDatabaseCount('service_sections', 1);
+        $this->assertDatabaseHas('service_sections', [
+            'media_processing_log_id' => $processingLog->id,
+            'section_order' => 1,
+            'section_type' => 'song',
+            'church_service_item_id' => null,
+        ]);
     }
 
     #[Test]
