@@ -90,6 +90,7 @@ class UploadChurchService extends Component
 
             $itemSyncService->sync($churchService, $parsed->items);
             $songLinker->linkForService($churchService);
+            $churchService->touchForSectionReconciliation();
 
             $this->file = null;
             $this->success('Service imported successfully', redirectTo: route('admin.services.show', $churchService));

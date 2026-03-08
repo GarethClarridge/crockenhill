@@ -51,6 +51,7 @@ class ChurchServiceController extends Controller
 
         $this->itemSyncService->sync($churchService, $parsed->items);
         $this->songLinker->linkForService($churchService);
+        $churchService->touchForSectionReconciliation();
 
         $churchService->refresh()->load([
             'items' => fn ($query) => $query->orderBy('position')->orderBy('id'),

@@ -6,12 +6,15 @@ namespace Tests\Feature\Api;
 
 use App\Enums\ApiTokenAbility;
 use App\Enums\SermonService;
+use App\Jobs\ReconcileServiceSections;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
 use App\Models\Song;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
@@ -158,6 +161,25 @@ class ChurchServiceControllerTest extends TestCase
 
         $preservedItem = ChurchServiceItem::findOrFail($itemId);
         $this->assertSame('Song One Updated', $preservedItem->title);
+    }
+
+    #[Test]
+    public function test_upload_triggers_reconciliation_again_after_items_are_synced(): void
+    {
+        Queue::fake();
+
+        MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2024-11-17',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $upload = $this->validOpenLpUpload();
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->postJson('/api/services/openlp', ['file' => $upload])
+            ->assertCreated();
+
+        Queue::assertPushed(ReconcileServiceSections::class, 2);
     }
 
     #[Test]
