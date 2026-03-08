@@ -3,6 +3,7 @@
 namespace Tests\Unit\Jobs;
 
 use App\Jobs\ExtractSermon;
+use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\StorageAdapterHelper;
@@ -10,6 +11,7 @@ use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -41,7 +43,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('info')->once()->with('ExtractSermon job skipped: processing cancelled', \Mockery::any());
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+        $this->runJob($job, $mockExtractor, $mockStorage);
     }
 
     #[Test]
@@ -63,7 +65,7 @@ class ExtractSermonTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Sermon segment times not found');
 
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+        $this->runJob($job, $mockExtractor, $mockStorage);
     }
 
     #[Test]
@@ -117,7 +119,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+        $this->runJob($job, $mockExtractor, $mockStorage);
 
         $log->refresh();
         $this->assertEquals('extraction_complete', $log->current_step);
@@ -204,7 +206,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+        $this->runJob($job, $mockExtractor, $mockStorage);
 
         $log->refresh();
         $this->assertSame('extraction_complete', $log->current_step);
@@ -287,7 +289,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+        $this->runJob($job, $mockExtractor, $mockStorage);
 
         $log->refresh();
         $this->assertSame('extraction_complete', $log->current_step);
@@ -369,7 +371,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+        $this->runJob($job, $mockExtractor, $mockStorage);
 
         $log->refresh();
         $this->assertSame('extraction_complete', $log->current_step);
@@ -476,7 +478,7 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+        $this->runJob($job, $mockExtractor, $mockStorage);
 
         $log->refresh();
         $this->assertSame('extraction_complete', $log->current_step);
@@ -485,6 +487,228 @@ class ExtractSermonTest extends TestCase
         @unlink($videoFile);
         @unlink($extractedAudioFile);
         @unlink($concatVideo);
+    }
+
+    #[Test]
+    public function it_uses_clear_dominant_speech_segment_when_extracting_from_processing_log(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        $tempDir = storage_path('app/livestreams');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        $videoFile = $tempDir.'/dominant-speech.mp4';
+        file_put_contents($videoFile, str_repeat("\x00", 1024));
+
+        $extractedDir = storage_path('app/extracted');
+        if (! is_dir($extractedDir)) {
+            mkdir($extractedDir, 0755, true);
+        }
+        $extractedAudioFile = $extractedDir.'/dominant-speech.mp3';
+        file_put_contents($extractedAudioFile, str_repeat("\xFF\xFB", 512));
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 999.0,
+            'source_file_path' => 'livestreams/dominant-speech.mp4',
+        ]);
+
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 1,
+            'start_time' => 300.0,
+            'end_time' => 1800.0,
+            'duration' => 1500.0,
+        ]);
+
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 2,
+            'start_time' => 1850.0,
+            'end_time' => 2600.0,
+            'duration' => 750.0,
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->with(
+                $this->anything(),
+                $this->callback(function ($segment): bool {
+                    return $segment instanceof \App\Data\LivestreamSegment
+                        && $segment->startTime === 300.0
+                        && $segment->endTime === 1800.0;
+                }),
+                $this->anything()
+            )
+            ->willReturn('extracted/dominant-speech-video.mp4');
+
+        $mockExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->willReturn([
+                'audio_path' => 'extracted/dominant-speech.mp3',
+                'full_path' => $extractedAudioFile,
+                'original_size' => 10485760,
+                'final_size' => 5242880,
+                'compression_applied' => true,
+                'compression_ratio' => 0.5,
+                'valid_for_transcription' => true,
+            ]);
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+
+        Mail::fake();
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        $job = new ExtractSermon($log);
+        $this->runJob($job, $mockExtractor, $mockStorage);
+
+        $log->refresh();
+        $this->assertSame('extraction_complete', $log->current_step);
+        Mail::assertNothingQueued();
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
+    #[Test]
+    public function it_marks_for_manual_review_and_stops_when_multiple_long_speech_blocks_are_similar(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/review-multiple.mp4',
+        ]);
+
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 1500.0,
+            'duration' => 1500.0,
+        ]);
+
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 2,
+            'start_time' => 1600.0,
+            'end_time' => 2900.0,
+            'duration' => 1300.0,
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+
+        Mail::fake();
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->atLeast()->once();
+
+        $job = new ExtractSermon($log);
+        $this->runJob($job, $mockExtractor, $mockStorage);
+
+        $log->refresh();
+        $this->assertSame('failed', $log->status->value);
+        $this->assertSame('manual_review_required', $log->current_step);
+        $this->assertStringContainsString('Multiple speech blocks met the 20-minute sermon threshold.', $log->error_message ?? '');
+        Mail::assertQueued(\App\Mail\ManualReviewRequired::class);
+    }
+
+    #[Test]
+    public function it_marks_for_manual_review_when_no_speech_block_meets_twenty_minutes(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/review-none.mp4',
+        ]);
+
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 600.0,
+            'duration' => 600.0,
+        ]);
+
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 2,
+            'start_time' => 650.0,
+            'end_time' => 1250.0,
+            'duration' => 600.0,
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+
+        Mail::fake();
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->atLeast()->once();
+
+        $job = new ExtractSermon($log);
+        $this->runJob($job, $mockExtractor, $mockStorage);
+
+        $log->refresh();
+        $this->assertSame('failed', $log->status->value);
+        $this->assertSame('manual_review_required', $log->current_step);
+        $this->assertStringContainsString('No speech block met the 20-minute sermon threshold.', $log->error_message ?? '');
+        Mail::assertQueued(\App\Mail\ManualReviewRequired::class);
+    }
+
+    #[Test]
+    public function it_marks_for_manual_review_when_ratio_threshold_is_not_met(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/review-ratio.mp4',
+        ]);
+
+        // 22 minutes - only one exceeds 20 min threshold
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 1320.0,
+            'duration' => 1320.0,
+        ]);
+
+        // 15 minutes - 1320 < 900 * 1.5 = 1350, so ratio fails
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 2,
+            'start_time' => 1400.0,
+            'end_time' => 2300.0,
+            'duration' => 900.0,
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+
+        Mail::fake();
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->atLeast()->once();
+
+        $job = new ExtractSermon($log);
+        $this->runJob($job, $mockExtractor, $mockStorage);
+
+        $log->refresh();
+        $this->assertSame('failed', $log->status->value);
+        $this->assertSame('manual_review_required', $log->current_step);
+        $this->assertStringContainsString('not at least 1.5x longer', $log->error_message ?? '');
+        Mail::assertQueued(\App\Mail\ManualReviewRequired::class);
     }
 
     #[Test]
@@ -519,7 +743,7 @@ class ExtractSermonTest extends TestCase
         $job = new ExtractSermon($log);
 
         try {
-            $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+            $this->runJob($job, $mockExtractor, $mockStorage);
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
             $this->assertEquals('FFmpeg segfault', $e->getMessage());
@@ -576,7 +800,7 @@ class ExtractSermonTest extends TestCase
         $job = new ExtractSermon($log);
 
         try {
-            $job->handle($mockExtractor, $mockStorage, app(StorageAdapterHelper::class), app(\App\Services\SermonExtractionPlanResolver::class));
+            $this->runJob($job, $mockExtractor, $mockStorage);
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
             $this->assertStringContainsString('file does not exist', $e->getMessage());
@@ -598,5 +822,20 @@ class ExtractSermonTest extends TestCase
         $log->refresh();
         $this->assertEquals('failed', $log->status->value);
         $this->assertStringContainsString('Sermon extraction failed after', $log->error_message);
+    }
+
+    private function runJob(
+        ExtractSermon $job,
+        VideoExtractionService $mockExtractor,
+        VideoStorageService $mockStorage
+    ): void {
+        $job->handle(
+            $mockExtractor,
+            $mockStorage,
+            app(StorageAdapterHelper::class),
+            app(\App\Services\SermonExtractionPlanResolver::class),
+            app(\App\Services\SermonCandidateConfidenceService::class),
+            app(\App\Services\SermonStatusManagementService::class)
+        );
     }
 }

@@ -3,8 +3,11 @@
 namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
+use App\Mail\ManualReviewRequired;
 use App\Models\MediaProcessingLog;
+use App\Services\SermonCandidateConfidenceService;
 use App\Services\SermonExtractionPlanResolver;
+use App\Services\SermonStatusManagementService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
@@ -14,6 +17,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class ExtractSermon implements ShouldQueue
@@ -32,7 +36,9 @@ class ExtractSermon implements ShouldQueue
         VideoExtractionService $videoExtractor,
         VideoStorageService $storageService,
         StorageAdapterHelper $storageHelper,
-        SermonExtractionPlanResolver $planResolver
+        SermonExtractionPlanResolver $planResolver,
+        SermonCandidateConfidenceService $sermonConfidenceService,
+        SermonStatusManagementService $statusManagementService
     ): void {
         try {
             $processingLog = $this->processingLog->fresh();
@@ -54,6 +60,16 @@ class ExtractSermon implements ShouldQueue
             $this->processingLog->markAsProcessing('extraction');
 
             $extractionPlan = $planResolver->resolve($this->processingLog);
+            $extractionPlan = $this->guardAutoExtractionPolicy(
+                $extractionPlan,
+                $sermonConfidenceService,
+                $statusManagementService
+            );
+
+            if ($extractionPlan === null) {
+                return;
+            }
+
             $firstSegment = $extractionPlan['segments'][0] ?? null;
             if (! is_array($firstSegment)) {
                 throw new \Exception('Invalid sermon extraction plan: no extraction segments were resolved');
@@ -291,5 +307,101 @@ class ExtractSermon implements ShouldQueue
         }
 
         return $duration;
+    }
+
+    /**
+     * @param  array{
+     *     mode: 'single_span'|'concat_spans'|'baseline',
+     *     source: 'service_sections'|'processing_log',
+     *     segments: array<int, array{start_time: float, end_time: float}>,
+     *     metadata: array<string, mixed>
+     * }  $extractionPlan
+     * @return array{
+     *     mode: 'single_span'|'concat_spans'|'baseline',
+     *     source: 'service_sections'|'processing_log',
+     *     segments: array<int, array{start_time: float, end_time: float}>,
+     *     metadata: array<string, mixed>
+     * }|null
+     */
+    private function guardAutoExtractionPolicy(
+        array $extractionPlan,
+        SermonCandidateConfidenceService $sermonConfidenceService,
+        SermonStatusManagementService $statusManagementService
+    ): ?array {
+        if ($extractionPlan['source'] !== 'processing_log') {
+            return $extractionPlan;
+        }
+
+        $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
+        $speechSegments = $evaluation['speech_segments'];
+
+        if ($speechSegments === []) {
+            return $extractionPlan;
+        }
+
+        if (! $evaluation['is_clear']) {
+            $reason = $this->manualReviewReason($evaluation['reason']);
+            $statusManagementService->markForManualReview($this->processingLog->processing_id, $reason);
+            $this->processingLog->refresh();
+            $this->notifyManualReviewRequired($reason, $speechSegments);
+
+            // Stop the remaining chained jobs; extraction is intentionally deferred.
+            $this->chained = [];
+
+            Log::warning('Sermon extraction halted for manual review', [
+                'processing_id' => $this->processingLog->processing_id,
+                'reason' => $evaluation['reason'],
+                'speech_segment_count' => count($speechSegments),
+            ]);
+
+            return null;
+        }
+
+        $candidate = $evaluation['candidate'];
+
+        if (! $candidate instanceof \App\Models\LivestreamSegment) {
+            return $extractionPlan;
+        }
+
+        return [
+            'mode' => 'single_span',
+            'source' => 'processing_log',
+            'segments' => [[
+                'start_time' => (float) $candidate->start_time,
+                'end_time' => (float) $candidate->end_time,
+            ]],
+            'metadata' => array_merge($extractionPlan['metadata'], [
+                'strategy' => 'dominant_speech_segment',
+                'sermon_segment_id' => $candidate->id,
+                'next_longest_duration' => $evaluation['next_longest_duration'],
+            ]),
+        ];
+    }
+
+    private function manualReviewReason(string $reason): string
+    {
+        return match ($reason) {
+            'no_qualifying_speech_block' => 'No speech block met the 20-minute sermon threshold.',
+            'multiple_qualifying_speech_blocks' => 'Multiple speech blocks met the 20-minute sermon threshold.',
+            'ratio_below_threshold' => 'The longest speech block was not at least 1.5x longer than the next-longest speech block.',
+            default => 'Sermon auto-selection confidence was insufficient.',
+        };
+    }
+
+    /**
+     * @param  array<int, array{segment_id: int, start_time: float, end_time: float, duration: float}>  $speechSegments
+     */
+    private function notifyManualReviewRequired(string $reason, array $speechSegments): void
+    {
+        try {
+            Mail::to(config('media-processing.email.admin_email'))
+                ->queue(new ManualReviewRequired($this->processingLog->processing_id, $reason, $speechSegments));
+        } catch (\Exception $exception) {
+            Log::warning('Failed to queue manual review required email, continuing', [
+                'processing_id' => $this->processingLog->processing_id,
+                'reason' => $reason,
+                'email_error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

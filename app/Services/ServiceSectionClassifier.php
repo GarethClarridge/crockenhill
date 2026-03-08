@@ -16,10 +16,14 @@ class ServiceSectionClassifier
 {
     private MediaProcessingIdentityResolver $identityResolver;
 
+    private SermonCandidateConfidenceService $sermonConfidenceService;
+
     public function __construct(
-        ?MediaProcessingIdentityResolver $identityResolver = null
+        ?MediaProcessingIdentityResolver $identityResolver = null,
+        ?SermonCandidateConfidenceService $sermonConfidenceService = null
     ) {
         $this->identityResolver = $identityResolver ?? new MediaProcessingIdentityResolver;
+        $this->sermonConfidenceService = $sermonConfidenceService ?? new SermonCandidateConfidenceService;
     }
 
     /**
@@ -263,7 +267,8 @@ class ServiceSectionClassifier
             ->filter(fn (LivestreamSegment $segment): bool => $segment->classification === 'speech')
             ->values();
 
-        $sermonSegment = $this->resolveAudioOnlySermonSegment($speechSegments);
+        $sermonEvaluation = $this->sermonConfidenceService->evaluate($speechSegments);
+        $sermonSegment = $sermonEvaluation['candidate'];
         $sermonSegmentId = $sermonSegment?->id;
         $sections = [];
 
@@ -308,37 +313,6 @@ class ServiceSectionClassifier
         }
 
         return $sections;
-    }
-
-    /**
-     * @param  Collection<int, LivestreamSegment>  $speechSegments
-     */
-    private function resolveAudioOnlySermonSegment(Collection $speechSegments): ?LivestreamSegment
-    {
-        /** @var Collection<int, LivestreamSegment> $qualifyingSpeechSegments */
-        $qualifyingSpeechSegments = $speechSegments
-            ->filter(fn (LivestreamSegment $segment): bool => $segment->duration >= 1200.0)
-            ->values();
-
-        if ($qualifyingSpeechSegments->count() !== 1) {
-            return null;
-        }
-
-        $candidate = $qualifyingSpeechSegments->first();
-
-        if (! $candidate instanceof LivestreamSegment) {
-            return null;
-        }
-
-        $nextLongestDuration = (float) $speechSegments
-            ->reject(fn (LivestreamSegment $segment): bool => $segment->id === $candidate->id)
-            ->max('duration');
-
-        if ($nextLongestDuration > 0.0 && $candidate->duration < ($nextLongestDuration * 1.5)) {
-            return null;
-        }
-
-        return $candidate;
     }
 
     /**
