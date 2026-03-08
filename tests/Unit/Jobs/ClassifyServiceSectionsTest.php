@@ -6,7 +6,6 @@ namespace Tests\Unit\Jobs;
 
 use App\Enums\SermonService;
 use App\Jobs\ClassifyServiceSections;
-use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
@@ -14,7 +13,6 @@ use App\Models\MediaProcessingLog;
 use App\Services\ServiceSectionClassifier;
 use App\Services\ServiceSectionSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -148,7 +146,6 @@ class ClassifyServiceSectionsTest extends TestCase
     public function it_preserves_run_status_when_reclassifying_existing_completed_run(): void
     {
         config(['media-processing.section_classification.enabled' => true]);
-        Queue::fake();
 
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-30',
@@ -182,6 +179,5 @@ class ClassifyServiceSectionsTest extends TestCase
         $this->assertSame('completed', $processingLog->status->value);
         $this->assertSame('completed', $processingLog->current_step);
         $this->assertDatabaseCount('service_sections', 1);
-        Queue::assertPushed(PrepareSectionPublicationCandidates::class);
     }
 }

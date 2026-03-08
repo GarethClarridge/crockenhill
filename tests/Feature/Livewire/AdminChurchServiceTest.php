@@ -8,7 +8,11 @@ use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\AlignWithOos;
 use App\Jobs\ClassifyServiceSections;
+use App\Jobs\ClassifySpeechSections;
+use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Jobs\TranscribeSpeechSegments;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
@@ -21,7 +25,7 @@ use App\Models\Song;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Bus;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
@@ -496,7 +500,7 @@ class AdminChurchServiceTest extends TestCase
     #[Test]
     public function reclassify_action_dispatches_classifier_for_matching_livestream_run(): void
     {
-        Queue::fake();
+        Bus::fake();
         $this->actingAs($this->admin);
 
         $service = ChurchService::factory()->create([
@@ -513,16 +517,23 @@ class AdminChurchServiceTest extends TestCase
             ->call('reclassify', $processingRun->id)
             ->assertDispatched('notify', type: 'success', message: 'Section reclassification queued');
 
-        Queue::assertPushed(
+        Bus::assertDispatched(
             ClassifyServiceSections::class,
             fn (ClassifyServiceSections $job): bool => $job->preservesRunStatus()
         );
+        Bus::assertChained([
+            ClassifyServiceSections::class,
+            TranscribeSpeechSegments::class,
+            ClassifySpeechSections::class,
+            AlignWithOos::class,
+            PrepareSectionPublicationCandidates::class,
+        ]);
     }
 
     #[Test]
     public function reclassify_action_rejects_invalid_or_non_matching_runs(): void
     {
-        Queue::fake();
+        Bus::fake();
         $this->actingAs($this->admin);
 
         $service = ChurchService::factory()->create([
@@ -548,7 +559,7 @@ class AdminChurchServiceTest extends TestCase
             ->call('reclassify', $mismatchedRun->id)
             ->assertDispatched('notify', type: 'error', message: 'Selected run does not belong to this service.');
 
-        Queue::assertNothingPushed();
+        Bus::assertNothingChained();
     }
 
     #[Test]

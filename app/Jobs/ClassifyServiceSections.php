@@ -83,11 +83,6 @@ class ClassifyServiceSections implements ShouldQueue
             $sections = $result['sections'];
             $syncService->sync($this->processingLog, $sections);
 
-            if ($this->preserveRunStatus && (bool) config('media-processing.section_publishing.enabled', true)) {
-                PrepareSectionPublicationCandidates::dispatch($this->processingLog)
-                    ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
-            }
-
             $identifiedCount = 0;
             $manualReviewCount = 0;
             $highConfidenceCount = 0;

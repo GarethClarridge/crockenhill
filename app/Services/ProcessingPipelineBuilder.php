@@ -112,4 +112,20 @@ class ProcessingPipelineBuilder
             new CleanupTemporaryFiles($log),
         ];
     }
+
+    /**
+     * Lightweight reclassification chain for existing livestream runs.
+     *
+     * @return non-empty-list<object>
+     */
+    public function buildSectionReclassificationChainJobs(MediaProcessingLog $log): array
+    {
+        return [
+            new ClassifyServiceSections($log, preserveRunStatus: true),
+            new TranscribeSpeechSegments($log),
+            new ClassifySpeechSections($log),
+            new AlignWithOos($log),
+            new PrepareSectionPublicationCandidates($log),
+        ];
+    }
 }

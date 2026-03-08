@@ -225,6 +225,22 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertGreaterThan($identifyPos, $transcribePos, 'TranscribeAudio must come after IdentifySpeaker');
     }
 
+    #[Test]
+    public function it_builds_reclassification_chain_jobs_with_the_explicit_alignment_steps(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create();
+
+        $jobs = $this->builder->buildSectionReclassificationChainJobs($log);
+
+        $this->assertCount(5, $jobs);
+        $this->assertInstanceOf(ClassifyServiceSections::class, $jobs[0]);
+        $this->assertInstanceOf(TranscribeSpeechSegments::class, $jobs[1]);
+        $this->assertInstanceOf(ClassifySpeechSections::class, $jobs[2]);
+        $this->assertInstanceOf(AlignWithOos::class, $jobs[3]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[4]);
+        $this->assertTrue($jobs[0]->preservesRunStatus());
+    }
+
     // --- Shared pipeline checks ---
 
     #[Test]

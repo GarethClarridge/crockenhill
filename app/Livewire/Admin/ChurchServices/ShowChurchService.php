@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\MediaType;
-use App\Jobs\ClassifyServiceSections;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaProcessingIdentityResolver;
+use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -76,8 +77,9 @@ class ShowChurchService extends Component
             return;
         }
 
-        ClassifyServiceSections::dispatch($processingLog, preserveRunStatus: true)
-            ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
+        Bus::chain($this->pipelineBuilder()->buildSectionReclassificationChainJobs($processingLog))
+            ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'))
+            ->dispatch();
 
         $this->success('Section reclassification queued');
     }
@@ -115,6 +117,11 @@ class ShowChurchService extends Component
     private function identityResolver(): MediaProcessingIdentityResolver
     {
         return app(MediaProcessingIdentityResolver::class);
+    }
+
+    private function pipelineBuilder(): ProcessingPipelineBuilder
+    {
+        return app(ProcessingPipelineBuilder::class);
     }
 
     private function abortIfDisabled(): void

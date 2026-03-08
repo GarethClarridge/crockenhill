@@ -87,7 +87,6 @@ class OosAlignmentService
 
             $reviewTriggers = $this->reviewTriggers(
                 $sections,
-                $churchService,
                 $matchedSongSectionIds,
                 $structureMismatchCount,
                 $beforeState,
@@ -99,14 +98,7 @@ class OosAlignmentService
                 $section->save();
             }
 
-            if ($reviewTriggers !== []) {
-                $churchService->forceFill([
-                    'needs_review' => true,
-                    'import_metadata' => array_merge($churchService->import_metadata ?? [], [
-                        'review_triggers' => array_values($reviewTriggers),
-                    ]),
-                ])->save();
-            }
+            $this->syncChurchServiceReviewState($churchService, $reviewTriggers);
 
             return [
                 'aligned' => true,
@@ -127,6 +119,7 @@ class OosAlignmentService
     private function alignSongSections(EloquentCollection $sections, EloquentCollection $items): array
     {
         $matchedSectionIds = [];
+        $matchedItemIds = [];
 
         /** @var EloquentCollection<int, ChurchServiceItem> $songItems */
         $songItems = $items
@@ -162,12 +155,14 @@ class OosAlignmentService
             }
 
             $matchedSectionIds[] = $bestSection->id;
+            $matchedItemIds[] = $item->id;
             $this->applyMatchedItem($bestSection, $item, 0.10);
 
             $metadata = $this->metadata($bestSection);
             $metadata['song_id'] = $item->song_id;
             $metadata['oos_alignment'] = array_merge($metadata['oos_alignment'] ?? [], [
                 'song_match_score' => round($bestScore, 3),
+                'song_match_strategy' => 'normalized_title',
                 'song_title_matched' => $item->title,
             ]);
 
@@ -175,7 +170,69 @@ class OosAlignmentService
             $bestSection->metadata = $metadata;
         }
 
+        $this->inferRemainingSongSectionLabels($songSections, $songItems, $matchedSectionIds, $matchedItemIds);
+
         return $matchedSectionIds;
+    }
+
+    /**
+     * Apply low-confidence OoS labels to titleless song sections that have no title evidence.
+     *
+     * These inferred labels improve reviewability, but they are not treated as strong
+     * song matches for catalog-linking purposes.
+     *
+     * @param  EloquentCollection<int, ServiceSection>  $songSections
+     * @param  EloquentCollection<int, ChurchServiceItem>  $songItems
+     * @param  array<int, int>  $matchedSectionIds
+     * @param  array<int, int>  $matchedItemIds
+     */
+    private function inferRemainingSongSectionLabels(
+        EloquentCollection $songSections,
+        EloquentCollection $songItems,
+        array $matchedSectionIds,
+        array $matchedItemIds
+    ): void {
+        /** @var EloquentCollection<int, ServiceSection> $remainingSections */
+        $remainingSections = $songSections
+            ->reject(fn (ServiceSection $section): bool => in_array($section->id, $matchedSectionIds, true))
+            ->values();
+
+        /** @var EloquentCollection<int, ChurchServiceItem> $remainingItems */
+        $remainingItems = $songItems
+            ->reject(fn (ChurchServiceItem $item): bool => in_array($item->id, $matchedItemIds, true))
+            ->values();
+
+        if ($remainingSections->isEmpty() || $remainingItems->isEmpty()) {
+            return;
+        }
+
+        if ($remainingSections->contains(fn (ServiceSection $section): bool => $this->songCandidatesFromSection($section) !== [])) {
+            return;
+        }
+
+        $canonicalItemTitles = $remainingItems
+            ->map(fn (ChurchServiceItem $item): ?string => $this->primarySongCandidateFromItem($item))
+            ->filter(fn (?string $candidate): bool => is_string($candidate) && $candidate !== '')
+            ->values();
+
+        if ($canonicalItemTitles->count() !== $remainingItems->count() || $canonicalItemTitles->unique()->count() !== $canonicalItemTitles->count()) {
+            return;
+        }
+
+        $pairCount = min($remainingSections->count(), $remainingItems->count());
+
+        for ($index = 0; $index < $pairCount; $index++) {
+            /** @var ServiceSection|null $section */
+            $section = $remainingSections->get($index);
+            /** @var ChurchServiceItem|null $item */
+            $item = $remainingItems->get($index);
+
+            if (! $section instanceof ServiceSection || ! $item instanceof ChurchServiceItem) {
+                continue;
+            }
+
+            $this->applyInferredSongItem($section, $item);
+        }
     }
 
     /**
@@ -275,7 +332,7 @@ class OosAlignmentService
         $reviewFlags = $this->reviewFlags($metadata);
         $reviewFlags = array_values(array_filter(
             $reviewFlags,
-            static fn (string $flag): bool => ! in_array($flag, ['oos_structure_mismatch', 'unmatched_song_section'], true)
+            static fn (string $flag): bool => ! in_array($flag, ['oos_structure_mismatch', 'unmatched_song_section', 'song_alignment_inferred'], true)
         ));
 
         $metadata['review_flags'] = $reviewFlags;
@@ -319,6 +376,38 @@ class OosAlignmentService
         $section->metadata = $metadata;
     }
 
+    private function applyInferredSongItem(ServiceSection $section, ChurchServiceItem $item): void
+    {
+        $metadata = $this->metadata($section);
+        $metadata['oos_alignment'] = array_merge($this->baseAlignmentMetadata($section), [
+            'matched_item_id' => $item->id,
+            'matched_item_type' => $item->type,
+            'matched_item_title' => $item->title,
+            'song_match_strategy' => 'oos_order_inference',
+            'song_title_matched' => $item->title,
+        ]);
+
+        $reviewFlags = $this->reviewFlags($metadata);
+        $reviewFlags[] = 'song_alignment_inferred';
+        $metadata['review_flags'] = array_values(array_unique($reviewFlags));
+        $metadata['review_reason'] = 'song_alignment_inferred';
+
+        $section->church_service_item_id = $item->id;
+        $section->title = $item->title;
+        $section->needs_manual_review = true;
+        $section->confidence = ServiceSectionConfidence::clamp(min(
+            max(
+                ServiceSectionConfidence::increase(
+                    ServiceSectionConfidence::resolve($section->confidence, $metadata),
+                    0.05
+                ),
+                0.70
+            ),
+            0.84
+        ));
+        $section->metadata = $metadata;
+    }
+
     /**
      * @param  EloquentCollection<int, ServiceSection>  $sections
      * @param  array<int, int>  $matchedSongSectionIds
@@ -327,7 +416,6 @@ class OosAlignmentService
      */
     private function reviewTriggers(
         EloquentCollection $sections,
-        ChurchService $churchService,
         array $matchedSongSectionIds,
         int $structureMismatchCount,
         array $beforeState,
@@ -346,7 +434,9 @@ class OosAlignmentService
                 $reviewFlags = $this->reviewFlags($metadata);
                 $reviewFlags[] = 'unmatched_song_section';
                 $metadata['review_flags'] = array_values(array_unique($reviewFlags));
-                $metadata['review_reason'] = 'unmatched_song_section';
+                if (! array_key_exists('review_reason', $metadata)) {
+                    $metadata['review_reason'] = 'unmatched_song_section';
+                }
                 $section->needs_manual_review = true;
                 $section->confidence = ServiceSectionConfidence::decrease(
                     ServiceSectionConfidence::resolve($section->confidence, $metadata),
@@ -371,10 +461,6 @@ class OosAlignmentService
         $lowConfidenceSections = $this->lowConfidenceSections($sections);
         if ($sections->count() > 0 && ($lowConfidenceSections->count() / $sections->count()) > 0.20) {
             $reviewTriggers[] = 'too_many_low_confidence_sections';
-        }
-
-        if ($reviewTriggers === [] && $churchService->needs_review) {
-            return [];
         }
 
         return array_values(array_unique($reviewTriggers));
@@ -517,6 +603,11 @@ class OosAlignmentService
         return array_values(array_unique(array_filter($candidates)));
     }
 
+    private function primarySongCandidateFromItem(ChurchServiceItem $item): ?string
+    {
+        return $this->songCandidatesFromItem($item)[0] ?? null;
+    }
+
     /**
      * @return array<int, string>
      */
@@ -596,11 +687,11 @@ class OosAlignmentService
 
         $reviewFlags = array_values(array_filter(
             $this->reviewFlags($metadata),
-            static fn (string $flag): bool => ! in_array($flag, ['oos_structure_mismatch', 'unmatched_song_section'], true)
+            static fn (string $flag): bool => ! in_array($flag, ['oos_structure_mismatch', 'unmatched_song_section', 'song_alignment_inferred'], true)
         ));
 
         if ($reviewFlags === []) {
-            if (in_array($metadata['review_reason'] ?? null, ['oos_structure_mismatch', 'unmatched_song_section'], true)) {
+            if (in_array($metadata['review_reason'] ?? null, ['oos_structure_mismatch', 'unmatched_song_section', 'song_alignment_inferred'], true)) {
                 unset($metadata['review_reason']);
             }
 
@@ -699,6 +790,46 @@ class OosAlignmentService
         }
 
         return $resolved;
+    }
+
+    /**
+     * @param  array<int, string>  $reviewTriggers
+     */
+    private function syncChurchServiceReviewState(ChurchService $churchService, array $reviewTriggers): void
+    {
+        $importMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
+
+        if ($reviewTriggers === []) {
+            unset($importMetadata['review_triggers']);
+        } else {
+            $importMetadata['review_triggers'] = array_values($reviewTriggers);
+        }
+
+        $churchService->forceFill([
+            'needs_review' => $reviewTriggers !== [] || $this->hasImportReviewSignal($churchService, $importMetadata),
+            'import_metadata' => $importMetadata,
+        ])->save();
+    }
+
+    /**
+     * @param  array<string, mixed>  $importMetadata
+     */
+    private function hasImportReviewSignal(ChurchService $churchService, array $importMetadata): bool
+    {
+        if ($churchService->source === 'manual') {
+            return false;
+        }
+
+        $confidenceScore = $importMetadata['confidence_score'] ?? null;
+        if (! is_numeric($confidenceScore)) {
+            return false;
+        }
+
+        $reviewThreshold = (float) config('service-tracking.email_parsing.review_threshold', 0.75);
+        $autoImportThreshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
+        $score = (float) $confidenceScore;
+
+        return $score >= $reviewThreshold && $score < $autoImportThreshold;
     }
 
     /**
