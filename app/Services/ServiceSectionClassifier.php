@@ -195,16 +195,32 @@ class ServiceSectionClassifier
 
     private function resolveChurchService(MediaProcessingLog $processingLog): ?ChurchService
     {
+        if ($processingLog->churchService instanceof ChurchService) {
+            return $processingLog->churchService;
+        }
+
+        if ($processingLog->church_service_id !== null) {
+            return $processingLog->churchService()->first();
+        }
+
         $identity = $this->identityResolver->resolve($processingLog);
 
         if ($identity === null) {
             return null;
         }
 
-        return ChurchService::query()
+        $churchService = ChurchService::query()
             ->where('date', $identity['date'])
             ->where('service', $identity['service']->value)
             ->first();
+
+        if ($churchService instanceof ChurchService) {
+            $processingLog->forceFill([
+                'church_service_id' => $churchService->id,
+            ])->saveQuietly();
+        }
+
+        return $churchService;
     }
 
     private function expectedSegmentClassForItemType(string $itemType): string

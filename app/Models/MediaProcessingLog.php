@@ -43,10 +43,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float|null $visual_processing_time
  * @property int|null $sermon_id
  * @property int|null $owner_user_id
+ * @property int|null $church_service_id
  * @property \Illuminate\Support\Carbon|null $started_at
  * @property \Illuminate\Support\Carbon|null $completed_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read ChurchService|null $churchService
  * @property-read User|null $owner
  * @property-read Sermon|null $sermon
  * @property-read \Illuminate\Database\Eloquent\Collection<int, LivestreamSegment> $segments
@@ -101,6 +103,7 @@ class MediaProcessingLog extends Model
         // Relationships
         'sermon_id',
         'owner_user_id',
+        'church_service_id',
 
         // Timestamps
         'started_at',
@@ -150,6 +153,14 @@ class MediaProcessingLog extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_user_id');
+    }
+
+    /**
+     * @return BelongsTo<ChurchService, $this>
+     */
+    public function churchService(): BelongsTo
+    {
+        return $this->belongsTo(ChurchService::class);
     }
 
     /**

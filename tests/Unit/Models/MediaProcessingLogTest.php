@@ -4,6 +4,7 @@ namespace Tests\Unit\Models;
 
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
+use App\Models\ChurchService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -44,6 +45,7 @@ class MediaProcessingLogTest extends TestCase
             'visual_sample_count' => 5,
             'visual_processing_time' => 10.5,
             'sermon_id' => 1,
+            'church_service_id' => 2,
             'started_at' => now(),
             'completed_at' => now(),
         ];
@@ -81,10 +83,15 @@ class MediaProcessingLogTest extends TestCase
     public function it_has_relationships(): void
     {
         $sermon = Sermon::factory()->create();
-        $log = MediaProcessingLog::factory()->create(['sermon_id' => $sermon->id]);
+        $churchService = ChurchService::factory()->create();
+        $log = MediaProcessingLog::factory()->create([
+            'sermon_id' => $sermon->id,
+            'church_service_id' => $churchService->id,
+        ]);
         LivestreamSegment::factory()->count(3)->create(['media_processing_log_id' => $log->id]);
 
         $this->assertInstanceOf(Sermon::class, $log->sermon);
+        $this->assertTrue($log->churchService->is($churchService));
         $this->assertCount(3, $log->segments);
     }
 

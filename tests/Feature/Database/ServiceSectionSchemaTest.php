@@ -6,6 +6,7 @@ namespace Tests\Feature\Database;
 
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -49,6 +50,7 @@ class ServiceSectionSchemaTest extends TestCase
         $this->assertTrue(Schema::hasColumns('media_processing_logs', [
             'extracted_date',
             'extracted_service',
+            'church_service_id',
         ]));
 
         $this->assertTrue(Schema::hasIndex('service_sections', 'service_sections_log_order_unique'));
@@ -88,5 +90,19 @@ class ServiceSectionSchemaTest extends TestCase
         $section->refresh();
 
         $this->assertNull($section->church_service_item_id);
+    }
+
+    #[Test]
+    public function deleting_church_service_sets_media_processing_log_reference_to_null(): void
+    {
+        $churchService = ChurchService::factory()->create();
+        $processingLog = MediaProcessingLog::factory()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $churchService->delete();
+        $processingLog->refresh();
+
+        $this->assertNull($processingLog->church_service_id);
     }
 }

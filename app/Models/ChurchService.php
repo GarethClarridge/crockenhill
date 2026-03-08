@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ChurchServiceItem> $items
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, MediaProcessingLog> $mediaProcessingLogs
  *
  * @method static \Database\Factories\ChurchServiceFactory factory(...$parameters)
  * @method static Builder<ChurchService> newModelQuery()
@@ -65,5 +66,13 @@ class ChurchService extends Model
     public function items(): HasMany
     {
         return $this->hasMany(ChurchServiceItem::class);
+    }
+
+    /**
+     * @return HasMany<MediaProcessingLog, $this>
+     */
+    public function mediaProcessingLogs(): HasMany
+    {
+        return $this->hasMany(MediaProcessingLog::class);
     }
 }

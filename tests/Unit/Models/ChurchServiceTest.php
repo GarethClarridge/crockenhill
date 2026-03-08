@@ -7,6 +7,7 @@ namespace Tests\Unit\Models;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -36,6 +37,17 @@ class ChurchServiceTest extends TestCase
         ]);
 
         $this->assertCount(3, $churchService->items);
+    }
+
+    #[Test]
+    public function test_church_service_has_many_media_processing_logs(): void
+    {
+        $churchService = ChurchService::factory()->create();
+        MediaProcessingLog::factory()->count(2)->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $this->assertCount(2, $churchService->mediaProcessingLogs);
     }
 
     #[Test]

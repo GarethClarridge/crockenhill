@@ -106,6 +106,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $this->assertFalse($result['skipped']);
         $this->assertNull($result['skip_reason']);
+        $this->assertSame($churchService->id, $processingLog->fresh()->church_service_id);
         $this->assertCount(3, $result['sections']);
 
         $this->assertSame($songOne->id, $result['sections'][0]['church_service_item_id']);
