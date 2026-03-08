@@ -133,6 +133,11 @@ class ChurchServiceSongLinker
 
     private function resolveSearchTitle(ChurchServiceItem $item): ?string
     {
+        $linkedSongCanonicalKey = data_get($item->metadata, 'linked_song_canonical_key');
+        if (is_string($linkedSongCanonicalKey) && trim($linkedSongCanonicalKey) !== '') {
+            return $linkedSongCanonicalKey;
+        }
+
         foreach ([$item->openlp_search_title, $item->source_title, $item->title] as $candidate) {
             if (! is_string($candidate) || trim($candidate) === '') {
                 continue;

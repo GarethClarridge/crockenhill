@@ -175,6 +175,43 @@ class ServiceSectionClassifierTest extends TestCase
     }
 
     #[Test]
+    public function it_prefers_explicit_metadata_section_types_for_custom_items(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-10',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Ministry Moment',
+            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-03-10',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $segment = LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'segment_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 180.0,
+            'duration' => 180.0,
+        ]);
+
+        $result = $this->service->classify($processingLog);
+
+        $this->assertCount(1, $result['sections']);
+        $this->assertSame($item->id, $result['sections'][0]['church_service_item_id']);
+        $this->assertSame(ServiceSectionType::WELCOME->value, $result['sections'][0]['section_type']);
+        $this->assertSame([$segment->id], $result['sections'][0]['source_segment_ids']);
+    }
+
+    #[Test]
     public function it_sets_confidence_metadata_and_review_flags_for_ambiguous_or_missing_matches(): void
     {
         $churchService = ChurchService::factory()->create([

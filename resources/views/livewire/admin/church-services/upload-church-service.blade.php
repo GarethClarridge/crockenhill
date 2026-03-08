@@ -5,6 +5,9 @@
             <x-button link="{{ route('admin.services.index') }}" variant="outline" inline>
                 Back to Services
             </x-button>
+            <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
+                Create Service
+            </x-button>
             <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
                 Song Catalog
             </x-button>

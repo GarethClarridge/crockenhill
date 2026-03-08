@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\ClassifyServiceSections;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
+use App\Livewire\Admin\ChurchServices\ManageChurchService;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Livewire\Admin\ChurchServices\UploadChurchService;
 use App\Models\ChurchService;
@@ -182,6 +183,187 @@ class AdminChurchServiceTest extends TestCase
         Livewire::test(UploadChurchService::class)
             ->call('save')
             ->assertHasErrors(['file' => ['required']]);
+    }
+
+    #[Test]
+    public function admin_can_create_a_manual_service_with_mixed_item_types(): void
+    {
+        $this->actingAs($this->admin);
+
+        $song = Song::factory()->create([
+            'title' => 'Blessed Assurance',
+            'canonical_key' => 'blessed assurance@',
+        ]);
+
+        $component = Livewire::test(ManageChurchService::class)
+            ->set('date', '2026-05-03')
+            ->set('service', SermonService::MORNING->value)
+            ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->set('items.0.title', 'Welcome and Call to Worship')
+            ->call('addItem')
+            ->set('items.1.section_type', ServiceSectionType::SONG->value)
+            ->set('items.1.title', 'Blessed')
+            ->assertSee('Blessed Assurance')
+            ->call('selectSong', 1, $song->id)
+            ->call('addItem')
+            ->set('items.2.section_type', ServiceSectionType::BIBLE_READING->value)
+            ->set('items.2.title', 'John 3:16-21')
+            ->call('save');
+
+        $service = ChurchService::query()
+            ->with(['items' => fn ($query) => $query->orderBy('position')->orderBy('id')])
+            ->firstOrFail();
+
+        $component->assertRedirect(route('admin.services.show', $service));
+
+        $this->assertSame('manual', $service->source);
+        $this->assertFalse($service->needs_review);
+        $this->assertSame($this->admin->id, $service->import_metadata['manual_edit']['saved_by_user_id'] ?? null);
+        $this->assertSame(3, $service->import_metadata['manual_edit']['item_count'] ?? null);
+
+        $this->assertCount(3, $service->items);
+        $this->assertSame('custom', $service->items[0]->type);
+        $this->assertSame(ServiceSectionType::WELCOME->value, $service->items[0]->metadata['section_type'] ?? null);
+        $this->assertSame('songs', $service->items[1]->type);
+        $this->assertSame($song->id, $service->items[1]->song_id);
+        $this->assertSame('blessed assurance@', $service->items[1]->metadata['linked_song_canonical_key'] ?? null);
+        $this->assertSame('bibles', $service->items[2]->type);
+        $this->assertSame(ServiceSectionType::BIBLE_READING->value, $service->items[2]->metadata['section_type'] ?? null);
+    }
+
+    #[Test]
+    public function admin_can_edit_a_manual_service_and_reorder_add_and_remove_items(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-10',
+            'service' => SermonService::EVENING,
+            'source' => 'openlp',
+            'original_filename' => '2026-05-10 PM.osz',
+            'needs_review' => true,
+            'import_metadata' => [
+                'confidence_score' => 1.0,
+                'warnings' => [],
+            ],
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Welcome',
+            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 2,
+            'type' => 'custom',
+            'title' => 'Opening Prayer',
+            'metadata' => ['section_type' => ServiceSectionType::PRAYER->value],
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 3,
+            'type' => 'custom',
+            'title' => 'Sermon',
+            'metadata' => ['section_type' => ServiceSectionType::SERMON->value],
+        ]);
+
+        $song = Song::factory()->create([
+            'title' => 'Closing Song',
+            'canonical_key' => 'closing song@',
+        ]);
+
+        $component = Livewire::test(ManageChurchService::class, ['churchService' => $service])
+            ->assertSet('items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->assertSet('items.1.section_type', ServiceSectionType::PRAYER->value)
+            ->call('moveItemDown', 0)
+            ->call('removeItem', 2)
+            ->set('items.1.title', 'Welcome and Notices')
+            ->call('addItem')
+            ->set('items.2.section_type', ServiceSectionType::SONG->value)
+            ->set('items.2.title', 'Closing')
+            ->assertSee('Closing Song')
+            ->call('selectSong', 2, $song->id)
+            ->call('save');
+
+        $service->refresh();
+        $service->load(['items' => fn ($query) => $query->orderBy('position')->orderBy('id')]);
+
+        $component->assertRedirect(route('admin.services.show', $service));
+
+        $this->assertSame('manual', $service->source);
+        $this->assertFalse($service->needs_review);
+        $this->assertSame('2026-05-10 PM.osz', $service->original_filename);
+        $this->assertSame(3, $service->items->count());
+        $this->assertSame('Opening Prayer', $service->items[0]->title);
+        $this->assertSame(ServiceSectionType::PRAYER->value, $service->items[0]->metadata['section_type'] ?? null);
+        $this->assertSame('Welcome and Notices', $service->items[1]->title);
+        $this->assertSame(ServiceSectionType::WELCOME->value, $service->items[1]->metadata['section_type'] ?? null);
+        $this->assertSame('Closing Song', $service->items[2]->title);
+        $this->assertSame($song->id, $service->items[2]->song_id);
+        $this->assertDatabaseMissing('church_service_items', [
+            'church_service_id' => $service->id,
+            'title' => 'Sermon',
+            'deleted_at' => null,
+        ]);
+    }
+
+    #[Test]
+    public function manual_service_form_shows_song_autocomplete_matches_and_selects_them(): void
+    {
+        $this->actingAs($this->admin);
+
+        $song = Song::factory()->create([
+            'title' => 'Living Hope',
+            'canonical_key' => 'living hope@',
+        ]);
+
+        Livewire::test(ManageChurchService::class)
+            ->set('items.0.section_type', ServiceSectionType::SONG->value)
+            ->set('items.0.title', 'Living')
+            ->assertSee('Living Hope')
+            ->call('selectSong', 0, $song->id)
+            ->assertSet('items.0.song_id', $song->id)
+            ->assertSet('items.0.title', 'Living Hope');
+    }
+
+    #[Test]
+    public function manual_service_form_escapes_like_wildcards_in_song_autocomplete(): void
+    {
+        $this->actingAs($this->admin);
+
+        Song::factory()->create([
+            'title' => 'Living Hope',
+            'canonical_key' => 'living hope@',
+        ]);
+
+        Livewire::test(ManageChurchService::class)
+            ->set('items.0.section_type', ServiceSectionType::SONG->value)
+            ->set('items.0.title', '%%')
+            ->assertDontSee('Living Hope');
+    }
+
+    #[Test]
+    public function manual_service_form_rejects_duplicate_date_and_service_pairs(): void
+    {
+        $this->actingAs($this->admin);
+
+        ChurchService::factory()->create([
+            'date' => '2026-05-17',
+            'service' => SermonService::MORNING,
+        ]);
+
+        Livewire::test(ManageChurchService::class)
+            ->set('date', '2026-05-17')
+            ->set('service', SermonService::MORNING->value)
+            ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->set('items.0.title', 'Welcome')
+            ->call('save')
+            ->assertHasErrors(['date' => ['unique']]);
     }
 
     #[Test]
@@ -381,6 +563,7 @@ class AdminChurchServiceTest extends TestCase
         $this->actingAs($user);
 
         Livewire::test(ListChurchServices::class)->assertForbidden();
+        Livewire::test(ManageChurchService::class)->assertForbidden();
         Livewire::test(UploadChurchService::class)->assertForbidden();
         Livewire::test(ShowChurchService::class, ['churchService' => $service])->assertForbidden();
     }

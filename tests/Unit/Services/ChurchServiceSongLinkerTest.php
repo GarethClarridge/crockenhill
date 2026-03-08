@@ -75,6 +75,36 @@ class ChurchServiceSongLinkerTest extends TestCase
     }
 
     #[Test]
+    public function it_preserves_manually_selected_song_links_using_metadata_canonical_key(): void
+    {
+        $song = Song::factory()->create([
+            'canonical_key' => 'blessed assurance@',
+            'title' => 'Blessed Assurance',
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::MANUAL->value,
+            'title' => 'Blessed Assurance',
+            'source_title' => 'Blessed Assurance',
+            'openlp_search_title' => null,
+            'song_id' => $song->id,
+            'metadata' => [
+                'section_type' => 'song',
+                'linked_song_canonical_key' => 'blessed assurance@',
+            ],
+        ]);
+
+        $metrics = $this->linker->linkAll();
+
+        $item->refresh();
+
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertSame(1, $metrics['matched']);
+        $this->assertSame(1, $metrics['unchanged']);
+    }
+
+    #[Test]
     public function it_clears_stale_song_links_when_items_do_not_match_any_song(): void
     {
         $staleSong = Song::factory()->create([

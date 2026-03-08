@@ -368,6 +368,16 @@ class ServiceSectionClassifier
 
     private function sectionTypeFromItem(ChurchServiceItem $item): ServiceSectionType
     {
+        $metadataSectionType = $item->metadata['section_type'] ?? null;
+
+        if (is_string($metadataSectionType)) {
+            $resolved = ServiceSectionType::tryFrom($metadataSectionType);
+
+            if ($resolved instanceof ServiceSectionType) {
+                return $resolved;
+            }
+        }
+
         $itemType = strtolower($item->type);
 
         if ($itemType === 'songs') {

@@ -8,6 +8,9 @@
             <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
                 Song Catalog
             </x-button>
+            <x-button link="{{ route('admin.services.create') }}" variant="outline" icon="plus" inline>
+                Create Service
+            </x-button>
             <x-button link="{{ route('admin.services.upload') }}" variant="primary" icon="arrow-up-tray" inline>
                 Upload Service
             </x-button>
@@ -87,6 +90,13 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex gap-1 justify-end">
+                                    <x-button
+                                        link="{{ route('admin.services.edit', $churchService) }}"
+                                        variant="ghost"
+                                        size="xs"
+                                        icon="pencil-square"
+                                        inline
+                                        aria-label="Edit service for {{ $churchService->date->format('j M Y') }}" />
                                     <x-button
                                         link="{{ route('admin.services.show', $churchService) }}"
                                         variant="ghost"
