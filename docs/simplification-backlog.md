@@ -22,10 +22,10 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 - `FixUploadDirectories`
 - Delete associated tests
 
-### PR 2. Delete test artifacts from production code
-- Delete `TestJob` (empty placeholder job)
-- Delete `TestBritishEnglishConverter` command (unit test already covers this)
-- Delete associated tests
+### PR 2. Delete test artifacts from production code ✅
+- ~~Delete `TestJob` (empty placeholder job)~~ — deleted; dispatch tests now use a local `StubJob` stub defined at the bottom of `SermonJobPipelineServiceTest.php`
+- ~~Delete `TestBritishEnglishConverter` command (unit test already covers this)~~ — deleted
+- ~~Delete associated tests~~
 
 ### PR 3. Delete unused views and dead controller methods
 - Delete `resources/views/meetings/create.blade.php`

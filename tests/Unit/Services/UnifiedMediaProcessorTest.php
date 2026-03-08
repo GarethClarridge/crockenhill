@@ -518,7 +518,11 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->pipelineBuilder
             ->method('buildDirectVideoPipeline')
-            ->willReturn([new \App\Jobs\TestJob]);
+            ->willReturnCallback(function ($processingLog) {
+                $sermon = \App\Models\Sermon::factory()->create();
+
+                return [new \App\Jobs\UpdateSermonRecord($sermon->id)];
+            });
 
         $result = $this->processor->process('video', $file);
 
@@ -544,7 +548,11 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->pipelineBuilder
             ->method('buildDirectVideoPipeline')
-            ->willReturn([new \App\Jobs\TestJob]);
+            ->willReturnCallback(function ($processingLog) {
+                $sermon = \App\Models\Sermon::factory()->create();
+
+                return [new \App\Jobs\UpdateSermonRecord($sermon->id)];
+            });
 
         $this->processor->process('video', $file);
 
@@ -595,7 +603,11 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->pipelineBuilder
             ->method('buildDirectVideoPipeline')
-            ->willReturn([new \App\Jobs\TestJob]);
+            ->willReturnCallback(function ($processingLog) {
+                $sermon = \App\Models\Sermon::factory()->create();
+
+                return [new \App\Jobs\UpdateSermonRecord($sermon->id)];
+            });
 
         $this->processor->process('video', $file);
 

@@ -9,7 +9,7 @@ Your mission is to find and fix ONE code smell or inconsistency, improving maint
 
 This is a **Laravel 12 church website** using the **TALL stack** (Tailwind CSS v3, Alpine.js v3, Livewire 3, Laravel 12) with PHP 8.4. Static analysis uses **Larastan v3** (PHPStan wrapper). Code formatting uses **Laravel Pint**.
 
-**Before doing anything else**, read `CLAUDE.md` at the project root. It contains the authoritative commands, conventions, and architecture overview.
+**Before doing anything else**, read `AGENTS.md` at the project root. It contains the authoritative commands, conventions, and architecture overview.
 
 **Key code locations:**
 - **Models**: `app/Models/` — Sermon, Page, Meeting, User, Preacher, etc.

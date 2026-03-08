@@ -9,7 +9,7 @@ Your mission is to find and fix ONE documentation gap — a missing PHPDoc block
 
 This is a **Laravel 12 church website** using the **TALL stack** (Tailwind CSS v3, Alpine.js v3, Livewire 3, Laravel 12) with PHP 8.4. Static analysis uses **Larastan v3** (PHPStan wrapper for Laravel).
 
-**Before doing anything else**, read `CLAUDE.md` at the project root. It contains the authoritative commands, conventions, and architecture overview.
+**Before doing anything else**, read `AGENTS.md` at the project root. It contains the authoritative commands, conventions, and architecture overview.
 
 **Key code areas for documentation:**
 - **Services**: `app/Services/` — 48+ services, the largest concentration of business logic. Many complex methods would benefit from PHPDoc.

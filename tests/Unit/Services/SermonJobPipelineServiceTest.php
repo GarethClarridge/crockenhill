@@ -38,12 +38,13 @@ class SermonJobPipelineServiceTest extends TestCase
         Bus::fake();
 
         $log = MediaProcessingLog::factory()->audio()->pending()->create();
-        $jobs = [new \App\Jobs\TestJob];
+        // Use a real job class for testing
+        $jobs = [new StubJob];
 
         $this->service->dispatchProcessingJobs($jobs, $log);
 
         Bus::assertChained([
-            \App\Jobs\TestJob::class,
+            StubJob::class,
         ]);
     }
 
@@ -53,13 +54,13 @@ class SermonJobPipelineServiceTest extends TestCase
         Bus::fake();
 
         $log = MediaProcessingLog::factory()->audio()->pending()->create();
-        $jobs = [new \App\Jobs\TestJob];
+        $jobs = [new StubJob];
         $metadata = ['source_type' => 'livestream'];
 
         $this->service->dispatchProcessingJobs($jobs, $log, $metadata);
 
         Bus::assertChained([
-            \App\Jobs\TestJob::class,
+            StubJob::class,
         ]);
     }
 
@@ -69,13 +70,13 @@ class SermonJobPipelineServiceTest extends TestCase
         Bus::fake();
 
         $log = MediaProcessingLog::factory()->audio()->pending()->create();
-        $jobs = [new \App\Jobs\TestJob];
+        $jobs = [new StubJob];
         $metadata = ['source_type' => 'video_upload'];
 
         $this->service->dispatchProcessingJobs($jobs, $log, $metadata);
 
         Bus::assertChained([
-            \App\Jobs\TestJob::class,
+            StubJob::class,
         ]);
     }
 
@@ -296,4 +297,11 @@ class SermonJobPipelineServiceTest extends TestCase
         $this->assertEquals(ProcessingStatus::PENDING, $log->status);
         $this->assertNull($log->error_message);
     }
+}
+
+class StubJob implements \Illuminate\Contracts\Queue\ShouldQueue
+{
+    use \Illuminate\Foundation\Queue\Queueable;
+
+    public function handle(): void {}
 }
