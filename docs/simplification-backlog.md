@@ -27,12 +27,12 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 - ~~Delete `TestBritishEnglishConverter` command (unit test already covers this)~~ — deleted
 - ~~Delete associated tests~~
 
-### PR 3. Delete unused views and dead controller methods
-- Delete `resources/views/meetings/create.blade.php`
-- Delete `resources/views/meetings/edit.blade.php`
-- Delete `resources/views/sermons/upload.blade.php`
-- Remove `MeetingController::create()`, `store()`, `edit()` methods
-- Remove `CalendarController::meetingsIndex()` method
+### PR 3. Delete unused views and dead controller methods ✅
+- ~~Delete `resources/views/meetings/create.blade.php`~~ — already gone
+- ~~Delete `resources/views/meetings/edit.blade.php`~~ — already gone
+- `resources/views/sermons/upload.blade.php` — **kept**: still used by `SermonAdminController::upload()`
+- ~~Remove `MeetingController::create()`, `store()`, `edit()` methods~~ — removed; `Route::resource` updated to `only(['index', 'update', 'destroy'])`
+- ~~Remove `CalendarController::meetingsIndex()` method~~ — removed
 
 ### PR 4. Delete unused authorization code
 - Delete `MeetingPolicy`

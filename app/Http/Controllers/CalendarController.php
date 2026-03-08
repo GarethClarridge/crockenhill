@@ -32,20 +32,6 @@ class CalendarController extends Controller
         return view('calendar.index', compact('allEvents'));
     }
 
-    public function meetingsIndex(): View
-    {
-        $meetings = Meeting::with([
-            'calendarEvents' => function ($query) {
-                $query->upcoming()
-                    ->confirmed()
-                    ->orderBy('start_datetime')
-                    ->limit(config('calendar.performance.eager_load_limit', 5));
-            },
-        ])->get();
-
-        return view('meetings.index', compact('meetings'));
-    }
-
     public function eventsForMeeting(Meeting $meeting): View
     {
         $events = $this->calendarService->getEventsForMeeting($meeting->slug)

@@ -40,7 +40,7 @@ Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
 
 // Meeting routes
 Route::resource('meetings', MeetingController::class)
-    ->except(['show'])
+    ->only(['index', 'update', 'destroy'])
     ->middleware(['auth', 'admin']);
 
 // Calendar routes

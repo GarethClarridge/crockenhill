@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreMeetingRequest;
 use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Meeting;
 use Illuminate\Contracts\View\View as ViewContract;
@@ -24,30 +23,6 @@ class MeetingController extends Controller
         $meetings = Meeting::orderBy('meeting_date', 'desc')->get();
 
         return View::make('meetings.index', ['meetings' => $meetings]);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(): ViewContract
-    {
-        $this->authorize('create', Meeting::class);
-
-        return View::make('meetings.create', ['heading' => 'Create a meeting']);
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreMeetingRequest $request): RedirectResponse
-    {
-        $validated = $request->validated();
-
-        $meeting = Meeting::create($validated);
-
-        Session::flash('message', 'Meeting "'.$meeting->slug.'" successfully created!');
-
-        return Redirect::to('/church/members/meetings');
     }
 
     /**
@@ -96,23 +71,6 @@ class MeetingController extends Controller
             'content' => $content,
             'area' => $area,
             'slug' => $slug,
-        ]);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Meeting $meeting): ViewContract
-    {
-        $this->authorize('update', $meeting);
-
-        Session::put('backUrl', url()->previous());
-
-        $heading = 'Edit meeting';
-
-        return View::make('meetings.edit', [
-            'meeting' => $meeting,
-            'heading' => $heading,
         ]);
     }
 
