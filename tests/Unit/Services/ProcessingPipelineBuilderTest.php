@@ -16,6 +16,7 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
+use App\Jobs\TranscribeSpeechSegments;
 use App\Jobs\ValidateAudioFile;
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
@@ -160,17 +161,18 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildLivestreamChainJobs($log);
 
-        $this->assertCount(10, $jobs);
+        $this->assertCount(11, $jobs);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[0]);
         $this->assertInstanceOf(ClassifyServiceSections::class, $jobs[1]);
-        $this->assertInstanceOf(ExtractSermon::class, $jobs[2]);
-        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[3]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[4]);
-        $this->assertInstanceOf(TranscribeAudio::class, $jobs[5]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[6]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[7]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[8]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[9]);
+        $this->assertInstanceOf(TranscribeSpeechSegments::class, $jobs[2]);
+        $this->assertInstanceOf(ExtractSermon::class, $jobs[3]);
+        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[4]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[5]);
+        $this->assertInstanceOf(TranscribeAudio::class, $jobs[6]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[7]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[8]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[9]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[10]);
     }
 
     #[Test]
@@ -182,6 +184,7 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobClasses = array_map(fn ($job) => get_class($job), $jobs);
         $this->assertContains(ClassifyServiceSections::class, $jobClasses);
+        $this->assertContains(TranscribeSpeechSegments::class, $jobClasses);
         $this->assertContains(ExtractSermon::class, $jobClasses);
         $this->assertContains(SubmitToProcessing::class, $jobClasses);
     }

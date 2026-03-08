@@ -70,6 +70,8 @@ class ServiceSectionSyncService
                             $payload,
                             $this->supersededReplacementPayload($existing, $payload)
                         );
+                    } else {
+                        $payload['metadata'] = $this->mergeExistingMetadata($existing, $payload['metadata']);
                     }
 
                     $existing->fill($payload);
@@ -243,6 +245,21 @@ class ServiceSectionSyncService
         $publishableTypes = config('media-processing.section_publishing.publishable_types', ['childrens_talk']);
 
         return is_array($publishableTypes) && in_array($sectionType, $publishableTypes, true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $incomingMetadata
+     * @return array<string, mixed>
+     */
+    private function mergeExistingMetadata(ServiceSection $existing, array $incomingMetadata): array
+    {
+        $existingMetadata = $existing->metadata;
+
+        if (! is_array($existingMetadata)) {
+            return $incomingMetadata;
+        }
+
+        return array_merge($existingMetadata, $incomingMetadata);
     }
 
     private function cleanupExtractedAssets(ServiceSection $section): void

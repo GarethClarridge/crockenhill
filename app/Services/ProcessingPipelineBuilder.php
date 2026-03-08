@@ -18,6 +18,7 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
+use App\Jobs\TranscribeSpeechSegments;
 use App\Jobs\ValidateAudioFile;
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
@@ -94,6 +95,7 @@ class ProcessingPipelineBuilder
         return [
             new AnalyzeSegments($log),
             new ClassifyServiceSections($log),
+            new TranscribeSpeechSegments($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new IdentifySpeaker($log),

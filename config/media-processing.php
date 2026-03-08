@@ -158,6 +158,8 @@ return [
     'section_classification' => [
         'enabled' => env('SERVICE_SECTION_CLASSIFICATION_ENABLED', true),
         'prefer_high_confidence_sermon_section' => env('SERVICE_SECTION_PREFER_HIGH_CONFIDENCE_SERMON', true),
+        'transcribe_speech_segments' => env('SERVICE_SECTION_TRANSCRIBE_SPEECH_SEGMENTS', true),
+        'speech_transcription_min_duration_seconds' => (int) env('SERVICE_SECTION_SPEECH_TRANSCRIPTION_MIN_DURATION_SECONDS', 10),
     ],
 
     /*

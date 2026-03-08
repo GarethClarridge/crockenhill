@@ -281,6 +281,43 @@ class ServiceSectionSyncServiceTest extends TestCase
         ]);
     }
 
+    #[Test]
+    public function it_preserves_existing_transcript_metadata_when_the_section_signature_is_unchanged(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_order' => 1,
+            'title' => 'Opening Prayer',
+            'start_time' => 60.0,
+            'end_time' => 180.0,
+            'duration' => 120.0,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+                'transcript' => 'Existing section transcript',
+            ],
+        ]);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: $item->id,
+                sectionOrder: 1,
+                sectionType: ServiceSectionType::PRAYER->value,
+                title: 'Opening Prayer'
+            ),
+        ]);
+
+        $section->refresh();
+
+        $this->assertSame('Existing section transcript', $section->metadata['transcript'] ?? null);
+        $this->assertSame('openlp_aligned', $section->metadata['classification_mode'] ?? null);
+    }
+
     /**
      * @return array{
      *     church_service_item_id: int|null,

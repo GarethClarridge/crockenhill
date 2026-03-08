@@ -1,0 +1,256 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Jobs;
+
+use App\Contracts\TranscriptionServiceInterface;
+use App\Enums\MediaType;
+use App\Enums\ServiceSectionStatus;
+use App\Enums\ServiceSectionType;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
+use App\Services\StorageAdapterHelper;
+use App\Services\VideoExtractionService;
+use App\Traits\DetectsStorageType;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
+class TranscribeSpeechSegments implements ShouldQueue
+{
+    use DetectsStorageType;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
+
+    public int $tries = 3;
+
+    public int $timeout = 1800;
+
+    public function __construct(
+        private MediaProcessingLog $processingLog
+    ) {
+        $this->onQueue((string) config('media-processing.queues.audio', 'audio-processing'));
+    }
+
+    /**
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping('transcribe-speech-segments-'.$this->processingLog->id))
+                ->releaseAfter(30)
+                ->expireAfter($this->timeout + 120),
+        ];
+    }
+
+    public function handle(
+        VideoExtractionService $videoExtractor,
+        StorageAdapterHelper $storageHelper,
+        TranscriptionServiceInterface $transcriptionService
+    ): void {
+        if (! (bool) config('media-processing.section_classification.transcribe_speech_segments', true)) {
+            return;
+        }
+
+        $processingLog = $this->processingLog->fresh();
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return;
+        }
+
+        $this->processingLog = $processingLog;
+
+        if (
+            $this->processingLog->processing_type !== MediaType::Livestream
+            || $this->processingLog->isCancelled()
+        ) {
+            return;
+        }
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $this->processingLog->id)
+            ->where('status', ServiceSectionStatus::IDENTIFIED->value)
+            ->whereNotIn('section_type', [
+                ServiceSectionType::SONG->value,
+                ServiceSectionType::SERMON->value,
+            ])
+            ->orderBy('section_order')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (ServiceSection $section): bool => $this->shouldTranscribe($section));
+
+        if ($sections->isEmpty()) {
+            return;
+        }
+
+        try {
+            [$localSourcePath, $cleanupSourcePath] = $this->resolveLocalSourceVideoPath($storageHelper);
+        } catch (\Throwable $throwable) {
+            Log::warning('Speech segment transcription skipped: source video unavailable', [
+                'processing_id' => $this->processingLog->processing_id,
+                'error' => $throwable->getMessage(),
+            ]);
+
+            return;
+        }
+
+        try {
+            foreach ($sections as $section) {
+                $this->transcribeSection($section, $localSourcePath, $videoExtractor, $transcriptionService);
+            }
+        } finally {
+            if ($cleanupSourcePath) {
+                $storageHelper->cleanupTempFile($localSourcePath);
+            }
+        }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('TranscribeSpeechSegments job failed permanently', [
+            'processing_id' => $this->processingLog->processing_id,
+            'error' => $exception->getMessage(),
+            'attempts' => $this->attempts(),
+        ]);
+    }
+
+    private function shouldTranscribe(ServiceSection $section): bool
+    {
+        if ($this->hasTranscript($section)) {
+            return false;
+        }
+
+        return $this->effectiveDurationSeconds($section) >= $this->minimumDurationSeconds();
+    }
+
+    private function effectiveDurationSeconds(ServiceSection $section): float
+    {
+        return max(0.0, (float) $section->end_time - (float) $section->start_time);
+    }
+
+    private function hasTranscript(ServiceSection $section): bool
+    {
+        $transcript = $section->metadata['transcript'] ?? null;
+
+        return is_string($transcript) && trim($transcript) !== '';
+    }
+
+    private function minimumDurationSeconds(): int
+    {
+        return max(1, (int) config('media-processing.section_classification.speech_transcription_min_duration_seconds', 10));
+    }
+
+    /**
+     * @return array{0: string, 1: bool}
+     */
+    private function resolveLocalSourceVideoPath(StorageAdapterHelper $storageHelper): array
+    {
+        $sourceFilePath = $this->requireSourceFilePath();
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        if ($this->isS3Disk($tempDisk)) {
+            if (! Storage::disk($tempDisk)->exists($sourceFilePath)) {
+                throw new \RuntimeException('Source video not found on temp disk');
+            }
+
+            return [
+                $storageHelper->downloadToTemp($sourceFilePath, $tempDisk, 'local', 'temp/section-transcription'),
+                true,
+            ];
+        }
+
+        $localSourcePath = Storage::disk($tempDisk)->path($sourceFilePath);
+        if (! file_exists($localSourcePath)) {
+            throw new \RuntimeException('Source video file not found');
+        }
+
+        return [$localSourcePath, false];
+    }
+
+    private function transcribeSection(
+        ServiceSection $section,
+        string $localSourcePath,
+        VideoExtractionService $videoExtractor,
+        TranscriptionServiceInterface $transcriptionService
+    ): void {
+        $audioPath = null;
+
+        try {
+            $audioResult = $videoExtractor->extractOptimizedAudio(
+                $localSourcePath,
+                (object) [
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                ],
+                $this->processingLog->processing_id.'_section_'.$section->id.'_speech.mp3'
+            );
+
+            $audioPath = $audioResult['audio_path'];
+            $transcript = $transcriptionService->transcribe(
+                $audioPath,
+                $this->processingLog->processing_id.'-section-'.$section->id,
+                $this->sermonDisk()
+            );
+
+            $metadata = array_merge($section->metadata ?? [], [
+                'transcript' => $transcript,
+            ]);
+
+            $section->forceFill([
+                'metadata' => $metadata,
+            ])->save();
+        } catch (\Throwable $throwable) {
+            Log::warning('Failed to transcribe speech section', [
+                'processing_id' => $this->processingLog->processing_id,
+                'service_section_id' => $section->id,
+                'section_type' => $section->section_type->value,
+                'error' => $throwable->getMessage(),
+            ]);
+        } finally {
+            $this->cleanupExtractedAudio($audioPath);
+        }
+    }
+
+    private function cleanupExtractedAudio(?string $audioPath): void
+    {
+        if (! is_string($audioPath) || $audioPath === '') {
+            return;
+        }
+
+        $disk = $this->sermonDisk();
+
+        try {
+            if (Storage::disk($disk)->exists($audioPath)) {
+                Storage::disk($disk)->delete($audioPath);
+            }
+        } catch (\Throwable $throwable) {
+            Log::warning('Failed to clean up extracted speech segment audio', [
+                'processing_id' => $this->processingLog->processing_id,
+                'audio_path' => $audioPath,
+                'disk' => $disk,
+                'error' => $throwable->getMessage(),
+            ]);
+        }
+    }
+
+    private function requireSourceFilePath(): string
+    {
+        $sourceFilePath = $this->processingLog->source_file_path;
+        if (! is_string($sourceFilePath) || $sourceFilePath === '') {
+            throw new \RuntimeException('No source video path found in processing log');
+        }
+
+        return $sourceFilePath;
+    }
+
+    private function sermonDisk(): string
+    {
+        return (string) config('media-processing.storage.sermon_disk', 'public');
+    }
+}

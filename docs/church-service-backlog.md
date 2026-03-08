@@ -196,7 +196,7 @@ Each item includes what exists, what needs to change, and which PRD section it i
 
 **Work**:
 - New job: `TranscribeSpeechSegments`.
-- For each non-sermon `ServiceSection` with type `OTHER` or `SONG` (misclassified) or any speech segment not yet transcribed:
+- For each non-sermon speech-type `ServiceSection` (type `OTHER` or any speech segment not yet transcribed):
   - Extract audio for that segment's time range using existing `VideoExtractionService`.
   - Transcribe via `AudioTranscriptionService`.
   - Store transcript on `ServiceSection.metadata.transcript`.
