@@ -8,7 +8,6 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\ClassifySpeechSections;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\OosAlignmentService;
 use App\Services\ServiceSectionSyncService;
 use App\Services\SpeechSectionClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -71,7 +70,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService, app(OosAlignmentService::class));
+        $job->handle($service, new ServiceSectionSyncService);
 
         $section->refresh();
 
@@ -139,7 +138,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService, app(OosAlignmentService::class));
+        $job->handle($service, new ServiceSectionSyncService);
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -194,7 +193,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService, app(OosAlignmentService::class));
+        $job->handle($service, new ServiceSectionSyncService);
 
         $section = ServiceSection::query()->firstOrFail();
 
@@ -274,7 +273,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService, app(OosAlignmentService::class));
+        $job->handle($service, new ServiceSectionSyncService);
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
@@ -351,7 +350,7 @@ class ClassifySpeechSectionsTest extends TestCase
         };
 
         $job = new ClassifySpeechSections($processingLog);
-        $job->handle($service, new ServiceSectionSyncService, app(OosAlignmentService::class));
+        $job->handle($service, new ServiceSectionSyncService);
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)

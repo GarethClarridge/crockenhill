@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Data\SermonCreationOptions;
-use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\SermonCreationService;
 use App\Services\SermonMetadataIntegrationService;
@@ -186,8 +185,6 @@ class SubmitToProcessing implements ShouldQueue
                 'final_video_path' => $finalVideoPath,
             ]);
 
-            $this->dispatchSectionPublicationPreparation();
-
             // Job chain will automatically proceed to transcription job
 
         } catch (\Exception $e) {
@@ -224,19 +221,5 @@ class SubmitToProcessing implements ShouldQueue
         );
 
         // Cleanup will be handled by the chain failure handler
-    }
-
-    private function dispatchSectionPublicationPreparation(): void
-    {
-        if (! (bool) config('media-processing.section_publishing.enabled', true)) {
-            return;
-        }
-
-        if ($this->processingLog->processing_type !== MediaType::Livestream) {
-            return;
-        }
-
-        PrepareSectionPublicationCandidates::dispatch($this->processingLog)
-            ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
     }
 }

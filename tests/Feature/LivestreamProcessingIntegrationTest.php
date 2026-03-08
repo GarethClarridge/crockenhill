@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\SermonSourceType;
+use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
@@ -10,6 +11,7 @@ use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
@@ -175,12 +177,14 @@ class LivestreamProcessingIntegrationTest extends TestCase
             ClassifyServiceSections::class,
             TranscribeSpeechSegments::class,
             ClassifySpeechSections::class,
+            AlignWithOos::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             IdentifySpeaker::class,
             TranscribeAudio::class,
             ProcessTranscriptWithAI::class,
             GenerateThumbnail::class,
+            PrepareSectionPublicationCandidates::class,
             SendCompletionNotification::class,
             CleanupTemporaryFiles::class,
         ]);

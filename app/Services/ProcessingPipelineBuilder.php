@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Jobs\AlignWithOos;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
@@ -15,6 +16,7 @@ use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\PerformVisualAnalysis;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
@@ -98,12 +100,14 @@ class ProcessingPipelineBuilder
             new ClassifyServiceSections($log),
             new TranscribeSpeechSegments($log),
             new ClassifySpeechSections($log),
+            new AlignWithOos($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new IdentifySpeaker($log),
             new TranscribeAudio($log),
             new ProcessTranscriptWithAI($log),
             new GenerateThumbnail($log),
+            new PrepareSectionPublicationCandidates($log),
             new SendCompletionNotification($log),
             new CleanupTemporaryFiles($log),
         ];

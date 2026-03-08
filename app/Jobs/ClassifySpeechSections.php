@@ -9,7 +9,6 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\OosAlignmentService;
 use App\Services\ServiceSectionSyncService;
 use App\Services\SpeechSectionClassificationService;
 use App\Support\ServiceSectionConfidence;
@@ -33,8 +32,7 @@ class ClassifySpeechSections implements ShouldQueue
 
     public function handle(
         SpeechSectionClassificationService $classificationService,
-        ServiceSectionSyncService $syncService,
-        OosAlignmentService $alignmentService
+        ServiceSectionSyncService $syncService
     ): void {
         $processingLog = $this->processingLog->fresh();
         if (! $processingLog instanceof MediaProcessingLog) {
@@ -51,8 +49,6 @@ class ClassifySpeechSections implements ShouldQueue
         }
 
         if (! (bool) config('media-processing.section_classification.classify_speech_sections', true)) {
-            $alignmentService->alignForProcessingLog($this->processingLog);
-
             return;
         }
 
@@ -100,7 +96,6 @@ class ClassifySpeechSections implements ShouldQueue
         unset($rewrittenSection);
 
         $syncService->sync($this->processingLog, $rewrittenSections);
-        $alignmentService->alignForProcessingLog($this->processingLog);
     }
 
     public function failed(\Throwable $exception): void
