@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
+use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +21,7 @@ class UnifiedMediaProcessor
     public function __construct(
         private readonly SermonAudioProcessingService $audioProcessingService,
         private readonly SermonJobPipelineService $jobPipelineService,
-        private readonly SermonProcessingService $sermonService,
+        private readonly SermonProcessingLogger $sermonProcessingLogger,
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingLogService $processingLogService,
         private readonly ProcessingInitiator $processingInitiator
@@ -107,7 +108,7 @@ class UnifiedMediaProcessor
         }
 
         $result = match ($log->processing_type) {
-            MediaType::Audio, MediaType::Video => $this->sermonService->cancelProcessing($processingId),
+            MediaType::Audio, MediaType::Video => $this->cancelSermonProcessing($processingId, $log),
             MediaType::Livestream => $this->livestreamService()->cancelProcessing($processingId),
         };
 
@@ -133,6 +134,27 @@ class UnifiedMediaProcessor
             MediaType::Audio, MediaType::Video => $this->jobPipelineService->retryProcessing($processingId),
             MediaType::Livestream => $this->convertLivestreamRetryResult($this->livestreamService()->retryProcessing($processingId)),
         };
+    }
+
+    private function cancelSermonProcessing(string $processingId, MediaProcessingLog $log): bool
+    {
+        try {
+            if ($log->status === ProcessingStatus::COMPLETED) {
+                return false;
+            }
+
+            $log->markAsCancelled('Processing cancelled by user');
+            $this->sermonProcessingLogger->logProcessingCompletion($processingId, false, 'Processing cancelled by user');
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to cancel processing', [
+                'processing_id' => $processingId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     private function convertLivestreamRetryResult(\App\Data\LivestreamProcessingResult $livestreamResult): ProcessingResult

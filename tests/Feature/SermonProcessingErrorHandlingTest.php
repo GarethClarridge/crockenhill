@@ -427,46 +427,6 @@ class SermonProcessingErrorHandlingTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_graceful_degradation_application(): void
-    {
-        $service = app(\App\Services\SermonProcessingService::class);
-
-        // Create sermon with failed processing
-        $sermon = Sermon::factory()->create([
-            'title' => 'Untitled Sermon',
-            'slug' => 'untitled-sermon',
-        ]);
-
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'degradation-test-id',
-            'processing_type' => 'audio',
-            'original_filename' => '2024-01-15_morning_service.mp3',
-            'status' => ProcessingStatus::FAILED,
-            'current_step' => 'analyzing_transcript_failed',
-            'sermon_id' => $sermon->id,
-            'error_message' => 'AI service permanently unavailable',
-        ]);
-
-        // Apply graceful degradation
-        $result = $service->applyGracefulDegradation('degradation-test-id');
-
-        $this->assertTrue($result->success, 'Graceful degradation should always succeed: '.$result->message);
-        $this->assertEquals('degradation-test-id', $result->processingId);
-
-        // Verify sermon was updated with fallback data
-        $sermon->refresh();
-        $this->assertNotEquals('Untitled Sermon', $sermon->title);
-        $this->assertIsArray($sermon->points);
-        $this->assertEquals(['Main Message'], $sermon->points);
-
-        // Verify processing log was marked as completed with degradation
-        $processingLog->refresh();
-        $this->assertEquals(ProcessingStatus::COMPLETED, $processingLog->status);
-        $this->assertEquals('completed_with_degradation', $processingLog->current_step);
-        $this->assertStringContainsString('Graceful degradation applied', $processingLog->error_message);
-    }
-
-    #[Test]
     public function it_handles_manual_review_marking(): void
     {
         $service = app(\App\Services\SermonStatusManagementService::class);

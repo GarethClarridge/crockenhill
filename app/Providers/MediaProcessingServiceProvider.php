@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Services\SermonProcessingService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,7 +20,6 @@ class MediaProcessingServiceProvider extends ServiceProvider
                 $app->make(\App\Services\ProcessingInitiator::class)
             );
         });
-        $this->app->bind(\App\Services\LivestreamStatusService::class);
         $this->app->bind(\App\Services\ProcessingLogService::class);
 
         // Register the unified processor
@@ -43,12 +41,6 @@ class MediaProcessingServiceProvider extends ServiceProvider
                 $app->make(\App\Services\MetadataExtractionService::class),
                 $app->make(\App\Services\ProcessingPipelineBuilder::class),
                 $app->make(\App\Services\MediaValidationService::class)
-            );
-        });
-        $this->app->bind(SermonProcessingService::class, function ($app) {
-            return new SermonProcessingService(
-                $app->make(\App\Services\SermonValidationService::class),
-                $app->make(\App\Services\SermonProcessingLogger::class)
             );
         });
     }

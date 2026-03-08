@@ -11,7 +11,8 @@ Items are ordered by priority: low-risk deletions first, then consolidation, the
 
 ## Priority 1: Dead Code Removal
 
-### PR 1. Delete one-time migration commands
+### PR 1. Delete one-time migration commands ⏸️
+> Blocked - check these have all been executed in prod first. 
 Remove 7 commands that have already been executed and serve no ongoing purpose.
 - `BackfillMediaProcessingIdentityCommand`
 - `PreacherCutoverCommand`
@@ -92,21 +93,19 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 
 ## Priority 3: Service Layer Consolidation
 
-### PR 9. Merge `LivestreamStatusService` into `LivestreamSegmentationService`
-- `LivestreamStatusService` (99 lines) duplicates `buildProcessingResult()` from `LivestreamSegmentationService`
-- Move any unique methods into `LivestreamSegmentationService`
-- Update all callers
-- Delete `LivestreamStatusService`
+### PR 9. Merge `LivestreamStatusService` into `LivestreamSegmentationService` ✅
+- ~~`LivestreamStatusService` (99 lines) duplicates `buildProcessingResult()` from `LivestreamSegmentationService`~~ — confirmed; key stored is `file_format`, not `format` (inconsistency fixed in the process)
+- ~~Move any unique methods into `LivestreamSegmentationService`~~ — `getProcessingStatus()`, `getProcessingResult()`, `getProcessingSummary()` moved; `buildProcessingResult()` deduplicated
+- ~~Update all callers~~ — service provider binding removed
+- ~~Delete `LivestreamStatusService`~~ — deleted; tests migrated into `LivestreamSegmentationServiceTest`
 
-### PR 10. Merge `ProcessingResult` and `ProcessingReport`
-- Nearly identical value objects
-- Consolidate into a single class
-- Update callers
+### PR 10. Merge `ProcessingResult` and `ProcessingReport` ⏸️
+> Skipped — these are not "nearly identical value objects". `ProcessingResult` is a strongly-typed API response object (typed properties, success/failure factory methods); `ProcessingReport` is a generic diagnostic data bag (array-backed, enum-aware, with helpers like `hasErrors()`, `getSegmentCount()`). Merging would conflate API response concerns with internal diagnostic concerns and damage type safety.
 
-### PR 11. Inline `SermonProcessingService`
-- 2 public methods that just wrap other services
-- Inline `applyGracefulDegradation()` and `cancelProcessing()` into their callers
-- Delete service
+### PR 11. Inline `SermonProcessingService` ✅
+- ~~`cancelProcessing()`~~ — inlined into `UnifiedMediaProcessor::cancelSermonProcessing()` (private method); `SermonProcessingLogger` injected in place of `SermonProcessingService`
+- ~~`applyGracefulDegradation()`~~ — dropped; had no production callers (tests-only dead code)
+- ~~Delete service~~ — deleted; unit tests replaced by direct DB assertions in `UnifiedMediaProcessorTest`
 
 ### PR 12. Inline `SermonStatusManagementService` ⏸️
 > Defer until after church service Phase 3. The new pipeline introduces review states and confidence-based status logic that will change the callers you'd inline into.

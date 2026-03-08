@@ -13,7 +13,7 @@ use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
 use App\Services\SermonAudioProcessingService;
 use App\Services\SermonJobPipelineService;
-use App\Services\SermonProcessingService;
+use App\Services\SermonProcessingLogger;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -33,7 +33,7 @@ class UnifiedMediaProcessorTest extends TestCase
 
     private SermonJobPipelineService $jobPipelineService;
 
-    private SermonProcessingService $sermonService;
+    private SermonProcessingLogger $sermonProcessingLogger;
 
     private ProcessingPipelineBuilder $pipelineBuilder;
 
@@ -48,7 +48,7 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->livestreamService = $this->createMock(LivestreamSegmentationService::class);
         $this->audioProcessingService = $this->createMock(SermonAudioProcessingService::class);
         $this->jobPipelineService = $this->createMock(SermonJobPipelineService::class);
-        $this->sermonService = $this->createMock(SermonProcessingService::class);
+        $this->sermonProcessingLogger = $this->createMock(SermonProcessingLogger::class);
         $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
         $this->processingLogService = $this->createMock(ProcessingLogService::class);
         $this->processingInitiator = $this->createMock(ProcessingInitiator::class);
@@ -58,7 +58,7 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->processor = new UnifiedMediaProcessor(
             $this->audioProcessingService,
             $this->jobPipelineService,
-            $this->sermonService,
+            $this->sermonProcessingLogger,
             $this->pipelineBuilder,
             $this->processingLogService,
             $this->processingInitiator
@@ -253,34 +253,36 @@ class UnifiedMediaProcessorTest extends TestCase
     // --- cancel() tests ---
 
     #[Test]
-    public function it_cancels_audio_processing_via_sermon_service(): void
+    public function it_cancels_audio_processing(): void
     {
         $log = MediaProcessingLog::factory()->audio()->processing()->create();
 
-        $this->sermonService
-            ->method('cancelProcessing')
-            ->with($log->processing_id)
-            ->willReturn(true);
+        $this->sermonProcessingLogger->method('logProcessingCompletion');
 
         $result = $this->processor->cancel($log->processing_id);
 
         $this->assertTrue($result['success']);
         $this->assertEquals('Processing cancelled successfully', $result['message']);
+        $this->assertDatabaseHas('media_processing_logs', [
+            'processing_id' => $log->processing_id,
+            'status' => 'cancelled',
+        ]);
     }
 
     #[Test]
-    public function it_cancels_video_processing_via_sermon_service(): void
+    public function it_cancels_video_processing(): void
     {
         $log = MediaProcessingLog::factory()->video()->processing()->create();
 
-        $this->sermonService
-            ->method('cancelProcessing')
-            ->with($log->processing_id)
-            ->willReturn(true);
+        $this->sermonProcessingLogger->method('logProcessingCompletion');
 
         $result = $this->processor->cancel($log->processing_id);
 
         $this->assertTrue($result['success']);
+        $this->assertDatabaseHas('media_processing_logs', [
+            'processing_id' => $log->processing_id,
+            'status' => 'cancelled',
+        ]);
     }
 
     #[Test]
@@ -308,6 +310,17 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_failure_when_cancelling_completed_audio_processing(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->completed()->create();
+
+        $result = $this->processor->cancel($log->processing_id);
+
+        $this->assertFalse($result['success']);
+        $this->assertEquals('Failed to cancel processing', $result['message']);
+    }
+
+    #[Test]
     public function non_admin_user_cannot_cancel_other_users_processing(): void
     {
         $owner = User::factory()->create(['is_admin' => false]);
@@ -318,29 +331,10 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->actingAs($owner);
 
-        $this->sermonService
-            ->expects($this->never())
-            ->method('cancelProcessing');
-
         $result = $this->processor->cancel($log->processing_id);
 
         $this->assertFalse($result['success']);
         $this->assertEquals('Processing ID not found', $result['message']);
-    }
-
-    #[Test]
-    public function it_returns_failure_when_cancel_service_returns_false(): void
-    {
-        $log = MediaProcessingLog::factory()->audio()->processing()->create();
-
-        $this->sermonService
-            ->method('cancelProcessing')
-            ->willReturn(false);
-
-        $result = $this->processor->cancel($log->processing_id);
-
-        $this->assertFalse($result['success']);
-        $this->assertEquals('Failed to cancel processing', $result['message']);
     }
 
     // --- retry() tests ---

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Data\LivestreamProcessingResult;
+use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
@@ -154,6 +155,53 @@ class LivestreamSegmentationService
         }
 
         return true;
+    }
+
+    public function getProcessingStatus(string $processingId): StandardProcessingResponse
+    {
+        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
+            ->with(['segments', 'sermon'])
+            ->first();
+
+        if (! $processingLog) {
+            throw new \Exception('Processing record not found');
+        }
+
+        return StandardProcessingResponse::fromProcessingLog($processingLog);
+    }
+
+    public function getProcessingResult(string $processingId): LivestreamProcessingResult
+    {
+        $processingLog = MediaProcessingLog::where('processing_id', $processingId)
+            ->with(['segments', 'sermon'])
+            ->first();
+
+        if (! $processingLog) {
+            throw new \Exception('Processing record not found');
+        }
+
+        return $this->buildProcessingResult($processingLog);
+    }
+
+    /**
+     * @return array<string, int|float>
+     */
+    public function getProcessingSummary(): array
+    {
+        $total = MediaProcessingLog::livestream()->count();
+        $pending = MediaProcessingLog::livestream()->where('status', 'pending')->count();
+        $processing = MediaProcessingLog::livestream()->where('status', 'processing')->count();
+        $completed = MediaProcessingLog::livestream()->where('status', 'completed')->count();
+        $failed = MediaProcessingLog::livestream()->where('status', 'failed')->count();
+
+        return [
+            'total_processing_requests' => $total,
+            'pending' => $pending,
+            'processing' => $processing,
+            'completed' => $completed,
+            'failed' => $failed,
+            'success_rate' => $total > 0 ? round(($completed / $total) * 100, 2) : 0,
+        ];
     }
 
     private function dispatchProcessingJobs(MediaProcessingLog $processingLog): void
