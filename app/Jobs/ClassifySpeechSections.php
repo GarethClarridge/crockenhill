@@ -9,8 +9,10 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\OosAlignmentService;
 use App\Services\ServiceSectionSyncService;
 use App\Services\SpeechSectionClassificationService;
+use App\Support\ServiceSectionConfidence;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -31,12 +33,9 @@ class ClassifySpeechSections implements ShouldQueue
 
     public function handle(
         SpeechSectionClassificationService $classificationService,
-        ServiceSectionSyncService $syncService
+        ServiceSectionSyncService $syncService,
+        OosAlignmentService $alignmentService
     ): void {
-        if (! (bool) config('media-processing.section_classification.classify_speech_sections', true)) {
-            return;
-        }
-
         $processingLog = $this->processingLog->fresh();
         if (! $processingLog instanceof MediaProcessingLog) {
             return;
@@ -48,6 +47,12 @@ class ClassifySpeechSections implements ShouldQueue
             $this->processingLog->processing_type !== MediaType::Livestream
             || $this->processingLog->isCancelled()
         ) {
+            return;
+        }
+
+        if (! (bool) config('media-processing.section_classification.classify_speech_sections', true)) {
+            $alignmentService->alignForProcessingLog($this->processingLog);
+
             return;
         }
 
@@ -95,6 +100,7 @@ class ClassifySpeechSections implements ShouldQueue
         unset($rewrittenSection);
 
         $syncService->sync($this->processingLog, $rewrittenSections);
+        $alignmentService->alignForProcessingLog($this->processingLog);
     }
 
     public function failed(\Throwable $exception): void
@@ -130,6 +136,7 @@ class ClassifySpeechSections implements ShouldQueue
      *     start_time: float,
      *     end_time: float,
      *     duration: float,
+     *     confidence: float,
      *     status: string,
      *     needs_manual_review: bool,
      *     source_segment_ids: array<int, int>,
@@ -146,6 +153,7 @@ class ClassifySpeechSections implements ShouldQueue
             'start_time' => (float) $section->start_time,
             'end_time' => (float) $section->end_time,
             'duration' => max(0.0, (float) $section->end_time - (float) $section->start_time),
+            'confidence' => ServiceSectionConfidence::resolve($section->confidence, $section->metadata),
             'status' => $section->status->value,
             'needs_manual_review' => $section->needs_manual_review,
             'source_segment_ids' => $this->normaliseSourceSegmentIds($section->source_segment_ids),
@@ -160,6 +168,7 @@ class ClassifySpeechSections implements ShouldQueue
      *     start_time: float,
      *     end_time: float,
      *     duration: float,
+     *     confidence?: float,
      *     needs_manual_review: bool,
      *     metadata: array<string, mixed>
      * }  $classifiedSection
@@ -171,6 +180,7 @@ class ClassifySpeechSections implements ShouldQueue
      *     start_time: float,
      *     end_time: float,
      *     duration: float,
+     *     confidence: float,
      *     status: string,
      *     needs_manual_review: bool,
      *     source_segment_ids: array<int, int>,
@@ -202,6 +212,10 @@ class ClassifySpeechSections implements ShouldQueue
             'start_time' => (float) $classifiedSection['start_time'],
             'end_time' => (float) $classifiedSection['end_time'],
             'duration' => max(0.0, (float) $classifiedSection['end_time'] - (float) $classifiedSection['start_time']),
+            'confidence' => ServiceSectionConfidence::resolve(
+                is_numeric($classifiedSection['confidence'] ?? null) ? (float) $classifiedSection['confidence'] : null,
+                $metadata
+            ),
             'status' => ServiceSectionStatus::IDENTIFIED->value,
             'needs_manual_review' => $needsManualReview,
             'source_segment_ids' => $this->normaliseSourceSegmentIds($originalSection->source_segment_ids),
@@ -218,6 +232,7 @@ class ClassifySpeechSections implements ShouldQueue
      *     start_time: float,
      *     end_time: float,
      *     duration: float,
+     *     confidence: float,
      *     status: string,
      *     needs_manual_review: bool,
      *     source_segment_ids: array<int, int>,
@@ -245,6 +260,7 @@ class ClassifySpeechSections implements ShouldQueue
      *     start_time: float,
      *     end_time: float,
      *     duration: float,
+     *     confidence: float,
      *     status: string,
      *     needs_manual_review: bool,
      *     source_segment_ids: array<int, int>,
@@ -300,6 +316,7 @@ class ClassifySpeechSections implements ShouldQueue
                     'start_time' => (float) $current['start_time'],
                     'end_time' => (float) $afterNext['end_time'],
                     'duration' => max(0.0, (float) $afterNext['end_time'] - (float) $current['start_time']),
+                    'confidence' => max((float) $current['confidence'], (float) $afterNext['confidence']),
                     'status' => ServiceSectionStatus::IDENTIFIED->value,
                     'needs_manual_review' => false,
                     'source_segment_ids' => array_values(array_unique(array_merge(

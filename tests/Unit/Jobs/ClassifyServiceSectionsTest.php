@@ -75,7 +75,8 @@ class ClassifyServiceSectionsTest extends TestCase
         $this->assertDatabaseHas('service_sections', [
             'media_processing_log_id' => $processingLog->id,
             'section_order' => 1,
-            'needs_manual_review' => false,
+            'needs_manual_review' => true,
+            'church_service_item_id' => null,
         ]);
     }
 

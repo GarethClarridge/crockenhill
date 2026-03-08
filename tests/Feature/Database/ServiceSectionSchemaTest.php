@@ -32,6 +32,7 @@ class ServiceSectionSchemaTest extends TestCase
             'start_time',
             'end_time',
             'duration',
+            'confidence',
             'status',
             'needs_manual_review',
             'source_segment_ids',

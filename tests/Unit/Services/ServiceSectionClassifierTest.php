@@ -92,7 +92,7 @@ class ServiceSectionClassifierTest extends TestCase
     }
 
     #[Test]
-    public function it_aligns_ordered_openlp_items_to_ordered_segments(): void
+    public function it_links_the_matching_church_service_but_keeps_audio_first_sections(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-08',
@@ -156,26 +156,26 @@ class ServiceSectionClassifierTest extends TestCase
         $this->assertSame($churchService->id, $processingLog->fresh()->church_service_id);
         $this->assertCount(3, $result['sections']);
 
-        $this->assertSame($songOne->id, $result['sections'][0]['church_service_item_id']);
+        $this->assertNull($result['sections'][0]['church_service_item_id']);
         $this->assertSame(ServiceSectionType::SONG->value, $result['sections'][0]['section_type']);
         $this->assertSame(ServiceSectionStatus::IDENTIFIED->value, $result['sections'][0]['status']);
-        $this->assertFalse($result['sections'][0]['needs_manual_review']);
+        $this->assertTrue($result['sections'][0]['needs_manual_review']);
         $this->assertSame([$segmentOne->id], $result['sections'][0]['source_segment_ids']);
-        $this->assertSame('high', $result['sections'][0]['metadata']['confidence_level']);
+        $this->assertSame('low', $result['sections'][0]['metadata']['confidence_level']);
 
-        $this->assertSame($prayer->id, $result['sections'][1]['church_service_item_id']);
-        $this->assertSame(ServiceSectionType::PRAYER->value, $result['sections'][1]['section_type']);
+        $this->assertNull($result['sections'][1]['church_service_item_id']);
+        $this->assertSame(ServiceSectionType::OTHER->value, $result['sections'][1]['section_type']);
         $this->assertSame([$segmentTwo->id], $result['sections'][1]['source_segment_ids']);
-        $this->assertSame('high', $result['sections'][1]['metadata']['confidence_level']);
+        $this->assertSame('low', $result['sections'][1]['metadata']['confidence_level']);
 
-        $this->assertSame($songTwo->id, $result['sections'][2]['church_service_item_id']);
+        $this->assertNull($result['sections'][2]['church_service_item_id']);
         $this->assertSame(ServiceSectionType::SONG->value, $result['sections'][2]['section_type']);
         $this->assertSame([$segmentThree->id], $result['sections'][2]['source_segment_ids']);
-        $this->assertSame('high', $result['sections'][2]['metadata']['confidence_level']);
+        $this->assertSame('low', $result['sections'][2]['metadata']['confidence_level']);
     }
 
     #[Test]
-    public function it_prefers_explicit_metadata_section_types_for_custom_items(): void
+    public function it_does_not_use_oos_section_type_hints_during_audio_only_classification(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-10',
@@ -206,13 +206,14 @@ class ServiceSectionClassifierTest extends TestCase
         $result = $this->service->classify($processingLog);
 
         $this->assertCount(1, $result['sections']);
-        $this->assertSame($item->id, $result['sections'][0]['church_service_item_id']);
-        $this->assertSame(ServiceSectionType::WELCOME->value, $result['sections'][0]['section_type']);
+        $this->assertNull($result['sections'][0]['church_service_item_id']);
+        $this->assertSame(ServiceSectionType::OTHER->value, $result['sections'][0]['section_type']);
         $this->assertSame([$segment->id], $result['sections'][0]['source_segment_ids']);
+        $this->assertSame($churchService->id, $processingLog->fresh()->church_service_id);
     }
 
     #[Test]
-    public function it_sets_confidence_metadata_and_review_flags_for_ambiguous_or_missing_matches(): void
+    public function it_keeps_audio_only_sections_even_when_a_matching_service_has_more_items_than_segments(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-15',
@@ -248,25 +249,18 @@ class ServiceSectionClassifierTest extends TestCase
 
         $result = $this->service->classify($processingLog);
 
-        $this->assertCount(2, $result['sections']);
+        $this->assertCount(1, $result['sections']);
 
         $firstSection = $result['sections'][0];
         $this->assertSame(ServiceSectionStatus::IDENTIFIED->value, $firstSection['status']);
         $this->assertTrue($firstSection['needs_manual_review']);
         $this->assertSame([$speechOnlySegment->id], $firstSection['source_segment_ids']);
         $this->assertSame('low', $firstSection['metadata']['confidence_level']);
-        $this->assertSame('expected_type_mismatch', $firstSection['metadata']['review_reason']);
-
-        $secondSection = $result['sections'][1];
-        $this->assertSame(ServiceSectionStatus::SKIPPED->value, $secondSection['status']);
-        $this->assertTrue($secondSection['needs_manual_review']);
-        $this->assertSame([], $secondSection['source_segment_ids']);
-        $this->assertSame('none', $secondSection['metadata']['confidence_level']);
-        $this->assertSame('no_segment_available', $secondSection['metadata']['review_reason']);
+        $this->assertSame('no_high_confidence_sermon_candidate', $firstSection['metadata']['review_reason']);
     }
 
     #[Test]
-    public function it_flags_segment_overlap_or_order_anomalies_for_review(): void
+    public function it_keeps_overlapping_song_segments_as_audio_only_song_sections(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-22',
@@ -315,12 +309,11 @@ class ServiceSectionClassifierTest extends TestCase
 
         $this->assertTrue($secondSection['needs_manual_review']);
         $this->assertSame('low', $secondSection['metadata']['confidence_level']);
-        $this->assertSame('segment_overlap_or_order_anomaly', $secondSection['metadata']['review_reason']);
-        $this->assertContains('segment_overlap_detected', $secondSection['metadata']['anomalies']);
+        $this->assertSame('audio_only_song_segment', $secondSection['metadata']['review_reason']);
     }
 
     #[Test]
-    public function it_flags_segment_order_anomalies_for_review_without_overlap(): void
+    public function it_keeps_out_of_order_song_segments_as_audio_only_song_sections(): void
     {
         $churchService = ChurchService::factory()->create([
             'date' => '2026-03-29',
@@ -369,9 +362,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $this->assertTrue($secondSection['needs_manual_review']);
         $this->assertSame('low', $secondSection['metadata']['confidence_level']);
-        $this->assertSame('segment_overlap_or_order_anomaly', $secondSection['metadata']['review_reason']);
-        $this->assertContains('segment_order_anomaly_detected', $secondSection['metadata']['anomalies']);
-        $this->assertNotContains('segment_overlap_detected', $secondSection['metadata']['anomalies']);
+        $this->assertSame('audio_only_song_segment', $secondSection['metadata']['review_reason']);
     }
 
     #[Test]

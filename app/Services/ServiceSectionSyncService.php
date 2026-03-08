@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Support\ServiceSectionConfidence;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +24,7 @@ class ServiceSectionSyncService
      *     start_time: float,
      *     end_time: float,
      *     duration: float,
+     *     confidence?: float|null,
      *     status: string,
      *     needs_manual_review: bool,
      *     source_segment_ids: array<int, int>,
@@ -52,6 +54,7 @@ class ServiceSectionSyncService
                     'start_time' => $sectionData['start_time'],
                     'end_time' => $sectionData['end_time'],
                     'duration' => $sectionData['duration'],
+                    'confidence' => $this->resolveConfidence($sectionData),
                     'status' => $sectionData['status'],
                     'needs_manual_review' => $sectionData['needs_manual_review'],
                     'source_segment_ids' => $sectionData['source_segment_ids'],
@@ -119,6 +122,7 @@ class ServiceSectionSyncService
      *     title: ?string,
      *     start_time: float,
      *     end_time: float,
+     *     confidence: float|null,
      *     metadata: array<string, mixed>
      * }  $incomingPayload
      */
@@ -134,6 +138,7 @@ class ServiceSectionSyncService
      *     title: ?string,
      *     start_time: float,
      *     end_time: float,
+     *     confidence: float|null,
      *     metadata: array<string, mixed>
      * }  $incomingPayload
      * @return array<string, mixed>
@@ -219,6 +224,7 @@ class ServiceSectionSyncService
      *     title: ?string,
      *     start_time: float,
      *     end_time: float,
+     *     confidence: float|null,
      *     metadata: array<string, mixed>
      * }  $payload
      * @return array{
@@ -238,6 +244,22 @@ class ServiceSectionSyncService
             'start_time' => (float) $payload['start_time'],
             'end_time' => (float) $payload['end_time'],
         ];
+    }
+
+    /**
+     * @param  array{
+     *     confidence?: float|null,
+     *     metadata: array<string, mixed>
+     * }  $sectionData
+     */
+    private function resolveConfidence(array $sectionData): float
+    {
+        $confidence = $sectionData['confidence'] ?? null;
+
+        return ServiceSectionConfidence::resolve(
+            is_numeric($confidence) ? (float) $confidence : null,
+            $sectionData['metadata']
+        );
     }
 
     private function isPublishableType(string $sectionType): bool

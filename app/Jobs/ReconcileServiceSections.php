@@ -8,8 +8,7 @@ use App\Enums\MediaType;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaProcessingIdentityResolver;
-use App\Services\ServiceSectionClassifier;
-use App\Services\ServiceSectionSyncService;
+use App\Services\OosAlignmentService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -32,8 +31,7 @@ class ReconcileServiceSections implements ShouldBeUnique, ShouldQueue
 
     public function handle(
         MediaProcessingIdentityResolver $identityResolver,
-        ServiceSectionClassifier $classifier,
-        ServiceSectionSyncService $syncService,
+        OosAlignmentService $alignmentService,
     ): void {
         $processingLog = $this->processingLog->fresh();
         $churchService = $this->churchService->fresh();
@@ -66,23 +64,13 @@ class ReconcileServiceSections implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $result = $classifier->classify($processingLog);
-        if ($result['skipped'] === true) {
-            Log::info('Service section reconciliation skipped', [
-                'processing_id' => $processingLog->processing_id,
-                'church_service_id' => $churchService->id,
-                'reason' => $result['skip_reason'],
-            ]);
-
-            return;
-        }
-
-        $syncService->sync($processingLog, $result['sections']);
+        $result = $alignmentService->alignForProcessingLog($processingLog, $churchService, lateArrival: true);
 
         Log::info('Service section reconciliation completed', [
             'processing_id' => $processingLog->processing_id,
             'church_service_id' => $churchService->id,
-            'sections_count' => count($result['sections']),
+            'aligned' => $result['aligned'],
+            'review_triggers' => $result['review_triggers'],
         ]);
     }
 

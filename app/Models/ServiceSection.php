@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Log;
  * @property float $start_time
  * @property float $end_time
  * @property float $duration
+ * @property float|null $confidence
  * @property ServiceSectionStatus $status
  * @property bool $needs_manual_review
  * @property array<int, int> $source_segment_ids
@@ -64,6 +65,7 @@ class ServiceSection extends Model
         'start_time',
         'end_time',
         'duration',
+        'confidence',
         'status',
         'needs_manual_review',
         'source_segment_ids',
@@ -88,6 +90,7 @@ class ServiceSection extends Model
             'start_time' => 'float',
             'end_time' => 'float',
             'duration' => 'float',
+            'confidence' => 'float',
             'status' => ServiceSectionStatus::class,
             'needs_manual_review' => 'boolean',
             'source_segment_ids' => 'array',

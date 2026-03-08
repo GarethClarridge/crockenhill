@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
+use App\Support\ServiceSectionConfidence;
 use OpenAI\Laravel\Facades\OpenAI;
 use RuntimeException;
 
@@ -18,6 +19,7 @@ class SpeechSectionClassificationService
      *     start_time: float,
      *     end_time: float,
      *     duration: float,
+     *     confidence: float,
      *     needs_manual_review: bool,
      *     metadata: array<string, mixed>
      * }>
@@ -71,6 +73,7 @@ class SpeechSectionClassificationService
                 'start_time' => (float) $section->start_time + $startOffset,
                 'end_time' => (float) $section->start_time + $endOffset,
                 'duration' => $endOffset - $startOffset,
+                'confidence' => $confidence,
                 'needs_manual_review' => $needsManualReview,
                 'metadata' => array_filter([
                     'confidence_level' => $confidenceLevel,
@@ -312,6 +315,7 @@ TEXT,
      *     start_time: float,
      *     end_time: float,
      *     duration: float,
+     *     confidence: float,
      *     needs_manual_review: true,
      *     metadata: array<string, mixed>
      * }
@@ -324,6 +328,7 @@ TEXT,
             'start_time' => (float) $section->start_time,
             'end_time' => (float) $section->end_time,
             'duration' => max(0.0, (float) $section->end_time - (float) $section->start_time),
+            'confidence' => ServiceSectionConfidence::scoreForLevel('none'),
             'needs_manual_review' => true,
             'metadata' => [
                 'confidence_level' => 'none',

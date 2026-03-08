@@ -37,6 +37,7 @@ class ServiceSectionFactory extends Factory
             'start_time' => $startTime,
             'end_time' => $endTime,
             'duration' => $duration,
+            'confidence' => 0.9,
             'status' => ServiceSectionStatus::IDENTIFIED,
             'needs_manual_review' => false,
             'source_segment_ids' => [$this->faker->numberBetween(1, 20)],

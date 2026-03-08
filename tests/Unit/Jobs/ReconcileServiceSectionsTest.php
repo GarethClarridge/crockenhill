@@ -12,8 +12,7 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\MediaProcessingIdentityResolver;
-use App\Services\ServiceSectionClassifier;
-use App\Services\ServiceSectionSyncService;
+use App\Services\OosAlignmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -70,15 +69,15 @@ class ReconcileServiceSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_type' => 'other',
+            'section_type' => 'song',
             'section_order' => 1,
-            'title' => 'Legacy Placeholder',
-            'start_time' => 5.0,
-            'end_time' => 120.0,
-            'duration' => 115.0,
-            'source_segment_ids' => [999],
+            'title' => 'Opening Song',
+            'start_time' => 0.0,
+            'end_time' => 210.0,
+            'duration' => 210.0,
+            'source_segment_ids' => [$songSegment->id],
             'metadata' => [
-                'confidence_level' => 'none',
+                'confidence_level' => 'low',
                 'classification_mode' => 'audio_only',
             ],
         ]);
@@ -86,15 +85,23 @@ class ReconcileServiceSectionsTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => null,
-            'section_order' => 3,
-            'title' => 'Stale Section',
+            'section_type' => 'prayer',
+            'section_order' => 2,
+            'title' => null,
+            'start_time' => 210.0,
+            'end_time' => 360.0,
+            'duration' => 150.0,
+            'source_segment_ids' => [$prayerSegment->id],
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'ai_transcript',
+            ],
         ]);
 
         $job = new ReconcileServiceSections($processingLog, $churchService);
         $job->handle(
             new MediaProcessingIdentityResolver,
-            new ServiceSectionClassifier,
-            new ServiceSectionSyncService,
+            app(OosAlignmentService::class),
         );
 
         $processingLog->refresh();
@@ -128,6 +135,7 @@ class ReconcileServiceSectionsTest extends TestCase
         $this->assertFalse($prayerSection->needs_manual_review);
         $this->assertSame([$prayerSegment->id], $prayerSection->source_segment_ids);
         $this->assertSame('high', $prayerSection->metadata['confidence_level']);
+        $this->assertTrue($churchService->fresh()->needs_review);
     }
 
     #[Test]
@@ -154,8 +162,7 @@ class ReconcileServiceSectionsTest extends TestCase
         $job = new ReconcileServiceSections($processingLog, $churchService);
         $job->handle(
             new MediaProcessingIdentityResolver,
-            new ServiceSectionClassifier,
-            new ServiceSectionSyncService,
+            app(OosAlignmentService::class),
         );
 
         $processingLog->refresh();
