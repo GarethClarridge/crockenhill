@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ef72582b74cac8f053500ba7665b8c66",
+    "content-hash": "723e9fbb0bd94cc2756366a6bf7c9ba3",
     "packages": [
         {
             "name": "amphp/amp",
@@ -10770,59 +10770,6 @@
                 }
             ],
             "time": "2025-08-18T13:10:53+00:00"
-        },
-        {
-            "name": "techwilk/bible-verse-parser",
-            "version": "2.8.3",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/TechWilk/bible-verse-parser.git",
-                "reference": "2620d91c4477007661da98ae1227238d7a933609"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/TechWilk/bible-verse-parser/zipball/2620d91c4477007661da98ae1227238d7a933609",
-                "reference": "2620d91c4477007661da98ae1227238d7a933609",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=7.4"
-            },
-            "require-dev": {
-                "php-coveralls/php-coveralls": "^2.4",
-                "phpunit/phpunit": "^9.4"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "TechWilk\\BibleVerseParser\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Christopher Wilkinson",
-                    "email": "c@wilk.tech",
-                    "homepage": "https://wilk.tech"
-                }
-            ],
-            "description": "Parse verse textual representation into book/chapter/verse ranges",
-            "homepage": "http://github.com/techwilk/bible-verse-parser",
-            "keywords": [
-                "Passage",
-                "bible",
-                "parse",
-                "scripture",
-                "verse"
-            ],
-            "support": {
-                "issues": "https://github.com/TechWilk/bible-verse-parser/issues",
-                "source": "https://github.com/TechWilk/bible-verse-parser/tree/2.8.3"
-            },
-            "time": "2024-10-15T20:19:11+00:00"
         },
         {
             "name": "tijsverkoyen/css-to-inline-styles",

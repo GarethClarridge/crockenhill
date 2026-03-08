@@ -34,21 +34,44 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 - ~~Remove `MeetingController::create()`, `store()`, `edit()` methods~~ — removed; `Route::resource` updated to `only(['index', 'update', 'destroy'])`
 - ~~Remove `CalendarController::meetingsIndex()` method~~ — removed
 
-### PR 4. Delete unused authorization code
-- Delete `MeetingPolicy`
-- Delete `PagePolicy`
-- Remove 3 unused gates from `AuthServiceProvider` (`manage-sermons`, `manage-meetings`, `manage-pages`)
+### PR 4. Delete unused authorization code ⏸️
+> Blocked — none of this is actually dead yet. Prerequisites before this PR can proceed:
+>
+> **Gates** (`manage-sermons`, `manage-meetings`, `manage-pages`) are used in three `@can` blocks in views:
+> - `resources/views/sermons/index.blade.php` — `@can('manage-sermons')` guards the upload button
+> - `resources/views/members/home.blade.php` — all three gates guard admin action cards
+>
+> These should be replaced with `$user->is_admin` checks directly (or the `authorizeAdmin()` pattern used in Livewire components) before the gates can be removed.
+>
+> **`MeetingPolicy`** is still called by:
+> - `MeetingController::index()` — `authorize('viewAny', Meeting::class)`
+> - `MeetingController::destroy()` — `authorize('delete', $meeting)`
+> - `UpdateMeetingRequest::authorize()` — `can('update', $meeting)`
+> - `StoreMeetingRequest::authorize()` — `can('create', Meeting::class)`
+>
+> The policy can only be deleted once `MeetingController::index()`, `update()`, and `destroy()` are removed (see parking lot note on dead resource routes) and `StoreMeetingRequest` is deleted alongside `store()`.
+>
+> **`PagePolicy`** has no direct `authorize()` callers in production code — Livewire components use `authorizeAdmin()` instead — but it is registered and tested. Safe to delete once the registration is removed and policy tests are deleted.
+
+- Delete `MeetingPolicy` (after removing remaining dead `MeetingController` methods)
+- Delete `PagePolicy` (no live callers; just needs deregistering)
+- Remove 3 gates from `AuthServiceProvider` (`manage-sermons`, `manage-meetings`, `manage-pages`) (after replacing `@can` in views)
 - Remove policy registrations from `AuthServiceProvider`
+- Delete `StoreMeetingRequest` (only used by the now-deleted `store()` method — missed in PR 3)
+- Delete `AuthorizationGatesTest`, `MeetingPolicyTest`, `PagePolicyTest`
 
-### PR 5. Remove unused dependencies
-- npm: remove `lodash`, `ajv`, `cross-env`
-- Composer: remove `techwilk/bible-verse-parser`
-- Run `npm install` and `composer install` to update lock files
+### PR 5. Remove unused dependencies ✅
+- ~~npm: remove `lodash`, `ajv`, `cross-env`~~ — removed
+- ~~Composer: remove `techwilk/bible-verse-parser`~~ — removed
 
-### PR 6. Delete `SermonProcessingStep` model
+### PR 6. Delete `SermonProcessingStep` model ⏸️
+> Blocked — `SermonProcessingStep` is actively used by `ProcessingJob` (`app/Jobs/ProcessingJob.php`), which is the base class for four live queued jobs: `TranscribeAudio`, `CreateSermonRecord`, `ProcessTranscriptWithAI`, `IdentifySpeaker`. It records step state (started, completed, failed, cancelled) for each job run.
+>
+> This can only be deleted if `ProcessingJob` is refactored to use `MediaProcessingLog` instead (which already tracks processing state), or if the step-level granularity is intentionally dropped. Worth revisiting alongside the parking-lot item on `SermonProcessingLogger` / `ProcessingLogService` overlap.
+
 - Delete model, factory, migration
-- Delete associated tests
-- Confirm no references remain
+- Delete associated tests (`SermonProcessingStepTest`)
+- Refactor or remove `ProcessingJob` base class first
 
 ---
 
