@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Contracts\ProcessingLogContract;
 use App\Data\ProcessingLogCollection;
 use App\Data\ProcessingLogEntry;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
-class ProcessingLogService implements ProcessingLogContract
+class ProcessingLogService
 {
     public function __construct(
         private readonly string $logFilePath = ''

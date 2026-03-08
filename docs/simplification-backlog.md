@@ -78,16 +78,15 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 ## Priority 2: Remove Unnecessary Abstractions
 
 ### PR 7. Delete small unnecessary abstractions
-- Delete `ProcessingLogContract` (single implementation; inject `ProcessingLogService` directly)
-- Delete `DetectsStorageType` trait (inline the 3 one-liner methods into the 2 services that use it)
-- Delete `HasConditionalLogging` trait (use `Log` directly; use `Log::spy()` in tests)
-- Delete `H1` view component (no logic; use blade partial)
-- Delete `SermonProcessingLogFormatter` (use default Monolog formatting)
-- Delete `SermonRepository` (inline its 2 methods into callers)
+- ~~Delete `ProcessingLogContract`~~ ✅ — removed; `ProcessingLogService` no longer implements it
+- Delete `DetectsStorageType` trait ⏸️ — the backlog said "2 services" but it's actually 6 consumers (3 jobs + 3 services). Inlining all 6 is a larger change; defer.
+- Delete `HasConditionalLogging` trait ⏸️ — suppresses log noise in tests via `app()->runningUnitTests()` check; replacing with `Log::spy()` requires updating test setup in 2 Livewire component test files. Defer.
+- Delete `H1` view component ⏸️ — used in 6+ views; replacing with inline markup or a blade partial is low-risk but tedious. Defer.
+- Delete `SermonProcessingLogFormatter` ⏸️ — **not dead**: registered as a log channel tap in `config/logging.php`. Remove only if switching log formatting is intentional.
+- Delete `SermonRepository` ⏸️ — **not dead**: has 6 callers across controllers, jobs, services, and tests. The backlog underestimated the scope. Fold into a larger sermon layer cleanup.
 
-### PR 8. Inline `WithUploadLifecycle` trait
-- Move trait contents into `MediaUpload/Form.php` (its only consumer)
-- Delete the trait file
+### PR 8. Inline `WithUploadLifecycle` trait ⏸️
+> Not recommended: the trait is 244 lines of substantive upload state and lifecycle logic. `Form.php` is already 353 lines. Inlining would produce a ~600 line component with two distinct concerns blended together. The trait provides a clean logical boundary. Leave unless there is a specific reason to collapse it.
 
 ---
 
