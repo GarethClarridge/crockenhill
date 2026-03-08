@@ -16,6 +16,12 @@ return [
         'timestamp_tolerance_seconds' => (int) env('MAILGUN_TIMESTAMP_TOLERANCE_SECONDS', 300),
     ],
 
+    'email_parsing' => [
+        'model' => 'gpt-4o-mini',
+        'review_threshold' => 0.75,
+        'auto_import_threshold' => 0.90,
+    ],
+
     'songs' => [
         'sqlite_path' => env('OPENLP_SONGS_DB_PATH'),
     ],

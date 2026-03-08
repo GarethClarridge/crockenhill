@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
@@ -36,6 +37,31 @@ class ChurchServiceSongLinkerTest extends TestCase
         $item = ChurchServiceItem::factory()->create([
             'type' => 'songs',
             'openlp_search_title' => '  Who Am I That The Highest King@Who You Say I Am  ',
+            'song_id' => null,
+        ]);
+
+        $metrics = $this->linker->linkAll();
+
+        $item->refresh();
+
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertSame(1, $metrics['matched']);
+        $this->assertSame(1, $metrics['updated']);
+    }
+
+    #[Test]
+    public function it_links_email_song_items_using_source_title_when_no_openlp_key_exists(): void
+    {
+        $song = Song::factory()->create([
+            'canonical_key' => 'before the throne of god above',
+            'title' => 'Before the throne of God above',
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::EMAIL->value,
+            'source_title' => 'Before the throne of God above',
+            'openlp_search_title' => null,
             'song_id' => null,
         ]);
 

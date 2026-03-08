@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\TranscriptionServiceInterface;
 use App\Services\AudioTranscriptionService;
 use App\Services\MockSermonAnalysisService;
 use App\Services\MockTranscriptionService;
+use App\Services\OpenAiOosEmailItemExtractor;
 use App\Services\SermonAnalysisService;
 use Illuminate\Support\ServiceProvider;
 
@@ -46,5 +48,7 @@ class AppServiceProvider extends ServiceProvider
                 default => $app->make(AudioTranscriptionService::class),
             };
         });
+
+        $this->app->bind(OosEmailItemExtractor::class, OpenAiOosEmailItemExtractor::class);
     }
 }

@@ -87,8 +87,8 @@ class ChurchServiceSongLinker
             foreach ($items as $item) {
                 $metrics['processed']++;
 
-                $searchTitle = $item->openlp_search_title;
-                if (! is_string($searchTitle) || trim($searchTitle) === '') {
+                $searchTitle = $this->resolveSearchTitle($item);
+                if ($searchTitle === null) {
                     $metrics['unmatched']++;
                     $this->clearLinkIfNeeded($item, $dryRun, $metrics);
 
@@ -129,6 +129,19 @@ class ChurchServiceSongLinker
         });
 
         return $metrics;
+    }
+
+    private function resolveSearchTitle(ChurchServiceItem $item): ?string
+    {
+        foreach ([$item->openlp_search_title, $item->source_title, $item->title] as $candidate) {
+            if (! is_string($candidate) || trim($candidate) === '') {
+                continue;
+            }
+
+            return $candidate;
+        }
+
+        return null;
     }
 
     /**
