@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Enums\ChurchServiceItemSource;
 use App\Enums\InboundEmailStatus;
-use App\Models\ChurchService;
 use App\Models\InboundEmail;
-use App\Services\ChurchServiceItemSyncService;
-use App\Services\ChurchServiceSongLinker;
+use App\Services\InboundEmailImportService;
 use App\Services\OosEmailParserService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 
 class ProcessInboundOosEmail implements ShouldQueue
 {
@@ -29,8 +25,7 @@ class ProcessInboundOosEmail implements ShouldQueue
 
     public function handle(
         OosEmailParserService $parser,
-        ChurchServiceItemSyncService $itemSyncService,
-        ChurchServiceSongLinker $songLinker,
+        InboundEmailImportService $importService,
     ): void {
         $inboundEmail = $this->inboundEmail->fresh();
         if (! $inboundEmail instanceof InboundEmail) {
@@ -38,51 +33,17 @@ class ProcessInboundOosEmail implements ShouldQueue
         }
 
         $parseResult = $parser->parse($inboundEmail);
-
-        $inboundEmail->processing_metadata = $this->mergeProcessingMetadata(
-            $inboundEmail->processing_metadata,
-            ['parsing' => $parseResult->importMetadata],
-        );
+        $importService->storeParseResult($inboundEmail, $parseResult);
 
         if (! $parseResult->shouldImport) {
+            $inboundEmail->refresh();
             $inboundEmail->status = InboundEmailStatus::PENDING;
             $inboundEmail->save();
 
             return;
         }
 
-        DB::transaction(function () use (
-            $inboundEmail,
-            $parseResult,
-            $itemSyncService,
-            $songLinker,
-        ): void {
-            $churchService = ChurchService::query()->firstOrNew([
-                'date' => $parseResult->date,
-                'service' => $parseResult->service?->value,
-            ]);
-
-            $churchService->fill([
-                'source' => ChurchServiceItemSource::EMAIL->value,
-                'needs_review' => $parseResult->needsReview,
-                'import_metadata' => $parseResult->importMetadata,
-            ]);
-            $churchService->save();
-
-            $itemSyncService->sync($churchService, $parseResult->items, ChurchServiceItemSource::EMAIL);
-            $songLinker->linkForService($churchService);
-            $churchService->touchForSectionReconciliation();
-
-            $inboundEmail->processing_metadata = $this->mergeProcessingMetadata(
-                $inboundEmail->processing_metadata,
-                [
-                    'imported_church_service_id' => $churchService->id,
-                    'imported_at' => now()->toIso8601String(),
-                ],
-            );
-            $inboundEmail->status = InboundEmailStatus::PROCESSED;
-            $inboundEmail->save();
-        });
+        $importService->import($inboundEmail, $parseResult);
     }
 
     /**

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\InboundEmailStatus;
+use App\Models\InboundEmail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
@@ -71,6 +73,26 @@ class MemberControllerTest extends TestCase
         $response = $this->get(route('admin.dashboard'));
 
         $response->assertRedirect('/church/members');
+    }
+
+    #[Test]
+    public function members_home_shows_the_inbound_email_review_link_for_admins(): void
+    {
+        $admin = User::factory()->admin()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        InboundEmail::factory()->count(2)->create([
+            'status' => InboundEmailStatus::PENDING->value,
+        ]);
+
+        $this->actingAs($admin);
+        $response = $this->get(route('memberHome'));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.services.inbound-emails'));
+        $response->assertSeeText('Review inbound emails');
+        $response->assertSeeText('2');
     }
 
     #[Test]

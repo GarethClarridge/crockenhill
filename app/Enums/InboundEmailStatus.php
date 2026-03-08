@@ -14,4 +14,14 @@ enum InboundEmailStatus: string
     case PROCESSED = 'processed';
     case FAILED = 'failed';
     case REJECTED = 'rejected';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::PENDING => 'Pending',
+            self::PROCESSED => 'Processed',
+            self::FAILED => 'Failed',
+            self::REJECTED => 'Rejected',
+        };
+    }
 }

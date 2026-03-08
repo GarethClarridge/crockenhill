@@ -4,10 +4,25 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\InboundEmailStatus;
+use App\Models\InboundEmail;
+use Illuminate\Contracts\View\View;
+
 class MemberController extends Controller
 {
-    public function __invoke(): \Illuminate\Contracts\View\View
+    public function __invoke(): View
     {
-        return view('members.home');
+        $pendingInboundEmailCount = auth()->user()?->is_admin === true
+            ? InboundEmail::query()
+                ->whereIn('status', [
+                    InboundEmailStatus::PENDING->value,
+                    InboundEmailStatus::FAILED->value,
+                ])
+                ->count()
+            : 0;
+
+        return view('members.home', [
+            'pendingInboundEmailCount' => $pendingInboundEmailCount,
+        ]);
     }
 }

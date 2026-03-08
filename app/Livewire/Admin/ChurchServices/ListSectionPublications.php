@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PublishApprovedServiceSection;
+use App\Livewire\Traits\EscapesLikeWildcards;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ServiceSection;
@@ -16,6 +17,7 @@ use Livewire\WithPagination;
 
 class ListSectionPublications extends Component
 {
+    use EscapesLikeWildcards;
     use WithAdminAuthorization;
     use WithNotifications;
     use WithPagination;
@@ -176,10 +178,5 @@ class ListSectionPublications extends Component
 
         return Storage::disk($sermonDisk)->exists($videoPath)
             && Storage::disk($sermonDisk)->exists($audioPath);
-    }
-
-    private function escapeLike(string $value): string
-    {
-        return addcslashes($value, '\%_');
     }
 }

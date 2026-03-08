@@ -57,6 +57,18 @@
         </div>
       </x-button>
 
+      <x-button link="{{ route('admin.services.inbound-emails') }}">
+        <div class="flex items-center justify-center">
+          <x-heroicon-s-envelope class="h-5 w-5 mr-2" />
+          Review inbound emails
+          @if(($pendingInboundEmailCount ?? 0) > 0)
+            <span class="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
+              {{ $pendingInboundEmailCount }}
+            </span>
+          @endif
+        </div>
+      </x-button>
+
       <x-button link="{{ route('admin.services.songs.index') }}">
         <div class="flex items-center justify-center">
           <x-heroicon-s-musical-note class="h-5 w-5 mr-2" />

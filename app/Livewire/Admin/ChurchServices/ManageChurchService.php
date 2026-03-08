@@ -7,13 +7,17 @@ namespace App\Livewire\Admin\ChurchServices;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
+use App\Livewire\Traits\EscapesLikeWildcards;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\InboundEmail;
 use App\Models\Song;
 use App\Services\ChurchServiceItemSyncService;
 use App\Services\ChurchServiceSongLinker;
+use App\Services\InboundEmailImportService;
+use App\Services\OosEmailParserService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +28,7 @@ use Livewire\Component;
 
 class ManageChurchService extends Component
 {
+    use EscapesLikeWildcards;
     use WithAdminAuthorization;
     use WithNotifications;
 
@@ -33,10 +38,15 @@ class ManageChurchService extends Component
 
     public string $service = '';
 
+    public ?int $inboundEmailId = null;
+
     /**
      * @var array<int, array{key:string,section_type:string,title:string,song_id:int|null}>
      */
     public array $items = [];
+
+    /** @var array<int, string> */
+    protected array $queryString = ['inboundEmailId'];
 
     public function mount(): void
     {
@@ -58,6 +68,8 @@ class ManageChurchService extends Component
                 ->map(fn (ChurchServiceItem $item): array => $this->itemPayloadFromModel($item))
                 ->values()
                 ->all();
+        } elseif (is_int($this->inboundEmailId)) {
+            $this->prefillFromInboundEmail($this->inboundEmailId);
         }
 
         if ($this->items === []) {
@@ -179,6 +191,7 @@ class ManageChurchService extends Component
     public function save(
         ChurchServiceItemSyncService $itemSyncService,
         ChurchServiceSongLinker $songLinker,
+        InboundEmailImportService $inboundEmailImportService,
     ): mixed {
         $this->authorizeAdmin();
         $this->abortIfDisabled();
@@ -214,6 +227,14 @@ class ManageChurchService extends Component
         });
 
         $this->churchService = $churchService;
+
+        if (is_int($this->inboundEmailId)) {
+            $inboundEmail = InboundEmail::query()->find($this->inboundEmailId);
+
+            if ($inboundEmail instanceof InboundEmail && Auth::id() !== null) {
+                $inboundEmailImportService->markAsProcessedFromManualReview($inboundEmail, $churchService, (int) Auth::id());
+            }
+        }
 
         return $this->success(
             $wasCreated ? 'Service created' : 'Service updated',
@@ -269,7 +290,7 @@ class ManageChurchService extends Component
 
         foreach ($this->items as $index => $item) {
             $title = trim($item['title']);
-            $escapedTitle = $this->escapeLikeValue($title);
+            $escapedTitle = $this->escapeLike($title);
 
             if ($item['section_type'] !== ServiceSectionType::SONG->value || mb_strlen($title) < 2) {
                 $suggestions[$index] = [];
@@ -365,6 +386,105 @@ class ManageChurchService extends Component
         ];
     }
 
+    private function prefillFromInboundEmail(int $inboundEmailId): void
+    {
+        $inboundEmail = InboundEmail::query()->find($inboundEmailId);
+        if (! $inboundEmail instanceof InboundEmail) {
+            return;
+        }
+
+        $parseData = $this->parseDataForInboundEmail($inboundEmail);
+
+        $resolvedDate = Arr::get($parseData, 'resolved_date');
+        if (is_string($resolvedDate) && $resolvedDate !== '') {
+            $this->date = $resolvedDate;
+        }
+
+        $resolvedService = Arr::get($parseData, 'resolved_service');
+        if (is_string($resolvedService) && in_array($resolvedService, SermonService::values(), true)) {
+            $this->service = $resolvedService;
+        }
+
+        $parsedItems = Arr::get($parseData, 'items');
+        if (! is_array($parsedItems)) {
+            return;
+        }
+
+        $items = collect($parsedItems)
+            ->map(fn (mixed $item): ?array => is_array($item) ? $this->itemPayloadFromParsedItem($item) : null)
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($items !== []) {
+            $this->items = $items;
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function parseDataForInboundEmail(InboundEmail $inboundEmail): array
+    {
+        $importService = app(InboundEmailImportService::class);
+        $parseResult = $importService->storedParseResult($inboundEmail);
+
+        if (! $parseResult instanceof \App\Data\OosEmailParseResult) {
+            $parseResult = app(OosEmailParserService::class)->parse($inboundEmail);
+            $importService->storeParseResult($inboundEmail, $parseResult);
+        }
+
+        $refreshedInboundEmail = $inboundEmail->fresh();
+        $refreshedMetadata = $refreshedInboundEmail instanceof InboundEmail && is_array($refreshedInboundEmail->processing_metadata)
+            ? $refreshedInboundEmail->processing_metadata
+            : [];
+
+        return is_array(Arr::get($refreshedMetadata, 'parsing')) ? Arr::get($refreshedMetadata, 'parsing') : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array{key:string,section_type:string,title:string,song_id:int|null}|null
+     */
+    private function itemPayloadFromParsedItem(array $item): ?array
+    {
+        $title = trim((string) ($item['title'] ?? ''));
+
+        if ($title === '') {
+            return null;
+        }
+
+        return [
+            'key' => (string) Str::uuid(),
+            'section_type' => $this->resolveSectionTypeFromParsedItem($item)->value,
+            'title' => $title,
+            'song_id' => is_int($item['song_id'] ?? null) ? $item['song_id'] : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function resolveSectionTypeFromParsedItem(array $item): ServiceSectionType
+    {
+        $metadata = is_array($item['metadata'] ?? null) ? $item['metadata'] : [];
+        $metadataType = $metadata['section_type'] ?? $metadata['email_type'] ?? null;
+
+        if (is_string($metadataType)) {
+            $resolved = ServiceSectionType::tryFrom($metadataType);
+
+            if ($resolved instanceof ServiceSectionType) {
+                return $resolved;
+            }
+        }
+
+        return match ($item['type'] ?? null) {
+            'songs' => ServiceSectionType::SONG,
+            'bibles' => ServiceSectionType::BIBLE_READING,
+            default => $this->inferSectionTypeFromTitle((string) ($item['title'] ?? '')),
+        };
+    }
+
     private function resolveSectionType(ChurchServiceItem $item): ServiceSectionType
     {
         $metadata = is_array($item->metadata) ? $item->metadata : [];
@@ -397,11 +517,6 @@ class ManageChurchService extends Component
             str_contains($title, 'sermon'), str_contains($title, 'message') => ServiceSectionType::SERMON,
             default => ServiceSectionType::OTHER,
         };
-    }
-
-    private function escapeLikeValue(string $value): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 
     private function abortIfDisabled(): void

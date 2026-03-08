@@ -64,6 +64,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $email->refresh();
         $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
         $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id']);
+        $this->assertCount(4, $email->processing_metadata['parsing']['items']);
     }
 
     #[Test]
@@ -120,6 +121,7 @@ class ProcessInboundOosEmailTest extends TestCase
         $email->refresh();
         $this->assertSame(InboundEmailStatus::PENDING, $email->status);
         $this->assertLessThan(0.75, $email->processing_metadata['parsing']['confidence_score']);
+        $this->assertSame([], $email->processing_metadata['parsing']['items']);
     }
 
     #[Test]
