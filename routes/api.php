@@ -2,6 +2,7 @@
 
 use App\Enums\ApiTokenAbility;
 use App\Http\Controllers\Api\ChurchServiceController;
+use App\Http\Controllers\Api\MailgunInboundWebhookController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\SermonApiController;
 use Illuminate\Http\Request;
@@ -38,6 +39,13 @@ Route::prefix('services')
             ->middleware('throttle:api')
             ->name('show');
     });
+
+Route::post('webhooks/mailgun/inbound', MailgunInboundWebhookController::class)
+    ->middleware([
+        'mailgun.signature',
+        'throttle:mailgun-inbound',
+    ])
+    ->name('api.webhooks.mailgun.inbound');
 
 // Unified media processing endpoints
 Route::prefix('media')->name('api.media.')->group(function () {

@@ -121,6 +121,26 @@ class RateLimitingTest extends TestCase
             ->assertStatus(429);
     }
 
+    #[Test]
+    public function mailgun_inbound_webhook_is_rate_limited(): void
+    {
+        config()->set('service-tracking.mailgun.signing_key', 'test-signing-key');
+        $this->forceThrottle('mailgun-inbound');
+
+        $timestamp = (string) now()->getTimestamp();
+
+        $this->postJson('/api/webhooks/mailgun/inbound', [
+            'timestamp' => $timestamp,
+            'token' => 'abc123',
+            'signature' => hash_hmac('sha256', $timestamp.'abc123', 'test-signing-key'),
+            'from' => 'Service Planning <planning@example.com>',
+            'subject' => 'Order of Service for Sunday',
+            'Message-Id' => '<message-1@example.com>',
+            'body-plain' => "Welcome\nSong\nPrayer",
+            'recipient' => 'oos@crockenhill.org',
+        ])->assertStatus(429);
+    }
+
     // -------------------------------------------------------------------------
     // Limiter keys are per-user not per-IP
     // -------------------------------------------------------------------------

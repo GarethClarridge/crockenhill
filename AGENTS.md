@@ -78,6 +78,19 @@ A skill is a set of local instructions in a `SKILL.md` file.
 
 When running outside Laravel Sail (e.g. in Jules, Codex, or other remote VM agents):
 
+### CRITICAL: First step for EVERY task
+Services installed via apt are not running after snapshot restore. You MUST run these commands at the very start of every task, before any artisan/test/migration commands:
+```bash
+sudo service mysql start
+sudo service redis-server start
+```
+Then verify they are running:
+```bash
+sudo mysqladmin ping -ppassword 2>/dev/null && echo "MySQL OK" || echo "MySQL FAILED"
+redis-cli ping 2>/dev/null && echo "Redis OK" || echo "Redis FAILED"
+```
+If either service fails to start, check logs with `sudo cat /var/log/mysql/error.log` or `sudo cat /var/log/redis/redis-server.log`.
+
 ### Environment setup
 - The setup script `jules-setup.sh` installs PHP 8.4, Composer, MySQL, and Redis natively via apt (no Docker pulls — avoids Docker Hub rate limits).
 - `.env.jules` is copied to `.env` during setup — it points DB/Redis to `127.0.0.1` instead of Sail's Docker service names.
@@ -104,21 +117,6 @@ The setup script creates:
 - `crockenhill` — main database
 - `testing` — base testing database
 - `crockenhill_test_*` — wildcard grant for parallel test worker databases
-
-### Checking services
-If tests fail with connection errors, verify services are running:
-```bash
-sudo service mysql status                  # should show "active (running)"
-sudo mysqladmin ping -ppassword            # should respond "mysqld is alive"
-sudo service redis-server status           # should show "active (running)"
-redis-cli ping                             # should respond "PONG"
-```
-
-### Restarting services (if snapshot loses service state)
-```bash
-sudo service mysql start
-sudo service redis-server start
-```
 
 ## Project context quick map
 
