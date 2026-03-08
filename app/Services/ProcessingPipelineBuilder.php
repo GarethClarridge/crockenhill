@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\ClassifyServiceSections;
+use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\ExtractAudioFromVideo;
@@ -96,6 +97,7 @@ class ProcessingPipelineBuilder
             new AnalyzeSegments($log),
             new ClassifyServiceSections($log),
             new TranscribeSpeechSegments($log),
+            new ClassifySpeechSections($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new IdentifySpeaker($log),

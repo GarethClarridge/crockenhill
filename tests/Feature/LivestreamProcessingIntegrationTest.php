@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\SermonSourceType;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\ClassifyServiceSections;
+use App\Jobs\ClassifySpeechSections;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
@@ -13,6 +14,7 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
+use App\Jobs\TranscribeSpeechSegments;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -171,6 +173,8 @@ class LivestreamProcessingIntegrationTest extends TestCase
         Bus::assertChained([
             AnalyzeSegments::class,
             ClassifyServiceSections::class,
+            TranscribeSpeechSegments::class,
+            ClassifySpeechSections::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             IdentifySpeaker::class,

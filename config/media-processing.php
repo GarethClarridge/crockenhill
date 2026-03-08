@@ -159,7 +159,10 @@ return [
         'enabled' => env('SERVICE_SECTION_CLASSIFICATION_ENABLED', true),
         'prefer_high_confidence_sermon_section' => env('SERVICE_SECTION_PREFER_HIGH_CONFIDENCE_SERMON', true),
         'transcribe_speech_segments' => env('SERVICE_SECTION_TRANSCRIBE_SPEECH_SEGMENTS', true),
+        'classify_speech_sections' => env('SERVICE_SECTION_CLASSIFY_SPEECH_SECTIONS', true),
         'speech_transcription_min_duration_seconds' => (int) env('SERVICE_SECTION_SPEECH_TRANSCRIPTION_MIN_DURATION_SECONDS', 10),
+        'short_song_max_duration_seconds' => (int) env('SERVICE_SECTION_SHORT_SONG_MAX_DURATION_SECONDS', 90),
+        'model' => env('SERVICE_SECTION_CLASSIFICATION_MODEL', env('ANALYSIS_MODEL', 'gpt-4o-mini')),
     ],
 
     /*
