@@ -61,11 +61,18 @@ class PageSecurityTest extends TestCase
 
     public function test_admin_landing_pages_are_restricted_to_admins(): void
     {
-        Page::factory()->create([
-            'area' => PageArea::MEMBERS,
-            'slug' => 'members',
-            'admin' => 'yes',
-        ]);
+        Page::unguarded(fn (): Page => Page::query()->updateOrCreate(
+            ['slug' => 'members'],
+            [
+                'heading' => 'Members',
+                'description' => 'Members landing page',
+                'area' => PageArea::MEMBERS,
+                'body' => 'Members landing page',
+                'admin' => 'yes',
+                'markdown' => '# Members',
+                'navigation' => false,
+            ]
+        ));
 
         $this->get('/members')->assertStatus(403);
 
@@ -80,13 +87,18 @@ class PageSecurityTest extends TestCase
     {
         $area = PageArea::SERMONS->value;
 
-        Page::factory()->create([
-            'area' => $area,
-            'slug' => $area,
-            'markdown' => null,
-            'body' => '<h1>Legacy Body Content</h1>',
-            'admin' => 'no',
-        ]);
+        Page::unguarded(fn (): Page => Page::query()->updateOrCreate(
+            ['slug' => $area],
+            [
+                'heading' => 'Sermons',
+                'description' => 'Sermons landing page',
+                'area' => $area,
+                'markdown' => null,
+                'body' => '<h1>Legacy Body Content</h1>',
+                'admin' => 'no',
+                'navigation' => true,
+            ]
+        ));
 
         $response = $this->get('/'.$area);
 
