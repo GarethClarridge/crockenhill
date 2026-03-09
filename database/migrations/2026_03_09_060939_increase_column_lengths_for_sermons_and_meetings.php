@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('series', 255)->nullable()->change();
             $table->string('reference', 255)->nullable()->change();
             $table->string('preacher', 255)->default('Mark Drury')->change();
+            $table->string('meta_description', 255)->nullable()->change();
         });
 
         Schema::table('meetings', function (Blueprint $table) {
@@ -40,6 +41,7 @@ return new class extends Migration
             $table->string('series', 75)->nullable()->change();
             $table->string('reference', 75)->nullable()->change();
             $table->string('preacher', 75)->default('Mark Drury')->change();
+            $table->string('meta_description', 160)->nullable()->change();
         });
 
         Schema::table('meetings', function (Blueprint $table) {
