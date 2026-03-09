@@ -38,7 +38,7 @@ class SermonThumbnailUXTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee(route('serveSermonCardThumbnail', $sermon->slug), false);
         $response->assertSee('?v=', false);
-        $response->assertSee('alt="Sermon: Sermon with Thumbnail"', false);
+        $response->assertSee('aria-label="View sermon: Sermon with Thumbnail"', false);
     }
 
     public function test_sermon_card_does_not_render_thumbnail_when_only_overlay_exists(): void
