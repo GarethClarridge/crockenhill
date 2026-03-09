@@ -82,6 +82,13 @@
         </li>
         @endif
         @endforeach
+        @auth
+        <li class="mb-6 leading-none">
+          <a href="{{ route('childrens-corner.index') }}" wire:navigate>
+            Children's Corner
+          </a>
+        </li>
+        @endauth
       </ul>
     </li>
 

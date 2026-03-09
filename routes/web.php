@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CalendarAdminController;
 use App\Http\Controllers\Admin\SermonAdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\ChildrensCornerController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
@@ -32,6 +33,8 @@ Route::view('/easter', 'full-width-pages.easter')->name('easter');
 
 // Full width pages
 Route::view('/christ', 'full-width-pages.christ')->name('christ');
+Route::get('/christ/childrens-corner', [ChildrensCornerController::class, 'index'])->middleware('auth')->name('childrens-corner.index');
+Route::get('/christ/childrens-corner/{sermon:slug}', [ChildrensCornerController::class, 'show'])->middleware('auth')->name('childrens-corner.show');
 Route::view('/church', 'full-width-pages.church')->name('church');
 Route::view('/community', 'full-width-pages.community')->name('community');
 

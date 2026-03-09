@@ -342,15 +342,16 @@ Each item includes what exists, what needs to change, and which PRD section it i
 **What exists**: Nothing — this is new public-facing work.
 
 **Work**:
-- Route: `GET /christ/childrens-corner` → listing page.
+- Route: `GET /christ/childrens-corner` → listing page (paginated, 12 per page).
 - Route: `GET /christ/childrens-corner/{sermon:slug}` → detail page.
-- Controller or Livewire component querying `Sermon::whereChildrensTalk()`.
-- Listing view: title, date, speaker (if known), media availability indicators.
+- Both routes behind `auth` middleware until public launch.
+- `ChildrensCornerController` querying `Sermon::whereChildrensTalk()`.
+- Listing view: title, date, speaker (if known), media availability indicators. Reusable `x-childrens-talk-card` component.
 - Detail view: simplified — title, date, speaker, video/audio player. No AI summary or key points by default.
-- Navigation: add "Children's Corner" link to the Christ section navigation.
+- Navigation: "Children's Corner" link in Christ section header nav, visible to authenticated users only.
 - Use the `frontend-design` skill for all UI work.
 
-**Tests**: Listing shows only children's talks. Detail page renders. Sermon-type records not shown. Navigation link present.
+**Tests**: Listing shows only children's talks. Detail page renders. Sermon-type records not shown. Pagination works. Guests redirected to login. Nav link visible to authenticated users, hidden from guests.
 
 ---
 
