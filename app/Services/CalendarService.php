@@ -15,7 +15,13 @@ class CalendarService
      */
     public function getEventsForMeeting(string $meetingSlug, ?Carbon $startDate = null, ?Carbon $endDate = null): Collection
     {
-        $query = CalendarEvent::where('meeting_slug', $meetingSlug)
+        /**
+         * Performance Optimization: Limits retrieved columns to required fields for cards
+         * to reduce memory usage and DB I/O.
+         */
+        $query = CalendarEvent::query()
+            ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+            ->where('meeting_slug', $meetingSlug)
             ->where('status', '!=', 'cancelled')
             ->orderBy('start_datetime');
 
@@ -35,7 +41,13 @@ class CalendarService
      */
     public function getAllUpcomingEvents(?Carbon $startDate = null, ?Carbon $endDate = null): Collection
     {
-        $query = CalendarEvent::where('status', '!=', 'cancelled')
+        /**
+         * Performance Optimization: Limits retrieved columns to required fields for cards
+         * to reduce memory usage and DB I/O.
+         */
+        $query = CalendarEvent::query()
+            ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+            ->where('status', '!=', 'cancelled')
             ->where('start_datetime', '>=', $startDate ?? now())
             ->orderBy('start_datetime');
 
@@ -51,7 +63,13 @@ class CalendarService
      */
     public function getUncategorizedEvents(): Collection
     {
-        return CalendarEvent::where('meeting_slug', config('calendar.uncategorized_slug', 'uncategorized'))
+        /**
+         * Performance Optimization: Limits retrieved columns to required fields for cards
+         * to reduce memory usage and DB I/O.
+         */
+        return CalendarEvent::query()
+            ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+            ->where('meeting_slug', config('calendar.uncategorized_slug', 'uncategorized'))
             ->orderBy('start_datetime')
             ->get();
     }

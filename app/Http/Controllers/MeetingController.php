@@ -30,18 +30,25 @@ class MeetingController extends Controller
      */
     public function show(Meeting $meeting): ViewContract
     {
-        // Eager load page and calendar events to avoid N+1 queries
+        // Eager load page, media (for photos), and calendar events to avoid N+1 queries
         $meeting->load([
             'page',
+            'media',
             'calendarEvents' => function ($query) {
-                $query->upcoming()->confirmed()->orderBy('start_datetime')->limit(6);
+                $query->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
+                    ->upcoming()
+                    ->confirmed()
+                    ->orderBy('start_datetime')
+                    ->limit(6);
             },
         ]);
 
         $upcomingEvents = $meeting->calendarEvents;
 
         // Load past events separately
-        $pastEvents = \App\Models\CalendarEvent::where('meeting_slug', $meeting->slug)
+        $pastEvents = \App\Models\CalendarEvent::query()
+            ->select(['id', 'title', 'speaker', 'start_datetime'])
+            ->where('meeting_slug', $meeting->slug)
             ->past()
             ->confirmed()
             ->orderBy('start_datetime', 'desc')

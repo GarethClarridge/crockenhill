@@ -53,7 +53,11 @@ class SitemapService
             )
             ->add(
                 Meeting::query()
-                    ->select(['id', 'slug', 'updated_at', 'page_id'])
+                    /**
+                     * Performance Optimization: Only select columns required for sitemap generation
+                     * to reduce memory usage.
+                     */
+                    ->select(['id', 'slug', 'updated_at'])
                     ->get()
             )
 
