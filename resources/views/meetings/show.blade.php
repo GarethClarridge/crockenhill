@@ -1,4 +1,97 @@
-@extends('layouts/page')
+@extends('layouts.page')
+
+@section('title')
+{{ $heading }} | {{ $meeting->day }}{{ $meeting->start_time ? ' ' . $meeting->start_time->format('g:ia') : '' }} | Crockenhill Baptist Church
+@stop
+
+@section('meta_description')
+{{ $page?->meta_description ?? $heading }}
+@stop
+
+@section('meta_tags')
+<x-meta-tags
+    :title="$heading . ' | ' . $meeting->day . ($meeting->start_time ? ' ' . $meeting->start_time->format('g:ia') : '')"
+    :description="$page?->meta_description ?? $heading"
+    :image="$headingpicture"
+/>
+
+{{-- JSON-LD Breadcrumbs --}}
+@php
+$breadcrumbsData = [
+    '@context' => 'https://schema.org',
+    '@type' => 'BreadcrumbList',
+    'itemListElement' => [
+        [
+            '@type' => 'ListItem',
+            'position' => 1,
+            'name' => 'Home',
+            'item' => url('/'),
+        ],
+        [
+            '@type' => 'ListItem',
+            'position' => 2,
+            'name' => 'Community',
+            'item' => url('/community'),
+        ],
+        [
+            '@type' => 'ListItem',
+            'position' => 3,
+            'name' => $heading,
+            'item' => url()->current(),
+        ],
+    ],
+];
+@endphp
+<script type="application/ld+json">
+{!! json_encode($breadcrumbsData, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+</script>
+
+{{-- JSON-LD Events --}}
+@if($upcomingEvents->isNotEmpty())
+<script type="application/ld+json">
+{!! json_encode([
+    '@context' => 'https://schema.org',
+    '@type' => 'ItemList',
+    'itemListElement' => $upcomingEvents->map(function ($event, $index) use ($page, $heading, $meeting, $headingpicture) {
+        $eventData = [
+            '@type' => 'ListItem',
+            'position' => $index + 1,
+            'item' => [
+                '@type' => 'Event',
+                'name' => $event->title,
+                'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? $page?->description ?? $heading), 150),
+                'startDate' => $event->start_datetime->toIso8601String(),
+                'location' => [
+                    '@type' => 'Place',
+                    'name' => $event->location ?? $meeting->location ?? 'Crockenhill Baptist Church',
+                    'address' => [
+                        '@type' => 'PostalAddress',
+                        'streetAddress' => config('organization.address.street'),
+                        'addressLocality' => config('organization.address.locality'),
+                        'addressRegion' => config('organization.address.region'),
+                        'postalCode' => config('organization.address.postal_code'),
+                        'addressCountry' => config('organization.address.country'),
+                    ],
+                ],
+                'image' => $headingpicture ?? asset('images/Primary.png'),
+                'organizer' => [
+                    '@type' => 'Organization',
+                    'name' => config('organization.name'),
+                    'url' => url('/'),
+                ],
+            ],
+        ];
+
+        if ($event->end_datetime) {
+            $eventData['item']['endDate'] = $event->end_datetime->toIso8601String();
+        }
+
+        return $eventData;
+    })->values()->all(),
+], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+</script>
+@endif
+@stop
 
 @section('dynamic_content')
 

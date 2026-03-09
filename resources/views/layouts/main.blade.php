@@ -26,7 +26,9 @@
   @endif
 
   {{-- Additional meta tags for social media sharing --}}
-  @yield('meta_tags')
+  @hasSection('meta_tags')
+    @yield('meta_tags')
+  @endif
 
   {{-- Preload hints for critical resources --}}
   <link rel="preload" as="image" href="/svg/pattern.svg">
