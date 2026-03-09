@@ -29,7 +29,7 @@ class MeetingSeoTest extends TestCase
             'start_time' => '18:00:00',
         ]);
 
-        $response = $this->get("/community/buzz-club");
+        $response = $this->get('/community/buzz-club');
 
         $response->assertStatus(200);
 
@@ -54,7 +54,7 @@ class MeetingSeoTest extends TestCase
             'slug' => 'test-meeting',
         ]);
 
-        $response = $this->get("/community/test-meeting");
+        $response = $this->get('/community/test-meeting');
 
         $response->assertStatus(200);
         $response->assertSee('"@type": "BreadcrumbList"', false);
@@ -84,14 +84,14 @@ class MeetingSeoTest extends TestCase
             'status' => 'confirmed',
         ]);
 
-        $response = $this->get("/community/test-meeting");
+        $response = $this->get('/community/test-meeting');
 
         $response->assertStatus(200);
 
         // Use assertion that gives more info if it fails
-        if (!str_contains($response->getContent(), '"@type": "Event"')) {
+        if (! str_contains($response->getContent(), '"@type": "Event"')) {
             echo "\nContent did not contain Event JSON-LD\n";
-            echo "\nUpcoming Events Count in Controller: " . $meeting->calendarEvents()->upcoming()->confirmed()->count() . "\n";
+            echo "\nUpcoming Events Count in Controller: ".$meeting->calendarEvents()->upcoming()->confirmed()->count()."\n";
         }
 
         $response->assertSee('"@type": "Event"', false);
