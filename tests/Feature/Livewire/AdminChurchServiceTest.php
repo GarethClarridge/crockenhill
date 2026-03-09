@@ -11,7 +11,13 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\AlignWithOos;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
+use App\Jobs\ExtractSermon;
+use App\Jobs\GenerateThumbnail;
+use App\Jobs\IdentifySpeaker;
 use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\SubmitToProcessing;
+use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeSpeechSegments;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ManageChurchService;
@@ -26,6 +32,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
@@ -501,6 +508,7 @@ class AdminChurchServiceTest extends TestCase
     public function reclassify_action_dispatches_classifier_for_matching_livestream_run(): void
     {
         Bus::fake();
+        Storage::fake('local');
         $this->actingAs($this->admin);
 
         $service = ChurchService::factory()->create([
@@ -511,7 +519,9 @@ class AdminChurchServiceTest extends TestCase
         $processingRun = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-04-05',
             'extracted_service' => SermonService::MORNING,
+            'source_file_path' => 'temp/reclassify-source.mp4',
         ]);
+        Storage::disk('local')->put('temp/reclassify-source.mp4', 'video');
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->call('reclassify', $processingRun->id)
@@ -526,6 +536,12 @@ class AdminChurchServiceTest extends TestCase
             TranscribeSpeechSegments::class,
             ClassifySpeechSections::class,
             AlignWithOos::class,
+            ExtractSermon::class,
+            SubmitToProcessing::class,
+            IdentifySpeaker::class,
+            TranscribeAudio::class,
+            ProcessTranscriptWithAI::class,
+            GenerateThumbnail::class,
             PrepareSectionPublicationCandidates::class,
         ]);
     }
@@ -558,6 +574,31 @@ class AdminChurchServiceTest extends TestCase
             ->assertDispatched('notify', type: 'error', message: 'Only livestream runs can be reclassified.')
             ->call('reclassify', $mismatchedRun->id)
             ->assertDispatched('notify', type: 'error', message: 'Selected run does not belong to this service.');
+
+        Bus::assertNothingChained();
+    }
+
+    #[Test]
+    public function reclassify_action_rejects_runs_when_the_original_source_file_is_missing(): void
+    {
+        Bus::fake();
+        Storage::fake('local');
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-04-26',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $processingRun = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-04-26',
+            'extracted_service' => SermonService::MORNING,
+            'source_file_path' => 'temp/missing-source.mp4',
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->call('reclassify', $processingRun->id)
+            ->assertDispatched('notify', type: 'error', message: 'Selected run cannot be reclassified because the original livestream file is no longer available.');
 
         Bus::assertNothingChained();
     }

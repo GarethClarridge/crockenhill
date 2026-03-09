@@ -156,7 +156,7 @@ class OosAlignmentService
 
             $matchedSectionIds[] = $bestSection->id;
             $matchedItemIds[] = $item->id;
-            $this->applyMatchedItem($bestSection, $item, 0.10);
+            $this->applyMatchedItem($bestSection, $item, 0.25);
 
             $metadata = $this->metadata($bestSection);
             $metadata['song_id'] = $item->song_id;
@@ -166,6 +166,10 @@ class OosAlignmentService
                 'song_title_matched' => $item->title,
             ]);
 
+            $bestSection->confidence = ServiceSectionConfidence::clamp(max(
+                ServiceSectionConfidence::resolve($bestSection->confidence, $metadata),
+                0.90
+            ));
             $bestSection->title = $item->title;
             $bestSection->metadata = $metadata;
         }
@@ -279,7 +283,7 @@ class OosAlignmentService
             $expectedType = $this->resolvedItemType($item);
 
             if ($section->section_type === $expectedType) {
-                $this->applyMatchedItem($section, $item, 0.05);
+                $this->applyMatchedItem($section, $item, 0.35);
 
                 if ($expectedType === ServiceSectionType::BIBLE_READING) {
                     $metadata = $this->metadata($section);
@@ -343,13 +347,12 @@ class OosAlignmentService
 
         $section->church_service_item_id = $item->id;
         $section->needs_manual_review = $section->needs_manual_review || $this->hasBlockingReviewFlag($reviewFlags);
-        $section->confidence = ServiceSectionConfidence::clamp(max(
+        $section->confidence = ServiceSectionConfidence::clamp(
             ServiceSectionConfidence::increase(
                 ServiceSectionConfidence::resolve($section->confidence, $metadata),
                 $confidenceDelta
-            ),
-            0.90
-        ));
+            )
+        );
         $section->metadata = $metadata;
     }
 
@@ -544,14 +547,23 @@ class OosAlignmentService
             return ServiceSectionType::BIBLE_READING;
         }
 
-        $title = strtolower($item->title);
+        if ($itemType !== 'custom') {
+            return ServiceSectionType::OTHER;
+        }
+
+        return $this->inferCustomItemType($item->title);
+    }
+
+    private function inferCustomItemType(string $title): ServiceSectionType
+    {
+        $normalizedTitle = strtolower(trim($title));
 
         return match (true) {
-            str_contains($title, 'children') => ServiceSectionType::CHILDRENS_TALK,
-            str_contains($title, 'prayer') => ServiceSectionType::PRAYER,
-            str_contains($title, 'notice'), str_contains($title, 'announcement') => ServiceSectionType::NOTICES,
-            str_contains($title, 'welcome') => ServiceSectionType::WELCOME,
-            str_contains($title, 'sermon'), str_contains($title, 'message') => ServiceSectionType::SERMON,
+            preg_match('/\b(children|children\'s)\b/', $normalizedTitle) === 1 => ServiceSectionType::CHILDRENS_TALK,
+            preg_match('/\bprayer(s)?\b/', $normalizedTitle) === 1 => ServiceSectionType::PRAYER,
+            preg_match('/\b(notices?|announcements?)\b/', $normalizedTitle) === 1 => ServiceSectionType::NOTICES,
+            preg_match('/\bwelcome\b/', $normalizedTitle) === 1 => ServiceSectionType::WELCOME,
+            preg_match('/\b(sermon|message)\b/', $normalizedTitle) === 1 => ServiceSectionType::SERMON,
             default => ServiceSectionType::OTHER,
         };
     }

@@ -10,6 +10,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
@@ -105,5 +106,18 @@ class ServiceSectionSchemaTest extends TestCase
         $processingLog->refresh();
 
         $this->assertNull($processingLog->church_service_id);
+    }
+
+    #[Test]
+    public function confidence_values_outside_zero_to_one_are_rejected_by_the_database(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+
+        $this->expectException(QueryException::class);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'confidence' => 1.5,
+        ]);
     }
 }

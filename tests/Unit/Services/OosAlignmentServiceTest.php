@@ -153,6 +153,47 @@ class OosAlignmentServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_force_structural_matches_to_high_confidence_when_the_base_confidence_is_very_low(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-06-18',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        $prayer = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Opening Prayer',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.1,
+            'metadata' => [
+                'confidence_level' => 'none',
+                'classification_mode' => 'ai_transcript',
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        $this->assertSame($prayer->id, $section->church_service_item_id);
+        $this->assertLessThan(0.90, $section->confidence);
+        $this->assertSame('none', $section->metadata['confidence_level']);
+    }
+
+    #[Test]
     public function it_applies_a_low_confidence_oos_label_to_titleless_song_sections_and_keeps_them_under_review(): void
     {
         $churchService = ChurchService::factory()->create([
@@ -246,6 +287,47 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertTrue($section->needs_manual_review);
         $this->assertSame('oos_structure_mismatch', $section->metadata['review_reason']);
         $this->assertTrue($churchService->needs_review);
+    }
+
+    #[Test]
+    public function it_only_uses_title_based_type_inference_for_custom_items(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-07-03',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'liturgy',
+            'title' => 'Welcome to the Family',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'ai_transcript',
+            ],
+        ]);
+
+        $result = app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        $this->assertSame([], $result['review_triggers']);
+        $this->assertSame($item->id, $section->church_service_item_id);
+        $this->assertSame(ServiceSectionType::OTHER, $section->section_type);
     }
 
     #[Test]

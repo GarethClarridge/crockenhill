@@ -232,12 +232,18 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildSectionReclassificationChainJobs($log);
 
-        $this->assertCount(5, $jobs);
+        $this->assertCount(11, $jobs);
         $this->assertInstanceOf(ClassifyServiceSections::class, $jobs[0]);
         $this->assertInstanceOf(TranscribeSpeechSegments::class, $jobs[1]);
         $this->assertInstanceOf(ClassifySpeechSections::class, $jobs[2]);
         $this->assertInstanceOf(AlignWithOos::class, $jobs[3]);
-        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[4]);
+        $this->assertInstanceOf(ExtractSermon::class, $jobs[4]);
+        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[5]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[6]);
+        $this->assertInstanceOf(TranscribeAudio::class, $jobs[7]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[8]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[9]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[10]);
         $this->assertTrue($jobs[0]->preservesRunStatus());
     }
 

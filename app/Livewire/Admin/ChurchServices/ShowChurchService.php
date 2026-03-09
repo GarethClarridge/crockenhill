@@ -13,6 +13,7 @@ use App\Services\MediaProcessingIdentityResolver;
 use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -77,6 +78,12 @@ class ShowChurchService extends Component
             return;
         }
 
+        if (! $this->sourceVideoIsAvailable($processingLog)) {
+            $this->error('Selected run cannot be reclassified because the original livestream file is no longer available.');
+
+            return;
+        }
+
         Bus::chain($this->pipelineBuilder()->buildSectionReclassificationChainJobs($processingLog))
             ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'))
             ->dispatch();
@@ -122,6 +129,18 @@ class ShowChurchService extends Component
     private function pipelineBuilder(): ProcessingPipelineBuilder
     {
         return app(ProcessingPipelineBuilder::class);
+    }
+
+    private function sourceVideoIsAvailable(MediaProcessingLog $processingLog): bool
+    {
+        $sourceFilePath = $processingLog->source_file_path;
+
+        if (! is_string($sourceFilePath) || $sourceFilePath === '') {
+            return false;
+        }
+
+        return Storage::disk((string) config('media-processing.storage.temp_disk', 'local'))
+            ->exists($sourceFilePath);
     }
 
     private function abortIfDisabled(): void

@@ -124,6 +124,56 @@ class SubmitToProcessingTest extends TestCase
     }
 
     #[Test]
+    public function it_reuses_an_existing_sermon_record_when_refreshing_livestream_outputs(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('sermons/audio/refreshed-audio.mp3', 'fake-audio-content');
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $sermon = Sermon::factory()->create([
+            'audio_file_path' => 'sermons/audio/original-audio.mp3',
+            'livestream_processing_id' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'audio_file_path' => 'sermons/audio/refreshed-audio.mp3',
+            'original_filename' => '2026-01-15-livestream.mp4',
+            'video_file_path' => 'temp/video.mp4',
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+        ]);
+
+        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
+        $mockMetadataService->expects($this->once())
+            ->method('storeVideoForSermon')
+            ->with($log->processing_id, $sermon->id)
+            ->willReturn('sermons/'.$sermon->id.'/video.mp4');
+        $mockMetadataService->expects($this->once())
+            ->method('linkVideoToSermon')
+            ->with($log->processing_id, $sermon->id, 'sermons/'.$sermon->id.'/video.mp4');
+
+        $mockCreationService = $this->createMock(SermonCreationService::class);
+        $mockCreationService->expects($this->never())->method('createSermon');
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        $job = new SubmitToProcessing($log);
+        $job->handle($mockMetadataService, $mockCreationService);
+
+        $log->refresh();
+        $sermon->refresh();
+
+        $this->assertSame($sermon->id, $log->sermon_id);
+        $this->assertSame('sermons/audio/refreshed-audio.mp3', $sermon->audio_file_path);
+        $this->assertSame($log->processing_id, $sermon->livestream_processing_id);
+        $this->assertSame('transcription', $log->current_step);
+        $this->assertDatabaseCount('sermons', 1);
+    }
+
+    #[Test]
     public function failed_method_marks_processing_log_as_failed(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->processing()->create();

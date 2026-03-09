@@ -114,7 +114,8 @@ class ProcessingPipelineBuilder
     }
 
     /**
-     * Lightweight reclassification chain for existing livestream runs.
+     * Reclassification chain for existing livestream runs that also refreshes
+     * sermon-derived outputs when the original source media is still available.
      *
      * @return non-empty-list<object>
      */
@@ -125,6 +126,12 @@ class ProcessingPipelineBuilder
             new TranscribeSpeechSegments($log),
             new ClassifySpeechSections($log),
             new AlignWithOos($log),
+            new ExtractSermon($log),
+            new SubmitToProcessing($log),
+            new IdentifySpeaker($log),
+            new TranscribeAudio($log),
+            new ProcessTranscriptWithAI($log),
+            new GenerateThumbnail($log),
             new PrepareSectionPublicationCandidates($log),
         ];
     }

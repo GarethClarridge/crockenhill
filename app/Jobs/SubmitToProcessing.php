@@ -3,7 +3,9 @@
 namespace App\Jobs;
 
 use App\Data\SermonCreationOptions;
+use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Services\SermonCreationService;
 use App\Services\SermonMetadataIntegrationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -122,19 +124,32 @@ class SubmitToProcessing implements ShouldQueue
                 'video_file_path' => $this->processingLog->video_file_path,
             ];
 
-            // Create sermon using unified service
-            $options = SermonCreationOptions::fromLivestream($this->processingLog, $metadata);
-            $sermon = $sermonCreationService->createSermon($this->processingLog, $options);
-            $sermonId = $sermon->id;
+            $existingSermon = $this->processingLog->sermon;
 
-            // Update this processing log with the sermon ID immediately
-            $this->processingLog->update(['sermon_id' => $sermonId]);
+            if ($existingSermon instanceof Sermon) {
+                $sermon = $this->refreshExistingLivestreamSermon($existingSermon);
+                $sermonId = $sermon->id;
 
-            Log::info('Created sermon record directly from livestream', [
-                'processing_id' => $this->processingLog->processing_id,
-                'sermon_id' => $sermonId,
-                'sermon_title' => $sermon->title,
-            ]);
+                Log::info('Refreshing existing sermon record from livestream reprocessing', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'sermon_id' => $sermonId,
+                    'sermon_title' => $sermon->title,
+                ]);
+            } else {
+                // Create sermon using unified service
+                $options = SermonCreationOptions::fromLivestream($this->processingLog, $metadata);
+                $sermon = $sermonCreationService->createSermon($this->processingLog, $options);
+                $sermonId = $sermon->id;
+
+                // Update this processing log with the sermon ID immediately
+                $this->processingLog->update(['sermon_id' => $sermonId]);
+
+                Log::info('Created sermon record directly from livestream', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'sermon_id' => $sermonId,
+                    'sermon_title' => $sermon->title,
+                ]);
+            }
 
             // Store video in permanent location
             $finalVideoPath = $metadataIntegrationService->storeVideoForSermon(
@@ -221,5 +236,18 @@ class SubmitToProcessing implements ShouldQueue
         );
 
         // Cleanup will be handled by the chain failure handler
+    }
+
+    private function refreshExistingLivestreamSermon(Sermon $sermon): Sermon
+    {
+        $sermon->update([
+            'audio_file_path' => $this->processingLog->audio_file_path,
+            'source_type' => SermonSourceType::Livestream,
+            'livestream_processing_id' => $this->processingLog->processing_id,
+            'segment_start_time' => $this->processingLog->sermon_start_time,
+            'segment_end_time' => $this->processingLog->sermon_end_time,
+        ]);
+
+        return $sermon->fresh() ?? $sermon;
     }
 }
