@@ -9,6 +9,7 @@ use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PodcastFeedController;
+use App\Http\Controllers\PublicSongListController;
 use App\Http\Controllers\SermonAssetController;
 use App\Http\Controllers\SermonController;
 use App\Http\Controllers\SitemapController;
@@ -174,6 +175,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 Route::middleware('auth')->prefix('church/members')->group(function () {
     Route::get('', MemberController::class)->name('memberHome');
 });
+
+Route::middleware('auth')->get('/church/songs', PublicSongListController::class)
+    ->name('church.songs.index');
 
 Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware(['auth', 'admin']);
 

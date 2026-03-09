@@ -109,6 +109,13 @@
         </li>
         @endif
         @endforeach
+        @auth
+        <li class="mb-6 leading-none">
+          <a href="{{ route('church.songs.index') }}" wire:navigate>
+            Songs
+          </a>
+        </li>
+        @endauth
       </ul>
     </li>
 
