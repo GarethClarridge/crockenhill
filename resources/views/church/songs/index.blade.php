@@ -52,7 +52,7 @@
                             <div class="space-y-2">
                                 <p class="text-xs font-semibold uppercase tracking-[0.25em] text-cbc-teal-dark/75">Worship song</p>
                                 <h2 class="font-display text-3xl leading-tight text-cbc-teal-dark">
-                                    <a href="{{ route('church.songs.show', $song->canonical_key) }}" wire:navigate class="transition-colors hover:text-cbc-teal focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 rounded-sm">
+                                    <a href="{{ route('church.songs.show', $song->slug) }}" wire:navigate class="transition-colors hover:text-cbc-teal focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 rounded-sm">
                                         {{ $song->title }}
                                     </a>
                                 </h2>
@@ -92,7 +92,7 @@
 
                         <div class="mt-6">
                             <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
-                                <x-button link="{{ route('church.songs.show', $song->canonical_key) }}" variant="secondary" class="w-full rounded-[11px]">
+                                <x-button link="{{ route('church.songs.show', $song->slug) }}" variant="secondary" class="w-full rounded-[11px]">
                                     View song
                                 </x-button>
                             </div>

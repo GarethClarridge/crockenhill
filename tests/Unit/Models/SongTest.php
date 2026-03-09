@@ -17,11 +17,23 @@ class SongTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function canonicalize_key_trims_lowers_and_collapses_whitespace_without_stripping_symbols(): void
+    public function canonicalize_key_strips_openlp_alternate_search_text_after_at_symbol(): void
     {
         $result = Song::canonicalizeKey('  Who   Am I@Who   You Say I Am  ');
 
-        $this->assertSame('who am i@who you say i am', $result);
+        $this->assertSame('who am i', $result);
+    }
+
+    #[Test]
+    public function canonicalize_key_handles_trailing_at_symbol(): void
+    {
+        $this->assertSame('amazing grace', Song::canonicalizeKey('amazing grace@'));
+    }
+
+    #[Test]
+    public function canonicalize_key_handles_input_without_at_symbol(): void
+    {
+        $this->assertSame('be thou my vision', Song::canonicalizeKey('  Be Thou   My Vision  '));
     }
 
     #[Test]

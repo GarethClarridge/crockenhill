@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
 /**
  * @property int $id
  * @property string $canonical_key
+ * @property string|null $slug
  * @property string $title
  * @property string|null $alternate_title
  * @property string $lyrics_xml
@@ -50,6 +51,7 @@ class Song extends Model
      */
     protected $fillable = [
         'canonical_key',
+        'slug',
         'title',
         'alternate_title',
         'lyrics_xml',
@@ -73,6 +75,12 @@ class Song extends Model
 
     public static function canonicalizeKey(string $value): string
     {
+        // OpenLP search_title uses @ to delimit alternate search text — strip it.
+        $atPos = strpos($value, '@');
+        if ($atPos !== false) {
+            $value = substr($value, 0, $atPos);
+        }
+
         $normalised = trim(Str::lower($value));
         $normalised = (string) preg_replace('/\s+/', ' ', $normalised);
 

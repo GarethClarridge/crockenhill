@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\Song;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Song>
@@ -22,7 +23,8 @@ class SongFactory extends Factory
         $title = $this->faker->unique()->sentence(3);
 
         return [
-            'canonical_key' => Song::canonicalizeKey($title.'@'),
+            'canonical_key' => Song::canonicalizeKey($title),
+            'slug' => Str::slug($title),
             'title' => $title,
             'alternate_title' => $this->faker->optional()->sentence(2),
             'lyrics_xml' => '<song><lyrics><verse type="v"><![CDATA[Verse line one]]></verse></lyrics></song>',

@@ -8,6 +8,7 @@ use App\Models\Song;
 use App\Models\SongAuthor;
 use App\Models\SongBook;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use PDO;
 use PDOException;
 use RuntimeException;
@@ -435,9 +436,11 @@ class SongCatalogSyncService
             $importMetadata['lyrics_parse_warnings'] = $warnings;
         }
 
+        $title = $this->stringOrNull($representative['title'] ?? null) ?? 'Untitled';
+
         $attributes = [
             'canonical_key' => $canonicalKey,
-            'title' => $this->stringOrNull($representative['title'] ?? null) ?? 'Untitled',
+            'title' => $title,
             'alternate_title' => $this->stringOrNull($representative['alternate_title'] ?? null),
             'lyrics_xml' => (string) ($representative['lyrics'] ?? ''),
             'lyrics_plain' => $parsedLyrics['lyrics_plain'],
@@ -457,6 +460,11 @@ class SongCatalogSyncService
 
         if ($song instanceof Song) {
             $song->fill($attributes);
+
+            if ($song->slug === null || $song->slug === '') {
+                $song->slug = $this->generateUniqueSlug($title, $song->id);
+            }
+
             $song->save();
 
             if ($song->trashed()) {
@@ -464,6 +472,7 @@ class SongCatalogSyncService
                 $restored = true;
             }
         } else {
+            $attributes['slug'] = $this->generateUniqueSlug($title);
             $song = Song::query()->create($attributes);
             $created = true;
         }
@@ -839,5 +848,32 @@ class SongCatalogSyncService
         }
 
         return (int) $value;
+    }
+
+    private function generateUniqueSlug(string $title, ?int $excludeId = null): string
+    {
+        $base = Str::slug($title);
+        if ($base === '') {
+            $base = 'untitled';
+        }
+
+        $slug = $base;
+        $suffix = 2;
+
+        while (true) {
+            $query = Song::withTrashed()->where('slug', $slug);
+            if ($excludeId !== null) {
+                $query->where('id', '!=', $excludeId);
+            }
+
+            if (! $query->exists()) {
+                break;
+            }
+
+            $slug = $base.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $slug;
     }
 }

@@ -178,7 +178,7 @@ Route::middleware('auth')->prefix('church/members')->group(function () {
 
 Route::middleware('auth')->prefix('church/songs')->name('church.songs.')->group(function () {
     Route::get('', [PublicSongListController::class, 'index'])->name('index');
-    Route::get('{song:canonical_key}', [PublicSongListController::class, 'show'])->name('show');
+    Route::get('{song:slug}', [PublicSongListController::class, 'show'])->name('show');
 });
 
 Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware(['auth', 'admin']);

@@ -45,7 +45,7 @@ class SyncSongsCommandTest extends TestCase
         $this->assertDatabaseCount('song_books', 2);
 
         $mergedSong = Song::query()
-            ->where('canonical_key', 'who am i that the highest king@who you say i am')
+            ->where('canonical_key', 'who am i that the highest king')
             ->firstOrFail();
 
         $this->assertSame('Who You Say I Am (Updated)', $mergedSong->title);
@@ -136,7 +136,7 @@ class SyncSongsCommandTest extends TestCase
         $this->artisan('service-tracking:sync-songs', ['--path' => $path])
             ->assertExitCode(0);
 
-        $song = Song::query()->where('canonical_key', 'verse order test@')->firstOrFail();
+        $song = Song::query()->where('canonical_key', 'verse order test')->firstOrFail();
 
         $this->assertSame("Chorus line\n\nVerse line", $song->lyrics_plain);
     }
@@ -161,7 +161,7 @@ class SyncSongsCommandTest extends TestCase
         $path = $this->createSourceSqlite();
 
         Song::factory()->create([
-            'canonical_key' => 'stand up stand up for jesus@',
+            'canonical_key' => 'stand up stand up for jesus',
         ]);
 
         $metrics = app(SongCatalogSyncService::class)->sync(path: $path, dryRun: true);
@@ -187,7 +187,7 @@ class SyncSongsCommandTest extends TestCase
         $path = $this->createSourceSqlite();
 
         $trashedSong = Song::factory()->create([
-            'canonical_key' => 'stand up stand up for jesus@',
+            'canonical_key' => 'stand up stand up for jesus',
         ]);
         $trashedSong->delete();
 

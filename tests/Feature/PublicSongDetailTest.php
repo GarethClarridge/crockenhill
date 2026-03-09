@@ -24,11 +24,9 @@ class PublicSongDetailTest extends TestCase
     #[Test]
     public function guests_are_redirected_to_login(): void
     {
-        $song = Song::factory()->create([
-            'canonical_key' => 'public-song@',
-        ]);
+        $song = Song::factory()->create();
 
-        $this->get(route('church.songs.show', $song->canonical_key))
+        $this->get(route('church.songs.show', $song->slug))
             ->assertRedirect('/login');
     }
 
@@ -39,25 +37,23 @@ class PublicSongDetailTest extends TestCase
 
         $this->actingAs(User::factory()->create());
 
-        $song = Song::factory()->create([
-            'canonical_key' => 'disabled-song@',
-        ]);
+        $song = Song::factory()->create();
 
-        $this->get(route('church.songs.show', $song->canonical_key))
+        $this->get(route('church.songs.show', $song->slug))
             ->assertNotFound();
     }
 
     #[Test]
-    public function detail_page_renders_for_song_canonical_key(): void
+    public function detail_page_renders_for_song_slug(): void
     {
         $this->actingAs(User::factory()->create());
 
         $song = Song::factory()->create([
-            'canonical_key' => 'be-thou-my-vision@',
             'title' => 'Be Thou My Vision',
+            'slug' => 'be-thou-my-vision',
         ]);
 
-        $response = $this->get(route('church.songs.show', $song->canonical_key));
+        $response = $this->get(route('church.songs.show', $song->slug));
 
         $response->assertOk();
         $response->assertSee('Be Thou My Vision');
@@ -70,12 +66,11 @@ class PublicSongDetailTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $song = Song::factory()->create([
-            'canonical_key' => 'great-is-thy-faithfulness@',
             'title' => 'Great Is Thy Faithfulness',
             'lyrics_plain' => "Morning by morning\nNew mercies I see",
         ]);
 
-        $this->get(route('church.songs.show', $song->canonical_key))
+        $this->get(route('church.songs.show', $song->slug))
             ->assertOk()
             ->assertSee('Morning by morning')
             ->assertSee('New mercies I see');
@@ -87,8 +82,8 @@ class PublicSongDetailTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $song = Song::factory()->create([
-            'canonical_key' => 'amazing-grace@',
             'title' => 'Amazing Grace',
+            'slug' => 'amazing-grace',
         ]);
 
         $nonLivestreamedService = ChurchService::factory()->create([
@@ -136,7 +131,7 @@ class PublicSongDetailTest extends TestCase
             'section_type' => ServiceSectionType::SONG,
         ]);
 
-        $response = $this->get(route('church.songs.show', $song->canonical_key));
+        $response = $this->get(route('church.songs.show', $song->slug));
 
         $response->assertOk();
         $response->assertSee('16 Feb 2026');
@@ -156,12 +151,12 @@ class PublicSongDetailTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $song = Song::factory()->create([
-            'canonical_key' => 'cornerstone@',
             'title' => 'Cornerstone',
+            'slug' => 'cornerstone',
             'ccli_number' => '123456',
         ]);
 
-        $this->get(route('church.songs.show', $song->canonical_key))
+        $this->get(route('church.songs.show', $song->slug))
             ->assertOk()
             ->assertSee('CCLI 123456');
     }
