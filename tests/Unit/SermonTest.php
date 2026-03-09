@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
@@ -160,6 +161,34 @@ class SermonTest extends TestCase
         $sermonsByPreacherX = \App\Models\Sermon::byPreacher($preacherXName)->get();
         $this->assertTrue($sermonsByPreacherX->contains($sermonByPreacherX));
         $this->assertFalse($sermonsByPreacherX->contains($sermonByPreacherY));
+    }
+
+    #[Test]
+    public function sermon_content_type_defaults_to_sermon(): void
+    {
+        $attributes = Sermon::factory()->raw();
+        unset($attributes['content_type']);
+
+        $sermon = Sermon::query()->create($attributes);
+
+        $this->assertSame(SermonContentType::Sermon, $sermon->refresh()->content_type);
+    }
+
+    #[Test]
+    public function sermon_content_type_scopes_filter_correctly(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'content_type' => SermonContentType::Sermon,
+        ]);
+
+        $childrensTalk = Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $this->assertTrue(Sermon::query()->whereSermon()->get()->contains($sermon));
+        $this->assertFalse(Sermon::query()->whereSermon()->get()->contains($childrensTalk));
+        $this->assertTrue(Sermon::query()->whereChildrensTalk()->get()->contains($childrensTalk));
+        $this->assertFalse(Sermon::query()->whereChildrensTalk()->get()->contains($sermon));
     }
 
     // /**

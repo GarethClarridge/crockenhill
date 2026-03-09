@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Jobs;
 
+use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -180,5 +182,53 @@ class PublishApprovedServiceSectionTest extends TestCase
         $section->refresh();
         $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
         $this->assertSame($sermon->id, $section->published_sermon_id);
+    }
+
+    #[Test]
+    public function it_publishes_childrens_talk_sections_with_childrens_talk_content_type(): void
+    {
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-31',
+            'extracted_service' => SermonService::MORNING->value,
+            'original_filename' => '2026-05-31-morning-service.mp4',
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK,
+            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'extracted_video_path' => 'sermons/sections/13/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-13.mp3',
+            'start_time' => 300.0,
+            'end_time' => 780.0,
+            'duration' => 480.0,
+            'title' => "Children's Talk",
+        ]);
+        $section->metadata = array_merge($section->metadata ?? [], [
+            'publication' => [
+                'approved_signature' => $section->classificationSignature(),
+                'approved_at' => now()->toIso8601String(),
+            ],
+        ]);
+        $section->save();
+
+        Storage::disk('public')->put('sermons/sections/13/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-13.mp3', 'audio');
+
+        $job = new PublishApprovedServiceSection($section->id);
+        $job->handle(app(SermonCreationService::class), app(MediaProcessingIdentityResolver::class));
+
+        $section->refresh();
+        $sermon = Sermon::query()->findOrFail($section->published_sermon_id);
+
+        $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
+        $this->assertSame(SermonContentType::ChildrensTalk, $sermon->content_type);
     }
 }

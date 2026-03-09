@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PreacherSource;
+use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +23,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property int $id
  * @property Carbon $date
  * @property ?SermonService $service
+ * @property SermonContentType $content_type
  * @property string $audio_file_path
  * @property string $filetype
  * @property string $title
@@ -81,6 +83,8 @@ use Spatie\Sitemap\Tags\Url;
  * @method static Builder|Sermon withThumbnail()
  * @method static Builder|Sermon forPodcast()
  * @method static Builder|Sermon needsPreacherReview()
+ * @method static Builder|Sermon whereSermon()
+ * @method static Builder|Sermon whereChildrensTalk()
  *
  * @mixin \Eloquent
  */
@@ -102,6 +106,7 @@ class Sermon extends Model implements Sitemapable
         'filetype',
         'date',
         'service',
+        'content_type',
         'slug',
         'series',
         'reference',
@@ -136,6 +141,7 @@ class Sermon extends Model implements Sitemapable
             'date' => 'date',
             'points' => 'array',
             'service' => SermonService::class,
+            'content_type' => SermonContentType::class,
             'segment_start_time' => 'float',
             'segment_end_time' => 'float',
             'thumbnail_generated_at' => 'datetime',
@@ -239,6 +245,24 @@ class Sermon extends Model implements Sitemapable
     public function scopeNeedsPreacherReview(Builder $query): Builder
     {
         return $query->where('needs_preacher_review', true);
+    }
+
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
+    public function scopeWhereSermon(Builder $query): Builder
+    {
+        return $query->where('content_type', SermonContentType::Sermon);
+    }
+
+    /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
+    public function scopeWhereChildrensTalk(Builder $query): Builder
+    {
+        return $query->where('content_type', SermonContentType::ChildrensTalk);
     }
 
     /**

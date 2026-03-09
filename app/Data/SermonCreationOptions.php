@@ -2,7 +2,9 @@
 
 namespace App\Data;
 
+use App\Enums\SermonContentType;
 use App\Enums\SermonSourceType;
+use App\Enums\ServiceSectionType;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -25,6 +27,7 @@ class SermonCreationOptions
         public ?string $livestreamProcessingId = null,
         public ?float $segmentStartTime = null,
         public ?float $segmentEndTime = null,
+        public SermonContentType $contentType = SermonContentType::Sermon,
 
         // Title generation strategy
         public TitleGenerationStrategy $titleStrategy = TitleGenerationStrategy::AI_WITH_FALLBACK,
@@ -113,6 +116,9 @@ class SermonCreationOptions
             livestreamProcessingId: $log->processing_id,
             segmentStartTime: $section->start_time,
             segmentEndTime: $section->end_time,
+            contentType: $section->section_type === ServiceSectionType::CHILDRENS_TALK
+                ? SermonContentType::ChildrensTalk
+                : SermonContentType::Sermon,
             titleStrategy: TitleGenerationStrategy::FILENAME_ONLY,
             service: $service,
             date: $date,

@@ -64,6 +64,7 @@ class SermonCreationService
             'filetype' => pathinfo($options->originalFilename, PATHINFO_EXTENSION) ?: 'mp3',
             'date' => $sermonDate,
             'service' => $service,
+            'content_type' => $options->contentType,
             'slug' => $slug,
             'preacher' => $preacherModel->name,
             'preacher_id' => $preacherModel->id,

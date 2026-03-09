@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Data;
 
 use App\Data\SermonCreationOptions;
+use App\Enums\SermonContentType;
 use App\Enums\SermonSourceType;
+use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,6 +28,7 @@ class SermonCreationOptionsTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK,
             'title' => "Children's Talk",
             'extracted_video_path' => 'sermons/sections/55/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-55.mp3',
@@ -47,6 +50,7 @@ class SermonCreationOptionsTest extends TestCase
         $this->assertSame('2026-05-10', $options->date);
         $this->assertSame('morning', $options->service);
         $this->assertSame("Children's Talk", $options->customTitle);
+        $this->assertSame(SermonContentType::ChildrensTalk, $options->contentType);
         $this->assertSame(120.0, $options->segmentStartTime);
         $this->assertSame(480.0, $options->segmentEndTime);
     }

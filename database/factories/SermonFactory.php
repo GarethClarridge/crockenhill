@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -16,6 +17,7 @@ class SermonFactory extends Factory
         return [
             'date' => $this->faker->date(),
             'service' => $this->faker->randomElement([SermonService::MORNING->value, SermonService::EVENING->value, SermonService::OTHER->value]),
+            'content_type' => SermonContentType::Sermon,
             'audio_file_path' => Str::slug($title).'.mp3',
             'filetype' => 'mp3',
             'title' => $title,
