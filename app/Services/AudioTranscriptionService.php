@@ -46,7 +46,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     {
         if (! is_dir($directory)) {
             if (! mkdir($directory, 0755, true)) {
-                throw new \Exception("Failed to create directory: {$directory}");
+                throw new Exception("Failed to create directory: {$directory}");
             }
         }
     }
@@ -110,7 +110,6 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         }
 
         // Check if this is an S3 disk and handle accordingly
-        $videoStorageService = app(VideoStorageService::class);
         $isS3Disk = $this->isS3Disk($diskName);
 
         if ($isS3Disk) {
@@ -445,15 +444,6 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         return in_array($exception->getCode(), $nonRetryableCodes);
     }
 
-    /**
-     * Store transcript to file using sermon ID
-     *
-     * @param  int  $sermonId  The sermon ID
-     * @param  string  $transcript  The transcript content
-     * @return string The stored file path
-     *
-     * @throws Exception When storage fails
-     */
     /**
      * Store transcript content (delegates to TranscriptStorageService)
      *
