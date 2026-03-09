@@ -61,7 +61,7 @@ class PageSecurityTest extends TestCase
 
     public function test_admin_landing_pages_are_restricted_to_admins(): void
     {
-        Page::query()->updateOrCreate(
+        Page::unguarded(fn (): Page => Page::query()->updateOrCreate(
             ['slug' => 'members'],
             [
                 'heading' => 'Members',
@@ -72,7 +72,7 @@ class PageSecurityTest extends TestCase
                 'markdown' => '# Members',
                 'navigation' => false,
             ]
-        );
+        ));
 
         $this->get('/members')->assertStatus(403);
 
@@ -87,7 +87,7 @@ class PageSecurityTest extends TestCase
     {
         $area = PageArea::SERMONS->value;
 
-        Page::query()->updateOrCreate(
+        Page::unguarded(fn (): Page => Page::query()->updateOrCreate(
             ['slug' => $area],
             [
                 'heading' => 'Sermons',
@@ -98,7 +98,7 @@ class PageSecurityTest extends TestCase
                 'admin' => 'no',
                 'navigation' => true,
             ]
-        );
+        ));
 
         $response = $this->get('/'.$area);
 
