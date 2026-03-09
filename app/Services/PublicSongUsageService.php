@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
 class PublicSongUsageService
@@ -30,12 +31,46 @@ class PublicSongUsageService
             ->with([
                 'authors' => fn ($query) => $query->orderBy('display_name'),
             ])
-            ->selectSub($this->qualifyingUsageItemsQuery($normalizedRange)->selectRaw('COUNT(*)'), 'usage_count')
-            ->selectSub($this->qualifyingUsageItemsQuery($normalizedRange)->selectRaw('MAX(church_services.date)'), 'last_sung_date')
-            ->whereExists($this->qualifyingUsageItemsQuery($normalizedRange)->selectRaw('1'))
+            ->selectSub($this->qualifyingUsageItemsQueryForSongList($normalizedRange)->selectRaw('COUNT(*)'), 'usage_count')
+            ->selectSub($this->qualifyingUsageItemsQueryForSongList($normalizedRange)->selectRaw('MAX(church_services.date)'), 'last_sung_date')
+            ->whereExists($this->qualifyingUsageItemsQueryForSongList($normalizedRange)->selectRaw('1'))
             ->orderByDesc('usage_count')
             ->orderByDesc('last_sung_date')
             ->orderBy('songs.title');
+    }
+
+    /**
+     * @return array{usage_count: int, last_sung_date: string|null}
+     */
+    public function statsForSong(Song $song, string $range = self::RANGE_ALL): array
+    {
+        /** @var array<string, mixed> $stats */
+        $stats = (array) ($this->qualifyingUsageItemsQueryForSong($song, $range)
+            ->selectRaw('COUNT(*) AS usage_count')
+            ->selectRaw('MAX(church_services.date) AS last_sung_date')
+            ->toBase()
+            ->first() ?? []);
+
+        return [
+            'usage_count' => is_numeric($stats['usage_count'] ?? null) ? (int) $stats['usage_count'] : 0,
+            'last_sung_date' => is_string($stats['last_sung_date'] ?? null) ? $stats['last_sung_date'] : null,
+        ];
+    }
+
+    /**
+     * @return EloquentCollection<int, ChurchServiceItem>
+     */
+    public function usageHistoryForSong(Song $song, int $limit = 40): EloquentCollection
+    {
+        return $this->qualifyingUsageItemsQueryForSong($song)
+            ->select('church_service_items.*')
+            ->with([
+                'churchService' => fn ($query) => $query->select(['id', 'date', 'service']),
+            ])
+            ->orderByDesc('church_services.date')
+            ->orderByDesc('church_service_items.position')
+            ->limit($limit)
+            ->get();
     }
 
     public function normalizeRange(?string $range): string
@@ -48,11 +83,28 @@ class PublicSongUsageService
     /**
      * @return Builder<ChurchServiceItem>
      */
-    private function qualifyingUsageItemsQuery(string $range): Builder
+    private function qualifyingUsageItemsQueryForSongList(string $range): Builder
+    {
+        return $this->baseQualifyingUsageItemsQuery($range)
+            ->whereColumn('church_service_items.song_id', 'songs.id');
+    }
+
+    /**
+     * @return Builder<ChurchServiceItem>
+     */
+    private function qualifyingUsageItemsQueryForSong(Song $song, string $range = self::RANGE_ALL): Builder
+    {
+        return $this->baseQualifyingUsageItemsQuery($this->normalizeRange($range))
+            ->where('church_service_items.song_id', $song->id);
+    }
+
+    /**
+     * @return Builder<ChurchServiceItem>
+     */
+    private function baseQualifyingUsageItemsQuery(string $range): Builder
     {
         return ChurchServiceItem::query()
             ->join('church_services', 'church_services.id', '=', 'church_service_items.church_service_id')
-            ->whereColumn('church_service_items.song_id', 'songs.id')
             ->whereNull('church_service_items.deleted_at')
             ->where('church_service_items.type', 'songs')
             ->when(

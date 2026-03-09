@@ -406,7 +406,7 @@ Each item includes what exists, what needs to change, and which PRD section it i
 
 ---
 
-### 6.2 Song detail public page (optional)
+### 6.2 Song detail public page
 
 **PRD ref**: §6.6 (implied)
 
@@ -415,7 +415,6 @@ Each item includes what exists, what needs to change, and which PRD section it i
 **Work**:
 - Route: `GET /church/worship-songs/{song:canonical_key}` (or by ID) behind `auth` middleware until public launch.
 - Display: title, authors, lyrics (if available), usage history with dates.
-- Keep it simple — this is a nice-to-have extension of the listing.
 
 **Tests**: Song detail renders. Lyrics displayed when available. Usage history correct. Guests redirected to login.
 
