@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -256,5 +257,54 @@ class SermonPagesTest extends TestCase
         $response->assertSee('Preachers');
         $response->assertSee('John Owen');
         $response->assertSee('Charles Spurgeon');
+    }
+
+    #[Test]
+    public function public_sermon_browse_pages_exclude_childrens_talks(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Browse Preacher', 'slug' => 'browse-preacher']);
+
+        Sermon::factory()->create([
+            'title' => 'Public Browse Sermon',
+            'series' => 'Browse Series',
+            'service' => SermonService::MORNING->value,
+            'preacher' => $preacher->name,
+            'preacher_id' => $preacher->id,
+            'content_type' => SermonContentType::Sermon,
+        ]);
+
+        Sermon::factory()->create([
+            'title' => "Hidden Children's Talk",
+            'series' => 'Browse Series',
+            'service' => SermonService::MORNING->value,
+            'preacher' => $preacher->name,
+            'preacher_id' => $preacher->id,
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $this->get('/christ/sermons')
+            ->assertStatus(200)
+            ->assertSee('Public Browse Sermon')
+            ->assertDontSee("Hidden Children's Talk");
+
+        $this->get('/christ/sermons/all')
+            ->assertStatus(200)
+            ->assertSee('Public Browse Sermon')
+            ->assertDontSee("Hidden Children's Talk");
+
+        $this->get('/christ/sermons/morning')
+            ->assertStatus(200)
+            ->assertSee('Public Browse Sermon')
+            ->assertDontSee("Hidden Children's Talk");
+
+        $this->get('/christ/sermons/preachers/browse-preacher')
+            ->assertStatus(200)
+            ->assertSee('Public Browse Sermon')
+            ->assertDontSee("Hidden Children's Talk");
+
+        $this->get('/christ/sermons/series/browse-series')
+            ->assertStatus(200)
+            ->assertSee('Public Browse Sermon')
+            ->assertDontSee("Hidden Children's Talk");
     }
 }

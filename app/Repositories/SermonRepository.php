@@ -15,7 +15,9 @@ class SermonRepository
     public function getExistingSeries(): array
     {
         try {
-            return Sermon::whereNotNull('series')
+            return Sermon::query()
+                ->whereSermon()
+                ->whereNotNull('series')
                 ->where('series', '!=', '')
                 ->distinct()
                 ->orderBy('series')

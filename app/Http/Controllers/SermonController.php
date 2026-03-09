@@ -8,6 +8,7 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -18,7 +19,9 @@ class SermonController extends Controller
      */
     public function index(): View
     {
-        $distinct_dates = Sermon::select('date')
+        $distinct_dates = Sermon::query()
+            ->whereSermon()
+            ->select('date')
             ->distinct()
             ->orderBy('date', 'desc')
             ->limit(6)
@@ -29,9 +32,7 @@ class SermonController extends Controller
              * Performance Optimization: Eager load preacherProfile and limit retrieved columns
              * to required fields for cards to reduce memory usage and DB I/O.
              */
-            $latest_sermons = Sermon::query()
-                ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type'])
-                ->with('preacherProfile:id,name,slug')
+            $latest_sermons = $this->publicSermonQuery()
                 ->whereIn('date', $distinct_dates)
                 ->orderBy('date', 'desc')
                 ->orderBy('service', 'asc')
@@ -48,13 +49,7 @@ class SermonController extends Controller
 
     public function getAll(): View
     {
-        /**
-         * Performance Optimization: Eager load preacherProfile and limit retrieved columns
-         * to required fields for cards to reduce memory usage and DB I/O.
-         */
-        $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type'])
-            ->with('preacherProfile:id,name,slug')
+        $sermons = $this->publicSermonQuery()
             ->orderBy('date', 'desc')
             ->orderBy('service', 'asc')
             ->get()
@@ -107,7 +102,9 @@ class SermonController extends Controller
          */
         $preachers = Preacher::active()
             ->select(['id', 'name', 'slug'])
-            ->withCount('sermons')
+            ->withCount([
+                'sermons' => fn (Builder $query): Builder => $query->whereSermon(),
+            ])
             ->orderByDesc('sermons_count')
             ->orderBy('name')
             ->get();
@@ -133,6 +130,7 @@ class SermonController extends Controller
          * to required fields for cards.
          */
         $sermons = $preacher->sermons()
+            ->whereSermon()
             ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type'])
             ->with('preacherProfile:id,name,slug')
             ->orderBy('date', 'desc')
@@ -160,9 +158,7 @@ class SermonController extends Controller
          * Performance Optimization: Eager load preacherProfile and limit retrieved columns
          * to required fields for cards.
          */
-        $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type'])
-            ->with('preacherProfile:id,name,slug')
+        $sermons = $this->publicSermonQuery()
             ->where('series', $series_name)
             ->orderBy('date', 'desc')
             ->get();
@@ -178,9 +174,7 @@ class SermonController extends Controller
          * Performance Optimization: Eager load preacherProfile and limit retrieved columns
          * to required fields for cards.
          */
-        $sermons = Sermon::query()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type'])
-            ->with('preacherProfile:id,name,slug')
+        $sermons = $this->publicSermonQuery()
             ->where('service', $service)
             ->orderBy('date', 'desc')
             ->get();
@@ -197,5 +191,18 @@ class SermonController extends Controller
         }
 
         return $this->show($sermon);
+    }
+
+    /**
+     * Build the base query for public sermon listings and browse pages.
+     *
+     * @return Builder<Sermon>
+     */
+    private function publicSermonQuery(): Builder
+    {
+        return Sermon::query()
+            ->whereSermon()
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type'])
+            ->with('preacherProfile:id,name,slug');
     }
 }

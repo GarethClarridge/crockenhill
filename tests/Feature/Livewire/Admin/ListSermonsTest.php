@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Livewire\Admin;
 
+use App\Enums\SermonContentType;
 use App\Livewire\Admin\Sermons\ListSermons;
 use App\Models\Sermon;
 use App\Models\User;
@@ -80,6 +81,26 @@ class ListSermonsTest extends TestCase
         Livewire::test(ListSermons::class)
             ->set('last12Months', false)
             ->assertSee('Old Sermon');
+    }
+
+    #[Test]
+    public function it_shows_sermons_and_childrens_talks_in_admin_listing(): void
+    {
+        $this->actingAs($this->admin);
+
+        Sermon::factory()->create([
+            'title' => 'Admin Sermon',
+            'content_type' => SermonContentType::Sermon,
+        ]);
+        Sermon::factory()->create([
+            'title' => "Admin Children's Talk",
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        Livewire::test(ListSermons::class)
+            ->set('last12Months', false)
+            ->assertSee('Admin Sermon')
+            ->assertSee("Admin Children's Talk");
     }
 
     // -------------------------------------------------------------------------

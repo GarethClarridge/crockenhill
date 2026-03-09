@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\SermonContentType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -157,6 +158,28 @@ class SermonApiTest extends TestCase
 
         $this->assertContains($morningSermon->id, $sermonIds);
         $this->assertNotContains($eveningSermon->id, $sermonIds);
+    }
+
+    public function test_api_list_excludes_childrens_talks(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'title' => 'API Sermon',
+            'content_type' => SermonContentType::Sermon,
+        ]);
+
+        Sermon::factory()->create([
+            'title' => 'API Childrens Talk',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $response = $this->getJson('/api/sermons');
+
+        $response->assertStatus(200);
+
+        $titles = collect($response->json('data'))->pluck('title')->toArray();
+
+        $this->assertContains($sermon->title, $titles);
+        $this->assertNotContains('API Childrens Talk', $titles);
     }
 
     public function test_api_includes_thumbnail_metadata_when_available(): void

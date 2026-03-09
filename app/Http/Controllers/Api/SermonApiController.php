@@ -21,6 +21,7 @@ class SermonApiController extends Controller
          * to reduce memory usage and DB I/O.
          */
         $query = Sermon::query()
+            ->whereSermon()
             ->select([
                 'id', 'title', 'slug', 'date', 'service', 'preacher', 'preacher_id',
                 'preacher_source', 'preacher_confidence', 'needs_preacher_review',

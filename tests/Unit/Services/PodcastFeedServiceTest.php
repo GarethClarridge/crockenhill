@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Services\PodcastFeedService;
 use App\Services\SermonStorageService;
@@ -70,6 +71,33 @@ class PodcastFeedServiceTest extends TestCase
         $sermons = $this->service->getSermonsForFeed('morning');
 
         $this->assertCount(2, $sermons);
+    }
+
+    #[Test]
+    public function it_excludes_childrens_talks_from_feed_results(): void
+    {
+        Sermon::factory()->create([
+            'service' => 'morning',
+            'title' => 'Main Sermon',
+            'audio_file_path' => 'sermons/sermon.mp3',
+            'content_type' => SermonContentType::Sermon,
+        ]);
+        Sermon::factory()->create([
+            'service' => 'morning',
+            'title' => "Children's Talk",
+            'audio_file_path' => 'sermons/childrens-talk.mp3',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');
+        $this->storageService->method('getFileSize')->willReturn(1024);
+
+        config(['podcast.cache.enabled' => false]);
+
+        $sermons = $this->service->getSermonsForFeed('morning');
+
+        $this->assertCount(1, $sermons);
+        $this->assertSame('Main Sermon', $sermons->sole()->title);
     }
 
     #[Test]
