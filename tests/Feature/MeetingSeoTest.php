@@ -34,9 +34,7 @@ class MeetingSeoTest extends TestCase
         $response->assertStatus(200);
 
         // Assert parts of the title
-        $response->assertSee('Buzz Club', false);
-        $response->assertSee('Friday', false);
-        $response->assertSee('6:00pm', false);
+        $response->assertSee('<title>Buzz Club | Friday 6:00pm - Crockenhill Baptist Church</title>', false);
 
         $response->assertSee('A fun club for kids.', false);
     }
