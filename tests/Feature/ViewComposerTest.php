@@ -260,4 +260,83 @@ class ViewComposerTest extends TestCase
         $this->assertTrue($pages->contains('slug', 'bible-study'));
         $this->assertFalse($pages->contains('slug', 'unrelated-page'));
     }
+
+    #[Test]
+    public function it_renders_page_card_with_the_shared_feature_cta_button(): void
+    {
+        $page = Page::factory()->create([
+            'slug' => 'sunday-evenings',
+            'heading' => 'Sunday Evenings',
+            'description' => 'An evening service.',
+            'area' => PageArea::COMMUNITY,
+        ]);
+
+        $view = View::make('components.page-card', [
+            'page' => $page,
+        ])->render();
+
+        $this->assertStringContainsString('Learn about Sunday Evenings', $view);
+        $this->assertStringContainsString('bg-[linear-gradient(120deg,theme(colors.cbc-teal.DEFAULT)_0%,theme(colors.cbc-teal.dark)_55%,#0e3a3c_100%)]', $view);
+        $this->assertStringContainsString('justify-between', $view);
+    }
+
+    #[Test]
+    public function it_renders_sermon_list_in_a_centered_grid_with_feature_cta(): void
+    {
+        $sermon = new Sermon([
+            'title' => 'Rendered Sermon',
+            'slug' => 'rendered-sermon',
+            'date' => now(),
+            'service' => SermonService::MORNING,
+        ]);
+
+        $view = View::make('components.sermon-list', [
+            'sermons' => collect([$sermon]),
+            'groupedByDate' => false,
+        ])->render();
+
+        $this->assertStringContainsString('[grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]', $view);
+        $this->assertStringContainsString('bg-[linear-gradient(120deg,theme(colors.cbc-teal.DEFAULT)_0%,theme(colors.cbc-teal.dark)_55%,#0e3a3c_100%)]', $view);
+        $this->assertStringContainsString('View Sermon', $view);
+    }
+
+    #[Test]
+    public function it_renders_related_pages_in_a_centered_grid_with_footer_spacing(): void
+    {
+        $links = Page::factory()->count(3)->create([
+            'area' => PageArea::CHURCH,
+        ]);
+
+        $view = View::make('components.related-pages', [
+            'links' => $links,
+        ])->render();
+
+        $this->assertStringContainsString('max-w-6xl', $view);
+        $this->assertStringContainsString('gap-6', $view);
+        $this->assertStringContainsString('[grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]', $view);
+    }
+
+    #[Test]
+    public function it_renders_public_cta_with_gradient_border_and_centered_button(): void
+    {
+        $view = View::make('components.public-cta', [
+            'link' => '/christ/sermons/all',
+            'label' => 'Find older sermons',
+        ])->render();
+
+        $this->assertStringContainsString('Find older sermons', $view);
+        $this->assertStringContainsString('shadow-[0_10px_24px_rgba(20,85,87,0.18)]', $view);
+        $this->assertStringContainsString('rounded-[11px]', $view);
+    }
+
+    #[Test]
+    public function homepage_uses_shared_public_cta_component_labels(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertOk();
+        $response->assertSee('What to expect on Sunday mornings');
+        $response->assertSee('Explore the good news about Jesus');
+        $response->assertSee('shadow-[0_10px_24px_rgba(20,85,87,0.18)]', false);
+    }
 }

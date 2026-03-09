@@ -2,10 +2,14 @@
 'sermon',
 ])
 
-<div class="max-w-sm rounded-lg shadow-sm bg-white border border-gray-300 flex flex-col overflow-hidden transition-shadow hover:shadow-md">
+@php
+    $sermonUrl = "/christ/sermons/{$sermon->date->format('Y')}/{$sermon->date->format('m')}/{$sermon->slug}";
+@endphp
+
+<div class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
 
   @if($sermon->hasPlainThumbnail())
-    <a href="/christ/sermons/{{ $sermon->date->format('Y') }}/{{ $sermon->date->format('m') }}/{{ $sermon->slug }}" wire:navigate class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200">
+    <a href="{{ $sermonUrl }}" wire:navigate class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200">
       <img src="{{ route('serveSermonCardThumbnail', $sermon->slug) }}?v={{ md5($sermon->plain_thumbnail_file_path ?? '') }}" alt="Sermon: {{ $sermon->title }}" class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115" loading="lazy">
       <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent"></div>
       @if (($sermon->title != null))
@@ -18,7 +22,7 @@
 
   <div class="flex flex-col flex-1 p-6">
     @if (($sermon->title != null) && ! $sermon->hasPlainThumbnail())
-      <a class="group" href="/christ/sermons/{{ $sermon->date->format('Y') }}/{{ $sermon->date->format('m') }}/{{ $sermon->slug }}" wire:navigate>
+      <a class="group" href="{{ $sermonUrl }}" wire:navigate>
         <h4 class="font-display text-2xl text-gray-900 group-hover:underline decoration-cbc-teal-light underline-offset-4">
           {{$sermon->title}}
         </h4>
@@ -57,6 +61,20 @@
       @endif
     </ul>
   </div>
+
+  <x-button
+      :link="$sermonUrl"
+      variant="feature"
+      size="card"
+      icon="arrow-right-circle"
+      iconStyle="solid"
+      iconPosition="trailing"
+      iconClass="shrink-0 text-white/90"
+      class="w-full justify-between rounded-none text-left font-normal"
+      aria-label="View sermon: {{ $sermon->title }}"
+  >
+      View Sermon
+  </x-button>
 
   @can ('manage-sermons')
     <div class="mt-auto border-t border-gray-100">

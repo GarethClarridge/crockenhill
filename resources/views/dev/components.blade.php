@@ -110,6 +110,7 @@
                 <div class="flex flex-wrap gap-4">
                     <x-button link="#" variant="primary" inline>primary</x-button>
                     <x-button link="#" variant="secondary" inline>secondary</x-button>
+                    <x-button link="#" variant="feature" inline>feature</x-button>
                     <x-button link="#" variant="outline" inline>outline</x-button>
                     <x-button link="#" variant="danger" inline>danger</x-button>
                     <x-button link="#" variant="ghost" inline>ghost</x-button>
@@ -141,14 +142,8 @@
 
             {{-- Public CTA pattern --}}
             <div>
-                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Public CTA (secondary inside teal gradient border)</p>
-                <div class="mx-auto w-full max-w-[34rem] text-center">
-                    <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
-                        <x-button link="#" variant="secondary" size="lg" class="w-full rounded-[11px]">
-                            Join Us This Sunday
-                        </x-button>
-                    </div>
-                </div>
+                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Public CTA component</p>
+                <x-public-cta link="#" label="Join Us This Sunday" />
             </div>
         </div>
     </section>

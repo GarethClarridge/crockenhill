@@ -16,10 +16,12 @@
 
 <x-sermon-list :sermons="$latest_sermons" :groupedByDate="true" />
 
-<div class="px-6 max-w-2xl mx-auto mt-6">
-  <x-button link="/christ/sermons/all">
-    Find older sermons
-  </x-button>
+<div class="mt-8">
+  <x-public-cta
+    link="/christ/sermons/all"
+    label="Find older sermons"
+    ariaLabel="Find older sermons"
+  />
 </div>
 
 

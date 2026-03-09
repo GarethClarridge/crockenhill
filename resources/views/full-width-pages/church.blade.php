@@ -255,18 +255,7 @@ Church
     </p>
   </x-text>
 
-  @if (isset ($links))
-  <x-h2>
-    Related pages
-  </x-h2>
-  <div class="px-12 md:px-6">
-    <div class="px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-center mx-auto mt-6">
-      @foreach ($links as $link)
-      <x-page-card :page="$link" />
-      @endforeach
-    </div>
-  </div>
-  @endif
+  <x-related-pages :links="$links ?? []" />
 
   <x-h2>
     Our policies

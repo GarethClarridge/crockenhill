@@ -27,10 +27,21 @@
         </p>
     </div>
 
-    <a class="mt-auto flex w-full items-center justify-between gap-3 bg-[linear-gradient(120deg,theme(colors.cbc-teal.DEFAULT)_0%,theme(colors.cbc-teal.dark)_55%,#0e3a3c_100%)] px-6 py-3.5 text-left font-normal text-white no-underline transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2" href="{{ $pageUrl }}" wire:navigate aria-label="Learn about {{ $page->heading }}">
-        <span>Learn about {{ $page->heading }}</span>
-        <x-heroicon-s-arrow-right-circle class="h-6 w-6 shrink-0 text-white/90" aria-hidden="true" />
-    </a>
+    <div class="mt-auto">
+        <x-button
+            :link="$pageUrl"
+            variant="feature"
+            size="card"
+            icon="arrow-right-circle"
+            iconStyle="solid"
+            iconPosition="trailing"
+            iconClass="shrink-0 text-white/90"
+            class="w-full justify-between rounded-none text-left font-normal"
+            aria-label="Learn about {{ $page->heading }}"
+        >
+            Learn about {{ $page->heading }}
+        </x-button>
+    </div>
 
     <x-edit-buttons slug="{{ $page->slug }}" />
 </div>
