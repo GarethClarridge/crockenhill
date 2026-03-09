@@ -102,9 +102,13 @@ class SpeechSectionClassificationServiceTest extends TestCase
         $this->assertSame(300.0, $classified[0]['start_time']);
         $this->assertSame(345.0, $classified[0]['end_time']);
         $this->assertSame(ServiceSectionType::WELCOME->value, $classified[0]['section_type']);
+        $this->assertNotSame('Welcome everyone. Let us pray.', $classified[0]['metadata']['transcript']);
+        $this->assertSame('section_excerpt', $classified[0]['metadata']['transcript_scope']);
         $this->assertSame(345.0, $classified[1]['start_time']);
         $this->assertSame(420.0, $classified[1]['end_time']);
         $this->assertSame(ServiceSectionType::PRAYER->value, $classified[1]['section_type']);
+        $this->assertNotSame('Welcome everyone. Let us pray.', $classified[1]['metadata']['transcript']);
+        $this->assertSame('section_excerpt', $classified[1]['metadata']['transcript_scope']);
     }
 
     #[Test]
@@ -145,5 +149,37 @@ class SpeechSectionClassificationServiceTest extends TestCase
         $this->assertTrue($classified[0]['needs_manual_review']);
         $this->assertSame('none', $classified[0]['metadata']['confidence_level']);
         $this->assertSame('low_ai_confidence', $classified[0]['metadata']['review_reason']);
+    }
+
+    #[Test]
+    public function it_builds_the_ai_prompt_using_duration_computed_from_section_boundaries(): void
+    {
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function promptFor(ServiceSection $section): string
+            {
+                return $this->buildUserPrompt(
+                    $section,
+                    max(0.0, (float) $section->end_time - (float) $section->start_time),
+                    'Transcript body'
+                );
+            }
+        };
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'start_time' => 15.0,
+            'end_time' => 75.0,
+            'duration' => 5.0,
+            'metadata' => [
+                'transcript' => 'Transcript body',
+            ],
+        ]);
+
+        $prompt = $service->promptFor($section);
+
+        $this->assertStringContainsString('Segment duration: 60.00 seconds', $prompt);
+        $this->assertStringNotContainsString('Segment duration: 5.00 seconds', $prompt);
     }
 }

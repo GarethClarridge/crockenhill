@@ -28,7 +28,9 @@ class ClassifySpeechSections implements ShouldQueue
 
     public function __construct(
         private MediaProcessingLog $processingLog
-    ) {}
+    ) {
+        $this->onQueue((string) config('media-processing.queues.audio', 'audio-processing'));
+    }
 
     public function handle(
         SpeechSectionClassificationService $classificationService,
@@ -284,47 +286,82 @@ class ClassifySpeechSections implements ShouldQueue
 
         while ($index < $count) {
             $current = $sections[$index];
-            $next = $sections[$index + 1] ?? null;
-            $afterNext = $sections[$index + 2] ?? null;
 
-            if (
-                $current['section_type'] === ServiceSectionType::SERMON->value
-                && is_array($next)
-                && $next['section_type'] === ServiceSectionType::SONG->value
-                && (float) $next['duration'] < $maxSongSeconds
-                && is_array($afterNext)
-                && $afterNext['section_type'] === ServiceSectionType::SERMON->value
-            ) {
-                $mergedMetadata = array_merge($current['metadata'], [
-                    'folded_song_sections' => array_values(array_unique(array_merge(
-                        $current['metadata']['folded_song_sections'] ?? [],
-                        [$next['title'] ?? ServiceSectionType::SONG->label()]
-                    ))),
-                    'folded_song_duration_seconds' => (float) $next['duration'],
-                ]);
+            if ($current['section_type'] === ServiceSectionType::SERMON->value) {
+                $merged = $current;
+                $scanIndex = $index + 1;
+                $foldedSongSections = is_array($merged['metadata']['folded_song_sections'] ?? null)
+                    ? $merged['metadata']['folded_song_sections']
+                    : [];
+                $foldedSongDuration = (float) ($merged['metadata']['folded_song_duration_seconds'] ?? 0.0);
+                $mergedAnySong = false;
 
-                $folded[] = [
-                    'church_service_item_id' => $current['church_service_item_id'],
-                    'section_type' => ServiceSectionType::SERMON->value,
-                    'section_order' => $current['section_order'],
-                    'title' => $current['title'],
-                    'start_time' => (float) $current['start_time'],
-                    'end_time' => (float) $afterNext['end_time'],
-                    'duration' => max(0.0, (float) $afterNext['end_time'] - (float) $current['start_time']),
-                    'confidence' => max((float) $current['confidence'], (float) $afterNext['confidence']),
-                    'status' => ServiceSectionStatus::IDENTIFIED->value,
-                    'needs_manual_review' => false,
-                    'source_segment_ids' => array_values(array_unique(array_merge(
-                        $this->normaliseSourceSegmentIds($current['source_segment_ids']),
-                        $this->normaliseSourceSegmentIds($next['source_segment_ids']),
-                        $this->normaliseSourceSegmentIds($afterNext['source_segment_ids'])
-                    ))),
-                    'metadata' => $mergedMetadata,
-                ];
+                while ($scanIndex < $count) {
+                    $songCluster = [];
+                    $songClusterDuration = 0.0;
 
-                $index += 3;
+                    while (
+                        $scanIndex < $count
+                        && $sections[$scanIndex]['section_type'] === ServiceSectionType::SONG->value
+                        && (float) $sections[$scanIndex]['duration'] < $maxSongSeconds
+                    ) {
+                        $songCluster[] = $sections[$scanIndex];
+                        $songClusterDuration += (float) $sections[$scanIndex]['duration'];
+                        $scanIndex++;
+                    }
 
-                continue;
+                    if ($songCluster === [] || $scanIndex >= $count) {
+                        break;
+                    }
+
+                    $followingSermon = $sections[$scanIndex];
+
+                    if ($followingSermon['section_type'] !== ServiceSectionType::SERMON->value) {
+                        break;
+                    }
+
+                    $mergedAnySong = true;
+                    $foldedSongDuration += $songClusterDuration;
+
+                    foreach ($songCluster as $songSection) {
+                        $foldedSongSections[] = $songSection['title'] ?? ServiceSectionType::SONG->label();
+                    }
+
+                    $merged['end_time'] = (float) $followingSermon['end_time'];
+                    $merged['duration'] = max(0.0, (float) $merged['end_time'] - (float) $merged['start_time']);
+                    $merged['confidence'] = max((float) $merged['confidence'], (float) $followingSermon['confidence']);
+                    $merged['needs_manual_review'] = false;
+                    $songClusterSourceSegmentIds = [];
+
+                    foreach ($songCluster as $songSection) {
+                        $songClusterSourceSegmentIds = array_merge(
+                            $songClusterSourceSegmentIds,
+                            $this->normaliseSourceSegmentIds($songSection['source_segment_ids'])
+                        );
+                    }
+
+                    $merged['source_segment_ids'] = array_values(array_unique(array_merge(
+                        $this->normaliseSourceSegmentIds($merged['source_segment_ids']),
+                        $songClusterSourceSegmentIds,
+                        $this->normaliseSourceSegmentIds($followingSermon['source_segment_ids'])
+                    )));
+
+                    $scanIndex++;
+                }
+
+                if ($mergedAnySong) {
+                    unset($merged['metadata']['review_reason']);
+
+                    $merged['metadata'] = array_merge($merged['metadata'], [
+                        'folded_song_sections' => array_values(array_unique($foldedSongSections)),
+                        'folded_song_duration_seconds' => $foldedSongDuration,
+                    ]);
+
+                    $folded[] = $merged;
+                    $index = $scanIndex;
+
+                    continue;
+                }
             }
 
             $folded[] = $current;

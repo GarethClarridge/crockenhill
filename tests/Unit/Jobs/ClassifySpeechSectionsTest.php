@@ -29,6 +29,16 @@ class ClassifySpeechSectionsTest extends TestCase
     }
 
     #[Test]
+    public function it_targets_the_existing_audio_processing_queue(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->make();
+
+        $job = new ClassifySpeechSections($processingLog);
+
+        $this->assertSame('audio-processing', $job->queue);
+    }
+
+    #[Test]
     public function it_relabels_a_single_transcribed_speech_section_from_ai_output(): void
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
@@ -286,6 +296,110 @@ class ClassifySpeechSectionsTest extends TestCase
         $this->assertSame(1680.0, $sections[0]->end_time);
         $this->assertFalse($sections[0]->needs_manual_review);
         $this->assertEquals(60.0, $sections[0]->metadata['folded_song_duration_seconds'] ?? null);
+    }
+
+    #[Test]
+    public function it_folds_multiple_short_song_interruptions_into_a_single_sermon_section(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SERMON->value,
+            'section_order' => 1,
+            'start_time' => 600.0,
+            'end_time' => 1200.0,
+            'duration' => 600.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'audio_only',
+            ],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'start_time' => 1200.0,
+            'end_time' => 1260.0,
+            'duration' => 60.0,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 3,
+            'start_time' => 1260.0,
+            'end_time' => 1500.0,
+            'duration' => 240.0,
+            'metadata' => [
+                'transcript' => 'Continuing sermon section one.',
+            ],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 4,
+            'start_time' => 1500.0,
+            'end_time' => 1560.0,
+            'duration' => 60.0,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 5,
+            'start_time' => 1560.0,
+            'end_time' => 1800.0,
+            'duration' => 240.0,
+            'metadata' => [
+                'transcript' => 'Continuing sermon section two.',
+            ],
+        ]);
+
+        $service = new class extends SpeechSectionClassificationService
+        {
+            public function classify(ServiceSection $section): array
+            {
+                return [[
+                    'section_type' => ServiceSectionType::SERMON->value,
+                    'title' => null,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'duration' => (float) $section->duration,
+                    'needs_manual_review' => false,
+                    'metadata' => [
+                        'confidence_level' => 'high',
+                        'classification_mode' => 'ai_transcript',
+                        'confidence_source' => 'ai_transcript',
+                        'confidence_score' => 0.9,
+                        'transcript' => 'Excerpt',
+                        'transcript_scope' => 'section_excerpt',
+                    ],
+                ]];
+            }
+        };
+
+        $job = new ClassifySpeechSections($processingLog);
+        $job->handle($service, new ServiceSectionSyncService);
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $this->assertCount(1, $sections);
+        $this->assertSame(ServiceSectionType::SERMON, $sections[0]->section_type);
+        $this->assertSame(600.0, $sections[0]->start_time);
+        $this->assertSame(1800.0, $sections[0]->end_time);
+        $this->assertEquals(120.0, $sections[0]->metadata['folded_song_duration_seconds'] ?? null);
     }
 
     #[Test]

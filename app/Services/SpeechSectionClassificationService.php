@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Support\ServiceSectionConfidence;
+use Illuminate\Support\Str;
 use OpenAI\Laravel\Facades\OpenAI;
 use RuntimeException;
 
@@ -27,7 +28,7 @@ class SpeechSectionClassificationService
     public function classify(ServiceSection $section): array
     {
         $transcript = $this->requireTranscript($section);
-        $sectionDuration = max(0.0, (float) $section->end_time - (float) $section->start_time);
+        $sectionDuration = $this->sectionDurationSeconds($section);
 
         if ($sectionDuration <= 0.0) {
             throw new RuntimeException('Speech section has invalid time boundaries.');
@@ -84,8 +85,9 @@ class SpeechSectionClassificationService
                     'ai_requested_section_type' => $requestedType->value,
                     'ai_notes' => $notes,
                     'ai_anomalies' => $anomalies,
-                    'transcript' => $transcript,
-                    'transcript_scope' => 'parent_segment',
+                    'transcript' => $this->excerptTranscript($transcript, $startOffset, $endOffset, $sectionDuration),
+                    'transcript_scope' => 'section_excerpt',
+                    'parent_transcript_available' => true,
                     'source_service_section_id' => $section->id,
                     'relative_start_seconds' => $startOffset,
                     'relative_end_seconds' => $endOffset,
@@ -122,6 +124,8 @@ class SpeechSectionClassificationService
             throw new RuntimeException('OpenAI API key not configured for speech section classification.');
         }
 
+        $sectionDuration = $this->sectionDurationSeconds($section);
+
         $response = OpenAI::chat()->create([
             'model' => (string) config('media-processing.section_classification.model', 'gpt-4o-mini'),
             'messages' => [
@@ -141,12 +145,7 @@ TEXT,
                 ],
                 [
                     'role' => 'user',
-                    'content' => sprintf(
-                        "Segment duration: %.2f seconds\nCurrent coarse type: %s\nTranscript:\n%s",
-                        (float) $section->duration,
-                        $section->section_type->value,
-                        $transcript
-                    ),
+                    'content' => $this->buildUserPrompt($section, $sectionDuration, $transcript),
                 ],
             ],
             'response_format' => [
@@ -221,7 +220,7 @@ TEXT,
      */
     private function mockResponse(ServiceSection $section, string $transcript): array
     {
-        $duration = max(1.0, (float) $section->duration);
+        $duration = max(1.0, $this->sectionDurationSeconds($section));
         $lowerTranscript = strtolower($transcript);
         $markers = [];
         $patterns = [
@@ -327,7 +326,7 @@ TEXT,
             'title' => null,
             'start_time' => (float) $section->start_time,
             'end_time' => (float) $section->end_time,
-            'duration' => max(0.0, (float) $section->end_time - (float) $section->start_time),
+            'duration' => $this->sectionDurationSeconds($section),
             'confidence' => ServiceSectionConfidence::scoreForLevel('none'),
             'needs_manual_review' => true,
             'metadata' => [
@@ -343,6 +342,16 @@ TEXT,
         ];
     }
 
+    protected function buildUserPrompt(ServiceSection $section, float $sectionDuration, string $transcript): string
+    {
+        return sprintf(
+            "Segment duration: %.2f seconds\nCurrent coarse type: %s\nTranscript:\n%s",
+            $sectionDuration,
+            $section->section_type->value,
+            $transcript
+        );
+    }
+
     private function requireTranscript(ServiceSection $section): string
     {
         $transcript = $section->metadata['transcript'] ?? null;
@@ -352,6 +361,34 @@ TEXT,
         }
 
         return trim($transcript);
+    }
+
+    private function sectionDurationSeconds(ServiceSection $section): float
+    {
+        return max(0.0, (float) $section->end_time - (float) $section->start_time);
+    }
+
+    private function excerptTranscript(string $transcript, float $startOffset, float $endOffset, float $sectionDuration): string
+    {
+        if ($sectionDuration <= 0.0) {
+            return trim($transcript);
+        }
+
+        $length = Str::length($transcript);
+        if ($length === 0) {
+            return '';
+        }
+
+        $startRatio = max(0.0, min(1.0, $startOffset / $sectionDuration));
+        $endRatio = max($startRatio, min(1.0, $endOffset / $sectionDuration));
+
+        $startCharacter = (int) floor($length * $startRatio);
+        $endCharacter = (int) ceil($length * $endRatio);
+        $excerptLength = max(1, $endCharacter - $startCharacter);
+
+        $excerpt = trim((string) Str::substr($transcript, $startCharacter, $excerptLength));
+
+        return $excerpt !== '' ? $excerpt : trim($transcript);
     }
 
     private function clampFloat(mixed $value, float $minimum, float $maximum): ?float
