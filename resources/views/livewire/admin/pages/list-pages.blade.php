@@ -126,7 +126,7 @@
                             </td>
                             {{-- Updated --}}
                             <td class="px-4 py-3">
-                                <span class="text-sm text-gray-500">{{ $page->updated_at->diffForHumans() }}</span>
+                                <span class="text-sm text-gray-500">{{ $page->updated_at?->diffForHumans() ?? '—' }}</span>
                             </td>
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">

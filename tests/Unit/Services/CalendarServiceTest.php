@@ -91,20 +91,23 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_returns_all_upcoming_events(): void
     {
+        $windowStart = Carbon::create(2099, 1, 1, 0, 0, 0);
+        $windowEnd = Carbon::create(2099, 1, 31, 23, 59, 59);
+
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
-            'start_datetime' => Carbon::now()->addDays(5),
+            'start_datetime' => Carbon::create(2099, 1, 5, 10, 0, 0),
         ]);
         CalendarEvent::factory()->create([
             'meeting_slug' => 'other-meeting',
-            'start_datetime' => Carbon::now()->addDays(10),
+            'start_datetime' => Carbon::create(2099, 1, 10, 10, 0, 0),
         ]);
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
-            'start_datetime' => Carbon::now()->subDays(1),
+            'start_datetime' => Carbon::create(2098, 12, 31, 10, 0, 0),
         ]);
 
-        $events = $this->service->getAllUpcomingEvents(Carbon::now());
+        $events = $this->service->getAllUpcomingEvents($windowStart, $windowEnd);
 
         $this->assertCount(2, $events);
     }
@@ -112,16 +115,19 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_excludes_cancelled_events_from_upcoming(): void
     {
+        $windowStart = Carbon::create(2099, 2, 1, 0, 0, 0);
+        $windowEnd = Carbon::create(2099, 2, 28, 23, 59, 59);
+
         CalendarEvent::factory()->create([
-            'start_datetime' => Carbon::now()->addDays(5),
+            'start_datetime' => Carbon::create(2099, 2, 5, 10, 0, 0),
             'status' => 'confirmed',
         ]);
         CalendarEvent::factory()->create([
-            'start_datetime' => Carbon::now()->addDays(10),
+            'start_datetime' => Carbon::create(2099, 2, 10, 10, 0, 0),
             'status' => 'cancelled',
         ]);
 
-        $events = $this->service->getAllUpcomingEvents(Carbon::now());
+        $events = $this->service->getAllUpcomingEvents($windowStart, $windowEnd);
 
         $this->assertCount(1, $events);
     }
