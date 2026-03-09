@@ -8,6 +8,7 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use App\Services\SermonPageContextService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -65,9 +66,10 @@ class SermonController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Sermon $sermon): View
+    public function show(Sermon $sermon, SermonPageContextService $pageContextService): View
     {
         $heading = $sermon->title;
+        $pageContext = $pageContextService->build($sermon);
 
         // Breadcrumbs removed
         // Example of how it might be handled in view or view composer:
@@ -86,6 +88,8 @@ class SermonController extends Controller
             // 'breadcrumbs' => $breadcrumbs, // Removed
             'content' => '',
             'sermon' => $sermon,
+            'readingReference' => $pageContext['reading_reference'],
+            'readingUrl' => $pageContext['reading_url'],
         ]);
     }
 
@@ -184,13 +188,13 @@ class SermonController extends Controller
         ]);
     }
 
-    public function showWithDate(int $year, int $month, Sermon $sermon): View
+    public function showWithDate(int $year, int $month, Sermon $sermon, SermonPageContextService $pageContextService): View
     {
         if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
             abort(404, 'Sermon not found for the specified date.');
         }
 
-        return $this->show($sermon);
+        return $this->show($sermon, $pageContextService);
     }
 
     /**

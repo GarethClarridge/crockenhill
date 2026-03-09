@@ -36,8 +36,8 @@ The system must remain useful even when no OoS is provided. OoS improves accurac
 4. **One canonical service list is enough.**  
    The app only needs to store the final version of the order-of-service list on `ChurchService` + `ChurchServiceItem`. It does not need to preserve multiple per-source item lists. Source metadata may still be stored for audit/debugging.
 
-5. **Song usage reflects actual detected singing, not planned singing.**  
-   A song only counts toward usage statistics when a song segment is actually detected in the livestream and is confidently linked to a catalog song.
+5. **Song usage reflects what actually happened, not just what was planned.**
+   For livestreamed services, a song only counts when a song segment is detected in the recording and confidently linked to a catalog song. For non-livestreamed services (e.g. evening services), the OoS is trusted directly since no audio evidence exists to confirm or deny.
 
 6. **`Sermon.reference` means the preached passage.**  
    The public reading reference is related but separate. It should not overwrite the sermon passage field.
@@ -119,7 +119,8 @@ The system must remain useful even when no OoS is provided. OoS improves accurac
 
 ### 5.4 Songs
 
-- Songs are counted only when an actual song segment is detected in the livestream.
+- For **livestreamed services**, a song counts toward usage statistics only when a song segment is actually detected in the livestream AND is confidently linked to a catalog song via `song_id`. An OoS song with no detected segment does not count. A detected segment with no `song_id` match does not count publicly.
+- For **non-livestreamed services** (e.g. evening services), no audio evidence exists to confirm or deny what was sung. In this case the OoS is trusted directly — any `ChurchServiceItem` of type song with a `song_id` counts toward usage.
 - `song_id` should be assigned when there is a strong normalized title match to the song catalog, typically using OpenLP or another trusted OoS source for the title.
 - **Position is not relevant for catalog matching** — a song is identified by its title, not by where it falls in the running order. Position is useful for matching *which detected song segment corresponds to which OoS song* (i.e., labelling), but the catalog lookup itself is always by normalised title.
 - **Order differences are expected.** If the OoS lists songs A, B, C, D but the livestream order is A, C, B, D, that's fine — the system should match each detected song to its OoS counterpart by title, not assume position parity. An order mismatch is not an anomaly worth flagging.
@@ -286,7 +287,6 @@ Make sermon pages reflect both the preached passage and the service context with
 - If there was a distinct public Bible reading, display it separately as "Reading".
 - Reading reference should come from the linked service section/service item, not by overwriting the sermon passage field.
 - Passage references may link out to BibleGateway or equivalent.
-- If sermon/service linkage is available, the sermon page should optionally show the service date and service slot context.
 
 ---
 
@@ -294,7 +294,7 @@ Make sermon pages reflect both the preached passage and the service context with
 
 #### Goal
 
-Expose song usage statistics publicly using actual detected singing.
+Expose song usage statistics publicly. Livestreamed services use actual detected singing; non-livestreamed services trust the order of service.
 
 #### Requirements
 
@@ -303,11 +303,10 @@ Expose song usage statistics publicly using actual detected singing.
 - Support at least:
   - all time
   - this year
-- Song usage is counted only when:
-  - a song section was actually detected in the livestream, and
-  - the section has a confident `song_id` match.
-- OoS-only songs without detected audio must not count toward public usage stats.
-- Unmatched detected songs should be reviewable in admin but not shown publicly as canonical entries.
+- Song usage is counted differently depending on whether a livestream exists:
+  - **Livestreamed service**: a song counts only when a song section was actually detected in the livestream AND the section has a confident `song_id` match. OoS-only songs without a detected section do not count.
+  - **Non-livestreamed service**: when no livestream was processed for the service (e.g. evening services), the OoS `ChurchServiceItem` is trusted directly. Any song item with a `song_id` counts toward usage.
+- Unmatched detected songs (no `song_id`) should be reviewable in admin but not shown publicly as canonical entries.
 
 ---
 
@@ -429,7 +428,6 @@ The service should be flagged for review when any of the following is true:
 
 - Preserve `Sermon.reference` as preached passage.
 - Display service reading separately when present.
-- Improve service context and cross-linking from sermon pages.
 
 ### Phase 6: Public Song Usage
 

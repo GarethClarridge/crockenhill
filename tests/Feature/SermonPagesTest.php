@@ -6,8 +6,12 @@ namespace Tests\Feature;
 
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionType;
+use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -257,6 +261,58 @@ class SermonPagesTest extends TestCase
         $response->assertSee('Preachers');
         $response->assertSee('John Owen');
         $response->assertSee('Charles Spurgeon');
+    }
+
+    #[Test]
+    public function sermon_page_displays_service_reading_separately_with_bible_gateway_link(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'title' => 'Sermon With Reading',
+            'slug' => 'sermon-with-reading',
+            'reference' => 'Romans 8:1-17',
+            'livestream_processing_id' => 'processing-reading',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => 'processing-reading',
+        ]);
+
+        $readingItem = ChurchServiceItem::factory()->create([
+            'title' => 'Luke 15:1-32',
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $readingItem->id,
+            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 1,
+            'metadata' => [
+                'reading_reference' => 'Luke 15:1-32',
+            ],
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('Passage');
+        $response->assertSee('Romans 8:1-17');
+        $response->assertSee('Reading');
+        $response->assertSee('Luke 15:1-32');
+        $response->assertSee('https://www.biblegateway.com/passage/?search=Luke%2015%3A1-32&amp;version=NIVUK', false);
+    }
+
+    #[Test]
+    public function sermon_page_hides_service_reading_when_none_exists(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'sermon-without-reading',
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $response->assertDontSee('>Reading<', false);
+        $response->assertDontSee('biblegateway.com/passage/?search=', false);
     }
 
     #[Test]

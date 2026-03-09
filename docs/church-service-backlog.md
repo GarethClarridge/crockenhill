@@ -377,24 +377,9 @@ Each item includes what exists, what needs to change, and which PRD section it i
 
 ---
 
-### 5.2 Show service context on sermon page
-
-**PRD ref**: §6.5
-
-**What exists**: Sermon pages show date and preacher. No service slot or service linkage displayed.
-
-**Work**:
-- If the sermon has a linked `ChurchService` (via processing log or service section):
-  - Show "Morning Service, 2 March 2026" or equivalent.
-- Keep this lightweight — a single line of context, not a full service breakdown.
-
-**Tests**: Linked service → context shown. No linked service → no context shown.
-
----
-
 ## Phase 6: Public Song Usage
 
-*Goal: Public page showing most-sung worship songs based on actual detected singing.*
+*Goal: Public page showing most-sung worship songs. For livestreamed services, only songs actually detected in the recording count. For non-livestreamed services (e.g. evening services), the order of service is trusted directly.*
 
 ### 6.1 Public song listing page
 
@@ -403,20 +388,21 @@ Each item includes what exists, what needs to change, and which PRD section it i
 **What exists**: Admin `ListSongs` Livewire component at `/admin/services/songs` with usage counts derived from `church_service_items`. No public page.
 
 **Work**:
-- Route: `GET /church/worship-songs`.
+- Route: `GET /church/worship-songs` behind `auth` middleware until public launch.
 - New Livewire component: `PublicSongList` (or a public controller with a blade view).
-- Query: songs ranked by usage count, but only counting usage where:
-  - A `ServiceSection` of type `SONG` was detected in a livestream.
-  - The section has a confident `song_id` match.
-  - This means querying through `ServiceSection` → `song_id` (or `ChurchServiceItem` → `song_id` where the item is linked to a detected section), not just `ChurchServiceItem` alone.
+- Query: songs ranked by usage count. A `ChurchServiceItem` song counts toward usage if either:
+  - **Livestreamed service**: a `ServiceSection` of type `SONG` was detected in the livestream AND has a confident `song_id` match linking back to the same song — i.e. the song was actually heard. Detection-only (no `song_id` match) does not count. OoS-only (no detected section) does not count.
+  - **Non-livestreamed service**: the `ChurchService` has no associated `MediaProcessingLog` (no livestream was ever processed), in which case the OoS `ChurchServiceItem` is trusted as-is. Evening services are not livestreamed; their song usage should still be counted.
+- The simplest query approach: count `ChurchServiceItem` rows with `song_id` set, joined to `church_services`, where either (a) the `church_service` has a completed `media_processing_log` AND the item is linked to a detected `ServiceSection` of type SONG, or (b) the `church_service` has no `media_processing_log` at all.
 - Display: title, authors, usage count, last sung date.
 - Filters: "All time" and "This year" (date range on linked `ChurchService.date`).
-- Songs with zero detected-and-matched usage should not appear.
+- Songs with zero qualifying usage should not appear.
+- Navigation link visible to authenticated users only until public launch.
 - Use the `frontend-design` skill for UI.
 
-**Note**: This may require adding `song_id` to `ServiceSection` or querying through the `ChurchServiceItem` linkage. Evaluate which is simpler during implementation.
+**Note**: The `ServiceSection` → `ChurchServiceItem` linkage (`church_service_item_id` on `ServiceSection`) is the join point for the livestreamed-service case. For the non-livestreamed case, the absence of a `MediaProcessingLog` for the parent `ChurchService` is the signal to trust the OoS directly.
 
-**Tests**: Only detected+matched songs shown. OoS-only songs excluded. Date filter works. Ranking correct.
+**Tests**: Livestreamed service — detected+matched song counted, OoS-only song not counted. Non-livestreamed service — OoS songs counted without requiring a detected section. Date filter works. Ranking correct. Guests redirected to login.
 
 ---
 
@@ -427,11 +413,11 @@ Each item includes what exists, what needs to change, and which PRD section it i
 **What exists**: Admin `ShowSong` component shows lyrics, authors, songbooks, and usage history.
 
 **Work**:
-- Route: `GET /church/worship-songs/{song:canonical_key}` (or by ID).
+- Route: `GET /church/worship-songs/{song:canonical_key}` (or by ID) behind `auth` middleware until public launch.
 - Display: title, authors, lyrics (if available), usage history with dates.
 - Keep it simple — this is a nice-to-have extension of the listing.
 
-**Tests**: Song detail renders. Lyrics displayed when available. Usage history correct.
+**Tests**: Song detail renders. Lyrics displayed when available. Usage history correct. Guests redirected to login.
 
 ---
 
@@ -498,7 +484,6 @@ Phase 4 (Children's Talks) ── independent, can start after Phase 1
 
 Phase 5 (Sermon Display) ── depends on Phase 3 (needs section linkage)
   5.1 Service reading reference
-  5.2 Service context
 
 Phase 6 (Public Songs) ── depends on Phase 3 (needs detected-song counting)
   6.1 Public song listing

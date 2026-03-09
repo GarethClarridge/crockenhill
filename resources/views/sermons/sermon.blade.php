@@ -146,8 +146,27 @@ use Illuminate\Support\Str;
       <div class="flex items-center md:col-span-2">
         <x-heroicon-o-book-open class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" aria-hidden="true" />
         <div>
+          @if (! empty($readingReference))
+          <dt class="text-sm font-semibold uppercase tracking-[0.2em] text-cbc-teal-dark/75">Passage</dt>
+          <dd class="mt-1 text-gray-900 font-medium">{{ $sermon->reference }}</dd>
+          @else
           <dt class="sr-only">Bible Reference</dt>
           <dd class="text-gray-900 font-medium">{{ $sermon->reference }}</dd>
+          @endif
+        </div>
+      </div>
+      @endif
+
+      @if (! empty($readingReference))
+      <div class="flex items-center md:col-span-2">
+        <x-heroicon-o-book-open class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" aria-hidden="true" />
+        <div>
+          <dt class="text-sm font-semibold uppercase tracking-[0.2em] text-cbc-teal-dark/75">Reading</dt>
+          <dd class="mt-1 text-gray-900 font-medium">
+            <a href="{{ $readingUrl }}" class="text-cbc-teal-dark underline decoration-cbc-teal/50 underline-offset-2 hover:text-cbc-teal-deeper" target="_blank" rel="noopener noreferrer">
+              {{ $readingReference }}
+            </a>
+          </dd>
         </div>
       </div>
       @endif
