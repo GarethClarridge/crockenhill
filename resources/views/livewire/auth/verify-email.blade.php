@@ -5,6 +5,13 @@
         @if ($resent)
             <div class="mb-4 px-3 py-3 border rounded bg-green-200 border-green-300 text-green-800">A fresh verification link has been sent to your email address.</div>
         @endif
+
+        @if ($error)
+            <div class="mb-4 px-4 py-3 border rounded-md bg-red-50 border-red-200 text-red-800 flex items-start gap-3 text-left" role="alert">
+                <x-heroicon-o-exclamation-circle class="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                <span>{{ $error }}</span>
+            </div>
+        @endif
         <form wire:submit.prevent="resend" class="form-actions my-3">
             <button type="submit" class="inline-block text-center select-none border font-normal whitespace-nowrap rounded no-underline bg-green-500 hover:bg-green-600 py-3 px-4 leading-tight text-xl">Resend Verification Email</button>
         </form>

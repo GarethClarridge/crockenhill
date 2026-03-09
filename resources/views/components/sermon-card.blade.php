@@ -58,7 +58,7 @@
     </ul>
   </div>
 
-  @can ('edit-sermons')
+  @can ('manage-sermons')
     <div class="mt-auto border-t border-gray-100">
       <x-admin-actions
         :editRoute="'/christ/sermons/' . $sermon->date->format('Y') . '/' . $sermon->date->format('m') . '/' . $sermon->slug . '/edit'"
