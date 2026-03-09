@@ -32,16 +32,17 @@ class ProcessMediaRequest extends FormRequest
      */
     public function rules(): array
     {
-        $mediaType = MediaType::tryFrom($this->input('type', ''));
+        $type = $this->input('type');
+        $mediaType = is_string($type) ? MediaType::tryFrom($type) : null;
         $validation = $this->validationService();
 
-        $fileRules = $mediaType !== null
+        $fileRules = $mediaType instanceof MediaType
             ? $validation->rulesForType($mediaType)
             : ['file' => 'required|file'];
 
         return [
             ...$fileRules,
-            'type' => 'required|in:audio,video,livestream',
+            'type' => 'required|string|in:audio,video,livestream',
         ];
     }
 
@@ -52,13 +53,14 @@ class ProcessMediaRequest extends FormRequest
      */
     public function messages(): array
     {
-        $mediaType = MediaType::tryFrom($this->input('type', ''));
+        $type = $this->input('type');
+        $mediaType = is_string($type) ? MediaType::tryFrom($type) : null;
         $validation = $this->validationService();
 
-        $maxSize = $mediaType !== null
+        $maxSize = $mediaType instanceof MediaType
             ? $validation->maxFileSizeForDisplay($mediaType)
             : '100MB';
-        $extensions = $mediaType !== null
+        $extensions = $mediaType instanceof MediaType
             ? $validation->allowedExtensionsForDisplay($mediaType)
             : 'MP3, WAV, M4A, MP4, MOV, AVI, MKV';
 

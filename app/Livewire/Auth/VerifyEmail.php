@@ -78,10 +78,9 @@ class VerifyEmail extends Component
 
     protected function throttleKey(): string
     {
-        /** @var \App\Models\User|null $user */
-        $user = Auth::user();
+        $userId = Auth::id() ?? 'guest';
 
-        return Str::transliterate('verify-email|'.($user->id ?? 'guest').'|'.request()->ip());
+        return Str::transliterate('verify-email|'.$userId.'|'.request()->ip());
     }
 
     public function render(): View

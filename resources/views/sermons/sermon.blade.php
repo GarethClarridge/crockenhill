@@ -296,7 +296,7 @@ use Illuminate\Support\Str;
     @endif
   </div>
   {{-- Admin Actions --}}
-  @can ('edit-sermons')
+  @can ('manage-sermons')
   <div class="">
 
     @if ($sermon->source_type === 'livestream' && $sermon->livestreamProcessing)

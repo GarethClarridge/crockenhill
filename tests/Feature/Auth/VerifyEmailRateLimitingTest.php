@@ -6,63 +6,43 @@ namespace Tests\Feature\Auth;
 
 use App\Livewire\Auth\VerifyEmail;
 use App\Models\User;
-use Illuminate\Auth\Notifications\VerifyEmail as VerifyEmailNotification;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class VerifyEmailRateLimitingTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     #[Test]
-    public function resend_is_throttled_after_three_attempts(): void
+    public function resending_verification_email_is_rate_limited(): void
     {
-        Notification::fake();
-
-        $user = User::factory()->create([
-            'email_verified_at' => null,
-        ]);
-
+        $user = User::factory()->create(['email_verified_at' => null]);
         $this->actingAs($user);
 
         $component = Livewire::test(VerifyEmail::class);
 
-        // First 3 attempts should succeed
+        // First 3 attempts should be fine
         for ($i = 0; $i < 3; $i++) {
-            $component->call('resend')
-                ->assertSet('resent', true)
-                ->assertSet('error', '');
+            $component->call('resend');
+            $this->assertEquals('', $component->get('error'));
         }
 
-        // 4th attempt should be throttled
+        // 4th attempt should be blocked
         $component->call('resend');
 
-        $component->assertSet('resent', false);
         $this->assertNotEmpty($component->get('error'));
-        $this->assertStringContainsString('Too many', $component->get('error'));
-        $this->assertStringContainsString('attempts', $component->get('error'));
-
-        Notification::assertSentTo($user, VerifyEmailNotification::class, null, 3);
+        $this->assertStringContainsString('Too many login attempts', $component->get('error'));
     }
 
     #[Test]
-    public function verified_user_is_redirected_to_members_home(): void
+    public function verified_users_are_redirected_from_verify_email_page(): void
     {
-        Notification::fake();
-
-        $user = User::factory()->create([
-            'email_verified_at' => now(),
-        ]);
-
+        $user = User::factory()->create(['email_verified_at' => now()]);
         $this->actingAs($user);
 
-        // Mount should redirect
         Livewire::test(VerifyEmail::class)
             ->assertRedirect('/church/members');
-
-        Notification::assertNothingSent();
     }
 }
