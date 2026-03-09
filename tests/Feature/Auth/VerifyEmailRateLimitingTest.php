@@ -6,7 +6,9 @@ namespace Tests\Feature\Auth;
 
 use App\Livewire\Auth\VerifyEmail;
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail as VerifyEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -18,6 +20,8 @@ class VerifyEmailRateLimitingTest extends TestCase
     #[Test]
     public function resending_verification_email_is_rate_limited(): void
     {
+        Notification::fake();
+
         $user = User::factory()->create(['email_verified_at' => null]);
         $this->actingAs($user);
 
@@ -34,6 +38,7 @@ class VerifyEmailRateLimitingTest extends TestCase
 
         $this->assertNotEmpty($component->get('error'));
         $this->assertStringContainsString('Too many login attempts', $component->get('error'));
+        Notification::assertSentToTimes($user, VerifyEmailNotification::class, 3);
     }
 
     #[Test]

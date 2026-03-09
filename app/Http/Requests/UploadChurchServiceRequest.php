@@ -4,13 +4,24 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\ApiTokenAbility;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UploadChurchServiceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->is_admin === true;
+        $user = $this->user();
+
+        if (! $user?->is_admin || ! $user->hasVerifiedEmail()) {
+            return false;
+        }
+
+        if ($this->bearerToken() !== null && ! $user->tokenCan(ApiTokenAbility::SERVICE_UPLOAD->value)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

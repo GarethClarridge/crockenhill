@@ -40,6 +40,18 @@ class ProcessMediaRequestTest extends TestCase
     }
 
     #[Test]
+    public function non_string_type_falls_back_to_basic_file_rule_without_throwing(): void
+    {
+        $request = $this->makeRequest(['type' => ['audio']]);
+        $rules = $request->rules();
+        $messages = $request->messages();
+
+        $this->assertSame('required|file', $rules['file']);
+        $this->assertStringContainsString('100MB', $messages['file.max']);
+        $this->assertStringContainsString('MP3', $messages['file.mimes']);
+    }
+
+    #[Test]
     public function valid_audio_type_enforces_audio_rules(): void
     {
         $request = $this->makeRequest(['type' => 'audio']);
