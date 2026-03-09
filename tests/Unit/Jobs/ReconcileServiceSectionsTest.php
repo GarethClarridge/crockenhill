@@ -117,7 +117,7 @@ class ReconcileServiceSectionsTest extends TestCase
         $this->assertSame($churchService->id, $processingLog->church_service_id);
         $this->assertSame('completed', $processingLog->status->value);
         $this->assertSame('completed', $processingLog->current_step);
-        $this->assertDatabaseCount('service_sections', 2);
+        $this->assertSame(2, $processingLog->serviceSections()->count());
         $this->assertSame($song->id, $songSection->church_service_item_id);
         $this->assertSame('song', $songSection->section_type->value);
         $this->assertSame('Opening Song', $songSection->title);
@@ -168,7 +168,7 @@ class ReconcileServiceSectionsTest extends TestCase
         $processingLog->refresh();
 
         $this->assertSame($churchService->id, $processingLog->church_service_id);
-        $this->assertDatabaseCount('service_sections', 1);
+        $this->assertSame(1, $processingLog->serviceSections()->count());
         $this->assertDatabaseHas('service_sections', [
             'media_processing_log_id' => $processingLog->id,
             'section_order' => 1,

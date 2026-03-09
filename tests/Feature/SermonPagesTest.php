@@ -158,7 +158,7 @@ class SermonPagesTest extends TestCase
         $response->assertSeeInOrder([
             '<h2 id=',
             'text-3xl sm:text-4xl',
-            '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 justify-center items-start">',
+            '<div class="grid items-start justify-center gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]">',
         ], false);
     }
 

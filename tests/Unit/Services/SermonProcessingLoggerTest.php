@@ -20,6 +20,9 @@ class SermonProcessingLoggerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        MediaProcessingLog::query()->delete();
+
         $this->logger = new SermonProcessingLogger;
     }
 
