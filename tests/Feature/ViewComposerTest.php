@@ -104,6 +104,48 @@ class ViewComposerTest extends TestCase
     }
 
     #[Test]
+    public function it_renders_accessible_expanded_navigation_styling(): void
+    {
+        Page::factory()->create([
+            'slug' => 'expanded-nav-page',
+            'area' => PageArea::CHURCH,
+            'navigation' => true,
+        ]);
+
+        $response = $this->get('/');
+
+        $response->assertOk();
+
+        $content = (string) $response->getContent();
+
+        $this->assertStringContainsString('id="mobile-menu"', $content);
+        $this->assertStringContainsString('bg-gradient-to-bl', $content);
+        $this->assertStringContainsString('from-cbc-teal-deeper/95', $content);
+        $this->assertStringContainsString('via-cbc-teal-dark/95', $content);
+        $this->assertStringContainsString('to-cbc-teal/92', $content);
+        $this->assertStringContainsString(":class=\"expanded ? 'lg:pointer-events-none lg:opacity-0' : 'lg:pointer-events-auto lg:opacity-100'\"", $content);
+        $this->assertStringContainsString('absolute inset-y-0 left-16 right-16 z-10 hidden items-center justify-center text-center font-display text-xl opacity-0 transition-opacity duration-200', $content);
+        $this->assertStringContainsString(":class=\"expanded ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'\"", $content);
+        $this->assertStringContainsString(':aria-hidden="!expanded"', $content);
+        $this->assertStringContainsString(':inert="!expanded"', $content);
+        $this->assertStringContainsString(":class=\"expanded ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'\"", $content);
+        $this->assertStringContainsString(':aria-hidden="expanded"', $content);
+        $this->assertStringContainsString(':inert="expanded"', $content);
+        $this->assertStringContainsString('top-full z-30 -mt-px', $content);
+        $this->assertStringContainsString('font-sans normal-case text-base leading-relaxed text-white shadow-2xl', $content);
+        $this->assertStringContainsString('x-transition:enter="transform-gpu transition ease-out duration-200"', $content);
+        $this->assertStringContainsString('x-transition:enter-start="-translate-y-3 opacity-0"', $content);
+        $this->assertStringContainsString('x-transition:enter-end="translate-y-0 opacity-100"', $content);
+        $this->assertStringContainsString('x-transition:leave-end="-translate-y-2 opacity-0"', $content);
+        $this->assertStringContainsString('border-b border-white/15 pb-4', $content);
+        $this->assertStringContainsString('font-display text-lg font-normal text-white no-underline transition-colors duration-150 hover:text-white/80', $content);
+        $this->assertStringContainsString('inline-flex rounded-sm px-2 py-1 text-base font-medium text-white/85 no-underline transition-colors duration-150 hover:text-white', $content);
+        $this->assertStringContainsString('focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark', $content);
+        $this->assertStringNotContainsString('focus:ring-2 focus:ring-white transition-all duration-200', $content);
+        $this->assertStringNotContainsString('rounded-md bg-gradient-to-r from-teal-600 to-teal-800', $content);
+    }
+
+    #[Test]
     public function it_populates_header_with_members_link_for_authenticated_users(): void
     {
         $user = \App\Models\User::factory()->create([

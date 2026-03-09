@@ -18,7 +18,7 @@ class LinkSongsCommandTest extends TestCase
     public function it_links_song_items_when_command_runs(): void
     {
         $song = Song::factory()->create([
-            'canonical_key' => 'song one@',
+            'canonical_key' => 'song one',
             'title' => 'Song One',
         ]);
 
@@ -38,13 +38,13 @@ class LinkSongsCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_backfills_multiple_historical_song_items_using_canonical_keys_with_at_suffixes(): void
+    public function it_backfills_multiple_historical_song_items_using_canonical_keys(): void
     {
         $songOne = Song::factory()->create([
-            'canonical_key' => 'who am i that the highest king@who you say i am',
+            'canonical_key' => 'who am i that the highest king',
         ]);
         $songTwo = Song::factory()->create([
-            'canonical_key' => 'stand up stand up for jesus@',
+            'canonical_key' => 'stand up stand up for jesus',
         ]);
 
         $itemOne = ChurchServiceItem::factory()->create([

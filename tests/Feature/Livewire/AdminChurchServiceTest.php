@@ -153,7 +153,7 @@ class AdminChurchServiceTest extends TestCase
         $this->actingAs($this->admin);
 
         $song = Song::factory()->create([
-            'canonical_key' => 'song one@',
+            'canonical_key' => 'song one',
             'title' => 'Song One Canonical',
         ]);
 
@@ -203,7 +203,7 @@ class AdminChurchServiceTest extends TestCase
 
         $song = Song::factory()->create([
             'title' => 'Blessed Assurance',
-            'canonical_key' => 'blessed assurance@',
+            'canonical_key' => 'blessed assurance',
         ]);
 
         $component = Livewire::test(ManageChurchService::class)
@@ -237,7 +237,7 @@ class AdminChurchServiceTest extends TestCase
         $this->assertSame(ServiceSectionType::WELCOME->value, $service->items[0]->metadata['section_type'] ?? null);
         $this->assertSame('songs', $service->items[1]->type);
         $this->assertSame($song->id, $service->items[1]->song_id);
-        $this->assertSame('blessed assurance@', $service->items[1]->metadata['linked_song_canonical_key'] ?? null);
+        $this->assertSame('blessed assurance', $service->items[1]->metadata['linked_song_canonical_key'] ?? null);
         $this->assertSame('bibles', $service->items[2]->type);
         $this->assertSame(ServiceSectionType::BIBLE_READING->value, $service->items[2]->metadata['section_type'] ?? null);
     }
@@ -285,7 +285,7 @@ class AdminChurchServiceTest extends TestCase
 
         $song = Song::factory()->create([
             'title' => 'Closing Song',
-            'canonical_key' => 'closing song@',
+            'canonical_key' => 'closing song',
         ]);
 
         $component = Livewire::test(ManageChurchService::class, ['churchService' => $service])

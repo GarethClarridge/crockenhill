@@ -58,7 +58,7 @@ class ChurchServiceControllerTest extends TestCase
     public function test_upload_links_song_items_to_canonical_song_catalog(): void
     {
         $song = Song::factory()->create([
-            'canonical_key' => 'song one@',
+            'canonical_key' => 'song one',
             'title' => 'Song One Canonical',
         ]);
 

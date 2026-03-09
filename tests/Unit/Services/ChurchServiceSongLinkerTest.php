@@ -27,10 +27,10 @@ class ChurchServiceSongLinkerTest extends TestCase
     }
 
     #[Test]
-    public function it_links_song_items_using_canonical_key_with_at_suffix_preserved(): void
+    public function it_links_song_items_using_normalized_canonical_keys(): void
     {
         $song = Song::factory()->create([
-            'canonical_key' => 'who am i that the highest king@who you say i am',
+            'canonical_key' => 'who am i that the highest king',
             'title' => 'Who You Say I Am',
         ]);
 
@@ -78,7 +78,7 @@ class ChurchServiceSongLinkerTest extends TestCase
     public function it_preserves_manually_selected_song_links_using_metadata_canonical_key(): void
     {
         $song = Song::factory()->create([
-            'canonical_key' => 'blessed assurance@',
+            'canonical_key' => 'blessed assurance',
             'title' => 'Blessed Assurance',
         ]);
 
@@ -91,7 +91,7 @@ class ChurchServiceSongLinkerTest extends TestCase
             'song_id' => $song->id,
             'metadata' => [
                 'section_type' => 'song',
-                'linked_song_canonical_key' => 'blessed assurance@',
+                'linked_song_canonical_key' => 'blessed assurance',
             ],
         ]);
 
@@ -130,7 +130,7 @@ class ChurchServiceSongLinkerTest extends TestCase
     public function dry_run_reports_changes_without_persisting(): void
     {
         $song = Song::factory()->create([
-            'canonical_key' => 'song one@',
+            'canonical_key' => 'song one',
         ]);
 
         $item = ChurchServiceItem::factory()->create([
@@ -152,7 +152,7 @@ class ChurchServiceSongLinkerTest extends TestCase
     public function link_for_service_only_updates_items_for_that_service(): void
     {
         $song = Song::factory()->create([
-            'canonical_key' => 'target key@',
+            'canonical_key' => 'target key',
         ]);
 
         $targetService = ChurchService::factory()->create();
