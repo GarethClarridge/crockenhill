@@ -7,21 +7,23 @@ use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
 use FFMpeg\FFMpeg;
+use FFMpeg\Media\Video;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 
 class VideoStorageServiceTest extends TestCase
 {
     private VideoStorageService $service;
 
-    private $videoExtractor;
+    private MockObject $videoExtractor;
 
-    private $audioCompressor;
+    private MockObject $audioCompressor;
 
-    private $storageHelper;
+    private MockObject $storageHelper;
 
     protected function setUp(): void
     {
@@ -39,11 +41,7 @@ class VideoStorageServiceTest extends TestCase
         Storage::fake('local_temp');
         Storage::fake('public_perm');
 
-        $this->service = new VideoStorageService(
-            $this->videoExtractor,
-            $this->audioCompressor,
-            $this->storageHelper
-        );
+        $this->service = $this->makeService();
     }
 
     #[Test]
@@ -78,30 +76,21 @@ class VideoStorageServiceTest extends TestCase
     #[Test]
     public function it_cleans_up_expired_files(): void
     {
-        Storage::fake('local_temp');
         Config::set('media-processing.temp_file_retention_hours', 24);
 
-        // Recent file
-        Storage::disk('local_temp')->put('livestream/temp/recent.mp4', 'content');
-
-        // Expired file
+        $recentFile = 'livestream/temp/recent.mp4';
         $expiredFile = 'livestream/temp/expired.mp4';
+        Storage::disk('local_temp')->put($recentFile, 'recent');
         Storage::disk('local_temp')->put($expiredFile, 'content');
 
-        // Mocking lastModified for the expired file is tricky with Storage::fake(),
-        // but the actual implementation uses Storage::disk($this->tempDisk)->lastModified($file).
-        // Since we can't easily set file modification time in Storage::fake(),
-        // we'll rely on the logic that it uses Carbon's now().
-
-        // To test this properly, we might need to use actual filesystem or a more complex mock.
-        // For now, let's verify that it attempts to delete files.
+        touch(Storage::disk('local_temp')->path($expiredFile), now()->subHours(48)->timestamp);
+        touch(Storage::disk('local_temp')->path($recentFile), now()->subHours(1)->timestamp);
 
         $deletedCount = $this->service->cleanupExpiredFiles();
 
-        // With Storage::fake(), lastModified usually returns the current time,
-        // so recent.mp4 won't be deleted.
-        $this->assertEquals(0, $deletedCount);
-        Storage::disk('local_temp')->assertExists('livestream/temp/recent.mp4');
+        $this->assertEquals(1, $deletedCount);
+        Storage::disk('local_temp')->assertMissing($expiredFile);
+        Storage::disk('local_temp')->assertExists($recentFile);
     }
 
     #[Test]
@@ -128,91 +117,51 @@ class VideoStorageServiceTest extends TestCase
     #[Test]
     public function it_moves_to_local_sermon_storage_successfully(): void
     {
-        Storage::fake('local_temp');
-        Storage::fake('public_perm');
-
         $tempPath = 'livestream/temp/test.mp4';
         Storage::disk('local_temp')->put($tempPath, 'video content');
 
-        // Mock FFMpeg
-        $ffmpeg = $this->createMock(FFMpeg::class);
-        $video = $this->createMock(\FFMpeg\Media\Video::class);
-
-        $ffmpeg->method('open')->willReturn($video);
-        $video->expects($this->once())->method('save')->with(
-            $this->isInstanceOf(\FFMpeg\Format\Audio\Mp3::class),
-            $this->stringContains('sermons/audio/test-sermon.mp3')
+        $ffmpeg = $this->createConfiguredFfmpegMock(
+            static function (string $outputPath): void {
+                file_put_contents($outputPath, 'audio content');
+            }
         );
-
-        // Inject FFMpeg via reflection
-        $reflection = new \ReflectionClass($this->service);
-        $property = $reflection->getProperty('ffmpeg');
-        $property->setAccessible(true);
-        $property->setValue($this->service, $ffmpeg);
-
-        // Use same disk for both for simpler testing of local move
-        Config::set('media-processing.storage.temp_disk', 'public_perm');
-        Config::set('media-processing.storage.sermon_disk', 'public_perm');
-        $this->setUp(); // Re-initialize service with same disks
-
-        $tempPath = 'livestream/temp/test.mp4';
-        Storage::disk('public_perm')->put($tempPath, 'video content');
-
-        // Re-inject FFMpeg after re-setUp
-        $reflection = new \ReflectionClass($this->service);
-        $property = $reflection->getProperty('ffmpeg');
-        $property->setAccessible(true);
-        $property->setValue($this->service, $ffmpeg);
+        $this->injectFfmpeg($this->service, $ffmpeg);
 
         $result = $this->service->moveToSermonStorage($tempPath, 'test-sermon');
 
         $this->assertEquals('sermons/videos/test-sermon.mp4', $result['video_path']);
         $this->assertEquals('sermons/audio/test-sermon.mp3', $result['audio_path']);
-
-        // Since it uses native PHP move/ensureDirectoryExists with Storage::disk(...)->path(''),
-        // it may be actually trying to write to the real filesystem if we don't mock the path properly.
-        // Storage::fake() path is often in /tmp or similar.
+        Storage::disk('local_temp')->assertMissing($tempPath);
+        Storage::disk('public_perm')->assertExists('sermons/videos/test-sermon.mp4');
+        Storage::disk('public_perm')->assertExists('sermons/audio/test-sermon.mp3');
+        $this->assertSame('video content', Storage::disk('public_perm')->get('sermons/videos/test-sermon.mp4'));
     }
 
     #[Test]
     public function it_moves_to_s3_sermon_storage_successfully(): void
     {
-        Config::set('media-processing.storage.sermon_disk', 's3_perm');
+        Config::set('filesystems.disks.s3_perm', ['driver' => 's3']);
         Storage::fake('s3_perm', ['driver' => 's3']);
-        Storage::fake('local_temp');
+        Config::set('media-processing.storage.sermon_disk', 's3_perm');
+        $this->service = $this->makeService();
 
         $tempPath = 'livestream/temp/test.mp4';
         Storage::disk('local_temp')->put($tempPath, 'video content');
 
-        // Mock FFMpeg
-        $ffmpeg = $this->createMock(FFMpeg::class);
-        $video = $this->createMock(\FFMpeg\Media\Video::class);
-
-        $ffmpeg->method('open')->willReturn($video);
-        $video->expects($this->once())->method('save');
-
-        // Inject FFMpeg via reflection
-        $reflection = new \ReflectionClass($this->service);
-        $property = $reflection->getProperty('ffmpeg');
-        $property->setAccessible(true);
-        $property->setValue($this->service, $ffmpeg);
-
-        // This test is complex because moveToSermonStorage uses readStream, storage_path, fopen, unlink, etc.
-        // In a Unit test with fakes, some of these might fail if not careful.
-        // However, Storage::fake() for S3 should handle readStream/put.
-
-        // We'll catch potential exceptions or rely on partial success
-        try {
-            $result = $this->service->moveToSermonStorage($tempPath, 'test-sermon');
-            $this->assertEquals('sermons/videos/test-sermon.mp4', $result['video_path']);
-        } catch (\RuntimeException $e) {
-            if (str_contains($e->getMessage(), 'Failed to open temporary audio file')) {
-                // This is expected because we can't easily mock the actual file created by $video->save() in unit test
-                $this->markTestIncomplete('S3 move requires more filesystem mocking for audio extraction');
-            } else {
-                throw $e;
+        $ffmpeg = $this->createConfiguredFfmpegMock(
+            static function (string $outputPath): void {
+                file_put_contents($outputPath, 'audio content');
             }
-        }
+        );
+        $this->injectFfmpeg($this->service, $ffmpeg);
+
+        $result = $this->service->moveToSermonStorage($tempPath, 'test-sermon');
+
+        $this->assertEquals('sermons/videos/test-sermon.mp4', $result['video_path']);
+        $this->assertEquals('sermons/audio/test-sermon.mp3', $result['audio_path']);
+        Storage::disk('s3_perm')->assertExists('sermons/videos/test-sermon.mp4');
+        Storage::disk('s3_perm')->assertExists('sermons/audio/test-sermon.mp3');
+        Storage::disk('local_temp')->assertExists($tempPath);
     }
 
     #[Test]
@@ -232,5 +181,46 @@ class VideoStorageServiceTest extends TestCase
 
         // We don't fully test moveToPermanent and cleanup here as they delegate to already tested methods
         $this->service->cleanup('some-id');
+    }
+
+    private function makeService(): VideoStorageService
+    {
+        return new VideoStorageService(
+            $this->videoExtractor,
+            $this->audioCompressor,
+            $this->storageHelper
+        );
+    }
+
+    private function injectFfmpeg(VideoStorageService $service, FFMpeg $ffmpeg): void
+    {
+        $reflection = new \ReflectionClass($service);
+        $property = $reflection->getProperty('ffmpeg');
+        $property->setAccessible(true);
+        $property->setValue($service, $ffmpeg);
+    }
+
+    /**
+     * @param  \Closure(string): void  $saveCallback
+     */
+    private function createConfiguredFfmpegMock(\Closure $saveCallback): FFMpeg
+    {
+        $ffmpeg = $this->createMock(FFMpeg::class);
+        $video = $this->createMock(Video::class);
+
+        $ffmpeg->method('open')->willReturn($video);
+        $video->expects($this->once())
+            ->method('save')
+            ->with(
+                $this->isInstanceOf(\FFMpeg\Format\Audio\Mp3::class),
+                $this->isString()
+            )
+            ->willReturnCallback(
+                static function (\FFMpeg\Format\Audio\Mp3 $format, string $outputPath) use ($saveCallback): void {
+                    $saveCallback($outputPath);
+                }
+            );
+
+        return $ffmpeg;
     }
 }
