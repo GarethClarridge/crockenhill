@@ -58,7 +58,7 @@ class LayoutPageComposer
         $slug = $page->slug;
 
         $view->with([
-            'description' => '<meta name="description" content="'.$page->description.'">',
+            'description' => $page->meta_description,
             'heading' => $page->heading,
             'content' => $content,
             'headingpicture' => $page->heading_image_url,

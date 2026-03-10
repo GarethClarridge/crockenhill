@@ -37,7 +37,7 @@ class SermonDetailPresenter implements PagePresenter
         }
 
         return [
-            'description' => '<meta name="description" content="'.$sermon->title.'">',
+            'description' => $sermon->meta_description,
             'heading' => $sermon->title,
             'content' => '',
             'headingpicture' => '/images/headings/large/'.(string) $slug.'.webp',

@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 @section('meta_tags')
 <x-meta-tags
     :title="$sermon->title"
-    :description="$sermon->meta_description"
+    :description="$description ?? $sermon->meta_description"
     type="article"
     :image="$sermon->thumbnail_url && $sermon->hasThumbnail() ? $sermon->thumbnail_url : null"
     :image-width="$sermon->thumbnail_url && $sermon->hasThumbnail() ? 1280 : 800"
