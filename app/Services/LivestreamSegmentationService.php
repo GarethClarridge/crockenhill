@@ -7,19 +7,21 @@ use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
+use Exception;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use RuntimeException;
 
 class LivestreamSegmentationService
 {
     public function __construct(
-        private VideoStorageService $storageService,
-        private VideoSegmentationService $segmentationService,
-        private ProcessingPipelineBuilder $pipelineBuilder,
-        private ProcessingInitiator $processingInitiator
+        private readonly VideoStorageService $storageService,
+        private readonly VideoSegmentationService $segmentationService,
+        private readonly ProcessingPipelineBuilder $pipelineBuilder,
+        private readonly ProcessingInitiator $processingInitiator
     ) {}
 
     public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null): ProcessingResult
@@ -32,7 +34,7 @@ class LivestreamSegmentationService
             ]);
 
             if (! $this->storageService->validateStorageSpace($videoFile->getSize())) {
-                throw new \Exception('Insufficient storage space for processing');
+                throw new Exception('Insufficient storage space for processing');
             }
 
             $uploadResult = $this->storageService->storeUploadedVideo($videoFile);
@@ -41,11 +43,11 @@ class LivestreamSegmentationService
             $originalFilename = is_string($uploadResult['original_filename'] ?? null) ? $uploadResult['original_filename'] : null;
 
             if ($fullPath === null || $tempPath === null || $originalFilename === null) {
-                throw new \RuntimeException('Invalid upload result from storage service.');
+                throw new RuntimeException('Invalid upload result from storage service.');
             }
 
             if (! $this->segmentationService->validateVideoFile($fullPath)) {
-                throw new \Exception('Invalid video file format');
+                throw new Exception('Invalid video file format');
             }
 
             $metadata = $this->segmentationService->getVideoMetadata($fullPath);
@@ -80,7 +82,7 @@ class LivestreamSegmentationService
                 message: 'Livestream processing initiated successfully'
             );
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to start livestream processing', [
                 'error' => $e->getMessage(),
                 'original_filename' => $videoFile->getClientOriginalName(),
@@ -97,11 +99,11 @@ class LivestreamSegmentationService
             ->first();
 
         if (! $processingLog) {
-            throw new \Exception('Processing record not found');
+            throw new Exception('Processing record not found');
         }
 
         if (! $processingLog->status->isRetryable()) {
-            throw new \Exception('Only failed or cancelled processing can be retried');
+            throw new Exception('Only failed or cancelled processing can be retried');
         }
 
         $processingLog->update([
@@ -124,11 +126,11 @@ class LivestreamSegmentationService
             ->first();
 
         if (! $processingLog) {
-            throw new \Exception('Processing record not found');
+            throw new Exception('Processing record not found');
         }
 
         if ($processingLog->isComplete()) {
-            throw new \Exception('Cannot cancel completed processing');
+            throw new Exception('Cannot cancel completed processing');
         }
 
         $processingLog->markAsCancelled('Processing cancelled by user');
@@ -164,7 +166,7 @@ class LivestreamSegmentationService
             ->first();
 
         if (! $processingLog) {
-            throw new \Exception('Processing record not found');
+            throw new Exception('Processing record not found');
         }
 
         return StandardProcessingResponse::fromProcessingLog($processingLog);
@@ -177,7 +179,7 @@ class LivestreamSegmentationService
             ->first();
 
         if (! $processingLog) {
-            throw new \Exception('Processing record not found');
+            throw new Exception('Processing record not found');
         }
 
         return $this->buildProcessingResult($processingLog);
@@ -263,7 +265,7 @@ class LivestreamSegmentationService
         try {
             Mail::to(config('media-processing.email.admin_email'))
                 ->queue(new LivestreamProcessingFailed($processingId, $e));
-        } catch (\Exception $emailException) {
+        } catch (Exception $emailException) {
             Log::warning('Failed to queue livestream processing failure email, continuing', [
                 'processing_id' => $processingId,
                 'original_error' => $e->getMessage(),
