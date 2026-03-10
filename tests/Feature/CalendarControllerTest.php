@@ -101,6 +101,8 @@ class CalendarControllerTest extends TestCase
     public function uncategorized_calendar_shows_upcoming_uncategorized_events(): void
     {
         config(['calendar.uncategorized_slug' => 'uncategorized']);
+        Meeting::factory()->create(['slug' => 'uncategorized']);
+        Meeting::factory()->create(['slug' => 'some-meeting']);
 
         $uncategorizedUpcoming = CalendarEvent::factory()->create([
             'meeting_slug' => 'uncategorized',
