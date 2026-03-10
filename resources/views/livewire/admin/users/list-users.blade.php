@@ -21,6 +21,12 @@
         <x-select placeholder="Admin Status" wire:model.live="adminFilter"
             :options="[['id' => '1', 'name' => 'Admin'], ['id' => '0', 'name' => 'Regular']]"
             class="w-40" />
+
+        <div x-show="$wire.hasFilters" x-transition x-cloak>
+            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                Clear Filters
+            </x-form-button>
+        </div>
     </div>
 
     {{-- Table --}}
