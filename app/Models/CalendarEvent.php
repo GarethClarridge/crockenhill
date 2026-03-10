@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int $id
  * @property string|null $google_event_id
- * @property string $meeting_slug
+ * @property string|null $meeting_slug
  * @property string $title
  * @property string|null $description
  * @property string|null $speaker

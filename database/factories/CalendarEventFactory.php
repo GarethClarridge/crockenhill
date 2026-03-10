@@ -18,7 +18,7 @@ class CalendarEventFactory extends Factory
     {
         return [
             'google_event_id' => $this->faker->uuid(),
-            'meeting_slug' => $this->faker->slug(),
+            'meeting_slug' => null,
             'title' => $this->faker->sentence(),
             'description' => $this->faker->paragraph(),
             'speaker' => $this->faker->name(),

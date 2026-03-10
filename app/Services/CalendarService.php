@@ -69,7 +69,7 @@ class CalendarService
          */
         return CalendarEvent::query()
             ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
-            ->where('meeting_slug', config('calendar.uncategorized_slug', 'uncategorized'))
+            ->whereNull('meeting_slug')
             ->orderBy('start_datetime')
             ->get();
     }

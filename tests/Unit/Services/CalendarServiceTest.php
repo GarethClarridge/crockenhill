@@ -27,6 +27,7 @@ class CalendarServiceTest extends TestCase
     public function it_returns_events_for_a_specific_meeting_slug(): void
     {
         $meeting = Meeting::factory()->create(['slug' => 'sunday-morning']);
+        Meeting::factory()->create(['slug' => 'other-meeting']);
 
         CalendarEvent::factory()->count(3)->create(['meeting_slug' => 'sunday-morning']);
         CalendarEvent::factory()->count(2)->create(['meeting_slug' => 'other-meeting']);
@@ -40,6 +41,7 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_excludes_cancelled_events(): void
     {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
         CalendarEvent::factory()->count(2)->create(['meeting_slug' => 'sunday-morning']);
         CalendarEvent::factory()->create(['meeting_slug' => 'sunday-morning', 'status' => 'cancelled']);
 
@@ -51,6 +53,7 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_filters_events_by_start_date(): void
     {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
         $future = Carbon::now()->addDays(10);
         $past = Carbon::now()->subDays(10);
 
@@ -72,6 +75,7 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_filters_events_by_end_date(): void
     {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
         $soonDate = Carbon::now()->addDays(5);
         $farDate = Carbon::now()->addDays(30);
 
@@ -92,6 +96,9 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_returns_all_upcoming_events(): void
     {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+        Meeting::factory()->create(['slug' => 'other-meeting']);
+
         $windowStart = Carbon::create(2099, 1, 1, 0, 0, 0);
         $windowEnd = Carbon::create(2099, 1, 31, 23, 59, 59);
 
@@ -136,21 +143,24 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_returns_uncategorized_events(): void
     {
-        config(['calendar.uncategorized_slug' => 'uncategorized']);
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
 
-        CalendarEvent::factory()->count(2)->create(['meeting_slug' => 'uncategorized']);
+        CalendarEvent::factory()->count(2)->create(['meeting_slug' => null]);
         CalendarEvent::factory()->count(3)->create(['meeting_slug' => 'sunday-morning']);
 
         $events = $this->service->getUncategorizedEvents();
 
         $this->assertCount(2, $events);
+        $events->each(fn ($event) => $this->assertNull($event->meeting_slug));
     }
 
     #[Test]
     public function it_manually_categorizes_an_event(): void
     {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+
         $event = CalendarEvent::factory()->create([
-            'meeting_slug' => 'uncategorized',
+            'meeting_slug' => null,
             'is_categorized_automatically' => true,
         ]);
 
@@ -170,8 +180,11 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_categorizes_event_updating_db_even_if_google_fails(): void
     {
+        config(['google-calendar.calendar_id' => 'test-calendar-id']);
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+
         $event = CalendarEvent::factory()->create([
-            'meeting_slug' => 'uncategorized',
+            'meeting_slug' => null,
             'google_event_id' => 'nonexistent-google-id-xyz',
         ]);
 
@@ -196,6 +209,8 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_orders_events_by_start_datetime(): void
     {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
             'start_datetime' => Carbon::now()->addDays(5),

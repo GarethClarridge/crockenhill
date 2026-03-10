@@ -12,6 +12,9 @@ use Spatie\GoogleCalendar\Event;
 
 class GoogleCalendarSyncService
 {
+    /** @var array<int, string>|null */
+    private ?array $knownMeetingSlugs = null;
+
     /**
      * @return array<string, mixed>
      */
@@ -55,7 +58,7 @@ class GoogleCalendarSyncService
         CalendarEvent::whereIn('google_event_id', $deletedEventIds)->delete();
 
         $uncategorizedCount = CalendarEvent::whereBetween('start_datetime', [$startDate, $endDate])
-            ->where('meeting_slug', config('calendar.uncategorized_slug', 'uncategorized'))
+            ->whereNull('meeting_slug')
             ->count();
 
         Log::info('Google Calendar sync completed', [
@@ -149,7 +152,7 @@ class GoogleCalendarSyncService
         return $event;
     }
 
-    private function determineMeetingSlug(Event $googleEvent): string
+    private function determineMeetingSlug(Event $googleEvent): ?string
     {
         // Access extended properties from the underlying Google Calendar event
         $extendedProperties = $googleEvent->googleEvent->getExtendedProperties();
@@ -160,7 +163,7 @@ class GoogleCalendarSyncService
             $extendedSlug = $extendedProperties['private']['meeting_slug'];
         }
 
-        if ($extendedSlug) {
+        if (is_string($extendedSlug) && $this->isKnownMeetingSlug($extendedSlug)) {
             return $extendedSlug;
         }
 
@@ -172,11 +175,23 @@ class GoogleCalendarSyncService
             foreach ($config['patterns'] as $pattern) {
                 $searchPattern = $config['case_insensitive'] ? strtolower($pattern) : $pattern;
                 if (str_contains($title, $searchPattern)) {
-                    return $meetingSlug;
+                    return $this->isKnownMeetingSlug($meetingSlug) ? $meetingSlug : null;
                 }
             }
         }
 
-        return config('calendar.uncategorized_slug', 'uncategorized');
+        return null;
+    }
+
+    private function isKnownMeetingSlug(string $slug): bool
+    {
+        if ($this->knownMeetingSlugs === null) {
+            $this->knownMeetingSlugs = Meeting::query()
+                ->orderBy('slug')
+                ->pluck('slug')
+                ->all();
+        }
+
+        return in_array($slug, $this->knownMeetingSlugs, true);
     }
 }
