@@ -53,7 +53,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             ),
         ]);
 
-        $this->assertDatabaseCount('service_sections', 2);
+        $this->assertSame(2, $processingLog->serviceSections()->count());
         $this->assertDatabaseHas('service_sections', [
             'media_processing_log_id' => $processingLog->id,
             'section_order' => 1,
@@ -137,7 +137,7 @@ class ServiceSectionSyncServiceTest extends TestCase
 
         $this->assertDatabaseMissing('service_sections', ['id' => $originalOrderTwo->id]);
         $this->assertSame('Closing Prayer', $newOrderThree->title);
-        $this->assertDatabaseCount('service_sections', 2);
+        $this->assertSame(2, $processingLog->serviceSections()->count());
     }
 
     #[Test]
