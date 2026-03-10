@@ -13,7 +13,7 @@ class MeetingCalendarIntegrityTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function updating_a_meeting_slug_updates_associated_calendar_events()
+    public function updating_a_meeting_slug_updates_associated_calendar_events(): void
     {
         // 1. Create a meeting
         $meeting = Meeting::factory()->create([
@@ -37,7 +37,7 @@ class MeetingCalendarIntegrityTest extends TestCase
     }
 
     #[Test]
-    public function deleting_a_meeting_deletes_associated_calendar_events()
+    public function deleting_a_meeting_uncategorizes_associated_calendar_events(): void
     {
         // 1. Create a meeting
         $meeting = Meeting::factory()->create([
@@ -52,7 +52,10 @@ class MeetingCalendarIntegrityTest extends TestCase
         // 3. Delete the meeting
         $meeting->delete();
 
-        // 4. Verify the calendar event is also deleted (due to cascade)
-        $this->assertDatabaseMissing('calendar_events', ['id' => $event->id]);
+        // 4. Verify the calendar event is retained but uncategorized
+        $this->assertDatabaseHas('calendar_events', [
+            'id' => $event->id,
+            'meeting_slug' => null,
+        ]);
     }
 }

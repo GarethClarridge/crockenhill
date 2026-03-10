@@ -54,8 +54,6 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_shows_uncategorized_events_page_for_authenticated_user(): void
     {
-        config(['calendar.uncategorized_slug' => 'uncategorized']);
-
         $this->actingAs($this->adminUser);
         $response = $this->get('/admin/calendar/uncategorized');
 
@@ -68,11 +66,9 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_passes_uncategorized_events_to_view(): void
     {
-        config(['calendar.uncategorized_slug' => 'uncategorized']);
-        Meeting::factory()->create(['slug' => 'uncategorized']);
         Meeting::factory()->create(['slug' => 'sunday-morning']);
 
-        CalendarEvent::factory()->count(2)->create(['meeting_slug' => 'uncategorized']);
+        CalendarEvent::factory()->count(2)->create(['meeting_slug' => null]);
         CalendarEvent::factory()->count(3)->create(['meeting_slug' => 'sunday-morning']);
 
         $this->actingAs($this->adminUser);
@@ -132,10 +128,9 @@ class CalendarAdminControllerTest extends TestCase
     #[Test]
     public function it_categorizes_event_and_redirects_back(): void
     {
-        Meeting::factory()->create(['slug' => 'uncategorized']);
         $meeting = Meeting::factory()->create(['slug' => 'sunday-morning']);
         $event = CalendarEvent::factory()->create([
-            'meeting_slug' => 'uncategorized',
+            'meeting_slug' => null,
         ]);
 
         // Mock the CalendarService to avoid Google Calendar API call

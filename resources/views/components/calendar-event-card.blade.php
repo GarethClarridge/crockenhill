@@ -12,6 +12,8 @@
 
 @php
 $meeting = $meeting ?? $event->meeting;
+$isUncategorized = $event->meeting_slug === null;
+$meetingLabel = $event->meeting_slug ?? 'Uncategorized';
 $cardClasses = match($variant) {
     'compact' => 'bg-gray-50 rounded-lg border border-gray-200 p-4',
     'admin' => 'max-w-full rounded-lg shadow bg-white border-1 border-gray-300 p-0 m-2',
@@ -70,11 +72,11 @@ $cardClasses = match($variant) {
                                 {{ $meeting->slug }}
                             </a>
                         @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $event->meeting_slug === 'uncategorized' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' }}">
-                                @if($event->meeting_slug === 'uncategorized')
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $isUncategorized ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' }}">
+                                @if($isUncategorized)
                                     <x-heroicon-s-question-mark-circle class="h-3 w-3 mr-1" />
                                 @endif
-                                {{ $event->meeting_slug }}
+                                {{ $meetingLabel }}
                             </span>
                         @endif
                     </div>
@@ -130,11 +132,11 @@ $cardClasses = match($variant) {
                                 {{ $meeting->slug }}
                             </a>
                         @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $event->meeting_slug === 'uncategorized' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' }}">
-                                @if($event->meeting_slug === 'uncategorized')
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $isUncategorized ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' }}">
+                                @if($isUncategorized)
                                     <x-heroicon-s-question-mark-circle class="h-3 w-3 mr-1" />
                                 @endif
-                                {{ $event->meeting_slug }}
+                                {{ $meetingLabel }}
                             </span>
                         @endif
                     </div>
@@ -185,8 +187,8 @@ $cardClasses = match($variant) {
                     @if($meeting)
                         <a href="/community/{{ $meeting->slug }}" class="hover:underline">{{ $meeting->slug }}</a>
                     @else
-                        <span class="{{ $event->meeting_slug === 'uncategorized' ? 'text-yellow-600' : 'text-gray-600' }}">
-                            {{ $event->meeting_slug }}
+                        <span class="{{ $isUncategorized ? 'text-yellow-600' : 'text-gray-600' }}">
+                            {{ $meetingLabel }}
                         </span>
                     @endif
                 </li>

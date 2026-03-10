@@ -142,26 +142,24 @@ class CalendarServiceTest extends TestCase
     #[Test]
     public function it_returns_uncategorized_events(): void
     {
-        config(['calendar.uncategorized_slug' => 'uncategorized']);
-        Meeting::factory()->create(['slug' => 'uncategorized']);
         Meeting::factory()->create(['slug' => 'sunday-morning']);
 
-        CalendarEvent::factory()->count(2)->create(['meeting_slug' => 'uncategorized']);
+        CalendarEvent::factory()->count(2)->create(['meeting_slug' => null]);
         CalendarEvent::factory()->count(3)->create(['meeting_slug' => 'sunday-morning']);
 
         $events = $this->service->getUncategorizedEvents();
 
         $this->assertCount(2, $events);
+        $events->each(fn ($event) => $this->assertNull($event->meeting_slug));
     }
 
     #[Test]
     public function it_manually_categorizes_an_event(): void
     {
-        Meeting::factory()->create(['slug' => 'uncategorized']);
         Meeting::factory()->create(['slug' => 'sunday-morning']);
 
         $event = CalendarEvent::factory()->create([
-            'meeting_slug' => 'uncategorized',
+            'meeting_slug' => null,
             'is_categorized_automatically' => true,
         ]);
 
@@ -182,11 +180,10 @@ class CalendarServiceTest extends TestCase
     public function it_categorizes_event_updating_db_even_if_google_fails(): void
     {
         config(['google-calendar.calendar_id' => 'test-calendar-id']);
-        Meeting::factory()->create(['slug' => 'uncategorized']);
         Meeting::factory()->create(['slug' => 'sunday-morning']);
 
         $event = CalendarEvent::factory()->create([
-            'meeting_slug' => 'uncategorized',
+            'meeting_slug' => null,
             'google_event_id' => 'nonexistent-google-id-xyz',
         ]);
 

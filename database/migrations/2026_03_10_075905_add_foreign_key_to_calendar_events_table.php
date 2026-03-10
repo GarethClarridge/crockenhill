@@ -25,7 +25,7 @@ return new class extends Migration
                 ->references('slug')
                 ->on('meetings')
                 ->onUpdate('cascade')
-                ->onDelete('cascade');
+                ->onDelete('set null');
         });
     }
 
