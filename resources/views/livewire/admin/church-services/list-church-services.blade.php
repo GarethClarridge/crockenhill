@@ -5,6 +5,9 @@
             <p class="text-gray-600">View imported order-of-service records</p>
         </div>
         <div class="flex gap-2">
+            <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
+                Review Dashboard
+            </x-button>
             <x-button link="{{ route('admin.services.inbound-emails') }}" variant="outline" icon="envelope" inline>
                 Review Emails
             </x-button>
