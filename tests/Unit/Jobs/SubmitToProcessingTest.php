@@ -170,7 +170,7 @@ class SubmitToProcessingTest extends TestCase
         $this->assertSame('sermons/audio/refreshed-audio.mp3', $sermon->audio_file_path);
         $this->assertSame($log->processing_id, $sermon->livestream_processing_id);
         $this->assertSame('transcription', $log->current_step);
-        $this->assertDatabaseCount('sermons', 1);
+        $this->assertSame(1, Sermon::query()->where('livestream_processing_id', $log->processing_id)->count());
     }
 
     #[Test]
