@@ -20,6 +20,12 @@
 
         <x-toggle label="Uncategorized Only" wire:model.live="uncategorizedOnly" />
         <x-toggle label="Upcoming Only" wire:model.live="upcomingOnly" />
+
+        <div x-show="$wire.hasFilters" x-transition x-cloak>
+            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                Clear Filters
+            </x-form-button>
+        </div>
     </div>
 
     {{-- Table --}}

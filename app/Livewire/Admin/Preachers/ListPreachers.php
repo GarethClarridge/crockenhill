@@ -33,6 +33,8 @@ class ListPreachers extends Component
 
     public ?bool $activeFilter = null;
 
+    public bool $hasFilters = false;
+
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
@@ -50,6 +52,12 @@ class ListPreachers extends Component
         $this->resetPage();
     }
 
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'activeFilter']);
+        $this->resetPage();
+    }
+
     public function delete(Preacher $preacher): void
     {
         $this->authorizeAdmin();
@@ -62,6 +70,9 @@ class ListPreachers extends Component
     public function render(): View
     {
         $this->sanitizeSorting();
+
+        $this->hasFilters = ! empty($this->search)
+            || $this->activeFilter !== null;
 
         $preachers = Preacher::query()
             ->withCount('sermons')
