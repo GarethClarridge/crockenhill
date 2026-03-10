@@ -13,6 +13,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\ServiceSection;
 use App\Services\MediaProcessingIdentityResolver;
+use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Auth;
@@ -28,8 +29,6 @@ class ServiceReviewDashboard extends Component
     use ManagesSectionPublication;
     use WithAdminAuthorization;
     use WithNotifications;
-
-    private const LOW_CONFIDENCE_THRESHOLD = 0.85;
 
     /**
      * @var array<int, array{section_type:string,title:string}>
@@ -146,7 +145,7 @@ class ServiceReviewDashboard extends Component
             'groups' => $groups,
             'sectionTypeOptions' => $this->sectionTypeOptions(),
             'summary' => $this->summary($groups),
-            'lowConfidenceThreshold' => self::LOW_CONFIDENCE_THRESHOLD,
+            'lowConfidenceThreshold' => ServiceSectionConfidence::HIGH_THRESHOLD,
         ])->layout('layouts.admin', [
             'title' => 'Service Review Dashboard',
             'heading' => 'Service Review Dashboard',
@@ -345,7 +344,7 @@ class ServiceReviewDashboard extends Component
             ->where(function (Builder $query): void {
                 $query->where('needs_manual_review', true)
                     ->orWhere('publication_status', ServiceSectionPublicationStatus::PENDING_APPROVAL->value)
-                    ->orWhere('confidence', '<', self::LOW_CONFIDENCE_THRESHOLD)
+                    ->orWhere('confidence', '<', ServiceSectionConfidence::HIGH_THRESHOLD)
                     ->orWhere(function (Builder $query): void {
                         $query->where('section_type', ServiceSectionType::SONG->value)
                             ->where(function (Builder $query): void {
@@ -491,7 +490,7 @@ class ServiceReviewDashboard extends Component
             ];
         }
 
-        if ($section->confidence !== null && $section->confidence < self::LOW_CONFIDENCE_THRESHOLD) {
+        if ($section->confidence !== null && $section->confidence < ServiceSectionConfidence::HIGH_THRESHOLD) {
             $reasons[] = [
                 'key' => 'low_confidence',
                 'label' => 'Low confidence',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\LivestreamSegmentClassification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -93,7 +94,7 @@ class LivestreamSegment extends Model
      */
     public function scopeSpeech(Builder $query): Builder
     {
-        return $query->where('classification', 'speech');
+        return $query->where('classification', LivestreamSegmentClassification::Speech->value);
     }
 
     /**
@@ -102,7 +103,7 @@ class LivestreamSegment extends Model
      */
     public function scopeSong(Builder $query): Builder
     {
-        return $query->where('classification', 'song');
+        return $query->where('classification', LivestreamSegmentClassification::Song->value);
     }
 
     /**
@@ -111,7 +112,7 @@ class LivestreamSegment extends Model
      */
     public function scopeSilence(Builder $query): Builder
     {
-        return $query->where('classification', 'silence');
+        return $query->where('classification', LivestreamSegmentClassification::Silence->value);
     }
 
     /**
@@ -158,17 +159,17 @@ class LivestreamSegment extends Model
 
     public function isSpeech(): bool
     {
-        return $this->classification === 'speech';
+        return $this->classification === LivestreamSegmentClassification::Speech->value;
     }
 
     public function isSong(): bool
     {
-        return $this->classification === 'song';
+        return $this->classification === LivestreamSegmentClassification::Song->value;
     }
 
     public function isSilence(): bool
     {
-        return $this->classification === 'silence';
+        return $this->classification === LivestreamSegmentClassification::Silence->value;
     }
 
     public function isSermonCandidate(): bool
@@ -261,13 +262,13 @@ class LivestreamSegment extends Model
 
         return [
             'total_segments' => $segments->count(),
-            'speech_segments' => $segments->where('classification', 'speech')->count(),
-            'song_segments' => $segments->where('classification', 'song')->count(),
-            'silence_segments' => $segments->where('classification', 'silence')->count(),
+            'speech_segments' => $segments->where('classification', LivestreamSegmentClassification::Speech->value)->count(),
+            'song_segments' => $segments->where('classification', LivestreamSegmentClassification::Song->value)->count(),
+            'silence_segments' => $segments->where('classification', LivestreamSegmentClassification::Silence->value)->count(),
             'total_duration' => $segments->sum('duration'),
-            'speech_duration' => $segments->where('classification', 'speech')->sum('duration'),
-            'song_duration' => $segments->where('classification', 'song')->sum('duration'),
-            'longest_speech_duration' => $segments->where('classification', 'speech')->max('duration'),
+            'speech_duration' => $segments->where('classification', LivestreamSegmentClassification::Speech->value)->sum('duration'),
+            'song_duration' => $segments->where('classification', LivestreamSegmentClassification::Song->value)->sum('duration'),
+            'longest_speech_duration' => $segments->where('classification', LivestreamSegmentClassification::Speech->value)->max('duration'),
         ];
     }
 }

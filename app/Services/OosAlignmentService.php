@@ -19,6 +19,7 @@ class OosAlignmentService
 {
     public function __construct(
         private readonly MediaProcessingIdentityResolver $identityResolver,
+        private readonly ServiceSectionReviewTriggerEvaluator $reviewTriggerEvaluator,
     ) {}
 
     /**
@@ -71,21 +72,16 @@ class OosAlignmentService
                 return $this->emptyResult();
             }
 
-            $beforeState = $sections->mapWithKeys(
-                fn (ServiceSection $section): array => [$section->id => $this->alignmentState($section)]
-            )->all();
+            $beforeState = $this->reviewTriggerEvaluator->captureAlignmentState($sections);
 
             foreach ($sections as $section) {
                 $this->prepareSectionForAlignment($section);
             }
 
-            $matchedSongSectionIds = [];
-            $structureMismatchCount = 0;
-
             $matchedSongSectionIds = $this->alignSongSections($sections, $items);
-            $structureMismatchCount += $this->alignStructuralSections($sections, $items);
+            $structureMismatchCount = $this->alignStructuralSections($sections, $items);
 
-            $reviewTriggers = $this->reviewTriggers(
+            $reviewTriggers = $this->reviewTriggerEvaluator->evaluate(
                 $sections,
                 $matchedSongSectionIds,
                 $structureMismatchCount,
@@ -104,9 +100,9 @@ class OosAlignmentService
                 'aligned' => true,
                 'review_triggers' => array_values($reviewTriggers),
                 'matched_song_sections' => count($matchedSongSectionIds),
-                'unmatched_song_sections' => $this->unmatchedSongSections($sections, $matchedSongSectionIds)->count(),
+                'unmatched_song_sections' => $this->reviewTriggerEvaluator->unmatchedSongSectionCount($sections, $matchedSongSectionIds),
                 'structure_mismatches' => $structureMismatchCount,
-                'low_confidence_sections' => $this->lowConfidenceSections($sections)->count(),
+                'low_confidence_sections' => $this->reviewTriggerEvaluator->lowConfidenceSectionCount($sections),
             ];
         });
     }
@@ -150,7 +146,7 @@ class OosAlignmentService
                 $bestSection = $section;
             }
 
-            if (! $bestSection instanceof ServiceSection || $bestScore < 0.85) {
+            if (! $bestSection instanceof ServiceSection || $bestScore < ServiceSectionConfidence::HIGH_THRESHOLD) {
                 continue;
             }
 
@@ -168,7 +164,7 @@ class OosAlignmentService
 
             $bestSection->confidence = ServiceSectionConfidence::clamp(max(
                 ServiceSectionConfidence::resolve($bestSection->confidence, $metadata),
-                0.90
+                ServiceSectionConfidence::scoreForLevel('high')
             ));
             $bestSection->title = $item->title;
             $bestSection->metadata = $metadata;
@@ -412,88 +408,6 @@ class OosAlignmentService
     }
 
     /**
-     * @param  EloquentCollection<int, ServiceSection>  $sections
-     * @param  array<int, int>  $matchedSongSectionIds
-     * @param  array<int, array<string, mixed>>  $beforeState
-     * @return array<int, string>
-     */
-    private function reviewTriggers(
-        EloquentCollection $sections,
-        array $matchedSongSectionIds,
-        int $structureMismatchCount,
-        array $beforeState,
-        bool $lateArrival
-    ): array {
-        $reviewTriggers = [];
-
-        if ($this->hasAmbiguousSermon($sections)) {
-            $reviewTriggers[] = 'ambiguous_sermon_detection';
-        }
-
-        $unmatchedSongSections = $this->unmatchedSongSections($sections, $matchedSongSectionIds);
-        if ($unmatchedSongSections->isNotEmpty()) {
-            foreach ($unmatchedSongSections as $section) {
-                $metadata = $this->metadata($section);
-                $reviewFlags = $this->reviewFlags($metadata);
-                $reviewFlags[] = 'unmatched_song_section';
-                $metadata['review_flags'] = array_values(array_unique($reviewFlags));
-                if (! array_key_exists('review_reason', $metadata)) {
-                    $metadata['review_reason'] = 'unmatched_song_section';
-                }
-                $section->needs_manual_review = true;
-                $section->confidence = ServiceSectionConfidence::decrease(
-                    ServiceSectionConfidence::resolve($section->confidence, $metadata),
-                    0.10
-                );
-                $section->metadata = $metadata;
-            }
-
-            $reviewTriggers[] = 'unmatched_song_sections';
-        }
-
-        if ($structureMismatchCount > 0) {
-            $reviewTriggers[] = 'oos_structure_mismatch';
-        }
-
-        if ($lateArrival && $beforeState !== $sections->mapWithKeys(
-            fn (ServiceSection $section): array => [$section->id => $this->alignmentState($section)]
-        )->all()) {
-            $reviewTriggers[] = 'late_oos_alignment_changed';
-        }
-
-        $lowConfidenceSections = $this->lowConfidenceSections($sections);
-        if ($sections->count() > 0 && ($lowConfidenceSections->count() / $sections->count()) > 0.20) {
-            $reviewTriggers[] = 'too_many_low_confidence_sections';
-        }
-
-        return array_values(array_unique($reviewTriggers));
-    }
-
-    /**
-     * @param  EloquentCollection<int, ServiceSection>  $sections
-     * @param  array<int, int>  $matchedSongSectionIds
-     * @return Collection<int, ServiceSection>
-     */
-    private function unmatchedSongSections(EloquentCollection $sections, array $matchedSongSectionIds): Collection
-    {
-        return $sections
-            ->filter(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::SONG)
-            ->reject(fn (ServiceSection $section): bool => in_array($section->id, $matchedSongSectionIds, true))
-            ->values();
-    }
-
-    /**
-     * @param  EloquentCollection<int, ServiceSection>  $sections
-     * @return Collection<int, ServiceSection>
-     */
-    private function lowConfidenceSections(EloquentCollection $sections): Collection
-    {
-        return $sections
-            ->filter(fn (ServiceSection $section): bool => ServiceSectionConfidence::resolve($section->confidence, $section->metadata) < 0.85)
-            ->values();
-    }
-
-    /**
      * @param  Collection<int, ServiceSection>  $sections
      */
     private function remainingSectionsContainType(Collection $sections, int $startIndex, ServiceSectionType $type): bool
@@ -511,18 +425,6 @@ class OosAlignmentService
         return $items
             ->slice($startIndex)
             ->contains(fn (ChurchServiceItem $item): bool => $this->resolvedItemType($item) === $type);
-    }
-
-    /**
-     * @param  EloquentCollection<int, ServiceSection>  $sections
-     */
-    private function hasAmbiguousSermon(EloquentCollection $sections): bool
-    {
-        return $sections->contains(static function (ServiceSection $section): bool {
-            $reason = $section->metadata['review_reason'] ?? null;
-
-            return in_array($reason, ['secondary_sermon_candidate', 'no_high_confidence_sermon_candidate'], true);
-        });
     }
 
     private function resolvedItemType(ChurchServiceItem $item): ServiceSectionType
@@ -745,23 +647,6 @@ class OosAlignmentService
         $metadata['confidence_level'] = ServiceSectionConfidence::levelFor($confidence);
         $metadata['confidence_score'] = $confidence;
         $section->metadata = $metadata;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function alignmentState(ServiceSection $section): array
-    {
-        $metadata = $this->metadata($section);
-
-        return [
-            'church_service_item_id' => $section->church_service_item_id,
-            'title' => $section->title,
-            'confidence' => ServiceSectionConfidence::resolve($section->confidence, $metadata),
-            'reading_reference' => $metadata['reading_reference'] ?? null,
-            'song_id' => $metadata['song_id'] ?? null,
-            'review_reason' => $metadata['review_reason'] ?? null,
-        ];
     }
 
     private function resolveChurchService(MediaProcessingLog $processingLog, ?ChurchService $churchService): ?ChurchService

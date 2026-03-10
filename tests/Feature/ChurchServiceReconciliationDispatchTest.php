@@ -105,4 +105,30 @@ class ChurchServiceReconciliationDispatchTest extends TestCase
 
         Queue::assertNothingPushed();
     }
+
+    #[Test]
+    public function it_redispatches_reconciliation_when_service_date_changes(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-05-10',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-05-04',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        Queue::fake();
+
+        $churchService->update([
+            'date' => '2026-05-10',
+        ]);
+
+        Queue::assertPushed(
+            ReconcileServiceSections::class,
+            fn (ReconcileServiceSections $job): bool => $job->processingLogId() === $processingLog->id
+                && $job->churchServiceId() === $churchService->id
+        );
+    }
 }

@@ -296,11 +296,11 @@ TEXT,
         float $confidence,
         array $anomalies
     ): array {
-        if ($confidence < 0.60) {
+        if ($confidence < (float) config('service-tracking.confidence.review_below', 0.60)) {
             return [ServiceSectionType::OTHER, 'none', true, 'low_ai_confidence'];
         }
 
-        if ($confidence < 0.85 || $anomalies !== []) {
+        if ($confidence < ServiceSectionConfidence::HIGH_THRESHOLD || $anomalies !== []) {
             return [$requestedType, 'low', true, $anomalies !== [] ? 'ai_classification_anomaly' : 'moderate_ai_confidence'];
         }
 

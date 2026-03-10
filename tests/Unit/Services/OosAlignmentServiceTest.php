@@ -331,6 +331,75 @@ class OosAlignmentServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_aligned_false_when_the_church_service_has_no_items(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-07-06',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'title' => 'A Song',
+            'confidence' => 0.5,
+            'metadata' => ['confidence_level' => 'low', 'classification_mode' => 'audio_only'],
+        ]);
+
+        $result = app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $this->assertFalse($result['aligned']);
+        $this->assertSame([], $result['review_triggers']);
+    }
+
+    #[Test]
+    public function it_aligns_song_sections_successfully_even_when_the_song_catalog_entry_is_missing(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-07-09',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        // Item exists in OoS but has no Song record linked
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Unlisted Hymn',
+            'song_id' => null,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'title' => 'Unlisted Hymn',
+            'confidence' => 0.5,
+            'metadata' => ['confidence_level' => 'low', 'classification_mode' => 'audio_only'],
+        ]);
+
+        $result = app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        // Alignment still completes; the section is linked to the item
+        $this->assertTrue($result['aligned']);
+        $this->assertSame($item->id, $section->church_service_item_id);
+        // song_id in metadata is null when no Song catalog entry is linked
+        $this->assertNull($section->metadata['song_id'] ?? null);
+    }
+
+    #[Test]
     public function it_clears_stale_alignment_review_triggers_when_the_service_now_aligns_cleanly(): void
     {
         $churchService = ChurchService::factory()->create([

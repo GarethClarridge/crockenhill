@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
+use App\Enums\LivestreamSegmentClassification;
 use App\Models\LivestreamSegment as LivestreamSegmentModel;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoSegmentationService;
@@ -380,7 +381,7 @@ class AnalyzeSegments implements ShouldQueue
                     startTime: 0.0,
                     endTime: $totalDuration,
                     duration: $totalDuration,
-                    classification: 'speech',
+                    classification: LivestreamSegmentClassification::Speech->value,
                     avgRms: -50.0,
                     peakRms: -40.0,
                     segmentOrder: $segmentOrder++
@@ -401,7 +402,7 @@ class AnalyzeSegments implements ShouldQueue
                     startTime: $previousEnd,
                     endTime: $songSegment->startTime,
                     duration: $songSegment->startTime - $previousEnd,
-                    classification: 'speech',
+                    classification: LivestreamSegmentClassification::Speech->value,
                     avgRms: -50.0,
                     peakRms: -40.0,
                     segmentOrder: $segmentOrder++
@@ -419,7 +420,7 @@ class AnalyzeSegments implements ShouldQueue
                 startTime: $previousEnd,
                 endTime: $totalDuration,
                 duration: $totalDuration - $previousEnd,
-                classification: 'speech',
+                classification: LivestreamSegmentClassification::Speech->value,
                 avgRms: -50.0,
                 peakRms: -40.0,
                 segmentOrder: $segmentOrder++

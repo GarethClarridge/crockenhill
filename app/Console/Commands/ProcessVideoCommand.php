@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Data\LivestreamSegment;
+use App\Enums\LivestreamSegmentClassification;
 use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -32,7 +33,7 @@ class ProcessVideoCommand extends Command
         // Get the longest speech segment as the sermon
         /** @var \App\Models\LivestreamSegment|null $sermonSegment */
         $sermonSegment = $processingLog->segments()
-            ->where('classification', 'speech')
+            ->where('classification', LivestreamSegmentClassification::Speech->value)
             ->orderBy('duration', 'desc')
             ->first();
 

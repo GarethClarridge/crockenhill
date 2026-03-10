@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Data\LivestreamSegment;
+use App\Enums\LivestreamSegmentClassification;
 use App\Exceptions\SegmentationException;
 use App\Traits\DetectsStorageType;
 use FFMpeg\FFProbe;
@@ -173,7 +174,7 @@ class VideoSegmentationService
                     startTime: $previousEnd,
                     endTime: $start,
                     duration: $start - $previousEnd,
-                    classification: 'speech',
+                    classification: LivestreamSegmentClassification::Speech->value,
                     avgRms: $speechRms['avg'],
                     peakRms: $speechRms['peak'],
                     segmentOrder: $segmentOrder++
@@ -185,7 +186,7 @@ class VideoSegmentationService
                 startTime: $start,
                 endTime: $end,
                 duration: $end - $start,
-                classification: 'song',
+                classification: LivestreamSegmentClassification::Song->value,
                 avgRms: $songRms['avg'],
                 peakRms: $songRms['peak'],
                 segmentOrder: $segmentOrder++
@@ -200,7 +201,7 @@ class VideoSegmentationService
                 startTime: $previousEnd,
                 endTime: $totalDuration,
                 duration: $totalDuration - $previousEnd,
-                classification: 'speech',
+                classification: LivestreamSegmentClassification::Speech->value,
                 avgRms: $speechRms['avg'],
                 peakRms: $speechRms['peak'],
                 segmentOrder: $segmentOrder
@@ -578,7 +579,7 @@ class VideoSegmentationService
                 startTime: $finalStart,
                 endTime: $finalEnd,
                 duration: $finalEnd - $finalStart,
-                classification: 'song',
+                classification: LivestreamSegmentClassification::Song->value,
                 avgRms: $segmentRms['avg'],
                 peakRms: $segmentRms['peak'],
                 isSermonCandidate: false,

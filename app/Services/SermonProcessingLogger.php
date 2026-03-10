@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\LivestreamSegmentClassification;
 use App\Models\MediaProcessingLog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -494,8 +495,8 @@ class SermonProcessingLogger
      */
     private function buildSegmentSummary($segments): array
     {
-        $songSegments = $segments->where('classification', 'song');
-        $speechSegments = $segments->where('classification', 'speech');
+        $songSegments = $segments->where('classification', LivestreamSegmentClassification::Song->value);
+        $speechSegments = $segments->where('classification', LivestreamSegmentClassification::Speech->value);
         $sermonSegment = $segments->where('is_sermon_candidate', true)->first();
 
         return [

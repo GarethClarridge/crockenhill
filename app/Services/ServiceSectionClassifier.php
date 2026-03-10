@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\LivestreamSegmentClassification;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -116,12 +117,12 @@ class ServiceSectionClassifier
     {
         /** @var Collection<int, LivestreamSegment> $audibleSegments */
         $audibleSegments = $segments
-            ->filter(fn (LivestreamSegment $segment): bool => in_array($segment->classification, ['song', 'speech'], true))
+            ->filter(fn (LivestreamSegment $segment): bool => in_array($segment->classification, [LivestreamSegmentClassification::Song->value, LivestreamSegmentClassification::Speech->value], true))
             ->values();
 
         /** @var Collection<int, LivestreamSegment> $speechSegments */
         $speechSegments = $audibleSegments
-            ->filter(fn (LivestreamSegment $segment): bool => $segment->classification === 'speech')
+            ->filter(fn (LivestreamSegment $segment): bool => $segment->classification === LivestreamSegmentClassification::Speech->value)
             ->values();
 
         $sermonEvaluation = $this->sermonConfidenceService->evaluate($speechSegments);
@@ -132,7 +133,7 @@ class ServiceSectionClassifier
         foreach ($audibleSegments as $index => $segment) {
             $sectionOrder = $index + 1;
 
-            if ($segment->classification === 'song') {
+            if ($segment->classification === LivestreamSegmentClassification::Song->value) {
                 $sections[] = $this->makeAudioOnlySection(
                     $segment,
                     $sectionOrder,

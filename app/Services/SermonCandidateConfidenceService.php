@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\LivestreamSegmentClassification;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use Illuminate\Support\Collection;
@@ -121,7 +122,7 @@ class SermonCandidateConfidenceService
         /** @var Collection<int, LivestreamSegment> $speechSegments */
         $speechSegments = LivestreamSegment::query()
             ->where('media_processing_log_id', $processingLog->id)
-            ->where('classification', 'speech')
+            ->where('classification', LivestreamSegmentClassification::Speech->value)
             ->orderBy('start_time')
             ->orderBy('id')
             ->get();

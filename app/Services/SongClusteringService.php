@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\LivestreamSegmentClassification;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -114,12 +115,12 @@ class SongClusteringService
             }
 
             // Count classifications in window
-            $songCount = count(array_filter($windowSamples, fn (array $sample): bool => $sample['classification'] === 'song'));
+            $songCount = count(array_filter($windowSamples, fn (array $sample): bool => $sample['classification'] === LivestreamSegmentClassification::Song->value));
             $windowSampleCount = count($windowSamples);
             $speechCount = $windowSampleCount - $songCount;
 
             // Majority vote determines classification
-            $classification = $songCount > $speechCount ? 'song' : 'speech';
+            $classification = $songCount > $speechCount ? LivestreamSegmentClassification::Song->value : LivestreamSegmentClassification::Speech->value;
 
             // Calculate average confidence for window
             $avgConfidence = array_sum(array_column($windowSamples, 'confidence')) / $windowSampleCount;
@@ -156,7 +157,7 @@ class SongClusteringService
 
         foreach ($samples as $sample) {
             // Only cluster SONG samples
-            if ($sample['classification'] === 'song') {
+            if ($sample['classification'] === LivestreamSegmentClassification::Song->value) {
                 if (! $inCluster) {
                     // Start new cluster
                     $currentStart = $sample['timestamp'];

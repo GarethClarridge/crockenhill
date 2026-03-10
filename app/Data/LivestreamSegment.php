@@ -2,6 +2,7 @@
 
 namespace App\Data;
 
+use App\Enums\LivestreamSegmentClassification;
 use Spatie\LaravelData\Data;
 
 class LivestreamSegment extends Data
@@ -41,17 +42,17 @@ class LivestreamSegment extends Data
 
     public function isSpeech(): bool
     {
-        return $this->classification === 'speech';
+        return $this->classification === LivestreamSegmentClassification::Speech->value;
     }
 
     public function isSong(): bool
     {
-        return $this->classification === 'song';
+        return $this->classification === LivestreamSegmentClassification::Song->value;
     }
 
     public function isSilence(): bool
     {
-        return $this->classification === 'silence';
+        return $this->classification === LivestreamSegmentClassification::Silence->value;
     }
 
     private function formatTime(float $seconds): string

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\LivestreamSegmentClassification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -73,8 +74,8 @@ class VisualAnalysisService
 
             Log::info('Visual analysis complete', [
                 'total_samples' => count($visualSamples),
-                'song_samples' => count(array_filter($visualSamples, fn ($s) => $s['classification'] === 'song')),
-                'speech_samples' => count(array_filter($visualSamples, fn ($s) => $s['classification'] === 'speech')),
+                'song_samples' => count(array_filter($visualSamples, fn ($s) => $s['classification'] === LivestreamSegmentClassification::Song->value)),
+                'speech_samples' => count(array_filter($visualSamples, fn ($s) => $s['classification'] === LivestreamSegmentClassification::Speech->value)),
             ]);
 
             return $visualSamples;
@@ -146,7 +147,7 @@ class VisualAnalysisService
             $songSamples = [];
             foreach ($denseSamples as $metric) {
                 $classification = $this->classifyFrame($metric);
-                if ($classification['classification'] === 'song') {
+                if ($classification['classification'] === LivestreamSegmentClassification::Song->value) {
                     $songSamples[] = $metric['timestamp'];
                 }
             }
@@ -487,7 +488,7 @@ class VisualAnalysisService
                      ($edgeDensityScore * $weights['edge_density']);
 
         // Classify based on confidence threshold
-        $classification = $confidence >= $this->minConfidence ? 'song' : 'speech';
+        $classification = $confidence >= $this->minConfidence ? LivestreamSegmentClassification::Song->value : LivestreamSegmentClassification::Speech->value;
 
         // Debug logging to understand classification decisions
         if ($metrics['timestamp'] % 600 === 0 || $confidence >= 0.5) {

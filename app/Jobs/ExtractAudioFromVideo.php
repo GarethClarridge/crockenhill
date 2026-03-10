@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
+use App\Enums\LivestreamSegmentClassification;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoExtractionService;
 use Illuminate\Bus\Queueable;
@@ -68,7 +69,7 @@ class ExtractAudioFromVideo implements ShouldQueue
                 startTime: 0.0,
                 endTime: $duration,
                 duration: $duration,
-                classification: 'speech',
+                classification: LivestreamSegmentClassification::Speech->value,
                 avgRms: -30.0,
                 peakRms: -20.0,
                 isSermonCandidate: true,

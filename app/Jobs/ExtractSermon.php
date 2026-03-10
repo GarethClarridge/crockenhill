@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
+use App\Enums\LivestreamSegmentClassification;
 use App\Mail\ManualReviewRequired;
 use App\Models\MediaProcessingLog;
 use App\Services\SermonCandidateConfidenceService;
@@ -242,7 +243,7 @@ class ExtractSermon implements ShouldQueue
             startTime: $startTime,
             endTime: $endTime,
             duration: $endTime - $startTime,
-            classification: 'speech',
+            classification: LivestreamSegmentClassification::Speech->value,
             avgRms: 0.0, // Not needed for extraction
             peakRms: 0.0, // Not needed for extraction
             isSermonCandidate: true,
