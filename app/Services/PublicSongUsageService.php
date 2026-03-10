@@ -26,10 +26,15 @@ class PublicSongUsageService
     {
         $normalizedRange = $this->normalizeRange($range);
 
+        /**
+         * Performance Optimization: Limits retrieved columns for the song list,
+         * excluding large longText columns like lyrics_xml and lyrics_plain to reduce memory usage.
+         * Eager loads 'authors' with restricted columns to prevent N+1 queries during listing.
+         */
         return Song::query()
-            ->select('songs.*')
+            ->select(['songs.id', 'songs.slug', 'songs.title', 'songs.ccli_number'])
             ->with([
-                'authors' => fn ($query) => $query->orderBy('display_name'),
+                'authors' => fn ($query) => $query->select(['id', 'display_name'])->orderBy('display_name'),
             ])
             ->selectSub($this->qualifyingUsageItemsQueryForSongList($normalizedRange)->selectRaw('COUNT(*)'), 'usage_count')
             ->selectSub($this->qualifyingUsageItemsQueryForSongList($normalizedRange)->selectRaw('MAX(church_services.date)'), 'last_sung_date')
@@ -62,8 +67,12 @@ class PublicSongUsageService
      */
     public function usageHistoryForSong(Song $song, int $limit = 40): EloquentCollection
     {
+        /**
+         * Performance Optimization: Limits retrieved columns for usage history items,
+         * excluding large JSON metadata blobs to reduce memory usage.
+         */
         return $this->qualifyingUsageItemsQueryForSong($song)
-            ->select('church_service_items.*')
+            ->select(['church_service_items.id', 'church_service_items.church_service_id', 'church_service_items.title', 'church_service_items.position'])
             ->with([
                 'churchService' => fn ($query) => $query->select(['id', 'date', 'service']),
             ])
