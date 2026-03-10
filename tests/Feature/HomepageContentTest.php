@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Enums\PageArea;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
+#[Group('dedicated')]
 class HomepageContentTest extends TestCase
 {
     use RefreshDatabase;

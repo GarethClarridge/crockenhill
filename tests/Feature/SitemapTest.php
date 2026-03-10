@@ -7,9 +7,11 @@ use App\Models\Page;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
+#[Group('dedicated')]
 class SitemapTest extends TestCase
 {
     use RefreshDatabase;
