@@ -23,12 +23,12 @@ class AreaLandingPresenter implements PagePresenter
 
         [$description, $heading, $content] = $page
             ? [
-                '<meta name="description" content="'.$page->description.'">',
+                $page->meta_description,
                 $page->heading,
                 htmlspecialchars_decode($page->body),
             ]
             : [
-                '<meta name="description" content="Welcome to our Church.">',
+                'Welcome to our Church.',
                 'Welcome',
                 '',
             ];

@@ -1,6 +1,17 @@
 @extends('layouts/page')
 
-@section('full_width_content')
+@section('title', $heading)
+
+@section('meta_description', $description)
+
+@section('meta_tags')
+<x-meta-tags
+    :title="$heading"
+    :description="$description"
+/>
+<link rel="alternate" type="application/rss+xml" title="Sunday Morning Sermons" href="{{ route('podcast.feed', 'morning') }}">
+<link rel="alternate" type="application/rss+xml" title="Sunday Evening Sermons" href="{{ route('podcast.feed', 'evening') }}">
+@endsection
 
 @section('dynamic_content')
 @can('manage-sermons')
