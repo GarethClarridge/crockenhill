@@ -9,6 +9,7 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
+use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -16,8 +17,8 @@ use Illuminate\Support\Facades\Log;
 class SermonJobPipelineService
 {
     public function __construct(
-        private SermonValidationService $validationService,
-        private SermonStatusManagementService $statusManagementService
+        private readonly SermonValidationService $validationService,
+        private readonly SermonStatusManagementService $statusManagementService
     ) {}
 
     /**
@@ -279,7 +280,7 @@ class SermonJobPipelineService
                 message: 'Processing retry initiated successfully',
                 statusUrl: route('api.media.processing.status', ['processingId' => $processingId])
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to retry processing', [
                 'processing_id' => $processingId,
                 'error' => $e->getMessage(),
@@ -334,7 +335,7 @@ class SermonJobPipelineService
                 'reason' => 'Early step failure requires file re-upload',
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to restart processing from beginning', [
                 'processing_id' => $processingLog->processing_id,
                 'error' => $e->getMessage(),

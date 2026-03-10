@@ -19,6 +19,7 @@ class CalendarServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['google-calendar.calendar_id' => 'test-calendar-id']);
         $this->service = new CalendarService;
     }
 

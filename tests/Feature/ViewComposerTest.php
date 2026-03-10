@@ -265,7 +265,7 @@ class ViewComposerTest extends TestCase
     public function it_renders_page_card_with_the_shared_feature_cta_button(): void
     {
         $page = Page::factory()->create([
-            'slug' => 'sunday-evenings',
+            'slug' => 'view-composer-sunday-evenings-card',
             'heading' => 'Sunday Evenings',
             'description' => 'An evening service.',
             'area' => PageArea::COMMUNITY,

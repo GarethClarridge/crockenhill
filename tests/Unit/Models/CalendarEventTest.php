@@ -67,10 +67,13 @@ class CalendarEventTest extends TestCase
     #[Test]
     public function it_defines_upcoming_scope(): void
     {
-        CalendarEvent::factory()->create(['start_datetime' => now()->subDay()]);
+        $past = CalendarEvent::factory()->create(['start_datetime' => now()->subDay()]);
         $upcoming = CalendarEvent::factory()->create(['start_datetime' => now()->addDay()]);
 
-        $results = CalendarEvent::upcoming()->get();
+        $results = CalendarEvent::query()
+            ->whereKey([$past->id, $upcoming->id])
+            ->upcoming()
+            ->get();
 
         $this->assertCount(1, $results);
         $this->assertEquals($upcoming->id, $results->first()->id);
@@ -80,9 +83,12 @@ class CalendarEventTest extends TestCase
     public function it_defines_past_scope(): void
     {
         $past = CalendarEvent::factory()->create(['start_datetime' => now()->subDay()]);
-        CalendarEvent::factory()->create(['start_datetime' => now()->addDay()]);
+        $upcoming = CalendarEvent::factory()->create(['start_datetime' => now()->addDay()]);
 
-        $results = CalendarEvent::past()->get();
+        $results = CalendarEvent::query()
+            ->whereKey([$past->id, $upcoming->id])
+            ->past()
+            ->get();
 
         $this->assertCount(1, $results);
         $this->assertEquals($past->id, $results->first()->id);
@@ -92,9 +98,12 @@ class CalendarEventTest extends TestCase
     public function it_defines_confirmed_scope(): void
     {
         $confirmed = CalendarEvent::factory()->create(['status' => 'confirmed']);
-        CalendarEvent::factory()->create(['status' => 'tentative']);
+        $tentative = CalendarEvent::factory()->create(['status' => 'tentative']);
 
-        $results = CalendarEvent::confirmed()->get();
+        $results = CalendarEvent::query()
+            ->whereKey([$confirmed->id, $tentative->id])
+            ->confirmed()
+            ->get();
 
         $this->assertCount(1, $results);
         $this->assertEquals($confirmed->id, $results->first()->id);

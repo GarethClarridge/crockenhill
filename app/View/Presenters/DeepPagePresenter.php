@@ -18,7 +18,7 @@ class DeepPagePresenter implements PagePresenter
         $slug = $request->segment(2);
         $description = (isset($viewData['description']) && $viewData['description'] !== '')
             ? $viewData['description']
-            : '<meta name="description" content="'.(string) $slug.': '.(string) $request->segment(3).'">';
+            : (string) $slug.': '.(string) $request->segment(3);
 
         $providedHeading = $viewData['heading'] ?? null;
         if (is_string($providedHeading) && $providedHeading !== '') {

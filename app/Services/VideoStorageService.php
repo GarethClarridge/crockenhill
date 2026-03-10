@@ -141,13 +141,7 @@ class VideoStorageService
             $isS3Disk = $this->isS3Disk($this->permanentDisk);
 
             if ($isS3Disk) {
-                // For S3 disks, move temp video file to permanent storage via stream
-                $tempVideoStream = Storage::disk($this->tempDisk)->readStream($tempVideoPath);
-                if (! is_resource($tempVideoStream)) {
-                    throw new \RuntimeException("Failed to read temp video stream: {$tempVideoPath}");
-                }
-
-                Storage::disk($this->permanentDisk)->put($videoPath, $tempVideoStream);
+                $this->copyTempVideoToPermanentDisk($tempVideoPath, $videoPath);
 
                 // Create temporary local file for audio extraction
                 $tempAudioPath = storage_path('app/temp/'.$audioFilename);
@@ -166,9 +160,16 @@ class VideoStorageService
                     throw new \RuntimeException("Failed to open temporary audio file: {$tempAudioPath}");
                 }
 
-                Storage::disk($this->permanentDisk)->put($audioPath, $audioStream);
+                $audioStored = Storage::disk($this->permanentDisk)->put($audioPath, $audioStream);
                 fclose($audioStream);
-                unlink($tempAudioPath);
+
+                if ($audioStored === false) {
+                    throw new \RuntimeException("Failed to store extracted audio on disk [{$this->permanentDisk}]: {$audioPath}");
+                }
+
+                if (file_exists($tempAudioPath)) {
+                    unlink($tempAudioPath);
+                }
 
                 Log::info('Files moved to S3 sermon storage', [
                     'video_path' => $videoPath,
@@ -183,7 +184,7 @@ class VideoStorageService
                 $this->ensureDirectoryExists(dirname($fullVideoPath));
                 $this->ensureDirectoryExists(dirname($fullAudioPath));
 
-                Storage::disk($this->tempDisk)->move($tempVideoPath, $videoPath);
+                $this->moveTempVideoToPermanentDisk($tempVideoPath, $videoPath);
 
                 $video = $this->requireFfmpeg()->open(Storage::disk($this->permanentDisk)->path($videoPath));
                 $format = new Mp3;
@@ -343,6 +344,46 @@ class VideoStorageService
     public function uploadToPermanentStorage(string $localFilePath, string $permanentPath): string
     {
         return $this->storageHelper->uploadWithRetry($localFilePath, $permanentPath, $this->permanentDisk);
+    }
+
+    private function moveTempVideoToPermanentDisk(string $tempVideoPath, string $videoPath): void
+    {
+        if ($this->tempDisk === $this->permanentDisk) {
+            $moved = Storage::disk($this->tempDisk)->move($tempVideoPath, $videoPath);
+
+            if ($moved === false) {
+                throw new \RuntimeException("Failed to move temp video on disk [{$this->tempDisk}]: {$tempVideoPath}");
+            }
+
+            return;
+        }
+
+        $this->copyTempVideoToPermanentDisk($tempVideoPath, $videoPath);
+
+        $deleted = Storage::disk($this->tempDisk)->delete($tempVideoPath);
+
+        if ($deleted === false) {
+            throw new \RuntimeException("Failed to delete temp video on disk [{$this->tempDisk}]: {$tempVideoPath}");
+        }
+    }
+
+    private function copyTempVideoToPermanentDisk(string $tempVideoPath, string $videoPath): void
+    {
+        $tempVideoStream = Storage::disk($this->tempDisk)->readStream($tempVideoPath);
+
+        if (! is_resource($tempVideoStream)) {
+            throw new \RuntimeException("Failed to read temp video stream: {$tempVideoPath}");
+        }
+
+        try {
+            $stored = Storage::disk($this->permanentDisk)->put($videoPath, $tempVideoStream);
+        } finally {
+            fclose($tempVideoStream);
+        }
+
+        if ($stored === false) {
+            throw new \RuntimeException("Failed to store temp video on disk [{$this->permanentDisk}]: {$videoPath}");
+        }
     }
 
     private function ensureDirectoryExists(string $directory): void

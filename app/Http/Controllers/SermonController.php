@@ -45,6 +45,8 @@ class SermonController extends Controller
 
         return view('sermons.index', [
             'latest_sermons' => $latest_sermons,
+            'heading' => 'Sermons',
+            'description' => 'Listen to recent sermons from Crockenhill Baptist Church. Worshipping God, strengthening believers, and proclaiming Jesus Christ.',
         ]);
     }
 
@@ -71,21 +73,10 @@ class SermonController extends Controller
         $heading = $sermon->title;
         $pageContext = $pageContextService->build($sermon);
 
-        // Breadcrumbs removed
-        // Example of how it might be handled in view or view composer:
-        // $breadcrumbs = [
-        //   ['url' => route('sermonIndex'), 'title' => 'Sermons'],
-        // ];
-        // if (isset($sermon->series) && $sermon->series !== '') {
-        //   $breadcrumbs[] = ['url' => route('sermonSeries', Str::slug($sermon->series)), 'title' => $sermon->series];
-        // }
-        // $breadcrumbs[] = ['title' => $sermon->title, 'active' => true];
-
         return view('sermons.sermon', [
             'slug' => $sermon->slug,
             'heading' => $heading,
-            'description' => '<meta name="description" content="'.$sermon->title.': a sermon preached at Crockenhill Baptist Church.">', // Used $sermon->title instead of $sermon->heading
-            // 'breadcrumbs' => $breadcrumbs, // Removed
+            'description' => $sermon->meta_description,
             'content' => '',
             'sermon' => $sermon,
             'readingReference' => $pageContext['reading_reference'],
@@ -116,7 +107,7 @@ class SermonController extends Controller
         return view('sermons.preachers', [
             'preachers' => $preachers,
             'heading' => 'Preachers',
-            'description' => '<meta name="description" content="Preachers at Crockenhill Baptist Church.">',
+            'description' => 'Preachers at Crockenhill Baptist Church.',
             'content' => $page ? $page->body : '',
         ]);
     }
@@ -183,8 +174,17 @@ class SermonController extends Controller
             ->orderBy('date', 'desc')
             ->get();
 
+        $serviceLabel = match ($service) {
+            'morning' => 'Sunday Morning',
+            'evening' => 'Sunday Evening',
+            default => Str::title($service),
+        };
+
         return view('sermons.service', [
             'sermons' => $sermons,
+            'service' => $service,
+            'heading' => $serviceLabel.' Services',
+            'description' => "Listen to recent {$serviceLabel} sermons from Crockenhill Baptist Church.",
         ]);
     }
 

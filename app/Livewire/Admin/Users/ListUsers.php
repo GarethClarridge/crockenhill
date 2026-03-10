@@ -21,6 +21,8 @@ class ListUsers extends Component
 
     public ?bool $adminFilter = null;
 
+    public bool $hasFilters = false;
+
     /** @var array<int, string> */
     protected array $queryString = ['search', 'verifiedFilter', 'adminFilter'];
 
@@ -31,6 +33,12 @@ class ListUsers extends Component
 
     public function updatedSearch(): void
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'verifiedFilter', 'adminFilter']);
         $this->resetPage();
     }
 
@@ -67,6 +75,10 @@ class ListUsers extends Component
 
     public function render(): View
     {
+        $this->hasFilters = ! empty($this->search)
+            || $this->verifiedFilter !== null
+            || $this->adminFilter !== null;
+
         $users = User::query()
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%")
                 ->orWhere('email', 'like', "%{$this->search}%"))

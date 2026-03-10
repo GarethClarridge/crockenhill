@@ -25,7 +25,7 @@ class SectionPagePresenter implements PagePresenter
 
         [$description, $heading, $content, $headingpicture] = $page
             ? [
-                '<meta name="description" content="'.$page->description.'">',
+                $page->meta_description,
                 $page->heading,
                 htmlspecialchars_decode($page->body),
                 $page->heading_image_url ?? '/images/headings/large/'.(string) $slug.'.webp',

@@ -17,6 +17,12 @@
         <x-select placeholder="Active status" wire:model.live="activeFilter"
             :options="[['id' => '1', 'name' => 'Active'], ['id' => '0', 'name' => 'Inactive']]"
             class="w-40" />
+
+        <div x-show="$wire.hasFilters" x-transition x-cloak>
+            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                Clear Filters
+            </x-form-button>
+        </div>
     </div>
 
     {{-- Table --}}

@@ -23,11 +23,19 @@ class ListCalendarEvents extends Component
 
     public bool $upcomingOnly = true;
 
+    public bool $hasFilters = false;
+
     /** @var array<int, string> */
     protected array $queryString = ['search', 'meetingFilter', 'uncategorizedOnly', 'upcomingOnly'];
 
     public function updatedSearch(): void
     {
+        $this->resetPage();
+    }
+
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'meetingFilter', 'uncategorizedOnly', 'upcomingOnly']);
         $this->resetPage();
     }
 
@@ -42,6 +50,11 @@ class ListCalendarEvents extends Component
 
     public function render(): View
     {
+        $this->hasFilters = ! empty($this->search)
+            || $this->meetingFilter !== null
+            || $this->uncategorizedOnly === true
+            || $this->upcomingOnly === false;
+
         $events = CalendarEvent::query()
             ->with('meeting.page')
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")

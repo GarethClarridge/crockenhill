@@ -7,13 +7,13 @@ namespace Tests\Unit\View\Presenters;
 use App\Enums\PageArea;
 use App\Models\Page;
 use App\View\Presenters\PageLinksRepository;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PageLinksRepositoryTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private PageLinksRepository $repository;
 
