@@ -17,7 +17,7 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->assertHeader('X-XSS-Protection', '1; mode=block');
+        $response->assertHeaderMissing('X-XSS-Protection');
     }
 
     #[Test]
@@ -28,6 +28,6 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->assertHeader('X-XSS-Protection', '1; mode=block');
+        $response->assertHeaderMissing('X-XSS-Protection');
     }
 }

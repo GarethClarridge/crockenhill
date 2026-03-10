@@ -28,9 +28,6 @@ class SecurityHeaders
         // Security Header: Referrer Policy
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-        // Security Header: XSS Protection (legacy, but still useful for older browsers)
-        $response->headers->set('X-XSS-Protection', '1; mode=block');
-
         return $response;
     }
 }
