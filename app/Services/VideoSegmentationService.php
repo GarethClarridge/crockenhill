@@ -31,8 +31,8 @@ class VideoSegmentationService
             ]);
         }
 
-        $this->minSermonDuration = (float) config('media-processing.segmentation.min_sermon_duration', 300.0);
-        $this->tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+        $this->minSermonDuration = config()->float('media-processing.segmentation.min_sermon_duration', 300.0);
+        $this->tempDisk = config()->string('media-processing.storage.temp_disk', 'local');
     }
 
     public function generateRmsLog(string $videoPath): string
