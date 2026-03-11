@@ -20,6 +20,11 @@ return new class extends Migration
             })
             ->update(['meeting_slug' => null]);
 
+        // Normalise both columns to utf8mb4_unicode_ci so the foreign key constraint is compatible
+        // (The meetings table was created in 2015 and may have a different collation on some servers)
+        DB::statement('ALTER TABLE meetings MODIFY slug VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL');
+        DB::statement('ALTER TABLE calendar_events MODIFY meeting_slug VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL');
+
         Schema::table('calendar_events', function (Blueprint $table) {
             $table->foreign('meeting_slug')
                 ->references('slug')
