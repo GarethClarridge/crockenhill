@@ -17,14 +17,13 @@ class VideoSegmentationService
 
     private ?FFProbe $ffprobe = null;
 
-    private float $minSermonDuration;
+    private readonly float $minSermonDuration;
 
-    private string $tempDisk;
+    private readonly string $tempDisk;
 
-    private readonly RmsAnalysisService $rmsAnalysisService;
-
-    public function __construct(RmsAnalysisService $rmsAnalysisService)
-    {
+    public function __construct(
+        private readonly RmsAnalysisService $rmsAnalysisService,
+    ) {
         // Skip FFProbe initialization in testing environment to prevent hangs
         if (! app()->environment('testing')) {
             $this->ffprobe = FFProbe::create([
@@ -32,9 +31,8 @@ class VideoSegmentationService
             ]);
         }
 
-        $this->rmsAnalysisService = $rmsAnalysisService;
-        $this->minSermonDuration = config('media-processing.segmentation.min_sermon_duration', 300.0);
-        $this->tempDisk = config('media-processing.storage.temp_disk', 'local');
+        $this->minSermonDuration = config()->float('media-processing.segmentation.min_sermon_duration', 300.0);
+        $this->tempDisk = config()->string('media-processing.storage.temp_disk', 'local');
     }
 
     public function generateRmsLog(string $videoPath): string
