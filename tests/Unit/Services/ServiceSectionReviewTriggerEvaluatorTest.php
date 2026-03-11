@@ -83,6 +83,7 @@ class ServiceSectionReviewTriggerEvaluatorTest extends TestCase
         $this->assertTrue($section->needs_manual_review);
         $this->assertContains('unmatched_song_section', $section->metadata['review_flags']);
         $this->assertEquals('unmatched_song_section', $section->metadata['review_reason']);
+        $this->assertSame('unmatched', $section->metadata['oos_alignment']['song_match_type'] ?? null);
         // 0.9 - 0.10 = 0.8
         $this->assertEquals(0.8, $section->confidence);
     }
@@ -111,6 +112,7 @@ class ServiceSectionReviewTriggerEvaluatorTest extends TestCase
                 'confidence' => ServiceSectionConfidence::resolve($section->confidence, $section->metadata),
                 'reading_reference' => null,
                 'song_id' => null,
+                'song_match_type' => null,
                 'review_reason' => null,
             ],
         ];

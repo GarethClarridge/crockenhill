@@ -245,6 +245,48 @@ class OosAlignmentServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_marks_unmatched_detected_song_sections_with_an_explicit_unmatched_state(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-06-25',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Known Song',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'title' => 'Completely Different Song',
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'audio_only',
+            ],
+        ]);
+
+        $result = app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        $this->assertContains('unmatched_song_sections', $result['review_triggers']);
+        $this->assertTrue($section->needs_manual_review);
+        $this->assertNull($section->church_service_item_id);
+        $this->assertSame('unmatched', $section->metadata['oos_alignment']['song_match_type'] ?? null);
+    }
+
+    #[Test]
     public function it_flags_structure_mismatches_and_late_alignment_changes_for_review(): void
     {
         $churchService = ChurchService::factory()->create([

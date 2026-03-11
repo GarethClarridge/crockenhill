@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Support\ServiceSectionConfidence;
@@ -52,6 +53,13 @@ class ServiceSectionReviewTriggerEvaluator
         if ($unmatchedSongSections->isNotEmpty()) {
             foreach ($unmatchedSongSections as $section) {
                 $metadata = $this->sectionMetadata($section);
+                $alignment = is_array($metadata['oos_alignment'] ?? null) ? $metadata['oos_alignment'] : [];
+
+                if (($alignment['song_match_type'] ?? null) === null) {
+                    $alignment['song_match_type'] = ServiceSectionSongMatchType::UNMATCHED->value;
+                }
+
+                $metadata['oos_alignment'] = $alignment;
                 $reviewFlags = $this->reviewFlags($metadata);
                 $reviewFlags[] = 'unmatched_song_section';
                 $metadata['review_flags'] = array_values(array_unique($reviewFlags));
@@ -157,6 +165,7 @@ class ServiceSectionReviewTriggerEvaluator
             'confidence' => ServiceSectionConfidence::resolve($section->confidence, $metadata),
             'reading_reference' => $metadata['reading_reference'] ?? null,
             'song_id' => $metadata['song_id'] ?? null,
+            'song_match_type' => $metadata['oos_alignment']['song_match_type'] ?? null,
             'review_reason' => $metadata['review_reason'] ?? null,
         ];
     }

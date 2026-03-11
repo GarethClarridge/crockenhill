@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use Illuminate\Database\Eloquent\Builder;
@@ -212,5 +213,30 @@ class ServiceSection extends Model
     public function classificationSignature(): string
     {
         return hash('sha256', (string) json_encode($this->classificationSignaturePayload()));
+    }
+
+    public function songMatchType(): ?ServiceSectionSongMatchType
+    {
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+        $matchType = $metadata['oos_alignment']['song_match_type'] ?? null;
+
+        return is_string($matchType)
+            ? ServiceSectionSongMatchType::tryFrom($matchType)
+            : null;
+    }
+
+    public function hasConfirmedSongMatch(): bool
+    {
+        return $this->songMatchType() === ServiceSectionSongMatchType::CONFIRMED;
+    }
+
+    public function hasInferredSongMatch(): bool
+    {
+        return $this->songMatchType() === ServiceSectionSongMatchType::INFERRED;
+    }
+
+    public function hasUnmatchedSongMatch(): bool
+    {
+        return $this->songMatchType() === ServiceSectionSongMatchType::UNMATCHED;
     }
 }

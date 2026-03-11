@@ -80,6 +80,11 @@ class PublicSongListTest extends TestCase
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $countedItem->id,
             'section_type' => ServiceSectionType::SONG,
+            'metadata' => [
+                'oos_alignment' => [
+                    'song_match_type' => 'confirmed',
+                ],
+            ],
         ]);
 
         $response = $this->get(route('church.songs.index'));

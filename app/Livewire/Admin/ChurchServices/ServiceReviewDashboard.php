@@ -499,7 +499,15 @@ class ServiceReviewDashboard extends Component
             ];
         }
 
-        if ($this->isUnmatchedSongSection($section)) {
+        if ($section->hasInferredSongMatch()) {
+            $reasons[] = [
+                'key' => 'inferred_song_label',
+                'label' => 'Inferred song label',
+                'classes' => 'bg-violet-100 text-violet-800',
+            ];
+        }
+
+        if ($section->hasUnmatchedSongMatch()) {
             $reasons[] = [
                 'key' => 'unmatched_song',
                 'label' => 'Unmatched song',
@@ -508,18 +516,6 @@ class ServiceReviewDashboard extends Component
         }
 
         return $reasons;
-    }
-
-    private function isUnmatchedSongSection(ServiceSection $section): bool
-    {
-        if ($section->section_type !== ServiceSectionType::SONG) {
-            return false;
-        }
-
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
-        $metadataSongId = $metadata['song_id'] ?? null;
-
-        return ! is_int($metadataSongId) && $section->churchServiceItem?->song_id === null;
     }
 
     private function reviewReasonLabel(ServiceSection $section): ?string

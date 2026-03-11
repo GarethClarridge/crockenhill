@@ -145,6 +145,36 @@ class PublicSongUsageServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_query_excludes_livestreamed_songs_without_an_explicit_confirmed_match_type(): void
+    {
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::SONG,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'oos_alignment' => [],
+            ],
+        ]);
+
+        $results = $this->service->query()->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    #[Test]
     public function test_query_filters_by_year_when_range_is_year(): void
     {
         $song = Song::factory()->create();

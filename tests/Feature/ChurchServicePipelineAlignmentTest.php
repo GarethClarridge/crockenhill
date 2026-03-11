@@ -110,6 +110,7 @@ class ChurchServicePipelineAlignmentTest extends TestCase
         $this->assertSame($churchService->id, $processingLog->church_service_id);
         $this->assertSame($song->id, $section->church_service_item_id);
         $this->assertSame('Opening Song', $section->title);
+        $this->assertSame('inferred', $section->metadata['oos_alignment']['song_match_type'] ?? null);
         $this->assertSame('oos_order_inference', $section->metadata['oos_alignment']['song_match_strategy']);
         $this->assertTrue($churchService->fresh()->needs_review);
     }

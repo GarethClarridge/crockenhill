@@ -71,6 +71,9 @@ class AdminServiceReviewDashboardTest extends TestCase
             'confidence' => 0.72,
             'metadata' => [
                 'review_reason' => 'expected_type_mismatch',
+                'oos_alignment' => [
+                    'song_match_type' => 'unmatched',
+                ],
             ],
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
         ]);
@@ -88,6 +91,74 @@ class AdminServiceReviewDashboardTest extends TestCase
             ->assertSee('Low confidence')
             ->assertSee('Unmatched song')
             ->assertSee('Service needs review');
+    }
+
+    #[Test]
+    public function it_distinguishes_inferred_song_labels_from_confirmed_song_matches(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-25',
+            'service' => SermonService::MORNING,
+            'needs_review' => true,
+        ]);
+
+        $confirmedItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Confirmed Song',
+        ]);
+
+        $inferredItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 2,
+            'type' => 'songs',
+            'title' => 'Inferred Song',
+            'song_id' => null,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-05-25',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $confirmedItem->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'title' => 'Confirmed Song',
+            'confidence' => 0.72,
+            'metadata' => [
+                'oos_alignment' => [
+                    'song_match_type' => 'confirmed',
+                ],
+            ],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $inferredItem->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 2,
+            'title' => 'Inferred Song',
+            'needs_manual_review' => true,
+            'confidence' => 0.72,
+            'metadata' => [
+                'review_reason' => 'song_alignment_inferred',
+                'oos_alignment' => [
+                    'song_match_type' => 'inferred',
+                ],
+            ],
+        ]);
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->assertSee('Confirmed song match')
+            ->assertSee('Inferred song label')
+            ->assertDontSee('Unmatched song');
     }
 
     #[Test]

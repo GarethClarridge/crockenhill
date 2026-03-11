@@ -92,6 +92,7 @@
                                 $section = $entry['section'];
                                 $sectionTitle = $section->title ?: 'Untitled section';
                                 $linkedSongTitle = $section->churchServiceItem?->song?->title;
+                                $songMatchType = $section->songMatchType();
                             @endphp
                             <div wire:key="service-review-section-{{ $section->id }}" class="rounded-lg border border-gray-200 bg-gray-50 p-4">
                                 <div class="flex flex-wrap items-start justify-between gap-4">
@@ -123,6 +124,12 @@
                                                 @if($linkedSongTitle)
                                                     · Linked song: {{ $linkedSongTitle }}
                                                 @endif
+                                            </p>
+                                        @endif
+                                        @if($songMatchType)
+                                            <p class="text-xs text-gray-500">
+                                                Song match: <span class="font-medium text-gray-700">{{ $songMatchType->label() }}</span>.
+                                                {{ $songMatchType->description() }}
                                             </p>
                                         @endif
                                         @if(collect($entry['reasons'])->contains('key', 'low_confidence'))
