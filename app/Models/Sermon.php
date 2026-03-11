@@ -93,8 +93,6 @@ class Sermon extends Model implements Sitemapable
     /** @use HasFactory<\Database\Factories\SermonFactory> */
     use HasFactory;
 
-    public $timestamps = false;
-
     /**
      * The attributes that are mass assignable.
      *
