@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sermons', function (Blueprint $table) {
-            $table->string('audio_file_path', 255)->change();
+            $table->string('audio_file_path', 255)->nullable(false)->change();
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('sermons', function (Blueprint $table) {
-            $table->string('audio_file_path', 75)->change();
+            $table->string('audio_file_path', 75)->nullable(false)->change();
         });
     }
 };
