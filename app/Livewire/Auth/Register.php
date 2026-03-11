@@ -9,6 +9,7 @@ use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -66,6 +67,7 @@ class Register extends Component
         ]);
 
         Auth::login($user);
+        Session::regenerate();
         $user->sendEmailVerificationNotification();
 
         return redirect()->route('verification.notice');

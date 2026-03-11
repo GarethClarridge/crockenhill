@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -75,6 +76,7 @@ class ResetPassword extends Component
             $user->password = Hash::make($password);
             $user->save();
             Auth::login($user);
+            Session::regenerate();
         });
 
         if ($status === Password::PASSWORD_RESET) {
