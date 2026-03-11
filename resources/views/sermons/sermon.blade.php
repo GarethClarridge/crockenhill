@@ -2,11 +2,18 @@
 
 @php
 use Illuminate\Support\Str;
+$fullTitle = $sermon->title . ' | ' . ($sermon->preacherProfile?->name ?? $sermon->preacher);
 @endphp
+
+@section('title', $fullTitle)
+
+@section('canonical')
+  <link rel="canonical" href="{{ route('showSermon', $sermon->slug) }}">
+@endsection
 
 @section('meta_tags')
 <x-meta-tags
-    :title="$sermon->title"
+    :title="$fullTitle"
     :description="$description ?? $sermon->meta_description"
     type="article"
     :image="$sermon->thumbnail_url && $sermon->hasThumbnail() ? $sermon->thumbnail_url : null"
@@ -28,7 +35,7 @@ use Illuminate\Support\Str;
         'datePublished' => $sermon->date->toIso8601String(),
         'author' => [
             '@type' => 'Person',
-            'name' => $sermon->preacherProfile->name ?? $sermon->preacher,
+            'name' => $sermon->preacherProfile?->name ?? $sermon->preacher,
         ],
     ];
 
@@ -52,32 +59,9 @@ use Illuminate\Support\Str;
         ];
     }
 
-    // Build breadcrumb schema
-    $breadcrumbItems = [
-        ['name' => 'Home', 'item' => url('/')],
-        ['name' => 'Christ', 'item' => url('christ')],
-        ['name' => 'Sermons', 'item' => url('christ/sermons')],
-        ['name' => $sermon->title, 'item' => url()->current()],
-    ];
-
-    $breadcrumbList = [
-        '@context' => 'https://schema.org',
-        '@type' => 'BreadcrumbList',
-        'itemListElement' => array_map(function ($item, $index) {
-            return [
-                '@type' => 'ListItem',
-                'position' => $index + 1,
-                'name' => $item['name'],
-                'item' => $item['item'],
-            ];
-        }, $breadcrumbItems, array_keys($breadcrumbItems)),
-    ];
 @endphp
 <script type="application/ld+json">
     {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
-</script>
-<script type="application/ld+json">
-    {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
 @endsection
 
