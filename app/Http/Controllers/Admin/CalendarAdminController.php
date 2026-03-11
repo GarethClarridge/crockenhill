@@ -19,10 +19,19 @@ class CalendarAdminController extends Controller
         private GoogleCalendarSyncService $syncService,
     ) {}
 
+    /**
+     * Display a listing of uncategorized calendar events.
+     *
+     * Performance Optimization: Limits retrieved columns for meetings to required fields
+     * for the categorization dropdown to reduce memory usage.
+     */
     public function uncategorizedEvents(): View
     {
         $uncategorizedEvents = $this->calendarService->getUncategorizedEvents();
-        $meetings = Meeting::orderBy('slug')->get();
+        $meetings = Meeting::query()
+            ->select(['id', 'slug'])
+            ->orderBy('slug')
+            ->get();
 
         return view('admin.calendar.uncategorized', compact('uncategorizedEvents', 'meetings'));
     }
@@ -39,10 +48,19 @@ class CalendarAdminController extends Controller
         return redirect()->back()->with('success', "Event '{$event->title}' categorized successfully");
     }
 
+    /**
+     * Display the calendar categorization patterns.
+     *
+     * Performance Optimization: Limits retrieved columns for meetings to required fields
+     * for linking to meeting pages.
+     */
     public function patternManagement(): View
     {
         $patterns = config('calendar.meeting_patterns');
-        $meetings = Meeting::orderBy('slug')->get();
+        $meetings = Meeting::query()
+            ->select(['id', 'slug'])
+            ->orderBy('slug')
+            ->get();
 
         return view('admin.calendar.patterns', compact('patterns', 'meetings'));
     }

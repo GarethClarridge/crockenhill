@@ -16,11 +16,18 @@ class MeetingController extends Controller
 {
     /**
      * Display a listing of the resource.
+     *
+     * Performance Optimization: Limits retrieved columns for meetings to required fields
+     * for the admin listing to reduce memory usage and DB I/O.
      */
     public function index(): ViewContract
     {
         $this->authorize('viewAny', Meeting::class);
-        $meetings = Meeting::orderBy('meeting_date', 'desc')->get();
+
+        $meetings = Meeting::query()
+            ->select(['id', 'slug', 'type', 'meeting_date', 'location', 'is_recurring', 'frequency'])
+            ->orderBy('meeting_date', 'desc')
+            ->get();
 
         return View::make('meetings.index', ['meetings' => $meetings]);
     }

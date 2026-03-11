@@ -64,9 +64,20 @@ class EditMeeting extends Component
         $this->success('Meeting updated');
     }
 
+    /**
+     * Render the component.
+     *
+     * Performance Optimization: Limits retrieved columns for pages to required fields
+     * (id and heading) for the dropdown selection to reduce memory usage.
+     */
     public function render(): View
     {
-        $pages = Page::orderBy('heading')->get()->map(fn ($p) => ['id' => $p->id, 'name' => $p->heading])->toArray();
+        $pages = Page::query()
+            ->select(['id', 'heading'])
+            ->orderBy('heading')
+            ->get()
+            ->map(fn ($p) => ['id' => $p->id, 'name' => $p->heading])
+            ->toArray();
 
         $pageTitle = $this->meeting->page->heading ?? $this->meeting->slug;
 
