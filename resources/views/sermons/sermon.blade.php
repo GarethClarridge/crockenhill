@@ -5,7 +5,7 @@ use Illuminate\Support\Str;
 $fullTitle = $sermon->title . ' | ' . ($sermon->preacherProfile?->name ?? $sermon->preacher);
 @endphp
 
-@section('title', $fullTitle)
+@section('title'){{ $fullTitle }}@stop
 
 @section('canonical')
   <link rel="canonical" href="{{ route('showSermon', $sermon->slug) }}">

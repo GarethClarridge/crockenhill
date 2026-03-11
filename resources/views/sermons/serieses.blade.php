@@ -1,8 +1,8 @@
 @extends('layouts/page')
 
-@section('title', $heading)
+@section('title'){{ $heading }}@stop
 
-@section('meta_description', $description)
+@section('meta_description'){{ $description }}@stop
 
 @section('meta_tags')
 <x-meta-tags
