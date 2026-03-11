@@ -22,6 +22,7 @@ use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AdminLivewireAuthorizationTest extends TestCase
@@ -40,7 +41,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         $this->regularUser = User::factory()->create(['is_admin' => false]);
     }
 
-    /** @test */
+    #[Test]
     public function non_admin_cannot_access_page_admin_components(): void
     {
         $page = Page::factory()->create();
@@ -52,7 +53,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         Livewire::test(EditPage::class, ['page' => $page])->assertForbidden();
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_access_page_admin_components(): void
     {
         $page = Page::factory()->create();
@@ -64,7 +65,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         Livewire::test(EditPage::class, ['page' => $page])->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function non_admin_cannot_access_meeting_admin_components(): void
     {
         $meeting = Meeting::factory()->create();
@@ -76,7 +77,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])->assertForbidden();
     }
 
-    /** @test */
+    #[Test]
     public function non_admin_cannot_access_sermon_edit_component(): void
     {
         $sermon = Sermon::factory()->create();
@@ -86,7 +87,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         Livewire::test(EditSermon::class, ['sermon' => $sermon])->assertForbidden();
     }
 
-    /** @test */
+    #[Test]
     public function non_admin_cannot_access_preacher_admin_components(): void
     {
         $preacher = Preacher::factory()->create();
@@ -97,7 +98,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         Livewire::test(EditPreacher::class, ['preacher' => $preacher])->assertForbidden();
     }
 
-    /** @test */
+    #[Test]
     public function non_admin_cannot_access_user_admin_components(): void
     {
         $user = User::factory()->create();
@@ -108,7 +109,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         Livewire::test(EditUser::class, ['user' => $user])->assertForbidden();
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_access_meeting_admin_components(): void
     {
         $meeting = Meeting::factory()->create();
@@ -120,7 +121,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_access_sermon_admin_components(): void
     {
         $sermon = Sermon::factory()->create();
@@ -130,7 +131,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         Livewire::test(EditSermon::class, ['sermon' => $sermon])->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_access_preacher_admin_components(): void
     {
         $preacher = Preacher::factory()->create();
@@ -141,7 +142,7 @@ class AdminLivewireAuthorizationTest extends TestCase
         Livewire::test(EditPreacher::class, ['preacher' => $preacher])->assertStatus(200);
     }
 
-    /** @test */
+    #[Test]
     public function admin_can_access_user_admin_components(): void
     {
         $user = User::factory()->create();

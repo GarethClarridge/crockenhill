@@ -4,13 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonIntegrityTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_populates_timestamps_automatically()
     {
         $sermon = Sermon::factory()->create();
@@ -19,10 +20,10 @@ class SermonIntegrityTest extends TestCase
         $this->assertNotNull($sermon->updated_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_accepts_long_audio_file_paths()
     {
-        $longPath = 'sermons/' . str_repeat('a', 200) . '.mp3';
+        $longPath = 'sermons/'.str_repeat('a', 200).'.mp3';
 
         $sermon = Sermon::factory()->create([
             'audio_file_path' => $longPath,

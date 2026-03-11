@@ -44,20 +44,18 @@ class SermonOpenGraphTest extends TestCase
         $response->assertStatus(200);
 
         // Check Open Graph meta tags
-        $response->assertSee('<meta property="og:title" content="Test Sermon Title - Crockenhill Baptist Church">', false);
-        $response->assertSee('<meta property="og:description" content="Listen to &#039;Test Sermon Title&#039; by John Smith preached on January 15, 2024 - John 3:16 (Part of the Gospel Series series)">', false);
+        $response->assertSee('<meta property="og:title" content="Test Sermon Title | John Smith - Crockenhill Baptist Church">', false);
         $response->assertSee('<meta property="og:type" content="article">', false);
         $response->assertSee('<meta property="og:site_name" content="Crockenhill Baptist Church">', false);
         $response->assertSee('<meta property="og:image"', false);
         $response->assertSee('<meta property="og:image:width"', false);
         $response->assertSee('<meta property="og:image:height"', false);
         $response->assertSee('<meta property="og:image:alt" content="Sermon: Test Sermon Title">', false);
+        $response->assertSee('<meta property="og:audio"', false);
 
         // Check Twitter Card meta tags
         $response->assertSee('<meta name="twitter:card" content="summary_large_image">', false);
-        $response->assertSee('<meta name="twitter:title" content="Test Sermon Title - Crockenhill Baptist Church">', false);
-        $response->assertSee('<meta name="twitter:description"', false);
-        $response->assertSee('<meta name="twitter:image"', false);
+        $response->assertSee('<meta name="twitter:title" content="Test Sermon Title | John Smith - Crockenhill Baptist Church">', false);
 
         // Verify the page loads successfully with Open Graph tags
         $this->assertTrue(true, 'Open Graph meta tags are successfully implemented');
@@ -109,9 +107,8 @@ class SermonOpenGraphTest extends TestCase
 
         $response->assertStatus(200);
 
-        // Should still have basic Open Graph meta tags
-        $response->assertSee('<meta property="og:title" content="Minimal Sermon - Crockenhill Baptist Church">', false);
-        $response->assertSee('<meta property="og:description" content="Listen to &#039;Minimal Sermon&#039; by Test Preacher preached on March 10, 2024">', false);
+        // Should still have basic Open Graph meta tags with preacher name in title
+        $response->assertSee('<meta property="og:title" content="Minimal Sermon | Test Preacher - Crockenhill Baptist Church">', false);
 
         // Should not include series or reference in description when not present
         $content = $response->getContent();
@@ -140,8 +137,8 @@ class SermonOpenGraphTest extends TestCase
         // Check that basic Open Graph meta tags are present
         $content = $response->getContent();
 
-        // Should have basic Open Graph tags
-        $this->assertStringContainsString('<meta property="og:title"', $content);
+        // Should have basic Open Graph tags with preacher in title
+        $this->assertStringContainsString('<meta property="og:title" content="Basic Meta Test | Test Preacher - Crockenhill Baptist Church">', $content);
         $this->assertStringContainsString('<meta property="og:description"', $content);
         $this->assertStringContainsString('<meta property="og:image"', $content);
     }

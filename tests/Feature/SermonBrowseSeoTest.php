@@ -59,7 +59,7 @@ class SermonBrowseSeoTest extends TestCase
             'preacher' => 'John Owen',
             'preacher_id' => $preacher->id,
             'slug' => 'the-glory-of-christ',
-            'date' => '2024-03-20'
+            'date' => '2024-03-20',
         ]);
 
         $response = $this->get('/christ/sermons/the-glory-of-christ');
