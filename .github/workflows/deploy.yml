@@ -8,12 +8,13 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     services:
       mysql:
@@ -117,6 +118,8 @@ jobs:
   dusk:
     name: Browser Tests (Dusk)
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     services:
       mysql:
@@ -222,6 +225,8 @@ jobs:
   lighthouse:
     name: Lighthouse Audits
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     services:
       mysql:
@@ -322,6 +327,8 @@ jobs:
     name: Build & Push
     needs: [test, dusk, lighthouse]
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: read
       packages: write
@@ -375,6 +382,8 @@ jobs:
     name: Smoke (Image /up)
     needs: build
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       packages: read
 
