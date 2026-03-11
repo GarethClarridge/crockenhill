@@ -101,6 +101,50 @@ Each item includes what exists, what needs to change, and which PRD section it i
 
 ---
 
+### 1.6 Implement evidence-aware precedence and review reopening
+
+**PRD ref**: §§5.1.1, 6.1, 6.3, 7.3-7.5
+
+**What exists**: The current implementation has most of the source-aware merge foundations, but four follow-up gaps remain:
+- partial OpenLP imports can still remove unmatched human-entered songs;
+- inferred song labels are not separated from confirmed song matches for public counting;
+- later conflicting imports do not reliably reopen review on a previously reviewed service;
+- item-level canonical list changes do not reliably trigger lightweight reconciliation after processing.
+
+**Work**:
+- Change `ChurchServiceItemSyncService` so OpenLP-over-email precedence applies only to song metadata (`title`, `openlp_search_title`, `song_id`, song metadata), while unmatched lower-priority song items are preserved and flagged for review unless the import is explicitly marked as replace-mode.
+- Add an explicit distinction between confirmed song matches and inferred review-only song labels on `ServiceSection`/alignment metadata, and update public song usage queries to count only confirmed livestream matches.
+- Reopen `ChurchService.needs_review` automatically when a later email/OpenLP/manual import conflicts with a previously reviewed canonical service list.
+- Dispatch lightweight reconciliation when the canonical item list changes after processing, not only when `ChurchService.date` or `ChurchService.service` changes.
+- Record enough conflict metadata to show admins why review was reopened and which fields/items disagreed.
+
+**Tests**: Partial OpenLP merge does not silently delete unmatched human-entered songs. OpenLP still wins over email for song title/search/catalog data. Late conflicting import reopens review on a previously reviewed service. Review-only inferred song labels are excluded from public song usage. Item edits after processing dispatch reconciliation.
+
+---
+
+### 1.7 Emit canonical-list-changed events after commit
+
+**PRD ref**: §6.3
+
+**What exists**: Lightweight reconciliation currently depends on touching `ChurchService.updated_at` and a model observer. That is too implicit: item-level changes can be missed, and create/import flows can fire before related items are fully committed.
+
+**Work**:
+- Add an explicit after-commit domain event, for example `ChurchServiceCanonicalListChanged`.
+- Dispatch it when the canonical item list materially changes via:
+  - manual service save;
+  - email import;
+  - OpenLP import;
+  - any future admin/item sync flow that changes active items, ordering, or metadata used by reconciliation.
+- Move reconciliation dispatch logic out of timestamp-touch side effects and into an event listener that:
+  - resolves matching completed livestream runs;
+  - dispatches `ReconcileServiceSections` once per matching run;
+  - records why reconciliation was triggered.
+- Do not emit the event when a save makes no material canonical-list change.
+
+**Tests**: Manual edit emits one after-commit canonical-list-changed event. Email import emits one event after items are saved. OpenLP import emits one event after items are saved. No-op save emits no event. Matching completed livestream runs receive reconciliation jobs from the listener.
+
+---
+
 ## Phase 2: OoS Ingestion
 
 *Goal: The church can get their order of service into the system via email, manual form, or OpenLP.*
@@ -181,6 +225,28 @@ Each item includes what exists, what needs to change, and which PRD section it i
 - Link from admin dashboard.
 
 **Tests**: Pending email displayed. Approve creates service. Reject marks as rejected. Edit opens pre-populated manual form.
+
+---
+
+### 2.5 Extract a shared OpenLP import application service
+
+**PRD ref**: §§6.1, 6.3
+
+**What exists**: OpenLP import orchestration is duplicated between the API controller and Livewire upload component. Both paths parse the archive, create/update `ChurchService`, sync items, link songs, and trigger reconciliation side effects separately.
+
+**Work**:
+- Create a shared application service or action, for example `ImportChurchServiceFromOpenLp`.
+- Move the shared workflow into that service:
+  - parse the `.osz`;
+  - create/update `ChurchService`;
+  - sync items;
+  - link songs;
+  - trigger canonical-list-changed side effects;
+  - return a structured result for both UI and API callers.
+- Update the Livewire upload component and API controller to call the shared service.
+- Keep request/response and validation concerns in the controller/component; move business logic into the shared service.
+
+**Tests**: Livewire upload still imports correctly via the shared service. API upload still imports correctly via the shared service. Shared service handles update-vs-create consistently across both entry points.
 
 ---
 
@@ -293,6 +359,24 @@ Each item includes what exists, what needs to change, and which PRD section it i
 - Update `SermonJobPipelineService` or `ProcessingPipelineBuilder` to include new steps.
 
 **Tests**: Full pipeline integration test with mock services. Pipeline with OoS. Pipeline without OoS. Pipeline with late OoS (reconciliation path).
+
+---
+
+### 3.6 Separate confirmed song matches from inferred review labels
+
+**PRD ref**: §§5.4, 7.4
+
+**What exists**: Inferred OoS song labels currently reuse the same linkage shape as confirmed matches, which makes downstream consumers treat review-only labels as if they were confirmed catalog-linked detections.
+
+**Work**:
+- Add explicit match state for detected song sections, for example `confirmed`, `inferred`, `unmatched`.
+- Reserve confirmed state for strong title/catalog matches only.
+- Keep inferred state for review-only labels that help admins but must not drive public song usage counts.
+- Update `OosAlignmentService` to write the explicit song-match state.
+- Update public song usage queries to count only confirmed livestream matches.
+- Update review UI to show the difference between inferred and confirmed song matches.
+
+**Tests**: Title-matched songs are marked confirmed. Order-inferred labels are marked inferred. Unmatched songs remain unmatched. Public song usage excludes inferred matches and includes confirmed ones only. Review dashboard surfaces inferred labels distinctly from confirmed matches.
 
 ---
 
@@ -462,12 +546,15 @@ Phase 1 (Foundation)
   1.3 Sermon detection confidence                      │
   1.4 Re-alignment on late OoS (depends on 1.1)       │
   1.5 Source-aware merge                               │
+  1.6 Evidence-aware precedence + review reopening    │
+  1.7 Canonical-list-changed event                    │
                                                        │
 Phase 2 (OoS Ingestion) ──── can start in parallel ───┤
   2.1 Mailgun webhook                                  │
   2.2 Email parsing (depends on 2.1)                   │
   2.3 Manual admin form                                │
   2.4 Email review UI (depends on 2.1)                 │
+  2.5 Shared OpenLP import service                     │
                                                        │
 Phase 3 (Classification Rework) ── depends on 1.2 ────┘
   3.1 Speech segment transcription
@@ -475,6 +562,7 @@ Phase 3 (Classification Rework) ── depends on 1.2 ────┘
   3.3 OoS alignment pass (depends on 3.2)
   3.4 Confidence scoring (depends on 3.2, 3.3)
   3.5 Wire pipeline (depends on all of Phase 3)
+  3.6 Confirmed vs inferred song match state
 
 Phase 4 (Children's Talks) ── independent, can start after Phase 1
   4.1 content_type column

@@ -135,7 +135,16 @@ class PublicSongUsageService
                                     ->from('service_sections')
                                     ->whereColumn('service_sections.media_processing_log_id', 'media_processing_logs.id')
                                     ->whereColumn('service_sections.church_service_item_id', 'church_service_items.id')
-                                    ->where('service_sections.section_type', ServiceSectionType::SONG->value);
+                                    ->where('service_sections.section_type', ServiceSectionType::SONG->value)
+                                    ->where(function (QueryBuilder $matchQuery): void {
+                                        $matchQuery
+                                            ->where('service_sections.metadata->oos_alignment->song_match_type', 'confirmed')
+                                            ->orWhere(function (QueryBuilder $legacyQuery): void {
+                                                $legacyQuery
+                                                    ->whereNull('service_sections.metadata->oos_alignment->song_match_type')
+                                                    ->where('service_sections.needs_manual_review', false);
+                                            });
+                                    });
                             });
                     })
                     ->orWhereNotExists(function (QueryBuilder $logQuery): void {

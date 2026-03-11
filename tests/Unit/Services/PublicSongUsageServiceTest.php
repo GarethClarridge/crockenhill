@@ -78,6 +78,11 @@ class PublicSongUsageServiceTest extends TestCase
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG,
+            'metadata' => [
+                'oos_alignment' => [
+                    'song_match_type' => 'confirmed',
+                ],
+            ],
         ]);
 
         $results = $this->service->query()->get();
@@ -100,6 +105,38 @@ class PublicSongUsageServiceTest extends TestCase
         // A completed livestream log exists but no matching service section for this item
         MediaProcessingLog::factory()->livestream()->completed()->create([
             'church_service_id' => $churchService->id,
+        ]);
+
+        $results = $this->service->query()->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    #[Test]
+    public function test_query_excludes_review_only_inferred_song_matches_from_livestreamed_services(): void
+    {
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::SONG,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'oos_alignment' => [
+                    'song_match_type' => 'inferred',
+                ],
+            ],
         ]);
 
         $results = $this->service->query()->get();

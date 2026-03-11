@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
-use App\Jobs\ReconcileServiceSections;
 use App\Models\ChurchService;
-use App\Models\MediaProcessingLog;
-use App\Services\MediaProcessingIdentityResolver;
+use App\Services\ChurchServiceReconciliationDispatcher;
+use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
-class ChurchServiceObserver
+class ChurchServiceObserver implements ShouldHandleEventsAfterCommit
 {
     public function __construct(
-        private readonly MediaProcessingIdentityResolver $identityResolver,
+        private readonly ChurchServiceReconciliationDispatcher $reconciliationDispatcher,
     ) {}
 
     public function created(ChurchService $churchService): void
@@ -31,20 +30,6 @@ class ChurchServiceObserver
 
     private function dispatchMatchingReconciliations(ChurchService $churchService): void
     {
-        $serviceDate = $churchService->date->toDateString();
-        $queue = (string) config('media-processing.queues.livestream', 'livestream-processing');
-
-        $matchingRuns = $this->identityResolver
-            ->scopeMatchesIdentity(
-                MediaProcessingLog::query()->livestream()->completed(),
-                $serviceDate,
-                $churchService->service
-            )
-            ->get();
-
-        foreach ($matchingRuns as $processingLog) {
-            ReconcileServiceSections::dispatch($processingLog, $churchService)
-                ->onQueue($queue);
-        }
+        $this->reconciliationDispatcher->dispatchForChurchService($churchService);
     }
 }

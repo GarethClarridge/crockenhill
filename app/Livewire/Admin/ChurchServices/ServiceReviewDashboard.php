@@ -127,6 +127,7 @@ class ServiceReviewDashboard extends Component
             'reviewed_at' => now()->toIso8601String(),
             'reviewed_by_user_id' => Auth::id(),
         ];
+        unset($importMetadata['canonical_conflict']);
 
         $service->forceFill([
             'needs_review' => false,

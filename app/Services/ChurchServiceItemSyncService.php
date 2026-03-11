@@ -16,15 +16,21 @@ class ChurchServiceItemSyncService
 {
     /**
      * @param  array<int, array<string, mixed>>  $incomingItems
+     * @param  array{replace_mode?:bool}  $options
+     * @return array{
+     *     conflicts: array<int, array<string, mixed>>
+     * }
      */
     public function sync(
         ChurchService $churchService,
         array $incomingItems,
         ChurchServiceItemSource|string $incomingSource = ChurchServiceItemSource::OPENLP,
-    ): void {
+        array $options = [],
+    ): array {
         $incomingSource = $this->normaliseSource($incomingSource);
+        $replaceMode = (bool) ($options['replace_mode'] ?? false);
 
-        DB::transaction(function () use ($churchService, $incomingItems, $incomingSource): void {
+        return DB::transaction(function () use ($churchService, $incomingItems, $incomingSource, $replaceMode): array {
             $lockedService = ChurchService::query()
                 ->whereKey($churchService->id)
                 ->lockForUpdate()
@@ -34,6 +40,7 @@ class ChurchServiceItemSyncService
             $existingItems = $lockedService->items()->withTrashed()->orderBy('id')->get();
             $matchedExistingItemIds = [];
             $seenPositions = [];
+            $conflicts = [];
 
             foreach ($incomingItems as $index => $rawIncomingItem) {
                 $incomingItem = $this->normaliseIncomingItem($rawIncomingItem, $index + 1);
@@ -61,7 +68,8 @@ class ChurchServiceItemSyncService
                 $match = $stableMatch ?? $positionFallback;
 
                 if ($match !== null) {
-                    $this->updateMatchedItem($match, $incomingItem, $incomingSource);
+                    $matchConflicts = $this->updateMatchedItem($match, $incomingItem, $incomingSource);
+                    $conflicts = [...$conflicts, ...$matchConflicts];
                     $matchedExistingItemIds[] = $match->id;
 
                     continue;
@@ -85,9 +93,20 @@ class ChurchServiceItemSyncService
                 if (
                     ! in_array($existingItem->id, $matchedExistingItemIds, true)
                     && ! $existingItem->trashed()
-                    && $this->shouldDeleteUnmatchedItem($existingItem, $incomingSource)
                 ) {
-                    $existingItem->delete();
+                    if ($this->shouldDeleteUnmatchedItem($existingItem, $incomingSource, $replaceMode)) {
+                        $existingItem->delete();
+
+                        continue;
+                    }
+
+                    if ($this->shouldFlagPreservedSongConflict($existingItem, $incomingSource)) {
+                        $conflicts[] = [
+                            'type' => 'preserved_existing_song',
+                            'incoming_source' => $incomingSource->value,
+                            'existing_item' => $this->snapshotItem($existingItem),
+                        ];
+                    }
                 }
             }
 
@@ -96,6 +115,10 @@ class ChurchServiceItemSyncService
             }
 
             $this->assertUniqueActivePositions($lockedService);
+
+            return [
+                'conflicts' => $conflicts,
+            ];
         });
     }
 
@@ -215,18 +238,25 @@ class ChurchServiceItemSyncService
 
     /**
      * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @return array<int, array<string, mixed>>
      */
     private function updateMatchedItem(
         ChurchServiceItem $existingItem,
         array $incomingItem,
         ChurchServiceItemSource $incomingSource
-    ): void {
+    ): array {
         if ($existingItem->trashed()) {
             $existingItem->restore();
         }
 
         $existingSource = $this->sourceForExistingItem($existingItem);
         $preserveOpenLpSongMetadata = $this->shouldPreserveOpenLpSongMetadata($existingItem, $incomingSource);
+        $conflicts = $this->conflictsForMatchedItem(
+            $existingItem,
+            $incomingItem,
+            $incomingSource,
+            $preserveOpenLpSongMetadata,
+        );
         $position = $this->shouldKeepExistingPosition($existingSource, $incomingSource)
             ? $existingItem->position
             : $incomingItem['position'];
@@ -234,15 +264,17 @@ class ChurchServiceItemSyncService
         $existingItem->fill([
             'position' => $position,
             'type' => $incomingItem['type'],
-            'source' => $preserveOpenLpSongMetadata ? $existingSource->value : $incomingSource->value,
-            'title' => $incomingItem['title'],
-            'source_title' => $incomingItem['source_title'],
+            'source' => $this->resolveSource($existingItem, $incomingSource)->value,
+            'title' => $this->resolveTitle($existingItem, $incomingItem, $preserveOpenLpSongMetadata),
+            'source_title' => $this->resolveSourceTitle($existingItem, $incomingItem, $incomingSource),
             'openlp_search_title' => $this->resolveOpenLpSearchTitle($existingItem, $incomingItem, $preserveOpenLpSongMetadata),
             'song_id' => $this->resolveSongId($existingItem, $incomingItem, $preserveOpenLpSongMetadata),
             'metadata' => $this->resolveMetadata($existingItem, $incomingItem, $existingSource, $incomingSource),
         ]);
 
         $existingItem->save();
+
+        return $conflicts;
     }
 
     /**
@@ -322,20 +354,27 @@ class ChurchServiceItemSyncService
         return $this->sourcesShareMergeAuthority($this->sourceForExistingItem($existingItem), $incomingSource);
     }
 
-    private function shouldDeleteUnmatchedItem(ChurchServiceItem $existingItem, ChurchServiceItemSource $incomingSource): bool
-    {
+    private function shouldDeleteUnmatchedItem(
+        ChurchServiceItem $existingItem,
+        ChurchServiceItemSource $incomingSource,
+        bool $replaceMode
+    ): bool {
         $existingSource = $this->sourceForExistingItem($existingItem);
 
         if ($this->sourcesShareMergeAuthority($existingSource, $incomingSource)) {
             return true;
         }
 
+        if ($this->isSongType($existingItem->type)) {
+            return $replaceMode;
+        }
+
         if ($incomingSource === ChurchServiceItemSource::OPENLP && $existingSource->isHumanProvided()) {
-            return $this->isSongType($existingItem->type);
+            return false;
         }
 
         if ($incomingSource->isHumanProvided() && $existingSource === ChurchServiceItemSource::OPENLP) {
-            return ! $this->isSongType($existingItem->type);
+            return true;
         }
 
         return true;
@@ -366,6 +405,46 @@ class ChurchServiceItemSyncService
     /**
      * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      */
+    private function resolveTitle(
+        ChurchServiceItem $existingItem,
+        array $incomingItem,
+        bool $preserveOpenLpSongMetadata
+    ): string {
+        if ($preserveOpenLpSongMetadata) {
+            return $existingItem->title;
+        }
+
+        return $incomingItem['title'];
+    }
+
+    /**
+     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     */
+    private function resolveSourceTitle(
+        ChurchServiceItem $existingItem,
+        array $incomingItem,
+        ChurchServiceItemSource $incomingSource
+    ): ?string {
+        if (! $this->isSongType($existingItem->type)) {
+            return $incomingItem['source_title'];
+        }
+
+        $existingSource = $this->sourceForExistingItem($existingItem);
+
+        if ($existingSource->isHumanProvided() && $incomingSource === ChurchServiceItemSource::OPENLP) {
+            return $existingItem->source_title ?? $incomingItem['source_title'];
+        }
+
+        if ($existingSource === ChurchServiceItemSource::OPENLP && $incomingSource->isHumanProvided()) {
+            return $incomingItem['source_title'] ?? $existingItem->source_title;
+        }
+
+        return $incomingItem['source_title'];
+    }
+
+    /**
+     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     */
     private function resolveSongId(
         ChurchServiceItem $existingItem,
         array $incomingItem,
@@ -376,6 +455,19 @@ class ChurchServiceItemSyncService
         }
 
         return $incomingItem['song_id'] ?? $existingItem->song_id;
+    }
+
+    private function resolveSource(
+        ChurchServiceItem $existingItem,
+        ChurchServiceItemSource $incomingSource
+    ): ChurchServiceItemSource {
+        $existingSource = $this->sourceForExistingItem($existingItem);
+
+        if ($this->isSongType($existingItem->type) && ! $this->sourcesShareMergeAuthority($existingSource, $incomingSource)) {
+            return $existingSource;
+        }
+
+        return $incomingSource;
     }
 
     /**
@@ -510,5 +602,112 @@ class ChurchServiceItemSyncService
         $normalised = trim((string) preg_replace('/\s+/', ' ', $value));
 
         return $normalised === '' ? null : $normalised;
+    }
+
+    private function shouldFlagPreservedSongConflict(
+        ChurchServiceItem $existingItem,
+        ChurchServiceItemSource $incomingSource
+    ): bool {
+        return $this->isSongType($existingItem->type)
+            && ! $this->sourcesShareMergeAuthority($this->sourceForExistingItem($existingItem), $incomingSource);
+    }
+
+    /**
+     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @return array<int, array<string, mixed>>
+     */
+    private function conflictsForMatchedItem(
+        ChurchServiceItem $existingItem,
+        array $incomingItem,
+        ChurchServiceItemSource $incomingSource,
+        bool $preserveOpenLpSongMetadata
+    ): array {
+        if (! $preserveOpenLpSongMetadata) {
+            return [];
+        }
+
+        $fieldDifferences = $this->songFieldDifferences($existingItem, $incomingItem);
+        if ($fieldDifferences === []) {
+            return [];
+        }
+
+        return [[
+            'type' => 'ignored_incoming_song_metadata',
+            'incoming_source' => $incomingSource->value,
+            'existing_item' => $this->snapshotItem($existingItem),
+            'ignored_fields' => $fieldDifferences,
+        ]];
+    }
+
+    /**
+     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @return array<int, array<string, mixed>>
+     */
+    private function songFieldDifferences(ChurchServiceItem $existingItem, array $incomingItem): array
+    {
+        $differences = [];
+
+        $comparisons = [
+            'title' => [$existingItem->title, $incomingItem['title']],
+            'openlp_search_title' => [$existingItem->openlp_search_title, $incomingItem['openlp_search_title']],
+            'song_id' => [$existingItem->song_id, $incomingItem['song_id']],
+            'metadata' => [
+                $this->normaliseArray($existingItem->metadata),
+                $this->normaliseArray($incomingItem['metadata']),
+            ],
+        ];
+
+        foreach ($comparisons as $field => [$existingValue, $incomingValue]) {
+            if ($existingValue === $incomingValue) {
+                continue;
+            }
+
+            $differences[] = [
+                'field' => $field,
+                'existing' => $existingValue,
+                'incoming' => $incomingValue,
+            ];
+        }
+
+        return $differences;
+    }
+
+    /**
+     * @param  array<int|string, mixed>|null  $value
+     * @return array<int|string, mixed>|null
+     */
+    private function normaliseArray(?array $value): ?array
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        ksort($value);
+
+        foreach ($value as $key => $nested) {
+            if (is_array($nested)) {
+                $value[$key] = $this->normaliseArray($nested);
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function snapshotItem(ChurchServiceItem $item): array
+    {
+        return [
+            'id' => $item->id,
+            'position' => $item->position,
+            'type' => $item->type,
+            'source' => $this->sourceForExistingItem($item)->value,
+            'title' => $item->title,
+            'source_title' => $item->source_title,
+            'openlp_search_title' => $item->openlp_search_title,
+            'song_id' => $item->song_id,
+            'metadata' => $this->normaliseArray($item->metadata),
+        ];
     }
 }

@@ -6,6 +6,7 @@ namespace Tests\Feature\Api;
 
 use App\Enums\ApiTokenAbility;
 use App\Enums\SermonService;
+use App\Events\ChurchServiceCanonicalListChanged;
 use App\Jobs\ReconcileServiceSections;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -14,6 +15,7 @@ use App\Models\Song;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\Test;
@@ -164,6 +166,132 @@ class ChurchServiceControllerTest extends TestCase
     }
 
     #[Test]
+    public function test_conflicting_reupload_reopens_review_for_a_previously_reviewed_service(): void
+    {
+        $song = Song::factory()->create([
+            'canonical_key' => 'amazing grace',
+            'title' => 'Amazing Grace',
+        ]);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2024-11-17',
+            'service' => SermonService::MORNING,
+            'source' => 'email',
+            'needs_review' => false,
+            'import_metadata' => [
+                'manual_review' => [
+                    'reviewed_at' => now()->subDay()->toIso8601String(),
+                    'reviewed_by_user_id' => $this->admin->id,
+                ],
+            ],
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => 'email',
+            'title' => 'Amazing Grace (Email)',
+            'source_title' => 'Amazing Grace',
+            'openlp_search_title' => null,
+            'song_id' => null,
+        ]);
+
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '2024-11-17 AM.osz',
+            osjName: '2024-11-17 AM.osj',
+            payload: OpenLpArchiveFactory::payload([
+                OpenLpArchiveFactory::serviceItem(
+                    OpenLpArchiveFactory::songHeader('Amazing Grace', 'amazing grace@')
+                ),
+            ]),
+        );
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->postJson('/api/services/openlp', ['file' => $upload])
+            ->assertCreated();
+
+        $service->refresh();
+        $item = $service->items()->firstOrFail();
+
+        $this->assertTrue($service->needs_review);
+        $this->assertSame('Amazing Grace', $item->title);
+        $this->assertSame('amazing grace@', $item->openlp_search_title);
+        $this->assertSame($song->id, $item->song_id);
+        $this->assertSame('openlp', $service->import_metadata['canonical_conflict']['incoming_source'] ?? null);
+        $this->assertTrue((bool) ($service->import_metadata['canonical_conflict']['review_reopened'] ?? false));
+        $this->assertNotNull($service->import_metadata['manual_review']['reopened_at'] ?? null);
+    }
+
+    #[Test]
+    public function test_clean_reimport_preserves_canonical_conflict_history_and_review_flag_until_manual_review(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2024-11-17',
+            'service' => SermonService::MORNING,
+            'source' => 'email',
+            'needs_review' => true,
+            'import_metadata' => [
+                'manual_review' => [
+                    'reviewed_at' => now()->subDays(2)->toIso8601String(),
+                    'reviewed_by_user_id' => $this->admin->id,
+                    'reopened_at' => now()->subDay()->toIso8601String(),
+                    'reopened_by_source' => 'openlp',
+                ],
+                'canonical_conflict' => [
+                    'detected_at' => now()->subDay()->toIso8601String(),
+                    'incoming_source' => 'openlp',
+                    'review_reopened' => true,
+                    'reviewed_previously' => true,
+                    'canonical_changed' => true,
+                    'changes' => [['type' => 'updated_item']],
+                    'conflicts' => [],
+                ],
+                'canonical_conflict_history' => [[
+                    'detected_at' => now()->subDay()->toIso8601String(),
+                    'incoming_source' => 'openlp',
+                    'review_reopened' => true,
+                    'reviewed_previously' => true,
+                    'canonical_changed' => true,
+                    'changes' => [['type' => 'updated_item']],
+                    'conflicts' => [],
+                ]],
+            ],
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => 'openlp',
+            'title' => 'Song One',
+            'source_title' => 'Song One',
+            'openlp_search_title' => 'song one@',
+            'metadata' => null,
+        ]);
+
+        $upload = OpenLpArchiveFactory::makeUpload(
+            archiveName: '2024-11-17 AM.osz',
+            osjName: '2024-11-17 AM.osj',
+            payload: OpenLpArchiveFactory::payload([
+                OpenLpArchiveFactory::serviceItem(
+                    OpenLpArchiveFactory::songHeader('Song One', 'song one@')
+                ),
+            ]),
+        );
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->postJson('/api/services/openlp', ['file' => $upload])
+            ->assertCreated();
+
+        $service->refresh();
+
+        $this->assertTrue($service->needs_review);
+        $this->assertSame('openlp', $service->import_metadata['canonical_conflict']['incoming_source'] ?? null);
+        $this->assertNotEmpty($service->import_metadata['canonical_conflict_history'] ?? []);
+    }
+
+    #[Test]
     public function test_upload_dispatches_reconciliation_for_matching_completed_processing(): void
     {
         Queue::fake();
@@ -180,6 +308,28 @@ class ChurchServiceControllerTest extends TestCase
             ->assertCreated();
 
         Queue::assertPushed(ReconcileServiceSections::class, 1);
+    }
+
+    #[Test]
+    public function test_upload_emits_a_canonical_list_changed_event_after_items_are_saved(): void
+    {
+        Event::fake([ChurchServiceCanonicalListChanged::class]);
+
+        $upload = $this->validOpenLpUpload();
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->postJson('/api/services/openlp', ['file' => $upload])
+            ->assertCreated();
+
+        $service = ChurchService::query()->firstOrFail();
+
+        Event::assertDispatched(
+            ChurchServiceCanonicalListChanged::class,
+            fn (ChurchServiceCanonicalListChanged $event): bool => $event->churchServiceId === $service->id
+                && $event->source === 'openlp'
+                && count($event->changes) > 0
+        );
+        Event::assertDispatchedTimes(ChurchServiceCanonicalListChanged::class, 1);
     }
 
     #[Test]

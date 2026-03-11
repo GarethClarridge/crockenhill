@@ -82,6 +82,8 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertSame($firstSong->id, $secondDetected->church_service_item_id);
         $this->assertSame('Song Two', $firstDetected->title);
         $this->assertSame('Song One', $secondDetected->title);
+        $this->assertSame('confirmed', $firstDetected->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame('confirmed', $secondDetected->metadata['oos_alignment']['song_match_type'] ?? null);
         $this->assertSame('high', $firstDetected->metadata['confidence_level']);
         $this->assertSame('high', $secondDetected->metadata['confidence_level']);
     }
@@ -237,6 +239,7 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertSame('song_alignment_inferred', $section->metadata['review_reason']);
         $this->assertContains('song_alignment_inferred', $section->metadata['review_flags']);
         $this->assertContains('unmatched_song_section', $section->metadata['review_flags']);
+        $this->assertSame('inferred', $section->metadata['oos_alignment']['song_match_type'] ?? null);
         $this->assertNull($section->metadata['song_id'] ?? null);
         $this->assertTrue($churchService->needs_review);
     }
@@ -489,5 +492,64 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertTrue($churchService->needs_review);
         $this->assertSame(0.82, $churchService->import_metadata['confidence_score']);
         $this->assertArrayNotHasKey('review_triggers', $churchService->import_metadata ?? []);
+    }
+
+    #[Test]
+    public function it_does_not_clear_review_reopened_for_an_outstanding_canonical_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-07-19',
+            'service' => SermonService::MORNING->value,
+            'source' => 'manual',
+            'needs_review' => true,
+            'import_metadata' => [
+                'manual_review' => [
+                    'reviewed_at' => now()->subDays(2)->toIso8601String(),
+                    'reviewed_by_user_id' => 1,
+                    'reopened_at' => now()->subDay()->toIso8601String(),
+                    'reopened_by_source' => 'openlp',
+                ],
+                'canonical_conflict' => [
+                    'detected_at' => now()->subDay()->toIso8601String(),
+                    'incoming_source' => 'openlp',
+                    'review_reopened' => true,
+                    'reviewed_previously' => true,
+                    'canonical_changed' => true,
+                    'changes' => [['type' => 'updated_item']],
+                    'conflicts' => [],
+                ],
+            ],
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Opening Prayer',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::PRAYER->value,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'ai_transcript',
+            ],
+        ]);
+
+        $result = app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $churchService->refresh();
+
+        $this->assertSame([], $result['review_triggers']);
+        $this->assertTrue($churchService->needs_review);
+        $this->assertSame('openlp', $churchService->import_metadata['canonical_conflict']['incoming_source'] ?? null);
     }
 }

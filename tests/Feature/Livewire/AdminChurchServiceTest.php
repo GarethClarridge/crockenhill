@@ -8,6 +8,7 @@ use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Events\ChurchServiceCanonicalListChanged;
 use App\Jobs\AlignWithOos;
 use App\Jobs\ClassifyServiceSections;
 use App\Jobs\ClassifySpeechSections;
@@ -16,6 +17,7 @@ use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\ReconcileServiceSections;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeSpeechSegments;
@@ -32,6 +34,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -243,6 +247,30 @@ class AdminChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function manual_save_emits_one_canonical_list_changed_event(): void
+    {
+        Event::fake([ChurchServiceCanonicalListChanged::class]);
+        $this->actingAs($this->admin);
+
+        Livewire::test(ManageChurchService::class)
+            ->set('date', '2026-05-03')
+            ->set('service', SermonService::MORNING->value)
+            ->set('items.0.section_type', ServiceSectionType::WELCOME->value)
+            ->set('items.0.title', 'Welcome and Call to Worship')
+            ->call('save');
+
+        $service = ChurchService::query()->firstOrFail();
+
+        Event::assertDispatched(
+            ChurchServiceCanonicalListChanged::class,
+            fn (ChurchServiceCanonicalListChanged $event): bool => $event->churchServiceId === $service->id
+                && $event->source === 'manual'
+                && count($event->changes) > 0
+        );
+        Event::assertDispatchedTimes(ChurchServiceCanonicalListChanged::class, 1);
+    }
+
+    #[Test]
     public function admin_can_edit_a_manual_service_and_reorder_add_and_remove_items(): void
     {
         $this->actingAs($this->admin);
@@ -263,7 +291,10 @@ class AdminChurchServiceTest extends TestCase
             'church_service_id' => $service->id,
             'position' => 1,
             'type' => 'custom',
+            'source' => 'manual',
             'title' => 'Welcome',
+            'source_title' => 'Welcome',
+            'openlp_search_title' => null,
             'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
         ]);
 
@@ -321,6 +352,86 @@ class AdminChurchServiceTest extends TestCase
             'title' => 'Sermon',
             'deleted_at' => null,
         ]);
+    }
+
+    #[Test]
+    public function manual_item_edits_dispatch_reconciliation_for_matching_processed_livestreams(): void
+    {
+        Queue::fake();
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-17',
+            'service' => SermonService::MORNING,
+            'source' => 'manual',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => 'manual',
+            'title' => 'Welcome',
+            'source_title' => 'Welcome',
+            'openlp_search_title' => null,
+            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-05-17',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        Livewire::test(ManageChurchService::class, ['churchService' => $service])
+            ->set('items.0.title', 'Welcome and Notices')
+            ->call('save')
+            ->assertRedirect(route('admin.services.show', $service));
+
+        Queue::assertPushed(
+            ReconcileServiceSections::class,
+            fn (ReconcileServiceSections $job): bool => $job->processingLogId() === $processingLog->id
+                && $job->churchServiceId() === $service->id
+        );
+
+        $processingLog->refresh();
+        $this->assertSame(
+            'church_service_canonical_list_changed',
+            $processingLog->processing_metadata['reconciliation_triggers'][0]['event'] ?? null
+        );
+        $this->assertSame(
+            'manual',
+            $processingLog->processing_metadata['reconciliation_triggers'][0]['source'] ?? null
+        );
+    }
+
+    #[Test]
+    public function no_op_manual_save_does_not_emit_a_canonical_list_changed_event(): void
+    {
+        Event::fake([ChurchServiceCanonicalListChanged::class]);
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::EVENING,
+            'source' => 'manual',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'source' => 'manual',
+            'title' => 'Welcome',
+            'source_title' => 'Welcome',
+            'openlp_search_title' => null,
+            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+        ]);
+
+        Livewire::test(ManageChurchService::class, ['churchService' => $service])
+            ->call('save')
+            ->assertRedirect(route('admin.services.show', $service));
+
+        Event::assertNotDispatched(ChurchServiceCanonicalListChanged::class);
     }
 
     #[Test]

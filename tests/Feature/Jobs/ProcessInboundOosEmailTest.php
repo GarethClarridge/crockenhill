@@ -8,11 +8,13 @@ use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
+use App\Events\ChurchServiceCanonicalListChanged;
 use App\Jobs\ProcessInboundOosEmail;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\Song;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -24,6 +26,8 @@ class ProcessInboundOosEmailTest extends TestCase
     #[Test]
     public function it_imports_a_high_confidence_email_into_a_service(): void
     {
+        Event::fake([ChurchServiceCanonicalListChanged::class]);
+
         $this->bindExtractor(new OosEmailItemExtractionResult(
             items: [
                 ['type' => 'welcome', 'title' => 'Welcome'],
@@ -65,6 +69,13 @@ class ProcessInboundOosEmailTest extends TestCase
         $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
         $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id']);
         $this->assertCount(4, $email->processing_metadata['parsing']['items']);
+        Event::assertDispatched(
+            ChurchServiceCanonicalListChanged::class,
+            fn (ChurchServiceCanonicalListChanged $event): bool => $event->churchServiceId === $service->id
+                && $event->source === 'email'
+                && count($event->changes) > 0
+        );
+        Event::assertDispatchedTimes(ChurchServiceCanonicalListChanged::class, 1);
     }
 
     #[Test]

@@ -252,6 +252,16 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $service = ChurchService::factory()->create([
             'needs_review' => true,
+            'import_metadata' => [
+                'canonical_conflict' => [
+                    'detected_at' => now()->subHour()->toIso8601String(),
+                    'incoming_source' => 'openlp',
+                ],
+                'canonical_conflict_history' => [[
+                    'detected_at' => now()->subHour()->toIso8601String(),
+                    'incoming_source' => 'openlp',
+                ]],
+            ],
         ]);
 
         Livewire::test(ServiceReviewDashboard::class)
@@ -259,6 +269,8 @@ class AdminServiceReviewDashboardTest extends TestCase
             ->assertDispatched('notify', type: 'success', message: 'Service marked as reviewed.');
 
         $this->assertFalse($service->fresh()->needs_review);
+        $this->assertArrayNotHasKey('canonical_conflict', $service->fresh()->import_metadata ?? []);
+        $this->assertCount(1, $service->fresh()->import_metadata['canonical_conflict_history'] ?? []);
     }
 
     #[Test]

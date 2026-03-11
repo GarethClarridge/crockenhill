@@ -7,11 +7,14 @@ namespace App\Providers;
 use App\Contracts\OosEmailItemExtractor;
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\TranscriptionServiceInterface;
+use App\Events\ChurchServiceCanonicalListChanged;
+use App\Listeners\DispatchChurchServiceReconciliation;
 use App\Services\AudioTranscriptionService;
 use App\Services\MockSermonAnalysisService;
 use App\Services\MockTranscriptionService;
 use App\Services\OpenAiOosEmailItemExtractor;
 use App\Services\SermonAnalysisService;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -50,5 +53,13 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->bind(OosEmailItemExtractor::class, OpenAiOosEmailItemExtractor::class);
+    }
+
+    public function boot(): void
+    {
+        Event::listen(
+            ChurchServiceCanonicalListChanged::class,
+            DispatchChurchServiceReconciliation::class,
+        );
     }
 }

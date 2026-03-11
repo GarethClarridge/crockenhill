@@ -17,6 +17,8 @@ use InvalidArgumentException;
 class InboundEmailImportService
 {
     public function __construct(
+        private readonly ChurchServiceCanonicalStateService $canonicalStateService,
+        private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
         private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceSongLinker $songLinker,
     ) {}
@@ -115,7 +117,14 @@ class InboundEmailImportService
             throw new InvalidArgumentException('Inbound email parse result is missing a date or service.');
         }
 
-        return DB::transaction(function () use ($inboundEmail, $parseResult, $reviewedByUserId, $reviewMode): ChurchService {
+        $existingService = ChurchService::query()
+            ->where('date', $parseResult->date)
+            ->where('service', $parseResult->service->value)
+            ->first();
+        $beforeSnapshot = $this->canonicalStateService->snapshot($existingService);
+        $syncResult = [];
+
+        $churchService = DB::transaction(function () use ($inboundEmail, $parseResult, $reviewedByUserId, $reviewMode, &$syncResult): ChurchService {
             $importMetadata = $parseResult->importMetadata;
 
             if ($reviewedByUserId !== null) {
@@ -132,17 +141,17 @@ class InboundEmailImportService
                 'date' => $parseResult->date,
                 'service' => $parseResult->service->value,
             ]);
+            $existingMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
 
             $churchService->fill([
                 'source' => ChurchServiceItemSource::EMAIL->value,
                 'needs_review' => $reviewedByUserId === null ? $parseResult->needsReview : false,
-                'import_metadata' => $importMetadata,
+                'import_metadata' => array_replace_recursive($existingMetadata, $importMetadata),
             ]);
             $churchService->save();
 
-            $this->itemSyncService->sync($churchService, $parseResult->items, ChurchServiceItemSource::EMAIL);
+            $syncResult = $this->itemSyncService->sync($churchService, $parseResult->items, ChurchServiceItemSource::EMAIL);
             $this->songLinker->linkForService($churchService);
-            $churchService->touchForSectionReconciliation();
 
             $inboundEmail->processing_metadata = $this->mergeProcessingMetadata(
                 $inboundEmail->processing_metadata,
@@ -164,6 +173,13 @@ class InboundEmailImportService
 
             return $freshChurchService;
         });
+
+        return $this->canonicalUpdateService->finalize(
+            $churchService,
+            $beforeSnapshot,
+            ChurchServiceItemSource::EMAIL,
+            $syncResult,
+        );
     }
 
     public function markAsProcessedFromManualReview(InboundEmail $inboundEmail, ChurchService $churchService, int $reviewedByUserId): void

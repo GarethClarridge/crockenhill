@@ -27,19 +27,25 @@ The system must remain useful even when no OoS is provided. OoS improves accurac
 1. **Livestream audio/video is authoritative for what actually happened.**  
    The livestream defines the actual structure of the service: songs, speech blocks, sermon, children's talk, notices, and reading segments.
 
-2. **OoS is an enrichment and review aid, not the source of truth for actual events.**  
-   Email, manual entry, and OpenLP provide the planned or expected running order. They improve naming and matching, but they do not override the livestream silently.
+2. **Source precedence is fact-specific, not global.**  
+   When multiple sources exist, the best source depends on the fact being resolved: livestream for actual occurrence/order/timing, OpenLP over email for song titles and catalog linking, and human-reviewed admin edits for the final canonical service list.
 
-3. **Differences must be flagged, not hidden.**  
-   If the OoS and livestream disagree, the system should surface the discrepancy for review rather than auto-mutating records without visibility.
+3. **OoS is an enrichment and review aid, not the source of truth for actual events.**  
+   Email, manual entry, and OpenLP provide the planned or expected running order. They improve naming and matching, but they do not silently override livestream structure.
 
-4. **One canonical service list is enough.**  
+4. **Differences must be flagged, not hidden.**  
+   If sources disagree materially, the system should surface the discrepancy for review rather than auto-mutating records without visibility.
+
+5. **Reviewed admin decisions are canonical until new conflicting data reopens review.**  
+   Once an admin has reviewed or corrected a service, later imported conflicts should automatically reopen review instead of silently overwriting the reviewed state.
+
+6. **One canonical service list is enough.**  
    The app only needs to store the final version of the order-of-service list on `ChurchService` + `ChurchServiceItem`. It does not need to preserve multiple per-source item lists. Source metadata may still be stored for audit/debugging.
 
-5. **Song usage reflects what actually happened, not just what was planned.**
+7. **Song usage reflects what actually happened, not just what was planned.**
    For livestreamed services, a song only counts when a song segment is detected in the recording and confidently linked to a catalog song. For non-livestreamed services (e.g. evening services), the OoS is trusted directly since no audio evidence exists to confirm or deny.
 
-6. **`Sermon.reference` means the preached passage.**  
+8. **`Sermon.reference` means the preached passage.**  
    The public reading reference is related but separate. It should not overwrite the sermon passage field.
 
 ---
@@ -98,10 +104,22 @@ The system must remain useful even when no OoS is provided. OoS improves accurac
 
 `ChurchService` + `ChurchServiceItem` represent the canonical service list for a date/service pair.
 
-- Initially this list is created from email, OpenLP, or manual entry.
+- Initially this list is created from the best available source data, whether that is email, OpenLP, manual entry, or a merge of those sources.
 - If the livestream later reveals that the service differed from the imported OoS, the system flags those differences.
 - An admin may then edit the canonical list to reflect the final reviewed version of the service.
+- Once reviewed, the canonical list remains authoritative until later conflicting imported data reopens review.
 - The application does not need to keep separate full item lists per source.
+
+### 5.1.1 Source Precedence By Fact Type
+
+- If only one source exists, the system should trust that source as the best available evidence within its domain.
+- If multiple sources exist, the system should reconcile by fact type rather than applying a single whole-source winner.
+- `livestream` is authoritative for actual occurrence, order, timing, and presence/absence of service sections.
+- `OpenLP` is authoritative over `email` for song titles, `openlp_search_title`, and catalog linkage via `song_id`.
+- `email` and `manual` entry may add speech-item intent that OpenLP often omits (for example prayer, notices, and children's talks).
+- Reviewed manual/admin edits are canonical.
+- Imports should default to merge semantics. Destructive replacement should be explicit rather than implied by a partial import.
+- Later imported conflicts after review should reopen review automatically rather than silently overwrite the reviewed canonical list.
 
 ### 5.2 Actual Detected Service Structure
 
@@ -121,10 +139,10 @@ The system must remain useful even when no OoS is provided. OoS improves accurac
 
 - For **livestreamed services**, a song counts toward usage statistics only when a song segment is actually detected in the livestream AND is confidently linked to a catalog song via `song_id`. An OoS song with no detected segment does not count. A detected segment with no `song_id` match does not count publicly.
 - For **non-livestreamed services** (e.g. evening services), no audio evidence exists to confirm or deny what was sung. In this case the OoS is trusted directly — any `ChurchServiceItem` of type song with a `song_id` counts toward usage.
-- `song_id` should be assigned when there is a strong normalized title match to the song catalog, typically using OpenLP or another trusted OoS source for the title.
+- `song_id` should be assigned when there is a strong normalized title match to the song catalog. When both sources exist, OpenLP is preferred over email for song-title evidence.
 - **Position is not relevant for catalog matching** — a song is identified by its title, not by where it falls in the running order. Position is useful for matching *which detected song segment corresponds to which OoS song* (i.e., labelling), but the catalog lookup itself is always by normalised title.
 - **Order differences are expected.** If the OoS lists songs A, B, C, D but the livestream order is A, C, B, D, that's fine — the system should match each detected song to its OoS counterpart by title, not assume position parity. An order mismatch is not an anomaly worth flagging.
-- If a song segment is detected but no strong title match exists, it should remain unmatched and be flagged for review rather than force-linked by position.
+- If a song segment is detected but no strong title match exists, it should remain unmatched and be flagged for review rather than force-linked by position. Review-only inferred labels may help admins, but they must not count publicly as confirmed song usage.
 
 ---
 
@@ -162,9 +180,13 @@ Allow the church to create or update the canonical service list from the sources
 - `date + service type` must remain unique.
 - Email parsing may set `needs_review = true` when confidence is below threshold.
 - If the service already exists, incoming data updates the canonical list rather than creating a duplicate.
-- Source conflicts do not auto-resolve based on source priority alone.
+- If only one source exists, the system should trust that source as the best available representation within its domain.
+- If multiple sources exist, source precedence is resolved per fact type rather than by a single whole-source winner.
+- OpenLP is preferred over email for song titles and catalog linking.
+- Email/manual data may add speech items that OpenLP does not contain.
+- Imports default to merge semantics. Partial imports must not implicitly delete unmatched lower-priority items unless an explicit replace workflow is used.
 - When the livestream is available, differences between imported OoS data and detected actual sections are flagged for admin review.
-- After review, the admin-edited canonical list becomes the final version.
+- After review, the admin-edited canonical list becomes the final version until later conflicting imported data automatically reopens review.
 
 ---
 
@@ -238,13 +260,15 @@ Handle the reality that email, OpenLP, manual entry, and livestream uploads may 
 | OoS arrives first | Create/update the canonical service list and link songs where possible. |
 | Livestream arrives first | Process the livestream without OoS, create detected sections, and mark lower-confidence enrichment where needed. |
 | OoS arrives after livestream | Re-run an alignment/reconciliation pass against existing detected sections and flag differences. |
-| OpenLP arrives after email/manual | Enrich the canonical service list with stronger song data without force-overwriting reviewed actual outcomes. |
-| Canonical service list changes after processing | Re-run lightweight reconciliation, not full media processing. |
+| OpenLP arrives after email/manual | Enrich song titles and song linkage from OpenLP, preserve speech items that OpenLP omits, and reopen review automatically if reviewed data now conflicts. |
+| Canonical service list changes after processing | Re-run lightweight reconciliation, not full media processing. If reviewed data now conflicts with a later import, reopen review automatically. |
 
 #### Implementation Requirements
 
 - Add a durable optional link from processed livestreams to the matching `ChurchService`.
 - Reconciliation must be re-triggerable when new OoS data arrives later.
+- Reconciliation must be re-triggerable when item-level canonical list changes occur, not only when the service date/service pair changes.
+- Later imported conflicts against a reviewed service must automatically reopen review.
 - Lightweight re-alignment must be cheaper than full sermon/video reprocessing.
 
 This is foundational work and should happen early, not late.
@@ -353,6 +377,12 @@ This is intentionally deferred and should not block the v1 classification redesi
 
 ## 7. Confidence and Review Policy
 
+Confidence is orthogonal to source precedence.
+
+- Source precedence chooses the best source for a given fact.
+- Confidence determines whether the system may accept that fact automatically, store it provisionally, or require manual review.
+- Even when only one source exists, low-confidence inferred labels may remain provisional rather than being treated as fully canonical.
+
 ### 7.1 OoS Email Parse Confidence
 
 - `>= 0.90`: auto-import without review.
@@ -373,15 +403,18 @@ Otherwise:
 
 ### 7.3 Section Classification Confidence
 
+- Confidence should gate downstream automation such as section auto-labelling, sermon auto-extraction, public song counting, and publication workflows.
 - `>= 0.85` and no anomalies/conflicts: accept automatically.
 - `0.60 - 0.84`: create/update the section but mark it for manual review.
 - `< 0.60`: classify as `other` or `unclassified` and require review.
 
 ### 7.4 Song Matching Confidence
 
+- For song-title and catalog-linking facts, OpenLP is preferred over email whenever OpenLP data exists.
 - A song gets a `song_id` only when there is a strong normalized title match to the catalog.
 - Position alone must not be used to force a song match.
 - Weak or ambiguous matches remain unmatched and require review.
+- Inferred or position-based review labels may help admin review, but they must not count publicly as confirmed song usage.
 
 ### 7.5 Service-Level Review Triggers
 
@@ -389,6 +422,7 @@ The service should be flagged for review when any of the following is true:
 
 - sermon detection is ambiguous;
 - a late OoS changes the alignment result for already processed sections;
+- later imported data conflicts with a previously reviewed canonical service list;
 - one or more detected song sections remain unmatched;
 - the imported OoS and actual detected structure materially disagree;
 - more than 20% of sections are below `0.85` confidence.

@@ -20,6 +20,7 @@ class OosAlignmentService
     public function __construct(
         private readonly MediaProcessingIdentityResolver $identityResolver,
         private readonly ServiceSectionReviewTriggerEvaluator $reviewTriggerEvaluator,
+        private readonly ChurchServiceReviewStateService $reviewStateService,
     ) {}
 
     /**
@@ -157,6 +158,7 @@ class OosAlignmentService
             $metadata = $this->metadata($bestSection);
             $metadata['song_id'] = $item->song_id;
             $metadata['oos_alignment'] = array_merge($metadata['oos_alignment'] ?? [], [
+                'song_match_type' => 'confirmed',
                 'song_match_score' => round($bestScore, 3),
                 'song_match_strategy' => 'normalized_title',
                 'song_title_matched' => $item->title,
@@ -382,6 +384,7 @@ class OosAlignmentService
             'matched_item_id' => $item->id,
             'matched_item_type' => $item->type,
             'matched_item_title' => $item->title,
+            'song_match_type' => 'inferred',
             'song_match_strategy' => 'oos_order_inference',
             'song_title_matched' => $item->title,
         ]);
@@ -703,9 +706,11 @@ class OosAlignmentService
         }
 
         $churchService->forceFill([
-            'needs_review' => $reviewTriggers !== [] || $this->hasImportReviewSignal($churchService, $importMetadata),
+            'needs_review' => $reviewTriggers !== []
+                || $this->hasImportReviewSignal($churchService, $importMetadata)
+                || $this->reviewStateService->hasOutstandingCanonicalConflict($importMetadata),
             'import_metadata' => $importMetadata,
-        ])->save();
+        ])->saveQuietly();
     }
 
     /**

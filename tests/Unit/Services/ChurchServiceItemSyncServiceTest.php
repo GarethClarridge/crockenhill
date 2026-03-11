@@ -392,7 +392,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'metadata' => ['email_note' => 'from_email'],
         ]);
 
-        $this->service->sync($churchService, [
+        $result = $this->service->sync($churchService, [
             $this->incomingItem(
                 1,
                 'songs',
@@ -411,13 +411,14 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->assertSame(ChurchServiceItemSource::EMAIL, $prayer->source);
         $this->assertSame(1, $prayer->position);
 
-        $this->assertSame(ChurchServiceItemSource::OPENLP, $emailSong->source);
+        $this->assertSame(ChurchServiceItemSource::EMAIL, $emailSong->source);
         $this->assertSame(2, $emailSong->position);
         $this->assertSame('amazing grace@', $emailSong->openlp_search_title);
         $this->assertSame($song->id, $emailSong->song_id);
         $this->assertSame('from_email', $emailSong->metadata['email_note']);
         $this->assertSame('John Newton', $emailSong->metadata['authors']);
         $this->assertDatabaseCount('church_service_items', 2);
+        $this->assertSame([], $result['conflicts']);
     }
 
     #[Test]
@@ -469,6 +470,64 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->assertSame('Opening Prayer', $prayer->title);
         $this->assertSame(['speaker' => 'Leader'], $prayer->metadata);
         $this->assertCount(2, $churchService->items()->get());
+    }
+
+    #[Test]
+    public function test_partial_openlp_merge_preserves_unmatched_human_song_and_reports_a_conflict(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'source' => 'email',
+        ]);
+
+        $matchedSong = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::EMAIL->value,
+            'title' => 'Opening Song',
+            'source_title' => 'Opening Song',
+        ]);
+
+        $preservedSong = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'songs',
+            'source' => ChurchServiceItemSource::MANUAL->value,
+            'title' => 'Closing Song',
+            'source_title' => 'Closing Song',
+            'openlp_search_title' => null,
+            'metadata' => null,
+        ]);
+
+        $result = $this->service->sync($churchService, [
+            $this->incomingItem(1, 'songs', 'Opening Song', 'Opening Song', 'opening song@'),
+        ], ChurchServiceItemSource::OPENLP);
+
+        $matchedSong->refresh();
+        $preservedSong->refresh();
+
+        $this->assertNull($matchedSong->deleted_at);
+        $this->assertSame('opening song@', $matchedSong->openlp_search_title);
+        $this->assertNull($preservedSong->deleted_at);
+        $this->assertSame(ChurchServiceItemSource::MANUAL, $preservedSong->source);
+        $this->assertSame('Closing Song', $preservedSong->title);
+        $this->assertSame([
+            [
+                'type' => 'preserved_existing_song',
+                'incoming_source' => ChurchServiceItemSource::OPENLP->value,
+                'existing_item' => [
+                    'id' => $preservedSong->id,
+                    'position' => 2,
+                    'type' => 'songs',
+                    'source' => ChurchServiceItemSource::MANUAL->value,
+                    'title' => 'Closing Song',
+                    'source_title' => 'Closing Song',
+                    'openlp_search_title' => null,
+                    'song_id' => null,
+                    'metadata' => null,
+                ],
+            ],
+        ], $result['conflicts']);
     }
 
     /**

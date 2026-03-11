@@ -8,11 +8,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UploadChurchServiceRequest;
 use App\Http\Resources\ChurchServiceResource;
 use App\Models\ChurchService;
+use App\Services\ChurchServiceCanonicalStateService;
+use App\Services\ChurchServiceCanonicalUpdateService;
 use App\Services\ChurchServiceItemSyncService;
 use App\Services\ChurchServiceSongLinker;
 use App\Services\OpenLpServiceParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ChurchServiceController extends Controller
@@ -21,6 +24,8 @@ class ChurchServiceController extends Controller
         private readonly OpenLpServiceParser $parser,
         private readonly ChurchServiceItemSyncService $itemSyncService,
         private readonly ChurchServiceSongLinker $songLinker,
+        private readonly ChurchServiceCanonicalStateService $canonicalStateService,
+        private readonly ChurchServiceCanonicalUpdateService $canonicalUpdateService,
     ) {}
 
     public function store(UploadChurchServiceRequest $request): JsonResponse
@@ -40,18 +45,30 @@ class ChurchServiceController extends Controller
             'date' => $parsed->date,
             'service' => $parsed->service->value,
         ]);
+        $beforeSnapshot = $this->canonicalStateService->snapshot($churchService->exists ? $churchService : null);
+        $syncResult = [];
 
-        $churchService->fill([
-            'source' => 'openlp',
-            'original_filename' => $uploadedFile->getClientOriginalName(),
-            'needs_review' => $parsed->needsReview,
-            'import_metadata' => $parsed->importMetadata,
-        ]);
-        $churchService->save();
+        DB::transaction(function () use ($churchService, $uploadedFile, $parsed, &$syncResult): void {
+            $existingMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
 
-        $this->itemSyncService->sync($churchService, $parsed->items);
-        $this->songLinker->linkForService($churchService);
-        $churchService->touchForSectionReconciliation();
+            $churchService->fill([
+                'source' => 'openlp',
+                'original_filename' => $uploadedFile->getClientOriginalName(),
+                'needs_review' => $parsed->needsReview,
+                'import_metadata' => array_replace_recursive($existingMetadata, $parsed->importMetadata),
+            ]);
+            $churchService->save();
+
+            $syncResult = $this->itemSyncService->sync($churchService, $parsed->items);
+            $this->songLinker->linkForService($churchService);
+        });
+
+        $churchService = $this->canonicalUpdateService->finalize(
+            $churchService,
+            $beforeSnapshot,
+            'openlp',
+            $syncResult,
+        );
 
         $churchService->refresh()->load([
             'items' => fn ($query) => $query->orderBy('position')->orderBy('id'),

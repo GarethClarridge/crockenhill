@@ -75,20 +75,4 @@ class ChurchService extends Model
     {
         return $this->hasMany(MediaProcessingLog::class);
     }
-
-    public function touchForSectionReconciliation(): void
-    {
-        $timestamp = $this->freshTimestamp();
-
-        if (
-            $this->updated_at instanceof \Illuminate\Support\Carbon
-            && $this->updated_at->format('Y-m-d H:i:s') === $timestamp->format('Y-m-d H:i:s')
-        ) {
-            $timestamp = $this->updated_at->copy()->addSecond();
-        }
-
-        $this->forceFill([
-            'updated_at' => $timestamp,
-        ])->save();
-    }
 }

@@ -14,6 +14,8 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\InboundEmail;
 use App\Models\Song;
+use App\Services\ChurchServiceCanonicalStateService;
+use App\Services\ChurchServiceCanonicalUpdateService;
 use App\Services\ChurchServiceItemSyncService;
 use App\Services\ChurchServiceSongLinker;
 use App\Services\InboundEmailImportService;
@@ -189,6 +191,8 @@ class ManageChurchService extends Component
     }
 
     public function save(
+        ChurchServiceCanonicalStateService $canonicalStateService,
+        ChurchServiceCanonicalUpdateService $canonicalUpdateService,
         ChurchServiceItemSyncService $itemSyncService,
         ChurchServiceSongLinker $songLinker,
         InboundEmailImportService $inboundEmailImportService,
@@ -199,8 +203,10 @@ class ManageChurchService extends Component
         $validated = $this->validate();
         $payload = $this->buildSyncPayload();
         $wasCreated = ! ($this->churchService instanceof ChurchService && $this->churchService->exists);
+        $beforeSnapshot = $canonicalStateService->snapshot($this->churchService);
+        $syncResult = [];
 
-        $churchService = DB::transaction(function () use ($validated, $payload, $itemSyncService, $songLinker): ChurchService {
+        $churchService = DB::transaction(function () use ($validated, $payload, $itemSyncService, $songLinker, &$syncResult): ChurchService {
             $churchService = $this->churchService ?? new ChurchService;
             $existingMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
 
@@ -219,12 +225,18 @@ class ManageChurchService extends Component
             ]);
             $churchService->save();
 
-            $itemSyncService->sync($churchService, $payload, ChurchServiceItemSource::MANUAL);
+            $syncResult = $itemSyncService->sync($churchService, $payload, ChurchServiceItemSource::MANUAL);
             $songLinker->linkForService($churchService);
-            $churchService->touchForSectionReconciliation();
 
             return $churchService->fresh(['items']) ?? $churchService;
         });
+
+        $churchService = $canonicalUpdateService->finalize(
+            $churchService,
+            $beforeSnapshot,
+            ChurchServiceItemSource::MANUAL,
+            $syncResult,
+        );
 
         $this->churchService = $churchService;
 
