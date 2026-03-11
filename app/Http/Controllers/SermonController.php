@@ -62,6 +62,8 @@ class SermonController extends Controller
 
         return view('sermons.all', [
             'sermons' => $sermons,
+            'heading' => 'All Sermons',
+            'description' => 'Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.',
         ]);
     }
 
@@ -134,6 +136,8 @@ class SermonController extends Controller
         return view('sermons.preacher', [
             'preacher' => $preacher,
             'sermons' => $sermons,
+            'heading' => 'Sermons by '.$preacher->name,
+            'description' => 'Browse all sermons preached by '.$preacher->name.' at Crockenhill Baptist Church.',
         ]);
     }
 
@@ -143,6 +147,8 @@ class SermonController extends Controller
 
         return view('sermons.serieses', [
             'series' => $series,
+            'heading' => 'Sermon Series',
+            'description' => 'Browse sermon series from Crockenhill Baptist Church.',
         ]);
     }
 
@@ -160,6 +166,8 @@ class SermonController extends Controller
 
         return view('sermons.series', [
             'sermons' => $sermons,
+            'heading' => 'Sermon Series: '.$series_name,
+            'description' => 'Browse all sermons in the "'.$series_name.'" series from Crockenhill Baptist Church.',
         ]);
     }
 
