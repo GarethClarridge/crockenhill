@@ -9,12 +9,12 @@
 <div class="relative">
   <div class="w-100 grid grid-cols-7 justify-between bg-cbc-pattern bg-cover text-white lg:grid-cols-12">
 
-  <a class="p-2" href="/" wire:navigate>
+  <a class="p-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/" wire:navigate>
     <img src="/svg/IconWhite.svg" class="inline-block max-h-8 align-top" alt="Crockenhill Baptist Church logo" width="30" height="32">
   </a>
 
   <a
-    class="col-span-5 flex text-center font-display text-xl min-[400px]:text-2xl lg:col-start-2"
+    class="col-span-5 flex text-center font-display text-xl min-[400px]:text-2xl lg:col-start-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
     :class="expanded ? 'lg:pointer-events-none lg:opacity-0' : 'lg:pointer-events-auto lg:opacity-100'"
     href="/"
     wire:navigate
@@ -25,7 +25,7 @@
   </a>
 
   <a
-    class="absolute inset-y-0 left-16 right-16 z-10 hidden items-center justify-center text-center font-display text-xl opacity-0 transition-opacity duration-200 min-[400px]:text-2xl lg:flex"
+    class="absolute inset-y-0 left-16 right-16 z-10 hidden items-center justify-center text-center font-display text-xl opacity-0 transition-opacity duration-200 min-[400px]:text-2xl lg:flex rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark"
     :class="expanded ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'"
     :aria-hidden="!expanded"
     :inert="!expanded"
@@ -45,7 +45,7 @@
   >
     <ul class="mx-auto flex h-full items-stretch fill-white font-display text-l">
       <li class="flex">
-        <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $isChristSection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
+        <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isChristSection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
            href="/christ" wire:navigate @if($isChristSection) aria-current="page" @endif>
           <x-icon-cross class="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>Christ</span>
@@ -53,7 +53,7 @@
       </li>
 
       <li class="flex">
-        <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $isChurchSection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
+        <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isChurchSection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
            href="/church" wire:navigate @if($isChurchSection) aria-current="page" @endif>
           <x-icon-church class="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>Church</span>
@@ -61,7 +61,7 @@
       </li>
 
       <li class="flex">
-        <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white {{ $isCommunitySection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
+        <a class="flex h-full items-center justify-center gap-2 border-b-4 px-8 fill-current transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isCommunitySection ? 'border-white text-white font-semibold' : 'border-transparent text-white/90 hover:border-white/40 hover:text-white' }}"
            href="/community" wire:navigate @if($isCommunitySection) aria-current="page" @endif>
           <x-heroicon-s-user-group class="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>Community</span>
@@ -94,6 +94,7 @@
     x-transition:leave="transform-gpu transition ease-in duration-150"
     x-transition:leave-start="translate-y-0 opacity-100"
     x-transition:leave-end="-translate-y-2 opacity-0"
+    x-trap.noscroll="expanded"
     id="mobile-menu"
     class="absolute left-0 right-0 top-full z-30 -mt-px w-screen bg-gradient-to-bl from-cbc-teal-deeper/95 via-cbc-teal-dark/95 to-cbc-teal/92 p-6 font-sans normal-case text-base leading-relaxed text-white shadow-2xl ring-1 ring-black/10 backdrop-blur-md"
     tabindex="-1"
@@ -103,7 +104,8 @@
 
     <li>
       <div class="flex justify-center border-b border-white/15 pb-4">
-        <a class="inline-flex items-center justify-center gap-2 font-display text-lg font-normal text-white no-underline transition-colors duration-150 hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/christ" wire:navigate>
+        <a class="inline-flex items-center justify-center gap-2 font-display text-lg font-normal no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isChristSection ? 'text-white font-semibold' : 'text-white/80' }}"
+           href="/christ" wire:navigate @if($isChristSection) aria-current="page" @endif>
           <x-icon-cross class="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>Christ</span>
         </a>
@@ -111,16 +113,20 @@
       <ul class="mt-5 space-y-4">
         @foreach ($pages as $page)
         @if ($page->area->value == 'christ')
+        @php $isActive = request()->is('christ/'.$page->slug); @endphp
         <li class="leading-none">
-          <a class="inline-flex rounded-sm px-2 py-1 text-base font-medium text-white/85 no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/christ/{{$page->slug}}" wire:navigate>
+          <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"
+             href="/christ/{{$page->slug}}" wire:navigate @if($isActive) aria-current="page" @endif>
             {{$page->heading}}
           </a>
         </li>
         @endif
         @endforeach
         @auth
+        @php $isActive = request()->is('christ/childrens-corner*'); @endphp
         <li class="leading-none">
-          <a class="inline-flex rounded-sm px-2 py-1 text-base font-medium text-white/85 no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="{{ route('childrens-corner.index') }}" wire:navigate>
+          <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"
+             href="{{ route('childrens-corner.index') }}" wire:navigate @if($isActive) aria-current="page" @endif>
             Children's Corner
           </a>
         </li>
@@ -130,7 +136,8 @@
 
     <li>
       <div class="flex justify-center border-b border-white/15 pb-4">
-        <a class="inline-flex items-center justify-center gap-2 font-display text-lg font-normal text-white no-underline transition-colors duration-150 hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/church" wire:navigate>
+        <a class="inline-flex items-center justify-center gap-2 font-display text-lg font-normal no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isChurchSection ? 'text-white font-semibold' : 'text-white/80' }}"
+           href="/church" wire:navigate @if($isChurchSection) aria-current="page" @endif>
           <x-icon-church class="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>Church</span>
         </a>
@@ -138,16 +145,20 @@
       <ul class="mt-5 space-y-4">
         @foreach ($pages as $page)
         @if ($page->area->value == 'church')
+        @php $isActive = request()->is('church/'.$page->slug); @endphp
         <li class="leading-none">
-          <a class="inline-flex rounded-sm px-2 py-1 text-base font-medium text-white/85 no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/church/{{$page->slug}}" wire:navigate>
+          <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"
+             href="/church/{{$page->slug}}" wire:navigate @if($isActive) aria-current="page" @endif>
             {{$page->heading}}
           </a>
         </li>
         @endif
         @endforeach
         @auth
+        @php $isActive = request()->is('church/songs*'); @endphp
         <li class="leading-none">
-          <a class="inline-flex rounded-sm px-2 py-1 text-base font-medium text-white/85 no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="{{ route('church.songs.index') }}" wire:navigate>
+          <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"
+             href="{{ route('church.songs.index') }}" wire:navigate @if($isActive) aria-current="page" @endif>
             Songs
           </a>
         </li>
@@ -157,7 +168,8 @@
 
     <li>
       <div class="flex justify-center border-b border-white/15 pb-4">
-        <a class="inline-flex items-center justify-center gap-2 font-display text-lg font-normal text-white no-underline transition-colors duration-150 hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/community" wire:navigate>
+        <a class="inline-flex items-center justify-center gap-2 font-display text-lg font-normal no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isCommunitySection ? 'text-white font-semibold' : 'text-white/80' }}"
+           href="/community" wire:navigate @if($isCommunitySection) aria-current="page" @endif>
           <x-heroicon-s-user-group class="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>Community</span>
         </a>
@@ -165,8 +177,10 @@
       <ul class="mt-5 space-y-4">
         @foreach ($pages as $page)
         @if ($page->area->value == 'community')
+        @php $isActive = request()->is('community/'.$page->slug); @endphp
         <li class="leading-none">
-          <a class="inline-flex rounded-sm px-2 py-1 text-base font-medium text-white/85 no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/community/{{$page->slug}}" wire:navigate>
+          <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"
+             href="/community/{{$page->slug}}" wire:navigate @if($isActive) aria-current="page" @endif>
             {{$page->heading}}
           </a>
         </li>
@@ -176,9 +190,11 @@
     </li>
 
     @if ($user)
+    @php $isActive = request()->is('church/members*'); @endphp
     <li class="md:col-span-3">
       <div class="flex justify-center border-t border-white/10 pt-2">
-        <a class="inline-flex rounded-sm px-2 py-1 text-base font-medium text-white/85 no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark" href="/church/members" wire:navigate>
+        <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"
+           href="/church/members" wire:navigate @if($isActive) aria-current="page" @endif>
           Members
         </a>
       </div>

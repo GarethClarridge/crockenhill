@@ -138,8 +138,8 @@ class ViewComposerTest extends TestCase
         $this->assertStringContainsString('x-transition:enter-end="translate-y-0 opacity-100"', $content);
         $this->assertStringContainsString('x-transition:leave-end="-translate-y-2 opacity-0"', $content);
         $this->assertStringContainsString('border-b border-white/15 pb-4', $content);
-        $this->assertStringContainsString('font-display text-lg font-normal text-white no-underline transition-colors duration-150 hover:text-white/80', $content);
-        $this->assertStringContainsString('inline-flex rounded-sm px-2 py-1 text-base font-medium text-white/85 no-underline transition-colors duration-150 hover:text-white', $content);
+        $this->assertStringContainsString('font-display text-lg font-normal no-underline transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark', $content);
+        $this->assertStringContainsString('inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark', $content);
         $this->assertStringContainsString('focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark', $content);
         $this->assertStringNotContainsString('focus:ring-2 focus:ring-white transition-all duration-200', $content);
         $this->assertStringNotContainsString('rounded-md bg-gradient-to-r from-teal-600 to-teal-800', $content);
