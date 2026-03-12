@@ -54,7 +54,8 @@
   }"
   @notify.window="add($event)"
   class="fixed top-4 right-4 z-50 space-y-2"
-  aria-live="polite">
+  aria-live="polite"
+  aria-atomic="true">
       <template x-for="notification in notifications" :key="notification.id">
           <div x-transition:enter="transform ease-out duration-300"
                x-transition:enter-start="translate-y-2 opacity-0"
@@ -70,7 +71,7 @@
                class="rounded-md border p-4 shadow-lg max-w-sm">
               <div class="flex items-center gap-2">
                   <span x-text="notification.message"></span>
-                  <button @click="remove(notification.id)" class="ml-auto text-current opacity-50 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2 rounded-md p-1 transition-all" aria-label="Close notification">&times;</button>
+                  <button @click="remove(notification.id)" class="ml-auto text-current opacity-50 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded-md p-1 transition-all" aria-label="Close notification">&times;</button>
               </div>
           </div>
       </template>
