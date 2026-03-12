@@ -1,14 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repositories;
 
 use App\Models\Sermon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SermonRepository
 {
     /**
-     * Get all distinct sermon series from database
+     * Get all distinct sermon series from database.
      *
      * @return array<int, string>
      */
@@ -22,9 +25,7 @@ class SermonRepository
                 ->distinct()
                 ->orderBy('series')
                 ->pluck('series')
-                ->filter()
-                ->values()
-                ->toArray();
+                ->all();
         } catch (\Exception $e) {
             Log::warning('Failed to retrieve existing series', [
                 'error' => $e->getMessage(),
@@ -37,13 +38,18 @@ class SermonRepository
     /**
      * Get all distinct sermon series sorted alphabetically for display in UI.
      *
+     * Performance Optimization: Caches the series list for 24 hours using flexible cache
+     * to reduce redundant distinct DB queries on listing and admin pages.
+     *
      * @return array<int, string>
      */
     public function getSeriesForDisplay(): array
     {
-        $series = $this->getExistingSeries();
-        sort($series);
+        return Cache::flexible('sermon_series', [86400, 172800], function () {
+            $series = $this->getExistingSeries();
+            sort($series);
 
-        return $series;
+            return $series;
+        });
     }
 }
