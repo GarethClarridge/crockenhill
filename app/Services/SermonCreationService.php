@@ -68,7 +68,7 @@ class SermonCreationService
             'slug' => $slug,
             'preacher' => $preacherModel->name,
             'preacher_id' => $preacherModel->id,
-            'preacher_source' => $preacherSource->value,
+            'preacher_source' => $preacherSource,
             'preacher_confidence' => null,
             'needs_preacher_review' => $needsReview,
             'source_type' => $options->sourceType,
@@ -104,10 +104,10 @@ class SermonCreationService
 
         // Add AI analysis points (ID3 tags don't typically contain sermon points)
         if ($options->aiAnalysis && isset($options->aiAnalysis['points'])) {
-            $sermonData['points'] = json_encode($options->aiAnalysis['points']);
+            $sermonData['points'] = $options->aiAnalysis['points'];
         }
 
-        return Sermon::create($sermonData);
+        return Sermon::query()->create($sermonData);
     }
 
     private function normalizePreacherInput(?string $name): ?string
@@ -237,7 +237,7 @@ class SermonCreationService
         $counter = 1;
 
         // Ensure slug is unique
-        while (Sermon::where('slug', $slug)->exists()) {
+        while (Sermon::query()->where('slug', $slug)->exists()) {
             $slug = $baseSlug.'-'.$counter;
             $counter++;
         }
