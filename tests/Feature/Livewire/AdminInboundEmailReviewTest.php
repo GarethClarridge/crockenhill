@@ -84,6 +84,93 @@ class AdminInboundEmailReviewTest extends TestCase
     }
 
     #[Test]
+    public function original_email_panel_shows_plain_text_and_parser_metadata(): void
+    {
+        $this->actingAs($this->admin);
+
+        $email = InboundEmail::factory()->create([
+            'subject' => 'Plain text review email',
+            'body_plain' => "Welcome\nSong One\nPrayer",
+            'body_html' => null,
+            'status' => InboundEmailStatus::PENDING->value,
+            'processing_metadata' => $this->processingMetadata(
+                resolvedDate: '2026-06-08',
+                resolvedService: SermonService::MORNING->value,
+                items: [
+                    ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
+                ],
+            ),
+        ]);
+
+        Livewire::test(ReviewInboundEmails::class)
+            ->assertSee($email->subject)
+            ->assertSeeText('Original email')
+            ->assertSeeText('Welcome')
+            ->assertSeeText('Song One')
+            ->assertSeeText('Prayer')
+            ->assertSeeText('Parser Warnings')
+            ->assertSeeText('Raw Parser Metadata')
+            ->assertSeeText('No HTML body stored.')
+            ->assertSeeText('"resolved_date": "2026-06-08"');
+    }
+
+    #[Test]
+    public function html_email_preview_is_sanitized_before_it_is_rendered(): void
+    {
+        $this->actingAs($this->admin);
+
+        InboundEmail::factory()->create([
+            'subject' => 'HTML review email',
+            'body_plain' => null,
+            'body_html' => <<<'HTML'
+                <p>Welcome <strong>team</strong></p>
+                <p><a href="https://example.com" onclick="alert('bad')">Read more</a></p>
+                <script>alert("owned")</script>
+                <a href="javascript:alert('bad')">Unsafe link</a>
+                <svg><circle /></svg>
+            HTML,
+            'status' => InboundEmailStatus::PENDING->value,
+            'processing_metadata' => $this->processingMetadata(
+                resolvedDate: '2026-06-08',
+                resolvedService: SermonService::MORNING->value,
+                items: [
+                    ['type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
+                ],
+            ),
+        ]);
+
+        Livewire::test(ReviewInboundEmails::class)
+            ->assertSeeText('HTML Preview')
+            ->assertSeeHtml('href="https://example.com"')
+            ->assertSeeHtml('rel="noopener noreferrer nofollow"')
+            ->assertSeeHtml('target="_blank"')
+            ->assertDontSeeHtml('<script>alert("owned")</script>')
+            ->assertDontSeeHtml('onclick=')
+            ->assertDontSeeHtml('javascript:alert')
+            ->assertDontSeeHtml('<svg>');
+    }
+
+    #[Test]
+    public function missing_email_bodies_degrade_gracefully_in_the_review_ui(): void
+    {
+        $this->actingAs($this->admin);
+
+        InboundEmail::factory()->create([
+            'subject' => 'No bodies stored',
+            'body_plain' => null,
+            'body_html' => null,
+            'status' => InboundEmailStatus::PENDING->value,
+            'processing_metadata' => null,
+        ]);
+
+        Livewire::test(ReviewInboundEmails::class)
+            ->assertSeeText('No plain-text body stored.')
+            ->assertSeeText('No HTML body stored.')
+            ->assertSeeText('No parser warnings recorded.')
+            ->assertSeeText('No parser metadata stored yet.');
+    }
+
+    #[Test]
     public function approve_action_creates_a_service_from_the_reviewed_email(): void
     {
         $this->actingAs($this->admin);

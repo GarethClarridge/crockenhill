@@ -10,6 +10,7 @@ use App\Enums\SermonService;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\InboundEmail;
+use App\Services\InboundEmailHtmlSanitizer;
 use App\Services\InboundEmailImportService;
 use App\Services\OosEmailParserService;
 use App\Traits\EscapesLikeWildcards;
@@ -166,8 +167,18 @@ class ReviewInboundEmails extends Component
             ])
             ->all();
 
+        /** @var InboundEmailHtmlSanitizer $htmlSanitizer */
+        $htmlSanitizer = app(InboundEmailHtmlSanitizer::class);
+
+        $reviewData = $inboundEmails->getCollection()
+            ->mapWithKeys(fn (InboundEmail $inboundEmail): array => [
+                $inboundEmail->id => $this->buildReviewData($inboundEmail, $htmlSanitizer),
+            ])
+            ->all();
+
         return view('livewire.admin.church-services.review-inbound-emails', [
             'inboundEmails' => $inboundEmails,
+            'reviewData' => $reviewData,
             'statusOptions' => $statusOptions,
         ])->layout('layouts.admin', [
             'title' => 'Inbound Email Review',
@@ -206,6 +217,77 @@ class ReviewInboundEmails extends Component
         if (! (bool) config('service-tracking.enabled', true)) {
             abort(404);
         }
+    }
+
+    /**
+     * @return array{
+     *     preview_items: array<int, array<string, mixed>>,
+     *     warnings: array<int, string>,
+     *     raw_warnings_json: ?string,
+     *     failure_message: ?string,
+     *     resolved_date: mixed,
+     *     resolved_service: mixed,
+     *     confidence_score: ?float,
+     *     plain_body: ?string,
+     *     has_plain_body: bool,
+     *     sanitized_html: ?string,
+     *     has_html_body: bool,
+     *     raw_parsing_json: ?string
+     * }
+     */
+    private function buildReviewData(InboundEmail $inboundEmail, InboundEmailHtmlSanitizer $htmlSanitizer): array
+    {
+        $metadata = is_array($inboundEmail->processing_metadata) ? $inboundEmail->processing_metadata : [];
+        $parsing = is_array($metadata['parsing'] ?? null) ? $metadata['parsing'] : [];
+        $failure = is_array($metadata['failure'] ?? null) ? $metadata['failure'] : [];
+        $previewItems = array_values(array_filter(
+            is_array($parsing['items'] ?? null) ? $parsing['items'] : [],
+            static fn (mixed $item): bool => is_array($item),
+        ));
+        $warnings = array_values(array_filter(
+            is_array($parsing['warnings'] ?? null) ? $parsing['warnings'] : [],
+            static fn (mixed $warning): bool => is_string($warning) && $warning !== '',
+        ));
+        $plainBody = $this->normalisePlainBody($inboundEmail->body_plain);
+        $rawWarningsJson = $this->encodeJson($warnings !== [] ? $warnings : null);
+
+        return [
+            'preview_items' => $previewItems,
+            'warnings' => $warnings,
+            'raw_warnings_json' => $rawWarningsJson,
+            'failure_message' => isset($failure['message']) && is_string($failure['message']) ? $failure['message'] : null,
+            'resolved_date' => $parsing['resolved_date'] ?? null,
+            'resolved_service' => $parsing['resolved_service'] ?? null,
+            'confidence_score' => is_numeric($parsing['confidence_score'] ?? null) ? (float) $parsing['confidence_score'] : null,
+            'plain_body' => $plainBody,
+            'has_plain_body' => $plainBody !== null,
+            'sanitized_html' => $htmlSanitizer->sanitize($inboundEmail->body_html),
+            'has_html_body' => is_string($inboundEmail->body_html) && trim($inboundEmail->body_html) !== '',
+            'raw_parsing_json' => $this->encodeJson($parsing !== [] ? $parsing : null),
+        ];
+    }
+
+    private function normalisePlainBody(?string $plainBody): ?string
+    {
+        if (! is_string($plainBody) || trim($plainBody) === '') {
+            return null;
+        }
+
+        return trim(str_replace(["\r\n", "\r"], "\n", $plainBody));
+    }
+
+    /**
+     * @param  array<int, string>|array<string, mixed>|null  $data
+     */
+    private function encodeJson(?array $data): ?string
+    {
+        if ($data === null) {
+            return null;
+        }
+
+        $encoded = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        return is_string($encoded) ? $encoded : null;
     }
 
     /**

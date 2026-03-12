@@ -44,14 +44,12 @@
                 <tbody class="divide-y divide-gray-200 bg-white">
                     @forelse($inboundEmails as $inboundEmail)
                         @php
-                            $metadata = is_array($inboundEmail->processing_metadata) ? $inboundEmail->processing_metadata : [];
-                            $parsing = is_array($metadata['parsing'] ?? null) ? $metadata['parsing'] : [];
-                            $previewItems = is_array($parsing['items'] ?? null) ? $parsing['items'] : [];
-                            $warnings = is_array($parsing['warnings'] ?? null) ? $parsing['warnings'] : [];
-                            $failure = is_array($metadata['failure'] ?? null) ? $metadata['failure'] : [];
-                            $resolvedDate = $parsing['resolved_date'] ?? null;
-                            $resolvedService = $parsing['resolved_service'] ?? null;
-                            $confidenceScore = is_numeric($parsing['confidence_score'] ?? null) ? (float) $parsing['confidence_score'] : null;
+                            $review = $reviewData[$inboundEmail->id] ?? [];
+                            $previewItems = $review['preview_items'] ?? [];
+                            $warnings = $review['warnings'] ?? [];
+                            $resolvedDate = $review['resolved_date'] ?? null;
+                            $resolvedService = $review['resolved_service'] ?? null;
+                            $confidenceScore = $review['confidence_score'] ?? null;
                         @endphp
                         <tr wire:key="inbound-email-{{ $inboundEmail->id }}" class="hover:bg-gray-50">
                             <td class="px-4 py-3 text-sm">
@@ -102,9 +100,78 @@
                                         <p class="text-xs text-amber-700">{{ $warnings[0] }}</p>
                                     @endif
 
-                                    @if(isset($failure['message']) && is_string($failure['message']))
-                                        <p class="text-xs text-rose-700">{{ $failure['message'] }}</p>
+                                    @if(is_string($review['failure_message'] ?? null))
+                                        <p class="text-xs text-rose-700">{{ $review['failure_message'] }}</p>
                                     @endif
+
+                                    <details class="rounded-lg border border-gray-200 bg-gray-50 text-left">
+                                        <summary class="list-none cursor-pointer px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
+                                            <span class="flex items-center justify-between gap-3">
+                                                <span>Original email</span>
+                                                <span class="text-xs font-normal text-gray-500">Plain text, sanitized HTML, and parser data</span>
+                                            </span>
+                                        </summary>
+
+                                        <div class="space-y-4 border-t border-gray-200 px-3 py-3">
+                                            <div class="grid gap-4 xl:grid-cols-2">
+                                                <section class="space-y-2">
+                                                    <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Plain Text</h3>
+
+                                                    @if($review['has_plain_body'] ?? false)
+                                                        <pre class="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-md border border-gray-200 bg-white px-3 py-3 font-mono text-xs leading-5 text-gray-700">{{ $review['plain_body'] }}</pre>
+                                                    @else
+                                                        <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                            No plain-text body stored.
+                                                        </p>
+                                                    @endif
+                                                </section>
+
+                                                <section class="space-y-2">
+                                                    <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">HTML Preview</h3>
+
+                                                    @if(is_string($review['sanitized_html'] ?? null))
+                                                        <div class="prose prose-sm max-w-none rounded-md border border-gray-200 bg-white px-3 py-3 text-gray-700">
+                                                            {!! $review['sanitized_html'] !!}
+                                                        </div>
+                                                    @elseif($review['has_html_body'] ?? false)
+                                                        <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                            Stored HTML contained no safe renderable content after sanitization.
+                                                        </p>
+                                                    @else
+                                                        <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                            No HTML body stored.
+                                                        </p>
+                                                    @endif
+                                                </section>
+                                            </div>
+
+                                            <div class="grid gap-4 xl:grid-cols-2">
+                                                <section class="space-y-2">
+                                                    <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Parser Warnings</h3>
+
+                                                    @if(is_string($review['raw_warnings_json'] ?? null))
+                                                        <pre class="max-h-56 overflow-auto rounded-md border border-gray-200 bg-slate-950 px-3 py-3 font-mono text-xs leading-5 text-slate-100">{{ $review['raw_warnings_json'] }}</pre>
+                                                    @else
+                                                        <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                            No parser warnings recorded.
+                                                        </p>
+                                                    @endif
+                                                </section>
+
+                                                <section class="space-y-2">
+                                                    <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">Raw Parser Metadata</h3>
+
+                                                    @if(is_string($review['raw_parsing_json'] ?? null))
+                                                        <pre class="max-h-56 overflow-auto rounded-md border border-gray-200 bg-slate-950 px-3 py-3 font-mono text-xs leading-5 text-slate-100">{{ $review['raw_parsing_json'] }}</pre>
+                                                    @else
+                                                        <p class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">
+                                                            No parser metadata stored yet.
+                                                        </p>
+                                                    @endif
+                                                </section>
+                                            </div>
+                                        </div>
+                                    </details>
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-right">
