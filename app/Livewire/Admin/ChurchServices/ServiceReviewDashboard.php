@@ -11,7 +11,9 @@ use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
+use App\Models\Preacher;
 use App\Models\ServiceSection;
+use App\Services\ChildrensTalkSpeakerService;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,6 +36,11 @@ class ServiceReviewDashboard extends Component
      * @var array<int, array{section_type:string,title:string}>
      */
     public array $sectionEdits = [];
+
+    /**
+     * @var array<int, array{preacher_id:string,speaker_name:string}>
+     */
+    public array $speakerEdits = [];
 
     private ?MediaProcessingIdentityResolver $identityResolver = null;
 
@@ -62,12 +69,14 @@ class ServiceReviewDashboard extends Component
             return;
         }
 
-        $payload = $this->sectionEdits[$sectionId] ?? [
+        $payload = array_merge([
             'section_type' => $section->section_type->value,
             'title' => (string) ($section->title ?? ''),
-        ];
+            'preacher_id' => '',
+            'speaker_name' => '',
+        ], $this->sectionEdits[$sectionId] ?? [], $this->speakerEdits[$sectionId] ?? []);
 
-        $validated = Validator::make(
+        $validator = Validator::make(
             $payload,
             [
                 'section_type' => ['required', Rule::in(array_map(
@@ -75,18 +84,54 @@ class ServiceReviewDashboard extends Component
                     ServiceSectionType::cases()
                 ))],
                 'title' => ['required', 'string', 'max:255'],
+                'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
+                'speaker_name' => ['nullable', 'string', 'max:255'],
             ],
             [
                 'section_type.required' => 'Choose a section type.',
                 'title.required' => 'Enter a title before saving.',
             ]
-        )->validate();
+        );
+
+        $validator->after(function (\Illuminate\Validation\Validator $validator) use ($payload, $section): void {
+            $targetType = ServiceSectionType::tryFrom($payload['section_type']);
+
+            if ($targetType !== ServiceSectionType::CHILDRENS_TALK) {
+                return;
+            }
+
+            $existingSpeaker = $section->publicationChildrensTalkSpeaker();
+            $speakerName = trim($payload['speaker_name']);
+            $preacherId = $payload['preacher_id'];
+            $hasSpeakerInput = (is_numeric($preacherId) && (int) $preacherId > 0) || $speakerName !== '';
+
+            if ($existingSpeaker === null && ! $hasSpeakerInput) {
+                $validator->errors()->add('speaker_name', "Choose a preacher or enter a fallback speaker name for this children's talk.");
+            }
+        });
+
+        $validated = $validator->validate();
+        $reviewedByUserId = is_numeric(Auth::id()) ? (int) Auth::id() : null;
 
         $section->section_type = ServiceSectionType::from($validated['section_type']);
         $section->title = trim($validated['title']);
-        $section->needs_manual_review = false;
 
         $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $speakerService = app(ChildrensTalkSpeakerService::class);
+
+        if ($section->section_type === ServiceSectionType::CHILDRENS_TALK) {
+            $speakerService->storeManualReview(
+                $section,
+                $this->normalizeSpeakerPreacherId($validated['preacher_id']),
+                $validated['speaker_name'],
+                $reviewedByUserId
+            );
+        } else {
+            unset($metadata['childrens_talk_speaker']);
+            $section->needs_manual_review = false;
+        }
+
+        $metadata = is_array($section->metadata) ? $section->metadata : $metadata;
         unset($metadata['review_reason'], $metadata['review_flags']);
         $metadata['manual_review'] = [
             'updated_at' => now()->toIso8601String(),
@@ -99,6 +144,13 @@ class ServiceReviewDashboard extends Component
             && $section->publication_status !== ServiceSectionPublicationStatus::NOT_APPLICABLE
         ) {
             $section->transitionTo(ServiceSectionPublicationStatus::NOT_APPLICABLE);
+        } elseif (
+            $section->isPublishableType()
+            && ! $section->needs_manual_review
+            && $section->publication_status === ServiceSectionPublicationStatus::NOT_APPLICABLE
+            && $this->hasExtractedMedia($section)
+        ) {
+            $section->transitionTo(ServiceSectionPublicationStatus::PENDING_APPROVAL);
         }
 
         $section->save();
@@ -106,6 +158,13 @@ class ServiceReviewDashboard extends Component
         $this->sectionEdits[$section->id] = [
             'section_type' => $section->section_type->value,
             'title' => (string) ($section->title ?? ''),
+        ];
+        $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
+        $this->speakerEdits[$section->id] = [
+            'preacher_id' => is_array($publicationSpeaker) && is_numeric($publicationSpeaker['preacher_id'] ?? null)
+                ? (string) $publicationSpeaker['preacher_id']
+                : '',
+            'speaker_name' => $publicationSpeaker['preacher_name'] ?? '',
         ];
 
         $this->success('Section changes saved.');
@@ -145,6 +204,7 @@ class ServiceReviewDashboard extends Component
         return view('livewire.admin.church-services.service-review-dashboard', [
             'groups' => $groups,
             'sectionTypeOptions' => $this->sectionTypeOptions(),
+            'preacherOptions' => $this->preacherOptions(),
             'summary' => $this->summary($groups),
             'lowConfidenceThreshold' => ServiceSectionConfidence::HIGH_THRESHOLD,
         ])->layout('layouts.admin', [
@@ -162,6 +222,21 @@ class ServiceReviewDashboard extends Component
             ->map(fn (ServiceSectionType $type): array => [
                 'id' => $type->value,
                 'name' => $type->label(),
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{id:string,name:string}>
+     */
+    private function preacherOptions(): array
+    {
+        return Preacher::active()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Preacher $preacher): array => [
+                'id' => (string) $preacher->id,
+                'name' => $preacher->name,
             ])
             ->all();
     }
@@ -288,14 +363,24 @@ class ServiceReviewDashboard extends Component
             foreach ($group['sections'] as $entry) {
                 $section = $entry['section'];
 
-                if (array_key_exists($section->id, $this->sectionEdits)) {
-                    continue;
+                if (! array_key_exists($section->id, $this->sectionEdits)) {
+                    $this->sectionEdits[$section->id] = [
+                        'section_type' => $section->section_type->value,
+                        'title' => (string) ($section->title ?? ''),
+                    ];
                 }
 
-                $this->sectionEdits[$section->id] = [
-                    'section_type' => $section->section_type->value,
-                    'title' => (string) ($section->title ?? ''),
-                ];
+                if (! array_key_exists($section->id, $this->speakerEdits)) {
+                    $speaker = $section->publicationChildrensTalkSpeaker();
+                    $this->speakerEdits[$section->id] = [
+                        'preacher_id' => is_array($speaker) && is_numeric($speaker['preacher_id'] ?? null)
+                            ? (string) $speaker['preacher_id']
+                            : '',
+                        'speaker_name' => is_string($speaker['preacher_name'] ?? null)
+                            ? (string) $speaker['preacher_name']
+                            : '',
+                    ];
+                }
             }
         }
     }
@@ -483,6 +568,18 @@ class ServiceReviewDashboard extends Component
             ];
         }
 
+        if (
+            $section->section_type === ServiceSectionType::CHILDRENS_TALK
+            && $section->publicationChildrensTalkSpeaker() === null
+            && $section->predictedChildrensTalkSpeaker() !== null
+        ) {
+            $reasons[] = [
+                'key' => 'speaker_review',
+                'label' => 'Speaker review',
+                'classes' => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
+            ];
+        }
+
         if ($section->publication_status === ServiceSectionPublicationStatus::PENDING_APPROVAL) {
             $reasons[] = [
                 'key' => 'pending_approval',
@@ -569,5 +666,10 @@ class ServiceReviewDashboard extends Component
         if (! (bool) config('service-tracking.enabled', true)) {
             abort(404);
         }
+    }
+
+    private function normalizeSpeakerPreacherId(mixed $value): ?int
+    {
+        return is_numeric($value) && (int) $value > 0 ? (int) $value : null;
     }
 }

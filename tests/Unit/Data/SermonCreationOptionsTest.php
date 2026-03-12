@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Unit\Data;
 
 use App\Data\SermonCreationOptions;
+use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
 use App\Enums\SermonSourceType;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
+use App\Models\Preacher;
 use App\Models\ServiceSection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -25,6 +27,7 @@ class SermonCreationOptionsTest extends TestCase
             'processing_id' => 'run-123',
             'original_filename' => 'service.mp4',
         ]);
+        $preacher = Preacher::factory()->create(['name' => 'Mary Helper']);
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
@@ -35,6 +38,16 @@ class SermonCreationOptionsTest extends TestCase
             'start_time' => 120.0,
             'end_time' => 480.0,
             'duration' => 360.0,
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'reviewed' => [
+                        'preacher_id' => $preacher->id,
+                        'preacher_name' => $preacher->name,
+                        'source' => PreacherSource::MANUAL->value,
+                        'confidence' => null,
+                    ],
+                ],
+            ],
         ]);
 
         $options = SermonCreationOptions::fromServiceSection(
@@ -51,6 +64,9 @@ class SermonCreationOptionsTest extends TestCase
         $this->assertSame('morning', $options->service);
         $this->assertSame("Children's Talk", $options->customTitle);
         $this->assertSame(SermonContentType::ChildrensTalk, $options->contentType);
+        $this->assertSame($preacher->id, $options->preacherId);
+        $this->assertSame($preacher->name, $options->preacher);
+        $this->assertSame(PreacherSource::MANUAL, $options->preacherSource);
         $this->assertSame(120.0, $options->segmentStartTime);
         $this->assertSame(480.0, $options->segmentEndTime);
     }

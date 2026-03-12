@@ -118,6 +118,10 @@ class PublishApprovedServiceSection implements ShouldQueue
                 throw new \RuntimeException('Section classification changed since approval; re-approve before publishing');
             }
 
+            if (! $section->hasResolvedChildrensTalkSpeaker()) {
+                throw new \RuntimeException("Children's talk speaker must be reviewed before publication");
+            }
+
             if (! $section->transitionTo(ServiceSectionPublicationStatus::PUBLISHED)) {
                 throw new \RuntimeException('Invalid state transition when publishing approved section');
             }

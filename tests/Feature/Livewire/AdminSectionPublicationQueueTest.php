@@ -85,6 +85,7 @@ class AdminSectionPublicationQueueTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'.mp3',
@@ -118,6 +119,7 @@ class AdminSectionPublicationQueueTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/missing-video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'-missing.mp3',
@@ -129,6 +131,53 @@ class AdminSectionPublicationQueueTest extends TestCase
                 'notify',
                 type: 'error',
                 message: 'Section media is missing. Reclassify and prepare candidates again.'
+            );
+
+        $section->refresh();
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        Queue::assertNothingPushed();
+    }
+
+    #[Test]
+    public function approve_action_blocks_childrens_talks_without_a_confirmed_speaker(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-19',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-'.$run->id.'.mp3',
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'predicted' => [
+                        'outcome' => 'ambiguous',
+                        'preacher_name' => 'Detected Speaker',
+                        'confidence' => 0.61,
+                    ],
+                ],
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/'.$run->id.'/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-'.$run->id.'.mp3', 'audio');
+
+        Livewire::test(ListSectionPublications::class)
+            ->call('approve', $section->id)
+            ->assertDispatched(
+                'notify',
+                type: 'error',
+                message: "Choose a speaker for this children's talk before approving publication."
             );
 
         $section->refresh();

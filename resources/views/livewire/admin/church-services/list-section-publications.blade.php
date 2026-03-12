@@ -54,6 +54,7 @@
                             $serviceDate = $section->processingLog->extracted_date?->toDateString() ?? $processingMetadata['extracted_date'] ?? 'Unknown';
                             $serviceType = $section->processingLog->extracted_service?->label() ?? \Illuminate\Support\Str::title((string) ($processingMetadata['extracted_service'] ?? 'unknown'));
                             $confidence = $section->metadata['confidence_level'] ?? 'unknown';
+                            $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
                         @endphp
                         <tr wire:key="section-publication-{{ $section->id }}" class="hover:bg-gray-50">
                             <td class="px-4 py-3 text-sm">
@@ -67,6 +68,9 @@
                             <td class="px-4 py-3 text-sm">
                                 <p class="font-medium">{{ $section->section_type->label() }}</p>
                                 <p class="text-xs text-gray-500">{{ $section->title ?: '-' }}</p>
+                                @if($publicationSpeaker)
+                                    <p class="text-xs text-gray-500">Speaker: {{ $publicationSpeaker['preacher_name'] }}</p>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-600">
                                 {{ number_format($section->start_time, 1) }}s - {{ number_format($section->end_time, 1) }}s

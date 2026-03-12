@@ -7,8 +7,10 @@ namespace App\Jobs;
 use App\Enums\MediaType;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
+use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChildrensTalkSpeakerService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Traits\DetectsStorageType;
@@ -47,8 +49,11 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
         ];
     }
 
-    public function handle(VideoExtractionService $videoExtractor, StorageAdapterHelper $storageHelper): void
-    {
+    public function handle(
+        VideoExtractionService $videoExtractor,
+        StorageAdapterHelper $storageHelper,
+        ChildrensTalkSpeakerService $childrensTalkSpeakerService
+    ): void {
         if (! (bool) config('media-processing.section_publishing.enabled', true)) {
             return;
         }
@@ -82,10 +87,9 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
             $sectionType = $section->section_type->value;
             $confidence = (string) ($section->metadata['confidence_level'] ?? 'none');
             $eligibleByType = in_array($sectionType, $extractTypes, true);
-            $eligibleByStatus = $section->status === ServiceSectionStatus::IDENTIFIED && ! $section->needs_manual_review;
             $eligibleByConfidence = ! $requireHighConfidence || $confidence === 'high';
 
-            if (! $eligibleByType || ! $eligibleByStatus || ! $eligibleByConfidence) {
+            if (! $eligibleByType || ! $eligibleByConfidence) {
                 if (
                     $section->publication_status === ServiceSectionPublicationStatus::PUBLISHED
                     || $section->publication_status === ServiceSectionPublicationStatus::APPROVED
@@ -99,7 +103,32 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
                 continue;
             }
 
+            if ($section->section_type === ServiceSectionType::CHILDRENS_TALK) {
+                $this->extractCandidateMediaIfNeeded($section, $videoExtractor, $storageHelper);
+                $childrensTalkSpeakerService->detectAndStore($section);
+            }
+
+            $eligibleByStatus = $section->status === ServiceSectionStatus::IDENTIFIED && ! $section->needs_manual_review;
+
+            if (! $eligibleByStatus) {
+                if (
+                    $section->publication_status === ServiceSectionPublicationStatus::PUBLISHED
+                    || $section->publication_status === ServiceSectionPublicationStatus::APPROVED
+                    || $section->publication_status === ServiceSectionPublicationStatus::REJECTED
+                ) {
+                    $section->save();
+
+                    continue;
+                }
+
+                $this->moveToNotApplicable($section);
+
+                continue;
+            }
+
             if ($section->publication_status === ServiceSectionPublicationStatus::PUBLISHED) {
+                $section->save();
+
                 continue;
             }
 
@@ -110,7 +139,9 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
                 continue;
             }
 
-            $this->extractCandidateMediaIfNeeded($section, $videoExtractor, $storageHelper);
+            if ($section->section_type !== ServiceSectionType::CHILDRENS_TALK) {
+                $this->extractCandidateMediaIfNeeded($section, $videoExtractor, $storageHelper);
+            }
 
             $section->unpublished_expires_at = now()->addHours($retainHours);
             $section->save();

@@ -552,6 +552,34 @@ class SermonCreationServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_uses_an_explicit_preacher_override_when_provided(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => [],
+            'original_filename' => '2024-03-15-sermon.mp3',
+        ]);
+
+        $preacher = \App\Models\Preacher::factory()->create(['name' => 'Mary Helper']);
+
+        $options = new SermonCreationOptions(
+            audioFilePath: 'audio/test.mp3',
+            originalFilename: '2024-03-15-sermon.mp3',
+            sourceType: SermonSourceType::Livestream,
+            preacher: $preacher->name,
+            preacherId: $preacher->id,
+            preacherSource: \App\Enums\PreacherSource::MANUAL,
+            needsPreacherReview: false,
+        );
+
+        $sermon = $this->service->createSermon($log, $options);
+
+        $this->assertEquals($preacher->id, $sermon->preacher_id);
+        $this->assertEquals($preacher->name, $sermon->preacher);
+        $this->assertEquals(\App\Enums\PreacherSource::MANUAL, $sermon->preacher_source);
+        $this->assertFalse($sermon->needs_preacher_review);
+    }
+
+    #[Test]
     public function it_uses_date_override_when_provided(): void
     {
         $log = MediaProcessingLog::factory()->create([

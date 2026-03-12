@@ -12,6 +12,7 @@ use App\Livewire\Admin\ChurchServices\ServiceReviewDashboard;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -177,6 +178,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $approveSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 1,
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
             'extracted_video_path' => 'sermons/sections/'.$run->id.'/video.mp4',
@@ -185,6 +187,7 @@ class AdminServiceReviewDashboardTest extends TestCase
 
         $rejectSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
         ]);
@@ -259,6 +262,60 @@ class AdminServiceReviewDashboardTest extends TestCase
         $this->assertSame(ServiceSectionType::PRAYER, $section->section_type);
         $this->assertSame('Pastoral Prayer', $section->title);
         $this->assertFalse($section->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_allows_admins_to_override_childrens_talk_speakers_and_queue_publication_review(): void
+    {
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-06-08',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $overridePreacher = Preacher::factory()->create(['name' => 'Mary Helper']);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'title' => "Children's Talk",
+            'needs_manual_review' => true,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'extracted_video_path' => 'sermons/sections/override/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/override.mp3',
+            'metadata' => [
+                'review_reason' => 'childrens_talk_speaker_ambiguous',
+                'childrens_talk_speaker' => [
+                    'predicted' => [
+                        'outcome' => 'ambiguous',
+                        'preacher_name' => 'Detected Speaker',
+                        'confidence' => 0.64,
+                        'reason' => 'Two profiles scored too closely to auto-accept.',
+                    ],
+                ],
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/override/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/override.mp3', 'audio');
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->assertSee('Detected Speaker')
+            ->set("speakerEdits.{$section->id}.preacher_id", (string) $overridePreacher->id)
+            ->set("speakerEdits.{$section->id}.speaker_name", '')
+            ->call('saveSection', $section->id)
+            ->assertDispatched('notify', type: 'success', message: 'Section changes saved.');
+
+        $section->refresh();
+
+        $this->assertFalse($section->needs_manual_review);
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
+        $this->assertSame('Mary Helper', $section->metadata['childrens_talk_speaker']['reviewed']['preacher_name'] ?? null);
+        $this->assertSame('manual', $section->metadata['childrens_talk_speaker']['reviewed']['source'] ?? null);
     }
 
     #[Test]

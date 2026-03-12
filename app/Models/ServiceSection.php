@@ -201,13 +201,19 @@ class ServiceSection extends Model
      */
     public function classificationSignaturePayload(): array
     {
-        return [
+        $payload = [
             'church_service_item_id' => $this->church_service_item_id,
             'section_type' => $this->section_type->value,
             'title' => $this->title,
             'start_time' => (float) $this->start_time,
             'end_time' => (float) $this->end_time,
         ];
+
+        if ($this->section_type === ServiceSectionType::CHILDRENS_TALK) {
+            $payload['publication_speaker'] = $this->publicationSpeakerSignaturePayload();
+        }
+
+        return $payload;
     }
 
     public function classificationSignature(): string
@@ -238,5 +244,86 @@ class ServiceSection extends Model
     public function hasUnmatchedSongMatch(): bool
     {
         return $this->songMatchType() === ServiceSectionSongMatchType::UNMATCHED;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function childrensTalkSpeakerMetadata(): array
+    {
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+        $speaker = $metadata['childrens_talk_speaker'] ?? null;
+
+        return is_array($speaker) ? $speaker : [];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function predictedChildrensTalkSpeaker(): ?array
+    {
+        $prediction = $this->childrensTalkSpeakerMetadata()['predicted'] ?? null;
+
+        return is_array($prediction) ? $prediction : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function reviewedChildrensTalkSpeaker(): ?array
+    {
+        $reviewed = $this->childrensTalkSpeakerMetadata()['reviewed'] ?? null;
+
+        return is_array($reviewed) ? $reviewed : null;
+    }
+
+    /**
+     * @return array{preacher_id:int|null,preacher_name:string,source:string,confidence:float|null}|null
+     */
+    public function publicationChildrensTalkSpeaker(): ?array
+    {
+        $reviewed = $this->reviewedChildrensTalkSpeaker();
+        if (! is_array($reviewed)) {
+            return null;
+        }
+
+        $name = $reviewed['preacher_name'] ?? null;
+        if (! is_string($name) || trim($name) === '') {
+            return null;
+        }
+
+        $preacherId = $reviewed['preacher_id'] ?? null;
+        $confidence = $reviewed['confidence'] ?? null;
+        $source = $reviewed['source'] ?? 'manual';
+
+        return [
+            'preacher_id' => is_numeric($preacherId) ? (int) $preacherId : null,
+            'preacher_name' => trim($name),
+            'source' => is_string($source) && $source !== '' ? $source : 'manual',
+            'confidence' => is_numeric($confidence) ? (float) $confidence : null,
+        ];
+    }
+
+    public function hasResolvedChildrensTalkSpeaker(): bool
+    {
+        return $this->section_type !== ServiceSectionType::CHILDRENS_TALK
+            || $this->publicationChildrensTalkSpeaker() !== null;
+    }
+
+    /**
+     * @return array{preacher_id:int|null,preacher_name:string,source:string}|null
+     */
+    private function publicationSpeakerSignaturePayload(): ?array
+    {
+        $speaker = $this->publicationChildrensTalkSpeaker();
+        if ($speaker === null) {
+            return null;
+        }
+
+        return [
+            'preacher_id' => $speaker['preacher_id'],
+            'preacher_name' => $speaker['preacher_name'],
+            'source' => $speaker['source'],
+        ];
     }
 }

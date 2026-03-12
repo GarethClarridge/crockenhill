@@ -93,6 +93,9 @@
                                 $sectionTitle = $section->title ?: 'Untitled section';
                                 $linkedSongTitle = $section->churchServiceItem?->song?->title;
                                 $songMatchType = $section->songMatchType();
+                                $predictedSpeaker = $section->predictedChildrensTalkSpeaker();
+                                $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
+                                $speakerOutcome = is_array($predictedSpeaker) ? ($predictedSpeaker['outcome'] ?? null) : null;
                             @endphp
                             <div wire:key="service-review-section-{{ $section->id }}" class="rounded-lg border border-gray-200 bg-gray-50 p-4">
                                 <div class="flex flex-wrap items-start justify-between gap-4">
@@ -131,6 +134,39 @@
                                                 Song match: <span class="font-medium text-gray-700">{{ $songMatchType->label() }}</span>.
                                                 {{ $songMatchType->description() }}
                                             </p>
+                                        @endif
+                                        @if($section->section_type === \App\Enums\ServiceSectionType::CHILDRENS_TALK)
+                                            <div class="rounded-lg border border-cbc-teal/15 bg-white px-3 py-2 text-xs text-gray-600">
+                                                @if($publicationSpeaker)
+                                                    <p>
+                                                        Publication speaker:
+                                                        <span class="font-semibold text-gray-900">{{ $publicationSpeaker['preacher_name'] }}</span>
+                                                        @if(($publicationSpeaker['confidence'] ?? null) !== null)
+                                                            <span class="text-gray-500">· {{ number_format($publicationSpeaker['confidence'] * 100, 0) }}%</span>
+                                                        @endif
+                                                    </p>
+                                                @endif
+
+                                                @if($predictedSpeaker)
+                                                    <p @class(['mt-1' => $publicationSpeaker])>
+                                                        Detected speaker:
+                                                        @if(is_string($predictedSpeaker['preacher_name'] ?? null) && trim((string) $predictedSpeaker['preacher_name']) !== '')
+                                                            <span class="font-semibold text-gray-900">{{ $predictedSpeaker['preacher_name'] }}</span>
+                                                        @else
+                                                            <span class="font-semibold text-gray-900">{{ \Illuminate\Support\Str::headline((string) $speakerOutcome) }}</span>
+                                                        @endif
+                                                        @if(($predictedSpeaker['confidence'] ?? null) !== null)
+                                                            <span class="text-gray-500">· {{ number_format($predictedSpeaker['confidence'] * 100, 0) }}%</span>
+                                                        @endif
+                                                    </p>
+
+                                                    @if(is_string($predictedSpeaker['reason'] ?? null) && $predictedSpeaker['reason'] !== '')
+                                                        <p class="mt-1 text-gray-500">{{ $predictedSpeaker['reason'] }}</p>
+                                                    @endif
+                                                @elseif(!$publicationSpeaker)
+                                                    <p>No speaker has been confirmed for this children's talk yet.</p>
+                                                @endif
+                                            </div>
                                         @endif
                                         @if(collect($entry['reasons'])->contains('key', 'low_confidence'))
                                             <p class="text-xs text-gray-500">Low confidence means below the {{ (int) ($lowConfidenceThreshold * 100) }}% review threshold.</p>
@@ -186,30 +222,51 @@
                                 </div>
 
                                 <div class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-                                    <div class="grid gap-4 md:grid-cols-[12rem_minmax(0,1fr)_auto]">
-                                        <x-select
-                                            label="Section type"
-                                            wire:model.live="sectionEdits.{{ $section->id }}.section_type"
-                                            :options="$sectionTypeOptions"
-                                        />
+                                    <div class="space-y-4">
+                                        <div class="grid gap-4 md:grid-cols-[12rem_minmax(0,1fr)_auto]">
+                                            <x-select
+                                                label="Section type"
+                                                wire:model.live="sectionEdits.{{ $section->id }}.section_type"
+                                                :options="$sectionTypeOptions"
+                                            />
 
-                                        <x-input
-                                            label="Section title"
-                                            wire:model.live.debounce="sectionEdits.{{ $section->id }}.title"
-                                            maxlength="255"
-                                        />
+                                            <x-input
+                                                label="Section title"
+                                                wire:model.live.debounce="sectionEdits.{{ $section->id }}.title"
+                                                maxlength="255"
+                                            />
 
-                                        <div class="flex items-end">
-                                            <x-form-button
-                                                type="button"
-                                                size="sm"
-                                                variant="primary"
-                                                wire:click="saveSection({{ $section->id }})"
-                                                wire:target="saveSection({{ $section->id }})"
-                                            >
-                                                Save
-                                            </x-form-button>
+                                            <div class="flex items-end">
+                                                <x-form-button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="primary"
+                                                    wire:click="saveSection({{ $section->id }})"
+                                                    wire:target="saveSection({{ $section->id }})"
+                                                >
+                                                    Save
+                                                </x-form-button>
+                                            </div>
                                         </div>
+
+                                        @if($section->section_type === \App\Enums\ServiceSectionType::CHILDRENS_TALK)
+                                            <div class="grid gap-4 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-2">
+                                                <x-select
+                                                    label="Choose preacher"
+                                                    wire:model.live="speakerEdits.{{ $section->id }}.preacher_id"
+                                                    :options="$preacherOptions"
+                                                    placeholder="Select a preacher..."
+                                                    hint="Pick an existing preacher to confirm or override the detected speaker."
+                                                />
+
+                                                <x-input
+                                                    label="Fallback speaker name"
+                                                    wire:model.live.debounce="speakerEdits.{{ $section->id }}.speaker_name"
+                                                    maxlength="255"
+                                                    hint="Use free text when the speaker is not in the preacher list."
+                                                />
+                                            </div>
+                                        @endif
                                     </div>
 
                                     <div class="rounded-lg border border-gray-200 bg-white p-3">

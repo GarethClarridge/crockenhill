@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Jobs;
 
+use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\MediaProcessingLog;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\MediaProcessingIdentityResolver;
@@ -40,6 +42,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
             'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
             'extracted_video_path' => 'sermons/sections/10/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-10.mp3',
@@ -94,6 +97,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
             'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
             'extracted_video_path' => 'sermons/sections/11/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-11.mp3',
@@ -130,6 +134,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
             'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
             'extracted_video_path' => 'sermons/sections/12/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-12.mp3',
@@ -199,6 +204,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'extracted_service' => SermonService::MORNING->value,
             'original_filename' => '2026-05-31-morning-service.mp4',
         ]);
+        $preacher = Preacher::factory()->create(['name' => 'Mary Helper']);
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
@@ -210,6 +216,16 @@ class PublishApprovedServiceSectionTest extends TestCase
             'end_time' => 780.0,
             'duration' => 480.0,
             'title' => "Children's Talk",
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'reviewed' => [
+                        'preacher_id' => $preacher->id,
+                        'preacher_name' => $preacher->name,
+                        'source' => PreacherSource::MANUAL->value,
+                        'confidence' => null,
+                    ],
+                ],
+            ],
         ]);
         $section->metadata = array_merge($section->metadata ?? [], [
             'publication' => [
@@ -230,5 +246,58 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
         $this->assertSame(SermonContentType::ChildrensTalk, $sermon->content_type);
+        $this->assertSame($preacher->id, $sermon->preacher_id);
+        $this->assertSame($preacher->name, $sermon->preacher);
+    }
+
+    #[Test]
+    public function it_requires_a_confirmed_childrens_talk_speaker_before_publishing(): void
+    {
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-06-07',
+            'extracted_service' => SermonService::MORNING->value,
+            'original_filename' => '2026-06-07-morning-service.mp4',
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK,
+            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'extracted_video_path' => 'sermons/sections/14/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-14.mp3',
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'predicted' => [
+                        'outcome' => 'ambiguous',
+                        'preacher_name' => 'Detected Speaker',
+                        'confidence' => 0.62,
+                    ],
+                ],
+            ],
+        ]);
+        $section->metadata = array_merge($section->metadata ?? [], [
+            'publication' => [
+                'approved_signature' => $section->classificationSignature(),
+                'approved_at' => now()->toIso8601String(),
+            ],
+        ]);
+        $section->save();
+
+        Storage::disk('public')->put('sermons/sections/14/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-14.mp3', 'audio');
+
+        $job = new PublishApprovedServiceSection($section->id);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("Children's talk speaker must be reviewed before publication");
+
+        $job->handle(app(SermonCreationService::class), app(MediaProcessingIdentityResolver::class));
     }
 }

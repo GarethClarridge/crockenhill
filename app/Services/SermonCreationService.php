@@ -6,6 +6,7 @@ use App\Data\SermonCreationOptions;
 use App\Enums\PreacherSource;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -50,12 +51,13 @@ class SermonCreationService
         // Generate unique slug
         $slug = $this->generateUniqueSlug($title, $sermonDate);
 
-        // Determine preacher: ID3 (non-empty) -> default "Visiting Speaker"
-        $id3Preacher = $this->normalizePreacherInput($options->id3Preacher);
-        $preacherName = $id3Preacher ?? 'Visiting Speaker';
-        $preacherSource = $id3Preacher !== null ? PreacherSource::ID3 : PreacherSource::DEFAULT;
-        $needsReview = $preacherSource === PreacherSource::DEFAULT;
-        $preacherModel = $this->preacherResolutionService->resolve($preacherName);
+        [
+            'preacher_name' => $preacherName,
+            'preacher_model' => $preacherModel,
+            'preacher_source' => $preacherSource,
+            'preacher_confidence' => $preacherConfidence,
+            'needs_review' => $needsReview,
+        ] = $this->resolvePreacherAssignment($options);
 
         // Build sermon data
         $sermonData = [
@@ -69,7 +71,7 @@ class SermonCreationService
             'preacher' => $preacherModel->name,
             'preacher_id' => $preacherModel->id,
             'preacher_source' => $preacherSource,
-            'preacher_confidence' => null,
+            'preacher_confidence' => $preacherConfidence,
             'needs_preacher_review' => $needsReview,
             'source_type' => $options->sourceType,
             'duration' => $options->duration,
@@ -108,6 +110,57 @@ class SermonCreationService
         }
 
         return Sermon::query()->create($sermonData);
+    }
+
+    /**
+     * @return array{
+     *     preacher_name:string,
+     *     preacher_model:Preacher,
+     *     preacher_source:PreacherSource,
+     *     preacher_confidence:float|null,
+     *     needs_review:bool
+     * }
+     */
+    private function resolvePreacherAssignment(SermonCreationOptions $options): array
+    {
+        $explicitPreacher = $this->normalizePreacherInput($options->preacher);
+
+        if ($explicitPreacher !== null) {
+            $preacherModel = $this->resolveExplicitPreacher($explicitPreacher, $options->preacherId);
+
+            return [
+                'preacher_name' => $preacherModel->name,
+                'preacher_model' => $preacherModel,
+                'preacher_source' => $options->preacherSource ?? PreacherSource::MANUAL,
+                'preacher_confidence' => $options->preacherConfidence,
+                'needs_review' => $options->needsPreacherReview ?? false,
+            ];
+        }
+
+        $id3Preacher = $this->normalizePreacherInput($options->id3Preacher);
+        $preacherName = $id3Preacher ?? 'Visiting Speaker';
+        $preacherSource = $id3Preacher !== null ? PreacherSource::ID3 : PreacherSource::DEFAULT;
+
+        return [
+            'preacher_name' => $preacherName,
+            'preacher_model' => $this->preacherResolutionService->resolve($preacherName),
+            'preacher_source' => $preacherSource,
+            'preacher_confidence' => null,
+            'needs_review' => $preacherSource === PreacherSource::DEFAULT,
+        ];
+    }
+
+    private function resolveExplicitPreacher(string $preacherName, ?int $preacherId): Preacher
+    {
+        if ($preacherId !== null) {
+            $preacher = Preacher::query()->find($preacherId);
+
+            if ($preacher instanceof Preacher) {
+                return $preacher;
+            }
+        }
+
+        return $this->preacherResolutionService->resolve($preacherName);
     }
 
     private function normalizePreacherInput(?string $name): ?string

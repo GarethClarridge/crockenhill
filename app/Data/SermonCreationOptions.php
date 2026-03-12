@@ -2,6 +2,7 @@
 
 namespace App\Data;
 
+use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
 use App\Enums\SermonSourceType;
 use App\Enums\ServiceSectionType;
@@ -34,6 +35,10 @@ class SermonCreationOptions
 
         // Override defaults
         public ?string $preacher = null,
+        public ?int $preacherId = null,
+        public ?PreacherSource $preacherSource = null,
+        public ?float $preacherConfidence = null,
+        public ?bool $needsPreacherReview = null,
         public ?string $service = null,
         public ?string $date = null,
         public ?string $customTitle = null,
@@ -108,6 +113,8 @@ class SermonCreationOptions
         string $date,
         string $service
     ): self {
+        $speaker = $section->publicationChildrensTalkSpeaker();
+
         return new self(
             audioFilePath: self::requireAudioFilePath($section->extracted_audio_path, $log->processing_id),
             originalFilename: $section->title ?: $log->original_filename,
@@ -120,6 +127,11 @@ class SermonCreationOptions
                 ? SermonContentType::ChildrensTalk
                 : SermonContentType::Sermon,
             titleStrategy: TitleGenerationStrategy::FILENAME_ONLY,
+            preacher: $speaker['preacher_name'] ?? null,
+            preacherId: $speaker['preacher_id'] ?? null,
+            preacherSource: isset($speaker['source']) ? PreacherSource::tryFrom((string) $speaker['source']) : null,
+            preacherConfidence: $speaker['confidence'] ?? null,
+            needsPreacherReview: false,
             service: $service,
             date: $date,
             customTitle: $section->title,

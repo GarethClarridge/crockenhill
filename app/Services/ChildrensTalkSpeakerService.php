@@ -1,0 +1,312 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Contracts\SpeakerIdentificationInterface;
+use App\Data\SpeakerMatchResult;
+use App\Enums\PreacherSource;
+use App\Enums\ServiceSectionType;
+use App\Models\Preacher;
+use App\Models\ServiceSection;
+use App\Models\SpeakerProfile;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+
+class ChildrensTalkSpeakerService
+{
+    public function __construct(
+        private readonly SpeakerIdentificationInterface $speakerService
+    ) {}
+
+    public function detectAndStore(ServiceSection $section): void
+    {
+        if ($section->section_type !== ServiceSectionType::CHILDRENS_TALK) {
+            return;
+        }
+
+        if ($section->reviewedChildrensTalkSpeaker() !== null) {
+            return;
+        }
+
+        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $speakerMetadata = $section->childrensTalkSpeakerMetadata();
+        $prediction = $this->predictionPayload($section);
+
+        $speakerMetadata['predicted'] = $prediction;
+
+        if ($prediction['outcome'] === 'matched') {
+            $speakerMetadata['reviewed'] = [
+                'preacher_id' => $prediction['preacher_id'],
+                'preacher_name' => $prediction['preacher_name'],
+                'source' => (string) $prediction['source'],
+                'confidence' => $prediction['confidence'],
+                'review_mode' => 'auto_accepted',
+                'reviewed_at' => now()->toIso8601String(),
+                'reviewed_by_user_id' => null,
+            ];
+
+            unset($metadata['review_reason']);
+            $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
+            $section->needs_manual_review = false;
+        } else {
+            unset($speakerMetadata['reviewed']);
+            $metadata['review_reason'] = $this->reviewReasonForOutcome((string) $prediction['outcome']);
+            $metadata['review_flags'] = $this->appendReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
+            $section->needs_manual_review = true;
+        }
+
+        $metadata['childrens_talk_speaker'] = $speakerMetadata;
+        $section->metadata = $metadata;
+    }
+
+    public function storeManualReview(
+        ServiceSection $section,
+        ?int $preacherId,
+        ?string $speakerName,
+        ?int $reviewedByUserId
+    ): void {
+        if ($section->section_type !== ServiceSectionType::CHILDRENS_TALK) {
+            return;
+        }
+
+        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $speakerMetadata = $section->childrensTalkSpeakerMetadata();
+        $normalizedName = is_string($speakerName) ? trim($speakerName) : '';
+
+        $reviewed = null;
+
+        if ($preacherId !== null) {
+            $preacher = Preacher::query()->find($preacherId);
+
+            if ($preacher instanceof Preacher) {
+                $reviewed = [
+                    'preacher_id' => $preacher->id,
+                    'preacher_name' => $preacher->name,
+                    'source' => PreacherSource::MANUAL->value,
+                    'confidence' => $speakerMetadata['predicted']['confidence'] ?? null,
+                    'review_mode' => 'manual_override',
+                    'reviewed_at' => now()->toIso8601String(),
+                    'reviewed_by_user_id' => $reviewedByUserId,
+                ];
+            }
+        } elseif ($normalizedName !== '') {
+            $reviewed = [
+                'preacher_id' => null,
+                'preacher_name' => $normalizedName,
+                'source' => PreacherSource::MANUAL->value,
+                'confidence' => null,
+                'review_mode' => 'manual_free_text',
+                'reviewed_at' => now()->toIso8601String(),
+                'reviewed_by_user_id' => $reviewedByUserId,
+            ];
+        }
+
+        if ($reviewed === null) {
+            return;
+        }
+
+        $speakerMetadata['reviewed'] = $reviewed;
+        $metadata['childrens_talk_speaker'] = $speakerMetadata;
+        unset($metadata['review_reason']);
+        $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
+
+        $section->metadata = $metadata;
+        $section->needs_manual_review = false;
+    }
+
+    public function hasResolvedSpeaker(ServiceSection $section): bool
+    {
+        return $section->hasResolvedChildrensTalkSpeaker();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function predictionPayload(ServiceSection $section): array
+    {
+        $audioPath = trim((string) ($section->extracted_audio_path ?? ''));
+        if ($audioPath === '') {
+            return $this->basePrediction(
+                outcome: 'missing_audio',
+                reason: 'Extracted section audio is not available yet.'
+            );
+        }
+
+        if (! (bool) config('media-processing.speaker_identification.enabled', false)) {
+            return $this->basePrediction(
+                outcome: 'skipped',
+                reason: 'Speaker identification is disabled.'
+            );
+        }
+
+        $minDuration = (int) config('media-processing.speaker_identification.min_duration', 30);
+        if ((float) $section->duration < $minDuration) {
+            return $this->basePrediction(
+                outcome: 'short_audio',
+                reason: "Audio is shorter than the {$minDuration}s identification threshold."
+            );
+        }
+
+        $profiles = $this->eligibleProfiles();
+        if ($profiles->isEmpty()) {
+            return $this->basePrediction(
+                outcome: 'no_profiles',
+                reason: $this->noProfilesReason()
+            );
+        }
+
+        $result = $this->speakerService->identify($audioPath, $profiles);
+
+        if ($result->errored) {
+            return $this->basePrediction(
+                outcome: 'error',
+                reason: $result->reason ?? 'Speaker identification failed.'
+            );
+        }
+
+        if ($result->matched) {
+            return array_merge($this->basePrediction(
+                outcome: 'matched',
+                reason: null
+            ), [
+                'preacher_id' => $result->matchedPreacherId,
+                'preacher_name' => $result->matchedPreacherName,
+                'confidence' => $result->topScore,
+                'second_confidence' => $result->secondScore,
+                'margin' => $result->margin,
+                'matched_profile_id' => $result->matchedProfileId,
+                'source' => PreacherSource::SPEAKER_MODEL->value,
+            ]);
+        }
+
+        return array_merge($this->basePrediction(
+            outcome: $this->predictionOutcomeFromNoMatch($result),
+            reason: $result->reason ?? 'No speaker match found.'
+        ), [
+            'confidence' => $result->topScore,
+            'second_confidence' => $result->secondScore,
+            'margin' => $result->margin,
+            'source' => PreacherSource::SPEAKER_MODEL->value,
+        ]);
+    }
+
+    /**
+     * @return EloquentCollection<int, SpeakerProfile>
+     */
+    private function eligibleProfiles(): EloquentCollection
+    {
+        $provider = (string) config('media-processing.speaker_identification.provider', 'null');
+        $modelVersion = (string) config('media-processing.speaker_identification.model_version', '');
+
+        $query = SpeakerProfile::query()
+            ->active()
+            ->with('preacher');
+
+        if ($provider !== '' && $provider !== 'null') {
+            $query->where('provider', $provider);
+
+            if ($modelVersion !== '') {
+                $query->where('model_version', $modelVersion);
+            }
+        }
+
+        return $query->get();
+    }
+
+    private function noProfilesReason(): string
+    {
+        $provider = (string) config('media-processing.speaker_identification.provider', 'null');
+        $modelVersion = (string) config('media-processing.speaker_identification.model_version', '');
+
+        if ($provider === '' || $provider === 'null') {
+            return 'No active speaker profiles are available.';
+        }
+
+        $reason = "No active speaker profiles are available for provider '{$provider}'";
+
+        if ($modelVersion !== '') {
+            $reason .= " and model version '{$modelVersion}'.";
+        } else {
+            $reason .= '.';
+        }
+
+        return $reason;
+    }
+
+    private function predictionOutcomeFromNoMatch(SpeakerMatchResult $result): string
+    {
+        $acceptThreshold = (float) config('media-processing.speaker_identification.accept_threshold', 0.75);
+        $marginThreshold = (float) config('media-processing.speaker_identification.margin_threshold', 0.10);
+
+        if (
+            $result->topScore !== null
+            && $result->topScore >= $acceptThreshold
+            && $result->margin !== null
+            && $result->margin < $marginThreshold
+        ) {
+            return 'ambiguous';
+        }
+
+        return 'no_match';
+    }
+
+    /**
+     * @param  array<int, mixed>|mixed  $flags
+     * @return array<int, string>
+     */
+    private function appendReviewFlag(mixed $flags, string $flag): array
+    {
+        $normalized = collect(is_array($flags) ? $flags : [])
+            ->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
+            ->values()
+            ->all();
+
+        $normalized[] = $flag;
+
+        return array_values(array_unique($normalized));
+    }
+
+    /**
+     * @param  array<int, mixed>|mixed  $flags
+     * @return array<int, string>
+     */
+    private function removeReviewFlag(mixed $flags, string $flag): array
+    {
+        return collect(is_array($flags) ? $flags : [])
+            ->filter(fn (mixed $value): bool => is_string($value) && $value !== '' && $value !== $flag)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function basePrediction(string $outcome, ?string $reason): array
+    {
+        return [
+            'outcome' => $outcome,
+            'reason' => $reason,
+            'preacher_id' => null,
+            'preacher_name' => null,
+            'confidence' => null,
+            'second_confidence' => null,
+            'margin' => null,
+            'matched_profile_id' => null,
+            'source' => PreacherSource::SPEAKER_MODEL->value,
+            'decided_at' => now()->toIso8601String(),
+        ];
+    }
+
+    private function reviewReasonForOutcome(string $outcome): string
+    {
+        return match ($outcome) {
+            'ambiguous' => 'childrens_talk_speaker_ambiguous',
+            'no_match' => 'childrens_talk_speaker_no_match',
+            'no_profiles' => 'childrens_talk_speaker_unconfigured',
+            'short_audio' => 'childrens_talk_speaker_short_audio',
+            'missing_audio' => 'childrens_talk_speaker_missing_audio',
+            default => 'childrens_talk_speaker_review_required',
+        };
+    }
+}

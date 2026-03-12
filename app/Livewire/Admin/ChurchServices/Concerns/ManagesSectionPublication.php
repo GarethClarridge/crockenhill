@@ -7,6 +7,7 @@ namespace App\Livewire\Admin\ChurchServices\Concerns;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\ServiceSection;
+use App\Services\ChildrensTalkSpeakerService;
 use Illuminate\Support\Facades\Storage;
 
 trait ManagesSectionPublication
@@ -24,6 +25,14 @@ trait ManagesSectionPublication
 
         if (! $this->hasExtractedMedia($section)) {
             $this->error('Section media is missing. Reclassify and prepare candidates again.');
+
+            return;
+        }
+
+        if (
+            ! app(ChildrensTalkSpeakerService::class)->hasResolvedSpeaker($section)
+        ) {
+            $this->error("Choose a speaker for this children's talk before approving publication.");
 
             return;
         }
