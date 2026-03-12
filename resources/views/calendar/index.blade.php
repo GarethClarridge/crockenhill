@@ -1,5 +1,62 @@
 @extends('layouts/page')
 
+@section('title', 'Church Calendar')
+
+@section('meta_description', 'Upcoming events at Crockenhill Baptist Church.')
+
+@section('meta_tags')
+<x-meta-tags
+    title="Church Calendar"
+    description="Upcoming events at Crockenhill Baptist Church."
+/>
+
+{{-- JSON-LD Events --}}
+@if($allEvents->isNotEmpty())
+<script type="application/ld+json">
+{!! json_encode([
+    '@context' => 'https://schema.org',
+    '@type' => 'ItemList',
+    'itemListElement' => $allEvents->map(function ($event, $index) {
+        $eventData = [
+            '@type' => 'ListItem',
+            'position' => $index + 1,
+            'item' => [
+                '@type' => 'Event',
+                'name' => $event->title,
+                'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? 'Church event at Crockenhill Baptist Church'), 150),
+                'startDate' => $event->start_datetime->toIso8601String(),
+                'location' => [
+                    '@type' => 'Place',
+                    'name' => $event->location ?? ($event->meeting?->location ?? 'Crockenhill Baptist Church'),
+                    'address' => [
+                        '@type' => 'PostalAddress',
+                        'streetAddress' => config('organization.address.street'),
+                        'addressLocality' => config('organization.address.locality'),
+                        'addressRegion' => config('organization.address.region'),
+                        'postalCode' => config('organization.address.postal_code'),
+                        'addressCountry' => config('organization.address.country'),
+                    ],
+                ],
+                'image' => asset('images/Primary.png'),
+                'organizer' => [
+                    '@type' => 'Organization',
+                    'name' => config('organization.name'),
+                    'url' => url('/'),
+                ],
+            ],
+        ];
+
+        if ($event->end_datetime) {
+            $eventData['item']['endDate'] = $event->end_datetime->toIso8601String();
+        }
+
+        return $eventData;
+    })->values()->all(),
+], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+</script>
+@endif
+@endsection
+
 @section('dynamic_content')
 
 <x-h1>Church Calendar</x-h1>
