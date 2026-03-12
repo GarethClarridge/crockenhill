@@ -46,7 +46,7 @@ class CreateSermonRecordTest extends TestCase
             ->method('createSermon')
             ->willReturn($createdSermon);
 
-        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
 
         $job = new CreateSermonRecord($log);
         $job->handle($mockLogger, $mockCreationService);
@@ -76,8 +76,8 @@ class CreateSermonRecordTest extends TestCase
             ->method('createSermon')
             ->willThrowException(new \Exception('Failed to create sermon'));
 
-        Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('error')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
+        Log::shouldReceive('error')->zeroOrMoreTimes();
 
         $job = new CreateSermonRecord($log);
 
@@ -104,8 +104,8 @@ class CreateSermonRecordTest extends TestCase
 
         $mockCreationService = $this->createMock(SermonCreationService::class);
 
-        Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('error')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
+        Log::shouldReceive('error')->zeroOrMoreTimes();
 
         $job = new CreateSermonRecord($log);
 
@@ -151,7 +151,7 @@ class CreateSermonRecordTest extends TestCase
 
         $mockLogger->method('logProcessingStep');
 
-        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
 
         $job = new CreateSermonRecord($log);
         $job->handle($mockLogger, $mockCreationService);

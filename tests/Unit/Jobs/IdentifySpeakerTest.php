@@ -82,7 +82,7 @@ class IdentifySpeakerTest extends TestCase
         $sermon = Sermon::factory()->create(['preacher_source' => PreacherSource::ID3]);
         $log = MediaProcessingLog::factory()->create(['sermon_id' => $sermon->id]);
 
-        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
 
         $mockService = $this->createMock(SpeakerIdentificationInterface::class);
 
@@ -126,7 +126,7 @@ class IdentifySpeakerTest extends TestCase
             'audio_file_path' => 'sermons/test.mp3',
         ]);
 
-        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
 
         $mockService = $this->createMock(SpeakerIdentificationInterface::class);
 

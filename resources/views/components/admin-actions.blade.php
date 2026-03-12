@@ -28,19 +28,10 @@
   </button>
 </form>
 @else
-<form class="flex items-center" action="{{ $deleteRoute }}" method="POST">
+<form class="flex items-center gap-1" action="{{ $deleteRoute }}" method="POST">
   @csrf
   @method('DELETE')
-  <div class="relative inline-flex align-middle gap-1">
-    <a href="{{ $editRoute }}" wire:navigate
-       class="inline-block text-center select-none border font-normal whitespace-nowrap rounded py-1 px-3 leading-normal no-underline bg-green-500 hover:bg-green-600 text-white focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-1 transition-all">
-      Edit
-    </a>
-    <button type="submit" 
-            onclick="return confirm('{{ $deleteConfirmMessage }}')"
-            class="inline-block text-center select-none border font-normal whitespace-nowrap rounded py-1 px-3 leading-normal no-underline bg-red-600 hover:bg-red-700 text-white focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-1 transition-all">
-      Delete
-    </button>
-  </div>
+  <x-button :link="$editRoute" variant="outline" size="sm" inline>Edit</x-button>
+  <x-form-button variant="danger" size="sm" onclick="return confirm('{{ $deleteConfirmMessage }}')">Delete</x-form-button>
 </form>
 @endif
