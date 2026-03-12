@@ -61,6 +61,36 @@
                     </div>
 
                     <div class="flex flex-wrap gap-2">
+                        @if($group['service'] && $group['pending_approval_count'] > 0)
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                <p class="text-xs font-medium uppercase tracking-wider text-gray-500">
+                                    {{ $group['pending_approval_count'] }} pending {{ \Illuminate\Support\Str::plural('publication', $group['pending_approval_count']) }}
+                                </p>
+                                @if($group['batch_blocked_count'] > 0)
+                                    <p class="mt-1 text-xs text-gray-500">
+                                        {{ $group['batch_ready_count'] }} ready, {{ $group['batch_blocked_count'] }} blocked by other review checks.
+                                    </p>
+                                @endif
+                                <div class="mt-2 flex justify-end">
+                                    <x-form-button
+                                        type="button"
+                                        variant="primary"
+                                        size="sm"
+                                        wire:click="approvePendingPublications({{ $group['service']->id }})"
+                                        wire:target="approvePendingPublications({{ $group['service']->id }})"
+                                        wire:loading.attr="disabled"
+                                    >
+                                        <span wire:loading.remove wire:target="approvePendingPublications({{ $group['service']->id }})">
+                                            Approve all pending publications
+                                        </span>
+                                        <span wire:loading wire:target="approvePendingPublications({{ $group['service']->id }})">
+                                            Approving...
+                                        </span>
+                                    </x-form-button>
+                                </div>
+                            </div>
+                        @endif
+
                         @if($group['service']?->needs_review)
                             <x-form-button
                                 type="button"

@@ -196,6 +196,83 @@ class ServiceReviewDashboard extends Component
         $this->success('Service marked as reviewed.');
     }
 
+    public function approvePendingPublications(int $serviceId): void
+    {
+        $this->authorizeAdmin();
+
+        $service = ChurchService::query()->find($serviceId);
+        if (! $service instanceof ChurchService) {
+            $this->error('Service not found.');
+
+            return;
+        }
+
+        $pendingSections = $this->pendingPublicationSectionsForService($service);
+        if ($pendingSections->isEmpty()) {
+            $this->error('No pending publication approvals were found for this service.');
+
+            return;
+        }
+
+        $auditMetadata = [
+            'batch_id' => (string) Str::uuid(),
+            'approved_at' => now()->toIso8601String(),
+            'approved_by_user_id' => Auth::id(),
+            'source' => 'service_review_dashboard',
+            'action' => 'approve_pending_publications',
+            'church_service_id' => $service->id,
+        ];
+
+        $approvedCount = 0;
+        $skippedReasons = [];
+
+        foreach ($pendingSections as $section) {
+            $skipReason = $this->batchApprovalSkipReason($section);
+
+            if ($skipReason !== null) {
+                $skippedReasons[$skipReason] = ($skippedReasons[$skipReason] ?? 0) + 1;
+
+                continue;
+            }
+
+            $error = $this->approveSectionForPublication($section, $auditMetadata);
+            if ($error !== null) {
+                $normalizedError = $this->normalizeBatchApprovalError($error);
+                $skippedReasons[$normalizedError] = ($skippedReasons[$normalizedError] ?? 0) + 1;
+
+                continue;
+            }
+
+            $approvedCount++;
+        }
+
+        if ($approvedCount === 0) {
+            $this->error(sprintf(
+                'No sections were batch-approved. %s',
+                $this->formatBatchApprovalSkipSummary($skippedReasons)
+            ));
+
+            return;
+        }
+
+        if ($skippedReasons === []) {
+            $this->success(sprintf(
+                'Approved all %d pending %s for this service.',
+                $approvedCount,
+                Str::plural('publication', $approvedCount)
+            ));
+
+            return;
+        }
+
+        $this->success(sprintf(
+            'Approved %d pending %s. %s',
+            $approvedCount,
+            Str::plural('publication', $approvedCount),
+            $this->formatBatchApprovalSkipSummary($skippedReasons)
+        ));
+    }
+
     public function render(): View
     {
         $groups = $this->reviewGroups();
@@ -251,6 +328,9 @@ class ServiceReviewDashboard extends Component
      *     sort_date:string,
      *     service_sort:int,
      *     service:ChurchService|null,
+     *     pending_approval_count:int,
+     *     batch_ready_count:int,
+     *     batch_blocked_count:int,
      *     sections:array<int, array{
      *         section:ServiceSection,
      *         reasons:array<int, array{key:string,label:string,classes:string}>,
@@ -337,6 +417,19 @@ class ServiceReviewDashboard extends Component
 
                 return $left['section']->id <=> $right['section']->id;
             });
+
+            $group['pending_approval_count'] = collect($group['sections'])
+                ->filter(fn (array $entry): bool => $entry['section']->publication_status === ServiceSectionPublicationStatus::PENDING_APPROVAL)
+                ->count();
+            $group['batch_ready_count'] = collect($group['sections'])
+                ->filter(function (array $entry): bool {
+                    $section = $entry['section'];
+
+                    return $section->publication_status === ServiceSectionPublicationStatus::PENDING_APPROVAL
+                        && $this->batchApprovalSkipReason($section) === null;
+                })
+                ->count();
+            $group['batch_blocked_count'] = max(0, $group['pending_approval_count'] - $group['batch_ready_count']);
         }
         unset($group);
 
@@ -524,6 +617,9 @@ class ServiceReviewDashboard extends Component
      *     sort_date:string,
      *     service_sort:int,
      *     service:ChurchService|null,
+     *     pending_approval_count:int,
+     *     batch_ready_count:int,
+     *     batch_blocked_count:int,
      *     sections:array<int, array{
      *         section:ServiceSection,
      *         reasons:array<int, array{key:string,label:string,classes:string}>,
@@ -549,6 +645,9 @@ class ServiceReviewDashboard extends Component
             'sort_date' => $date ?? '',
             'service_sort' => $this->serviceSort($service),
             'service' => $serviceModel,
+            'pending_approval_count' => 0,
+            'batch_ready_count' => 0,
+            'batch_blocked_count' => 0,
             'sections' => [],
         ];
     }
@@ -630,6 +729,83 @@ class ServiceReviewDashboard extends Component
     private function isReviewCandidate(ServiceSection $section): bool
     {
         return $this->reviewReasons($section) !== [];
+    }
+
+    /**
+     * @return EloquentCollection<int, ServiceSection>
+     */
+    private function pendingPublicationSectionsForService(ChurchService $service): EloquentCollection
+    {
+        return ServiceSection::query()
+            ->with([
+                'processingLog:id,processing_id,extracted_date,extracted_service,processing_metadata,church_service_id',
+                'processingLog.churchService:id,date,service,needs_review',
+                'churchServiceItem:id,church_service_id,title,song_id,type',
+                'churchServiceItem.churchService:id,date,service,needs_review',
+            ])
+            ->where('publication_status', ServiceSectionPublicationStatus::PENDING_APPROVAL->value)
+            ->where(function (Builder $query) use ($service): void {
+                $query->whereHas('processingLog', function (Builder $query) use ($service): void {
+                    $query->where('church_service_id', $service->id)
+                        ->orWhere(function (Builder $query) use ($service): void {
+                            $query->whereDate('extracted_date', $service->date->toDateString())
+                                ->where('extracted_service', $service->service->value);
+                        });
+                })->orWhereHas('churchServiceItem', fn (Builder $query): Builder => $query->where('church_service_id', $service->id));
+            })
+            ->orderBy('section_order')
+            ->orderBy('id')
+            ->get();
+    }
+
+    private function batchApprovalSkipReason(ServiceSection $section): ?string
+    {
+        $additionalReviewFlags = collect($this->reviewReasons($section))
+            ->pluck('key')
+            ->reject(static fn (string $key): bool => $key === 'pending_approval')
+            ->values();
+
+        if ($additionalReviewFlags->isNotEmpty()) {
+            return 'blocked by other review flags';
+        }
+
+        $approvalError = $this->approvalBlocker($section);
+
+        return $approvalError !== null
+            ? $this->normalizeBatchApprovalError($approvalError)
+            : null;
+    }
+
+    private function normalizeBatchApprovalError(string $message): string
+    {
+        return match ($message) {
+            'Section media is missing. Reclassify and prepare candidates again.' => 'missing extracted media',
+            "Choose a speaker for this children's talk before approving publication." => 'speaker review required',
+            'This section cannot be approved in its current state.' => 'invalid approval state',
+            default => Str::of($message)->trim()->lower()->toString(),
+        };
+    }
+
+    /**
+     * @param  array<string, int>  $skippedReasons
+     */
+    private function formatBatchApprovalSkipSummary(array $skippedReasons): string
+    {
+        $totalSkipped = array_sum($skippedReasons);
+        if ($totalSkipped === 0) {
+            return 'No sections were skipped.';
+        }
+
+        $reasons = collect($skippedReasons)
+            ->map(fn (int $count, string $reason): string => sprintf('%s (%d)', $reason, $count))
+            ->implode(', ');
+
+        return sprintf(
+            'Skipped %d %s: %s.',
+            $totalSkipped,
+            Str::plural('section', $totalSkipped),
+            $reasons
+        );
     }
 
     private function assetUrl(?string $path): ?string

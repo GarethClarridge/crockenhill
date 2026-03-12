@@ -23,36 +23,12 @@ trait ManagesSectionPublication
             return;
         }
 
-        if (! $this->hasExtractedMedia($section)) {
-            $this->error('Section media is missing. Reclassify and prepare candidates again.');
+        $error = $this->approveSectionForPublication($section);
+        if ($error !== null) {
+            $this->error($error);
 
             return;
         }
-
-        if (
-            ! app(ChildrensTalkSpeakerService::class)->hasResolvedSpeaker($section)
-        ) {
-            $this->error("Choose a speaker for this children's talk before approving publication.");
-
-            return;
-        }
-
-        if (! $section->transitionTo(ServiceSectionPublicationStatus::APPROVED)) {
-            $this->error('This section cannot be approved in its current state.');
-
-            return;
-        }
-
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
-        $publicationMetadata = is_array($metadata['publication'] ?? null) ? $metadata['publication'] : [];
-        $publicationMetadata['approved_signature'] = $section->classificationSignature();
-        $publicationMetadata['approved_at'] = now()->toIso8601String();
-        $metadata['publication'] = $publicationMetadata;
-        $section->metadata = $metadata;
-        $section->save();
-
-        PublishApprovedServiceSection::dispatch($section->id)
-            ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
 
         $this->success('Section approved and publish job queued.');
     }
@@ -112,5 +88,60 @@ trait ManagesSectionPublication
 
         return Storage::disk($sermonDisk)->exists($videoPath)
             && Storage::disk($sermonDisk)->exists($audioPath);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $auditMetadata
+     */
+    protected function approveSectionForPublication(ServiceSection $section, ?array $auditMetadata = null): ?string
+    {
+        $error = $this->approvalBlocker($section);
+        if ($error !== null) {
+            return $error;
+        }
+
+        if (! $section->transitionTo(ServiceSectionPublicationStatus::APPROVED)) {
+            return 'This section cannot be approved in its current state.';
+        }
+
+        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $publicationMetadata = is_array($metadata['publication'] ?? null) ? $metadata['publication'] : [];
+        $publicationMetadata['approved_signature'] = $section->classificationSignature();
+        $publicationMetadata['approved_at'] = now()->toIso8601String();
+
+        if ($auditMetadata !== null) {
+            $batchApprovals = is_array($publicationMetadata['batch_approvals'] ?? null)
+                ? $publicationMetadata['batch_approvals']
+                : [];
+            $batchApprovals[] = $auditMetadata;
+            $publicationMetadata['batch_approvals'] = $batchApprovals;
+        }
+
+        $metadata['publication'] = $publicationMetadata;
+        $section->metadata = $metadata;
+        $section->save();
+
+        $this->dispatchPublicationJob($section);
+
+        return null;
+    }
+
+    protected function approvalBlocker(ServiceSection $section): ?string
+    {
+        if (! $this->hasExtractedMedia($section)) {
+            return 'Section media is missing. Reclassify and prepare candidates again.';
+        }
+
+        if (! app(ChildrensTalkSpeakerService::class)->hasResolvedSpeaker($section)) {
+            return "Choose a speaker for this children's talk before approving publication.";
+        }
+
+        return null;
+    }
+
+    protected function dispatchPublicationJob(ServiceSection $section): void
+    {
+        PublishApprovedServiceSection::dispatch($section->id)
+            ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
     }
 }

@@ -319,6 +319,174 @@ class AdminServiceReviewDashboardTest extends TestCase
     }
 
     #[Test]
+    public function it_batch_approves_pending_publications_for_only_the_selected_service_and_records_audit_metadata(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $selectedService = ChurchService::factory()->create([
+            'date' => '2026-06-09',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $otherService = ChurchService::factory()->create([
+            'date' => '2026-06-09',
+            'service' => SermonService::EVENING,
+        ]);
+
+        $selectedRun = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $selectedService->id,
+            'extracted_date' => '2026-06-09',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $otherRun = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $otherService->id,
+            'extracted_date' => '2026-06-09',
+            'extracted_service' => SermonService::EVENING->value,
+        ]);
+
+        $selectedFirst = ServiceSection::factory()->create([
+            'media_processing_log_id' => $selectedRun->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 1,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/batch-selected-1/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/batch-selected-1.mp3',
+        ]);
+
+        $selectedSecond = ServiceSection::factory()->create([
+            'media_processing_log_id' => $selectedRun->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 2,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/batch-selected-2/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/batch-selected-2.mp3',
+        ]);
+
+        $otherSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $otherRun->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 1,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/batch-other/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/batch-other.mp3',
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/batch-selected-1/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/batch-selected-1.mp3', 'audio');
+        Storage::disk('public')->put('sermons/sections/batch-selected-2/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/batch-selected-2.mp3', 'audio');
+        Storage::disk('public')->put('sermons/sections/batch-other/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/batch-other.mp3', 'audio');
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('approvePendingPublications', $selectedService->id)
+            ->assertDispatched(
+                'notify',
+                type: 'success',
+                message: 'Approved all 2 pending publications for this service.'
+            );
+
+        $selectedFirst->refresh();
+        $selectedSecond->refresh();
+        $otherSection->refresh();
+
+        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $selectedFirst->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $selectedSecond->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $otherSection->publication_status);
+
+        $firstBatchApproval = $selectedFirst->metadata['publication']['batch_approvals'][0] ?? null;
+        $secondBatchApproval = $selectedSecond->metadata['publication']['batch_approvals'][0] ?? null;
+
+        $this->assertIsArray($firstBatchApproval);
+        $this->assertIsArray($secondBatchApproval);
+        $this->assertSame($this->admin->id, $firstBatchApproval['approved_by_user_id'] ?? null);
+        $this->assertSame('service_review_dashboard', $firstBatchApproval['source'] ?? null);
+        $this->assertSame('approve_pending_publications', $firstBatchApproval['action'] ?? null);
+        $this->assertSame($selectedService->id, $firstBatchApproval['church_service_id'] ?? null);
+        $this->assertSame($firstBatchApproval['batch_id'] ?? null, $secondBatchApproval['batch_id'] ?? null);
+
+        Queue::assertPushedTimes(PublishApprovedServiceSection::class, 2);
+    }
+
+    #[Test]
+    public function it_skips_ineligible_sections_during_batch_approval_and_reports_the_result(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $this->actingAs($this->admin);
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-10',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-06-10',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $eligibleSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 1,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/batch-eligible/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/batch-eligible.mp3',
+        ]);
+
+        $reviewFlaggedSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 2,
+            'needs_manual_review' => true,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/batch-review/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/batch-review.mp3',
+        ]);
+
+        $missingMediaSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 3,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/batch-missing/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/batch-missing.mp3',
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/batch-eligible/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/batch-eligible.mp3', 'audio');
+        Storage::disk('public')->put('sermons/sections/batch-review/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/batch-review.mp3', 'audio');
+
+        Livewire::test(ServiceReviewDashboard::class)
+            ->call('approvePendingPublications', $service->id)
+            ->assertDispatched(
+                'notify',
+                type: 'success',
+                message: 'Approved 1 pending publication. Skipped 2 sections: blocked by other review flags (1), missing extracted media (1).'
+            );
+
+        $eligibleSection->refresh();
+        $reviewFlaggedSection->refresh();
+        $missingMediaSection->refresh();
+
+        $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $eligibleSection->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $reviewFlaggedSection->publication_status);
+        $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $missingMediaSection->publication_status);
+        $this->assertTrue($reviewFlaggedSection->needs_manual_review);
+
+        Queue::assertPushedTimes(PublishApprovedServiceSection::class, 1);
+    }
+
+    #[Test]
     public function save_section_requires_valid_type_and_title(): void
     {
         $this->actingAs($this->admin);
