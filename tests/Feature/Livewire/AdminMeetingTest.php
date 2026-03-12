@@ -36,14 +36,14 @@ class AdminMeetingTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        Meeting::factory()->create(['slug' => 'prayer-meeting']);
+        Meeting::factory()->create(['slug' => 'list-meeting-slug']);
 
         Livewire::test(ListMeetings::class)
             ->set('sortBy', 'invalid_column')
             ->set('sortDirection', 'sideways')
             ->assertSet('sortBy', 'updated_at')
             ->assertSet('sortDirection', 'desc')
-            ->assertSee('prayer-meeting');
+            ->assertSee('list-meeting-slug');
     }
 
     #[Test]

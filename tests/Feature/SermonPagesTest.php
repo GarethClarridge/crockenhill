@@ -266,15 +266,15 @@ class SermonPagesTest extends TestCase
     #[Test]
     public function sermon_page_displays_service_reading_separately_with_bible_gateway_link(): void
     {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'processing_id' => 'processing-reading',
+        ]);
+
         $sermon = Sermon::factory()->create([
             'title' => 'Sermon With Reading',
             'slug' => 'sermon-with-reading',
             'reference' => 'Romans 8:1-17',
-            'livestream_processing_id' => 'processing-reading',
-        ]);
-
-        $processingLog = MediaProcessingLog::factory()->livestream()->create([
-            'processing_id' => 'processing-reading',
+            'livestream_processing_id' => $processingLog->processing_id,
         ]);
 
         $readingItem = ChurchServiceItem::factory()->create([

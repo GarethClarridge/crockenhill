@@ -15,6 +15,14 @@ class CorrectiveSchemaMigrationsTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function sermonLivestreamForeignKeyMigration(): Migration
+    {
+        /** @var Migration $migration */
+        $migration = require base_path('database/migrations/2026_03_12_145040_add_foreign_key_to_sermons_livestream_processing_id.php');
+
+        return $migration;
+    }
+
     private function meetingsLocationMigration(): Migration
     {
         /** @var Migration $migration */
@@ -57,6 +65,26 @@ class CorrectiveSchemaMigrationsTest extends TestCase
             ->exists();
     }
 
+    private function columnDefinition(string $table, string $column): ?object
+    {
+        return DB::table('information_schema.columns')
+            ->selectRaw('COLUMN_TYPE as column_type, COLLATION_NAME as collation_name, IS_NULLABLE as is_nullable')
+            ->whereRaw('table_schema = database()')
+            ->where('table_name', $table)
+            ->where('column_name', $column)
+            ->first();
+    }
+
+    private function hasForeignKey(string $table, string $column, string $referencedTable): bool
+    {
+        return DB::table('information_schema.key_column_usage')
+            ->whereRaw('table_schema = database()')
+            ->where('table_name', $table)
+            ->where('column_name', $column)
+            ->where('referenced_table_name', $referencedTable)
+            ->exists();
+    }
+
     #[Test]
     public function it_makes_meetings_location_nullable_when_schema_has_drifted(): void
     {
@@ -89,5 +117,35 @@ class CorrectiveSchemaMigrationsTest extends TestCase
 
         $this->assertFalse($this->hasPrimaryKeyOnEmail());
         $this->assertTrue(Schema::hasIndex('password_reset_tokens', 'password_reset_tokens_email_index'));
+    }
+
+    #[Test]
+    public function sermon_livestream_foreign_key_migration_is_reversible(): void
+    {
+        if (! $this->isMySql()) {
+            $this->markTestSkipped('This reversibility check requires MySQL.');
+        }
+
+        $this->assertTrue($this->hasForeignKey('sermons', 'livestream_processing_id', 'media_processing_logs'));
+
+        $this->sermonLivestreamForeignKeyMigration()->down();
+
+        $columnAfterDown = $this->columnDefinition('sermons', 'livestream_processing_id');
+
+        $this->assertNotNull($columnAfterDown);
+        $this->assertSame('varchar(36)', $columnAfterDown->column_type);
+        $this->assertSame('utf8mb4_unicode_ci', $columnAfterDown->collation_name);
+        $this->assertSame('YES', $columnAfterDown->is_nullable);
+        $this->assertFalse($this->hasForeignKey('sermons', 'livestream_processing_id', 'media_processing_logs'));
+
+        $this->sermonLivestreamForeignKeyMigration()->up();
+
+        $columnAfterUp = $this->columnDefinition('sermons', 'livestream_processing_id');
+
+        $this->assertNotNull($columnAfterUp);
+        $this->assertSame('char(36)', $columnAfterUp->column_type);
+        $this->assertSame('utf8mb4_unicode_ci', $columnAfterUp->collation_name);
+        $this->assertSame('YES', $columnAfterUp->is_nullable);
+        $this->assertTrue($this->hasForeignKey('sermons', 'livestream_processing_id', 'media_processing_logs'));
     }
 }

@@ -288,7 +288,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
 
         // Create sermon record with livestream connection
         $sermon = Sermon::factory()->create([
-            'livestream_processing_id' => $processing->id,
+            'livestream_processing_id' => $processing->processing_id,
             'video_file_path' => 'sermons/1/video.mp4',
             'source_type' => 'livestream',
             'segment_start_time' => 300,
@@ -300,7 +300,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         $processing->update(['sermon_id' => $sermon->id]);
 
         // Verify relationships
-        $this->assertEquals($processing->id, $sermon->livestreamProcessing->id);
+        $this->assertEquals($processing->processing_id, $sermon->livestreamProcessing->processing_id);
         $this->assertEquals($sermon->id, $processing->sermon_id);
         $this->assertEquals(SermonSourceType::Livestream, $sermon->source_type);
         $this->assertNotNull($sermon->video_file_path);

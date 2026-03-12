@@ -370,7 +370,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function livestreamProcessing(): BelongsTo
     {
-        return $this->belongsTo(MediaProcessingLog::class, 'livestream_processing_id');
+        return $this->belongsTo(MediaProcessingLog::class, 'livestream_processing_id', 'processing_id');
     }
 
     /**

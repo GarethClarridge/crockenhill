@@ -56,12 +56,12 @@ class SermonPageContextServiceTest extends TestCase
     #[Test]
     public function it_returns_null_context_when_no_reading_section_exists(): void
     {
-        $sermon = Sermon::factory()->create([
-            'livestream_processing_id' => 'processing-123',
-        ]);
-
         MediaProcessingLog::factory()->livestream()->create([
             'processing_id' => 'processing-123',
+        ]);
+
+        $sermon = Sermon::factory()->create([
+            'livestream_processing_id' => 'processing-123',
         ]);
 
         $context = app(SermonPageContextService::class)->build($sermon);
