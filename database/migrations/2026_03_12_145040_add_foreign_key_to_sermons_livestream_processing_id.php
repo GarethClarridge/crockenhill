@@ -20,10 +20,13 @@ return new class extends Migration
             })
             ->update(['livestream_processing_id' => null]);
 
-        // Normalize collation to ensure compatibility for the foreign key constraint
         if (DB::getDriverName() === 'mysql') {
-            DB::statement('ALTER TABLE media_processing_logs MODIFY processing_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL');
-            DB::statement('ALTER TABLE sermons MODIFY livestream_processing_id VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL');
+            Schema::table('sermons', function (Blueprint $table) {
+                $table->char('livestream_processing_id', 36)
+                    ->nullable()
+                    ->collation('utf8mb4_unicode_ci')
+                    ->change();
+            });
         }
 
         Schema::table('sermons', function (Blueprint $table) {
@@ -43,5 +46,14 @@ return new class extends Migration
         Schema::table('sermons', function (Blueprint $table) {
             $table->dropForeign(['livestream_processing_id']);
         });
+
+        if (DB::getDriverName() === 'mysql') {
+            Schema::table('sermons', function (Blueprint $table) {
+                $table->string('livestream_processing_id', 36)
+                    ->nullable()
+                    ->collation('utf8mb4_unicode_ci')
+                    ->change();
+            });
+        }
     }
 };
