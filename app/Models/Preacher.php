@@ -87,4 +87,19 @@ class Preacher extends Model
     {
         return $query->where('is_active', true);
     }
+
+    /**
+     * Get a list of active preachers for admin dropdowns.
+     *
+     * Performance Optimization: Caches the preacher list for 24 hours using flexible cache
+     * to reduce redundant DB queries in the admin interface.
+     *
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    public static function getForAdminList(): \Illuminate\Support\Collection
+    {
+        return \Illuminate\Support\Facades\Cache::flexible('admin_preacher_list', [86400, 172800], function () {
+            return self::active()->orderBy('name')->pluck('name', 'id');
+        });
+    }
 }

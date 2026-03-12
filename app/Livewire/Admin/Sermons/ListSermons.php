@@ -12,7 +12,6 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -80,10 +79,6 @@ class ListSermons extends Component
 
         $sermon->delete();
 
-        // Clear cache when sermon is deleted
-        Cache::forget('admin_preacher_list');
-        Cache::forget('sermon_series');
-
         $this->success('Sermon deleted');
     }
 
@@ -92,9 +87,7 @@ class ListSermons extends Component
      */
     protected function getPreachers(): Collection
     {
-        return Cache::remember('admin_preacher_list', now()->addHours(24), function () {
-            return Preacher::active()->orderBy('name')->pluck('name', 'id');
-        });
+        return Preacher::getForAdminList();
     }
 
     /**
@@ -102,9 +95,7 @@ class ListSermons extends Component
      */
     protected function getSeries(): Collection
     {
-        return Cache::remember('sermon_series', now()->addHours(24), function () {
-            return collect(app(SermonRepository::class)->getSeriesForDisplay());
-        });
+        return collect(app(SermonRepository::class)->getSeriesForDisplay());
     }
 
     public function render(): View
