@@ -13,8 +13,10 @@ use App\Jobs\ProcessInboundOosEmail;
 use App\Models\ChurchService;
 use App\Models\InboundEmail;
 use App\Models\Song;
+use App\Services\PublicSongUsageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -69,6 +71,8 @@ class ProcessInboundOosEmailTest extends TestCase
         $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
         $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id']);
         $this->assertCount(4, $email->processing_metadata['parsing']['items']);
+        $this->assertSame('morning', $email->processing_metadata['parsing']['resolved_service']);
+        $this->assertSame('subject_keyword', $email->processing_metadata['parsing']['service_extraction']['method']);
         Event::assertDispatched(
             ChurchServiceCanonicalListChanged::class,
             fn (ChurchServiceCanonicalListChanged $event): bool => $event->churchServiceId === $service->id
@@ -107,6 +111,66 @@ class ProcessInboundOosEmailTest extends TestCase
         $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
         $this->assertTrue($email->processing_metadata['parsing']['confidence_score'] >= 0.75);
         $this->assertTrue($email->processing_metadata['parsing']['confidence_score'] < 0.90);
+    }
+
+    #[Test]
+    #[DataProvider('eveningEmailSubjects')]
+    public function it_imports_evening_oos_emails_and_counts_song_usage_without_a_livestream(
+        string $subject,
+        string $bodyPlain,
+        string $expectedExtractionMethod,
+    ): void {
+        $this->bindExtractor(new OosEmailItemExtractionResult(
+            items: [
+                ['type' => 'welcome', 'title' => 'Welcome'],
+                ['type' => 'song', 'title' => 'There is a higher throne'],
+                ['type' => 'prayer', 'title' => 'Pastoral prayer'],
+            ],
+            confidence: 0.95,
+        ));
+
+        $song = Song::factory()->create([
+            'canonical_key' => 'there is a higher throne',
+            'title' => 'There is a higher throne',
+        ]);
+
+        $email = InboundEmail::factory()->create([
+            'subject' => $subject,
+            'body_plain' => $bodyPlain,
+            'status' => InboundEmailStatus::PENDING->value,
+            'received_at' => '2026-03-10 09:00:00',
+        ]);
+
+        app()->call([new ProcessInboundOosEmail($email), 'handle']);
+
+        /** @var ChurchService $service */
+        $service = ChurchService::query()->with(['items.song', 'mediaProcessingLogs'])->sole();
+        $songUsage = app(PublicSongUsageService::class);
+
+        $this->assertSame(SermonService::EVENING, $service->service);
+        $this->assertSame('email', $service->source);
+        $this->assertCount(0, $service->mediaProcessingLogs);
+        $this->assertCount(3, $service->items);
+        $this->assertTrue($service->items->contains(
+            fn ($item): bool => $item->song_id === $song->id && $item->type === 'songs'
+        ));
+
+        $queryResults = $songUsage->query()->get();
+        $songResult = $queryResults->sole('id', $song->id);
+        $songStats = $songUsage->statsForSong($song);
+        $songHistory = $songUsage->usageHistoryForSong($song);
+
+        $this->assertSame(1, (int) $songResult->usage_count);
+        $this->assertSame($service->date->toDateString(), $songResult->last_sung_date);
+        $this->assertSame(1, $songStats['usage_count']);
+        $this->assertSame($service->date->toDateString(), $songStats['last_sung_date']);
+        $this->assertCount(1, $songHistory);
+        $this->assertSame($service->id, $songHistory->sole()->church_service_id);
+
+        $email->refresh();
+        $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
+        $this->assertSame('evening', $email->processing_metadata['parsing']['resolved_service']);
+        $this->assertSame($expectedExtractionMethod, $email->processing_metadata['parsing']['service_extraction']['method']);
     }
 
     #[Test]
@@ -165,5 +229,24 @@ class ProcessInboundOosEmailTest extends TestCase
                 return $this->result;
             }
         });
+    }
+
+    /**
+     * @return array<string, array{subject:string, bodyPlain:string, expectedExtractionMethod:string}>
+     */
+    public static function eveningEmailSubjects(): array
+    {
+        return [
+            'explicit evening wording' => [
+                'subject' => 'Order of Service - Sunday 16 March 2026 evening',
+                'bodyPlain' => "Welcome\nThere is a higher throne\nPastoral prayer",
+                'expectedExtractionMethod' => 'subject_keyword',
+            ],
+            'pm time hint in body' => [
+                'subject' => 'Order of Service - Sunday 16 March 2026',
+                'bodyPlain' => "6pm service\nWelcome\nThere is a higher throne\nPastoral prayer",
+                'expectedExtractionMethod' => 'body_time_hint',
+            ],
+        ];
     }
 }

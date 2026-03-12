@@ -1,7 +1,7 @@
 # PRD v2: Church Service Processing & Content Management
 
 **Date**: March 2026  
-**Status**: Draft v2  
+**Status**: Living product spec (v1 delivered; next-phase roadmap active)  
 **Author**: Revised from codebase analysis + stakeholder decisions
 
 ---
@@ -78,23 +78,26 @@ The system must remain useful even when no OoS is provided. OoS improves accurac
 
 - Livestream upload and segmentation pipeline already exists.
 - Sermon extraction, transcription, AI sermon analysis, and thumbnail generation already exist.
-- OpenLP `.osz` import already creates `ChurchService` and `ChurchServiceItem` records.
-- `ChurchService` already supports `needs_review`.
-- `ServiceSection` records already exist for classified sections and support review state.
-- Children's talk extraction and publication flow already exists, but published output is still represented as a normal `Sermon`.
-- Song catalog import and song linking already exist.
-- Admin song usage views already exist.
-- An admin section publication queue already exists.
+- OpenLP `.osz` import, Mailgun-backed OoS email ingestion, and manual admin service editing all create/update `ChurchService` and `ChurchServiceItem` records.
+- `ChurchService` supports `needs_review`, canonical conflict reopening, and event-driven reconciliation with processed livestreams.
+- `ServiceSection` classification exists with numeric confidence, manual review state, OoS alignment, and explicit confirmed/inferred/unmatched song match state.
+- Children's talks publish as first-class `Sermon` records via `content_type = childrens_talk`, and the Children’s Corner pages already exist behind the current auth-based launch gate.
+- Song catalog import, song linking, and public song usage pages already exist.
+- The sermon page already separates preached passage from the service reading reference.
+- The consolidated review dashboard and admin section publication queue already exist.
 
 ### 4.2 Existing Gaps
 
-- OoS ingestion only supports OpenLP today.
-- The current section classifier is effectively OoS-aligned first and degrades poorly when no matching `ChurchService` exists.
-- There is no durable link from a processed livestream to a `ChurchService`.
-- Children's talks do not have a first-class content distinction inside the `sermons` domain.
-- Public song usage pages do not exist.
-- The sermon page does not cleanly separate preached passage from service reading.
-- Reconciliation between OoS and livestream is not yet explicit or event-driven.
+- There is still no dedicated children’s-talk speaker workflow: no automatic identification against speaker profiles, and no review UI for handling low-confidence or incorrect results before publication.
+- Children’s talks still inherit some sermon-shaped behavior in shared helpers and surfaces: canonical URLs, sitemap entries, and generic sermon routes are not yet consistently `content_type`-aware.
+- The public API is inconsistent: `/api/sermons` excludes children’s talks in listing queries, but the detail endpoint can still return them, and the shared resource does not communicate content type explicitly. The detail endpoint should return 404 for children’s talks.
+- Children’s talks are currently emitted in the sitemap with `/christ/sermons/` canonical URLs, which will 404 for unauthenticated users since Children’s Corner requires auth. This is a bug: children’s talks should either be excluded from the sitemap while the auth gate is active, or use the Children’s Corner canonical URL once publicly released.
+- Admin sermon tooling is still sermon-shaped rather than content-type-aware: shared listings, “view” links, labels, and edit fields do not yet adapt cleanly for children’s talks.
+- The review dashboard is still section-by-section; safe batch actions such as “approve all pending for this service” do not exist yet.
+- Inbound email review does not yet show the original raw email alongside parsed output, and admins cannot re-run the parser against stored inbound emails.
+- Admin observability is still limited: there is no per-run processing timeline view and no aggregate confidence/review trend reporting.
+- Manual song-link corrections do not yet feed a reviewed alias/feedback loop for future automatic matching.
+- Notices remain deferred beyond detection/transcription foundations: there is no dedicated editorial notice workflow, subscriber model, or weekly digest delivery.
 
 ---
 
@@ -284,13 +287,22 @@ Publish children's talks as first-class public content while keeping the existin
 #### Requirements
 
 - Keep the same underlying content model as sermons.
+- Continue to use the shared `Sermon` model with `content_type`; a separate `ChildrensTalk` model is not required at this stage.
 - Add a distinct content type on `sermons`, for example:
   - `sermon`
   - `childrens_talk`
 - Publishing a children's talk from a `ServiceSection` should create a `Sermon` with `content_type = childrens_talk`.
+- The system should attempt automatic speaker identification for children's talks using the extracted section audio and existing speaker profiles.
+- High-confidence matches should be accepted automatically, consistent with sermon speaker identification.
+- Admins must be able to override the detected speaker when the result is low-confidence, ambiguous, or incorrect, including a free-text fallback when no canonical `Preacher` exists.
 - Children's talks should have their own public listing page and detail presentation.
 - Children's talks should be excluded from the main sermon listing and podcast feed.
 - The dedicated public area should be "Children's Corner".
+- Shared route, canonical URL, and sitemap helpers must branch on `content_type`.
+- The Children’s Corner release gate may remain enabled for authenticated users only until launch, but that gate must apply consistently across public routing, sitemap output, and discoverability.
+- When children’s talks are enabled publicly, their canonical URL should be `/christ/childrens-corner/{slug}` and generic sermon routes must not render them as ordinary sermons.
+- The read-only sermon API should remain sermon-only. `/api/sermons/{id}` must return 404 for children’s talks. If public API access to children’s talks is needed later, it should be exposed through a dedicated endpoint rather than mixed unexpectedly into `/api/sermons`.
+- Shared admin listing and edit surfaces may remain reused, but labels, actions, and visible fields must adapt to `content_type`. Admin "view" links for children’s talks should route to the Children’s Corner show page, not the sermon show route.
 
 #### Public UX
 
@@ -429,49 +441,45 @@ The service should be flagged for review when any of the following is true:
 
 ---
 
-## 8. Proposed Delivery Phases
+## 8. Delivery Status and Next Phases
 
-### Phase 1: Incremental Assembly Foundation
+### 8.1 Delivered Foundation
 
-- Add durable livestream-to-service linking.
-- Support re-alignment when OoS data arrives after processing.
-- Ensure the classifier can produce useful section data without a pre-existing `ChurchService`.
+The original Phases 1-7 are now substantially delivered:
 
-### Phase 2: OoS Ingestion
+- durable livestream-to-service linking and event-driven reconciliation,
+- OoS ingestion via email, manual entry, and OpenLP,
+- audio-first section classification with confidence and review state,
+- first-class children’s talks and the Children’s Corner launch-gated surface,
+- separate service reading reference handling,
+- public song usage pages with confirmed-match counting rules,
+- and a consolidated review dashboard plus publication queue.
 
-- Add Mailgun inbound webhook support for OoS emails.
-- Add dedupe, signature verification, and review thresholds.
-- Add manual admin form for create/edit/reorder.
-- Keep OpenLP import as a supported secondary source.
+### 8.2 Next Phase: Workflow Polish and Admin UX
 
-### Phase 3: Classification Rework
+- Add end-to-end regression coverage for evening-service email ingestion and non-livestreamed song counting.
+- Add children’s-talk speaker detection with review/override in publishing flows.
+- Fix the existing sitemap bug where children’s talks emit `/christ/sermons/` canonical URLs that 404 for unauthenticated users.
+- Make children’s-talk routing, canonical URLs, API boundaries, and shared admin surfaces content-type-aware while keeping the shared `Sermon` model.
+- Add safe review-dashboard batch actions, beginning with “approve all pending publications for this service”.
+- Show the original inbound email body alongside parsed review data.
+- Allow admins to re-run the inbound email parser against stored inbound emails.
 
-- Implement targeted transcription of non-sermon speech blocks.
-- Implement AI-based split and label classification for speech segments.
-- Add confidence scoring and structured mismatch reporting.
-- Align detected sections against the canonical service list when available.
+### 8.3 Next Phase: Observability and Service Health
 
-### Phase 4: Children's Talks
+- Add a per-run processing timeline view on the service detail page.
+- Add a planned-vs-actual comparison view for each service.
+- Add confidence, mismatch, and review trend reporting over time.
 
-- Add `content_type` to `sermons`.
-- Publish children's talks through the existing sermon/media pipeline.
-- Exclude children's talks from main sermon listings and podcast feeds.
-- Build the Children's Corner public surface.
+### 8.4 Next Phase: Feedback Loops and Controlled Reprocessing
 
-### Phase 5: Sermon Display Enhancements
+- Add a reviewed song-title alias feedback loop so confirmed admin corrections improve future matching.
+- Record parser/classifier version metadata and support targeted reprocessing for services or bounded date ranges.
 
-- Preserve `Sermon.reference` as preached passage.
-- Display service reading separately when present.
+### 8.5 Future Phase: Notices
 
-### Phase 6: Public Song Usage
-
-- Build the public worship songs page.
-- Use only actual detected-and-matched songs for statistics.
-- Add filters such as all time and this year.
-
-### Future Phase: Notices
-
-- Extract, transcribe, store, and deliver notices by email.
+- Build an editorial notice-review surface for detected notice sections.
+- Add subscribers, digest assembly, preview, and weekly email delivery once editorial review exists.
 
 ---
 
@@ -484,7 +492,8 @@ The service should be flagged for review when any of the following is true:
 | Song linkage rate | >95% of detected songs with known titles link to a catalog entry |
 | Manual intervention rate | <10% of services require structural admin correction |
 | OoS-free usefulness | Services without OoS still produce sermon extraction and usable section classification |
-| Public song page | Live and populated by Phase 6 |
+| Public song usage accuracy | Confirmed livestream matches only; OoS-only counting limited to genuinely non-livestreamed services |
+| Review throughput | Median admin time to clear a normal service review drops once batch review actions land |
 
 ---
 
@@ -510,7 +519,7 @@ The service should be flagged for review when any of the following is true:
 
 4. **Joint or special services.** Combined services (church anniversary, baptism, carol service) may have a significantly different structure from the typical morning/evening pattern. The classifier should degrade gracefully — produce what it can confidently identify and flag the rest for review — rather than force-fitting a standard template.
 
-5. **Children's talk speaker.** The speaker identification system targets the sermon preacher. Children's talks are typically given by a different person. There is currently no mechanism to identify or assign the children's talk speaker automatically. For v1, the speaker can be set manually during admin review.
+5. **Children's talk speaker.** The main sermon speaker-identification flow should not be assumed to apply to children's talks, because they are often given by a different person. The system should attempt identification from the extracted children's-talk segment itself, then require review when confidence is low, ambiguous, or no match is found. Speaker data should be stored on `ServiceSection.metadata` (since the audio comes from the section), with the reviewed result carrying through to the published `Sermon`'s preacher fields via `SermonCreationOptions`.
 
 ---
 
@@ -519,3 +528,6 @@ The service should be flagged for review when any of the following is true:
 - The current admin section publication queue should be extended, not replaced.
 - The current service classifier should evolve from OoS-first matching to audio-first detection with OoS enrichment.
 - The final reviewed OoS list may differ from the originally imported email/OpenLP plan, and that is acceptable.
+- Near-term roadmap should prioritize review throughput and observability ahead of notice-delivery work.
+- `Sermon` should remain the shared persistence model for sermons and children’s talks; differences should be expressed through `content_type`-aware routing, API, and UI behavior rather than a new model.
+- The Children’s Corner auth gate is a deliberate release toggle, but it should control public exposure consistently rather than allowing children’s talks to leak through sermon-shaped surfaces.

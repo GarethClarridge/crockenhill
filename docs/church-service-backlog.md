@@ -537,6 +537,314 @@ Each item includes what exists, what needs to change, and which PRD section it i
 
 ---
 
+## Phase 8: Workflow Polish and Admin UX
+
+*Goal: Reduce manual review time, expose the right evidence during review, and close the remaining children’s-talk workflow gap.*
+
+### 8.1 Add evening-service OoS end-to-end regression coverage
+
+**PRD ref**: §§5.4, 6.1, 6.3
+
+**What exists**: `OosEmailParserService` already infers evening services from `PM`/`evening` hints, `ProcessInboundOosEmail` imports email-driven services, and `PublicSongUsageService` already trusts non-livestreamed services directly. What is missing is a single regression test proving the full evening-service path works from inbound email through song-usage counting.
+
+**Work**:
+- Add a feature test that processes an evening OoS email with song items and asserts the resulting `ChurchService.service` is `evening`.
+- Assert the imported service remains valid for song usage without any associated `MediaProcessingLog`.
+- Assert linked songs appear in the usage query/history exactly once and are not treated as livestream-dependent.
+- Cover both explicit `evening` wording and `PM`/time-hint based detection paths where practical.
+
+**Tests**: Evening OoS email imports as an evening service. Imported evening songs count in public/admin usage without a livestream. Morning/evening detection does not regress existing morning cases.
+
+---
+
+### 8.2 Add children’s-talk speaker detection with review/override
+
+**PRD ref**: §§6.4, 11 edge case 5
+
+**What exists**: Children’s talks already publish as `Sermon` records with `content_type = childrens_talk`, and sermon speaker identification already exists for the main sermon pipeline. But that identification path is tied to the sermon record created from the full sermon flow, not the extracted children's-talk section. There is no automatic speaker detection for children's talks, and no review UI to handle low-confidence or incorrect detected speakers before publication.
+
+**Work**:
+- Store predicted and reviewed children’s-talk speaker data on `ServiceSection.metadata` (the audio comes from the section, making it the natural owner). The reviewed result carries through to the published `Sermon`’s preacher fields via `SermonCreationOptions`.
+- Add automatic speaker identification for `childrens_talk` sections using the extracted section audio and the existing speaker-profile/preacher matching infrastructure.
+- Record detection metadata suitable for review:
+  - matched `preacher_id`,
+  - matched name,
+  - confidence,
+  - source,
+  - and no-match/ambiguous outcome details.
+- Extend the review dashboard so `childrens_talk` sections show the detected speaker and:
+  - auto-clear high-confidence matches without requiring an extra confirmation step,
+  - flag low-confidence or ambiguous matches for review,
+  - allow admins to choose a different existing `Preacher`,
+  - or enter a free-text fallback speaker name.
+- Carry the reviewed speaker through `PublishApprovedServiceSection`, `SermonCreationOptions`, and `SermonCreationService` so published children’s talks use the confirmed speaker immediately.
+- Ensure low-confidence or ambiguous results stay reviewable rather than silently falling back to the sermon preacher.
+- Surface the final speaker consistently on Children’s Corner cards/detail pages and in admin publication context.
+
+**Tests**: A confident speaker match is accepted automatically for children’s talks. Low-confidence or ambiguous results remain flagged for review. Admin override beats the automatic suggestion during publication. Existing sermon-speaker identification behavior remains unchanged for normal sermons.
+
+---
+
+### 8.3 Add safe batch actions to the review dashboard
+
+**PRD ref**: §6.7
+
+**What exists**: `ServiceReviewDashboard` supports only per-section actions (`approve`, `reject`, `requeue`, `saveSection`) and a per-service `markServiceReviewed`. This is workable but slow for clean services with multiple pending approvals.
+
+**Work**:
+- Add a service-level batch action: `Approve all pending publications for this service`.
+- Limit the first implementation to safe, deterministic bulk actions only:
+  - no bulk type/title mutation,
+  - no bulk approval when required extracted assets are missing,
+  - no silent clearing of manual-review flags unrelated to publication.
+- Queue publication jobs for each newly approved section and return one concise success/failure summary to the admin.
+- Record batch approval metadata so the action is auditable.
+- Optionally follow with a second batch action later, such as resolving all review-only flags that already match canonical data.
+
+**Tests**: Approve-all only affects sections belonging to the selected service. Each eligible section moves to `approved` and queues a publish job. Ineligible sections remain unchanged and are reported clearly.
+
+---
+
+### 8.4 Show the original inbound email alongside parsed review data
+
+**PRD ref**: §6.1 Source 1
+
+**What exists**: `InboundEmail` stores `body_plain` and `body_html`, but the admin review screen only shows the parsed preview and parser warnings. Admins cannot inspect the original email body when debugging parser failures or ambiguous imports.
+
+**Work**:
+- Add an expandable “Original email” panel to the inbound-email review UI.
+- Show:
+  - plain text body,
+  - sanitized HTML rendering,
+  - and raw parser metadata/warnings in a developer-friendly format.
+- Keep the raw-body view read-only and collapsed by default to preserve scanning speed.
+- Ensure HTML output is sanitized before rendering in admin.
+
+**Tests**: Plain-text emails render correctly. HTML emails render a sanitized preview. Missing body variants degrade gracefully. Unsafe markup is not executed.
+
+---
+
+### 8.5 Allow admins to re-run the inbound email parser against stored emails
+
+**PRD ref**: §6.1 Source 1
+
+**What exists**: Raw inbound email data is stored durably, but once an email is pending/failed, admins cannot re-run parsing with improved prompts or parser logic without resending the email.
+
+**Work**:
+- Add a “Re-parse email” action to the inbound email review screen.
+- Re-run `OosEmailParserService` against the stored inbound email body and replace the cached parse payload in `processing_metadata.parsing`.
+- Refresh the preview, warnings, and import eligibility state after the re-parse.
+- Keep the operation idempotent and non-destructive:
+  - do not import automatically unless the admin explicitly approves afterwards,
+  - keep prior failure/review metadata if still relevant.
+- Record a re-parse timestamp on `processing_metadata` so that 10.2 (version metadata) can later backfill model/prompt version information for re-parsed emails.
+
+**Tests**: Re-parse updates stored parsing metadata. Improved parse results become visible immediately in review. Failed/pending emails can be retried without duplication or accidental import. Re-parse timestamp is recorded.
+
+---
+
+### 8.6 Make children’s-talk routing, API, and admin surfaces content-type-aware
+
+**PRD ref**: §§6.4, 6.7
+
+**What exists**: Children’s talks correctly share the `Sermon` model via `content_type = childrens_talk`, and dedicated Children’s Corner pages already exist. But some shared helpers and surfaces still behave as if every `Sermon` is an ordinary sermon: canonical URL helpers and sitemap tags still assume sermon URLs (children’s talks are currently emitted in the sitemap with `/christ/sermons/` URLs that 404 for unauthenticated users — this is a bug), `/api/sermons` is sermon-only in index but the show endpoint still returns children’s talks, and shared admin listing/edit surfaces still use sermon-specific copy and actions. The current Children’s Corner auth gate is deliberate as a release toggle, but that toggle is not yet applied consistently across these other surfaces.
+
+**Work**:
+- Keep the shared `Sermon` model; do not introduce a separate `ChildrensTalk` model.
+- Add a single content-type-aware exposure policy for children’s talks and apply it consistently to:
+  - Children’s Corner routes,
+  - generic sermon routes,
+  - canonical URL helpers,
+  - sitemap generation,
+  - and any public API exposure.
+- Ensure generic sermon routes do not render `childrens_talk` records as ordinary sermons:
+  - when Children’s Corner is not released publicly, children’s talks remain non-public,
+  - when released, children’s talks use the Children’s Corner route as canonical and sermon routes redirect or reject them.
+- Make sitemap output and shared URL helpers branch on `content_type` so children’s talks do not emit sermon URLs.
+- Make `/api/sermons` consistently sermon-only for both list and detail endpoints. `/api/sermons/{id}` must return 404 for children’s talks.
+- If public API access to children’s talks is needed later, add a dedicated endpoint instead of mixing them silently into sermon responses.
+- Add explicit `content_type` awareness where shared resources are reused outside sermon-only contexts.
+- Update the admin listing so it:
+  - shows a content-type badge,
+  - uses type-aware view links (children’s talks link to the Children’s Corner show route, not the sermon show route),
+  - and no longer presents every row as an ordinary sermon.
+- Update the shared edit surface so `childrens_talk` records get type-aware headings, help text, and field visibility:
+  - sermon-only fields such as preached-passage-oriented reference and AI sermon points should be hidden or clearly de-emphasized unless intentionally used.
+
+**Tests**: Children’s talks do not leak through sermon routes when the release gate is off. Children’s talks are excluded from sitemap while auth gate is active. Canonical URLs and sitemap entries use Children’s Corner URLs when publicly released. `/api/sermons/{id}` returns 404 for children’s talks. Admin listing view links route to Children’s Corner for children’s talks. Edit UI labels and visible fields adapt for children’s talks.
+
+---
+
+## Phase 9: Observability and Service Health
+
+*Goal: Make the multi-job pipeline inspectable and measurable so admin debugging and ongoing tuning are practical.*
+
+### 9.1 Add a per-run processing timeline view on the service detail page
+
+**PRD ref**: Post-PRD operational follow-up to §§6.2, 6.3, 6.7
+
+**What exists**: `ShowChurchService` already lists related livestream runs and their `ServiceSection` records. `SermonProcessingStep` already stores per-step timestamps and status, but the church-service livestream chain does not surface those steps in admin and newer section-classification jobs do not consistently write step rows yet.
+
+**Work**:
+- Instrument the church-service-specific livestream jobs with explicit step logging:
+  - `ClassifyServiceSections`,
+  - `TranscribeSpeechSegments`,
+  - `ClassifySpeechSections`,
+  - `AlignWithOos`,
+  - `ExtractSermon`,
+  - `PrepareSectionPublicationCandidates`.
+- Add a service-page timeline component showing:
+  - ordered step name,
+  - status,
+  - start/completion times,
+  - duration,
+  - and error message where relevant.
+- Distinguish currently running, skipped, failed, and completed steps clearly.
+- Keep it scoped to existing runs first; aggregate dashboards can build on the same data later.
+
+**Tests**: Timeline steps render in chronological order. Completed steps show durations. Failed steps expose their message. Uninstrumented/absent steps degrade gracefully.
+
+---
+
+### 9.2 Add a planned-vs-actual comparison view for each service
+
+**PRD ref**: §§5.1, 5.2, 6.7
+
+**What exists**: Admin can see canonical OoS items on the service page and detected sections on the same page, but only as separate tables. There is no dedicated diff view that makes mismatches obvious at a glance.
+
+**Work**:
+- Build a comparison presenter/service that aligns:
+  - canonical `ChurchServiceItem` entries,
+  - detected `ServiceSection` records,
+  - and OoS/song-match metadata.
+- Surface side-by-side comparison with explicit states such as:
+  - matched,
+  - missing from livestream,
+  - extra detected section,
+  - mismatched type,
+  - inferred song label,
+  - unmatched song.
+- Link this view from both the service detail page and the review dashboard.
+- Keep source-precedence semantics visible: the livestream remains the record of what happened; the canonical list remains the reviewed plan/final list.
+
+**Tests**: Matching items render as matched. Missing/extra/mismatched cases show the correct state. Song match-type badges are correct for confirmed vs inferred vs unmatched matches.
+
+---
+
+### 9.3 Add confidence and review trend reporting
+
+**PRD ref**: §7
+
+**What exists**: Numeric confidence is stored on `ServiceSection`, review flags are already generated, and the review dashboard exposes current queue counts. There is no aggregate reporting over time.
+
+**Work**:
+- Create an aggregate reporting service that groups service/section review data by week.
+- Initial metrics should include:
+  - low-confidence section rate,
+  - unmatched-song rate,
+  - services-needing-review rate,
+  - pending children’s-talk publication count/rate,
+  - and auto-clear vs manual-review proportions.
+- Add a small admin reporting surface using server-rendered Blade tables with inline sparklines or simple bar charts (Livewire component, no JS charting library required for v1). Avoid over-building BI infrastructure.
+- Make date range and service-type filters available once the base queries are stable.
+
+**Tests**: Weekly aggregates are correct across date boundaries. Empty weeks do not break the report. Service-type filtering and count denominators are correct.
+
+---
+
+## Phase 10: Feedback Loops and Controlled Reprocessing
+
+*Goal: Turn admin corrections into durable quality improvements without creating unsafe automatic behavior.*
+
+### 10.1 Add a reviewed song-title alias feedback loop
+
+**PRD ref**: Post-PRD follow-up to §§5.4, 6.7
+
+**What exists**: Admins can manually correct unmatched or inferred song links in the review flow, but those corrections only fix the current item. There is no durable alias store that improves future automatic matching.
+
+**Work**:
+- Add a small reviewed alias model/table, for example `song_title_aliases`, linked to `Song`.
+- Capture aliases only from explicit admin confirmation, not from every inferred match.
+- Store provenance fields such as:
+  - source title,
+  - normalized title,
+  - approved by,
+  - approved at,
+  - originating service/item if useful for audit.
+- Teach the song-linking/matching path to consult approved aliases before falling back to weaker normalization.
+- Expose aliases in admin song detail for maintenance.
+
+**Tests**: Approved aliases improve future matching. Unapproved/manual one-off corrections do not create aliases. Alias collisions/conflicts are handled safely.
+
+---
+
+### 10.2 Record parser/classifier version metadata and support targeted reprocessing
+
+**PRD ref**: Post-PRD operational follow-up
+
+**What exists**: The system stores some parsing/classification metadata, but not a clear, durable record of the model/prompt version used for email parsing and speech classification. Reclassification exists per service, but there is no audited bulk workflow tied to version changes.
+
+**Work**:
+- Record model/version/prompt-hash metadata for:
+  - inbound email parsing,
+  - speech-section classification,
+  - and OoS alignment decisions where practical.
+- Surface that metadata on admin service/inbound-email screens.
+- Add targeted reprocessing tools for admins, beginning with:
+  - reclassify a service,
+  - then optionally reclassify a bounded date range filtered by old version metadata.
+- Keep reprocessing explicit and auditable; do not auto-migrate historical decisions silently.
+
+**Tests**: New runs persist version metadata. Service-level reclassification preserves auditability. Date-range filtering for targeted reprocessing selects the expected runs only.
+
+---
+
+## Phase 11: Notices
+
+*Goal: Move from “notice sections can be detected” to a reviewable, subscribable notices workflow in two safe phases.*
+
+### 11.1 Build an editorial notice-review surface
+
+**PRD ref**: §6.8
+
+**What exists**: The classification pipeline already detects `NOTICES` sections and can transcribe non-song/non-sermon speech sections into `ServiceSection.metadata`. There is no admin experience dedicated to reviewing, editing, or curating notices.
+
+**Work**:
+- Decide whether v1 of notices should remain section-backed or introduce a lightweight first-class notice projection.
+- Add an admin view listing notice sections with:
+  - transcript,
+  - extracted clip preview where available,
+  - service/date context,
+  - and review state.
+- Allow admins to edit the transcript and mark it as reviewed/ready for digest use.
+- Keep the initial scope editorial only:
+  - no subscription model yet,
+  - no public/member delivery yet.
+
+**Tests**: Notice sections appear in the review surface. Transcript edits persist. Reviewed notices can be filtered separately from raw detected notices.
+
+---
+
+### 11.2 Add subscriber management and weekly notice digests
+
+**PRD ref**: §6.8
+
+**What exists**: No subscriber model, no opt-in flow, and no notice-delivery pipeline exists yet.
+
+**Work**:
+- Add subscriber and delivery-tracking models/tables (`notice_subscribers`, `notice_digest_deliveries`).
+- Add opt-in/opt-out flows:
+  - Authenticated members: toggle in account settings or members area.
+  - Non-members: public subscribe form with email confirmation (double opt-in).
+  - All subscribers: signed unsubscribe link in every digest email.
+- Create a weekly digest assembly job that selects reviewed notices only.
+- Add delivery logging and idempotency so the same weekly digest is not sent twice to the same subscriber accidentally.
+- Add a basic admin preview of the outgoing digest email before send.
+
+**Tests**: Subscribers can opt in and unsubscribe. Weekly digest includes only reviewed notices in the correct window. Duplicate delivery is prevented. Digest preview renders with empty and populated states.
+
+---
+
 ## Summary: Dependency Order
 
 ```
@@ -578,6 +886,29 @@ Phase 6 (Public Songs) ── depends on Phase 3 (needs detected-song counting)
 
 Phase 7 (Review) ── depends on Phase 3 (needs confidence data)
   7.1 Consolidated review dashboard
+
+Phase 8 (Workflow Polish) ── builds on existing review and ingestion flows
+  8.1 Evening-service OoS regression (depends on Phases 2, 6)
+  8.2 Children's-talk speaker detection + override (depends on Phases 4, 7)
+  8.3 Batch review actions (depends on Phase 7)
+  8.4 Original inbound email view (depends on Phase 2)
+  8.5 Re-run inbound parser (depends on Phase 2)
+  8.6 Content-type-aware children’s-talk routing/API/admin surfaces (depends on Phase 4)
+
+Phase 9 (Observability) ── depends on Phase 3 data and job instrumentation
+  9.1 Processing timeline
+  9.2 Planned vs actual diff (depends on 3.3, 7.1)
+  9.3 Confidence/review trends (depends on 3.4, 7.1)
+
+Phase 10 (Feedback Loops) ── depends on reviewed admin corrections existing
+  10.1 Song alias feedback loop (depends on 6.x, 7.1)
+  10.2 Version metadata + targeted reprocessing (depends on 9.1)
+
+Phase 11 (Notices) ── depends on Phase 3 non-sermon section detection
+  11.1 Editorial notice review surface
+  11.2 Subscribers + weekly digests (depends on 11.1)
 ```
 
 **Phases 1 and 2 can run in parallel.** Phase 4 can also start independently once 1.2 is done (so the classifier produces children's talk sections). Phases 5, 6, and 7 all depend on Phase 3 being complete.
+
+**Suggested next delivery wave**: all of Phase 8 (8.1–8.6). Item 8.5 pairs naturally with 8.4 (both are inbound-email review improvements) and is small enough to include without risk. That wave gives the best mix of safety, admin time savings, workflow completeness, and content-type consistency before moving into broader observability and notices work.
