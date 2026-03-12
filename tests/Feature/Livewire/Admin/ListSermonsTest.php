@@ -88,11 +88,11 @@ class ListSermonsTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        Sermon::factory()->create([
+        $sermon = Sermon::factory()->create([
             'title' => 'Admin Sermon',
             'content_type' => SermonContentType::Sermon,
         ]);
-        Sermon::factory()->create([
+        $childrensTalk = Sermon::factory()->create([
             'title' => "Admin Children's Talk",
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
@@ -100,7 +100,11 @@ class ListSermonsTest extends TestCase
         Livewire::test(ListSermons::class)
             ->set('last12Months', false)
             ->assertSee('Admin Sermon')
-            ->assertSee("Admin Children's Talk");
+            ->assertSee("Admin Children's Talk")
+            ->assertSee('Sermon')
+            ->assertSee("Children's Talk")
+            ->assertSee($sermon->public_url)
+            ->assertSee($childrensTalk->public_url);
     }
 
     // -------------------------------------------------------------------------

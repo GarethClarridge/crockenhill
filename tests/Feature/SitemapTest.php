@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\SermonContentType;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Sermon;
@@ -80,6 +81,45 @@ class SitemapTest extends TestCase
             '<loc>http://localhost/christ/sermons/2024/01/test-sermon</loc>',
             $content
         );
+    }
+
+    #[Test]
+    public function sitemap_excludes_childrens_talks_while_public_release_is_disabled(): void
+    {
+        Sermon::factory()->create([
+            'slug' => 'hidden-childrens-talk',
+            'date' => '2026-02-15',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        Cache::forget('sitemap');
+
+        $response = $this->get('/sitemap.xml');
+        $content = $response->getContent();
+
+        $this->assertStringNotContainsString('/christ/childrens-corner', $content);
+        $this->assertStringNotContainsString('hidden-childrens-talk', $content);
+    }
+
+    #[Test]
+    public function sitemap_uses_childrens_corner_urls_when_public_release_is_enabled(): void
+    {
+        config(['sermons.childrens_talks.public' => true]);
+
+        Sermon::factory()->create([
+            'slug' => 'public-childrens-talk',
+            'date' => '2026-02-15',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        Cache::forget('sitemap');
+
+        $response = $this->get('/sitemap.xml');
+        $content = $response->getContent();
+
+        $this->assertStringContainsString('<loc>http://localhost/christ/childrens-corner</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/childrens-corner/public-childrens-talk</loc>', $content);
+        $this->assertStringNotContainsString('/christ/sermons/2026/02/public-childrens-talk', $content);
     }
 
     #[Test]

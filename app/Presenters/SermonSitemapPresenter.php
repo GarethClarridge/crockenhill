@@ -3,16 +3,18 @@
 namespace App\Presenters;
 
 use App\Models\Sermon;
+use App\Services\SermonExposurePolicy;
 use Carbon\Carbon;
 use Spatie\Sitemap\Tags\Url;
 
 class SermonSitemapPresenter
 {
+    public function __construct(
+        private readonly SermonExposurePolicy $exposurePolicy,
+    ) {}
+
     public function toSitemapTag(Sermon $sermon): Url
     {
-        $year = $sermon->date->format('Y');
-        $month = $sermon->date->format('m');
-
         $daysOld = abs(now()->diffInDays($sermon->date, false));
         $priority = $daysOld < 30 ? 0.8 : 0.6;
         $changeFreq = $daysOld < 365 ? Url::CHANGE_FREQUENCY_MONTHLY : Url::CHANGE_FREQUENCY_YEARLY;
@@ -28,7 +30,7 @@ class SermonSitemapPresenter
             }
         }
 
-        $url = Url::create("/christ/sermons/{$year}/{$month}/{$sermon->slug}")
+        $url = Url::create($this->exposurePolicy->canonicalUrl($sermon))
             ->setLastModificationDate($lastModified)
             ->setChangeFrequency($changeFreq)
             ->setPriority($priority);

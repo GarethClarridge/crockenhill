@@ -1,8 +1,8 @@
 <div class="space-y-6">
     <div class="flex justify-between items-center">
         <div>
-            <h1 class="font-display text-3xl">Sermons</h1>
-            <p class="text-gray-600">Manage sermon recordings</p>
+            <h1 class="font-display text-3xl">Sermons &amp; Talks</h1>
+            <p class="text-gray-600">Manage sermon recordings and published children's talks.</p>
         </div>
         <x-button link="{{ route('admin.sermon-upload.create') }}" variant="primary" icon="cloud-arrow-up" inline>
             Upload Sermon
@@ -57,6 +57,11 @@
                             {{-- Title --}}
                             <td class="px-4 py-3">
                                 <p class="font-medium">{{ Str::limit($sermon->title, 50) }}</p>
+                                <p class="mt-2">
+                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk ? 'bg-sky-100 text-sky-800' : 'bg-gray-100 text-gray-700' }}">
+                                        {{ $sermon->content_type->label() }}
+                                    </span>
+                                </p>
                                 @if($sermon->reference)
                                     <p class="text-sm text-gray-500">{{ $sermon->reference }}</p>
                                 @endif
@@ -104,12 +109,12 @@
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">
                                 <div class="flex gap-1 justify-end">
-                                    <x-button link="{{ route('showSermon', $sermon) }}" variant="ghost" size="xs" icon="eye" inline aria-label="View sermon: {{ $sermon->title }}" />
-                                    <x-button link="{{ route('admin.sermons.edit', $sermon) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit sermon: {{ $sermon->title }}" />
+                                    <x-button link="{{ $sermon->public_url }}" variant="ghost" size="xs" icon="eye" inline aria-label="View {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
+                                    <x-button link="{{ route('admin.sermons.edit', $sermon) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
                                     <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                         wire:click="delete({{ $sermon->id }})"
-                                        wire:confirm="Delete this sermon?"
-                                        aria-label="Delete sermon: {{ $sermon->title }}" />
+                                        wire:confirm="Delete this {{ strtolower($sermon->content_type->label()) }}?"
+                                        aria-label="Delete {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
                                 </div>
                             </td>
                         </tr>

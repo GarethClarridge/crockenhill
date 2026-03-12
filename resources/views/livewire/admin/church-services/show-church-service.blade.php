@@ -201,8 +201,8 @@
                                                         </span>
                                                         @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PUBLISHED && $section->publishedSermon)
                                                             <p class="mt-1 text-xs">
-                                                                <a href="{{ route('showSermon', $section->publishedSermon) }}" class="text-cbc-teal hover:text-cbc-teal-dark">
-                                                                    View sermon
+                                                                <a href="{{ $section->publishedSermon->public_url }}" class="text-cbc-teal hover:text-cbc-teal-dark">
+                                                                    View {{ strtolower($section->publishedSermon->content_type->label()) }}
                                                                 </a>
                                                             </p>
                                                         @endif

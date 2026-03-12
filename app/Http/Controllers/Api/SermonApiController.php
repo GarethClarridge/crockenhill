@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SermonResource;
 use App\Models\Sermon;
+use App\Services\SermonExposurePolicy;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -92,8 +93,10 @@ class SermonApiController extends Controller
     /**
      * Display the specified sermon
      */
-    public function show(Sermon $sermon): SermonResource
+    public function show(Sermon $sermon, SermonExposurePolicy $exposurePolicy): SermonResource
     {
+        abort_unless($exposurePolicy->shouldExposeOnSermonApi($sermon), 404);
+
         $sermon->load('preacherProfile');
 
         return new SermonResource($sermon);

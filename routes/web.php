@@ -34,8 +34,8 @@ Route::view('/easter', 'full-width-pages.easter')->name('easter');
 
 // Full width pages
 Route::view('/christ', 'full-width-pages.christ')->name('christ');
-Route::get('/christ/childrens-corner', [ChildrensCornerController::class, 'index'])->middleware('auth')->name('childrens-corner.index');
-Route::get('/christ/childrens-corner/{sermon:slug}', [ChildrensCornerController::class, 'show'])->middleware('auth')->name('childrens-corner.show');
+Route::get('/christ/childrens-corner', [ChildrensCornerController::class, 'index'])->middleware('childrens-corner.access')->name('childrens-corner.index');
+Route::get('/christ/childrens-corner/{sermon:slug}', [ChildrensCornerController::class, 'show'])->middleware('childrens-corner.access')->name('childrens-corner.show');
 Route::view('/church', 'full-width-pages.church')->name('church');
 Route::view('/community', 'full-width-pages.community')->name('community');
 

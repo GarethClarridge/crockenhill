@@ -182,6 +182,16 @@ class SermonApiTest extends TestCase
         $this->assertNotContains('API Childrens Talk', $titles);
     }
 
+    public function test_api_show_returns_not_found_for_childrens_talks(): void
+    {
+        $talk = Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $this->getJson("/api/sermons/{$talk->id}")
+            ->assertNotFound();
+    }
+
     public function test_api_includes_thumbnail_metadata_when_available(): void
     {
         $sermon = Sermon::factory()->create([

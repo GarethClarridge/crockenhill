@@ -122,15 +122,15 @@
         </li>
         @endif
         @endforeach
-        @auth
         @php $isActive = request()->is('christ/childrens-corner*'); @endphp
+        @if(app(\App\Services\SermonExposurePolicy::class)->canAccessChildrensCorner(auth()->user()))
         <li class="leading-none">
           <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"
              href="{{ route('childrens-corner.index') }}" wire:navigate @if($isActive) aria-current="page" @endif>
             Children's Corner
           </a>
         </li>
-        @endauth
+        @endif
       </ul>
     </li>
 

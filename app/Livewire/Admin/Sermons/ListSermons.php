@@ -114,7 +114,7 @@ class ListSermons extends Component
         $escapedSearch = $this->escapeLike($this->search);
 
         $query = Sermon::query()
-            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path'])
+            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path', 'content_type'])
             ->with('preacherProfile:id,name,slug')
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$escapedSearch}%")
                 ->orWhere('preacher', 'like', "%{$escapedSearch}%")
@@ -144,6 +144,6 @@ class ListSermons extends Component
             'preachers' => $this->getPreachers(),
             'seriesList' => $this->getSeries(),
             'headers' => $headers,
-        ])->layout('layouts.admin', ['title' => 'Sermons', 'heading' => 'Sermons']);
+        ])->layout('layouts.admin', ['title' => 'Sermons & Talks', 'heading' => 'Sermons & Talks']);
     }
 }

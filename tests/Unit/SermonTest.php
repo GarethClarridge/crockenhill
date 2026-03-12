@@ -191,6 +191,27 @@ class SermonTest extends TestCase
         $this->assertFalse(Sermon::query()->whereChildrensTalk()->get()->contains($sermon));
     }
 
+    #[Test]
+    public function sermon_urls_are_content_type_aware(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'date-based-sermon',
+            'date' => '2026-02-15',
+            'content_type' => SermonContentType::Sermon,
+        ]);
+
+        $childrensTalk = Sermon::factory()->create([
+            'slug' => 'childrens-corner-talk',
+            'date' => '2026-02-15',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $this->assertSame(route('showSermon', $sermon), $sermon->public_url);
+        $this->assertSame(url('/christ/sermons/2026/02/date-based-sermon'), $sermon->canonical_url);
+        $this->assertSame(route('childrens-corner.show', $childrensTalk), $childrensTalk->public_url);
+        $this->assertSame(route('childrens-corner.show', $childrensTalk), $childrensTalk->canonical_url);
+    }
+
     // /**
     //  * @test
     //  */

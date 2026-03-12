@@ -65,6 +65,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property-read ?string $thumbnail_url
  * @property-read ?string $plain_thumbnail_file_path
  * @property-read string $canonical_url
+ * @property-read string $public_url
  * @property-read ServiceSection|null $publishedServiceSection
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
@@ -189,6 +190,11 @@ class Sermon extends Model implements Sitemapable
     public function getSeriesUrlAttribute(): ?string
     {
         return $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null;
+    }
+
+    public function getPublicUrlAttribute(): string
+    {
+        return app(\App\Services\SermonExposurePolicy::class)->publicUrl($this);
     }
 
     public function getPreacherUrlAttribute(): ?string
@@ -690,10 +696,7 @@ class Sermon extends Model implements Sitemapable
      */
     public function getCanonicalUrlAttribute(): string
     {
-        $year = $this->date->format('Y');
-        $month = $this->date->format('m');
-
-        return url("/christ/sermons/{$year}/{$month}/{$this->slug}");
+        return app(\App\Services\SermonExposurePolicy::class)->canonicalUrl($this);
     }
 
     /**

@@ -130,7 +130,7 @@
                                         </x-form-button>
                                     @elseif($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PUBLISHED && $section->publishedSermon)
                                         <x-button
-                                            link="{{ route('showSermon', $section->publishedSermon) }}"
+                                            link="{{ $section->publishedSermon->public_url }}"
                                             size="xs"
                                             variant="ghost"
                                             icon="eye"

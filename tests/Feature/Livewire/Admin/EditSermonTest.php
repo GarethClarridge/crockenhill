@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Livewire\Admin;
 
+use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Livewire\Admin\Sermons\EditSermon;
 use App\Models\Preacher;
@@ -185,5 +186,27 @@ class EditSermonTest extends TestCase
             ->set('slug', 'original-title')
             ->call('save')
             ->assertHasNoErrors(['slug']);
+    }
+
+    #[Test]
+    public function it_adapts_the_edit_surface_for_childrens_talks(): void
+    {
+        $this->actingAs($this->admin);
+
+        $talk = Sermon::factory()->create([
+            'title' => 'Talk To Edit',
+            'content_type' => SermonContentType::ChildrensTalk,
+            'reference' => 'John 3:16',
+            'show_summary' => true,
+            'show_points' => true,
+        ]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $talk])
+            ->assertSee("Edit Children's Talk")
+            ->assertSee('Speaker')
+            ->assertSee("Children's Talk Notes")
+            ->assertDontSee('Bible Reference')
+            ->assertDontSee('AI-Generated Content')
+            ->assertDontSee('Display Options');
     }
 }

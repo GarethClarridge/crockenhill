@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\SermonContentType;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -70,8 +73,17 @@ class SermonController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Sermon $sermon, SermonPageContextService $pageContextService): View
-    {
+    public function show(
+        Sermon $sermon,
+        SermonPageContextService $pageContextService,
+        SermonExposurePolicy $exposurePolicy
+    ): View|RedirectResponse {
+        if ($exposurePolicy->shouldRedirectGenericSermonRoute($sermon)) {
+            return redirect()->to($exposurePolicy->publicUrl($sermon), 301);
+        }
+
+        abort_unless($sermon->content_type === SermonContentType::Sermon, 404);
+
         $heading = $sermon->title;
         $pageContext = $pageContextService->build($sermon);
 
@@ -196,13 +208,24 @@ class SermonController extends Controller
         ]);
     }
 
-    public function showWithDate(int $year, int $month, Sermon $sermon, SermonPageContextService $pageContextService): View
-    {
+    public function showWithDate(
+        int $year,
+        int $month,
+        Sermon $sermon,
+        SermonPageContextService $pageContextService,
+        SermonExposurePolicy $exposurePolicy
+    ): View|RedirectResponse {
+        if ($exposurePolicy->shouldRedirectGenericSermonRoute($sermon)) {
+            return redirect()->to($exposurePolicy->publicUrl($sermon), 301);
+        }
+
+        abort_unless($sermon->content_type === SermonContentType::Sermon, 404);
+
         if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
             abort(404, 'Sermon not found for the specified date.');
         }
 
-        return $this->show($sermon, $pageContextService);
+        return $this->show($sermon, $pageContextService, $exposurePolicy);
     }
 
     /**

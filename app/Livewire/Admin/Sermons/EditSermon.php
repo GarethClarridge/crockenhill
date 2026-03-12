@@ -45,6 +45,10 @@ class EditSermon extends Component
 
     public bool $showPoints = true;
 
+    public bool $isChildrensTalk = false;
+
+    public string $contentTypeLabel = 'Sermon';
+
     /** @var \Illuminate\Support\Collection<int, string> */
     public \Illuminate\Support\Collection $preacherOptions;
 
@@ -79,6 +83,8 @@ class EditSermon extends Component
         }
 
         $this->sermon = $sermon;
+        $this->isChildrensTalk = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk;
+        $this->contentTypeLabel = $sermon->content_type->label();
         $this->preacherOptions = Preacher::active()->orderBy('name')->pluck('name', 'id');
         $this->title = $sermon->title;
         $this->slug = $sermon->slug;
@@ -152,6 +158,6 @@ class EditSermon extends Component
         return view('livewire.admin.sermons.edit-sermon', [
             'services' => SermonService::cases(),
             'preachers' => $this->preacherOptions,
-        ])->layout('layouts.admin', ['title' => 'Edit: '.$this->sermon->title, 'heading' => 'Edit Sermon']);
+        ])->layout('layouts.admin', ['title' => 'Edit: '.$this->sermon->title, 'heading' => 'Edit '.$this->contentTypeLabel]);
     }
 }

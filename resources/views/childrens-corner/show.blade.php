@@ -11,7 +11,7 @@
         :image-alt="\"Children's Corner: {$sermon->title}\""
         :audio="$sermon->audio_url"
         :video="$sermon->video_url"
-        :canonical="route('childrens-corner.show', ['sermon' => $sermon->slug])"
+        :canonical="$sermon->public_url"
     />
 @endsection
 

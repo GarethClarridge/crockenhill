@@ -34,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
             'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
+            'childrens-corner.access' => \App\Http\Middleware\EnsureChildrensCornerAccess::class,
             'mailgun.signature' => \App\Http\Middleware\EnsureValidMailgunWebhookSignature::class,
             'media.process' => \App\Http\Middleware\EnsureMediaProcessingAccess::class,
             'service.access' => \App\Http\Middleware\EnsureServiceTrackingAccess::class,

@@ -75,6 +75,26 @@ class ChildrensCornerPagesTest extends TestCase
     }
 
     #[Test]
+    public function guests_can_access_childrens_corner_when_public_release_is_enabled(): void
+    {
+        config(['sermons.childrens_talks.public' => true]);
+
+        $talk = Sermon::factory()->create([
+            'title' => 'Public Little Listeners',
+            'slug' => 'public-little-listeners',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $this->get('/christ/childrens-corner')
+            ->assertOk()
+            ->assertSee('Public Little Listeners');
+
+        $this->get("/christ/childrens-corner/{$talk->slug}")
+            ->assertOk()
+            ->assertSee('Public Little Listeners');
+    }
+
+    #[Test]
     public function sermon_records_return_not_found_on_childrens_corner_detail_route(): void
     {
         $this->actingAs(User::factory()->create());
@@ -107,6 +127,46 @@ class ChildrensCornerPagesTest extends TestCase
     }
 
     #[Test]
+    public function childrens_talks_return_not_found_on_sermon_routes_when_public_release_is_disabled(): void
+    {
+        $talk = Sermon::factory()->create([
+            'slug' => 'private-childrens-talk',
+            'date' => '2026-02-01',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $this->get(route('showSermon', $talk))
+            ->assertNotFound();
+
+        $this->get(route('showSermonWithDate', [
+            'year' => '2026',
+            'month' => '02',
+            'sermon' => $talk->slug,
+        ]))->assertNotFound();
+    }
+
+    #[Test]
+    public function public_childrens_talks_redirect_from_sermon_routes_to_childrens_corner(): void
+    {
+        config(['sermons.childrens_talks.public' => true]);
+
+        $talk = Sermon::factory()->create([
+            'slug' => 'redirect-childrens-talk',
+            'date' => '2026-02-01',
+            'content_type' => SermonContentType::ChildrensTalk,
+        ]);
+
+        $this->get(route('showSermon', $talk))
+            ->assertRedirect(route('childrens-corner.show', $talk));
+
+        $this->get(route('showSermonWithDate', [
+            'year' => '2026',
+            'month' => '02',
+            'sermon' => $talk->slug,
+        ]))->assertRedirect(route('childrens-corner.show', $talk));
+    }
+
+    #[Test]
     public function header_navigation_shows_childrens_corner_link_to_authenticated_users(): void
     {
         $this->actingAs(User::factory()->create());
@@ -122,5 +182,15 @@ class ChildrensCornerPagesTest extends TestCase
         $this->get('/christ')
             ->assertStatus(200)
             ->assertDontSee('href="'.route('childrens-corner.index').'"', false);
+    }
+
+    #[Test]
+    public function header_navigation_shows_childrens_corner_link_to_guests_when_public_release_is_enabled(): void
+    {
+        config(['sermons.childrens_talks.public' => true]);
+
+        $this->get('/christ')
+            ->assertStatus(200)
+            ->assertSee('href="'.route('childrens-corner.index').'"', false);
     }
 }

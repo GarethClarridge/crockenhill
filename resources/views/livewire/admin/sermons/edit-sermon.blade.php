@@ -1,6 +1,15 @@
 <div>
     <div class="flex justify-between items-center mb-6">
-        <h1 class="font-display text-3xl">Edit Sermon</h1>
+        <div>
+            <h1 class="font-display text-3xl">Edit {{ $contentTypeLabel }}</h1>
+            <p class="text-gray-600">
+                @if($isChildrensTalk)
+                    Update the published children's-talk details. Sermon-only fields stay hidden on this form.
+                @else
+                    Update sermon details, metadata, and any AI-assisted content shown publicly.
+                @endif
+            </p>
+        </div>
         <div class="flex gap-2">
             <x-button link="{{ route('admin.sermons.index') }}" variant="outline" inline>
                 Cancel
@@ -14,7 +23,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Main content --}}
         <div class="lg:col-span-2 space-y-6">
-            <x-card heading="Sermon Details">
+            <x-card heading="{{ $contentTypeLabel }} Details">
                 <div class="space-y-4">
                     <x-input label="Title" wire:model.live.debounce="title" required />
 
@@ -33,11 +42,11 @@
                             <div class="flex gap-3">
                                 <x-heroicon-o-exclamation-triangle class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                                 <div class="text-sm text-amber-800">
-                                    <p class="font-medium mb-1">Preacher review required</p>
+                                    <p class="font-medium mb-1">{{ $isChildrensTalk ? 'Speaker review required' : 'Preacher review required' }}</p>
                                     @if($sermon->preacher_source === \App\Enums\PreacherSource::SPEAKER_MODEL && $sermon->preacher_confidence !== null)
-                                        <p>The AI identified a speaker with {{ round($sermon->preacher_confidence * 100) }}% confidence. Please verify and confirm or correct the assignment below.</p>
+                                        <p>The AI identified a {{ $isChildrensTalk ? 'speaker' : 'preacher' }} with {{ round($sermon->preacher_confidence * 100) }}% confidence. Please verify and confirm or correct the assignment below.</p>
                                     @else
-                                        <p>No speaker could be automatically identified. Please assign the correct preacher below.</p>
+                                        <p>No {{ $isChildrensTalk ? 'speaker' : 'preacher' }} could be automatically identified. Please assign the correct {{ $isChildrensTalk ? 'speaker' : 'preacher' }} below.</p>
                                     @endif
                                     <p class="mt-1 text-amber-600">Saving this form will clear the review flag.</p>
                                 </div>
@@ -45,57 +54,69 @@
                         </div>
                     @endif
 
-                    <x-select label="Preacher" wire:model.live="preacherId"
+                    <x-select label="{{ $isChildrensTalk ? 'Speaker' : 'Preacher' }}" wire:model.live="preacherId"
                         :options="$preachers->map(fn($name, $id) => ['id' => $id, 'name' => $name])->values()->toArray()"
-                        placeholder="Select a preacher..." />
+                        placeholder="Select a {{ $isChildrensTalk ? 'speaker' : 'preacher' }}..." />
 
-                    <x-input label="Or enter preacher name" wire:model="preacher"
-                        hint="Used when preacher is not in the list above" />
+                    <x-input label="Or enter {{ $isChildrensTalk ? 'speaker' : 'preacher' }} name" wire:model="preacher"
+                        hint="Used when the {{ $isChildrensTalk ? 'speaker' : 'preacher' }} is not in the list above" />
 
-                    <x-input label="Bible Reference" wire:model="reference"
-                        placeholder="e.g., John 3:16-21" />
+                    @unless($isChildrensTalk)
+                        <x-input label="Bible Reference" wire:model="reference"
+                            placeholder="e.g., John 3:16-21" />
+                    @endunless
 
                     <x-input label="Series" wire:model="series"
                         placeholder="e.g., Gospel of John" />
                 </div>
             </x-card>
 
-            <x-card heading="AI-Generated Content">
-                <div class="space-y-4">
-                    <x-textarea label="Summary" wire:model="summary" rows="5"
-                        hint="AI-generated sermon summary" />
+            @if($isChildrensTalk)
+                <x-card heading="Children's Talk Notes">
+                    <p class="text-sm text-gray-600">
+                        Passage references, AI summaries, and sermon outline points are hidden here because Children's Corner uses a simplified public presentation.
+                    </p>
+                </x-card>
+            @else
+                <x-card heading="AI-Generated Content">
+                    <div class="space-y-4">
+                        <x-textarea label="Summary" wire:model="summary" rows="5"
+                            hint="AI-generated sermon summary" />
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Points</label>
-                        @foreach($points as $index => $point)
-                            <div class="flex gap-2 mb-2">
-                                <x-input wire:model="points.{{ $index }}" class="flex-1" />
-                                <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600"
-                                    wire:click="removePoint({{ $index }})"
-                                    aria-label="Remove point" />
-                            </div>
-                        @endforeach
-                        <x-form-button variant="ghost" size="sm" icon="plus" wire:click="addPoint" aria-label="Add sermon point">
-                            Add Point
-                        </x-form-button>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Points</label>
+                            @foreach($points as $index => $point)
+                                <div class="flex gap-2 mb-2">
+                                    <x-input wire:model="points.{{ $index }}" class="flex-1" />
+                                    <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600"
+                                        wire:click="removePoint({{ $index }})"
+                                        aria-label="Remove point" />
+                                </div>
+                            @endforeach
+                            <x-form-button variant="ghost" size="sm" icon="plus" wire:click="addPoint" aria-label="Add sermon point">
+                                Add Point
+                            </x-form-button>
+                        </div>
                     </div>
-                </div>
-            </x-card>
+                </x-card>
+            @endif
         </div>
 
         {{-- Sidebar --}}
         <div class="space-y-6">
-            <x-card heading="Display Options">
-                <div class="space-y-4">
-                    <x-toggle label="Show Summary" wire:model="showSummary"
-                        hint="Display AI-generated summary on sermon page" />
+            @unless($isChildrensTalk)
+                <x-card heading="Display Options">
+                    <div class="space-y-4">
+                        <x-toggle label="Show Summary" wire:model="showSummary"
+                            hint="Display AI-generated summary on sermon page" />
 
-                    <x-toggle label="Show Points" wire:model="showPoints"
-                        hint="Display AI-generated points on sermon page" />
-                </div>
-            </x-card>
+                        <x-toggle label="Show Points" wire:model="showPoints"
+                            hint="Display AI-generated points on sermon page" />
+                    </div>
+                </x-card>
+            @endunless
 
-            <x-card heading="Media Files">
+            <x-card heading="{{ $isChildrensTalk ? 'Published Media' : 'Media Files' }}">
                 <div class="space-y-3">
                     @if($sermon->audio_file_path)
                         <div class="flex items-center gap-2">
