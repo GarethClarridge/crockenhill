@@ -116,6 +116,37 @@ class ReviewInboundEmails extends Component
         );
     }
 
+    public function reparse(
+        int $inboundEmailId,
+        OosEmailParserService $parser,
+        InboundEmailImportService $importService,
+    ): void {
+        $this->authorizeAdmin();
+
+        $inboundEmail = $this->findReviewableEmail($inboundEmailId);
+        if (! $inboundEmail instanceof InboundEmail) {
+            $this->error('Inbound email not found.');
+
+            return;
+        }
+
+        try {
+            $parseResult = $parser->parse($inboundEmail);
+            $importService->storeParseResult($inboundEmail, $parseResult, isReparse: true);
+
+            $inboundEmail->refresh();
+            if ($inboundEmail->status === InboundEmailStatus::FAILED) {
+                $inboundEmail->status = InboundEmailStatus::PENDING;
+                $inboundEmail->save();
+            }
+
+            $this->success('Inbound email re-parsed. Review the updated preview before approving.');
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->error('Unable to re-parse this inbound email right now.');
+        }
+    }
+
     public function reject(int $inboundEmailId): void
     {
         $this->authorizeAdmin();
@@ -228,11 +259,13 @@ class ReviewInboundEmails extends Component
      *     resolved_date: mixed,
      *     resolved_service: mixed,
      *     confidence_score: ?float,
+     *     can_approve: bool,
      *     plain_body: ?string,
      *     has_plain_body: bool,
      *     sanitized_html: ?string,
      *     has_html_body: bool,
-     *     raw_parsing_json: ?string
+     *     raw_parsing_json: ?string,
+     *     reparsed_at: ?string
      * }
      */
     private function buildReviewData(InboundEmail $inboundEmail, InboundEmailHtmlSanitizer $htmlSanitizer): array
@@ -259,12 +292,30 @@ class ReviewInboundEmails extends Component
             'resolved_date' => $parsing['resolved_date'] ?? null,
             'resolved_service' => $parsing['resolved_service'] ?? null,
             'confidence_score' => is_numeric($parsing['confidence_score'] ?? null) ? (float) $parsing['confidence_score'] : null,
+            'can_approve' => $this->canApprovePreview(
+                $previewItems,
+                $parsing['resolved_date'] ?? null,
+                $parsing['resolved_service'] ?? null,
+            ),
             'plain_body' => $plainBody,
             'has_plain_body' => $plainBody !== null,
             'sanitized_html' => $htmlSanitizer->sanitize($inboundEmail->body_html),
             'has_html_body' => is_string($inboundEmail->body_html) && trim($inboundEmail->body_html) !== '',
             'raw_parsing_json' => $this->encodeJson($parsing !== [] ? $parsing : null),
+            'reparsed_at' => is_string($metadata['reparsed_at'] ?? null) ? $metadata['reparsed_at'] : null,
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $previewItems
+     */
+    private function canApprovePreview(array $previewItems, mixed $resolvedDate, mixed $resolvedService): bool
+    {
+        return is_string($resolvedDate)
+            && $resolvedDate !== ''
+            && is_string($resolvedService)
+            && SermonService::tryFrom($resolvedService) instanceof SermonService
+            && $previewItems !== [];
     }
 
     private function normalisePlainBody(?string $plainBody): ?string

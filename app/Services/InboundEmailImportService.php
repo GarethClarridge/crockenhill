@@ -23,19 +23,26 @@ class InboundEmailImportService
         private readonly ChurchServiceSongLinker $songLinker,
     ) {}
 
-    public function storeParseResult(InboundEmail $inboundEmail, OosEmailParseResult $parseResult): void
+    public function storeParseResult(InboundEmail $inboundEmail, OosEmailParseResult $parseResult, bool $isReparse = false): void
     {
+        $metadata = [
+            'parsing' => array_replace_recursive($parseResult->importMetadata, [
+                'resolved_date' => $parseResult->date,
+                'resolved_service' => $parseResult->service?->value,
+                'items' => $parseResult->items,
+                'needs_review' => $parseResult->needsReview,
+                'should_import' => $parseResult->shouldImport,
+            ]),
+        ];
+
+        if ($isReparse) {
+            $metadata['reparsed_at'] = now()->toIso8601String();
+            $metadata['failure'] = null;
+        }
+
         $inboundEmail->processing_metadata = $this->mergeProcessingMetadata(
             $inboundEmail->processing_metadata,
-            [
-                'parsing' => array_replace_recursive($parseResult->importMetadata, [
-                    'resolved_date' => $parseResult->date,
-                    'resolved_service' => $parseResult->service?->value,
-                    'items' => $parseResult->items,
-                    'needs_review' => $parseResult->needsReview,
-                    'should_import' => $parseResult->shouldImport,
-                ]),
-            ],
+            $metadata,
         );
         $inboundEmail->save();
     }

@@ -50,6 +50,7 @@
                             $resolvedDate = $review['resolved_date'] ?? null;
                             $resolvedService = $review['resolved_service'] ?? null;
                             $confidenceScore = $review['confidence_score'] ?? null;
+                            $canApprove = (bool) ($review['can_approve'] ?? false);
                         @endphp
                         <tr wire:key="inbound-email-{{ $inboundEmail->id }}" class="hover:bg-gray-50">
                             <td class="px-4 py-3 text-sm">
@@ -70,6 +71,10 @@
                                         <span><span class="font-medium text-gray-700">Date:</span> {{ $resolvedDate ?: 'Unknown' }}</span>
                                         <span><span class="font-medium text-gray-700">Service:</span> {{ $resolvedService ? str($resolvedService)->title() : 'Unknown' }}</span>
                                         <span><span class="font-medium text-gray-700">Confidence:</span> {{ $confidenceScore !== null ? number_format($confidenceScore * 100, 0).'%' : 'Unknown' }}</span>
+                                        <span><span class="font-medium text-gray-700">Approval:</span> {{ $canApprove ? 'Ready to approve' : 'Needs manual editing' }}</span>
+                                        @if(is_string($review['reparsed_at'] ?? null))
+                                            <span><span class="font-medium text-gray-700">Re-parsed:</span> {{ \Illuminate\Support\Carbon::parse($review['reparsed_at'])->format('j M Y H:i') }}</span>
+                                        @endif
                                     </div>
 
                                     @if($previewItems !== [])
@@ -184,6 +189,16 @@
                                         wire:target="approve({{ $inboundEmail->id }})"
                                     >
                                         Approve
+                                    </x-form-button>
+
+                                    <x-form-button
+                                        type="button"
+                                        size="xs"
+                                        variant="outline"
+                                        wire:click="reparse({{ $inboundEmail->id }})"
+                                        wire:target="reparse({{ $inboundEmail->id }})"
+                                    >
+                                        Re-parse Email
                                     </x-form-button>
 
                                     <x-form-button
