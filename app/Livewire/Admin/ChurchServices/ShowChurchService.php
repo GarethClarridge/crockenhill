@@ -215,7 +215,7 @@ class ShowChurchService extends Component
             'status' => $status,
             'started_at' => $step->started_at,
             'completed_at' => $step->completed_at,
-            'duration' => $this->formatDuration($step->started_at?->diffInSeconds($step->completed_at ?? $step->started_at, true)),
+            'duration' => $this->formatDuration($step->started_at?->diffInSeconds($step->completed_at ?? now(), true)),
             'message' => $this->normaliseMessage($step->message),
         ];
     }

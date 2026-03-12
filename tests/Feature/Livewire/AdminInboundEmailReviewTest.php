@@ -339,6 +339,39 @@ class AdminInboundEmailReviewTest extends TestCase
     }
 
     #[Test]
+    public function reparse_handles_parser_failure_gracefully_and_leaves_email_unchanged(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->bindFailingExtractor();
+
+        $email = InboundEmail::factory()->create([
+            'subject' => 'Order of Service - 2026-06-29 AM',
+            'body_plain' => "Welcome\nSermon",
+            'status' => InboundEmailStatus::PENDING->value,
+            'processing_metadata' => $this->processingMetadata(
+                resolvedDate: '2026-06-29',
+                resolvedService: SermonService::MORNING->value,
+                items: [
+                    ['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'metadata' => ['email_type' => 'welcome']],
+                ],
+            ),
+        ]);
+
+        Livewire::test(ReviewInboundEmails::class)
+            ->call('reparse', $email->id)
+            ->assertDispatched('notify', type: 'error', message: 'Unable to re-parse this inbound email right now.');
+
+        $email->refresh();
+
+        $this->assertSame(InboundEmailStatus::PENDING, $email->status);
+        $this->assertNull($email->processing_metadata['reparsed_at'] ?? null);
+        $this->assertSame('2026-06-29', $email->processing_metadata['parsing']['resolved_date'] ?? null);
+        $this->assertSame('Welcome', $email->processing_metadata['parsing']['items'][0]['title'] ?? null);
+        $this->assertSame(0, ChurchService::count());
+    }
+
+    #[Test]
     public function reject_action_marks_the_email_as_rejected(): void
     {
         $this->actingAs($this->admin);
