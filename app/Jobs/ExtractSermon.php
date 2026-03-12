@@ -12,6 +12,7 @@ use App\Services\SermonStatusManagementService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
+use App\Support\ChurchServiceProcessingTimeline;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
-class ExtractSermon implements ShouldQueue
+class ExtractSermon extends ProcessingJob implements ShouldQueue
 {
     use DetectsStorageType, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -48,14 +49,19 @@ class ExtractSermon implements ShouldQueue
             }
 
             $this->processingLog = $processingLog;
+            $this->initializeStepLogging($this->processingLog->processing_id);
 
             if ($this->processingLog->isCancelled()) {
+                $this->logStepSkipped(ChurchServiceProcessingTimeline::EXTRACT_SERMON, 'Processing cancelled');
+
                 Log::info('ExtractSermon job skipped: processing cancelled', [
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
 
                 return;
             }
+
+            $this->logStepStart(ChurchServiceProcessingTimeline::EXTRACT_SERMON);
 
             // Update status to show sermon extraction is starting
             $this->processingLog->markAsProcessing('extraction');
@@ -68,6 +74,8 @@ class ExtractSermon implements ShouldQueue
             );
 
             if ($extractionPlan === null) {
+                $this->logStepSkipped(ChurchServiceProcessingTimeline::EXTRACT_SERMON, 'Awaiting manual sermon review');
+
                 return;
             }
 
@@ -220,9 +228,17 @@ class ExtractSermon implements ShouldQueue
                 'file_exists_check' => $audioFileExists,
             ]);
 
+            $this->logStepComplete(
+                ChurchServiceProcessingTimeline::EXTRACT_SERMON,
+                sprintf('Extracted sermon media using %s plan', $extractionPlan['mode'])
+            );
+
             // Job chain will automatically proceed to next job
 
         } catch (\Exception $e) {
+            $this->initializeStepLogging($this->processingLog->processing_id);
+            $this->logStepFailed(ChurchServiceProcessingTimeline::EXTRACT_SERMON, $e->getMessage());
+
             Log::error('Sermon extraction failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
@@ -253,6 +269,12 @@ class ExtractSermon implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
+        $this->initializeStepLogging($this->processingLog->processing_id);
+        $this->logStepFailed(
+            ChurchServiceProcessingTimeline::EXTRACT_SERMON,
+            'Sermon extraction failed after '.$this->tries.' attempts: '.$exception->getMessage()
+        );
+
         Log::error('ExtractSermon job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),

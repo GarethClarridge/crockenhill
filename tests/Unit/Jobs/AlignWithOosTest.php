@@ -12,6 +12,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\OosAlignmentService;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -62,6 +63,11 @@ class AlignWithOosTest extends TestCase
         $this->assertSame($churchService->id, $processingLog->church_service_id);
         $this->assertSame($song->id, $section->church_service_item_id);
         $this->assertSame('high', $section->metadata['confidence_level']);
+        $this->assertDatabaseHas('sermon_processing_steps', [
+            'processing_id' => $processingLog->processing_id,
+            'step' => ChurchServiceProcessingTimeline::ALIGN_WITH_OOS,
+            'status' => 'completed',
+        ]);
     }
 
     #[Test]

@@ -50,6 +50,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read ChurchService|null $churchService
  * @property-read User|null $owner
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, SermonProcessingStep> $processingSteps
  * @property-read Sermon|null $sermon
  * @property-read \Illuminate\Database\Eloquent\Collection<int, LivestreamSegment> $segments
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ServiceSection> $serviceSections
@@ -177,6 +178,14 @@ class MediaProcessingLog extends Model
     public function serviceSections(): HasMany
     {
         return $this->hasMany(ServiceSection::class, 'media_processing_log_id');
+    }
+
+    /**
+     * @return HasMany<SermonProcessingStep, $this>
+     */
+    public function processingSteps(): HasMany
+    {
+        return $this->hasMany(SermonProcessingStep::class, 'processing_id', 'processing_id');
     }
 
     // Scopes

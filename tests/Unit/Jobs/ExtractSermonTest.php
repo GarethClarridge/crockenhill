@@ -9,6 +9,7 @@ use App\Models\ServiceSection;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -128,6 +129,11 @@ class ExtractSermonTest extends TestCase
         $this->assertNotNull($log->processing_metadata);
         $this->assertArrayHasKey('audio_compression', $log->processing_metadata);
         $this->assertTrue($log->processing_metadata['audio_compression']['compression_applied']);
+        $this->assertDatabaseHas('sermon_processing_steps', [
+            'processing_id' => $log->processing_id,
+            'step' => ChurchServiceProcessingTimeline::EXTRACT_SERMON,
+            'status' => 'completed',
+        ]);
 
         @unlink($videoFile);
         @unlink($extractedAudioFile);

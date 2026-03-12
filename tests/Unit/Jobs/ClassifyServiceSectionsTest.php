@@ -12,6 +12,7 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Services\ServiceSectionClassifier;
 use App\Services\ServiceSectionSyncService;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -70,6 +71,11 @@ class ClassifyServiceSectionsTest extends TestCase
         $this->assertSame('processing', $processingLog->status->value);
         $this->assertSame('section_classification_complete', $processingLog->current_step);
         $this->assertDatabaseCount('service_sections', 2);
+        $this->assertDatabaseHas('sermon_processing_steps', [
+            'processing_id' => $processingLog->processing_id,
+            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
+            'status' => 'completed',
+        ]);
         $this->assertDatabaseHas('service_sections', [
             'media_processing_log_id' => $processingLog->id,
             'section_order' => 1,

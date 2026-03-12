@@ -123,6 +123,9 @@
                 <div class="space-y-4">
                     @forelse($processingRuns as $processingRun)
                         <div class="rounded-lg border border-gray-200 p-4" wire:key="processing-run-{{ $processingRun->id }}">
+                            @php
+                                $timeline = $processingTimelines[$processingRun->id] ?? [];
+                            @endphp
                             <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <p class="text-sm font-medium">Run {{ $processingRun->processing_id }}</p>
@@ -142,6 +145,67 @@
                                     Reclassify
                                 </x-form-button>
                             </div>
+
+                            @if($timeline !== [])
+                                <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+                                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                        <h3 class="text-sm font-semibold text-gray-900">Processing Timeline</h3>
+                                        <p class="text-xs text-gray-500">Step logging for this livestream run</p>
+                                    </div>
+
+                                    <ol class="space-y-3">
+                                        @foreach($timeline as $timelineStep)
+                                            <li class="rounded-lg border border-white bg-white p-3 shadow-sm">
+                                                <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                                                    <div class="space-y-2">
+                                                        <div class="flex flex-wrap items-center gap-2">
+                                                            <p class="text-sm font-medium text-gray-900">{{ $timelineStep['label'] }}</p>
+                                                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ match($timelineStep['status']) {
+                                                                'completed' => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
+                                                                'running' => 'bg-sky-100 text-sky-800',
+                                                                'failed' => 'bg-rose-100 text-rose-800',
+                                                                'skipped' => 'bg-amber-100 text-amber-800',
+                                                                'not_recorded' => 'bg-slate-200 text-slate-700',
+                                                                default => 'bg-gray-100 text-gray-700',
+                                                            } }}">
+                                                                {{ match($timelineStep['status']) {
+                                                                    'running' => 'Running',
+                                                                    'failed' => 'Failed',
+                                                                    'skipped' => 'Skipped',
+                                                                    'not_recorded' => 'Not recorded',
+                                                                    'pending' => 'Pending',
+                                                                    default => 'Completed',
+                                                                } }}
+                                                            </span>
+                                                        </div>
+
+                                                        @if($timelineStep['message'])
+                                                            <p class="text-xs {{ $timelineStep['status'] === 'failed' ? 'text-rose-700' : 'text-gray-600' }}">
+                                                                {{ $timelineStep['message'] }}
+                                                            </p>
+                                                        @endif
+                                                    </div>
+
+                                                    <dl class="grid grid-cols-1 gap-3 text-xs text-gray-600 sm:grid-cols-3 xl:min-w-[25rem]">
+                                                        <div>
+                                                            <dt class="font-medium uppercase tracking-wide text-gray-500">Started</dt>
+                                                            <dd class="mt-1">{{ $timelineStep['started_at']?->format('j M Y H:i:s') ?? 'Not recorded' }}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt class="font-medium uppercase tracking-wide text-gray-500">Completed</dt>
+                                                            <dd class="mt-1">{{ $timelineStep['completed_at']?->format('j M Y H:i:s') ?? 'Not recorded' }}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt class="font-medium uppercase tracking-wide text-gray-500">Duration</dt>
+                                                            <dd class="mt-1">{{ $timelineStep['duration'] ?? 'Not recorded' }}</dd>
+                                                        </div>
+                                                    </dl>
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ol>
+                                </div>
+                            @endif
 
                             @if($processingRun->serviceSections->isEmpty())
                                 <p class="text-sm text-gray-500">

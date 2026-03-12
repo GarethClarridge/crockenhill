@@ -28,9 +28,11 @@ use App\Livewire\Admin\ChurchServices\UploadChurchService;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\User;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -613,6 +615,67 @@ class AdminChurchServiceTest extends TestCase
             ->assertSee('expected type mismatch')
             ->assertSee('Published')
             ->assertSee('Pending Approval');
+    }
+
+    #[Test]
+    public function show_component_displays_processing_timelines_for_related_livestream_runs(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-03-01',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => '2026-03-01',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        SermonProcessingStep::factory()->create([
+            'processing_id' => $run->processing_id,
+            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
+            'status' => 'completed',
+            'message' => 'Stored 3 classified section(s)',
+            'started_at' => now()->subMinutes(30),
+            'completed_at' => now()->subMinutes(29),
+        ]);
+
+        SermonProcessingStep::factory()->create([
+            'processing_id' => $run->processing_id,
+            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
+            'status' => 'failed',
+            'message' => 'Transcript API timeout',
+            'started_at' => now()->subMinutes(28),
+            'completed_at' => now()->subMinutes(27)->subSeconds(30),
+        ]);
+
+        SermonProcessingStep::factory()->create([
+            'processing_id' => $run->processing_id,
+            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS,
+            'status' => 'skipped',
+            'message' => 'No sections available for transcript classification',
+            'started_at' => now()->subMinutes(27),
+            'completed_at' => now()->subMinutes(27),
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Processing Timeline')
+            ->assertSeeInOrder([
+                'Classify service sections',
+                'Transcribe speech segments',
+                'Classify speech sections',
+                'Align with OoS',
+                'Extract sermon',
+                'Prepare publication candidates',
+            ])
+            ->assertSee('1m 00s')
+            ->assertSee('30s')
+            ->assertSee('Transcript API timeout')
+            ->assertSee('Skipped')
+            ->assertSee('Failed')
+            ->assertSee('Not recorded')
+            ->assertSee('No step log recorded for this older run.');
     }
 
     #[Test]

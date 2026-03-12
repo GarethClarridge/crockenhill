@@ -10,6 +10,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ServiceSectionSyncService;
 use App\Services\SpeechSectionClassificationService;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -87,6 +88,11 @@ class ClassifySpeechSectionsTest extends TestCase
         $this->assertSame(ServiceSectionType::PRAYER, $section->section_type);
         $this->assertFalse($section->needs_manual_review);
         $this->assertSame('ai_transcript', $section->metadata['confidence_source'] ?? null);
+        $this->assertDatabaseHas('sermon_processing_steps', [
+            'processing_id' => $processingLog->processing_id,
+            'step' => ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS,
+            'status' => 'completed',
+        ]);
     }
 
     #[Test]

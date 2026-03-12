@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->uuid('processing_id');
             $table->string('step'); // 'analyzing_audio', 'segmenting', 'extracting', 'transcribing', 'analyzing', 'creating'
-            $table->enum('status', ['started', 'completed', 'failed', 'cancelled']);
+            $table->enum('status', ['started', 'completed', 'skipped', 'failed', 'cancelled']);
             $table->text('message')->nullable();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();

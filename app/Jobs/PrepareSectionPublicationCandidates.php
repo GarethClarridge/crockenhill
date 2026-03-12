@@ -13,6 +13,7 @@ use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
+use App\Support\ChurchServiceProcessingTimeline;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -22,7 +23,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
-class PrepareSectionPublicationCandidates implements ShouldQueue
+class PrepareSectionPublicationCandidates extends ProcessingJob implements ShouldQueue
 {
     use DetectsStorageType;
     use InteractsWithQueue;
@@ -55,6 +56,9 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
         ChildrensTalkSpeakerService $childrensTalkSpeakerService
     ): void {
         if (! (bool) config('media-processing.section_publishing.enabled', true)) {
+            $this->initializeStepLogging($this->processingLog->processing_id);
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'Section publishing disabled');
+
             return;
         }
 
@@ -64,10 +68,15 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
         }
 
         $this->processingLog = $processingLog;
+        $this->initializeStepLogging($this->processingLog->processing_id);
 
         if ($this->processingLog->processing_type !== MediaType::Livestream) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'Section publication preparation only runs for livestream processing');
+
             return;
         }
+
+        $this->logStepStart(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES);
 
         $extractTypes = config('media-processing.section_publishing.extract_types', ['childrens_talk']);
         $requireHighConfidence = (bool) config('media-processing.section_publishing.require_high_confidence', true);
@@ -82,6 +91,14 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
             ->orderBy('section_order')
             ->orderBy('id')
             ->get();
+
+        if ($sections->isEmpty()) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'No classified sections available for publication review');
+
+            return;
+        }
+
+        $pendingApprovalCount = 0;
 
         foreach ($sections as $section) {
             $sectionType = $section->section_type->value;
@@ -145,7 +162,13 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
 
             $section->unpublished_expires_at = now()->addHours($retainHours);
             $section->save();
+            $pendingApprovalCount++;
         }
+
+        $this->logStepComplete(
+            ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
+            sprintf('Prepared %d publication candidate(s)', $pendingApprovalCount)
+        );
     }
 
     private function moveToNotApplicable(ServiceSection $section): void
@@ -249,6 +272,12 @@ class PrepareSectionPublicationCandidates implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
+        $this->initializeStepLogging($this->processingLog->processing_id);
+        $this->logStepFailed(
+            ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
+            $exception->getMessage()
+        );
+
         Log::error('PrepareSectionPublicationCandidates job failed', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),

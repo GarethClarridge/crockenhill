@@ -7,13 +7,14 @@ namespace App\Jobs;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\OosAlignmentService;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class AlignWithOos implements ShouldQueue
+class AlignWithOos extends ProcessingJob implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
@@ -34,15 +35,33 @@ class AlignWithOos implements ShouldQueue
         }
 
         $this->processingLog = $processingLog;
+        $this->initializeStepLogging($this->processingLog->processing_id);
 
         if (
             $this->processingLog->processing_type !== MediaType::Livestream
             || $this->processingLog->isCancelled()
         ) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::ALIGN_WITH_OOS, 'OoS alignment only runs for active livestream processing');
+
             return;
         }
 
+        $this->logStepStart(ChurchServiceProcessingTimeline::ALIGN_WITH_OOS);
+
         $result = $alignmentService->alignForProcessingLog($this->processingLog);
+
+        if (! $result['aligned']) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::ALIGN_WITH_OOS, 'No matching order of service available for alignment');
+        } else {
+            $this->logStepComplete(
+                ChurchServiceProcessingTimeline::ALIGN_WITH_OOS,
+                sprintf(
+                    'Matched %d song section(s); %d review trigger(s)',
+                    $result['matched_song_sections'],
+                    count($result['review_triggers'])
+                )
+            );
+        }
 
         Log::info('OoS alignment pass completed', [
             'processing_id' => $this->processingLog->processing_id,
@@ -56,6 +75,12 @@ class AlignWithOos implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
+        $this->initializeStepLogging($this->processingLog->processing_id);
+        $this->logStepFailed(
+            ChurchServiceProcessingTimeline::ALIGN_WITH_OOS,
+            $exception->getMessage()
+        );
+
         Log::error('AlignWithOos job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),

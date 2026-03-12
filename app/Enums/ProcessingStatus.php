@@ -8,6 +8,7 @@ enum ProcessingStatus: string
     case STARTED = 'started';
     case PROCESSING = 'processing';
     case COMPLETED = 'completed';
+    case SKIPPED = 'skipped';
     case FAILED = 'failed';
     case CANCELLED = 'cancelled';
 
@@ -18,6 +19,7 @@ enum ProcessingStatus: string
             self::STARTED => 'Started',
             self::PROCESSING => 'Processing',
             self::COMPLETED => 'Completed',
+            self::SKIPPED => 'Skipped',
             self::FAILED => 'Failed',
             self::CANCELLED => 'Cancelled',
         };
@@ -31,6 +33,11 @@ enum ProcessingStatus: string
     public function isFailed(): bool
     {
         return $this === self::FAILED;
+    }
+
+    public function isSkipped(): bool
+    {
+        return $this === self::SKIPPED;
     }
 
     public function isCancelled(): bool

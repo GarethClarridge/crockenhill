@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ServiceSectionSyncService;
 use App\Services\SpeechSectionClassificationService;
+use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -18,7 +19,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class ClassifySpeechSections implements ShouldQueue
+class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
@@ -42,17 +43,24 @@ class ClassifySpeechSections implements ShouldQueue
         }
 
         $this->processingLog = $processingLog;
+        $this->initializeStepLogging($this->processingLog->processing_id);
 
         if (
             $this->processingLog->processing_type !== MediaType::Livestream
             || $this->processingLog->isCancelled()
         ) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS, 'Speech section classification only runs for active livestream processing');
+
             return;
         }
 
         if (! (bool) config('media-processing.section_classification.classify_speech_sections', true)) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS, 'Speech section classification disabled');
+
             return;
         }
+
+        $this->logStepStart(ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS);
 
         $existingSections = ServiceSection::query()
             ->where('media_processing_log_id', $this->processingLog->id)
@@ -61,6 +69,8 @@ class ClassifySpeechSections implements ShouldQueue
             ->get();
 
         if ($existingSections->isEmpty()) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS, 'No sections available for transcript classification');
+
             return;
         }
 
@@ -98,10 +108,21 @@ class ClassifySpeechSections implements ShouldQueue
         unset($rewrittenSection);
 
         $syncService->sync($this->processingLog, $rewrittenSections);
+
+        $this->logStepComplete(
+            ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS,
+            sprintf('Rewrote %d section(s) from transcript analysis', count($rewrittenSections))
+        );
     }
 
     public function failed(\Throwable $exception): void
     {
+        $this->initializeStepLogging($this->processingLog->processing_id);
+        $this->logStepFailed(
+            ChurchServiceProcessingTimeline::CLASSIFY_SPEECH_SECTIONS,
+            $exception->getMessage()
+        );
+
         Log::error('ClassifySpeechSections job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),

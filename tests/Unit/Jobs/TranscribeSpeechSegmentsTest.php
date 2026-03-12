@@ -17,6 +17,7 @@ use App\Services\ServiceSectionClassifier;
 use App\Services\ServiceSectionSyncService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -105,6 +106,11 @@ class TranscribeSpeechSegmentsTest extends TestCase
         $section->refresh();
 
         $this->assertSame('Segment transcript', $section->metadata['transcript'] ?? null);
+        $this->assertDatabaseHas('sermon_processing_steps', [
+            'processing_id' => $processingLog->processing_id,
+            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
+            'status' => 'completed',
+        ]);
         Storage::disk('public')->assertMissing('sermons/audio/section-1.mp3');
     }
 
@@ -143,6 +149,11 @@ class TranscribeSpeechSegmentsTest extends TestCase
         $section->refresh();
 
         $this->assertArrayNotHasKey('transcript', $section->metadata ?? []);
+        $this->assertDatabaseHas('sermon_processing_steps', [
+            'processing_id' => $processingLog->processing_id,
+            'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
+            'status' => 'skipped',
+        ]);
     }
 
     #[Test]

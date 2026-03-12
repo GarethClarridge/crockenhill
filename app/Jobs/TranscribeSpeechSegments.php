@@ -12,6 +12,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
+use App\Support\ChurchServiceProcessingTimeline;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -21,7 +22,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
-class TranscribeSpeechSegments implements ShouldQueue
+class TranscribeSpeechSegments extends ProcessingJob implements ShouldQueue
 {
     use DetectsStorageType;
     use InteractsWithQueue;
@@ -56,6 +57,9 @@ class TranscribeSpeechSegments implements ShouldQueue
         TranscriptionServiceInterface $transcriptionService
     ): void {
         if (! (bool) config('media-processing.section_classification.transcribe_speech_segments', true)) {
+            $this->initializeStepLogging($this->processingLog->processing_id);
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS, 'Speech segment transcription disabled');
+
             return;
         }
 
@@ -65,13 +69,18 @@ class TranscribeSpeechSegments implements ShouldQueue
         }
 
         $this->processingLog = $processingLog;
+        $this->initializeStepLogging($this->processingLog->processing_id);
 
         if (
             $this->processingLog->processing_type !== MediaType::Livestream
             || $this->processingLog->isCancelled()
         ) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS, 'Speech segment transcription only runs for active livestream processing');
+
             return;
         }
+
+        $this->logStepStart(ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS);
 
         $sections = ServiceSection::query()
             ->where('media_processing_log_id', $this->processingLog->id)
@@ -86,12 +95,16 @@ class TranscribeSpeechSegments implements ShouldQueue
             ->filter(fn (ServiceSection $section): bool => $this->shouldTranscribe($section));
 
         if ($sections->isEmpty()) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS, 'No eligible speech sections to transcribe');
+
             return;
         }
 
         try {
             [$localSourcePath, $cleanupSourcePath] = $this->resolveLocalSourceVideoPath($storageHelper);
         } catch (\Throwable $throwable) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS, 'Source video unavailable');
+
             Log::warning('Speech segment transcription skipped: source video unavailable', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $throwable->getMessage(),
@@ -100,10 +113,22 @@ class TranscribeSpeechSegments implements ShouldQueue
             return;
         }
 
+        $transcribedCount = 0;
+        $failedCount = 0;
+
         try {
             foreach ($sections as $section) {
-                $this->transcribeSection($section, $localSourcePath, $videoExtractor, $transcriptionService);
+                if ($this->transcribeSection($section, $localSourcePath, $videoExtractor, $transcriptionService)) {
+                    $transcribedCount++;
+                } else {
+                    $failedCount++;
+                }
             }
+
+            $this->logStepComplete(
+                ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
+                sprintf('Transcribed %d section(s)%s', $transcribedCount, $failedCount > 0 ? "; {$failedCount} failed" : '')
+            );
         } finally {
             if ($cleanupSourcePath) {
                 $storageHelper->cleanupTempFile($localSourcePath);
@@ -113,6 +138,12 @@ class TranscribeSpeechSegments implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
+        $this->initializeStepLogging($this->processingLog->processing_id);
+        $this->logStepFailed(
+            ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,
+            $exception->getMessage()
+        );
+
         Log::error('TranscribeSpeechSegments job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),
@@ -178,7 +209,7 @@ class TranscribeSpeechSegments implements ShouldQueue
         string $localSourcePath,
         VideoExtractionService $videoExtractor,
         TranscriptionServiceInterface $transcriptionService
-    ): void {
+    ): bool {
         $audioPath = null;
 
         try {
@@ -205,6 +236,8 @@ class TranscribeSpeechSegments implements ShouldQueue
             $section->forceFill([
                 'metadata' => $metadata,
             ])->save();
+
+            return true;
         } catch (\Throwable $throwable) {
             Log::warning('Failed to transcribe speech section', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -212,6 +245,8 @@ class TranscribeSpeechSegments implements ShouldQueue
                 'section_type' => $section->section_type->value,
                 'error' => $throwable->getMessage(),
             ]);
+
+            return false;
         } finally {
             $this->cleanupExtractedAudio($audioPath);
         }

@@ -13,7 +13,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $processing_id
  * @property string $step
- * @property string $status
+ * @property ProcessingStatus|string $status
  * @property ?string $message
  * @property ?Carbon $started_at
  * @property ?Carbon $completed_at
@@ -88,6 +88,19 @@ class SermonProcessingStep extends Model
     }
 
     /**
+     * Mark the step as skipped.
+     */
+    public function markAsSkipped(?string $message = null): bool
+    {
+        return $this->update([
+            'status' => ProcessingStatus::SKIPPED->value,
+            'message' => $message,
+            'started_at' => $this->started_at ?? now(),
+            'completed_at' => now(),
+        ]);
+    }
+
+    /**
      * Mark the step as cancelled.
      */
     public function markAsCancelled(?string $message = null): bool
@@ -113,6 +126,14 @@ class SermonProcessingStep extends Model
     public function isFailed(): bool
     {
         return $this->status === ProcessingStatus::FAILED->value;
+    }
+
+    /**
+     * Check if the step was skipped.
+     */
+    public function isSkipped(): bool
+    {
+        return $this->status === ProcessingStatus::SKIPPED->value;
     }
 
     /**

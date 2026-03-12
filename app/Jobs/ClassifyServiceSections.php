@@ -7,13 +7,14 @@ namespace App\Jobs;
 use App\Models\MediaProcessingLog;
 use App\Services\ServiceSectionClassifier;
 use App\Services\ServiceSectionSyncService;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class ClassifyServiceSections implements ShouldQueue
+class ClassifyServiceSections extends ProcessingJob implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
@@ -35,8 +36,11 @@ class ClassifyServiceSections implements ShouldQueue
             }
 
             $this->processingLog = $processingLog;
+            $this->initializeStepLogging($this->processingLog->processing_id);
 
             if ($this->processingLog->isCancelled()) {
+                $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS, 'Processing cancelled');
+
                 Log::info('ClassifyServiceSections job skipped: processing cancelled', [
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
@@ -45,6 +49,8 @@ class ClassifyServiceSections implements ShouldQueue
             }
 
             if (! (bool) config('media-processing.section_classification.enabled', true)) {
+                $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS, 'Section classification disabled');
+
                 if (! $this->preserveRunStatus) {
                     $this->processingLog->updateStep('section_classification_skipped');
                 }
@@ -57,6 +63,8 @@ class ClassifyServiceSections implements ShouldQueue
                 return;
             }
 
+            $this->logStepStart(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS);
+
             if (! $this->preserveRunStatus) {
                 $this->processingLog->markAsProcessing('classifying_sections');
             }
@@ -66,6 +74,7 @@ class ClassifyServiceSections implements ShouldQueue
 
             if ($skipped) {
                 $skipReason = $result['skip_reason'] ?? 'skipped';
+                $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS, (string) $skipReason);
 
                 if (! $this->preserveRunStatus) {
                     $this->processingLog->updateStep('section_classification_skipped');
@@ -116,6 +125,11 @@ class ClassifyServiceSections implements ShouldQueue
                 $this->processingLog->updateStep('section_classification_complete');
             }
 
+            $this->logStepComplete(
+                ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
+                sprintf('Stored %d classified section(s)', count($sections))
+            );
+
             Log::info('Service section classification completed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'sections_count' => count($sections),
@@ -127,6 +141,12 @@ class ClassifyServiceSections implements ShouldQueue
                 'preserve_status' => $this->preserveRunStatus,
             ]);
         } catch (\Throwable $exception) {
+            $this->initializeStepLogging($this->processingLog->processing_id);
+            $this->logStepFailed(
+                ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
+                $exception->getMessage()
+            );
+
             Log::error('Service section classification failed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $exception->getMessage(),
@@ -152,6 +172,12 @@ class ClassifyServiceSections implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
+        $this->initializeStepLogging($this->processingLog->processing_id);
+        $this->logStepFailed(
+            ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS,
+            'Service section classification failed after '.$this->tries.' attempts: '.$exception->getMessage()
+        );
+
         Log::error('ClassifyServiceSections job failed permanently', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),

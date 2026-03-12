@@ -17,6 +17,7 @@ use App\Models\SpeakerProfile;
 use App\Services\ChildrensTalkSpeakerService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
+use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -107,6 +108,11 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertNotNull($section->unpublished_expires_at);
         $this->assertSame('matched', $section->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
         $this->assertSame('Alice Speaker', $section->metadata['childrens_talk_speaker']['reviewed']['preacher_name'] ?? null);
+        $this->assertDatabaseHas('sermon_processing_steps', [
+            'processing_id' => $processingLog->processing_id,
+            'step' => ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
+            'status' => 'completed',
+        ]);
         Storage::disk('public')->assertExists('sermons/sections/'.$section->id.'/video.mp4');
     }
 

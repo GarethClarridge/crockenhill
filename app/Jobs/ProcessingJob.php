@@ -50,11 +50,6 @@ abstract class ProcessingJob
             ]
         );
 
-        Log::info('Processing step started', [
-            'processing_id' => $this->processingId,
-            'step' => $step,
-            'message' => $message,
-        ]);
     }
 
     /**
@@ -71,19 +66,18 @@ abstract class ProcessingJob
             return;
         }
 
-        SermonProcessingStep::where('processing_id', $this->processingId)
-            ->where('step', $step)
-            ->update([
-                'status' => ProcessingStatus::COMPLETED->value,
-                'message' => $message,
-                'completed_at' => now(),
-            ]);
-
-        Log::info('Processing step completed', [
+        $stepLog = SermonProcessingStep::firstOrNew([
             'processing_id' => $this->processingId,
             'step' => $step,
-            'message' => $message,
         ]);
+
+        $stepLog->fill([
+            'status' => ProcessingStatus::COMPLETED->value,
+            'message' => $message,
+            'started_at' => $stepLog->started_at ?? now(),
+            'completed_at' => now(),
+        ])->save();
+
     }
 
     /**
@@ -101,19 +95,46 @@ abstract class ProcessingJob
             return;
         }
 
-        SermonProcessingStep::where('processing_id', $this->processingId)
-            ->where('step', $step)
-            ->update([
-                'status' => ProcessingStatus::FAILED->value,
-                'message' => $error,
-                'completed_at' => now(),
-            ]);
-
-        Log::error('Processing step failed', [
+        $stepLog = SermonProcessingStep::firstOrNew([
             'processing_id' => $this->processingId,
             'step' => $step,
-            'error' => $error,
         ]);
+
+        $stepLog->fill([
+            'status' => ProcessingStatus::FAILED->value,
+            'message' => $error,
+            'started_at' => $stepLog->started_at ?? now(),
+            'completed_at' => now(),
+        ])->save();
+
+    }
+
+    /**
+     * Log that a processing step was intentionally skipped.
+     */
+    protected function logStepSkipped(string $step, ?string $message = null): void
+    {
+        if (! $this->processingId) {
+            Log::warning('Processing step skip logged without processingId', [
+                'step' => $step,
+                'job_class' => get_class($this),
+            ]);
+
+            return;
+        }
+
+        $stepLog = SermonProcessingStep::firstOrNew([
+            'processing_id' => $this->processingId,
+            'step' => $step,
+        ]);
+
+        $stepLog->fill([
+            'status' => ProcessingStatus::SKIPPED->value,
+            'message' => $message,
+            'started_at' => $stepLog->started_at ?? now(),
+            'completed_at' => now(),
+        ])->save();
+
     }
 
     /**
