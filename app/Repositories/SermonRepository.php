@@ -1,14 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repositories;
 
 use App\Models\Sermon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SermonRepository
 {
     /**
-     * Get all distinct sermon series from database
+     * Get all distinct sermon series from database.
      *
      * @return array<int, string>
      */
@@ -22,9 +25,7 @@ class SermonRepository
                 ->distinct()
                 ->orderBy('series')
                 ->pluck('series')
-                ->filter()
-                ->values()
-                ->toArray();
+                ->all();
         } catch (\Exception $e) {
             Log::warning('Failed to retrieve existing series', [
                 'error' => $e->getMessage(),
@@ -44,7 +45,7 @@ class SermonRepository
      */
     public function getSeriesForDisplay(): array
     {
-        return \Illuminate\Support\Facades\Cache::flexible('sermon_series', [86400, 172800], function () {
+        return Cache::flexible('sermon_series', [86400, 172800], function () {
             $series = $this->getExistingSeries();
             sort($series);
 
