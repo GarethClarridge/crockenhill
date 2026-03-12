@@ -62,7 +62,7 @@ class EditSermon extends Component
             'preacherId' => 'nullable|integer|exists:preachers,id',
             'reference' => 'nullable|string|max:255',
             'series' => 'nullable|string|max:255',
-            'summary' => 'nullable|string',
+            'summary' => 'nullable|string|max:1000',
             'points' => 'array',
             'showSummary' => 'boolean',
             'showPoints' => 'boolean',

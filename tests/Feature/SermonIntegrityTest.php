@@ -31,4 +31,23 @@ class SermonIntegrityTest extends TestCase
 
         $this->assertEquals($longPath, $sermon->audio_file_path);
     }
+
+    #[Test]
+    public function it_sets_livestream_processing_id_to_null_when_log_is_deleted()
+    {
+        $log = \App\Models\MediaProcessingLog::factory()->create([
+            'processing_id' => \Illuminate\Support\Str::uuid()->toString(),
+        ]);
+
+        $sermon = Sermon::factory()->create([
+            'livestream_processing_id' => $log->processing_id,
+        ]);
+
+        $this->assertEquals($log->processing_id, $sermon->livestream_processing_id);
+
+        $log->delete();
+
+        $sermon->refresh();
+        $this->assertNull($sermon->livestream_processing_id);
+    }
 }

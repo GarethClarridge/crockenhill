@@ -134,6 +134,21 @@ class SermonSeeder extends Seeder
 
     private function seedSermonWithReading(?Preacher $preacher): void
     {
+        // Only create the processing context if it doesn't already exist.
+        $processingLog = MediaProcessingLog::where('processing_id', 'seed-prodigal-son-processing')->first();
+
+        if (! $processingLog) {
+            $processingLog = MediaProcessingLog::create([
+                'processing_id' => 'seed-prodigal-son-processing',
+                'processing_type' => MediaType::Livestream,
+                'original_filename' => '2024-11-24-morning-service.mp4',
+                'status' => ProcessingStatus::COMPLETED,
+                'current_step' => 'completed',
+                'sermon_id' => null,
+                'audio_file_path' => 'sermons/seed/2024-11-24.mp3',
+            ]);
+        }
+
         $sermon = Sermon::updateOrCreate(
             ['slug' => 'the-prodigal-son'],
             [
@@ -151,18 +166,11 @@ class SermonSeeder extends Seeder
             ]
         );
 
-        // Only create the processing context if it doesn't already exist.
-        if (MediaProcessingLog::where('processing_id', 'seed-prodigal-son-processing')->doesntExist()) {
-            $processingLog = MediaProcessingLog::create([
-                'processing_id' => 'seed-prodigal-son-processing',
-                'processing_type' => MediaType::Livestream,
-                'original_filename' => '2024-11-24-morning-service.mp4',
-                'status' => ProcessingStatus::COMPLETED,
-                'current_step' => 'completed',
-                'sermon_id' => $sermon->id,
-                'audio_file_path' => 'sermons/seed/2024-11-24.mp3',
-            ]);
+        $processingLog->update(['sermon_id' => $sermon->id]);
 
+        $churchService = ChurchService::where('date', '2024-11-24')->where('service', SermonService::MORNING->value)->first();
+
+        if (! $churchService) {
             $churchService = ChurchService::create([
                 'date' => '2024-11-24',
                 'service' => SermonService::MORNING->value,
@@ -171,7 +179,11 @@ class SermonSeeder extends Seeder
                 'needs_review' => false,
                 'import_metadata' => ['confidence_score' => 1.0, 'warnings' => []],
             ]);
+        }
 
+        $readingItem = ChurchServiceItem::where('church_service_id', $churchService->id)->where('position', 2)->first();
+
+        if (! $readingItem) {
             $readingItem = ChurchServiceItem::create([
                 'church_service_id' => $churchService->id,
                 'position' => 2,
@@ -179,7 +191,9 @@ class SermonSeeder extends Seeder
                 'source' => 'openlp',
                 'title' => 'Luke 15:1-10',
             ]);
+        }
 
+        if (ServiceSection::where('media_processing_log_id', $processingLog->id)->where('section_order', 2)->doesntExist()) {
             ServiceSection::create([
                 'media_processing_log_id' => $processingLog->id,
                 'church_service_item_id' => $readingItem->id,

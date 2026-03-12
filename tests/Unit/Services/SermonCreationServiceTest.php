@@ -458,6 +458,7 @@ class SermonCreationServiceTest extends TestCase
     public function it_creates_sermon_from_livestream_options(): void
     {
         $log = MediaProcessingLog::factory()->create([
+            'processing_id' => 'test-processing-id',
             'processing_type' => 'livestream',
             'audio_file_path' => 'audio/livestream-segment.mp3',
             'original_filename' => '2024-03-15-livestream.mp4',
