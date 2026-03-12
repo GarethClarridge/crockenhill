@@ -187,7 +187,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeByType(Builder $query, MediaType $type): Builder
     {
-        return $query->where('processing_type', $type);
+        return $query->where('processing_type', $type->value);
     }
 
     /**
@@ -196,7 +196,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeAudio(Builder $query): Builder
     {
-        return $query->where('processing_type', MediaType::Audio);
+        return $query->where('processing_type', MediaType::Audio->value);
     }
 
     /**
@@ -205,7 +205,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeVideo(Builder $query): Builder
     {
-        return $query->where('processing_type', MediaType::Video);
+        return $query->where('processing_type', MediaType::Video->value);
     }
 
     /**
@@ -214,7 +214,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeLivestream(Builder $query): Builder
     {
-        return $query->where('processing_type', MediaType::Livestream);
+        return $query->where('processing_type', MediaType::Livestream->value);
     }
 
     /**
@@ -223,7 +223,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeProcessing(Builder $query): Builder
     {
-        return $query->where('status', ProcessingStatus::PROCESSING);
+        return $query->where('status', ProcessingStatus::PROCESSING->value);
     }
 
     /**
@@ -232,7 +232,7 @@ class MediaProcessingLog extends Model
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', ProcessingStatus::PENDING);
+        return $query->where('status', ProcessingStatus::PENDING->value);
     }
 
     /**
@@ -241,7 +241,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeCompleted(Builder $query): Builder
     {
-        return $query->where('status', ProcessingStatus::COMPLETED);
+        return $query->where('status', ProcessingStatus::COMPLETED->value);
     }
 
     /**
@@ -250,7 +250,7 @@ class MediaProcessingLog extends Model
      */
     public function scopeFailed(Builder $query): Builder
     {
-        return $query->where('status', ProcessingStatus::FAILED);
+        return $query->where('status', ProcessingStatus::FAILED->value);
     }
 
     /**

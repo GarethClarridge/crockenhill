@@ -46,7 +46,13 @@
                                     @if($sermon->preacher_source === \App\Enums\PreacherSource::SPEAKER_MODEL && $sermon->preacher_confidence !== null)
                                         <p>The AI identified a {{ $isChildrensTalk ? 'speaker' : 'preacher' }} with {{ round($sermon->preacher_confidence * 100) }}% confidence. Please verify and confirm or correct the assignment below.</p>
                                     @else
-                                        <p>No {{ $isChildrensTalk ? 'speaker' : 'preacher' }} could be automatically identified. Please assign the correct {{ $isChildrensTalk ? 'speaker' : 'preacher' }} below.</p>
+                                        <p>
+                                            @if($isChildrensTalk)
+                                                No speaker could be automatically identified. Please assign the correct speaker below.
+                                            @else
+                                                No speaker could be automatically identified. Please assign the correct preacher below.
+                                            @endif
+                                        </p>
                                     @endif
                                     <p class="mt-1 text-amber-600">Saving this form will clear the review flag.</p>
                                 </div>

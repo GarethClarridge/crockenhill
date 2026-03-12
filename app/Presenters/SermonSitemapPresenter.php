@@ -9,9 +9,13 @@ use Spatie\Sitemap\Tags\Url;
 
 class SermonSitemapPresenter
 {
+    private readonly SermonExposurePolicy $exposurePolicy;
+
     public function __construct(
-        private readonly SermonExposurePolicy $exposurePolicy,
-    ) {}
+        ?SermonExposurePolicy $exposurePolicy = null,
+    ) {
+        $this->exposurePolicy = $exposurePolicy ?? app(SermonExposurePolicy::class);
+    }
 
     public function toSitemapTag(Sermon $sermon): Url
     {
