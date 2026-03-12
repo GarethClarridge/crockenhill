@@ -6,10 +6,10 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
-use App\Traits\EscapesLikeWildcards;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ServiceSection;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;

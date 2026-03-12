@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Traits\EscapesLikeWildcards;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SermonResource;
 use App\Models\Sermon;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 

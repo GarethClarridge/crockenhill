@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
-use App\Traits\EscapesLikeWildcards;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Livewire\Component;
