@@ -21,7 +21,7 @@ class CalendarController extends Controller
          */
         $allEvents = CalendarEvent::query()
             ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
-            ->with('meeting:id,slug')
+            ->with('meeting:id,slug,location')
             ->upcoming()
             ->confirmed()
             ->whereBetween('start_datetime', [now(), now()->addMonths(6)])
