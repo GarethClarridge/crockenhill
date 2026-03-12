@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
+use App\Traits\EscapesLikeWildcards;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
@@ -19,7 +20,7 @@ use Livewire\WithPagination;
 
 class ListSermons extends Component
 {
-    use WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'date';
 
@@ -119,12 +120,14 @@ class ListSermons extends Component
             || $this->needsReviewFilter === true
             || $this->last12Months === false;
 
+        $escapedSearch = $this->escapeLike($this->search);
+
         $query = Sermon::query()
             ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path'])
             ->with('preacherProfile:id,name,slug')
-            ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")
-                ->orWhere('preacher', 'like', "%{$this->search}%")
-                ->orWhere('reference', 'like', "%{$this->search}%"))
+            ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$escapedSearch}%")
+                ->orWhere('preacher', 'like', "%{$escapedSearch}%")
+                ->orWhere('reference', 'like', "%{$escapedSearch}%"))
             ->when($this->serviceFilter, fn ($q) => $q->where('service', $this->serviceFilter))
             ->when($this->preacherFilter, fn ($q) => $q->where('preacher_id', $this->preacherFilter))
             ->when($this->seriesFilter, fn ($q) => $q->where('series', $this->seriesFilter))

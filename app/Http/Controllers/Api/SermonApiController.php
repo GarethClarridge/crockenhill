@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Traits\EscapesLikeWildcards;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SermonResource;
 use App\Models\Sermon;
@@ -10,6 +11,8 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class SermonApiController extends Controller
 {
+    use EscapesLikeWildcards;
+
     /**
      * Display a listing of sermons
      */
@@ -34,7 +37,7 @@ class SermonApiController extends Controller
         if ($request->has('search')) {
             $search = (string) $request->get('search');
             // Escape special characters to prevent LIKE injection (Defense in Depth)
-            $escapedSearch = addcslashes($search, '\\%_');
+            $escapedSearch = $this->escapeLike($search);
 
             $query->where(function ($q) use ($escapedSearch) {
                 $q->where('title', 'like', '%'.$escapedSearch.'%')

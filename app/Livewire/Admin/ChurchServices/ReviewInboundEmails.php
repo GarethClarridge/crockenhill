@@ -7,7 +7,7 @@ namespace App\Livewire\Admin\ChurchServices;
 use App\Data\OosEmailParseResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
-use App\Livewire\Traits\EscapesLikeWildcards;
+use App\Traits\EscapesLikeWildcards;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\InboundEmail;
