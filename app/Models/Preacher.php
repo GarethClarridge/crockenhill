@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Sitemap\Contracts\Sitemapable;
+use Spatie\Sitemap\Tags\Url;
 
 /**
  * App\Models\Preacher
@@ -27,7 +29,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @mixin \Eloquent
  */
-class Preacher extends Model
+class Preacher extends Model implements Sitemapable
 {
     /** @use HasFactory<\Database\Factories\PreacherFactory> */
     use HasFactory;
@@ -123,5 +125,26 @@ class Preacher extends Model
                 ->orderBy('name')
                 ->get();
         });
+    }
+
+    /**
+     * Convert the preacher to a sitemap tag.
+     *
+     * @return Url|string|array<string, mixed>
+     */
+    public function toSitemapTag(): Url|string|array
+    {
+        $url = Url::create("/christ/sermons/preachers/{$this->slug}")
+            ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
+            ->setPriority(0.6);
+
+        if ($this->updated_at) {
+            $updatedAt = $this->updated_at;
+            if ($updatedAt->year > 0) {
+                $url->setLastModificationDate($updatedAt);
+            }
+        }
+
+        return $url;
     }
 }
