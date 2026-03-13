@@ -16,7 +16,7 @@ class InboundEmailHtmlSanitizerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->sanitizer = new InboundEmailHtmlSanitizer();
+        $this->sanitizer = new InboundEmailHtmlSanitizer;
     }
 
     #[Test]

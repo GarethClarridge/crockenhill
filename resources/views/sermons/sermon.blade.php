@@ -68,57 +68,61 @@ $schema['audio'] = [
 
 @section('dynamic_content')
 
-<article>
-  <div class="lg:grid lg:grid-cols-3 lg:gap-8 lg:items-start">
+<article class="space-y-6">
 
-    {{-- ══ Main column (media + content) ══════════════════════ --}}
-    <div class="lg:col-span-2 space-y-6">
+  {{-- ══ Row 1: Hero thumbnail / Media (full width) ══════════ --}}
 
-      {{-- ── Hero thumbnail (video-less sermons only) ─────────── --}}
-      @if(!$sermon->video_file_path && $sermon->hasThumbnail())
-      <div class="overflow-hidden rounded-xl shadow-sm border border-gray-100">
-        <img
-          src="{{ route('serveSermonThumbnail', $sermon->slug) }}"
-          alt="Sermon: {{ $sermon->title }}"
-          class="w-full max-h-96 object-cover">
-      </div>
+  {{-- ── Hero thumbnail (video-less sermons only) ─────────── --}}
+  @if(!$sermon->video_file_path && $sermon->hasThumbnail())
+  <div class="overflow-hidden rounded-xl shadow-sm border border-gray-100">
+    <img
+      src="{{ route('serveSermonThumbnail', $sermon->slug) }}"
+      alt="Sermon: {{ $sermon->title }}"
+      class="w-full max-h-96 object-cover">
+  </div>
+  @endif
+
+  {{-- ── Media ─────────────────────────────────────────────── --}}
+  @if ($sermon->audio_file_path || !empty($sermon->video_file_path))
+  <div class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+      <x-heroicon-o-play-circle class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
+      <h2 class="font-display text-xl text-gray-900">
+        @if ($sermon->audio_file_path && !empty($sermon->video_file_path))
+        Watch or listen
+        @elseif (!empty($sermon->video_file_path))
+        Watch
+        @else
+        Listen
+        @endif
+      </h2>
+    </div>
+    <div class="p-6 space-y-6">
+      @if ($sermon->audio_file_path)
+      <audio src="{{ $sermon->audio_url }}" class="w-full rounded-lg" controls>
+        Your browser does not support the <code>audio</code> element.
+      </audio>
       @endif
 
-      {{-- ── Media ─────────────────────────────────────────────── --}}
-      @if ($sermon->audio_file_path || !empty($sermon->video_file_path))
-      <div class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <x-heroicon-o-play-circle class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
-          <h2 class="font-display text-xl text-gray-900">
-            @if ($sermon->audio_file_path && !empty($sermon->video_file_path))
-            Watch or listen
-            @elseif (!empty($sermon->video_file_path))
-            Watch
-            @else
-            Listen
-            @endif
-          </h2>
-        </div>
-        <div class="p-6 space-y-6">
-          @if ($sermon->audio_file_path)
-          <audio src="{{ $sermon->audio_url }}" class="w-full rounded-lg" controls>
-            Your browser does not support the <code>audio</code> element.
-          </audio>
-          @endif
-
-          @if (!empty($sermon->video_file_path))
-          <video src="{{ Storage::disk(config('media-processing.storage.sermon_disk', 'public'))->url($sermon->video_file_path) }}"
-            class="w-full rounded-lg"
-            controls
-            @if($sermon->thumbnail_url && $sermon->hasThumbnail()) poster="{{ $sermon->thumbnail_url }}" @endif>
-            Your browser does not support the <code>video</code> element.
-          </video>
-          @endif
-        </div>
-      </div>
+      @if (!empty($sermon->video_file_path))
+      <video src="{{ Storage::disk(config('media-processing.storage.sermon_disk', 'public'))->url($sermon->video_file_path) }}"
+        class="w-full rounded-lg"
+        controls
+        @if($sermon->thumbnail_url && $sermon->hasThumbnail()) poster="{{ $sermon->thumbnail_url }}" @endif>
+        Your browser does not support the <code>video</code> element.
+      </video>
       @endif
+    </div>
+  </div>
+  @endif
 
-      {{-- ── Summary ───────────────────────────────────────────── --}}
+  {{-- ══ Row 2: Content + Details (two equal-ish columns) ═══ --}}
+  <div class="lg:grid lg:grid-cols-5 lg:gap-8 lg:items-start">
+
+    {{-- ── Left: summary / outline / transcript ─────────────── --}}
+    <div class="lg:col-span-3 space-y-6">
+
+      {{-- ── Summary ─────────────────────────────────────────── --}}
       @if ($sermon->show_summary && !empty($sermon->summary))
       <div class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
@@ -131,7 +135,7 @@ $schema['audio'] = [
       </div>
       @endif
 
-      {{-- ── Sermon Outline ────────────────────────────────────── --}}
+      {{-- ── Sermon Outline ───────────────────────────────────── --}}
       @if ($sermon->show_points && !empty($sermon->points) && is_array($sermon->points))
       <div class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
@@ -178,7 +182,7 @@ $schema['audio'] = [
       </div>
       @endif
 
-      {{-- ── Transcript ────────────────────────────────────────── --}}
+      {{-- ── Transcript ───────────────────────────────────────── --}}
       @php
       $transcriptContent = $sermon->transcript;
       @endphp
@@ -247,12 +251,12 @@ $schema['audio'] = [
       </div>
       @endif
 
-    </div>{{-- end main column --}}
+    </div>{{-- end left column --}}
 
-    {{-- ══ Sidebar (metadata + passage) ══════════════════════ --}}
-    <div class="mt-6 lg:mt-0 space-y-6 lg:sticky lg:top-6">
+    {{-- ── Right: metadata + passage + admin ───────────────── --}}
+    <div class="mt-6 lg:mt-0 lg:col-span-2 space-y-6 lg:sticky lg:top-6">
 
-      {{-- ── Metadata card ─────────────────────────────────────── --}}
+      {{-- ── Metadata card ──────────────────────────────────── --}}
       <div class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
         <div class="h-1 w-full bg-[linear-gradient(90deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)]"></div>
         <dl class="p-6 space-y-4">
@@ -304,7 +308,7 @@ $schema['audio'] = [
         </dl>
       </div>
 
-      {{-- ── Bible passage ─────────────────────────────────────── --}}
+      {{-- ── Bible passage ──────────────────────────────────── --}}
       @if ($sermon->reference != null)
       <div
         x-data="{ expanded: false }"
@@ -361,7 +365,7 @@ $schema['audio'] = [
       </div>
       @endif
 
-      {{-- ── Admin Actions ─────────────────────────────────────── --}}
+      {{-- ── Admin Actions ──────────────────────────────────── --}}
       @can ('manage-sermons')
       <div>
 
@@ -419,7 +423,7 @@ $schema['audio'] = [
       </div>
       @endcan
 
-    </div>{{-- end sidebar --}}
+    </div>{{-- end right column --}}
 
   </div>
 </article>
