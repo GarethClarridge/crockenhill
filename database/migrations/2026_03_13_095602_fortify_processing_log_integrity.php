@@ -15,14 +15,19 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Ensure sermon_processing_steps.processing_id is compatible with media_processing_logs.processing_id
+        // We use Schema::table with change() for better portability and consistency with standards.
         if (DB::getDriverName() === 'mysql') {
-            DB::statement('ALTER TABLE media_processing_logs MODIFY processing_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL');
-            DB::statement('ALTER TABLE sermon_processing_steps MODIFY processing_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL');
+            Schema::table('media_processing_logs', function (Blueprint $table) {
+                $table->char('processing_id', 36)->charset('utf8mb4')->collation('utf8mb4_unicode_ci')->change();
+            });
+            Schema::table('sermon_processing_steps', function (Blueprint $table) {
+                $table->char('processing_id', 36)->charset('utf8mb4')->collation('utf8mb4_unicode_ci')->change();
+            });
         }
 
         // 2. Add foreign key to sermon_processing_steps.
-        // NOTE: The reference column media_processing_logs.processing_id already has a UNIQUE constraint from its creation migration.
-        // Any orphaned steps that cannot satisfy this constraint will cause the migration to fail, requiring manual cleanup.
+        // Orphaned records cleanup is omitted here to follow Warden standards (avoiding data modification in schema migrations).
+        // If orphaned records exist, this migration will fail and require manual intervention.
         Schema::table('sermon_processing_steps', function (Blueprint $table) {
             $table->foreign('processing_id')
                 ->references('processing_id')
@@ -33,7 +38,11 @@ return new class extends Migration
 
         // 3. Update status ENUM on media_processing_logs to include all ProcessingStatus values
         if (DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE media_processing_logs MODIFY COLUMN status ENUM('pending', 'started', 'processing', 'completed', 'skipped', 'failed', 'cancelled') NOT NULL DEFAULT 'pending'");
+            Schema::table('media_processing_logs', function (Blueprint $table) {
+                $table->enum('status', ['pending', 'started', 'processing', 'completed', 'skipped', 'failed', 'cancelled'])
+                    ->default('pending')
+                    ->change();
+            });
         }
     }
 
@@ -46,9 +55,7 @@ return new class extends Migration
             $table->dropForeign(['processing_id']);
         });
 
-        // NOTE: Reverting the ENUM may cause data loss or migration failure if new statuses are in use.
-        if (DB::getDriverName() === 'mysql') {
-            DB::statement("ALTER TABLE media_processing_logs MODIFY COLUMN status ENUM('pending', 'processing', 'completed', 'failed', 'cancelled') NOT NULL DEFAULT 'pending'");
-        }
+        // We do not revert the ENUM values in down() to prevent data truncation if new statuses are in use.
+        // This preserves data integrity for existing records.
     }
 };
