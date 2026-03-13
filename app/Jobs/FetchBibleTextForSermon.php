@@ -13,6 +13,7 @@ use App\Services\ScriptureReferenceResolver;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\FailOnException;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
@@ -126,13 +127,15 @@ class FetchBibleTextForSermon implements ShouldQueue
     }
 
     /**
-     * Non-retryable exceptions: budget exhaustion resets at midnight, not in 30s.
+     * Budget exhaustion is non-retryable — the daily limit resets at midnight,
+     * not in 30 seconds. FailOnException marks the job as permanently failed
+     * immediately, bypassing the retry/backoff cycle.
      *
-     * @return array<int, class-string<\Throwable>>
+     * @return array<int, object>
      */
-    public function dontRetryOn(): array
+    public function middleware(): array
     {
-        return [ApiBibleBudgetExhaustedException::class];
+        return [new FailOnException([ApiBibleBudgetExhaustedException::class])];
     }
 
     public function failed(\Throwable $exception): void
