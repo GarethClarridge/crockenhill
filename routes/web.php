@@ -130,7 +130,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
     // Sermon upload
     Route::get('/sermon-upload', [SermonAdminController::class, 'upload'])->name('sermon-upload.create');
-    Route::post('/sermon-upload', [SermonAdminController::class, 'processMedia'])->name('sermon-upload.store');
+    Route::post('/sermon-upload', [SermonAdminController::class, 'processMedia'])
+        ->middleware('throttle:media-upload')
+        ->name('sermon-upload.store');
 
     // Pages
     Route::get('/pages', App\Livewire\Admin\Pages\ListPages::class)->name('pages.index');

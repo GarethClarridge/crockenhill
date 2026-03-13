@@ -25,7 +25,12 @@ class RateLimitServiceProvider extends ServiceProvider
         RateLimiter::for('media-upload', function (Request $request): array {
             $key = $request->user()?->id ?: $request->ip();
 
-            if ($request->is('api/media/video') || $request->is('api/media/livestream')) {
+            // Support both path-based detection (API) and input-based detection (Web)
+            $isLargeMedia = $request->is('api/media/video')
+                || $request->is('api/media/livestream')
+                || in_array($request->input('type'), ['video', 'livestream'], true);
+
+            if ($isLargeMedia) {
                 return [
                     Limit::perMinute(1)->by($key),
                     Limit::perHour(5)->by($key),
