@@ -106,17 +106,10 @@ class SermonController extends Controller
             ->first();
 
         /**
-         * Performance Optimization: Limits retrieved columns for preachers to required fields
-         * (name and slug) to reduce memory usage.
+         * Performance Optimization: Use cached preacher list with counts to reduce
+         * DB I/O and complex subqueries on every request.
          */
-        $preachers = Preacher::active()
-            ->select(['id', 'name', 'slug'])
-            ->withCount([
-                'sermons' => fn (Builder $query): Builder => $query->whereSermon(),
-            ])
-            ->orderByDesc('sermons_count')
-            ->orderBy('name')
-            ->get();
+        $preachers = Preacher::getForPublicList();
 
         return view('sermons.preachers', [
             'preachers' => $preachers,

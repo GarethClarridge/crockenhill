@@ -102,4 +102,26 @@ class Preacher extends Model
             return self::active()->orderBy('name')->pluck('name', 'id');
         });
     }
+
+    /**
+     * Get a list of active preachers with sermon counts for the public preachers index.
+     *
+     * Performance Optimization: Caches the preacher list and counts for 24 hours using flexible
+     * cache to reduce redundant complex subqueries on every public listing request.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Preacher>
+     */
+    public static function getForPublicList(): \Illuminate\Database\Eloquent\Collection
+    {
+        return \Illuminate\Support\Facades\Cache::flexible('public_preacher_list', [86400, 172800], function () {
+            return self::active()
+                ->select(['id', 'name', 'slug'])
+                ->withCount([
+                    'sermons' => fn (Builder $query): Builder => $query->whereSermon(),
+                ])
+                ->orderByDesc('sermons_count')
+                ->orderBy('name')
+                ->get();
+        });
+    }
 }
