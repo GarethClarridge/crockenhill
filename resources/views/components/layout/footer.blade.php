@@ -2,7 +2,7 @@
 $linkClasses = 'rounded-sm text-cbc-teal-dark underline decoration-cbc-teal-dark/50 underline-offset-2 hover:text-cbc-teal-deeper focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2';
 @endphp
 
-<div class="container mx-auto max-w-6xl px-4 py-5 text-center text-cbc-teal-darkest">
+<div class="container mx-auto max-w-6xl px-4 pt-12 pb-5 text-center text-cbc-teal-darkest">
   <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 
     <section class="rounded-xl border border-white/80 bg-white/85 p-6 shadow-sm backdrop-blur-sm">

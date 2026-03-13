@@ -8,6 +8,7 @@ use App\Models\ScripturePassage;
 use App\Services\ApiBibleClient;
 use App\Services\ScriptureHtmlSanitizer;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class RefreshScripturePassages extends Command
@@ -26,10 +27,10 @@ class RefreshScripturePassages extends Command
         }
 
         $refreshAfterDays = (int) config('services.api_bible.refresh_after_days', 28);
-        $threshold = now()->subDays($refreshAfterDays);
+        $dailyBudget = (int) config('services.api_bible.daily_budget', 5000);
         $delayMs = (int) $this->option('delay');
 
-        $passages = ScripturePassage::where('fetched_at', '<', $threshold)->get();
+        $passages = ScripturePassage::where('fetched_at', '<', now()->subDays($refreshAfterDays))->get();
 
         if ($passages->isEmpty()) {
             $this->info('No stale passages to refresh.');
@@ -39,19 +40,26 @@ class RefreshScripturePassages extends Command
 
         $this->info("Refreshing {$passages->count()} passage(s) older than {$refreshAfterDays} days...");
 
-        $updated = 0;
-        $failed = 0;
-        $skipped = 0;
+        $counts = ['updated' => 0, 'not_found' => 0, 'rate_limited' => 0, 'failed' => 0, 'budget_exceeded' => 0];
 
         foreach ($passages as $passage) {
+            if (! $this->hasBudget($dailyBudget)) {
+                $this->warn("  Daily API budget of {$dailyBudget} calls reached — stopping early.");
+                $counts['budget_exceeded'] += $passages->count() - array_sum($counts);
+
+                break;
+            }
+
             try {
                 $result = $passage->api_passage_id
                     ? $client->fetchPassageById($passage->api_passage_id)
                     : $client->searchPassage($passage->normalized_reference);
 
+                $this->incrementBudget();
+
                 if ($result === null) {
-                    $this->warn("  Not found: {$passage->normalized_reference}");
-                    $skipped++;
+                    $this->warn("  not_found: {$passage->normalized_reference}");
+                    $counts['not_found']++;
 
                     continue;
                 }
@@ -59,8 +67,8 @@ class RefreshScripturePassages extends Command
                 $sanitizedHtml = $sanitizer->sanitize($result->htmlContent);
 
                 if ($sanitizedHtml === null) {
-                    $this->warn("  Empty HTML after sanitize: {$passage->normalized_reference}");
-                    $skipped++;
+                    $this->warn("  failed (empty HTML after sanitize): {$passage->normalized_reference}");
+                    $counts['failed']++;
 
                     continue;
                 }
@@ -72,16 +80,27 @@ class RefreshScripturePassages extends Command
                     'fetched_at' => now(),
                 ]);
 
-                $this->line("  Refreshed: {$passage->normalized_reference}");
-                $updated++;
+                $this->line("  updated: {$passage->normalized_reference}");
+                $counts['updated']++;
+            } catch (\RuntimeException $e) {
+                // Thrown by ApiBibleClient when rate-limited or server error after retries
+                $this->error("  rate_limited/server_error: {$passage->normalized_reference} — {$e->getMessage()}");
+                Log::warning('scripture:refresh-passages rate-limited or server error', [
+                    'passage_id' => $passage->id,
+                    'reference' => $passage->normalized_reference,
+                    'error' => $e->getMessage(),
+                    'result_category' => 'rate_limited',
+                ]);
+                $counts['rate_limited']++;
             } catch (\Throwable $e) {
-                $this->error("  Failed: {$passage->normalized_reference} — {$e->getMessage()}");
+                $this->error("  failed: {$passage->normalized_reference} — {$e->getMessage()}");
                 Log::error('scripture:refresh-passages failed for passage', [
                     'passage_id' => $passage->id,
                     'reference' => $passage->normalized_reference,
                     'error' => $e->getMessage(),
+                    'result_category' => 'failed',
                 ]);
-                $failed++;
+                $counts['failed']++;
             }
 
             if ($delayMs > 0) {
@@ -89,8 +108,38 @@ class RefreshScripturePassages extends Command
             }
         }
 
-        $this->info("Done. Updated: {$updated}, Skipped: {$skipped}, Failed: {$failed}");
+        $this->info(sprintf(
+            'Done. Updated: %d, Not found: %d, Rate-limited: %d, Failed: %d, Budget exceeded: %d',
+            $counts['updated'],
+            $counts['not_found'],
+            $counts['rate_limited'],
+            $counts['failed'],
+            $counts['budget_exceeded'],
+        ));
 
         return self::SUCCESS;
+    }
+
+    private function hasBudget(int $dailyBudget): bool
+    {
+        $used = (int) Cache::get($this->budgetCacheKey(), 0);
+
+        return $used < $dailyBudget;
+    }
+
+    private function incrementBudget(): void
+    {
+        $key = $this->budgetCacheKey();
+
+        if (Cache::has($key)) {
+            Cache::increment($key);
+        } else {
+            Cache::put($key, 1, now()->endOfDay());
+        }
+    }
+
+    private function budgetCacheKey(): string
+    {
+        return 'api_bible_daily_calls_'.now()->format('Y-m-d');
     }
 }

@@ -83,9 +83,10 @@ class FetchBibleTextForSermon implements ShouldQueue
         }
 
         if ($result === null) {
-            Log::info('FetchBibleTextForSermon: passage not found', [
+            Log::info('FetchBibleTextForSermon: passage not found (terminal — not retrying)', [
                 'sermon_id' => $this->sermon->id,
                 'reference' => $normalizedReference,
+                'result_category' => 'not_found',
             ]);
 
             return;

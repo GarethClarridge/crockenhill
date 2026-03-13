@@ -6,8 +6,12 @@
  * no inline script is needed in the Blade template.
  *
  * Fires on:
- *   - Initial page load (DOMContentLoaded)
- *   - Livewire wire:navigate page transitions (livewire:navigated)
+ *   - livewire:navigated — covers both the initial page load and all subsequent
+ *     wire:navigate transitions in Livewire 3 (replaces DOMContentLoaded).
+ *
+ * Note: registering DOMContentLoaded alongside livewire:navigated would
+ * double-count the initial load because Livewire 3 fires livewire:navigated
+ * on first render too.
  */
 
 function reportScriptureFums() {
@@ -41,5 +45,4 @@ function reportScriptureFums() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', reportScriptureFums);
 document.addEventListener('livewire:navigated', reportScriptureFums);

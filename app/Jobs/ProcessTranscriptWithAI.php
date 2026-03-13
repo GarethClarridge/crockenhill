@@ -117,6 +117,8 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             // Only update reference if not set by ID3 tags
             if (! $id3Metadata || empty($id3Metadata['reference'])) {
                 $updateData['reference'] = $analysis->reference;
+                // Clear any stale passage link so the old text is not shown while re-enrichment runs
+                $updateData['scripture_passage_id'] = null;
             }
 
             // Always update summary and points (ID3 tags don't contain these)
@@ -182,12 +184,19 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                     }
                     if (! $id3Metadata || empty($id3Metadata['reference'])) {
                         $updateData['reference'] = $fallbackAnalysis->reference;
+                        // Clear stale passage link so old text is not shown during re-enrichment
+                        $updateData['scripture_passage_id'] = null;
                     }
 
                     $updateData['summary'] = $fallbackAnalysis->summary;
                     $updateData['points'] = $fallbackAnalysis->points;
 
                     $this->processingLog->sermon->update($updateData);
+
+                    // Dispatch scripture enrichment for the fallback reference too
+                    app(QueueScriptureEnrichment::class)->dispatch(
+                        $this->processingLog->sermon->fresh() ?? $this->processingLog->sermon
+                    );
                 }
 
                 $this->processingLog->updateStep('ai_analysis_fallback');

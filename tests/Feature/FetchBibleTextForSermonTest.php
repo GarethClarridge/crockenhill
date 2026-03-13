@@ -134,6 +134,23 @@ class FetchBibleTextForSermonTest extends TestCase
         $this->assertNull($sermon->fresh()->scripture_passage_id);
     }
 
+    public function test_rethrows_on_rate_limit_or_server_error_so_job_retries(): void
+    {
+        $sermon = Sermon::factory()->create(['reference' => 'John 3:16']);
+
+        $client = $this->createMock(ApiBibleClient::class);
+        $client->expects($this->once())
+            ->method('searchPassage')
+            ->willThrowException(new \RuntimeException('api.bible search failed with status 429 after retries'));
+
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/429/');
+
+        FetchBibleTextForSermon::dispatchSync($sermon);
+    }
+
     public function test_refreshes_stale_passage_using_passage_id(): void
     {
         $sermon = Sermon::factory()->create(['reference' => 'John 3:16']);

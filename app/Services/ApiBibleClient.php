@@ -48,9 +48,20 @@ class ApiBibleClient
             ]);
 
             if (! $response->successful()) {
-                Log::warning('api.bible search returned non-2xx', [
+                $status = $response->status();
+
+                if ($status === 429 || $status >= 500) {
+                    Log::warning('api.bible search rate-limited or server error', [
+                        'reference' => $normalizedReference,
+                        'status' => $status,
+                    ]);
+
+                    throw new \RuntimeException("api.bible search failed with status {$status} after retries");
+                }
+
+                Log::info('api.bible search returned non-2xx (terminal)', [
                     'reference' => $normalizedReference,
-                    'status' => $response->status(),
+                    'status' => $status,
                 ]);
 
                 return null;
@@ -127,9 +138,20 @@ class ApiBibleClient
             ]);
 
             if (! $response->successful()) {
-                Log::warning('api.bible passage fetch returned non-2xx', [
+                $status = $response->status();
+
+                if ($status === 429 || $status >= 500) {
+                    Log::warning('api.bible passage fetch rate-limited or server error', [
+                        'passage_id' => $passageId,
+                        'status' => $status,
+                    ]);
+
+                    throw new \RuntimeException("api.bible passage fetch failed with status {$status} after retries");
+                }
+
+                Log::info('api.bible passage fetch returned non-2xx (terminal)', [
                     'passage_id' => $passageId,
-                    'status' => $response->status(),
+                    'status' => $status,
                 ]);
 
                 return null;
@@ -185,8 +207,19 @@ class ApiBibleClient
         return Http::withHeaders(['api-key' => $this->apiKey])
             ->timeout($this->timeoutSeconds)
             ->retry($this->maxRetries, 500, function (\Throwable $exception, \Illuminate\Http\Client\PendingRequest $request): bool {
-                return $exception instanceof ConnectionException;
-            })
+                if ($exception instanceof ConnectionException) {
+                    return true;
+                }
+
+                if ($exception instanceof RequestException) {
+                    $status = $exception->response->status();
+
+                    // Retry on rate-limit (429) and server errors (5xx); do not retry client errors (4xx)
+                    return $status === 429 || $status >= 500;
+                }
+
+                return false;
+            }, throw: false)
             ->$method("{$this->baseUrl}{$path}", $query);
     }
 }

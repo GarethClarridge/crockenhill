@@ -59,6 +59,7 @@ return [
         'timeout_seconds' => (int) env('API_BIBLE_TIMEOUT_SECONDS', 10),
         'max_retries' => (int) env('API_BIBLE_MAX_RETRIES', 3),
         'refresh_after_days' => (int) env('API_BIBLE_REFRESH_AFTER_DAYS', 28),
+        'daily_budget' => (int) env('API_BIBLE_DAILY_BUDGET', 5000),
     ],
 
 ];
