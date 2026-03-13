@@ -54,7 +54,8 @@
   }"
   @notify.window="add($event)"
   class="fixed top-4 right-4 z-50 space-y-2"
-  aria-live="polite">
+  aria-live="polite"
+  aria-atomic="true">
       <template x-for="notification in notifications" :key="notification.id">
           <div x-transition:enter="transform ease-out duration-300"
                x-transition:enter-start="translate-y-2 opacity-0"

@@ -2,18 +2,16 @@
 
 @section('dynamic_content')
 
-  <ul class="">
+  <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     @foreach ($preachers as $preacher)
-      <li class="text-center p-3 text-lg">
+      <li class="flex justify-center">
         <x-clickable-card
-            heading=""
-            link="preachers/{{ $preacher->slug }}">
-            <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 inline-block">
-                {{ $preacher->name }}
-            </h5>
-          <small class="bg-slate-800 text-white rounded-full py-1 px-2 ms-2">
-            {{ $preacher->sermons_count }}
-          </small>
+            :heading="$preacher->name"
+            link="preachers/{{ $preacher->slug }}"
+            class="w-full">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cbc-teal-dark text-white">
+            {{ $preacher->sermons_count }} {{ Str::plural('sermon', $preacher->sermons_count) }}
+          </span>
         </x-clickable-card>
       </li>
     @endforeach
