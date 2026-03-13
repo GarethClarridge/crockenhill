@@ -222,69 +222,89 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public function getNextOccurrence(): ?Carbon
     {
-        if (! $this->is_recurring || ! $this->meeting_date || ! $this->frequency) {
+        $meetingDate = $this->meeting_date;
+
+        if (! $this->is_recurring || ! $meetingDate instanceof Carbon || ! $this->frequency) {
             return null;
         }
 
-        $nextOccurrence = $this->meeting_date->copy();
         $now = now();
 
-        if ($nextOccurrence->gte($now)) {
-            return $nextOccurrence;
+        if ($meetingDate->gte($now)) {
+            return $meetingDate->copy();
         }
 
-        switch ($this->frequency) {
-            case MeetingFrequency::DAILY:
-                $nextOccurrence = $now->copy()->setTimeFrom($this->meeting_date);
-                if ($nextOccurrence->isPast()) {
-                    $nextOccurrence->addDay();
-                }
-                break;
-            case MeetingFrequency::WEEKLY:
-                $originalMeetingTime = $this->meeting_date; // Time component from original meeting
-                $nextOccurrence = $this->meeting_date->copy();
-                while ($nextOccurrence->isPast()) {
-                    $nextOccurrence->addWeek();
-                }
-                $nextOccurrence->setTimeFrom($originalMeetingTime); // Ensure time is preserved
-                break;
-            case MeetingFrequency::MONTHLY:
-                $originalMeetingTime = $this->meeting_date;
-                $currentMonthOccurrence = $now->copy()->day($originalMeetingTime->day)->setTimeFrom($originalMeetingTime);
+        return match ($this->frequency) {
+            MeetingFrequency::DAILY => $this->calculateNextDailyOccurrence($now, $meetingDate),
+            MeetingFrequency::WEEKLY => $this->calculateNextWeeklyOccurrence($now, $meetingDate),
+            MeetingFrequency::MONTHLY => $this->calculateNextMonthlyOccurrence($now, $meetingDate),
+            MeetingFrequency::ANNUALLY => $this->calculateNextAnnualOccurrence($now, $meetingDate),
+        };
+    }
 
-                if ($currentMonthOccurrence->isFuture()) {
-                    $nextOccurrence = $currentMonthOccurrence;
-                } else {
-                    $nextOccurrence = $now->copy()->addMonthNoOverflow()->day($originalMeetingTime->day)->setTimeFrom($originalMeetingTime);
-                }
-                // Ensure it respects the original day if possible, otherwise adjusts (e.g. Feb 30 -> Feb 28/29)
-                if ($nextOccurrence->day !== $originalMeetingTime->day) {
-                    $nextOccurrence->day($originalMeetingTime->day); // Attempt to set day, Carbon handles overflow by month end
-                }
-                break;
-            case MeetingFrequency::ANNUALLY:
-                $originalMeetingTime = $this->meeting_date;
-                $currentYearOccurrence = $now->copy()
-                    ->month($originalMeetingTime->month)
-                    ->day($originalMeetingTime->day)
-                    ->setTimeFrom($originalMeetingTime);
+    private function calculateNextDailyOccurrence(Carbon $now, Carbon $meetingDate): Carbon
+    {
+        $nextOccurrence = $now->copy()->setTimeFrom($meetingDate);
 
-                if ($currentYearOccurrence->isFuture()) {
-                    $nextOccurrence = $currentYearOccurrence;
-                } else {
-                    $nextOccurrence = $now->copy()->addYearNoOverflow()
-                        ->month($originalMeetingTime->month)
-                        ->day($originalMeetingTime->day)
-                        ->setTimeFrom($originalMeetingTime);
-                }
-                // Ensure it respects the original day if possible
-                if ($nextOccurrence->month !== $originalMeetingTime->month || $nextOccurrence->day !== $originalMeetingTime->day) {
-                    $nextOccurrence->month($originalMeetingTime->month)->day($originalMeetingTime->day);
-                }
-                break;
-            default:
-                // This case should ideally not be reached if frequency is always a valid Enum or null
-                return null;
+        if ($nextOccurrence->isPast()) {
+            $nextOccurrence->addDay();
+        }
+
+        return $nextOccurrence;
+    }
+
+    private function calculateNextWeeklyOccurrence(Carbon $now, Carbon $meetingDate): Carbon
+    {
+        $nextOccurrence = $meetingDate->copy();
+
+        while ($nextOccurrence->isPast()) {
+            $nextOccurrence->addWeek();
+        }
+
+        return $nextOccurrence->setTimeFrom($meetingDate);
+    }
+
+    private function calculateNextMonthlyOccurrence(Carbon $now, Carbon $meetingDate): Carbon
+    {
+        $originalDay = $meetingDate->day;
+        $currentMonthOccurrence = $now->copy()->day($originalDay)->setTimeFrom($meetingDate);
+
+        if ($currentMonthOccurrence->isFuture()) {
+            $nextOccurrence = $currentMonthOccurrence;
+        } else {
+            $nextOccurrence = $now->copy()->addMonthNoOverflow()->day($originalDay)->setTimeFrom($meetingDate);
+        }
+
+        // Ensure it respects the original day if possible, otherwise adjusts (e.g. Feb 30 -> Feb 28/29)
+        if ($nextOccurrence->day !== $originalDay) {
+            $nextOccurrence->day($originalDay);
+        }
+
+        return $nextOccurrence;
+    }
+
+    private function calculateNextAnnualOccurrence(Carbon $now, Carbon $meetingDate): Carbon
+    {
+        $originalMonth = $meetingDate->month;
+        $originalDay = $meetingDate->day;
+
+        $currentYearOccurrence = $now->copy()
+            ->month($originalMonth)
+            ->day($originalDay)
+            ->setTimeFrom($meetingDate);
+
+        if ($currentYearOccurrence->isFuture()) {
+            $nextOccurrence = $currentYearOccurrence;
+        } else {
+            $nextOccurrence = $now->copy()->addYearNoOverflow()
+                ->month($originalMonth)
+                ->day($originalDay)
+                ->setTimeFrom($meetingDate);
+        }
+
+        // Ensure it respects the original day if possible
+        if ($nextOccurrence->month !== $originalMonth || $nextOccurrence->day !== $originalDay) {
+            $nextOccurrence->month($originalMonth)->day($originalDay);
         }
 
         return $nextOccurrence;
