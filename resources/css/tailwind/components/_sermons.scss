@@ -23,4 +23,12 @@
     .sermon-icon {
         @apply w-full bg-center bg-no-repeat md:w-1/2;
     }
+
+    .scripture-passage .s1 {
+        @apply font-bold;
+    }
+
+    .scripture-passage .v {
+        @apply align-super text-xs;
+    }
 }
