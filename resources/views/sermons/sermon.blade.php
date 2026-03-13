@@ -60,9 +60,7 @@ $schema['audio'] = [
 
 @endphp
 <script type="application/ld+json">
-  {
-    !!json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!
-  }
+    {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
 @endsection
 
@@ -316,7 +314,12 @@ $schema['audio'] = [
         <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-2">
             <x-heroicon-o-book-open class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
-            <span class="font-display text-xl text-gray-900">{{ $sermon->reference }}</span>
+            <div>
+              @if (! empty($readingReference))
+              <p class="text-xs font-semibold uppercase tracking-[0.2em] text-cbc-teal-dark/75 mb-0.5">Passage</p>
+              @endif
+              <span class="font-display text-xl text-gray-900">{{ $sermon->reference }}</span>
+            </div>
           </div>
           @if ($sermon->scripturePassage || ! empty($readingReference))
           <button
