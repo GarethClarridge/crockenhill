@@ -429,8 +429,6 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_manual_review_marking(): void
     {
-        $service = app(\App\Services\SermonStatusManagementService::class);
-
         // Create failed processing log
         $processingLog = MediaProcessingLog::create([
             'processing_id' => 'manual-review-test-id',
@@ -441,8 +439,8 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'error_message' => 'Audio quality too poor for transcription',
         ]);
 
-        // Mark for manual review
-        $result = $service->markForManualReview('manual-review-test-id', 'Requires human transcription');
+        // Mark for manual review directly on the model
+        $result = $processingLog->markForManualReview('Requires human transcription');
 
         $this->assertTrue($result);
 
@@ -455,8 +453,6 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_provides_error_information_in_status_response(): void
     {
-        $service = app(\App\Services\SermonStatusManagementService::class);
-
         MediaProcessingLog::create([
             'processing_id' => 'detailed-error-test-id',
             'processing_type' => 'audio',
@@ -466,7 +462,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'error_message' => 'OpenAI API returned 429: Rate limit exceeded',
         ]);
 
-        $status = $service->getProcessingStatus('detailed-error-test-id');
+        $status = app(\App\Services\UnifiedMediaProcessor::class)->getStatus('detailed-error-test-id');
 
         $this->assertTrue($status->found);
         $this->assertEquals('detailed-error-test-id', $status->processingId);

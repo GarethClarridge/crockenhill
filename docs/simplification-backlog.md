@@ -3,25 +3,15 @@
 Derived from [architectural-review.md](architectural-review.md). Each item is a single PR.
 Items are ordered by priority: low-risk deletions first, then consolidation, then refactoring.
 
-> **Sequencing note**: Some items interact with the [church service backlog](church-service-backlog.md).
-> Items marked ⏸️ should be deferred until the noted church service phase is complete.
-> Items marked 🔗 should be coordinated with the noted church service work.
+> **Note**: The church service backlog is now complete. Remaining ⏸️ items are blocked on
+> scope or dependency issues unrelated to church service work.
 
 ---
 
 ## Priority 1: Dead Code Removal
 
-### PR 1. Delete one-time migration commands ⏸️
-> Blocked - check these have all been executed in prod first. 
-Remove 7 commands that have already been executed and serve no ongoing purpose.
-- `BackfillMediaProcessingIdentityCommand`
-- `PreacherCutoverCommand`
-- `MeetingMigratePhotosCommand`
-- `MigrateLocalFilesToSpacesCommand`
-- `MigrateSermonStorageCommand`
-- `MigrateLivestreamAudioFiles`
-- `FixUploadDirectories`
-- Delete associated tests
+### PR 1. Delete one-time migration commands ✅
+- ~~All 7 migration commands deleted~~ — confirmed removed from codebase
 
 ### PR 2. Delete test artifacts from production code ✅
 - ~~Delete `TestJob` (empty placeholder job)~~ — deleted; dispatch tests now use a local `StubJob` stub defined at the bottom of `SermonJobPipelineServiceTest.php`
@@ -36,23 +26,22 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 - ~~Remove `CalendarController::meetingsIndex()` method~~ — removed
 
 ### PR 4. Delete unused authorization code ⏸️
-> Partially complete — dead pieces removed (`PagePolicy`, `StoreMeetingRequest`). Remaining work is still blocked on live callers:
+> Partially complete — dead pieces removed (`PagePolicy`, `StoreMeetingRequest`). Remaining work is blocked on live callers (not church-service-dependent):
 >
-> **Gates** (`manage-sermons`, `manage-meetings`, `manage-pages`) are used in three `@can` blocks in views:
-> - `resources/views/sermons/index.blade.php` — `@can('manage-sermons')` guards the upload button
-> - `resources/views/members/home.blade.php` — all three gates guard admin action cards
+> **Gates** (`manage-sermons`, `manage-meetings`, `manage-pages`) are used in 7 `@can` blocks across 5 views:
+> - `resources/views/sermons/index.blade.php` — `@can('manage-sermons')`
+> - `resources/views/sermons/sermon.blade.php` — `@can('manage-sermons')`
+> - `resources/views/components/edit-buttons.blade.php` — `@can('manage-pages')`
+> - `resources/views/components/sermon-card.blade.php` — `@can('manage-sermons')`
+> - `resources/views/members/home.blade.php` — all three gates
 >
-> These should be replaced with `$user->is_admin` checks directly (or the `authorizeAdmin()` pattern used in Livewire components) before the gates can be removed.
+> Replace with `$user->is_admin` checks (or `authorizeAdmin()` pattern) before removing gates.
 >
-> **`MeetingPolicy`** is still called by:
-> - `MeetingController::index()` — `authorize('viewAny', Meeting::class)`
-> - `MeetingController::destroy()` — `authorize('delete', $meeting)`
-> - `UpdateMeetingRequest::authorize()` — `can('update', $meeting)`
->
-> The policy can only be deleted once `MeetingController::index()`, `update()`, and `destroy()` are removed (see parking lot note on dead resource routes).
+> **`MeetingPolicy`** still called by `MeetingController` (index, destroy) and `UpdateMeetingRequest`.
 
-- Delete `MeetingPolicy` (after removing remaining dead `MeetingController` methods)
-- Remove 3 gates from `AuthServiceProvider` (`manage-sermons`, `manage-meetings`, `manage-pages`) (after replacing `@can` in views)
+- Replace `@can` gate checks with `$user->is_admin` in 5 views
+- Delete `MeetingPolicy` (after removing remaining `MeetingController` authorize calls)
+- Remove 3 gates from `AuthServiceProvider`
 - Remove policy registrations from `AuthServiceProvider`
 - Delete `AuthorizationGatesTest`, `MeetingPolicyTest`
 
@@ -61,13 +50,14 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 - ~~Composer: remove `techwilk/bible-verse-parser`~~ — removed
 
 ### PR 6. Delete `SermonProcessingStep` model ⏸️
-> Blocked — `SermonProcessingStep` is actively used by `ProcessingJob` (`app/Jobs/ProcessingJob.php`), which is the base class for four live queued jobs: `TranscribeAudio`, `CreateSermonRecord`, `ProcessTranscriptWithAI`, `IdentifySpeaker`. It records step state (started, completed, failed, cancelled) for each job run.
+> Blocked on `ProcessingJob` refactor — `SermonProcessingStep` (154 lines) is used by `ProcessingJob` (187 lines), which is the base class for 10+ queued jobs. Also referenced by `ShowChurchService` Livewire component.
 >
-> This can only be deleted if `ProcessingJob` is refactored to use `MediaProcessingLog` instead (which already tracks processing state), or if the step-level granularity is intentionally dropped. Worth revisiting alongside the parking-lot item on `SermonProcessingLogger` / `ProcessingLogService` overlap.
+> Requires refactoring `ProcessingJob` to use `MediaProcessingLog` instead, or intentionally dropping step-level granularity. Consider alongside the `SermonProcessingLogger` / `ProcessingLogService` overlap (parking lot).
 
+- Refactor `ProcessingJob` to use `MediaProcessingLog` for step tracking
+- Update `ShowChurchService` Livewire component
 - Delete model, factory, migration
 - Delete associated tests (`SermonProcessingStepTest`)
-- Refactor or remove `ProcessingJob` base class first
 
 ---
 
@@ -75,11 +65,11 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 
 ### PR 7. Delete small unnecessary abstractions
 - ~~Delete `ProcessingLogContract`~~ ✅ — removed; `ProcessingLogService` no longer implements it
-- Delete `DetectsStorageType` trait ⏸️ — the backlog said "2 services" but it's actually 6 consumers (3 jobs + 3 services). Inlining all 6 is a larger change; defer.
-- Delete `HasConditionalLogging` trait ⏸️ — suppresses log noise in tests via `app()->runningUnitTests()` check; replacing with `Log::spy()` requires updating test setup in 2 Livewire component test files. Defer.
-- Delete `H1` view component ⏸️ — used in 6+ views; replacing with inline markup or a blade partial is low-risk but tedious. Defer.
-- Delete `SermonProcessingLogFormatter` ⏸️ — **not dead**: registered as a log channel tap in `config/logging.php`. Remove only if switching log formatting is intentional.
-- Delete `SermonRepository` ⏸️ — **not dead**: has 6 callers across controllers, jobs, services, and tests. The backlog underestimated the scope. Fold into a larger sermon layer cleanup.
+- Delete `DetectsStorageType` trait ⏸️ — 9 consumers (5 jobs + 4 services). Inlining is a wide change; defer until there's a reason to touch these files.
+- Delete `HasConditionalLogging` trait ⏸️ — 2 Livewire consumers. Replacing with `Log::spy()` requires test setup changes. Low value.
+- Delete `H1` view component ⏸️ — 13 views use it. Low-risk but tedious. Low value.
+- Delete `SermonProcessingLogFormatter` ⏸️ — **not dead**: registered as log channel tap in `config/logging.php`. Remove only if switching log formatting is intentional.
+- Delete `SermonRepository` ⏸️ — **not dead**: 6 callers across controllers, jobs, services. Fold into a larger sermon layer cleanup.
 
 ### PR 8. Inline `WithUploadLifecycle` trait ⏸️
 > Not recommended: the trait is 244 lines of substantive upload state and lifecycle logic. `Form.php` is already 353 lines. Inlining would produce a ~600 line component with two distinct concerns blended together. The trait provides a clean logical boundary. Leave unless there is a specific reason to collapse it.
@@ -102,16 +92,17 @@ Remove 7 commands that have already been executed and serve no ongoing purpose.
 - ~~`applyGracefulDegradation()`~~ — dropped; had no production callers (tests-only dead code)
 - ~~Delete service~~ — deleted; unit tests replaced by direct DB assertions in `UnifiedMediaProcessorTest`
 
-### PR 12. Inline `SermonStatusManagementService` ⏸️
-> Defer until after church service Phase 3. The new pipeline introduces review states and confidence-based status logic that will change the callers you'd inline into.
-- Simple DB queries + formatting
-- Move methods to model scopes or inline into controllers
-- Delete service
+### PR 12. Inline `SermonStatusManagementService` ✅
+- ~~`markForManualReview()`~~ — moved to `MediaProcessingLog` model (alongside `markAsFailed()`, `markAsCancelled()`)
+- ~~`getProcessingStatus()`~~ — already handled by `UnifiedMediaProcessor::getStatus()`; service version was dead
+- ~~`getProcessingStatistics()` / `getFailedProcessingLogs()`~~ — no production callers; deleted with the service
+- ~~Service dependency removed from `SermonJobPipelineService` and `ExtractSermon`~~
+- ~~Delete `SermonStatusManagementService` and `SermonStatusManagementServiceTest`~~
 
-### PR 13. Inline `SermonAudioProcessingService` ⏸️
-> Defer until after church service Phase 3. Phase 3.5 reworks the processing pipeline — inlining into `UnifiedMediaProcessor` now means Phase 3 refactors that consolidated code again.
-- Duplicates audio branch from `UnifiedMediaProcessor`
+### PR 13. Inline `SermonAudioProcessingService`
+> Ready — church service pipeline work is complete. Service is 160 lines with 2 callers (`UnifiedMediaProcessor` + service provider binding).
 - Consolidate into `UnifiedMediaProcessor`
+- Remove service provider binding
 - Delete service
 
 ### PR 14. Delete duplicate data classes

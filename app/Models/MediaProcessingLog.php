@@ -355,6 +355,17 @@ class MediaProcessingLog extends Model
         return $this->status === ProcessingStatus::CANCELLED;
     }
 
+    public function markForManualReview(string $reviewNote = ''): bool
+    {
+        $errorMessage = $reviewNote ? "Manual Review Note: {$reviewNote}" : 'Marked for manual review';
+
+        return $this->update([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'manual_review_required',
+            'error_message' => $errorMessage,
+        ]);
+    }
+
     public function updateStep(string $step): bool
     {
         return $this->update(['current_step' => $step]);

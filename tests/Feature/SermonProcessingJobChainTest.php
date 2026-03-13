@@ -19,7 +19,6 @@ use App\Services\AudioTranscriptionService;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonJobPipelineService;
 use App\Services\SermonProcessingLogger;
-use App\Services\SermonStatusManagementService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -640,9 +639,6 @@ class SermonProcessingJobChainTest extends TestCase
         // Create a test file
         $file = UploadedFile::fake()->create('test-sermon.mp3', 1024, 'audio/mpeg');
 
-        // Get the service from the container to use proper dependencies
-        $statusService = app(SermonStatusManagementService::class);
-
         // Create a processing log manually to simulate what the service would do
         $processingId = 'storage-test-id';
         $processingLog = MediaProcessingLog::create([
@@ -659,7 +655,7 @@ class SermonProcessingJobChainTest extends TestCase
         $this->assertEquals(ProcessingStatus::PENDING, $processingLog->status);
 
         // Test that we can retrieve the processing status
-        $statusResult = $statusService->getProcessingStatus($processingId);
+        $statusResult = app(\App\Services\UnifiedMediaProcessor::class)->getStatus($processingId);
         $this->assertEquals($processingId, $statusResult->processingId);
         $this->assertEquals(ProcessingStatus::PENDING->value, $statusResult->status);
     }

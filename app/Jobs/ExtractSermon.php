@@ -8,7 +8,6 @@ use App\Mail\ManualReviewRequired;
 use App\Models\MediaProcessingLog;
 use App\Services\SermonCandidateConfidenceService;
 use App\Services\SermonExtractionPlanResolver;
-use App\Services\SermonStatusManagementService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Services\VideoStorageService;
@@ -39,8 +38,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         VideoStorageService $storageService,
         StorageAdapterHelper $storageHelper,
         SermonExtractionPlanResolver $planResolver,
-        SermonCandidateConfidenceService $sermonConfidenceService,
-        SermonStatusManagementService $statusManagementService
+        SermonCandidateConfidenceService $sermonConfidenceService
     ): void {
         try {
             $processingLog = $this->processingLog->fresh();
@@ -69,8 +67,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             $extractionPlan = $planResolver->resolve($this->processingLog);
             $extractionPlan = $this->guardAutoExtractionPolicy(
                 $extractionPlan,
-                $sermonConfidenceService,
-                $statusManagementService
+                $sermonConfidenceService
             );
 
             if ($extractionPlan === null) {
@@ -348,8 +345,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      */
     private function guardAutoExtractionPolicy(
         array $extractionPlan,
-        SermonCandidateConfidenceService $sermonConfidenceService,
-        SermonStatusManagementService $statusManagementService
+        SermonCandidateConfidenceService $sermonConfidenceService
     ): ?array {
         if ($extractionPlan['source'] !== 'processing_log') {
             return $extractionPlan;
@@ -364,7 +360,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
         if (! $evaluation['is_clear']) {
             $reason = $this->manualReviewReason($evaluation['reason']);
-            $statusManagementService->markForManualReview($this->processingLog->processing_id, $reason);
+            $this->processingLog->markForManualReview($reason);
             $this->processingLog->refresh();
             $this->notifyManualReviewRequired($reason, $speechSegments);
 

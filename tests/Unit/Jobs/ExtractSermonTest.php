@@ -612,8 +612,8 @@ class ExtractSermonTest extends TestCase
         $mockStorage = $this->createMock(VideoStorageService::class);
 
         Mail::fake();
-        Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
         $this->runJob($job, $mockExtractor, $mockStorage);
@@ -657,8 +657,8 @@ class ExtractSermonTest extends TestCase
         $mockStorage = $this->createMock(VideoStorageService::class);
 
         Mail::fake();
-        Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
         $this->runJob($job, $mockExtractor, $mockStorage);
@@ -704,8 +704,8 @@ class ExtractSermonTest extends TestCase
         $mockStorage = $this->createMock(VideoStorageService::class);
 
         Mail::fake();
-        Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
         $this->runJob($job, $mockExtractor, $mockStorage);
@@ -840,8 +840,7 @@ class ExtractSermonTest extends TestCase
             $mockStorage,
             app(StorageAdapterHelper::class),
             app(\App\Services\SermonExtractionPlanResolver::class),
-            app(\App\Services\SermonCandidateConfidenceService::class),
-            app(\App\Services\SermonStatusManagementService::class)
+            app(\App\Services\SermonCandidateConfidenceService::class)
         );
     }
 }

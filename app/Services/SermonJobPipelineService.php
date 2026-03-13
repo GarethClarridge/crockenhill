@@ -17,8 +17,7 @@ use Illuminate\Support\Facades\Log;
 class SermonJobPipelineService
 {
     public function __construct(
-        private readonly SermonValidationService $validationService,
-        private readonly SermonStatusManagementService $statusManagementService
+        private readonly SermonValidationService $validationService
     ) {}
 
     /**
@@ -117,10 +116,7 @@ class SermonJobPipelineService
             case 'creating_sermon_record_failed':
                 // Restart from the beginning - but we need the original metadata
                 // For now, we'll mark for manual review since we can't easily recreate the metadata
-                $this->statusManagementService->markForManualReview(
-                    $processingLog->processing_id,
-                    'Failed during sermon record creation - requires manual intervention'
-                );
+                $processingLog->markForManualReview('Failed during sermon record creation - requires manual intervention');
                 break;
 
             case 'transcribing_audio':
@@ -157,10 +153,7 @@ class SermonJobPipelineService
 
             default:
                 // Unknown step - mark for manual review
-                $this->statusManagementService->markForManualReview(
-                    $processingLog->processing_id,
-                    "Unknown processing step: {$currentStep}"
-                );
+                $processingLog->markForManualReview("Unknown processing step: {$currentStep}");
                 break;
         }
     }
@@ -323,8 +316,7 @@ class SermonJobPipelineService
             // For now, we'll mark for manual review since full restart requires
             // the original file which may not be available after early failures
             // In the future, this could be enhanced to store file paths for restart
-            $this->statusManagementService->markForManualReview(
-                $processingLog->processing_id,
+            $processingLog->markForManualReview(
                 "Early processing failure detected. Source type: {$sourceType->value}. ".
                 'File may need to be re-uploaded for retry. '.
                 "Original filename: {$processingLog->original_filename}"
@@ -341,10 +333,7 @@ class SermonJobPipelineService
                 'error' => $e->getMessage(),
             ]);
 
-            $this->statusManagementService->markForManualReview(
-                $processingLog->processing_id,
-                "Failed to restart early processing failure: {$e->getMessage()}"
-            );
+            $processingLog->markForManualReview("Failed to restart early processing failure: {$e->getMessage()}");
         }
     }
 }
