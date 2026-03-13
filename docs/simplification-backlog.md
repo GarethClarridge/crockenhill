@@ -49,15 +49,8 @@ Items are ordered by priority: low-risk deletions first, then consolidation, the
 - ~~npm: remove `lodash`, `ajv`, `cross-env`~~ — removed
 - ~~Composer: remove `techwilk/bible-verse-parser`~~ — removed
 
-### PR 6. Delete `SermonProcessingStep` model ⏸️
-> Blocked on `ProcessingJob` refactor — `SermonProcessingStep` (154 lines) is used by `ProcessingJob` (187 lines), which is the base class for 10+ queued jobs. Also referenced by `ShowChurchService` Livewire component.
->
-> Requires refactoring `ProcessingJob` to use `MediaProcessingLog` instead, or intentionally dropping step-level granularity. Consider alongside the `SermonProcessingLogger` / `ProcessingLogService` overlap (parking lot).
-
-- Refactor `ProcessingJob` to use `MediaProcessingLog` for step tracking
-- Update `ShowChurchService` Livewire component
-- Delete model, factory, migration
-- Delete associated tests (`SermonProcessingStepTest`)
+### PR 6. ~~Delete `SermonProcessingStep` model~~ — removed from backlog
+> No longer viable. Church service Phase 9.1 built the processing timeline view on top of `SermonProcessingStep`. The model (154 lines) is now referenced in 36 places across 7 files, including `ShowChurchService` timeline rendering and all `ProcessingJob` step logging. It is load-bearing infrastructure, not dead code.
 
 ---
 
@@ -65,11 +58,11 @@ Items are ordered by priority: low-risk deletions first, then consolidation, the
 
 ### PR 7. Delete small unnecessary abstractions
 - ~~Delete `ProcessingLogContract`~~ ✅ — removed; `ProcessingLogService` no longer implements it
-- Delete `DetectsStorageType` trait ⏸️ — 9 consumers (5 jobs + 4 services). Inlining is a wide change; defer until there's a reason to touch these files.
+- Delete `DetectsStorageType` trait ⏸️ — now 12 consumers (church service added `TranscribeSpeechSegments`, `PrepareSectionPublicationCandidates`). Growing, not shrinking — leave it.
 - Delete `HasConditionalLogging` trait ⏸️ — 2 Livewire consumers. Replacing with `Log::spy()` requires test setup changes. Low value.
 - Delete `H1` view component ⏸️ — 13 views use it. Low-risk but tedious. Low value.
 - Delete `SermonProcessingLogFormatter` ⏸️ — **not dead**: registered as log channel tap in `config/logging.php`. Remove only if switching log formatting is intentional.
-- Delete `SermonRepository` ⏸️ — **not dead**: 6 callers across controllers, jobs, services. Fold into a larger sermon layer cleanup.
+- Delete `SermonRepository` ⏸️ — **not dead**: now 14 files / 47 references across controllers, jobs, services, and tests. Core data access layer — not a simplification candidate.
 
 ### PR 8. Inline `WithUploadLifecycle` trait ⏸️
 > Not recommended: the trait is 244 lines of substantive upload state and lifecycle logic. `Form.php` is already 353 lines. Inlining would produce a ~600 line component with two distinct concerns blended together. The trait provides a clean logical boundary. Leave unless there is a specific reason to collapse it.
@@ -84,8 +77,8 @@ Items are ordered by priority: low-risk deletions first, then consolidation, the
 - ~~Update all callers~~ — service provider binding removed
 - ~~Delete `LivestreamStatusService`~~ — deleted; tests migrated into `LivestreamSegmentationServiceTest`
 
-### PR 10. Merge `ProcessingResult` and `ProcessingReport` ⏸️
-> Skipped — these are not "nearly identical value objects". `ProcessingResult` is a strongly-typed API response object (typed properties, success/failure factory methods); `ProcessingReport` is a generic diagnostic data bag (array-backed, enum-aware, with helpers like `hasErrors()`, `getSegmentCount()`). Merging would conflate API response concerns with internal diagnostic concerns and damage type safety.
+### PR 10. ~~Merge `ProcessingResult` and `ProcessingReport`~~ — removed from backlog
+> Confirmed not viable. `ProcessingResult` (76 lines, 16 files) is the API response contract. `ProcessingReport` (59 lines, 5 files) is the internal diagnostic wrapper. They serve different purposes and have diverged further during church service work.
 
 ### PR 11. Inline `SermonProcessingService` ✅
 - ~~`cancelProcessing()`~~ — inlined into `UnifiedMediaProcessor::cancelSermonProcessing()` (private method); `SermonProcessingLogger` injected in place of `SermonProcessingService`
@@ -104,32 +97,28 @@ Items are ordered by priority: low-risk deletions first, then consolidation, the
 - ~~Remove service provider binding~~ — removed from `MediaProcessingServiceProvider`
 - ~~Delete service~~ — deleted; unit tests migrated into `UnifiedMediaProcessorTest`
 
-### PR 14. Delete duplicate data classes
-- Delete `App\Data\LivestreamSegment` DTO (use `App\Models\LivestreamSegment` instead; move any unique formatting to model)
-- Delete `ProcessingLogEntry` and `ProcessingLogCollection` (use Laravel Collections)
+### PR 14. ~~Delete duplicate data classes~~ — removed from backlog
+> Re-audited: both pairs serve distinct roles and are heavily used.
+> - `App\Data\LivestreamSegment` DTO (295 references, 44 files) is the data transfer shape; `App\Models\LivestreamSegment` is the Eloquent model. Not duplicates.
+> - `ProcessingLogEntry` / `ProcessingLogCollection` (30 references, 5 files) provide structured log parsing in `ProcessingLogService`. Not replaceable with plain collections.
 
-### PR 15. Consolidate service providers
-- Merge `UrlServiceProvider` (~16 lines) into `AppServiceProvider::boot()`
-- Merge `ModelObserverServiceProvider` (~27 lines) into `AppServiceProvider::boot()`
-- Merge `RateLimitServiceProvider` (~50 lines) into `AppServiceProvider::boot()`
-- Remove from `bootstrap/providers.php`
+### PR 15. ~~Consolidate service providers~~ — removed from backlog
+> Re-assessed: each provider is lean and focused (27, 31, and 59 lines respectively). `ModelObserverServiceProvider` grew during church service work (observes `ChurchService`, `Sermon`, `Page`, `Meeting`, `Preacher`). `RateLimitServiceProvider` grew with `mailgun-inbound` limiter. Merging into `AppServiceProvider` would make it a grab-bag. Current structure is cleaner.
 
 ---
 
 ## Priority 4: Config Simplification
 
-### PR 16. Simplify `thumbnail-generation.php`
+### PR 16. Simplify `thumbnail-generation.php`  ✅
 - Move pixel values, colours, font sizes, stroke widths to class constants in `ThumbnailGenerationService`
 - Keep only environment-varying config: `enabled`, `storage`, `max_concurrent_jobs`, `skip_on_failure`
 - Remove ~40 env vars from `.env.example`
-- Target: 245 → ~50 lines
 
 ### PR 17. Simplify `media-processing.php`
 > Ready — church service config keys are now settled (250 lines currently).
 - Delete dead keys: `processing.timeout`, `processing.max_concurrent_jobs`, `analysis.model`
 - Move `visual_analysis.*` thresholds (22 keys) to service constants
 - Keep environment-varying config: storage disks, queue names, notification toggles, file size limits
-- Target: 250 → ~100 lines
 
 ### PR 18. Simplify `podcast.php` and `organization.php`
 - `podcast.php`: hardcode static metadata (owner, author, category, feed UIDs); keep `enabled` flag and routes. Target: 118 → ~30 lines
@@ -139,42 +128,36 @@ Items are ordered by priority: low-risk deletions first, then consolidation, the
 
 ## Priority 5: Speaker Identification Simplification
 
-### PR 19. Make speaker identification always-on
-- Delete `NullSpeakerIdentificationService`
-- Remove feature gates from `IdentifySpeaker` job (5 checks)
-- Remove `speaker_identification.enabled` and `speaker_identification.shadow_mode` from config
-- Update `MediaProcessingServiceProvider` binding (always bind to `ResemblyzerSpeakerIdentificationService`)
-- Keep `SpeakerIdentificationInterface` for test mocking
-- Simplify config to just Resemblyzer connection details
+### PR 19. Make speaker identification always-on ⏸️
+> Re-assessed after church service Phase 8.2 (children's talk speaker detection). The 5 feature gates in `IdentifySpeaker` serve as guardrails during children's talk speaker detection rollout. `NullSpeakerIdentificationService` is still used in 4 files. Defer until children's talk speaker detection is stable and the feature gates are no longer needed for safe rollout.
 
 ---
 
 ## Priority 6: Model Refactoring
 
 ### PR 20. Slim down Sermon model
-> Ready — church service phases complete; no more pending scope additions.
-- Remove rarely-used scopes (audit usage first; keep ~6 of 14)
-- Remove instance methods that duplicate scopes (e.g. `isFromLivestream()` vs `scopeFromLivestream()`)
-- Extract storage URL accessors (`getAudioUrlAttribute`, `getThumbnailUrlAttribute`, `getVideoUrlAttribute`) to a presenter
+> Ready but scope has changed. Model is now 715 lines with 17 scopes, 11 attribute accessors, and 13+ instance methods. Church service added `content_type` enum, `WhereSermon`/`WhereChildrensTalk` scopes, and `publishedServiceSection()` relationship — all needed.
+- Extract 11 attribute accessors (`AudioUrl`, `ThumbnailUrl`, `VideoUrl`, `PublicUrl`, `SeriesUrl`, `PreacherUrl`, `CanonicalUrl`, etc.) to a presenter or trait
+- Audit 17 scopes for usage — several may be unused after church service refactoring
+- Remove instance methods that duplicate scopes (e.g. `isFromLivestream()` vs `scopeFromLivestream()`, `isAutomated()` vs `scopeAutomated()`)
 
-### PR 21. Clean up MediaProcessingLog model
-> Ready — church service 1.1 (`church_service_id` FK) is complete.
-- Remove backward-compat `storedFilePath()` accessor (fix callers to use `source_file_path`)
-- Extract `scopeVisibleTo()` to middleware or policy
+### PR 21. Clean up MediaProcessingLog model ⏸️
+> Re-assessed: model is 389 lines with 10 scopes and 27 public methods. `storedFilePath()` accessor still provides backward compat for `source_file_path`. `scopeVisibleTo()` is an authorization scope restricting logs to admin or owner — extracting to middleware would lose the query-level filtering. Both are justified. Low value.
 
-### PR 22. Simplify Meeting model page delegation
-- Consolidate 6+ `$this->page?->field` accessor methods into a cleaner pattern
+### PR 22. ~~Simplify Meeting model page delegation~~ — removed from backlog
+> Re-audited: only 4 delegation methods (`description`, `body`, `markdown`, `headingImageUrl`), not 6+. These are clean, well-bounded accessors with null-safe delegation. No simplification needed.
 
 ---
 
 ## Priority 7: Church Service Subsystem (Internal Simplification)
 
 ### PR 23. Simplify `SongCatalogSyncService`
-- At 844 lines, this is the largest service in the app
+> Now 879 lines — grew during church service Phases 1.5/1.6 (source-aware merge, evidence-aware precedence). Still the largest service in the app. Splitting is viable but should wait until the Phase 1.6 sync logic has stabilised in production.
 - Review deduplication algorithm for simpler approach
 - Consider splitting into smaller focused methods/classes
 
 ### PR 24. Separate anomaly detection from `ServiceSectionClassifier`
+> Classifier was reworked in Phase 3 (now 228 lines, down from the original). Anomaly detection is still embedded in the classification pass. Extraction is still viable but lower priority given the reduced size.
 - Extract anomaly detection (segment overlaps, order violations) into a separate pass
 - Makes core classification logic easier to reason about
 
@@ -186,6 +169,6 @@ These items need further investigation or a decision before acting:
 
 - **Alpine.js duplication**: Livewire 3 auto-includes Alpine, but it's also in `package.json`. Check for duplicate instances.
 - **`spatie/laravel-data` replacement**: 7 DTOs use it but none use advanced features. Could replace with plain PHP classes. Low priority — only worth doing if upgrading the package becomes painful.
-- **`SermonProcessingLogger` / `ProcessingLogService` overlap**: These two services have overlapping responsibilities (logging, statistics, report generation). Merging or splitting cleanly is a larger refactor — scope it when tackling the processing pipeline.
+- ~~**`SermonProcessingLogger` / `ProcessingLogService` overlap**~~: Re-audited — these are complementary, not overlapping. `SermonProcessingLogger` (551 lines, 21 files) *writes* processing events to the log. `ProcessingLogService` (419 lines, 5 files) *reads and parses* those logs into structured `ProcessingLogEntry` records. Writer/reader pattern — no merge needed.
 - **`SermonJobPipelineService` split**: 339 lines mixing dispatching, retry logic, and pipeline state. Benefits from splitting but touches many callers. Church service pipeline work is complete — this can now be tackled independently.
 - **`SermonValidationService` split**: Mixes file validation, data validation, and state queries. Worth separating but needs careful caller analysis.

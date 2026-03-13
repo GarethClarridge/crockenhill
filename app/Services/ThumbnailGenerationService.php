@@ -12,6 +12,49 @@ use Intervention\Image\Laravel\Facades\Image;
 
 class ThumbnailGenerationService
 {
+    // Thumbnail dimensions
+    public const int WEB_WIDTH = 1280;
+
+    public const int WEB_HEIGHT = 720;
+
+    public const int WEB_QUALITY = 85;
+
+    // Font
+    public const int TITLE_FONT_SIZE = 144;
+
+    public const float TITLE_LINE_HEIGHT = 0.9;
+
+    public const string TITLE_COLOR = '#FFFFFF';
+
+    public const int DATE_FONT_SIZE = 32;
+
+    public const string DATE_COLOR = '#000000';
+
+    public const string STROKE_COLOR = '#FFFFFF';
+
+    public const int STROKE_WIDTH = 2;
+
+    // Background (date pill)
+    public const string BACKGROUND_COLOR = '#FFFFFF';
+
+    public const int BACKGROUND_HORIZONTAL_PADDING = 0;
+
+    public const int BACKGROUND_VERTICAL_PADDING = 15;
+
+    // Layout positioning (as fractions of image dimensions)
+    public const float TITLE_X_PERCENT = 0.5;
+
+    public const float TITLE_Y_CENTER_PERCENT = 0.35;
+
+    public const float TITLE_WIDTH_PERCENT = 1.0;
+
+    public const float DATE_X_PERCENT = 0.5;
+
+    public const float DATE_Y_PERCENT = 0.85;
+
+    // Brand overlay
+    public const string BRAND_IMAGE = 'images/BrandOverlay.png';
+
     private string $storageDisk;
 
     private string $storagePath;
@@ -20,19 +63,14 @@ class ThumbnailGenerationService
 
     private string $tempPath;
 
-    /** @var array<string, mixed> */
-    private array $config;
-
     private readonly FrameExtractionService $frameExtractionService;
 
     public function __construct(FrameExtractionService $frameExtractionService, private readonly StorageAdapterHelper $storageHelper, private readonly ThumbnailTextHelper $textHelper)
     {
-        $this->config = config('thumbnail-generation');
-
-        $this->storageDisk = $this->config['storage']['disk'];
-        $this->storagePath = $this->config['storage']['path'];
-        $this->tempDisk = $this->config['processing']['temp_disk'];
-        $this->tempPath = $this->config['processing']['temp_path'];
+        $this->storageDisk = config('thumbnail-generation.storage.disk');
+        $this->storagePath = config('thumbnail-generation.storage.path');
+        $this->tempDisk = config('thumbnail-generation.processing.temp_disk');
+        $this->tempPath = config('thumbnail-generation.processing.temp_path');
         $this->frameExtractionService = $frameExtractionService;
     }
 
@@ -50,7 +88,7 @@ class ThumbnailGenerationService
 
         try {
             // Check if thumbnail generation is enabled
-            if (! $this->config['enabled']) {
+            if (! config('thumbnail-generation.enabled')) {
                 return ThumbnailResult::skipped('Thumbnail generation is disabled');
             }
 
@@ -71,7 +109,7 @@ class ThumbnailGenerationService
             $metadata = $this->frameExtractionService->getVideoMetadata($localVideoPath);
 
             // Check minimum duration requirement
-            if ($metadata['duration'] < $this->config['extraction']['min_video_duration']) {
+            if ($metadata['duration'] < config('thumbnail-generation.extraction.min_video_duration')) {
                 $this->frameExtractionService->cleanupDownloadedVideo($tempVideoPath);
 
                 return ThumbnailResult::skipped('Video too short for thumbnail generation');
@@ -138,7 +176,9 @@ class ThumbnailGenerationService
                     'width' => $metadata['width'],
                     'height' => $metadata['height'],
                 ],
-                'thumbnail_sizes' => $this->config['sizes'],
+                'thumbnail_sizes' => [
+                    'web' => ['width' => self::WEB_WIDTH, 'height' => self::WEB_HEIGHT, 'quality' => self::WEB_QUALITY],
+                ],
                 'generated_at' => now()->toISOString(),
                 'plain_thumbnail_path' => $finalPlainPath,
                 'overlay_thumbnail_path' => $finalPath,
@@ -266,17 +306,12 @@ class ThumbnailGenerationService
      */
     private function addTextOverlays(ImageInterface $image, Sermon $sermon): void
     {
-        $fontConfig = $this->config['overlay']['font'];
-        $bgConfig = $this->config['overlay']['background'];
-        $posConfig = $this->config['overlay']['positioning'];
-
-        // Calculate positioning based on image dimensions and percentages
         $imageWidth = $image->width();
         $imageHeight = $image->height();
 
         // Prepare sermon title (with word wrapping for full width)
-        $titleMaxWidth = $imageWidth * $posConfig['title_width_percent']; // Use full width or percentage
-        $title = $this->wrapText($sermon->title, (int) $titleMaxWidth, $fontConfig['title_size']);
+        $titleMaxWidth = $imageWidth * self::TITLE_WIDTH_PERCENT;
+        $title = $this->wrapText($sermon->title, (int) $titleMaxWidth, self::TITLE_FONT_SIZE);
 
         // Prepare service date in the format "Sunday 14th September 2025"
         $serviceDate = $sermon->date->format('l jS F Y');
@@ -285,61 +320,16 @@ class ThumbnailGenerationService
         }
 
         // Calculate responsive font sizes
-        $titleFontSize = $this->textHelper->calculateResponsiveFontSize($fontConfig['title_size'], $imageWidth, 1280);
-        $dateFontSize = $this->textHelper->calculateResponsiveFontSize($fontConfig['date_size'], $imageWidth, 1280);
+        $titleFontSize = $this->textHelper->calculateResponsiveFontSize(self::TITLE_FONT_SIZE, $imageWidth, 1280);
+        $dateFontSize = $this->textHelper->calculateResponsiveFontSize(self::DATE_FONT_SIZE, $imageWidth, 1280);
 
-        // Calculate positions using percentages
-        $titleX = $imageWidth * $posConfig['title_x_percent']; // Center horizontally
+        $titleX = (int) ($imageWidth * self::TITLE_X_PERCENT);
+        $titleCenterY = (int) ($imageHeight * self::TITLE_Y_CENTER_PERCENT);
+        $dateX = (int) ($imageWidth * self::DATE_X_PERCENT);
+        $dateY = (int) ($imageHeight * self::DATE_Y_PERCENT);
 
-        // For title, calculate center position and adjust for multi-line text
-        $titleCenterY = $imageHeight * $posConfig['title_y_center_percent']; // 35% from top (center of text)
-
-        $dateX = $imageWidth * $posConfig['date_x_percent']; // Center horizontally
-        $dateY = $imageHeight * $posConfig['date_y_percent']; // 85% down vertically
-
-        // Add title text (with or without background based on config)
-        if ($posConfig['title_has_background']) {
-            $this->addTextWithBackground(
-                $image,
-                $title,
-                (int) $titleX,
-                (int) $titleCenterY,
-                $titleFontSize,
-                $fontConfig['title_color'],
-                $bgConfig
-            );
-        } else {
-            $this->addTextWithoutBackgroundCentered(
-                $image,
-                $title,
-                (int) $titleX,
-                (int) $titleCenterY,
-                $titleFontSize,
-                $fontConfig['title_color']
-            );
-        }
-
-        // Add date text (with or without background based on config)
-        if ($posConfig['date_has_background']) {
-            $this->addTextWithBackground(
-                $image,
-                $serviceDate,
-                (int) $dateX,
-                (int) $dateY,
-                $dateFontSize,
-                $fontConfig['date_color'],
-                $bgConfig
-            );
-        } else {
-            $this->addTextWithoutBackground(
-                $image,
-                $serviceDate,
-                (int) $dateX,
-                (int) $dateY,
-                $dateFontSize,
-                $fontConfig['date_color']
-            );
-        }
+        $this->addTextWithoutBackgroundCentered($image, $title, $titleX, $titleCenterY, $titleFontSize, self::TITLE_COLOR);
+        $this->addTextWithBackground($image, $serviceDate, $dateX, $dateY, $dateFontSize, self::DATE_COLOR);
     }
 
     /**
@@ -349,7 +339,7 @@ class ThumbnailGenerationService
      */
     private function addBrandOverlay(ImageInterface $image): void
     {
-        $brandImagePath = $this->config['overlay']['brand_image'];
+        $brandImagePath = self::BRAND_IMAGE;
 
         // Check if brand image exists (in public/ directory for static assets)
         $fullBrandPath = public_path($brandImagePath);
@@ -390,9 +380,8 @@ class ThumbnailGenerationService
      * @param  int  $y  Y position (center of text area)
      * @param  int  $fontSize  Font size
      * @param  string  $fontColor  Font color
-     * @param  array<string, mixed>  $bgConfig  Background configuration
      */
-    private function addTextWithBackground(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor, array $bgConfig): void
+    private function addTextWithBackground(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
     {
         try {
             // Get font path for Oswald font (following accessibility requirements)
@@ -401,18 +390,14 @@ class ThumbnailGenerationService
             // Calculate text dimensions for background sizing
             $textBounds = $this->textHelper->calculateTextBounds($text, $fontSize, $fontPath);
 
-            // Calculate background rectangle position (centered around x,y)
-            $horizontalPadding = $bgConfig['horizontal_padding'] ?? $bgConfig['padding'];
-            $verticalPadding = $bgConfig['vertical_padding'] ?? $bgConfig['padding'];
-
-            $bgWidth = $textBounds['width'] + ($horizontalPadding * 2);
-            $bgHeight = $textBounds['height'] + ($verticalPadding * 2);
+            $bgWidth = $textBounds['width'] + (self::BACKGROUND_HORIZONTAL_PADDING * 2);
+            $bgHeight = $textBounds['height'] + (self::BACKGROUND_VERTICAL_PADDING * 2);
 
             $bgX = $x - ($bgWidth / 2);
             $bgY = $y - ($bgHeight / 2);
 
             // Create white background rectangle for accessibility
-            $this->addTextBackground($image, (int) $bgX, (int) $bgY, $textBounds, $bgConfig);
+            $this->addTextBackground($image, (int) $bgX, (int) $bgY, $textBounds);
 
             // Add main text with Oswald font, centered in the background
             $image->text($text, $x, $y, function ($font) use ($fontSize, $fontColor, $fontPath) {
@@ -437,55 +422,6 @@ class ThumbnailGenerationService
     }
 
     /**
-     * Add text without background to image
-     *
-     * @param  ImageInterface  $image  The image to modify
-     * @param  string  $text  Text to add
-     * @param  int  $x  X position (center of text)
-     * @param  int  $y  Y position (top of text for title, center for others)
-     * @param  int  $fontSize  Font size
-     * @param  string  $fontColor  Font color
-     */
-    private function addTextWithoutBackground(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
-    {
-        try {
-            // Get font path for Oswald font
-            $fontPath = $this->getOswaldFontPath();
-
-            // Split text into lines for manual centering
-            $lines = explode("\n", $text);
-
-            // Use compressed line height for title text (0.8 multiplier)
-            $lineHeightMultiplier = $this->config['overlay']['font']['title_line_height'] ?? 1.2;
-            $lineHeight = $fontSize * $lineHeightMultiplier;
-
-            // Add each line separately, centered
-            foreach ($lines as $index => $line) {
-                $lineY = $y + ($index * $lineHeight);
-
-                $image->text(trim($line), $x, (int) $lineY, function ($font) use ($fontSize, $fontColor, $fontPath) {
-                    $font->size($fontSize);
-                    $font->color($fontColor);
-                    $font->align('center');    // Center each line individually
-                    $font->valign('top');      // Top alignment for precise positioning
-                    if ($fontPath && file_exists($fontPath)) {
-                        $font->filename($fontPath);
-                    }
-                });
-            }
-
-        } catch (\Exception $e) {
-            Log::warning('Failed to add text overlay without background', [
-                'text' => $text,
-                'error' => $e->getMessage(),
-            ]);
-
-            // Fallback to simple text
-            $this->addFallbackText($image, $text, $x, $y, $fontSize, $fontColor);
-        }
-    }
-
-    /**
      * Add text without background to image with vertical centering
      *
      * @param  ImageInterface  $image  The image to modify
@@ -504,9 +440,7 @@ class ThumbnailGenerationService
             // Split text into lines for manual centering
             $lines = explode("\n", $text);
 
-            // Use line height from config
-            $lineHeightMultiplier = $this->config['overlay']['font']['title_line_height'] ?? 1.2;
-            $lineHeight = $fontSize * $lineHeightMultiplier;
+            $lineHeight = $fontSize * self::TITLE_LINE_HEIGHT;
 
             // Calculate total height of text block
             $totalHeight = (count($lines) - 1) * $lineHeight + $fontSize;
@@ -598,7 +532,7 @@ class ThumbnailGenerationService
     private function cleanupTempFile(string $tempPath): void
     {
         try {
-            if ($this->config['processing']['cleanup_temp_files']) {
+            if (config('thumbnail-generation.processing.cleanup_temp_files')) {
                 Storage::disk($this->tempDisk)->delete($tempPath);
             }
         } catch (\Exception $e) {
@@ -669,8 +603,8 @@ class ThumbnailGenerationService
         $fullBaseFramePath = Storage::disk($this->tempDisk)->path($baseFramePath);
         $image = Image::read($fullBaseFramePath);
 
-        $targetWidth = $this->config['sizes']['web']['width'];
-        $targetHeight = $this->config['sizes']['web']['height'];
+        $targetWidth = self::WEB_WIDTH;
+        $targetHeight = self::WEB_HEIGHT;
 
         $image->scaleDown($targetWidth, $targetHeight);
 
@@ -692,8 +626,7 @@ class ThumbnailGenerationService
         $tempThumbnailPath = $this->tempPath.'/'.$thumbnailFilename;
         $fullTempThumbnailPath = Storage::disk($this->tempDisk)->path($tempThumbnailPath);
 
-        $quality = $this->config['sizes']['web']['quality'];
-        $image->toWebp(quality: $quality)->save($fullTempThumbnailPath);
+        $image->toWebp(quality: self::WEB_QUALITY)->save($fullTempThumbnailPath);
 
         return $tempThumbnailPath;
     }
@@ -745,26 +678,17 @@ class ThumbnailGenerationService
      * @param  int  $x  X position
      * @param  int  $y  Y position
      * @param  array{width: float|int, height: float|int}  $textBounds  Text dimensions
-     * @param  array<string, mixed>  $bgConfig  Background configuration
      */
-    private function addTextBackground(ImageInterface $image, int $x, int $y, array $textBounds, array $bgConfig): void
+    private function addTextBackground(ImageInterface $image, int $x, int $y, array $textBounds): void
     {
         try {
-            // Use separate horizontal and vertical padding if available
-            $horizontalPadding = $bgConfig['horizontal_padding'] ?? $bgConfig['padding'];
-            $verticalPadding = $bgConfig['vertical_padding'] ?? $bgConfig['padding'];
+            $bgWidth = $textBounds['width'] + (self::BACKGROUND_HORIZONTAL_PADDING * 2);
+            $bgHeight = $textBounds['height'] + (self::BACKGROUND_VERTICAL_PADDING * 2);
 
-            $bgWidth = $textBounds['width'] + ($horizontalPadding * 2);
-            $bgHeight = $textBounds['height'] + ($verticalPadding * 2);
-
-            // Create solid background rectangle (no transparency for better readability)
-            $bgColor = $bgConfig['color'];
-
-            // Draw solid rectangle background
-            $image->drawRectangle($x, $y, function ($draw) use ($bgColor, $bgWidth, $bgHeight) {
+            $image->drawRectangle($x, $y, function ($draw) use ($bgWidth, $bgHeight) {
                 $draw->size($bgWidth, $bgHeight);
-                $draw->background($bgColor);
-                $draw->border('transparent', 0); // No border
+                $draw->background(self::BACKGROUND_COLOR);
+                $draw->border('transparent', 0);
             });
 
         } catch (\Exception $e) {
@@ -787,17 +711,12 @@ class ThumbnailGenerationService
     private function addFallbackText(ImageInterface $image, string $text, int $x, int $y, int $fontSize, string $fontColor): void
     {
         try {
-            // Add text with white stroke for readability
-            $strokeColor = '#FFFFFF';
-            $strokeWidth = 2;
-
-            // Add stroke
-            for ($sx = -$strokeWidth; $sx <= $strokeWidth; $sx++) {
-                for ($sy = -$strokeWidth; $sy <= $strokeWidth; $sy++) {
+            for ($sx = -self::STROKE_WIDTH; $sx <= self::STROKE_WIDTH; $sx++) {
+                for ($sy = -self::STROKE_WIDTH; $sy <= self::STROKE_WIDTH; $sy++) {
                     if ($sx !== 0 || $sy !== 0) {
-                        $image->text($text, $x + $sx, $y + $sy, function ($font) use ($fontSize, $strokeColor) {
+                        $image->text($text, $x + $sx, $y + $sy, function ($font) use ($fontSize) {
                             $font->size($fontSize);
-                            $font->color($strokeColor);
+                            $font->color(self::STROKE_COLOR);
                             $font->align('left');
                             $font->valign('top');
                         });
