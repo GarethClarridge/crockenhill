@@ -23,13 +23,8 @@ class PodcastFeedService
     {
         $cacheKey = "podcast_feed_{$serviceType}";
 
-        /** @var array{enabled: bool, ttl: int, stale_ttl: int}|null $cacheConfig */
+        /** @var array{enabled: bool, ttl: int, stale_ttl: int} $cacheConfig */
         $cacheConfig = config('podcast.cache');
-
-        // Handle missing config gracefully (e.g., config not yet cached in production)
-        if ($cacheConfig === null) {
-            return $this->fetchSermons($serviceType);
-        }
 
         if ($cacheConfig['enabled']) {
             /** @var Collection<int, Sermon> */
@@ -132,36 +127,8 @@ class PodcastFeedService
      */
     public function getFeedMetadata(string $serviceType): array
     {
-        // Default values in case config is not yet cached
-        // podcast_guid is a permanent UUID for each feed - generate once and keep forever
-        $defaults = [
-            'morning' => [
-                'title' => 'Sunday mornings at Crockenhill Baptist Church',
-                'description' => 'Sermons from Sunday mornings at Crockenhill Baptist Church',
-                'image' => '/images/podcast/MorningArtwork.webp',
-                'route' => '/christ/sermons/morning',
-                'podcast_guid' => 'cbc-morning-sermons-a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-            ],
-            'evening' => [
-                'title' => 'Sunday evenings at Crockenhill Baptist Church',
-                'description' => 'Sermons from Sunday evenings at Crockenhill Baptist Church',
-                'image' => '/images/podcast/EveningArtwork.webp',
-                'route' => '/christ/sermons/evening',
-                'podcast_guid' => 'cbc-evening-sermons-f9e8d7c6-b5a4-3210-fedc-ba0987654321',
-            ],
-        ];
-
-        /** @var array{title: string, description: string, image: string, route: string}|null $feedConfig */
+        /** @var array{title: string, description: string, image: string, route: string, podcast_guid: string} $feedConfig */
         $feedConfig = config("podcast.feeds.{$serviceType}");
-
-        // Fall back to defaults if config not loaded
-        if ($feedConfig === null) {
-            $feedConfig = $defaults[$serviceType] ?? $defaults['morning'];
-        }
-
-        // Get podcast_guid from config or defaults
-        $defaultFeed = $defaults[$serviceType] ?? $defaults['morning'];
-        $podcastGuid = (string) config("podcast.feeds.{$serviceType}.podcast_guid", $defaultFeed['podcast_guid']);
 
         return [
             'title' => $feedConfig['title'],
@@ -169,14 +136,14 @@ class PodcastFeedService
             'link' => url($feedConfig['route']),
             'image' => url($feedConfig['image']),
             'feed_url' => url("{$feedConfig['route']}/feed"),
-            'owner_name' => (string) config('podcast.owner.name', 'Crockenhill Baptist Church'),
-            'owner_email' => (string) config('podcast.owner.email', 'admin@crockenhill.org'),
-            'author' => (string) config('podcast.author', 'Crockenhill Baptist Church'),
-            'language' => (string) config('podcast.language', 'en-gb'),
-            'category' => (string) config('podcast.category', 'Religion & Spirituality'),
-            'subcategory' => (string) config('podcast.subcategory', 'Christianity'),
-            'explicit' => (string) config('podcast.explicit', 'no'),
-            'podcast_guid' => $podcastGuid,
+            'owner_name' => (string) config('podcast.owner.name'),
+            'owner_email' => (string) config('podcast.owner.email'),
+            'author' => (string) config('podcast.author'),
+            'language' => (string) config('podcast.language'),
+            'category' => (string) config('podcast.category'),
+            'subcategory' => (string) config('podcast.subcategory'),
+            'explicit' => (string) config('podcast.explicit'),
+            'podcast_guid' => $feedConfig['podcast_guid'],
         ];
     }
 

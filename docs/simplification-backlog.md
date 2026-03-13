@@ -109,19 +109,21 @@ Items are ordered by priority: low-risk deletions first, then consolidation, the
 
 ## Priority 4: Config Simplification
 
-### PR 16. Simplify `thumbnail-generation.php`  ✅
-- Move pixel values, colours, font sizes, stroke widths to class constants in `ThumbnailGenerationService`
-- Keep only environment-varying config: `enabled`, `storage`, `max_concurrent_jobs`, `skip_on_failure`
-- Remove ~40 env vars from `.env.example`
+### PR 16. Simplify `thumbnail-generation.php` ✅
+- ~~Move pixel values, colours, font sizes, stroke widths to class constants in `ThumbnailGenerationService`~~ — done; typed PHP 8.3 constants (`WEB_WIDTH`, `TITLE_FONT_SIZE`, `TITLE_COLOR`, layout percentages, etc.)
+- ~~Keep only environment-varying config: `enabled`, `storage`, `max_concurrent_jobs`, `skip_on_failure`~~ — done; removed unused `overlay.*`, `sizes.*`, `social_media.*`, `caching.*`, `logging.*`, `validation.*` sections; 245 → 43 lines
+- ~~Remove ~40 env vars from `.env.example`~~ — no thumbnail vars existed in `.env.example`
+- Bonus: PHPStan caught two statically-dead `if` branches (from `bool` constants); removed dead branches and the unreachable `addTextWithoutBackground()` method
 
 ### PR 17. Simplify `media-processing.php` ✅
 - ~~Delete dead keys: `processing.timeout`, `processing.max_concurrent_jobs`, `analysis.model`~~ — removed; `processing.timeout` hardcoded to `7200` in 3 FFMpeg callers; `analysis.model` moved to `SermonAnalysisService::ANALYSIS_MODEL` constant
 - ~~Move `visual_analysis.*` thresholds (22 keys) to service constants~~ — thresholds moved to constants in `VisualAnalysisService`, `SongClusteringService` (with constructor params for testability), `VideoSegmentationService`; 3 operational toggles (`enabled`, `fallback_to_rms_on_failure`, `require_min_clusters`) retained as config
 - Keep environment-varying config: storage disks, queue names, notification toggles, file size limits
 
-### PR 18. Simplify `podcast.php` and `organization.php`
-- `podcast.php`: hardcode static metadata (owner, author, category, feed UIDs); keep `enabled` flag and routes. Target: 118 → ~30 lines
-- `organization.php`: remove `env()` wrappers from static values (church name, address, phone)
+### PR 18. Simplify `podcast.php` and `organization.php` ✅
+- ~~`podcast.php`: hardcode static metadata (owner, author, category, feed UIDs); keep `enabled` flag and routes~~ — done; `owner`, `author`, `language`, `category`, `subcategory`, `explicit` hardcoded; `enabled`, `cache.*`, `items_limit` retained as env-varying; 118 → 75 lines
+- `organization.php`: no `env()` wrappers existed — already static; no changes needed
+- Bonus: removed the `$defaults` fallback array and null-guards in `PodcastFeedService::getFeedMetadata()` — they existed only to defend against config not being loaded, which can't happen with hardcoded values
 
 ---
 

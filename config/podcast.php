@@ -1,62 +1,16 @@
 <?php
 
 return [
-    /*
-    |--------------------------------------------------------------------------
-    | Podcast Owner Information
-    |--------------------------------------------------------------------------
-    |
-    | The owner details that appear in podcast directories like Apple Podcasts.
-    | This should be the church or organization responsible for the content.
-    |
-    */
-    'owner' => [
-        'name' => env('PODCAST_OWNER_NAME', 'Crockenhill Baptist Church'),
-        'email' => env('PODCAST_ADMIN_EMAIL', 'admin@crockenhill.org'),
-    ],
 
     /*
     |--------------------------------------------------------------------------
-    | Podcast Author
+    | Podcast Enabled
     |--------------------------------------------------------------------------
     |
-    | The author name shown in podcast apps. Typically the church name.
+    | Whether the podcast feeds are publicly available.
     |
     */
-    'author' => env('PODCAST_AUTHOR', 'Crockenhill Baptist Church'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Language
-    |--------------------------------------------------------------------------
-    |
-    | The language of the podcast content (RFC 5646 format).
-    |
-    */
-    'language' => 'en-gb',
-
-    /*
-    |--------------------------------------------------------------------------
-    | iTunes Category
-    |--------------------------------------------------------------------------
-    |
-    | The primary category and subcategory for podcast directories.
-    | See: https://podcasters.apple.com/support/1691-apple-podcasts-categories
-    |
-    */
-    'category' => 'Religion & Spirituality',
-    'subcategory' => 'Christianity',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Explicit Content Flag
-    |--------------------------------------------------------------------------
-    |
-    | Whether the podcast contains explicit content. For church sermons,
-    | this should always be 'no'.
-    |
-    */
-    'explicit' => 'no',
+    'enabled' => env('PODCAST_ENABLED', true),
 
     /*
     |--------------------------------------------------------------------------
@@ -64,7 +18,6 @@ return [
     |--------------------------------------------------------------------------
     |
     | Separate feed configurations for morning and evening services.
-    | Each feed has its own title, description, artwork, and route.
     |
     */
     'feeds' => [
@@ -88,6 +41,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Static Podcast Metadata
+    |--------------------------------------------------------------------------
+    |
+    | Church identity fields used in podcast directory listings.
+    | These never vary by environment.
+    |
+    */
+    'owner' => [
+        'name' => 'Crockenhill Baptist Church',
+        'email' => 'admin@crockenhill.org',
+    ],
+    'author' => 'Crockenhill Baptist Church',
+    'language' => 'en-gb',
+    'category' => 'Religion & Spirituality',
+    'subcategory' => 'Christianity',
+    'explicit' => 'no',
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Configuration
     |--------------------------------------------------------------------------
     |
@@ -101,8 +73,8 @@ return [
     */
     'cache' => [
         'enabled' => env('PODCAST_CACHE_ENABLED', true),
-        'ttl' => env('PODCAST_CACHE_TTL', 3600), // 1 hour fresh
-        'stale_ttl' => env('PODCAST_CACHE_STALE_TTL', 7200), // 2 hours stale
+        'ttl' => env('PODCAST_CACHE_TTL', 3600),
+        'stale_ttl' => env('PODCAST_CACHE_STALE_TTL', 7200),
     ],
 
     /*
@@ -115,4 +87,5 @@ return [
     |
     */
     'items_limit' => env('PODCAST_ITEMS_LIMIT', 100),
+
 ];

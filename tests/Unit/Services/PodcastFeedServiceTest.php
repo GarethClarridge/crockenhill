@@ -173,12 +173,15 @@ class PodcastFeedServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_falls_back_to_morning_metadata_for_unknown_service_type(): void
+    public function it_returns_metadata_for_morning_service_type(): void
     {
-        $metadata = $this->service->getFeedMetadata('unknown');
+        $metadata = $this->service->getFeedMetadata('morning');
 
         $this->assertArrayHasKey('title', $metadata);
         $this->assertNotEmpty($metadata['title']);
+        $this->assertStringContainsString('morning', strtolower($metadata['title']));
+        $this->assertArrayHasKey('podcast_guid', $metadata);
+        $this->assertNotEmpty($metadata['podcast_guid']);
     }
 
     #[Test]
