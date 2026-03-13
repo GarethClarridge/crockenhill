@@ -1,81 +1,82 @@
-<div class="container mx-auto max-w-6xl px-4 text-center text-cbc-teal-darkest">
-  <div class="my-5 grid grid-cols-1 gap-6 md:grid-cols-3">
+@php
+$linkClasses = 'rounded-sm text-cbc-teal-dark underline decoration-cbc-teal-dark/50 underline-offset-2 hover:text-cbc-teal-deeper focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2';
+@endphp
 
-    <section class="rounded-xl border border-white/80 bg-white/85 p-6 text-cbc-teal-darkest shadow-sm backdrop-blur-sm">
-      <h3 class="mb-3 font-display text-2xl text-cbc-teal">Catch up</h3>
+<div class="container mx-auto max-w-6xl px-4 py-5 text-center text-cbc-teal-darkest">
+  <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+
+    <section class="rounded-xl border border-white/80 bg-white/85 p-6 shadow-sm backdrop-blur-sm">
+      <h3 class="mb-3 font-display text-2xl text-cbc-teal-dark">Catch up</h3>
       <p class="mb-4 text-sm text-slate-700">Keep up with services and recent teaching.</p>
-      <div class="space-y-3">
-        <a class="inline-flex items-center text-cbc-teal-dark underline decoration-cbc-teal-dark/50 underline-offset-2 hover:text-cbc-teal-deeper" href="{{ config('organization.social.youtube') }}">
+      <div class="flex flex-col items-center space-y-3">
+        <a class="inline-flex items-center justify-center rounded-md bg-[linear-gradient(120deg,theme(colors.cbc-teal.DEFAULT)_0%,theme(colors.cbc-teal.dark)_55%,#0e3a3c_100%)] px-3 py-1.5 text-sm text-white no-underline transition-all hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-cbc-teal focus:ring-offset-2" href="{{ config('organization.social.youtube') }}" rel="noopener" target="_blank">
           Watch Sunday morning services
         </a>
-        <br>
-        <a class="inline-flex items-center text-cbc-teal-dark underline decoration-cbc-teal-dark/50 underline-offset-2 hover:text-cbc-teal-deeper" href="/christ/sermons" wire:navigate>
+        <a class="{{ $linkClasses }}" href="/christ/sermons" wire:navigate>
           Listen to evening sermons
         </a>
       </div>
     </section>
 
-    <section class="rounded-xl border border-white/80 bg-white/85 p-6 text-cbc-teal-dark shadow-sm backdrop-blur-sm">
+    <section class="rounded-xl border border-white/80 bg-white/85 p-6 shadow-sm backdrop-blur-sm">
       <h3 class="mb-3 font-display text-2xl text-cbc-teal-dark">Contact us</h3>
-      <ul class="mx-auto mb-0 max-w-xs list-none space-y-2 text-left text-cbc-teal-dark">
-        <li class="my-2">
-          <div class="flex items-center">
-            <x-heroicon-s-phone class="mr-2 h-5 w-5" aria-hidden="true" />
-            <a class="underline decoration-current/50 underline-offset-2 hover:text-cbc-teal-dark" href="tel:{{ config('organization.phone') }}">{{ config('organization.phone_display') }}</a>
-          </div>
+      <ul class="mb-0 list-none space-y-1 text-cbc-teal-dark">
+        <li>
+          <a class="{{ $linkClasses }} flex items-center justify-center gap-2 py-2" href="tel:{{ config('organization.phone') }}">
+            <x-heroicon-s-phone class="h-5 w-5 shrink-0" aria-hidden="true" />
+            {{ config('organization.phone_display') }}
+          </a>
         </li>
-        <li class="my-2">
-          <div class="flex items-center">
-            <x-heroicon-s-envelope class="mr-2 h-5 w-5" aria-hidden="true" />
-            <a class="underline decoration-current/50 underline-offset-2 hover:text-cbc-teal-dark" href="mailto:{{ config('organization.email_public') }}">{{ config('organization.email_public') }}</a>
-          </div>
+        <li>
+          <a class="{{ $linkClasses }} flex items-center justify-center gap-2 py-2" href="mailto:{{ config('organization.email_public') }}">
+            <x-heroicon-s-envelope class="h-5 w-5 shrink-0" aria-hidden="true" />
+            {{ config('organization.email_public') }}
+          </a>
         </li>
-        <li class="my-2">
-          <div class="flex items-center">
-            <x-icon-facebook class="mr-1 h-5 w-5 text-cbc-teal-dark" aria-hidden="true" />
-            <a class="underline decoration-current/50 underline-offset-2 hover:text-cbc-teal-dark" href="{{ config('organization.social.facebook') }}">Like us on Facebook</a>
-          </div>
+        <li>
+          <a class="{{ $linkClasses }} flex items-center justify-center gap-2 py-2" href="{{ config('organization.social.facebook') }}" rel="noopener">
+            <x-icon-facebook class="h-5 w-5 shrink-0 text-cbc-teal-dark" aria-hidden="true" />
+            Like us on Facebook
+          </a>
         </li>
-        <li class="my-2">
-          <div class="flex items-center">
-            <x-icon-youtube class="mr-1 h-5 w-5 text-cbc-teal-dark" aria-hidden="true" />
-            <a class="underline decoration-current/50 underline-offset-2 hover:text-cbc-teal-dark" href="{{ config('organization.social.youtube') }}">Subscribe on YouTube</a>
-          </div>
+        <li>
+          <a class="{{ $linkClasses }} flex items-center justify-center gap-2 py-2" href="{{ config('organization.social.youtube') }}" rel="noopener">
+            <x-icon-youtube class="h-5 w-5 shrink-0 text-cbc-teal-dark" aria-hidden="true" />
+            Subscribe on YouTube
+          </a>
         </li>
       </ul>
     </section>
 
-    <section class="rounded-xl border border-white/80 bg-white/85 p-6 text-cbc-teal-darkest shadow-sm backdrop-blur-sm">
-      <h3 class="mb-3 font-display text-2xl text-cbc-teal">Visit us</h3>
+    <section class="rounded-xl border border-white/80 bg-white/85 p-6 shadow-sm backdrop-blur-sm">
+      <h3 class="mb-3 font-display text-2xl text-cbc-teal-dark">Visit us</h3>
       <address class="mb-4 not-italic text-slate-700">
-        {{ config('organization.name') }}, {{ config('organization.address.street') }}, {{ config('organization.address.locality') }}, {{ config('organization.address.region') }}, {{ config('organization.address.postal_code') }}
+        {{ config('organization.name') }}<br>
+        {{ config('organization.address.street') }}<br>
+        {{ config('organization.address.locality') }}<br>
+        {{ config('organization.address.region') }}<br>
+        {{ config('organization.address.postal_code') }}
       </address>
-      <a class="inline-flex items-center text-cbc-teal-dark underline decoration-cbc-teal-dark/50 underline-offset-2 hover:text-cbc-teal-deeper" href="/church/find-us" wire:navigate>
+      <x-button link="/church/find-us" variant="feature" size="sm" inline>
         Directions and parking
-      </a>
+      </x-button>
     </section>
 
   </div>
 </div>
 
-<section class="mx-auto my-4 flex justify-center p-4 md:w-1/2">
-  <a class="fiec-footer inline-flex" href="https://www.fiec.org.uk">
+<div class="mx-auto my-4 flex justify-center p-4 md:w-1/2" role="complementary" aria-label="Church affiliation">
+  <a class="fiec-footer inline-flex rounded-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-cbc-teal" href="https://www.fiec.org.uk" rel="noopener">
     <img src="/images/affiliated-to-FIEC-logo-white.webp" alt="Affiliated to the Fellowship of Independent Evangelical Churches" loading="lazy" width="384" height="68">
   </a>
-</section>
+</div>
 
-<section class="-mb-6 -mx-6 mt-6 bg-white/85 px-6 py-4 text-cbc-teal-darkest backdrop-blur-sm">
-  <div class="mx-auto max-w-6xl px-4 text-sm">
-    <p class="text-center">
-      <small>
-        &copy; {{ date('Y') }} {{ config('organization.name') }}
-      </small>
-    </p>
-    <p class="text-center">
-      <small>
-        {{ config('organization.name') }} is a <a class="underline decoration-cbc-teal-dark/50 underline-offset-2 hover:text-cbc-teal-deeper" href="https://www.gov.uk/setting-up-charity/structures">charitable incorporated organisation</a>,
-        charity number <a class="underline decoration-cbc-teal-dark/50 underline-offset-2 hover:text-cbc-teal-deeper" href="https://register-of-charities.charitycommission.gov.uk/charity-search/-/charity-details/{{ config('organization.charity_number') }}">{{ config('organization.charity_number') }}</a>.
-      </small>
+<div class="bg-white/85 px-6 py-4 text-cbc-teal-darkest backdrop-blur-sm">
+  <div class="mx-auto max-w-6xl px-4 text-center text-sm">
+    <p>&copy; {{ date('Y') }} {{ config('organization.name') }}</p>
+    <p>
+      {{ config('organization.name') }} is a <a class="{{ $linkClasses }}" href="https://www.gov.uk/setting-up-charity/structures" rel="noopener">charitable incorporated organisation</a>,
+      charity number <a class="{{ $linkClasses }}" href="https://register-of-charities.charitycommission.gov.uk/charity-search/-/charity-details/{{ config('organization.charity_number') }}" rel="noopener">{{ config('organization.charity_number') }}</a>.
     </p>
   </div>
-</section>
+</div>
