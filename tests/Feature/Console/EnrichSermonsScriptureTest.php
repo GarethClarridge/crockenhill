@@ -13,6 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 
 class EnrichSermonsScriptureTest extends TestCase
@@ -27,6 +28,20 @@ class EnrichSermonsScriptureTest extends TestCase
         Config::set('services.api_bible.refresh_after_days', 28);
         Config::set('services.api_bible.daily_budget', 5000);
         Cache::flush();
+    }
+
+    /**
+     * Returns a mock ApiBibleClient with hasDailyBudget() returning true by default,
+     * so tests that exercise normal paths don't hit the budget guard unexpectedly.
+     *
+     * @return MockObject&ApiBibleClient
+     */
+    private function mockClientWithBudget(): MockObject
+    {
+        $client = $this->createMock(ApiBibleClient::class);
+        $client->method('hasDailyBudget')->willReturn(true);
+
+        return $client;
     }
 
     public function test_skips_when_feature_disabled(): void
@@ -53,7 +68,7 @@ class EnrichSermonsScriptureTest extends TestCase
     {
         Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => null]);
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->mockClientWithBudget();
         $client->expects($this->never())->method('searchPassage');
         $this->app->instance(ApiBibleClient::class, $client);
 
@@ -74,7 +89,7 @@ class EnrichSermonsScriptureTest extends TestCase
             fumsToken: 'tok',
         );
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->mockClientWithBudget();
         $client->expects($this->once())->method('searchPassage')->willReturn($apiResult);
         $this->app->instance(ApiBibleClient::class, $client);
 
@@ -87,7 +102,7 @@ class EnrichSermonsScriptureTest extends TestCase
     {
         Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => null]);
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->mockClientWithBudget();
         $client->expects($this->once())->method('searchPassage')->willReturn(null);
         $this->app->instance(ApiBibleClient::class, $client);
 
@@ -100,7 +115,7 @@ class EnrichSermonsScriptureTest extends TestCase
     {
         Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => null]);
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->mockClientWithBudget();
         $client->expects($this->once())
             ->method('searchPassage')
             ->willThrowException(new \RuntimeException('api.bible search failed with status 429 after retries'));
@@ -115,15 +130,12 @@ class EnrichSermonsScriptureTest extends TestCase
     {
         Config::set('services.api_bible.daily_budget', 1);
 
-        // Pre-fill the budget cache to simulate the limit already reached
+        // Pre-fill the budget cache so hasDailyBudget() on the real client returns false
         Cache::put('api_bible_daily_calls_'.now()->format('Y-m-d'), 1, now()->endOfDay());
 
         Sermon::factory()->count(3)->create(['reference' => 'John 3:16', 'scripture_passage_id' => null]);
 
-        $client = $this->createMock(ApiBibleClient::class);
-        $client->expects($this->never())->method('searchPassage');
-        $this->app->instance(ApiBibleClient::class, $client);
-
+        // Use the real client so hasDailyBudget() reads from the cache
         $this->artisan('sermons:enrich-scripture', ['--delay' => 0])
             ->expectsOutputToContain('Daily API budget')
             ->assertExitCode(0);
@@ -152,7 +164,7 @@ class EnrichSermonsScriptureTest extends TestCase
 
         $sermon = Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => null]);
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->mockClientWithBudget();
         $client->expects($this->never())->method('searchPassage');
         $this->app->instance(ApiBibleClient::class, $client);
 

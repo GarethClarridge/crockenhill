@@ -8,6 +8,7 @@ use App\Data\ApiBiblePassageResult;
 use App\Jobs\FetchBibleTextForSermon;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use App\Services\ApiBibleBudgetExhaustedException;
 use App\Services\ApiBibleClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -149,6 +150,14 @@ class FetchBibleTextForSermonTest extends TestCase
         $this->expectExceptionMessageMatches('/429/');
 
         FetchBibleTextForSermon::dispatchSync($sermon);
+    }
+
+    public function test_budget_exhausted_exception_is_in_dont_retry_list(): void
+    {
+        $sermon = Sermon::factory()->create(['reference' => 'John 3:16']);
+        $job = new FetchBibleTextForSermon($sermon);
+
+        $this->assertContains(ApiBibleBudgetExhaustedException::class, $job->dontRetryOn());
     }
 
     public function test_refreshes_stale_passage_using_passage_id(): void

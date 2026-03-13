@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use App\Services\ApiBibleBudgetExhaustedException;
 use App\Services\ApiBibleClient;
 use App\Services\ScriptureHtmlSanitizer;
 use App\Services\ScriptureReferenceResolver;
@@ -122,6 +123,16 @@ class FetchBibleTextForSermon implements ShouldQueue
             'passage_id' => $passage->id,
             'reference' => $normalizedReference,
         ]);
+    }
+
+    /**
+     * Non-retryable exceptions: budget exhaustion resets at midnight, not in 30s.
+     *
+     * @return array<int, class-string<\Throwable>>
+     */
+    public function dontRetryOn(): array
+    {
+        return [ApiBibleBudgetExhaustedException::class];
     }
 
     public function failed(\Throwable $exception): void

@@ -10,6 +10,7 @@ use App\Services\ApiBibleClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
 
 class RefreshScripturePassagesTest extends TestCase
@@ -24,6 +25,19 @@ class RefreshScripturePassagesTest extends TestCase
         Config::set('services.api_bible.refresh_after_days', 28);
         Config::set('services.api_bible.daily_budget', 5000);
         Cache::flush();
+    }
+
+    /**
+     * Returns a mock ApiBibleClient with hasDailyBudget() returning true by default.
+     *
+     * @return MockObject&ApiBibleClient
+     */
+    private function mockClientWithBudget(): MockObject
+    {
+        $client = $this->createMock(ApiBibleClient::class);
+        $client->method('hasDailyBudget')->willReturn(true);
+
+        return $client;
     }
 
     public function test_skips_when_feature_disabled(): void
@@ -59,7 +73,7 @@ class RefreshScripturePassagesTest extends TestCase
             fumsToken: 'new-tok',
         );
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->mockClientWithBudget();
         $client->expects($this->once())->method('fetchPassageById')->with('JHN.3.16')->willReturn($apiResult);
         $this->app->instance(ApiBibleClient::class, $client);
 
@@ -76,7 +90,7 @@ class RefreshScripturePassagesTest extends TestCase
     {
         ScripturePassage::factory()->stale()->create(['api_passage_id' => 'JHN.3.16']);
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->mockClientWithBudget();
         $client->expects($this->once())->method('fetchPassageById')->willReturn(null);
         $this->app->instance(ApiBibleClient::class, $client);
 
@@ -89,7 +103,7 @@ class RefreshScripturePassagesTest extends TestCase
     {
         ScripturePassage::factory()->stale()->create(['api_passage_id' => 'JHN.3.16']);
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->mockClientWithBudget();
         $client->expects($this->once())
             ->method('fetchPassageById')
             ->willThrowException(new \RuntimeException('api.bible passage fetch failed with status 429 after retries'));
@@ -112,10 +126,7 @@ class RefreshScripturePassagesTest extends TestCase
             ]);
         }
 
-        $client = $this->createMock(ApiBibleClient::class);
-        $client->expects($this->never())->method('fetchPassageById');
-        $this->app->instance(ApiBibleClient::class, $client);
-
+        // Use the real client so hasDailyBudget() reads from the pre-filled cache
         $this->artisan('scripture:refresh-passages', ['--delay' => 0])
             ->expectsOutputToContain('Daily API budget')
             ->assertExitCode(0);
@@ -136,7 +147,7 @@ class RefreshScripturePassagesTest extends TestCase
             fumsToken: 'tok2',
         );
 
-        $client = $this->createMock(ApiBibleClient::class);
+        $client = $this->mockClientWithBudget();
         $client->expects($this->never())->method('fetchPassageById');
         $client->expects($this->once())->method('searchPassage')->with('John 3:16')->willReturn($apiResult);
         $this->app->instance(ApiBibleClient::class, $client);

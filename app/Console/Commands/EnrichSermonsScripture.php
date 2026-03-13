@@ -11,7 +11,6 @@ use App\Services\ApiBibleClient;
 use App\Services\ScriptureHtmlSanitizer;
 use App\Services\ScriptureReferenceResolver;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class EnrichSermonsScripture extends Command
@@ -39,7 +38,6 @@ class EnrichSermonsScripture extends Command
         $dryRun = (bool) $this->option('dry-run');
         $useQueue = (bool) $this->option('queue');
         $delayMs = (int) $this->option('delay');
-        $dailyBudget = (int) config('services.api_bible.daily_budget', 5000);
 
         $sermons = Sermon::query()
             ->whereNotNull('reference')
@@ -72,8 +70,9 @@ class EnrichSermonsScripture extends Command
                 continue;
             }
 
-            if (! $this->hasBudget($dailyBudget)) {
-                $this->warn("  Daily API budget of {$dailyBudget} calls reached — stopping early.");
+            if (! $client->hasDailyBudget()) {
+                $this->warn('  Daily API budget reached — stopping early.');
+
                 break;
             }
 
@@ -103,7 +102,6 @@ class EnrichSermonsScripture extends Command
                 }
 
                 $result = $client->searchPassage($normalizedReference);
-                $this->incrementBudget();
 
                 if ($result === null) {
                     $this->warn("    not_found: {$normalizedReference}");
@@ -185,28 +183,5 @@ class EnrichSermonsScripture extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    private function hasBudget(int $dailyBudget): bool
-    {
-        $used = (int) Cache::get($this->budgetCacheKey(), 0);
-
-        return $used < $dailyBudget;
-    }
-
-    private function incrementBudget(): void
-    {
-        $key = $this->budgetCacheKey();
-
-        if (Cache::has($key)) {
-            Cache::increment($key);
-        } else {
-            Cache::put($key, 1, now()->endOfDay());
-        }
-    }
-
-    private function budgetCacheKey(): string
-    {
-        return 'api_bible_daily_calls_'.now()->format('Y-m-d');
     }
 }

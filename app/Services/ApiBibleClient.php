@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Data\ApiBiblePassageResult;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -24,6 +25,8 @@ class ApiBibleClient
 
     private int $maxRetries;
 
+    private int $dailyBudget;
+
     public function __construct()
     {
         $this->baseUrl = (string) config('services.api_bible.base_url', 'https://api.scripture.api.bible/v1');
@@ -32,6 +35,52 @@ class ApiBibleClient
         $this->fumsVersion = (string) config('services.api_bible.fums_version', '3');
         $this->timeoutSeconds = (int) config('services.api_bible.timeout_seconds', 10);
         $this->maxRetries = (int) config('services.api_bible.max_retries', 3);
+        $this->dailyBudget = (int) config('services.api_bible.daily_budget', 5000);
+    }
+
+    /**
+     * Returns true if there is remaining quota in today's daily API budget.
+     * Checked before every outbound call regardless of caller.
+     */
+    public function hasDailyBudget(): bool
+    {
+        return (int) Cache::get($this->dailyBudgetCacheKey(), 0) < $this->dailyBudget;
+    }
+
+    /**
+     * Records one API call against today's daily budget counter.
+     * Uses put-with-TTL on the first call of the day, increment thereafter.
+     */
+    public function recordCall(): void
+    {
+        $key = $this->dailyBudgetCacheKey();
+
+        if (Cache::has($key)) {
+            Cache::increment($key);
+        } else {
+            Cache::put($key, 1, now()->endOfDay());
+        }
+    }
+
+    /**
+     * @throws ApiBibleBudgetExhaustedException
+     */
+    private function assertDailyBudget(string $context): void
+    {
+        if (! $this->hasDailyBudget()) {
+            Log::warning("api.bible daily budget exhausted — skipping {$context}", [
+                'budget' => $this->dailyBudget,
+            ]);
+
+            throw new ApiBibleBudgetExhaustedException(
+                "api.bible daily budget of {$this->dailyBudget} calls exhausted"
+            );
+        }
+    }
+
+    private function dailyBudgetCacheKey(): string
+    {
+        return 'api_bible_daily_calls_'.now()->format('Y-m-d');
     }
 
     /**
@@ -41,6 +90,9 @@ class ApiBibleClient
      */
     public function searchPassage(string $normalizedReference): ?ApiBiblePassageResult
     {
+        $this->assertDailyBudget('search');
+        $this->recordCall();
+
         try {
             $response = $this->makeRequest('get', "/bibles/{$this->bibleId}/search", [
                 'query' => $normalizedReference,
@@ -130,6 +182,9 @@ class ApiBibleClient
      */
     public function fetchPassageById(string $passageId): ?ApiBiblePassageResult
     {
+        $this->assertDailyBudget('passage fetch');
+        $this->recordCall();
+
         try {
             $response = $this->makeRequest('get', "/bibles/{$this->bibleId}/passages/{$passageId}", [
                 'content-type' => 'html',
