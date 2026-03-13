@@ -21,8 +21,13 @@ class RateLimitServiceProviderTest extends TestCase
         $user = new User;
         $user->id = 123;
 
+        // Test API path-based detection (Standard API usage)
         $videoRequest = Request::create('/api/media/video', 'POST', server: ['REMOTE_ADDR' => '127.0.0.1']);
         $videoRequest->setUserResolver(fn (): User => $user);
+
+        // Test web input-based detection (Web sermon upload usage)
+        $webVideoRequest = Request::create('/admin/sermon-upload', 'POST', ['type' => 'video'], server: ['REMOTE_ADDR' => '127.0.0.1']);
+        $webVideoRequest->setUserResolver(fn (): User => $user);
 
         $audioRequest = Request::create('/api/media/audio', 'POST', server: ['REMOTE_ADDR' => '127.0.0.1']);
         $audioRequest->setUserResolver(fn (): User => $user);
@@ -34,9 +39,11 @@ class RateLimitServiceProviderTest extends TestCase
         $this->assertNotNull($limiter);
 
         $videoLimits = $limiter($videoRequest);
+        $webVideoLimits = $limiter($webVideoRequest);
         $audioLimits = $limiter($audioRequest);
 
         $this->assertSame([1, 5], array_map(fn ($limit): int => $limit->maxAttempts, $videoLimits));
+        $this->assertSame([1, 5], array_map(fn ($limit): int => $limit->maxAttempts, $webVideoLimits));
         $this->assertSame([5, 20], array_map(fn ($limit): int => $limit->maxAttempts, $audioLimits));
         $this->assertCount(2, array_unique(array_map(fn ($limit): string => (string) $limit->key, $videoLimits)));
         $this->assertTrue(
