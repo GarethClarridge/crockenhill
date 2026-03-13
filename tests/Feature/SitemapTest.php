@@ -60,6 +60,9 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('<loc>http://localhost/community</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/calendar</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/christ/sermons</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/all</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/preachers</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/series</loc>', $content);
     }
 
     #[Test]
@@ -79,6 +82,43 @@ class SitemapTest extends TestCase
         // Check for date-based URL format
         $this->assertStringContainsString(
             '<loc>http://localhost/christ/sermons/2024/01/test-sermon</loc>',
+            $content
+        );
+    }
+
+    #[Test]
+    public function sitemap_includes_preacher_urls(): void
+    {
+        \App\Models\Preacher::factory()->create([
+            'slug' => 'test-preacher',
+            'is_active' => true,
+        ]);
+
+        Cache::forget('sitemap');
+
+        $response = $this->get('/sitemap.xml');
+        $content = $response->getContent();
+
+        $this->assertStringContainsString(
+            '<loc>http://localhost/christ/sermons/preachers/test-preacher</loc>',
+            $content
+        );
+    }
+
+    #[Test]
+    public function sitemap_includes_series_urls(): void
+    {
+        Sermon::factory()->create([
+            'series' => 'Test Series',
+        ]);
+
+        Cache::forget('sitemap');
+
+        $response = $this->get('/sitemap.xml');
+        $content = $response->getContent();
+
+        $this->assertStringContainsString(
+            '<loc>http://localhost/christ/sermons/series/test-series</loc>',
             $content
         );
     }

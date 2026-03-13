@@ -6,8 +6,11 @@ namespace App\Services;
 
 use App\Models\Meeting;
 use App\Models\Page;
+use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
 
@@ -15,6 +18,7 @@ class SitemapService
 {
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
+        private readonly SermonRepository $sermonRepository,
     ) {}
 
     /**
@@ -35,7 +39,10 @@ class SitemapService
             ->add(Url::create('/church')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
             ->add(Url::create('/community')->setPriority(0.9)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
             ->add(Url::create('/calendar')->setPriority(0.5)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
-            ->add(Url::create('/christ/sermons')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY));
+            ->add(Url::create('/christ/sermons')->setPriority(0.8)->setChangeFrequency(Url::CHANGE_FREQUENCY_DAILY))
+            ->add(Url::create('/christ/sermons/all')->setPriority(0.7)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
+            ->add(Url::create('/christ/sermons/preachers')->setPriority(0.7)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY))
+            ->add(Url::create('/christ/sermons/series')->setPriority(0.7)->setChangeFrequency(Url::CHANGE_FREQUENCY_WEEKLY));
 
         if ($this->exposurePolicy->childrensTalksArePublic()) {
             $sitemap->add(
@@ -77,7 +84,22 @@ class SitemapService
                     ->select(['id', 'slug', 'updated_at'])
                     ->get()
             )
-            ->writeToFile($sitemapPath);
+            ->add(
+                Preacher::active()
+                    ->select(['id', 'slug', 'updated_at'])
+                    ->get()
+            );
+
+        // Add Sermon Series
+        foreach ($this->sermonRepository->getSeriesForDisplay() as $series) {
+            $sitemap->add(
+                Url::create('/christ/sermons/series/'.Str::slug($series))
+                    ->setPriority(0.6)
+                    ->setChangeFrequency(Url::CHANGE_FREQUENCY_MONTHLY)
+            );
+        }
+
+        $sitemap->writeToFile($sitemapPath);
 
         return true;
     }
