@@ -19,9 +19,6 @@ class RateLimitingSecurityTest extends TestCase
     {
         parent::setUp();
 
-        // Rebind ThrottleRequests so it picks up the app's RateLimiter singleton.
-        // Without this, the middleware may resolve a stale instance that doesn't
-        // reflect limiter state across multiple requests in the same test.
         $this->app->bind(
             \Illuminate\Routing\Middleware\ThrottleRequests::class,
             fn ($app) => new \Illuminate\Routing\Middleware\ThrottleRequests($app->make(\Illuminate\Cache\RateLimiter::class))
