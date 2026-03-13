@@ -321,12 +321,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_invalid_file_formats(): void
     {
-        $service = app(\App\Services\SermonAudioProcessingService::class);
+        $service = app(\App\Services\UnifiedMediaProcessor::class);
 
         // Create invalid file (text file with audio extension)
         $invalidFile = \Illuminate\Http\UploadedFile::fake()->create('invalid.mp3', 1024, 'text/plain');
 
-        $result = $service->processSermon($invalidFile);
+        $result = $service->process('audio', $invalidFile);
 
         $this->assertFalse($result->success);
         $this->assertStringContainsString('Invalid file type', $result->message);
@@ -336,12 +336,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_oversized_files(): void
     {
-        $service = app(\App\Services\SermonAudioProcessingService::class);
+        $service = app(\App\Services\UnifiedMediaProcessor::class);
 
         // Create oversized file (larger than 100MB limit)
         $oversizedFile = \Illuminate\Http\UploadedFile::fake()->create('large.mp3', 101 * 1024, 'audio/mpeg');
 
-        $result = $service->processSermon($oversizedFile);
+        $result = $service->process('audio', $oversizedFile);
 
         $this->assertFalse($result->success);
         $this->assertStringContainsString('File size exceeds maximum limit', $result->message);
@@ -351,7 +351,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_corrupted_files(): void
     {
-        $service = app(\App\Services\SermonAudioProcessingService::class);
+        $service = app(\App\Services\UnifiedMediaProcessor::class);
 
         // Create corrupted file with proper MIME type but invalid content
         $corruptedFile = \Illuminate\Http\UploadedFile::fake()->createWithContent('corrupted.mp3', 'invalid audio data');
@@ -359,7 +359,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         // Store the file so it exists when the service tries to process it
         Storage::put('corrupted.mp3', 'invalid audio data');
 
-        $result = $service->processSermon($corruptedFile);
+        $result = $service->process('audio', $corruptedFile);
 
         // Corrupted files should either fail validation or succeed initially
         // (with processing failing later at the validation job step)

@@ -524,14 +524,14 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_limits_request_frequency(): void
     {
-        // Mock SermonAudioProcessingService to avoid actual processing on upload
-        $mockService = $this->createMock(\App\Services\SermonAudioProcessingService::class);
+        // Mock UnifiedMediaProcessor to avoid actual processing on upload
+        $mockService = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
         $mockResult = \App\Services\ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Sermon processing initiated successfully'
         );
-        $mockService->method('processSermon')->willReturn($mockResult);
-        $this->app->instance(\App\Services\SermonAudioProcessingService::class, $mockService);
+        $mockService->method('process')->willReturn($mockResult);
+        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockService);
 
         for ($i = 0; $i < 5; $i++) {
             $file = UploadedFile::fake()->create("sermon-{$i}.mp3", 64, 'audio/mpeg');

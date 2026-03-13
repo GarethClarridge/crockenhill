@@ -7,17 +7,19 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\LivestreamSegmentationService;
+use App\Services\MediaValidationService;
+use App\Services\MetadataExtractionService;
 use App\Services\ProcessingInitiator;
 use App\Services\ProcessingLogService;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
-use App\Services\SermonAudioProcessingService;
 use App\Services\SermonJobPipelineService;
 use App\Services\SermonProcessingLogger;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -29,8 +31,6 @@ class UnifiedMediaProcessorTest extends TestCase
 
     private LivestreamSegmentationService $livestreamService;
 
-    private SermonAudioProcessingService $audioProcessingService;
-
     private SermonJobPipelineService $jobPipelineService;
 
     private SermonProcessingLogger $sermonProcessingLogger;
@@ -41,70 +41,102 @@ class UnifiedMediaProcessorTest extends TestCase
 
     private ProcessingInitiator $processingInitiator;
 
+    private MetadataExtractionService $metadataService;
+
+    private MediaValidationService $mediaValidation;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->livestreamService = $this->createMock(LivestreamSegmentationService::class);
-        $this->audioProcessingService = $this->createMock(SermonAudioProcessingService::class);
         $this->jobPipelineService = $this->createMock(SermonJobPipelineService::class);
         $this->sermonProcessingLogger = $this->createMock(SermonProcessingLogger::class);
         $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
         $this->processingLogService = $this->createMock(ProcessingLogService::class);
         $this->processingInitiator = $this->createMock(ProcessingInitiator::class);
+        $this->metadataService = $this->createMock(MetadataExtractionService::class);
+        $this->mediaValidation = $this->createMock(MediaValidationService::class);
 
         $this->app->instance(LivestreamSegmentationService::class, $this->livestreamService);
 
         $this->processor = new UnifiedMediaProcessor(
-            $this->audioProcessingService,
             $this->jobPipelineService,
             $this->sermonProcessingLogger,
             $this->pipelineBuilder,
             $this->processingLogService,
-            $this->processingInitiator
+            $this->processingInitiator,
+            $this->metadataService,
+            $this->mediaValidation
         );
     }
 
     // --- process() routing tests ---
 
     #[Test]
-    public function it_routes_audio_to_audio_processing_service(): void
+    public function it_processes_audio_file_successfully(): void
     {
-        $file = UploadedFile::fake()->create('sermon.mp3', 1024);
-        $expectedResult = ProcessingResult::success(
-            processingId: 'audio-123',
-            message: 'Audio processing started'
-        );
+        Bus::fake();
+        Storage::fake('public');
 
-        $this->audioProcessingService
-            ->method('processSermon')
-            ->with($file, null)
-            ->willReturn($expectedResult);
+        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
+
+        $this->metadataService
+            ->method('extractId3Metadata')
+            ->willReturn(['title' => 'Test Sermon', 'artist' => 'Test Preacher']);
+
+        $this->pipelineBuilder
+            ->method('buildAudioPipeline')
+            ->willReturn([new AudioStubJob]);
 
         $result = $this->processor->process('audio', $file);
 
         $this->assertTrue($result->success);
-        $this->assertEquals('audio-123', $result->processingId);
+        $this->assertNotNull($result->processingId);
+        $this->assertStringContainsString('Audio processing initiated', $result->message);
+
+        $log = MediaProcessingLog::where('processing_id', $result->processingId)->first();
+        $this->assertNotNull($log);
+        $this->assertEquals(\App\Enums\MediaType::Audio, $log->processing_type);
+        $this->assertEquals('sermon.mp3', $log->original_filename);
+        $this->assertEquals(ProcessingStatus::PENDING, $log->status);
     }
 
     #[Test]
-    public function it_routes_audio_with_client_file_date(): void
+    public function it_processes_audio_with_client_file_date(): void
     {
-        $file = UploadedFile::fake()->create('sermon.mp3', 1024);
-        $clientFileDate = '2026-02-01';
-        $expectedResult = ProcessingResult::success(
-            processingId: 'audio-456',
-            message: 'Audio processing started'
-        );
+        Bus::fake();
+        Storage::fake('public');
 
-        $this->audioProcessingService
-            ->method('processSermon')
-            ->with($file, $clientFileDate)
-            ->willReturn($expectedResult);
+        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 
-        $result = $this->processor->process('audio', $file, $clientFileDate);
+        $this->metadataService
+            ->method('extractId3Metadata')
+            ->willReturn([]);
+
+        $this->pipelineBuilder
+            ->method('buildAudioPipeline')
+            ->willReturn([new AudioStubJob]);
+
+        $result = $this->processor->process('audio', $file, '2026-02-01');
 
         $this->assertTrue($result->success);
+    }
+
+    #[Test]
+    public function it_returns_failure_when_audio_processing_throws_exception(): void
+    {
+        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
+
+        $this->metadataService
+            ->method('extractId3Metadata')
+            ->willThrowException(new \RuntimeException('Metadata extraction failed'));
+
+        $result = $this->processor->process('audio', $file);
+
+        $this->assertFalse($result->success);
+        $this->assertStringContainsString('Metadata extraction failed', $result->message);
+        $this->assertEquals('AUDIO_PROCESSING_INITIATION_FAILED', $result->errorCode);
     }
 
     #[Test]
@@ -611,4 +643,11 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->assertEquals('2026-02-10', $log->processing_metadata['extracted_date']);
         $this->assertEquals('evening', $log->processing_metadata['extracted_service']);
     }
+}
+
+class AudioStubJob implements \Illuminate\Contracts\Queue\ShouldQueue
+{
+    use \Illuminate\Bus\Queueable, \Illuminate\Foundation\Bus\Dispatchable, \Illuminate\Queue\InteractsWithQueue;
+
+    public function handle(): void {}
 }

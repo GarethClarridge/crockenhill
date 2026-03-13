@@ -31,13 +31,6 @@ class UnifiedMediaProcessingTest extends TestCase
             );
         });
 
-        // Mock SermonAudioProcessingService to avoid actual processing
-        $this->mock(\App\Services\SermonAudioProcessingService::class, function ($mock) {
-            $mock->shouldReceive('processSermon')->andReturn(
-                \App\Services\ProcessingResult::success('test-processing-id', 'Processing started')
-            );
-        });
-
         // Mock the UnifiedMediaProcessor to avoid FFmpeg and actual processing
         $this->mock(\App\Services\UnifiedMediaProcessor::class, function ($mock) {
             $mock->shouldReceive('process')->with('livestream', \Mockery::any())->andReturn(

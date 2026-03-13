@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\SermonMetadata;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
@@ -19,12 +20,13 @@ use Illuminate\Support\Str;
 class UnifiedMediaProcessor
 {
     public function __construct(
-        private readonly SermonAudioProcessingService $audioProcessingService,
         private readonly SermonJobPipelineService $jobPipelineService,
         private readonly SermonProcessingLogger $sermonProcessingLogger,
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingLogService $processingLogService,
-        private readonly ProcessingInitiator $processingInitiator
+        private readonly ProcessingInitiator $processingInitiator,
+        private readonly MetadataExtractionService $metadataService,
+        private readonly MediaValidationService $mediaValidation
     ) {}
 
     public function process(string $type, UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
@@ -47,7 +49,7 @@ class UnifiedMediaProcessor
         }
 
         return match ($mediaType) {
-            MediaType::Audio => $this->audioProcessingService->processSermon($file, $clientFileDate),
+            MediaType::Audio => $this->processAudio($file, $clientFileDate),
             MediaType::Video => $this->processDirectVideo($file, $clientFileDate),
             MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate),
         };
@@ -205,6 +207,115 @@ class UnifiedMediaProcessor
         }
 
         return $query;
+    }
+
+    /**
+     * Process an audio file through the complete automation pipeline.
+     * Uses ProcessingPipelineBuilder for consistent job chain pattern (same as video processing).
+     */
+    private function processAudio(UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
+    {
+        try {
+            Log::info('Starting audio processing', [
+                'original_filename' => $file->getClientOriginalName(),
+                'file_size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'client_file_date' => $clientFileDate,
+            ]);
+
+            $processingId = (string) Str::uuid();
+
+            $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
+
+            $metadata = SermonMetadata::fromUploadedFile($file);
+            $storedFilePath = $this->storeAudioFile($file, $metadata);
+
+            $id3Metadata = $this->metadataService->extractId3Metadata($file);
+
+            Log::info('Audio file stored, creating processing log', [
+                'processing_id' => $processingId,
+                'stored_path' => $storedFilePath,
+                'id3_metadata' => $id3Metadata,
+            ]);
+
+            $processingLog = MediaProcessingLog::create([
+                'processing_id' => $processingId,
+                'processing_type' => MediaType::Audio,
+                'original_filename' => $file->getClientOriginalName(),
+                'owner_user_id' => Auth::id(),
+                'source_file_path' => $storedFilePath,
+                'status' => ProcessingStatus::PENDING,
+                'current_step' => 'audio_processing_initiated',
+                'processing_metadata' => [
+                    'id3_metadata' => $id3Metadata,
+                ],
+            ]);
+
+            $jobs = $this->pipelineBuilder->buildAudioPipeline($processingLog);
+
+            Log::info('Audio processing pipeline created', [
+                'processing_id' => $processingId,
+                'jobs_count' => count($jobs),
+                'job_classes' => array_map(fn ($job) => get_class($job), $jobs),
+            ]);
+
+            Bus::chain($jobs)
+                ->catch(function (\Throwable $e) use ($processingLog) {
+                    $processingLog->update([
+                        'status' => ProcessingStatus::FAILED,
+                        'error_message' => 'Audio processing failed: '.$e->getMessage(),
+                    ]);
+                })
+                ->onQueue($this->audioQueue())
+                ->dispatch();
+
+            Log::info('Audio processing jobs dispatched', [
+                'processing_id' => $processingId,
+            ]);
+
+            return ProcessingResult::success(
+                processingId: $processingId,
+                message: 'Audio processing initiated successfully',
+                statusUrl: route('api.media.processing.status', ['processingId' => $processingId])
+            );
+
+        } catch (\Exception $e) {
+            Log::error('Failed to initiate audio processing', [
+                'original_filename' => $file->getClientOriginalName(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return ProcessingResult::failure(
+                processingId: 'failed-'.Str::uuid(),
+                message: 'Failed to initiate audio processing: '.$e->getMessage(),
+                errorCode: 'AUDIO_PROCESSING_INITIATION_FAILED'
+            );
+        }
+    }
+
+    private function storeAudioFile(UploadedFile $file, SermonMetadata $metadata): string
+    {
+        $disk = config('media-processing.storage.sermon_disk', 'public');
+        $basePath = config('media-processing.storage.paths.audio', 'sermons');
+
+        $directory = $basePath.'/'.$metadata->date->format('Y/m');
+
+        $extension = $file->getClientOriginalExtension();
+        $filename = Str::uuid().'.'.$extension;
+
+        $path = $file->storeAs($directory, $filename, $disk);
+
+        if (! $path) {
+            throw new \RuntimeException('Failed to store audio file');
+        }
+
+        return $path;
+    }
+
+    private function audioQueue(): string
+    {
+        return (string) config('media-processing.queues.audio', 'audio-processing');
     }
 
     /**

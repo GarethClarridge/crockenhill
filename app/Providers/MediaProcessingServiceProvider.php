@@ -35,14 +35,6 @@ class MediaProcessingServiceProvider extends ServiceProvider
             };
         });
 
-        // Keep existing service registrations that work
-        $this->app->bind(\App\Services\SermonAudioProcessingService::class, function ($app) {
-            return new \App\Services\SermonAudioProcessingService(
-                $app->make(\App\Services\MetadataExtractionService::class),
-                $app->make(\App\Services\ProcessingPipelineBuilder::class),
-                $app->make(\App\Services\MediaValidationService::class)
-            );
-        });
     }
 
     public function boot(): void
