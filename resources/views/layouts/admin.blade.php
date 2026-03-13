@@ -67,6 +67,7 @@
                   'bg-red-50 border-red-400 text-red-800': notification.type === 'error'
                }"
                :role="notification.type === 'error' ? 'alert' : 'status'"
+               aria-atomic="true"
                class="rounded-md border p-4 shadow-lg max-w-sm">
               <div class="flex items-center gap-2">
                   <span x-text="notification.message"></span>
