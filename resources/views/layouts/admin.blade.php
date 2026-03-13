@@ -54,8 +54,7 @@
   }"
   @notify.window="add($event)"
   class="fixed top-4 right-4 z-50 space-y-2"
-  aria-live="polite"
-  aria-atomic="true">
+  aria-live="polite">
       <template x-for="notification in notifications" :key="notification.id">
           <div x-transition:enter="transform ease-out duration-300"
                x-transition:enter-start="translate-y-2 opacity-0"
@@ -68,6 +67,7 @@
                   'bg-red-50 border-red-400 text-red-800': notification.type === 'error'
                }"
                :role="notification.type === 'error' ? 'alert' : 'status'"
+               aria-atomic="true"
                class="rounded-md border p-4 shadow-lg max-w-sm">
               <div class="flex items-center gap-2">
                   <span x-text="notification.message"></span>
