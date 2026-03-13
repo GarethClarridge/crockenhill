@@ -3,8 +3,8 @@
 namespace Database\Factories;
 
 use App\Enums\ProcessingStatus;
+use App\Models\MediaProcessingLog;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SermonProcessingStep>
@@ -19,7 +19,7 @@ class SermonProcessingStepFactory extends Factory
     public function definition(): array
     {
         return [
-            'processing_id' => Str::uuid(),
+            'processing_id' => MediaProcessingLog::factory()->create()->processing_id,
             'step' => $this->faker->randomElement(['transcription', 'analysis', 'segmentation', 'storage']),
             'status' => ProcessingStatus::STARTED->value,
             'message' => null,
