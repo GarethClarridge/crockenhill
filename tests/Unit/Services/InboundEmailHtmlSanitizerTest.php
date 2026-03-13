@@ -16,7 +16,7 @@ class InboundEmailHtmlSanitizerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->sanitizer = new InboundEmailHtmlSanitizer;
+        $this->sanitizer = new InboundEmailHtmlSanitizer();
     }
 
     #[Test]
@@ -47,17 +47,34 @@ class InboundEmailHtmlSanitizerTest extends TestCase
     }
 
     #[Test]
+    public function it_allows_blockquote_pre_and_formatting_tags(): void
+    {
+        $html = '<blockquote>Quote</blockquote><pre>Code</pre><s>strike</s><u>u</u><hr>';
+        $sanitized = $this->sanitizer->sanitize($html);
+
+        $this->assertStringContainsString('<blockquote>Quote</blockquote>', $sanitized);
+        $this->assertStringContainsString('<pre>Code</pre>', $sanitized);
+        $this->assertStringContainsString('<s>strike</s>', $sanitized);
+        $this->assertStringContainsString('<u>u</u>', $sanitized);
+        $this->assertStringContainsString('<hr>', $sanitized);
+    }
+
+    #[Test]
     public function it_removes_unsafe_tags_with_content(): void
     {
-        $html = '<div>Safe content <script>alert("xss")</script> <style>body { color: red; }</style> <iframe src="https://evil.com"></iframe></div>';
+        $html = '<div>Safe content <script>alert("xss")</script> <style>body { color: red; }</style> <iframe src="https://evil.com"></iframe><link rel="stylesheet" href="style.css"><meta name="description" content="test"><svg>dangerous content</svg></div>';
         $sanitized = $this->sanitizer->sanitize($html);
 
         $this->assertStringContainsString('Safe content', $sanitized);
-        $this->assertStringNotContainsString('<script>', $sanitized);
+        $this->assertStringNotContainsString('<script', $sanitized);
         $this->assertStringNotContainsString('alert("xss")', $sanitized);
-        $this->assertStringNotContainsString('<style>', $sanitized);
+        $this->assertStringNotContainsString('<style', $sanitized);
         $this->assertStringNotContainsString('body { color: red; }', $sanitized);
-        $this->assertStringNotContainsString('<iframe>', $sanitized);
+        $this->assertStringNotContainsString('<iframe', $sanitized);
+        $this->assertStringNotContainsString('<link', $sanitized);
+        $this->assertStringNotContainsString('<meta', $sanitized);
+        $this->assertStringNotContainsString('<svg', $sanitized);
+        $this->assertStringNotContainsString('dangerous content', $sanitized);
     }
 
     #[Test]
