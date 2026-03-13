@@ -19,7 +19,7 @@ class SermonProcessingStepTest extends TestCase
         $data = [
             'processing_id' => 'uuid-123',
             'step' => 'transcription',
-            'status' => ProcessingStatus::STARTED->value,
+            'status' => ProcessingStatus::STARTED,
             'message' => 'Processing started',
             'started_at' => now(),
             'completed_at' => null,
@@ -50,7 +50,7 @@ class SermonProcessingStepTest extends TestCase
 
         $step->markAsStarted('Test message');
 
-        $this->assertEquals(ProcessingStatus::STARTED->value, $step->status);
+        $this->assertEquals(ProcessingStatus::STARTED, $step->status);
         $this->assertEquals('Test message', $step->message);
         $this->assertNotNull($step->started_at);
     }
@@ -59,12 +59,12 @@ class SermonProcessingStepTest extends TestCase
     public function it_marks_as_completed(): void
     {
         $step = SermonProcessingStep::factory()->create([
-            'status' => ProcessingStatus::STARTED->value,
+            'status' => ProcessingStatus::STARTED,
         ]);
 
         $step->markAsCompleted('Done');
 
-        $this->assertEquals(ProcessingStatus::COMPLETED->value, $step->status);
+        $this->assertEquals(ProcessingStatus::COMPLETED, $step->status);
         $this->assertEquals('Done', $step->message);
         $this->assertNotNull($step->completed_at);
     }
@@ -73,12 +73,12 @@ class SermonProcessingStepTest extends TestCase
     public function it_marks_as_failed(): void
     {
         $step = SermonProcessingStep::factory()->create([
-            'status' => ProcessingStatus::STARTED->value,
+            'status' => ProcessingStatus::STARTED,
         ]);
 
         $step->markAsFailed('Error occurred');
 
-        $this->assertEquals(ProcessingStatus::FAILED->value, $step->status);
+        $this->assertEquals(ProcessingStatus::FAILED, $step->status);
         $this->assertEquals('Error occurred', $step->message);
         $this->assertNotNull($step->completed_at);
     }
@@ -87,12 +87,12 @@ class SermonProcessingStepTest extends TestCase
     public function it_marks_as_cancelled(): void
     {
         $step = SermonProcessingStep::factory()->create([
-            'status' => ProcessingStatus::STARTED->value,
+            'status' => ProcessingStatus::STARTED,
         ]);
 
         $step->markAsCancelled('User cancelled');
 
-        $this->assertEquals(ProcessingStatus::CANCELLED->value, $step->status);
+        $this->assertEquals(ProcessingStatus::CANCELLED, $step->status);
         $this->assertEquals('User cancelled', $step->message);
         $this->assertNotNull($step->completed_at);
     }
@@ -104,7 +104,7 @@ class SermonProcessingStepTest extends TestCase
 
         $step->markAsCancelled();
 
-        $this->assertEquals(ProcessingStatus::CANCELLED->value, $step->status);
+        $this->assertEquals(ProcessingStatus::CANCELLED, $step->status);
         $this->assertEquals('Cancelled by user', $step->message);
     }
 
@@ -112,7 +112,7 @@ class SermonProcessingStepTest extends TestCase
     public function it_reports_status_correctly(): void
     {
         $startedStep = SermonProcessingStep::factory()->create([
-            'status' => ProcessingStatus::STARTED->value,
+            'status' => ProcessingStatus::STARTED,
         ]);
         $this->assertTrue($startedStep->isStarted());
         $this->assertFalse($startedStep->isCompleted());

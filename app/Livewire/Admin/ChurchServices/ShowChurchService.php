@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\MediaType;
+use App\Enums\ProcessingStatus;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
@@ -205,8 +206,8 @@ class ShowChurchService extends Component
      */
     private function timelineEntryFromRecordedStep(string $label, SermonProcessingStep $step): array
     {
-        $status = $step->status;
-        if ($status === 'started') {
+        $status = $step->status->value;
+        if ($step->status === ProcessingStatus::STARTED) {
             $status = 'running';
         }
 
