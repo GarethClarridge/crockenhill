@@ -22,6 +22,7 @@ class MemberController extends Controller
             : 0;
 
         return view('members.home', [
+            'heading' => 'Members',
             'pendingInboundEmailCount' => $pendingInboundEmailCount,
         ]);
     }
