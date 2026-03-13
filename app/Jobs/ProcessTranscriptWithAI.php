@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Actions\QueueScriptureEnrichment;
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Models\MediaProcessingLog;
@@ -134,6 +135,9 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             }
 
             $sermon->update($updateData);
+
+            // Dispatch scripture enrichment asynchronously after reference is persisted
+            app(QueueScriptureEnrichment::class)->dispatch($sermon->fresh() ?? $sermon);
 
             // Update processing log and mark step as complete
             $this->processingLog->updateStep('ai_analysis_completed');

@@ -87,6 +87,8 @@ class SermonController extends Controller
         $heading = $sermon->title;
         $pageContext = $pageContextService->build($sermon);
 
+        $sermon->loadMissing('scripturePassage', 'preacherProfile');
+
         return view('sermons.sermon', [
             'slug' => $sermon->slug,
             'heading' => $heading,

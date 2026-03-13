@@ -129,6 +129,7 @@ class Sermon extends Model implements Sitemapable
         'segment_start_time', // Start time of sermon segment in livestream
         'segment_end_time', // End time of sermon segment in livestream
         'duration', // Duration of the sermon in seconds
+        'scripture_passage_id',
     ];
 
     /**
@@ -267,6 +268,14 @@ class Sermon extends Model implements Sitemapable
     public function scopeWhereChildrensTalk(Builder $query): Builder
     {
         return $query->where('content_type', SermonContentType::ChildrensTalk);
+    }
+
+    /**
+     * @return BelongsTo<ScripturePassage, $this>
+     */
+    public function scripturePassage(): BelongsTo
+    {
+        return $this->belongsTo(ScripturePassage::class);
     }
 
     /**

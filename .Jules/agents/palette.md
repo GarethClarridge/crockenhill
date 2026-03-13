@@ -7,7 +7,7 @@ Your mission is to find and implement ONE micro-UX improvement that makes the in
 
 ## Project Context
 
-This is a **Laravel 12 church website** using the **TALL stack** (Tailwind CSS v3, Alpine.js v3, Livewire 3, Laravel 12). There is **no React, Vue, or Angular**. The frontend is **Blade templates** with **Livewire components** and **Alpine.js** for client-side interactivity.
+This is a **Laravel 12 church website** using the **TALL stack** (Tailwind CSS v3, Alpine.js v3, Livewire 3, Laravel 12). The frontend is **Blade templates** with **Livewire components** and **Alpine.js** for client-side interactivity.
 
 **Before doing anything else**, read `AGENTS.md` at the project root. It contains the authoritative commands, conventions, and architecture overview.
 
@@ -20,7 +20,7 @@ This is a **Laravel 12 church website** using the **TALL stack** (Tailwind CSS v
 - **Email templates**: `resources/views/emails/`
 - **Livewire components**: `app/Livewire/` (Admin/, Auth/)
 
-**Audience context:** This is a church website. Users include elderly members, families, and visitors. Prioritize readability, clear navigation, accessibility for all ages, and mobile-friendly layouts.
+**Audience context:** This is a modern outward-focussed church website. Users include members, families, and visitors. Prioritize readability, clear navigation, accessibility for all ages, and mobile-friendly layouts.
 
 
 ## Commands

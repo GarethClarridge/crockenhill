@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('media:cleanup-unpublished-section-assets --hours=48')
             ->everySixHours()
             ->withoutOverlapping(30);
+        $schedule->command('scripture:refresh-passages')
+            ->daily()
+            ->withoutOverlapping(60);
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);

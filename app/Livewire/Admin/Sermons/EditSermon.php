@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Sermons;
 
+use App\Actions\QueueScriptureEnrichment;
 use App\Enums\PreacherSource;
 use App\Enums\SermonService;
 use App\Livewire\Traits\WithAdminAuthorization;
@@ -133,7 +134,10 @@ class EditSermon extends Component
             $preacher = null;
         }
 
-        $this->sermon->update([
+        $referenceChanged = $this->sermon->reference !== $validated['reference'];
+        $newReference = $validated['reference'];
+
+        $updateData = [
             'title' => $validated['title'],
             'slug' => $validated['slug'],
             'date' => $validated['date'],
@@ -142,13 +146,25 @@ class EditSermon extends Component
             'preacher_id' => $preacher?->id,
             'preacher_source' => $preacher ? PreacherSource::MANUAL->value : null,
             'needs_preacher_review' => false,
-            'reference' => $validated['reference'],
+            'reference' => $newReference,
             'series' => $validated['series'],
             'summary' => $validated['summary'],
             'points' => array_filter($this->points),
             'show_summary' => $validated['showSummary'],
             'show_points' => $validated['showPoints'],
-        ]);
+        ];
+
+        // Clear stale scripture passage immediately when reference changes
+        if ($referenceChanged) {
+            $updateData['scripture_passage_id'] = null;
+        }
+
+        $this->sermon->update($updateData);
+
+        // Dispatch enrichment after saving if reference was set or changed
+        if ($referenceChanged && ! empty($newReference)) {
+            app(QueueScriptureEnrichment::class)->dispatch($this->sermon->fresh() ?? $this->sermon);
+        }
 
         $this->success('Sermon updated');
     }

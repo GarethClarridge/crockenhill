@@ -127,15 +127,25 @@ $fullTitle = $sermon->title . ' | ' . ($sermon->preacherProfile?->name ?? $sermo
       @endif
 
       @if ($sermon->reference != null)
-      <div class="flex items-center md:col-span-2">
-        <x-heroicon-o-book-open class="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" aria-hidden="true" />
-        <div>
+      <div class="flex items-start md:col-span-2">
+        <x-heroicon-o-book-open class="h-5 w-5 text-gray-500 mr-3 mt-0.5 flex-shrink-0" aria-hidden="true" />
+        <div class="flex-1">
           @if (! empty($readingReference))
           <dt class="text-sm font-semibold uppercase tracking-[0.2em] text-cbc-teal-dark/75">Passage</dt>
           <dd class="mt-1 text-gray-900 font-medium">{{ $sermon->reference }}</dd>
           @else
           <dt class="sr-only">Bible Reference</dt>
           <dd class="text-gray-900 font-medium">{{ $sermon->reference }}</dd>
+          @endif
+
+          @if ($sermon->scripturePassage)
+          <div
+            class="mt-4 scripture-passage prose prose-sm prose-gray max-w-none text-gray-700 leading-relaxed"
+            data-fums-token="{{ $sermon->scripturePassage->fums_token }}"
+          >
+            {!! $sermon->scripturePassage->html_content !!}
+          </div>
+          <p class="mt-2 text-xs text-gray-400">{{ $sermon->scripturePassage->copyright }}</p>
           @endif
         </div>
       </div>

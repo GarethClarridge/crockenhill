@@ -50,4 +50,15 @@ return [
         'measurement_id' => env('GOOGLE_ANALYTICS_ID'),
     ],
 
+    'api_bible' => [
+        'enabled' => env('API_BIBLE_ENABLED', false),
+        'key' => env('API_BIBLE_KEY'),
+        'base_url' => env('API_BIBLE_BASE_URL', 'https://api.scripture.api.bible/v1'),
+        'default_bible_id' => env('API_BIBLE_DEFAULT_BIBLE_ID'),
+        'fums_version' => env('API_BIBLE_FUMS_VERSION', '3'),
+        'timeout_seconds' => (int) env('API_BIBLE_TIMEOUT_SECONDS', 10),
+        'max_retries' => (int) env('API_BIBLE_MAX_RETRIES', 3),
+        'refresh_after_days' => (int) env('API_BIBLE_REFRESH_AFTER_DAYS', 28),
+    ],
+
 ];

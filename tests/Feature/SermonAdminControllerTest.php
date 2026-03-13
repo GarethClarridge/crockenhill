@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\PreacherSource;
-use App\Models\Preacher;
-use App\Models\PreacherAlias;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\ProcessingResult;
@@ -44,15 +41,13 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
-    public function admin_can_access_edit_page(): void
+    public function admin_edit_get_route_redirects_to_livewire_editor(): void
     {
         $sermon = Sermon::factory()->create();
 
         $response = $this->actingAs($this->admin)->get("/christ/sermons/{$sermon->slug}/edit");
 
-        $response->assertStatus(200);
-        $response->assertViewIs('sermons.edit');
-        $response->assertViewHas('sermon');
+        $response->assertRedirect(route('admin.sermons.edit', $sermon->slug));
     }
 
     #[Test]
@@ -142,65 +137,13 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
-    public function edit_with_date_works_when_date_matches(): void
+    public function admin_edit_with_date_get_route_redirects_to_livewire_editor(): void
     {
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
         $response = $this->actingAs($this->admin)->get("/christ/sermons/2024/03/{$sermon->slug}/edit");
 
-        $response->assertStatus(200);
-    }
-
-    #[Test]
-    public function edit_with_date_returns_404_when_date_mismatches(): void
-    {
-        $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
-
-        // Wrong year
-        $response = $this->actingAs($this->admin)->get("/christ/sermons/2023/03/{$sermon->slug}/edit");
-        $response->assertStatus(404);
-
-        // Wrong month
-        $response = $this->actingAs($this->admin)->get("/christ/sermons/2024/04/{$sermon->slug}/edit");
-        $response->assertStatus(404);
-    }
-
-    #[Test]
-    public function update_with_date_works_when_date_matches(): void
-    {
-        $sermon = Sermon::factory()->create([
-            'date' => '2024-03-15',
-            'title' => 'Old Title',
-            'slug' => 'old-title',
-        ]);
-
-        $response = $this->actingAs($this->admin)->post("/christ/sermons/2024/03/{$sermon->slug}/edit", [
-            'title' => 'New Title',
-            'date' => '2024-03-15',
-            'service' => 'morning',
-            'preacher' => 'Test Preacher',
-        ]);
-
-        $response->assertRedirect(route('sermonIndex'));
-        $this->assertDatabaseHas('sermons', [
-            'id' => $sermon->id,
-            'title' => 'New Title',
-        ]);
-    }
-
-    #[Test]
-    public function update_with_date_returns_404_when_date_mismatches(): void
-    {
-        $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
-
-        $response = $this->actingAs($this->admin)->post("/christ/sermons/2023/03/{$sermon->slug}/edit", [
-            'title' => 'New Title',
-            'date' => '2024-03-15',
-            'service' => 'morning',
-            'preacher' => 'Test Preacher',
-        ]);
-
-        $response->assertStatus(404);
+        $response->assertRedirect(route('admin.sermons.edit', $sermon->slug));
     }
 
     #[Test]
@@ -226,52 +169,18 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
-    public function update_resolves_and_persists_canonical_preacher_fields(): void
+    public function legacy_post_update_route_is_removed(): void
     {
-        $sermon = Sermon::factory()->create([
-            'title' => 'Original Title',
-            'slug' => 'original-title',
-            'date' => '2024-03-15',
-            'service' => 'morning',
-            'preacher' => 'Legacy Name',
-            'preacher_id' => null,
-            'preacher_source' => null,
-            'needs_preacher_review' => true,
-        ]);
+        $sermon = Sermon::factory()->create();
 
+        // The legacy POST update route no longer exists — canonical edit is via Livewire admin editor
         $response = $this->actingAs($this->admin)->post("/christ/sermons/{$sermon->slug}/edit", [
-            'title' => 'Updated Sermon Title',
+            'title' => 'New Title',
             'date' => '2024-03-15',
             'service' => 'morning',
-            'preacher' => '  New   Guest  ',
-            'series' => 'Test Series',
-            'reference' => 'John 3:16',
-            'points' => json_encode(['Point 1', 'Point 2']),
-            'summary' => 'Summary text',
-            'show_summary' => '1',
-            'show_points' => '1',
+            'preacher' => 'Test Preacher',
         ]);
 
-        $response->assertRedirect(route('sermonIndex'));
-
-        $sermon->refresh();
-
-        $preacher = Preacher::where('slug', 'new-guest')->first();
-        $this->assertNotNull($preacher);
-        $this->assertEquals('New Guest', $preacher->name);
-
-        $this->assertEquals($preacher->id, $sermon->preacher_id);
-        $this->assertEquals('New Guest', $sermon->preacher);
-        $this->assertEquals(PreacherSource::MANUAL, $sermon->preacher_source);
-        $this->assertFalse($sermon->needs_preacher_review);
-
-        $this->assertDatabaseHas('preacher_aliases', [
-            'preacher_id' => $preacher->id,
-            'alias' => 'new guest',
-        ]);
-
-        $alias = PreacherAlias::where('alias', 'new guest')->first();
-        $this->assertNotNull($alias);
-        $this->assertEquals($preacher->id, $alias->preacher_id);
+        $response->assertStatus(405);
     }
 }
