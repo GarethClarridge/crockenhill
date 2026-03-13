@@ -114,10 +114,9 @@ Items are ordered by priority: low-risk deletions first, then consolidation, the
 - Keep only environment-varying config: `enabled`, `storage`, `max_concurrent_jobs`, `skip_on_failure`
 - Remove ~40 env vars from `.env.example`
 
-### PR 17. Simplify `media-processing.php`
-> Ready — church service config keys are now settled (250 lines currently).
-- Delete dead keys: `processing.timeout`, `processing.max_concurrent_jobs`, `analysis.model`
-- Move `visual_analysis.*` thresholds (22 keys) to service constants
+### PR 17. Simplify `media-processing.php` ✅
+- ~~Delete dead keys: `processing.timeout`, `processing.max_concurrent_jobs`, `analysis.model`~~ — removed; `processing.timeout` hardcoded to `7200` in 3 FFMpeg callers; `analysis.model` moved to `SermonAnalysisService::ANALYSIS_MODEL` constant
+- ~~Move `visual_analysis.*` thresholds (22 keys) to service constants~~ — thresholds moved to constants in `VisualAnalysisService`, `SongClusteringService` (with constructor params for testability), `VideoSegmentationService`; 3 operational toggles (`enabled`, `fallback_to_rms_on_failure`, `require_min_clusters`) retained as config
 - Keep environment-varying config: storage disks, queue names, notification toggles, file size limits
 
 ### PR 18. Simplify `podcast.php` and `organization.php`

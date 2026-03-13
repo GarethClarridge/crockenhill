@@ -23,7 +23,6 @@ class VideoExtractionServiceTest extends TestCase
 
         Config::set('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
         Config::set('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe');
-        Config::set('media-processing.processing.timeout', 3600);
         Config::set('media-processing.storage.temp_disk', 'local');
         Config::set('media-processing.storage.sermon_disk', 'public');
         Config::set('media-processing.storage.paths.audio', 'sermons/audio');

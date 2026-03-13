@@ -3,7 +3,6 @@
 namespace Tests\Unit\Services;
 
 use App\Services\VisualAnalysisService;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -106,24 +105,20 @@ class VisualAnalysisServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_respects_custom_thresholds(): void
+    public function it_classifies_as_speech_when_edge_density_is_below_threshold(): void
     {
-        // Set very high thresholds
-        Config::set('media-processing.visual_analysis.brightness_threshold', 0.9);
-        Config::set('media-processing.visual_analysis.min_confidence', 0.9);
-
         $service = new VisualAnalysisService;
 
         $metrics = [
             'timestamp' => 100.0,
-            'brightness' => 0.8,  // High but below new threshold
+            'brightness' => 0.8,
             'contrast' => 0.75,
-            'edge_density' => 0.6,
+            'edge_density' => 0.6,  // Below EDGE_DENSITY_THRESHOLD (0.75)
         ];
 
         $result = $service->classifyFrame($metrics);
 
-        // Should be speech due to high threshold
+        // Edge density is the primary signal (weight 0.8). Below threshold means low confidence → speech.
         $this->assertEquals('speech', $result['classification']);
     }
 

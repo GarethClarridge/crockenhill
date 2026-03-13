@@ -31,7 +31,6 @@ class SermonAnalysisServiceFunctionalTest extends TestCase
         // Set up configuration
         config([
             'media-processing.analysis.openai_api_key' => 'test-api-key',
-            'media-processing.analysis.model' => 'gpt-3.5-turbo',
             'openai.api_key' => 'test-api-key',
         ]);
 

@@ -43,7 +43,7 @@ class AudioCompressionService
                 $this->ffmpeg = FFMpeg::create([
                     'ffmpeg.binaries' => $ffmpegPath,
                     'ffprobe.binaries' => $ffprobePath,
-                    'timeout' => config('media-processing.processing.timeout'),
+                    'timeout' => 7200,
                 ]);
             } catch (\Exception $e) {
                 throw new VideoProcessingException("Failed to initialize FFmpeg: {$e->getMessage()}", 0, $e);

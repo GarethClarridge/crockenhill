@@ -52,7 +52,7 @@ class VideoExtractionService
                 $this->ffmpeg = FFMpeg::create([
                     'ffmpeg.binaries' => $ffmpegPath,
                     'ffprobe.binaries' => $ffprobePath,
-                    'timeout' => config('media-processing.processing.timeout'),
+                    'timeout' => 7200,
                 ]);
 
             } catch (\Exception $e) {

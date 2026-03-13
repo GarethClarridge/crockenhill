@@ -17,6 +17,8 @@ class SermonAnalysisService implements SermonAnalysisInterface
 
     private const DEFAULT_RETRY_DELAY_BASE = 2; // seconds
 
+    private const ANALYSIS_MODEL = 'gpt-3.5-turbo';
+
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly SermonRepository $sermonRepository,
@@ -130,11 +132,11 @@ class SermonAnalysisService implements SermonAnalysisInterface
                     $processingId,
                     'ai_analysis_attempt',
                     'started',
-                    ['attempt' => $attempt, 'model' => config('media-processing.analysis.model', 'gpt-3.5-turbo')]
+                    ['attempt' => $attempt, 'model' => self::ANALYSIS_MODEL]
                 );
 
                 $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
-                $model = config('media-processing.analysis.model', 'gpt-3.5-turbo');
+                $model = self::ANALYSIS_MODEL;
 
                 try {
                     $response = OpenAI::chat()->create([

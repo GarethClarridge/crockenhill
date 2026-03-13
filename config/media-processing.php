@@ -73,10 +73,8 @@ return [
     ],
 
     'processing' => [
-        'timeout' => 7200,
         'retry_attempts' => 3,
         'retry_delay' => 60,
-        'max_concurrent_jobs' => 2,
     ],
 
     /*
@@ -102,7 +100,6 @@ return [
     'analysis' => [
         'service' => env('ANALYSIS_SERVICE', 'mock'),
         'openai_api_key' => env('OPENAI_API_KEY'),
-        'model' => env('ANALYSIS_MODEL', 'gpt-3.5-turbo'),
         'max_retries' => env('ANALYSIS_MAX_RETRIES', 3),
         'retry_delay_base' => env('ANALYSIS_RETRY_DELAY_BASE', 2),
     ],
@@ -227,23 +224,6 @@ return [
     */
     'visual_analysis' => [
         'enabled' => true,
-        'sample_interval_seconds' => 10,
-        'brightness_threshold' => 0.48,
-        'contrast_threshold' => 0.0,
-        'edge_density_threshold' => 0.75,
-        'min_confidence' => 0.35,
-        'min_song_duration' => 60,
-        'max_gap_seconds' => 30,
-        'smoothing_window' => 3,
-        'dense_sample_interval' => 1,
-        'refinement_intro_buffer' => 120,
-        'refinement_outro_buffer' => 60,
-        'intro_search_buffer' => 120,
-        'outro_search_buffer' => 60,
-        'quiet_section_tolerance' => 10,
-        'calibration_speech_buffer' => 60,
-        'threshold_safety_floor' => -80.0,
-        'threshold_safety_ceiling' => -20.0,
         'fallback_to_rms_on_failure' => true,
         'require_min_clusters' => 1,
     ],

@@ -3,7 +3,6 @@
 namespace Tests\Unit\Services;
 
 use App\Services\SongClusteringService;
-use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -15,14 +14,13 @@ class SongClusteringServiceTest extends TestCase
     {
         parent::setUp();
 
-        // Don't set global defaults - let each test configure as needed
         $this->service = new SongClusteringService;
     }
 
     #[Test]
     public function it_clusters_consecutive_song_samples(): void
     {
-        Config::set('media-processing.visual_analysis.min_song_duration', 10);
+        $service = new SongClusteringService(minSongDuration: 10);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'speech', 'confidence' => 0.8],
@@ -32,7 +30,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 50.0, 'classification' => 'speech', 'confidence' => 0.75],
         ];
 
-        $service = new SongClusteringService;  // Create after config
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         $this->assertCount(1, $clusters);
@@ -44,8 +41,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_creates_separate_clusters_for_distinct_songs(): void
     {
-        Config::set('media-processing.visual_analysis.min_song_duration', 10);
-        Config::set('media-processing.visual_analysis.max_gap_seconds', 20);
+        $service = new SongClusteringService(minSongDuration: 10, maxGapSeconds: 20);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.9],
@@ -56,7 +52,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 60.0, 'classification' => 'song', 'confidence' => 0.92],
         ];
 
-        $service = new SongClusteringService;  // Create after config
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         $this->assertCount(2, $clusters);
@@ -75,8 +70,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_merges_clusters_with_small_gaps(): void
     {
-        Config::set('media-processing.visual_analysis.max_gap_seconds', 30);
-        Config::set('media-processing.visual_analysis.min_song_duration', 10);
+        $service = new SongClusteringService(minSongDuration: 10, maxGapSeconds: 30);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.9],
@@ -86,7 +80,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 50.0, 'classification' => 'song', 'confidence' => 0.92],
         ];
 
-        $service = new SongClusteringService;
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         // Should be merged into one cluster (gap is only 10 seconds)
@@ -98,9 +91,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_does_not_merge_clusters_with_large_gaps(): void
     {
-        Config::set('media-processing.visual_analysis.max_gap_seconds', 20);
-        Config::set('media-processing.visual_analysis.min_song_duration', 0);  // Allow single samples
-        Config::set('media-processing.visual_analysis.smoothing_window', 1);  // Disable smoothing
+        $service = new SongClusteringService(minSongDuration: 0, maxGapSeconds: 20, smoothingWindow: 1);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.9],
@@ -109,10 +100,9 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 40.0, 'classification' => 'speech', 'confidence' => 0.75],
             ['timestamp' => 50.0, 'classification' => 'speech', 'confidence' => 0.77],
             ['timestamp' => 60.0, 'classification' => 'song', 'confidence' => 0.88],
-            ['timestamp' => 70.0, 'classification' => 'song', 'confidence' => 0.90], // Make second cluster have >0 duration
+            ['timestamp' => 70.0, 'classification' => 'song', 'confidence' => 0.90],
         ];
 
-        $service = new SongClusteringService;
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         // Should be two separate clusters (gap from 20 to 60 is 40 seconds > max_gap of 20)
@@ -122,8 +112,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_filters_clusters_by_minimum_duration(): void
     {
-        Config::set('media-processing.visual_analysis.min_song_duration', 60);
-        Config::set('media-processing.visual_analysis.smoothing_window', 1);  // Disable smoothing
+        $service = new SongClusteringService(minSongDuration: 60, smoothingWindow: 1);
 
         $visualSamples = [
             // Short cluster (20 seconds with 10s intervals: 10-30) - should be filtered
@@ -138,7 +127,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 160.0, 'classification' => 'song', 'confidence' => 0.92],
         ];
 
-        $service = new SongClusteringService;
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         // Only the long cluster should remain
@@ -150,8 +138,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_smooths_classifications_to_reduce_flickering(): void
     {
-        Config::set('media-processing.visual_analysis.smoothing_window', 3);
-        Config::set('media-processing.visual_analysis.min_song_duration', 10);
+        $service = new SongClusteringService(minSongDuration: 10, smoothingWindow: 3);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.9],
@@ -160,7 +147,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 40.0, 'classification' => 'song', 'confidence' => 0.88],
         ];
 
-        $service = new SongClusteringService;
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         // With smoothing, the brief speech flicker should be smoothed to song
@@ -172,8 +158,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_calculates_average_confidence_for_clusters(): void
     {
-        Config::set('media-processing.visual_analysis.smoothing_window', 1);  // Disable smoothing
-        Config::set('media-processing.visual_analysis.min_song_duration', 10);
+        $service = new SongClusteringService(minSongDuration: 10, smoothingWindow: 1);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.8],
@@ -181,7 +166,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 30.0, 'classification' => 'song', 'confidence' => 0.7],
         ];
 
-        $service = new SongClusteringService;  // Create after config
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         $this->assertCount(1, $clusters);
@@ -194,7 +178,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_includes_sample_timestamps_in_clusters(): void
     {
-        Config::set('media-processing.visual_analysis.min_song_duration', 10);
+        $service = new SongClusteringService(minSongDuration: 10);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.9],
@@ -202,7 +186,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 30.0, 'classification' => 'song', 'confidence' => 0.88],
         ];
 
-        $service = new SongClusteringService;  // Create after config
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         $this->assertCount(1, $clusters);
@@ -236,8 +219,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_handles_single_song_sample(): void
     {
-        Config::set('media-processing.visual_analysis.min_song_duration', 0);
-        Config::set('media-processing.visual_analysis.smoothing_window', 1);  // Disable smoothing
+        $service = new SongClusteringService(minSongDuration: 0, smoothingWindow: 1);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'speech', 'confidence' => 0.8],
@@ -245,7 +227,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 30.0, 'classification' => 'speech', 'confidence' => 0.75],
         ];
 
-        $service = new SongClusteringService;
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         $this->assertCount(1, $clusters);
@@ -257,9 +238,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_handles_alternating_classifications_correctly(): void
     {
-        Config::set('media-processing.visual_analysis.smoothing_window', 1); // Disable smoothing
-        Config::set('media-processing.visual_analysis.min_song_duration', 0); // Allow single samples
-        Config::set('media-processing.visual_analysis.max_gap_seconds', 5);  // Don't merge 10s gaps
+        $service = new SongClusteringService(minSongDuration: 0, maxGapSeconds: 5, smoothingWindow: 1);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.9],
@@ -269,7 +248,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 50.0, 'classification' => 'song', 'confidence' => 0.88],
         ];
 
-        $service = new SongClusteringService;
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         // Without smoothing and with small max_gap, should create 3 separate clusters
@@ -279,9 +257,7 @@ class SongClusteringServiceTest extends TestCase
     #[Test]
     public function it_merges_multiple_close_clusters(): void
     {
-        Config::set('media-processing.visual_analysis.max_gap_seconds', 30);
-        Config::set('media-processing.visual_analysis.smoothing_window', 1);
-        Config::set('media-processing.visual_analysis.min_song_duration', 10);  // Allow short clusters
+        $service = new SongClusteringService(minSongDuration: 10, maxGapSeconds: 30, smoothingWindow: 1);
 
         $visualSamples = [
             ['timestamp' => 10.0, 'classification' => 'song', 'confidence' => 0.9],
@@ -291,7 +267,6 @@ class SongClusteringServiceTest extends TestCase
             ['timestamp' => 50.0, 'classification' => 'song', 'confidence' => 0.88],
         ];
 
-        $service = new SongClusteringService;
         $clusters = $service->clusterSongPeriods($visualSamples);
 
         // All gaps are ≤30s, should merge into one cluster

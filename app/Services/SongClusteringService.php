@@ -24,19 +24,26 @@ use Illuminate\Support\Facades\Log;
  */
 class SongClusteringService
 {
+    private const MIN_SONG_DURATION = 60;
+
+    private const MAX_GAP_SECONDS = 30;
+
+    private const SMOOTHING_WINDOW = 3;
+
     private int $minSongDuration;
 
     private int $maxGapSeconds;
 
     private int $smoothingWindow;
 
-    public function __construct()
-    {
-        $config = config('media-processing.visual_analysis', []);
-
-        $this->minSongDuration = (int) ($config['min_song_duration'] ?? 60);
-        $this->maxGapSeconds = (int) ($config['max_gap_seconds'] ?? 30);
-        $this->smoothingWindow = (int) ($config['smoothing_window'] ?? 3);
+    public function __construct(
+        int $minSongDuration = self::MIN_SONG_DURATION,
+        int $maxGapSeconds = self::MAX_GAP_SECONDS,
+        int $smoothingWindow = self::SMOOTHING_WINDOW,
+    ) {
+        $this->minSongDuration = $minSongDuration;
+        $this->maxGapSeconds = $maxGapSeconds;
+        $this->smoothingWindow = $smoothingWindow;
     }
 
     /**

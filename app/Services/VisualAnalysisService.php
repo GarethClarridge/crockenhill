@@ -10,27 +10,20 @@ use Symfony\Component\Process\Process;
 
 class VisualAnalysisService
 {
-    private int $sampleInterval;
+    private const SAMPLE_INTERVAL_SECONDS = 10;
 
-    private float $brightnessThreshold;
+    private const BRIGHTNESS_THRESHOLD = 0.48;
 
-    private float $contrastThreshold;
+    private const CONTRAST_THRESHOLD = 0.0;
 
-    private float $edgeDensityThreshold;
+    private const EDGE_DENSITY_THRESHOLD = 0.75;
 
-    private float $minConfidence;
+    private const MIN_CONFIDENCE = 0.35;
 
     private string $tempDisk;
 
     public function __construct()
     {
-        $config = config('media-processing.visual_analysis', []);
-
-        $this->sampleInterval = $config['sample_interval_seconds'] ?? 10;
-        $this->brightnessThreshold = $config['brightness_threshold'] ?? 0.6;
-        $this->contrastThreshold = $config['contrast_threshold'] ?? 0.7;
-        $this->edgeDensityThreshold = $config['edge_density_threshold'] ?? 0.5;
-        $this->minConfidence = $config['min_confidence'] ?? 0.7;
         $this->tempDisk = config('media-processing.storage.temp_disk', 'local');
     }
 
@@ -42,7 +35,7 @@ class VisualAnalysisService
      */
     public function analyzeVideo(string $videoPath, ?int $sampleInterval = null, ?\Closure $progressCallback = null): array
     {
-        $interval = $sampleInterval ?? $this->sampleInterval;
+        $interval = $sampleInterval ?? self::SAMPLE_INTERVAL_SECONDS;
 
         try {
             Log::info('Starting visual analysis', [
@@ -107,10 +100,9 @@ class VisualAnalysisService
      */
     public function refineBoundaries(string $videoPath, array $cluster): array
     {
-        $config = config('media-processing.visual_analysis', []);
-        $denseInterval = $config['dense_sample_interval'] ?? 1;
-        $introBuffer = $config['refinement_intro_buffer'] ?? 120;
-        $outroBuffer = $config['refinement_outro_buffer'] ?? 60;
+        $denseInterval = 1;
+        $introBuffer = 120;
+        $outroBuffer = 60;
 
         // Define refinement region
         $searchStart = max(0, $cluster['start_estimate'] - $introBuffer);
@@ -453,23 +445,23 @@ class VisualAnalysisService
         // Brightness score: white lyric boxes have high brightness
         // Normalize: 0 at threshold, 1.0 at max (1.0)
         $brightnessScore = 0.0;
-        if ($metrics['brightness'] >= $this->brightnessThreshold) {
-            $range = 1.0 - $this->brightnessThreshold;
-            $brightnessScore = min(1.0, ($metrics['brightness'] - $this->brightnessThreshold) / $range);
+        if ($metrics['brightness'] >= self::BRIGHTNESS_THRESHOLD) {
+            $range = 1.0 - self::BRIGHTNESS_THRESHOLD;
+            $brightnessScore = min(1.0, ($metrics['brightness'] - self::BRIGHTNESS_THRESHOLD) / $range);
         }
 
         // Contrast score: black text on white has high contrast
         $contrastScore = 0.0;
-        if ($metrics['contrast'] >= $this->contrastThreshold) {
-            $range = 1.0 - $this->contrastThreshold;
-            $contrastScore = min(1.0, ($metrics['contrast'] - $this->contrastThreshold) / $range);
+        if ($metrics['contrast'] >= self::CONTRAST_THRESHOLD) {
+            $range = 1.0 - self::CONTRAST_THRESHOLD;
+            $contrastScore = min(1.0, ($metrics['contrast'] - self::CONTRAST_THRESHOLD) / $range);
         }
 
         // Edge density score: lyric boxes have strong edges
         $edgeDensityScore = 0.0;
-        if ($metrics['edge_density'] >= $this->edgeDensityThreshold) {
-            $range = 1.0 - $this->edgeDensityThreshold;
-            $edgeDensityScore = min(1.0, ($metrics['edge_density'] - $this->edgeDensityThreshold) / $range);
+        if ($metrics['edge_density'] >= self::EDGE_DENSITY_THRESHOLD) {
+            $range = 1.0 - self::EDGE_DENSITY_THRESHOLD;
+            $edgeDensityScore = min(1.0, ($metrics['edge_density'] - self::EDGE_DENSITY_THRESHOLD) / $range);
         }
 
         // Calculate overall confidence (weighted average)
@@ -488,7 +480,7 @@ class VisualAnalysisService
                      ($edgeDensityScore * $weights['edge_density']);
 
         // Classify based on confidence threshold
-        $classification = $confidence >= $this->minConfidence ? LivestreamSegmentClassification::Song->value : LivestreamSegmentClassification::Speech->value;
+        $classification = $confidence >= self::MIN_CONFIDENCE ? LivestreamSegmentClassification::Song->value : LivestreamSegmentClassification::Speech->value;
 
         // Debug logging to understand classification decisions
         if ($metrics['timestamp'] % 600 === 0 || $confidence >= 0.5) {
@@ -508,10 +500,10 @@ class VisualAnalysisService
                 'confidence' => round($confidence, 3),
                 'classification' => $classification,
                 'thresholds' => [
-                    'brightness' => $this->brightnessThreshold,
-                    'contrast' => $this->contrastThreshold,
-                    'edge_density' => $this->edgeDensityThreshold,
-                    'min_confidence' => $this->minConfidence,
+                    'brightness' => self::BRIGHTNESS_THRESHOLD,
+                    'contrast' => self::CONTRAST_THRESHOLD,
+                    'edge_density' => self::EDGE_DENSITY_THRESHOLD,
+                    'min_confidence' => self::MIN_CONFIDENCE,
                 ],
             ]);
         }

@@ -15,6 +15,16 @@ class VideoSegmentationService
 {
     use DetectsStorageType;
 
+    private const CALIBRATION_SPEECH_BUFFER = 60.0;
+
+    private const THRESHOLD_SAFETY_FLOOR = -80.0;
+
+    private const THRESHOLD_SAFETY_CEILING = -20.0;
+
+    private const INTRO_SEARCH_BUFFER = 120.0;
+
+    private const OUTRO_SEARCH_BUFFER = 60.0;
+
     private ?FFProbe $ffprobe = null;
 
     private readonly float $minSermonDuration;
@@ -435,7 +445,7 @@ class VideoSegmentationService
 
             $songAvgRms = array_sum($songRmsValues) / count($songRmsValues);
 
-            $speechBuffer = (float) config('media-processing.visual_analysis.calibration_speech_buffer', 60);
+            $speechBuffer = self::CALIBRATION_SPEECH_BUFFER;
             $beforeStart = max(0, $songCluster['start_estimate'] - $speechBuffer);
             $afterEnd = $songCluster['end_estimate'];
 
@@ -455,8 +465,8 @@ class VideoSegmentationService
 
             $threshold = ($songAvgRms + $speechAvgRms) / 2.0;
 
-            $safetyFloor = (float) config('media-processing.visual_analysis.threshold_safety_floor', -80.0);
-            $safetyCeiling = (float) config('media-processing.visual_analysis.threshold_safety_ceiling', -20.0);
+            $safetyFloor = self::THRESHOLD_SAFETY_FLOOR;
+            $safetyCeiling = self::THRESHOLD_SAFETY_CEILING;
             $threshold = max($safetyFloor, min($safetyCeiling, $threshold));
 
             Log::info('Per-song threshold calibrated', [
@@ -509,8 +519,8 @@ class VideoSegmentationService
             $visualEnd = (float) ($cluster['refined_visual_end'] ?? $cluster['end_estimate']);
 
             // Define search region for RMS boundaries
-            $introBuffer = (float) config('media-processing.visual_analysis.intro_search_buffer', 120);
-            $outroBuffer = (float) config('media-processing.visual_analysis.outro_search_buffer', 60);
+            $introBuffer = self::INTRO_SEARCH_BUFFER;
+            $outroBuffer = self::OUTRO_SEARCH_BUFFER;
 
             $searchStart = max(0, $visualStart - $introBuffer);
             $searchEnd = $visualEnd + $outroBuffer;

@@ -36,7 +36,7 @@ class VideoStorageService
             $this->ffmpeg = FFMpeg::create([
                 'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
                 'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
-                'timeout' => config('media-processing.processing.timeout'),
+                'timeout' => 7200,
             ]);
         }
 
