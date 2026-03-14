@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Models\MediaProcessingLog;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -37,7 +38,19 @@ class ManualReviewRequired extends Mailable
                 'reason' => $this->reason,
                 'segments' => $this->segments,
                 'segmentCount' => count($this->segments),
+                'reviewUrl' => $this->reviewUrl(),
             ]
         );
+    }
+
+    private function reviewUrl(): string
+    {
+        $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
+
+        if ($log !== null) {
+            return route('admin.services.processing.review', $log);
+        }
+
+        return route('admin.services.processing.review.index');
     }
 }

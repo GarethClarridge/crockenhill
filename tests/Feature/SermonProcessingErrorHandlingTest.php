@@ -440,14 +440,14 @@ class SermonProcessingErrorHandlingTest extends TestCase
         ]);
 
         // Mark for manual review directly on the model
-        $result = $processingLog->markForManualReview('Requires human transcription');
+        $result = $processingLog->markForManualReview('manual_review_required', 'Requires human transcription');
 
         $this->assertTrue($result);
 
         // Verify processing log was updated
         $processingLog->refresh();
         $this->assertEquals('manual_review_required', $processingLog->current_step);
-        $this->assertStringContainsString('Manual Review Note: Requires human transcription', $processingLog->error_message);
+        $this->assertEquals('Requires human transcription', $processingLog->error_message);
     }
 
     #[Test]

@@ -19,13 +19,12 @@ No segments were automatically identified.
 @endif
 
 ## Next Steps
-1. Review the livestream file manually
-2. Identify the sermon portion
-3. Either adjust the segmentation parameters or process manually
-4. Update the processing status once resolved
+1. Follow the link below to open the review page
+2. Inspect the detected segments and choose the correct sermon segment
+3. Click "This is the sermon" on the matching speech segment to resume processing
 
-<x-mail::button :url="config('app.url') . '/admin/livestream-processing/' . $processingId">
-Review Processing
+<x-mail::button :url="$reviewUrl">
+Review and Confirm Sermon
 </x-mail::button>
 
 Thanks,<br>

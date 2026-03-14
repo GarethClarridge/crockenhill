@@ -8,6 +8,9 @@
             <x-button link="{{ route('admin.services.review') }}" variant="outline" inline>
                 Review Dashboard
             </x-button>
+            <x-button link="{{ route('admin.services.processing.review.index') }}" variant="outline" icon="video-camera" inline>
+                Livestream Review
+            </x-button>
             <x-button link="{{ route('admin.services.inbound-emails') }}" variant="outline" icon="envelope" inline>
                 Review Emails
             </x-button>

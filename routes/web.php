@@ -158,6 +158,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/services/songs', App\Livewire\Admin\ChurchServices\ListSongs::class)->name('services.songs.index');
     Route::get('/services/songs/{song}', App\Livewire\Admin\ChurchServices\ShowSong::class)->name('services.songs.show');
     Route::get('/services/section-publications', App\Livewire\Admin\ChurchServices\ListSectionPublications::class)->name('services.section-publications');
+    Route::get('/services/processing/review', App\Livewire\Admin\ChurchServices\ProcessingReviewList::class)->name('services.processing.review.index');
+    Route::get('/services/processing/{processingLog}/review', App\Livewire\Admin\ChurchServices\ProcessingReview::class)->name('services.processing.review');
     Route::get('/services/{churchService}/edit', App\Livewire\Admin\ChurchServices\ManageChurchService::class)->name('services.edit');
     Route::get('/services/{churchService}', App\Livewire\Admin\ChurchServices\ShowChurchService::class)->name('services.show');
 
