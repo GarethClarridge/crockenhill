@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Enums\LivestreamSegmentClassification;
+use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -48,7 +51,7 @@ class SermonProcessingLogger
             'metrics' => array_merge($metrics, [
                 'memory_usage' => memory_get_usage(true),
                 'peak_memory' => memory_get_peak_usage(true),
-                'execution_time' => microtime(true) - (defined('LARAVEL_START') ? LARAVEL_START : $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)),
+                'execution_time' => $this->getExecutionTime(),
             ]),
             'timestamp' => now()->toISOString(),
         ];
@@ -140,14 +143,14 @@ class SermonProcessingLogger
      */
     public function logProcessingComplete(
         string $processingId,
-        string $status,
+        ProcessingStatus $status,
         array $statistics = [],
         ?string $errorMessage = null
     ): void {
         $context = [
             'processing_id' => $processingId,
-            'final_status' => $status,
-            'total_execution_time' => microtime(true) - (defined('LARAVEL_START') ? LARAVEL_START : $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)),
+            'final_status' => $status->value,
+            'execution_time' => $this->getExecutionTime(),
             'peak_memory_usage' => memory_get_peak_usage(true),
             'statistics' => $statistics,
             'timestamp' => now()->toISOString(),
@@ -157,8 +160,14 @@ class SermonProcessingLogger
             $context['error_message'] = $errorMessage;
         }
 
-        $logLevel = $status === 'completed' ? 'info' : 'error';
-        Log::log($logLevel, "Sermon processing {$status}", $context);
+        $logLevel = match ($status) {
+            ProcessingStatus::COMPLETED => 'info',
+            ProcessingStatus::CANCELLED => 'info',
+            default => 'error',
+        };
+
+        $statusLabel = $status->value;
+        Log::log($logLevel, "Sermon processing {$statusLabel}", $context);
     }
 
     /**
@@ -237,7 +246,7 @@ class SermonProcessingLogger
     {
         $startDate = now()->subDays($days);
 
-        $logs = MediaProcessingLog::where('created_at', '>=', $startDate)->get();
+        $logs = MediaProcessingLog::query()->recent($days)->get();
 
         $statistics = [
             'period' => [
@@ -346,22 +355,6 @@ class SermonProcessingLogger
     }
 
     /**
-     * Log processing completion with success status.
-     */
-    public function logProcessingCompletion(string $processingId, bool $success, string $message = ''): void
-    {
-        $level = $success ? 'info' : 'error';
-        $statusMessage = $success ? 'Sermon processing completed successfully' : 'Sermon processing failed';
-
-        Log::log($level, $statusMessage, [
-            'processing_id' => $processingId,
-            'success' => $success,
-            'message' => $message,
-            'timestamp' => now()->toISOString(),
-        ]);
-    }
-
-    /**
      * Log a warning for processing.
      *
      * @param  array<string, mixed>  $context
@@ -382,7 +375,10 @@ class SermonProcessingLogger
      */
     public function generateProcessingReport(string $processingId): ProcessingReport
     {
-        $processing = MediaProcessingLog::with('segments')->where('processing_id', $processingId)->first();
+        $processing = MediaProcessingLog::query()
+            ->with('segments')
+            ->where('processing_id', $processingId)
+            ->first();
 
         if (! $processing) {
             throw new \Exception("Processing record not found for ID: {$processingId}");
@@ -394,7 +390,7 @@ class SermonProcessingLogger
             'processing_id' => $processingId,
             'status' => $processing->status->value,
             'original_filename' => $processing->original_filename,
-            'file_size_mb' => round($processing->file_size / 1024 / 1024, 2),
+            'file_size_mb' => round(($processing->file_size ?? 0) / 1024 / 1024, 2),
             'duration_seconds' => $processing->duration,
             'total_segments' => $processing->segments->count(),
             'processing_duration_seconds' => $processing->completed_at?->diffInSeconds($processing->created_at),
@@ -418,7 +414,8 @@ class SermonProcessingLogger
     {
         $since = now()->subHours($hours);
 
-        $recentProcessing = MediaProcessingLog::livestream()
+        $recentProcessing = MediaProcessingLog::query()
+            ->livestream()
             ->where('created_at', '>=', $since)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -490,10 +487,10 @@ class SermonProcessingLogger
     }
 
     /**
-     * @param  mixed  $segments
+     * @param  Collection<int, \App\Models\LivestreamSegment>  $segments
      * @return array<string, mixed>
      */
-    private function buildSegmentSummary($segments): array
+    private function buildSegmentSummary(Collection $segments): array
     {
         $songSegments = $segments->where('classification', LivestreamSegmentClassification::Song->value);
         $speechSegments = $segments->where('classification', LivestreamSegmentClassification::Speech->value);
@@ -547,5 +544,13 @@ class SermonProcessingLogger
         }
 
         return 'unknown';
+    }
+
+    /**
+     * Get current execution time since request start.
+     */
+    private function getExecutionTime(): float
+    {
+        return microtime(true) - (defined('LARAVEL_START') ? LARAVEL_START : ($_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true)));
     }
 }

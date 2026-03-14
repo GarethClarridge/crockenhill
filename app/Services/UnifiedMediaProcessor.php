@@ -146,7 +146,7 @@ class UnifiedMediaProcessor
             }
 
             $log->markAsCancelled('Processing cancelled by user');
-            $this->sermonProcessingLogger->logProcessingCompletion($processingId, false, 'Processing cancelled by user');
+            $this->sermonProcessingLogger->logProcessingComplete($processingId, ProcessingStatus::CANCELLED, [], 'Processing cancelled by user');
 
             return true;
         } catch (\Exception $e) {

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Enums\ProcessingStatus;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Services\ProcessingReport;
@@ -198,7 +199,7 @@ class SermonProcessingLoggerTest extends TestCase
                 return $level === 'info' && str_contains($message, 'completed');
             });
 
-        $this->logger->logProcessingComplete('proc-001', 'completed', ['sermon_id' => 42]);
+        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::COMPLETED, ['sermon_id' => 42]);
     }
 
     #[Test]
@@ -210,7 +211,19 @@ class SermonProcessingLoggerTest extends TestCase
                 return $level === 'error';
             });
 
-        $this->logger->logProcessingComplete('proc-001', 'failed', [], 'Disk full');
+        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::FAILED, [], 'Disk full');
+    }
+
+    #[Test]
+    public function it_logs_cancelled_completion_as_info(): void
+    {
+        Log::shouldReceive('log')
+            ->once()
+            ->withArgs(function (string $level, string $message) {
+                return $level === 'info' && str_contains($message, 'cancelled');
+            });
+
+        $this->logger->logProcessingComplete('proc-001', ProcessingStatus::CANCELLED, [], 'User requested');
     }
 
     // --- logError() ---
@@ -267,32 +280,6 @@ class SermonProcessingLoggerTest extends TestCase
             });
 
         $this->logger->logHealthCheck('processing', ['status' => 'error']);
-    }
-
-    // --- logProcessingCompletion() ---
-
-    #[Test]
-    public function it_logs_successful_processing_completion(): void
-    {
-        Log::shouldReceive('log')
-            ->once()
-            ->withArgs(function (string $level, string $message) {
-                return $level === 'info' && str_contains($message, 'successfully');
-            });
-
-        $this->logger->logProcessingCompletion('proc-001', true, 'Done');
-    }
-
-    #[Test]
-    public function it_logs_failed_processing_completion(): void
-    {
-        Log::shouldReceive('log')
-            ->once()
-            ->withArgs(function (string $level, string $message) {
-                return $level === 'error' && str_contains($message, 'failed');
-            });
-
-        $this->logger->logProcessingCompletion('proc-001', false, 'Timeout');
     }
 
     // --- generateProcessingStatistics() ---
