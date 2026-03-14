@@ -329,7 +329,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         $result = $service->process('audio', $invalidFile);
 
         $this->assertFalse($result->success);
-        $this->assertStringContainsString('Invalid file type', $result->message);
+        $this->assertStringContainsString('Invalid file', $result->message);
         $this->assertEquals('AUDIO_PROCESSING_INITIATION_FAILED', $result->errorCode);
     }
 

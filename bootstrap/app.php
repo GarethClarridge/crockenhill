@@ -47,5 +47,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo('/church/members');
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->expectsJson() || $request->is('api/*'));
+
+        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+            if ($e instanceof \App\Contracts\ProvidesSafeMessage && ($request->expectsJson() || $request->is('api/*'))) {
+                return response()->json([
+                    'message' => $e->getSafeMessage(),
+                ], 422);
+            }
+
+            return null;
+        });
     })->create();

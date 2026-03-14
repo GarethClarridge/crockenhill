@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
+use App\Contracts\ProvidesSafeMessage;
 use Exception;
 
 /**
@@ -11,10 +12,15 @@ use Exception;
  *
  * Extend this class to create domain-specific processing exceptions.
  */
-class ProcessingException extends Exception
+class ProcessingException extends Exception implements ProvidesSafeMessage
 {
     public function __construct(string $message = 'A processing error occurred', int $code = 0, ?\Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);
+    }
+
+    public function getSafeMessage(): string
+    {
+        return $this->getMessage();
     }
 }

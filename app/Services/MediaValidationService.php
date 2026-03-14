@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\MediaType;
+use App\Exceptions\InvalidFileException;
 use Illuminate\Http\UploadedFile;
 
 class MediaValidationService
@@ -86,7 +87,7 @@ class MediaValidationService
     /**
      * Validate a local file path against the canonical rules for a given media type.
      *
-     * Throws \InvalidArgumentException on the first failing constraint.
+     * Throws \App\Exceptions\InvalidFileException on the first failing constraint.
      */
     public function validateLocalFile(MediaType $type, string $filePath): void
     {
@@ -95,43 +96,43 @@ class MediaValidationService
 
         if ($fileSize === false || $fileSize > $maxSize) {
             $maxSizeDisplay = $this->maxFileSizeForDisplay($type);
-            throw new \InvalidArgumentException("File size exceeds maximum limit of {$maxSizeDisplay}");
+            throw new InvalidFileException(["File size exceeds maximum limit of {$maxSizeDisplay}"]);
         }
 
         $mimeType = mime_content_type($filePath);
         if ($mimeType === false || ! in_array($mimeType, $this->allowedMimes($type), true)) {
             $display = $this->allowedExtensionsForDisplay($type);
-            throw new \InvalidArgumentException("Invalid file type. Supported formats: {$display}.");
+            throw new InvalidFileException(["Invalid file type. Supported formats: {$display}."]);
         }
     }
 
     /**
      * Validate an uploaded file against the canonical rules for a given media type.
      *
-     * Throws \InvalidArgumentException on the first failing constraint.
+     * Throws \App\Exceptions\InvalidFileException on the first failing constraint.
      */
     public function validateUploadedFile(MediaType $type, UploadedFile $file): void
     {
         if (! $file->isValid()) {
-            throw new \InvalidArgumentException('Uploaded file is corrupted or invalid');
+            throw new InvalidFileException(['Uploaded file is corrupted or invalid']);
         }
 
         $maxSize = $this->maxFileSizeBytes($type);
         if ($file->getSize() > $maxSize) {
             $maxSizeDisplay = $this->maxFileSizeForDisplay($type);
-            throw new \InvalidArgumentException("File size exceeds maximum limit of {$maxSizeDisplay}");
+            throw new InvalidFileException(["File size exceeds maximum limit of {$maxSizeDisplay}"]);
         }
 
         $allowedMimes = $this->allowedMimes($type);
         if (! in_array($file->getMimeType(), $allowedMimes, true)) {
             $display = $this->allowedExtensionsForDisplay($type);
-            throw new \InvalidArgumentException("Invalid file type. Supported formats: {$display}.");
+            throw new InvalidFileException(["Invalid file type. Supported formats: {$display}."]);
         }
 
         $allowedExtensions = $this->allowedExtensions($type);
         $extension = strtolower($file->getClientOriginalExtension());
         if (! in_array($extension, $allowedExtensions, true)) {
-            throw new \InvalidArgumentException('Invalid file extension. Allowed: '.implode(', ', $allowedExtensions));
+            throw new InvalidFileException(['Invalid file extension. Allowed: '.implode(', ', $allowedExtensions)]);
         }
     }
 

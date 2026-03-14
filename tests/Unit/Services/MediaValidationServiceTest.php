@@ -146,7 +146,7 @@ class MediaValidationServiceTest extends TestCase
     {
         $file = $this->createMockUploadedFile('sermon.mp3', 'audio/mpeg', 200 * 1024 * 1024);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(\App\Exceptions\InvalidFileException::class);
         $this->expectExceptionMessage('File size exceeds maximum limit');
 
         $this->service->validateUploadedFile(MediaType::Audio, $file);
@@ -157,7 +157,7 @@ class MediaValidationServiceTest extends TestCase
     {
         $file = $this->createMockUploadedFile('sermon.exe', 'application/octet-stream', 1 * 1024 * 1024);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(\App\Exceptions\InvalidFileException::class);
         $this->expectExceptionMessage('Invalid file type');
 
         $this->service->validateUploadedFile(MediaType::Audio, $file);
@@ -168,7 +168,7 @@ class MediaValidationServiceTest extends TestCase
     {
         $file = $this->createMockUploadedFile('sermon.flac', 'audio/mpeg', 1 * 1024 * 1024);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(\App\Exceptions\InvalidFileException::class);
         $this->expectExceptionMessage('Invalid file extension');
 
         $this->service->validateUploadedFile(MediaType::Audio, $file);

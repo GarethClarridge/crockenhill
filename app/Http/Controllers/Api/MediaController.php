@@ -110,9 +110,14 @@ class MediaController extends Controller implements ProcessingStatusContract
             Log::error('Status check failed', [
                 'processing_id' => $processingId,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json(['found' => false, 'message' => 'Status check failed'], 500);
+            $message = $e instanceof \App\Contracts\ProvidesSafeMessage
+                ? $e->getSafeMessage()
+                : 'Status check failed due to an internal error.';
+
+            return response()->json(['found' => false, 'message' => $message], 500);
         }
     }
 
