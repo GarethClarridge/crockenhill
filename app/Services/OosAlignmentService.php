@@ -298,6 +298,24 @@ class OosAlignmentService
                 continue;
             }
 
+            if ($section->section_type === ServiceSectionType::OTHER && $this->isOosReclassifiableType($expectedType)) {
+                $section->section_type = $expectedType;
+                $this->applyMatchedItem($section, $item, 0.35);
+
+                $metadata = $this->metadata($section);
+                $metadata['oos_alignment'] = array_merge($metadata['oos_alignment'] ?? [], [
+                    'reclassified_from' => ServiceSectionType::OTHER->value,
+                    'reclassified_by' => 'oos_alignment',
+                ]);
+                $section->metadata = $metadata;
+                $section->title = $item->title;
+
+                $sectionIndex++;
+                $itemIndex++;
+
+                continue;
+            }
+
             if ($this->remainingSectionsContainType($structuralSections, $sectionIndex + 1, $expectedType)) {
                 $this->markMismatch($section, $item, 'unexpected_detected_section');
                 $mismatchCount++;
@@ -472,6 +490,21 @@ class OosAlignmentService
             preg_match('/\b(sermon|message)\b/', $normalizedTitle) === 1 => ServiceSectionType::SERMON,
             default => ServiceSectionType::OTHER,
         };
+    }
+
+    /**
+     * Returns true for structural section types that the OoS is authoritative enough
+     * to reclassify an audio-only OTHER segment into.
+     */
+    private function isOosReclassifiableType(ServiceSectionType $type): bool
+    {
+        return in_array($type, [
+            ServiceSectionType::CHILDRENS_TALK,
+            ServiceSectionType::BIBLE_READING,
+            ServiceSectionType::PRAYER,
+            ServiceSectionType::NOTICES,
+            ServiceSectionType::WELCOME,
+        ], true);
     }
 
     private function songMatchScore(ServiceSection $section, ChurchServiceItem $item): float

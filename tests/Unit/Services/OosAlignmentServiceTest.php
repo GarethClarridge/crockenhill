@@ -335,6 +335,92 @@ class OosAlignmentServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_reclassifies_an_other_section_to_childrens_talk_when_the_oos_item_signals_it(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-07-20',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => "Children's Talk",
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'audio_only',
+            ],
+        ]);
+
+        $result = app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        $this->assertTrue($result['aligned']);
+        $this->assertSame([], $result['review_triggers']);
+        $this->assertSame(ServiceSectionType::CHILDRENS_TALK, $section->section_type);
+        $this->assertSame($item->id, $section->church_service_item_id);
+        $this->assertSame("Children's Talk", $section->title);
+        $this->assertSame(ServiceSectionType::OTHER->value, $section->metadata['oos_alignment']['reclassified_from']);
+        $this->assertSame('oos_alignment', $section->metadata['oos_alignment']['reclassified_by']);
+    }
+
+    #[Test]
+    public function it_does_not_reclassify_an_other_section_when_the_oos_item_also_resolves_to_other(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-07-21',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'liturgy',
+            'title' => 'Responsive Reading',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'audio_only',
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionType::OTHER, $section->section_type);
+        $this->assertSame($item->id, $section->church_service_item_id);
+        $this->assertArrayNotHasKey('reclassified_from', $section->metadata['oos_alignment'] ?? []);
+    }
+
+    #[Test]
     public function it_only_uses_title_based_type_inference_for_custom_items(): void
     {
         $churchService = ChurchService::factory()->create([
