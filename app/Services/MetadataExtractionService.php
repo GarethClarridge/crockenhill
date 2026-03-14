@@ -93,6 +93,57 @@ class MetadataExtractionService
         return Carbon::today();
     }
 
+    /**
+     * Like extractDateFromFilename() but returns null when no recognisable date pattern is found,
+     * rather than falling back to Carbon::today(). Used for date-comparison logic where the
+     * absence of a date must be distinguishable from a real extracted date.
+     */
+    private function tryExtractDateFromFilename(string $filename): ?Carbon
+    {
+        $nameWithoutExtension = preg_replace('/\.[^.]+$/', '', $filename) ?? $filename;
+
+        // ISO format: YYYY-MM-DD
+        if (preg_match('/(\d{4})[_\-\s\.\/](\d{1,2})[_\-\s\.\/](\d{1,2})/', $nameWithoutExtension, $matches)) {
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
+
+            if ($this->isValidDate($year, $month, $day)) {
+                return Carbon::createFromDate($year, $month, $day);
+            }
+
+            return null;
+        }
+
+        // European format: DD-MM-YYYY
+        if (preg_match('/(\d{1,2})[_\-\s\.\/](\d{1,2})[_\-\s\.\/](\d{4})/', $nameWithoutExtension, $matches)) {
+            $day = (int) $matches[1];
+            $month = (int) $matches[2];
+            $year = (int) $matches[3];
+
+            if ($this->isValidDate($year, $month, $day)) {
+                return Carbon::createFromDate($year, $month, $day);
+            }
+
+            return null;
+        }
+
+        // Compact format: YYYYMMDD
+        if (preg_match('/(\d{4})(\d{2})(\d{2})/', $nameWithoutExtension, $matches)) {
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
+
+            if ($this->isValidDate($year, $month, $day)) {
+                return Carbon::createFromDate($year, $month, $day);
+            }
+
+            return null;
+        }
+
+        return null;
+    }
+
     public function determineServiceFromFile(UploadedFile $file): SermonService
     {
         try {
@@ -518,14 +569,27 @@ class MetadataExtractionService
             $tags = $format->get('tags');
             if ($tags && isset($tags['creation_time'])) {
                 $creationTime = $tags['creation_time'];
+                $metadataDate = Carbon::parse($creationTime);
+                $filenameDate = $this->tryExtractDateFromFilename($filename);
+
+                // If the filename encodes a real date that is older than the metadata date,
+                // the metadata is likely a download/re-encode timestamp — prefer the filename.
+                if ($filenameDate !== null && $metadataDate->isAfter($filenameDate->copy()->endOfDay())) {
+                    Log::info('Filename date preferred: metadata creation_time is newer', [
+                        'filename' => $filename,
+                        'filename_date' => $filenameDate->toDateString(),
+                        'metadata_date' => $metadataDate->toDateString(),
+                    ]);
+
+                    return $filenameDate;
+                }
 
                 Log::info('Extracted creation date from video metadata tags', [
                     'filename' => $filename,
                     'creation_time' => $creationTime,
                 ]);
 
-                // Parse the creation time - typically in ISO 8601 format
-                return Carbon::parse($creationTime);
+                return $metadataDate;
             }
 
             // Strategy 2: For UploadedFile, check the original file's modification time

@@ -680,4 +680,175 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertTrue($churchService->needs_review);
         $this->assertSame('openlp', $churchService->import_metadata['canonical_conflict']['incoming_source'] ?? null);
     }
+
+    #[Test]
+    public function it_reclassifies_a_speech_section_to_childrens_talk_when_a_post_song_presentation_is_in_the_oos(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-11-23',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'How Great Thou Art',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'presentations',
+            'title' => "Children's Talk",
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'title' => null,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'audio_only',
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionType::CHILDRENS_TALK->value, $section->section_type->value);
+        $this->assertSame(ServiceSectionType::OTHER->value, $section->metadata['oos_alignment']['reclassified_from'] ?? null);
+        $this->assertSame('oos_alignment', $section->metadata['oos_alignment']['reclassified_by'] ?? null);
+        $this->assertNotContains('ambiguous_childrens_talk', $section->metadata['review_flags'] ?? []);
+        $this->assertFalse($section->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_classifies_a_pre_first_song_presentation_as_notices_not_childrens_talk(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-11-24',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'presentations',
+            'title' => 'Notices',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'songs',
+            'title' => 'To God Be The Glory',
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'title' => null,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'audio_only',
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionType::NOTICES->value, $section->section_type->value);
+        $this->assertNotSame(ServiceSectionType::CHILDRENS_TALK->value, $section->section_type->value);
+    }
+
+    #[Test]
+    public function it_flags_for_review_when_multiple_post_song_presentations_exist(): void
+    {
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-11-25',
+            'service' => SermonService::MORNING->value,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 1,
+            'type' => 'songs',
+            'title' => 'Great Is Thy Faithfulness',
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 2,
+            'type' => 'presentations',
+            'title' => "Children's Talk Part 1",
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'position' => 3,
+            'type' => 'presentations',
+            'title' => "Children's Talk Part 2",
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        $firstSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 2,
+            'title' => null,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'audio_only',
+            ],
+        ]);
+
+        $secondSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 3,
+            'title' => null,
+            'confidence' => 0.5,
+            'metadata' => [
+                'confidence_level' => 'low',
+                'classification_mode' => 'audio_only',
+            ],
+        ]);
+
+        app(OosAlignmentService::class)->alignForProcessingLog($processingLog, $churchService);
+
+        $firstSection->refresh();
+        $secondSection->refresh();
+
+        $this->assertSame(ServiceSectionType::CHILDRENS_TALK->value, $firstSection->section_type->value);
+        $this->assertSame(ServiceSectionType::CHILDRENS_TALK->value, $secondSection->section_type->value);
+        $this->assertTrue($firstSection->needs_manual_review);
+        $this->assertTrue($secondSection->needs_manual_review);
+        $this->assertContains('ambiguous_childrens_talk', $firstSection->metadata['review_flags'] ?? []);
+        $this->assertContains('ambiguous_childrens_talk', $secondSection->metadata['review_flags'] ?? []);
+        $this->assertSame('ambiguous_childrens_talk', $firstSection->metadata['review_reason'] ?? null);
+        $this->assertSame('ambiguous_childrens_talk', $secondSection->metadata['review_reason'] ?? null);
+    }
 }

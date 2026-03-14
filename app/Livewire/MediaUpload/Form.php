@@ -47,6 +47,10 @@ class Form extends Component
 
     public ?string $cancelledMessage = null;
 
+    public ?string $manualReviewMessage = null;
+
+    public ?string $manualReviewUrl = null;
+
     public bool $showProcessingStatus = false;
 
     private UnifiedMediaProcessor $processor;
@@ -243,8 +247,18 @@ class Form extends Component
             $this->currentStep = $log->current_step ?? $this->currentStep;
             $this->progressPercentage = $nextProgress;
 
-            if ($nextStatus === 'failed') {
+            if ($nextStatus === 'failed' && $log->current_step === 'manual_review_required') {
+                $this->manualReviewMessage = 'The sermon candidate could not be identified automatically. Please review the segments and confirm which one is the sermon.';
+                $this->manualReviewUrl = route('services.processing.review', $log);
+                $this->errorMessage = null;
+                $this->successMessage = null;
+                $this->cancelledMessage = null;
+                $this->currentStep = 'Manual review required';
+                $this->progressPercentage = 100;
+            } elseif ($nextStatus === 'failed') {
                 $this->errorMessage = $log->error_message ?? 'Processing failed';
+                $this->manualReviewMessage = null;
+                $this->manualReviewUrl = null;
                 $this->successMessage = null;
                 $this->cancelledMessage = null;
                 $this->currentStep = 'Processing failed';

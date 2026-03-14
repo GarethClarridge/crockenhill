@@ -31,6 +31,12 @@ class Status extends Component
     #[Reactive]
     public ?string $cancelledMessage = null;
 
+    #[Reactive]
+    public ?string $manualReviewMessage = null;
+
+    #[Reactive]
+    public ?string $manualReviewUrl = null;
+
     public function requestCancelProcessing(): void
     {
         $this->dispatch('media-upload:cancel-processing');

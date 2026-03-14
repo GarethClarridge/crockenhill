@@ -244,6 +244,10 @@ class OosAlignmentService
      */
     private function alignStructuralSections(EloquentCollection $sections, EloquentCollection $items): int
     {
+        $presentationClassification = $this->classifyPresentationItems($items);
+        $presentationTypes = $presentationClassification['types'];
+        $ambiguousChildrensTalk = $presentationClassification['post_song_count'] > 1;
+
         /** @var Collection<int, ServiceSection> $structuralSections */
         $structuralSections = $sections
             ->filter(fn (ServiceSection $section): bool => $section->section_type !== ServiceSectionType::SONG)
@@ -251,7 +255,7 @@ class OosAlignmentService
 
         /** @var Collection<int, ChurchServiceItem> $structuralItems */
         $structuralItems = $items
-            ->filter(fn (ChurchServiceItem $item): bool => $this->resolvedItemType($item) !== ServiceSectionType::SONG)
+            ->filter(fn (ChurchServiceItem $item): bool => $this->resolvedItemType($item, $presentationTypes) !== ServiceSectionType::SONG)
             ->values();
 
         $sectionIndex = 0;
@@ -279,7 +283,7 @@ class OosAlignmentService
                 continue;
             }
 
-            $expectedType = $this->resolvedItemType($item);
+            $expectedType = $this->resolvedItemType($item, $presentationTypes);
 
             if ($section->section_type === $expectedType) {
                 $this->applyMatchedItem($section, $item, 0.35);
@@ -307,6 +311,15 @@ class OosAlignmentService
                     'reclassified_from' => ServiceSectionType::OTHER->value,
                     'reclassified_by' => 'oos_alignment',
                 ]);
+
+                if ($expectedType === ServiceSectionType::CHILDRENS_TALK && $ambiguousChildrensTalk) {
+                    $reviewFlags = $this->reviewFlags($metadata);
+                    $reviewFlags[] = 'ambiguous_childrens_talk';
+                    $metadata['review_flags'] = array_values(array_unique($reviewFlags));
+                    $metadata['review_reason'] = 'ambiguous_childrens_talk';
+                    $section->needs_manual_review = true;
+                }
+
                 $section->metadata = $metadata;
                 $section->title = $item->title;
 
@@ -449,7 +462,10 @@ class OosAlignmentService
             ->contains(fn (ChurchServiceItem $item): bool => $this->resolvedItemType($item) === $type);
     }
 
-    private function resolvedItemType(ChurchServiceItem $item): ServiceSectionType
+    /**
+     * @param  array<int, ServiceSectionType>  $presentationTypes  Pre-computed map of item ID → type for presentations
+     */
+    private function resolvedItemType(ChurchServiceItem $item, array $presentationTypes = []): ServiceSectionType
     {
         $metadataSectionType = $item->metadata['section_type'] ?? null;
 
@@ -471,11 +487,48 @@ class OosAlignmentService
             return ServiceSectionType::BIBLE_READING;
         }
 
+        if ($itemType === 'presentations') {
+            return $presentationTypes[$item->id] ?? ServiceSectionType::CHILDRENS_TALK;
+        }
+
         if ($itemType !== 'custom') {
             return ServiceSectionType::OTHER;
         }
 
         return $this->inferCustomItemType($item->title);
+    }
+
+    /**
+     * Classifies presentation items by position relative to the first song.
+     * Pre-service/notices presentations (before the first song) → NOTICES.
+     * Post-first-song presentations → CHILDRENS_TALK (flagged for review when multiple).
+     *
+     * @param  EloquentCollection<int, ChurchServiceItem>  $items
+     * @return array{types: array<int, ServiceSectionType>, post_song_count: int}
+     */
+    private function classifyPresentationItems(EloquentCollection $items): array
+    {
+        $firstSongPosition = $items
+            ->filter(fn (ChurchServiceItem $item): bool => strtolower($item->type) === 'songs')
+            ->min('position') ?? PHP_INT_MAX;
+
+        $postSongPresentations = $items->filter(
+            fn (ChurchServiceItem $item): bool => strtolower($item->type) === 'presentations'
+                && $item->position > $firstSongPosition
+        );
+
+        $types = [];
+        foreach ($items as $item) {
+            if (strtolower($item->type) !== 'presentations') {
+                continue;
+            }
+
+            $types[$item->id] = $item->position <= $firstSongPosition
+                ? ServiceSectionType::NOTICES
+                : ServiceSectionType::CHILDRENS_TALK;
+        }
+
+        return ['types' => $types, 'post_song_count' => $postSongPresentations->count()];
     }
 
     private function inferCustomItemType(string $title): ServiceSectionType
