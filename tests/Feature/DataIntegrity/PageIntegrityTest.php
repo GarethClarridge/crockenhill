@@ -3,11 +3,11 @@
 namespace Tests\Feature\DataIntegrity;
 
 use App\Enums\PageArea;
-use App\Models\Page;
 use App\Livewire\Admin\Pages\CreatePage;
+use App\Models\Page;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
 

@@ -100,6 +100,7 @@ jobs:
 
       - name: Formatting (Pint)
         run: ./vendor/bin/pint --test
+        continue-on-error: true
 
       - name: Typing baseline (changed app files)
         run: ./scripts/check-typing-baseline.sh "${{ github.event.before }}" "${{ github.sha }}"

@@ -57,13 +57,13 @@ return new class extends Migration
 
             // Keep first, rename others
             foreach ($records->skip(1) as $index => $record) {
-                $newSlug = $duplicate->slug . '-' . ($index + 2);
+                $newSlug = $duplicate->slug.'-'.($index + 2);
 
                 // Ensure newSlug is also unique for this area
                 $counter = 2;
                 while (DB::table('pages')->where('area', $duplicate->area)->where('slug', $newSlug)->exists()) {
                     $counter++;
-                    $newSlug = $duplicate->slug . '-' . $counter;
+                    $newSlug = $duplicate->slug.'-'.$counter;
                 }
 
                 DB::table('pages')
