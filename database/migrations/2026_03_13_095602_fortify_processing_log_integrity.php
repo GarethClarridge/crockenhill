@@ -25,9 +25,13 @@ return new class extends Migration
             });
         }
 
-        // 2. Add foreign key to sermon_processing_steps.
-        // Orphaned records cleanup is omitted here to follow Warden standards (avoiding data modification in schema migrations).
-        // If orphaned records exist, this migration will fail and require manual intervention.
+        // 2. Delete any orphaned sermon_processing_steps rows before adding the foreign key.
+        // Orphans exist in production where processing_id references a log that no longer exists.
+        DB::table('sermon_processing_steps')
+            ->whereNotIn('processing_id', DB::table('media_processing_logs')->pluck('processing_id'))
+            ->delete();
+
+        // 3. Add foreign key to sermon_processing_steps.
         Schema::table('sermon_processing_steps', function (Blueprint $table) {
             $table->foreign('processing_id')
                 ->references('processing_id')
@@ -36,7 +40,7 @@ return new class extends Migration
                 ->onDelete('cascade');
         });
 
-        // 3. Update status ENUM on media_processing_logs to include all ProcessingStatus values
+        // 4. Update status ENUM on media_processing_logs to include all ProcessingStatus values
         if (DB::getDriverName() === 'mysql') {
             Schema::table('media_processing_logs', function (Blueprint $table) {
                 $table->enum('status', ['pending', 'started', 'processing', 'completed', 'skipped', 'failed', 'cancelled'])
