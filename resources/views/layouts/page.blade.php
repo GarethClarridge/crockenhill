@@ -32,8 +32,27 @@
 
       {{-- Session Messages --}}
       @if (session('message'))
-        <x-session-message>
+        <x-session-message type="success">
           {{ session('message') }}
+        </x-session-message>
+      @endif
+
+      @if (session('status'))
+        <x-session-message type="info">
+          {{ session('status') }}
+        </x-session-message>
+      @endif
+
+      @if (session('error'))
+        <x-session-message type="error">
+          {{ session('error') }}
+        </x-session-message>
+      @endif
+
+      {{-- Flash Notifications (from redirects) --}}
+      @if (session('notification'))
+        <x-session-message :type="session('notification')['type'] ?? 'success'">
+          {{ session('notification')['message'] }}
         </x-session-message>
       @endif
 
