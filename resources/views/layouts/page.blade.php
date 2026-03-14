@@ -49,6 +49,13 @@
         </x-session-message>
       @endif
 
+      {{-- Flash Notifications (from redirects) --}}
+      @if (session('notification'))
+        <x-session-message :type="session('notification')['type'] ?? 'success'">
+          {{ session('notification')['message'] }}
+        </x-session-message>
+      @endif
+
       {{-- Toolbar: Breadcrumbs + Edit Buttons --}}
       <x-page-toolbar
         :area="$area ?? null"
