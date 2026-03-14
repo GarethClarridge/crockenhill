@@ -40,6 +40,8 @@ class SitemapCacheObserver
         Cache::forget('sermon_series');
         Cache::forget('admin_preacher_list');
         Cache::forget('public_preacher_list');
+        Cache::forget('latest_sermons');
+        Cache::forget('all_sermons');
 
         // Note: Podcast feed cache is NOT cleared here to prevent test failures
         // where sequential requests expect the same data (Cache Flexible behavior).
