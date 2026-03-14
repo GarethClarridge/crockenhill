@@ -8,6 +8,7 @@ use App\Enums\SermonContentType;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Presenters\PreacherItemListPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
@@ -82,7 +83,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getPreachers(): View
+    public function getPreachers(PreacherItemListPresenter $itemListPresenter): View
     {
         $page = Page::query()
             ->select(['id', 'slug', 'body'])
@@ -97,6 +98,7 @@ class SermonController extends Controller
 
         return view('sermons.preachers', [
             'preachers' => $preachers,
+            'json_ld_data' => $itemListPresenter->toItemList($preachers),
             'heading' => 'Preachers',
             'description' => 'Preachers at Crockenhill Baptist Church.',
             'content' => $page ? $page->body : '',

@@ -1,5 +1,23 @@
 @extends('layouts/page')
 
+@section('title', $heading)
+
+@section('meta_description', $description)
+
+@section('meta_tags')
+<x-meta-tags
+    :title="$heading"
+    :description="$description"
+/>
+
+{{-- JSON-LD Preachers List --}}
+@if(isset($json_ld_data))
+<script type="application/ld+json">
+{!! json_encode($json_ld_data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+</script>
+@endif
+@endsection
+
 @section('dynamic_content')
 
   <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
