@@ -11,32 +11,11 @@
 />
 
 {{-- JSON-LD Preachers List --}}
-@php
-$preachersData = [
-    '@context' => 'https://schema.org',
-    '@type' => 'ItemList',
-    'numberOfItems' => $preachers->count(),
-    'itemListElement' => $preachers->map(function ($preacher, $index) {
-        return [
-            '@type' => 'ListItem',
-            'position' => $index + 1,
-            'item' => [
-                '@type' => 'Person',
-                'name' => $preacher->name,
-                'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
-                'jobTitle' => 'Preacher',
-                'worksFor' => [
-                    '@type' => 'Organization',
-                    'name' => config('organization.name'),
-                ],
-            ],
-        ];
-    })->values()->all(),
-];
-@endphp
+@if(isset($json_ld_data))
 <script type="application/ld+json">
-{!! json_encode($preachersData, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+{!! json_encode($json_ld_data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
+@endif
 @endsection
 
 @section('dynamic_content')
