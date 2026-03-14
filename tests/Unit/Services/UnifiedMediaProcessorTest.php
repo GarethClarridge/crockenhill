@@ -135,7 +135,7 @@ class UnifiedMediaProcessorTest extends TestCase
         $result = $this->processor->process('audio', $file);
 
         $this->assertFalse($result->success);
-        $this->assertStringContainsString('Metadata extraction failed', $result->message);
+        $this->assertStringContainsString('An internal error occurred while initiating audio processing.', $result->message);
         $this->assertEquals('AUDIO_PROCESSING_INITIATION_FAILED', $result->errorCode);
     }
 
@@ -603,7 +603,7 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->assertFalse($result->success);
         $this->assertEquals('VIDEO_PROCESSING_FAILED', $result->errorCode);
-        $this->assertStringContainsString('Cannot read video metadata', $result->message);
+        $this->assertStringContainsString('An internal error occurred while initiating video processing.', $result->message);
     }
 
     #[Test]

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
+use App\Contracts\ProvidesSafeMessage;
 use Exception;
 
 /**
@@ -12,7 +13,7 @@ use Exception;
  * Thrown when a file fails validation checks during processing.
  * Part of the improved error handling in the refactored architecture.
  */
-class InvalidFileException extends Exception
+class InvalidFileException extends Exception implements ProvidesSafeMessage
 {
     /**
      * @param  array<int, string>  $errors
@@ -21,5 +22,10 @@ class InvalidFileException extends Exception
     {
         $message = 'Invalid file: '.implode(', ', $errors);
         parent::__construct($message, $code, $previous);
+    }
+
+    public function getSafeMessage(): string
+    {
+        return $this->getMessage();
     }
 }

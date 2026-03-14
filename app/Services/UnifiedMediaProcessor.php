@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Data\SermonMetadata;
 use App\Data\StandardProcessingResponse;
+use App\Contracts\ProvidesSafeMessage;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
@@ -261,9 +262,19 @@ class UnifiedMediaProcessor
 
             Bus::chain($jobs)
                 ->catch(function (\Throwable $e) use ($processingLog) {
+                    Log::error('Audio processing failed in job chain', [
+                        'processing_id' => $processingLog->processing_id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+
+                    $message = $e instanceof ProvidesSafeMessage
+                        ? $e->getSafeMessage()
+                        : 'An internal error occurred during audio processing.';
+
                     $processingLog->update([
                         'status' => ProcessingStatus::FAILED,
-                        'error_message' => 'Audio processing failed: '.$e->getMessage(),
+                        'error_message' => "Audio processing failed: {$message}",
                     ]);
                 })
                 ->onQueue($this->audioQueue())
@@ -286,9 +297,13 @@ class UnifiedMediaProcessor
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            $message = $e instanceof ProvidesSafeMessage
+                ? $e->getSafeMessage()
+                : 'An internal error occurred while initiating audio processing.';
+
             return ProcessingResult::failure(
                 processingId: 'failed-'.Str::uuid(),
-                message: 'Failed to initiate audio processing: '.$e->getMessage(),
+                message: "Failed to initiate audio processing: {$message}",
                 errorCode: 'AUDIO_PROCESSING_INITIATION_FAILED'
             );
         }
@@ -341,9 +356,19 @@ class UnifiedMediaProcessor
 
             Bus::chain($jobs)
                 ->catch(function (\Throwable $e) use ($processingLog) {
+                    Log::error('Video processing failed in job chain', [
+                        'processing_id' => $processingLog->processing_id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+
+                    $message = $e instanceof ProvidesSafeMessage
+                        ? $e->getSafeMessage()
+                        : 'An internal error occurred during video processing.';
+
                     $processingLog->update([
                         'status' => \App\Enums\ProcessingStatus::FAILED,
-                        'error_message' => 'Video processing failed: '.$e->getMessage(),
+                        'error_message' => "Video processing failed: {$message}",
                     ]);
                 })
                 ->onQueue((string) config('media-processing.queues.video', config('media-processing.types.video.queue', 'video-processing')))
@@ -356,9 +381,19 @@ class UnifiedMediaProcessor
             );
 
         } catch (\Exception $e) {
+            Log::error('Failed to initiate video processing', [
+                'original_filename' => $file->getClientOriginalName(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $message = $e instanceof ProvidesSafeMessage
+                ? $e->getSafeMessage()
+                : 'An internal error occurred while initiating video processing.';
+
             return ProcessingResult::failure(
                 processingId: 'failed-'.Str::uuid(),
-                message: 'Failed to initiate video processing: '.$e->getMessage(),
+                message: "Failed to initiate video processing: {$message}",
                 errorCode: 'VIDEO_PROCESSING_FAILED'
             );
         }

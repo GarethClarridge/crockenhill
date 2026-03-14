@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\ProvidesSafeMessage;
 use App\Data\LivestreamProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
@@ -230,12 +231,22 @@ class LivestreamSegmentationService
 
     private function handleProcessingFailure(string $processingId, \Throwable $e): void
     {
+        Log::error('Livestream processing failure', [
+            'processing_id' => $processingId,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
         $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
 
         if ($processingLog) {
+            $message = $e instanceof ProvidesSafeMessage
+                ? $e->getSafeMessage()
+                : 'An internal error occurred during livestream processing.';
+
             $processingLog->update([
                 'status' => 'failed',
-                'error_message' => $e->getMessage(),
+                'error_message' => $message,
                 'completed_at' => now(),
             ]);
 

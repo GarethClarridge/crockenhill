@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\ProvidesSafeMessage;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Jobs\ProcessTranscriptWithAI;
@@ -41,23 +42,42 @@ class SermonJobPipelineService
             ? $this->livestreamAudioQueue()
             : $this->defaultQueue();
 
-        Bus::chain($jobs)
-            ->catch(function (\Throwable $e) use ($processingLog) {
-                Log::error('Sermon processing job chain failed', [
-                    'processing_id' => $processingLog->processing_id,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
+        try {
+            Bus::chain($jobs)
+                ->catch(function (\Throwable $e) use ($processingLog) {
+                    $this->handleJobChainFailure($processingLog, $e);
+                })
+                ->onQueue($queueName)
+                ->dispatch();
+        } catch (\Throwable $e) {
+            // Synchronous dispatch (like in 'sync' queue during tests)
+            // might throw immediately instead of triggering the catch callback.
+            $this->handleJobChainFailure($processingLog, $e);
+            throw $e;
+        }
+    }
 
-                // Update processing log with error
-                $processingLog->update([
-                    'status' => ProcessingStatus::FAILED,
-                    'error_message' => 'Processing chain failed: '.$e->getMessage(),
-                    'current_step' => 'job_chain_failed',
-                ]);
-            })
-            ->onQueue($queueName)
-            ->dispatch();
+    /**
+     * Handle failures in the processing job chain.
+     */
+    private function handleJobChainFailure(MediaProcessingLog $processingLog, \Throwable $e): void
+    {
+        Log::error('Sermon processing job chain failed', [
+            'processing_id' => $processingLog->processing_id,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        $message = $e instanceof ProvidesSafeMessage
+            ? $e->getSafeMessage()
+            : 'An internal error occurred during the processing chain.';
+
+        // Update processing log with error
+        $processingLog->update([
+            'status' => ProcessingStatus::FAILED,
+            'error_message' => "Processing chain failed: {$message}",
+            'current_step' => 'job_chain_failed',
+        ]);
     }
 
     /**
@@ -280,9 +300,13 @@ class SermonJobPipelineService
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            $message = $e instanceof ProvidesSafeMessage
+                ? $e->getSafeMessage()
+                : 'An internal error occurred while attempting to retry processing.';
+
             return ProcessingResult::failure(
                 processingId: $processingId,
-                message: 'Failed to retry processing: '.$e->getMessage(),
+                message: "Failed to retry processing: {$message}",
                 errorCode: 'RETRY_FAILED'
             );
         }
