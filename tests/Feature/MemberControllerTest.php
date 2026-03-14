@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\InboundEmailStatus;
+use App\Enums\ProcessingStatus;
 use App\Models\InboundEmail;
+use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
@@ -93,6 +95,28 @@ class MemberControllerTest extends TestCase
         $response->assertSee(route('admin.services.inbound-emails'));
         $response->assertSeeText('Review inbound emails');
         $response->assertSeeText('2');
+    }
+
+    #[Test]
+    public function members_home_counts_legacy_livestream_manual_review_runs_for_admins(): void
+    {
+        $admin = User::factory()->admin()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'manual_review_required',
+            'error_message' => 'Manual Review Note: Multiple speech blocks met the 20-minute sermon threshold.',
+            'processing_metadata' => null,
+        ]);
+
+        $this->actingAs($admin);
+        $response = $this->get(route('memberHome'));
+
+        $response->assertOk();
+        $response->assertSeeText('Livestream review');
+        $response->assertSeeText('1');
     }
 
     #[Test]

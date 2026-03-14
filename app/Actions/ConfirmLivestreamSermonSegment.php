@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class ConfirmLivestreamSermonSegment
 {
@@ -29,7 +28,10 @@ class ConfirmLivestreamSermonSegment
      */
     public function execute(string $processingId, int $segmentId, User $user): void
     {
-        DB::transaction(function () use ($processingId, $segmentId, $user): void {
+        $queueName = (string) config('media-processing.queues.livestream', 'livestream-processing');
+
+        /** @var array<int, object> $jobs */
+        $jobs = DB::transaction(function () use ($processingId, $segmentId, $user): array {
             /** @var MediaProcessingLog|null $log */
             $log = MediaProcessingLog::where('processing_id', $processingId)
                 ->lockForUpdate()
@@ -64,10 +66,12 @@ class ConfirmLivestreamSermonSegment
             $log->confirmSermonSegment($segmentId, $user->id);
             $log->refresh();
 
-            $jobs = $this->pipelineBuilder->buildLivestreamPostReviewChainJobs($log);
-
-            Bus::chain($jobs)->dispatch();
+            return $this->pipelineBuilder->buildLivestreamPostReviewChainJobs($log);
         });
+
+        Bus::chain($jobs)
+            ->onQueue($queueName)
+            ->dispatch();
     }
 
     /**
@@ -75,17 +79,11 @@ class ConfirmLivestreamSermonSegment
      */
     private function ensureSourceVideoExists(MediaProcessingLog $log): void
     {
-        $sourceFilePath = $log->source_file_path;
-
-        if (! is_string($sourceFilePath) || $sourceFilePath === '') {
+        if (! is_string($log->source_file_path) || $log->source_file_path === '') {
             throw new \InvalidArgumentException('No source video path recorded for this run. The file may have been removed.');
         }
 
-        $diskName = config('media-processing.storage.sermon_disk', 'public');
-        $exists = Storage::disk($diskName)->exists($sourceFilePath)
-            || (file_exists($sourceFilePath));
-
-        if (! $exists) {
+        if (! $log->sourceVideoExists()) {
             throw new \InvalidArgumentException('The source video file is no longer available. This run cannot be resumed.');
         }
     }

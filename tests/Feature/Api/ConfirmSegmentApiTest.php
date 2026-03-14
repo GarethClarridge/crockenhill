@@ -10,6 +10,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -24,6 +25,7 @@ class ConfirmSegmentApiTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
         Storage::fake('public');
 
         $this->admin = User::factory()->create([
@@ -40,7 +42,7 @@ class ConfirmSegmentApiTest extends TestCase
 
     private function makeLivestreamLogAwaitingReview(string $sourcePath = 'livestreams/2026/service.mp4'): MediaProcessingLog
     {
-        Storage::disk('public')->put($sourcePath, 'fake-video');
+        Storage::disk('local')->put($sourcePath, 'fake-video');
 
         $log = MediaProcessingLog::factory()->livestream()->create([
             'source_file_path' => $sourcePath,
@@ -121,7 +123,7 @@ class ConfirmSegmentApiTest extends TestCase
     #[Test]
     public function it_confirms_a_valid_speech_segment_and_returns_202(): void
     {
-        Bus::fake();
+        Queue::fake();
 
         $log = $this->makeLivestreamLogAwaitingReview();
         $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
@@ -140,6 +142,9 @@ class ConfirmSegmentApiTest extends TestCase
         $this->assertSame(ProcessingStatus::PENDING, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
+        Queue::assertPushed(\App\Jobs\ExtractSermon::class, function (\App\Jobs\ExtractSermon $job): bool {
+            return $job->queue === config('media-processing.queues.livestream', 'livestream-processing');
+        });
     }
 
     // -------------------------------------------------------------------------

@@ -88,15 +88,6 @@ class ProcessingReview extends Component
 
     private function checkSourceAvailable(MediaProcessingLog $log): bool
     {
-        $path = $log->source_file_path;
-
-        if (! is_string($path) || $path === '') {
-            return false;
-        }
-
-        $diskName = (string) config('media-processing.storage.sermon_disk', 'public');
-
-        return \Illuminate\Support\Facades\Storage::disk($diskName)->exists($path)
-            || file_exists($path);
+        return $log->sourceVideoExists();
     }
 }

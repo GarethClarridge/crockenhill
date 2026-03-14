@@ -9,12 +9,20 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MediaProcessingLogTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('local');
+    }
 
     #[Test]
     public function it_has_fillable_attributes(): void
@@ -191,6 +199,45 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
+    public function it_detects_legacy_manual_review_rows_as_awaiting_review(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'manual_review_required',
+            'error_message' => 'Manual Review Note: Multiple speech blocks met the 20-minute sermon threshold.',
+            'processing_metadata' => null,
+        ]);
+
+        $this->assertTrue($log->requiresManualSermonReview());
+        $this->assertSame('multiple_qualifying_speech_blocks', $log->manualReviewMetadata()['reason_code']);
+    }
+
+    #[Test]
+    public function it_includes_legacy_manual_review_rows_in_the_awaiting_review_scope(): void
+    {
+        $legacyLog = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'manual_review_required',
+            'error_message' => 'Manual Review Note: Sermon auto-selection confidence was insufficient.',
+            'processing_metadata' => null,
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'manual_review_required',
+            'error_message' => 'Unrelated failure message',
+            'processing_metadata' => null,
+        ]);
+
+        $matchingIds = MediaProcessingLog::query()
+            ->awaitingManualSermonReview()
+            ->pluck('id')
+            ->all();
+
+        $this->assertContains($legacyLog->id, $matchingIds);
+    }
+
+    #[Test]
     public function it_returns_null_for_confirmed_segment_id_before_confirmation(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create();
@@ -236,6 +283,18 @@ class MediaProcessingLogTest extends TestCase
         $this->assertSame('no_qualifying_speech_block', $review['reason_code']);
         $this->assertCount(1, $review['speech_segments']);
         $this->assertSame(10, $review['confirmed_segment_id']);
+    }
+
+    #[Test]
+    public function it_checks_source_video_availability_on_the_temp_disk(): void
+    {
+        Storage::disk('local')->put('livestreams/2026/service.mp4', 'fake-video');
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'source_file_path' => 'livestreams/2026/service.mp4',
+        ]);
+
+        $this->assertTrue($log->sourceVideoExists());
     }
 
     #[Test]

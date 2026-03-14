@@ -12,6 +12,7 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -27,6 +28,8 @@ class ProcessingReviewTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Storage::fake('local');
 
         $this->admin = User::factory()->create([
             'is_admin' => true,
@@ -85,6 +88,24 @@ class ProcessingReviewTest extends TestCase
     }
 
     #[Test]
+    public function review_list_includes_legacy_manual_review_rows_without_structured_metadata(): void
+    {
+        $this->actingAs($this->admin);
+
+        $legacyLog = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'manual_review_required',
+            'error_message' => 'Manual Review Note: Multiple speech blocks met the 20-minute sermon threshold.',
+            'processing_metadata' => null,
+        ]);
+
+        Livewire::test(ProcessingReviewList::class)
+            ->assertSee($legacyLog->processing_id)
+            ->assertSee('Multiple Qualifying Speech Blocks')
+            ->assertSee('Awaiting review');
+    }
+
+    #[Test]
     public function review_list_requires_admin(): void
     {
         $this->actingAs($this->nonAdmin);
@@ -110,6 +131,7 @@ class ProcessingReviewTest extends TestCase
         $this->actingAs($this->admin);
 
         $log = MediaProcessingLog::factory()->livestream()->create([
+            'source_file_path' => 'livestreams/2026/review-detail.mp4',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'manual_review_required',
             'processing_metadata' => [
@@ -122,6 +144,7 @@ class ProcessingReviewTest extends TestCase
                 ],
             ],
         ]);
+        Storage::disk('local')->put('livestreams/2026/review-detail.mp4', 'fake-video');
 
         $speechSegment = LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
@@ -147,6 +170,7 @@ class ProcessingReviewTest extends TestCase
             ->assertSee('Speech')
             ->assertSee('Song')
             ->assertSee('Candidate')
+            ->assertSee('Available')
             ->assertSee('This is the sermon');
     }
 

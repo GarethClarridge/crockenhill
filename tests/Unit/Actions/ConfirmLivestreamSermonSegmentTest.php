@@ -10,7 +10,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -27,6 +27,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
         Storage::fake('public');
 
         $this->action = new ConfirmLivestreamSermonSegment(new ProcessingPipelineBuilder);
@@ -56,9 +57,8 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
     #[Test]
     public function it_confirms_a_valid_speech_segment_and_dispatches_resume_chain(): void
     {
-        Bus::fake();
-        Storage::fake('public');
-        Storage::disk('public')->put('livestreams/2026/service.mp4', 'fake-video');
+        Queue::fake();
+        Storage::disk('local')->put('livestreams/2026/service.mp4', 'fake-video');
 
         $log = $this->makeLivestreamLogAwaitingReview('livestreams/2026/service.mp4');
         $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
@@ -73,7 +73,9 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
         $this->assertSame($this->admin->id, $log->manualReviewMetadata()['confirmed_by_user_id']);
 
-        Bus::assertDispatched(ExtractSermon::class);
+        Queue::assertPushed(ExtractSermon::class, function (ExtractSermon $job): bool {
+            return $job->queue === config('media-processing.queues.livestream', 'livestream-processing');
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -123,7 +125,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
     #[Test]
     public function it_rejects_a_segment_from_another_processing_run(): void
     {
-        Storage::disk('public')->put('livestreams/2026/service.mp4', 'fake-video');
+        Storage::disk('local')->put('livestreams/2026/service.mp4', 'fake-video');
 
         $log = $this->makeLivestreamLogAwaitingReview('livestreams/2026/service.mp4');
 
@@ -139,7 +141,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
     #[Test]
     public function it_rejects_a_non_speech_segment(): void
     {
-        Storage::disk('public')->put('livestreams/2026/service.mp4', 'fake-video');
+        Storage::disk('local')->put('livestreams/2026/service.mp4', 'fake-video');
 
         $log = $this->makeLivestreamLogAwaitingReview('livestreams/2026/service.mp4');
         $segment = LivestreamSegment::factory()->song()->forProcessingLog($log->id)->create();
@@ -181,8 +183,8 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
     #[Test]
     public function it_rejects_a_second_confirmation_attempt(): void
     {
-        Bus::fake();
-        Storage::disk('public')->put('livestreams/2026/service.mp4', 'fake-video');
+        Queue::fake();
+        Storage::disk('local')->put('livestreams/2026/service.mp4', 'fake-video');
 
         $log = $this->makeLivestreamLogAwaitingReview('livestreams/2026/service.mp4');
         $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
@@ -195,5 +197,29 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $this->expectExceptionMessage('not currently awaiting manual sermon review');
 
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
+    }
+
+    #[Test]
+    public function it_allows_confirmation_for_legacy_manual_review_rows_without_structured_metadata(): void
+    {
+        Queue::fake();
+        Storage::disk('local')->put('livestreams/2026/legacy-service.mp4', 'fake-video');
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'source_file_path' => 'livestreams/2026/legacy-service.mp4',
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'manual_review_required',
+            'error_message' => 'Manual Review Note: Multiple speech blocks met the 20-minute sermon threshold.',
+            'processing_metadata' => null,
+        ]);
+        $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
+
+        $this->action->execute($log->processing_id, $segment->id, $this->admin);
+
+        $log->refresh();
+
+        $this->assertSame('confirmed', $log->manualReviewMetadata()['status']);
+        $this->assertSame('multiple_qualifying_speech_blocks', $log->manualReviewMetadata()['reason_code']);
+        $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
     }
 }

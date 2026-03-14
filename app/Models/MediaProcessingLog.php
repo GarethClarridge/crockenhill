@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -266,6 +267,25 @@ class MediaProcessingLog extends Model
      * @param  Builder<MediaProcessingLog>  $query
      * @return Builder<MediaProcessingLog>
      */
+    public function scopeAwaitingManualSermonReview(Builder $query): Builder
+    {
+        return $query
+            ->where('processing_type', MediaType::Livestream->value)
+            ->where('status', ProcessingStatus::FAILED->value)
+            ->where('current_step', 'manual_review_required')
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('processing_metadata->manual_review->reason_code');
+
+                foreach (self::legacyManualReviewReasonPatterns() as $pattern) {
+                    $query->orWhere('error_message', 'like', '%'.$pattern.'%');
+                }
+            });
+    }
+
+    /**
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
     public function scopeRecent(Builder $query, int $days = 7): Builder
     {
         return $query->where('created_at', '>=', now()->subDays($days));
@@ -380,7 +400,7 @@ class MediaProcessingLog extends Model
     public function confirmSermonSegment(int $segmentId, int $userId): bool
     {
         $metadata = $this->processing_metadata ?? [];
-        $manualReview = $metadata['manual_review'] ?? [];
+        $manualReview = $this->manualReviewMetadata();
         $manualReview['status'] = 'confirmed';
         $manualReview['confirmed_segment_id'] = $segmentId;
         $manualReview['confirmed_by_user_id'] = $userId;
@@ -400,7 +420,12 @@ class MediaProcessingLog extends Model
      */
     public function manualReviewMetadata(): array
     {
-        return ($this->processing_metadata ?? [])['manual_review'] ?? [];
+        $manualReview = ($this->processing_metadata ?? [])['manual_review'] ?? null;
+        if (is_array($manualReview)) {
+            return $manualReview;
+        }
+
+        return $this->legacyManualReviewMetadata();
     }
 
     public function manuallyConfirmedSegmentId(): ?int
@@ -412,7 +437,34 @@ class MediaProcessingLog extends Model
 
     public function requiresManualSermonReview(): bool
     {
-        return ($this->manualReviewMetadata()['status'] ?? null) === 'required';
+        $manualReviewStatus = $this->manualReviewMetadata()['status'] ?? null;
+
+        if ($manualReviewStatus === 'required') {
+            return true;
+        }
+
+        if ($manualReviewStatus === 'confirmed') {
+            return false;
+        }
+
+        return $this->legacyManualReviewReasonCode() !== null
+            && $this->status === ProcessingStatus::FAILED
+            && $this->current_step === 'manual_review_required'
+            && $this->processing_type === MediaType::Livestream;
+    }
+
+    public function sourceVideoExists(): bool
+    {
+        $sourceFilePath = $this->source_file_path;
+
+        if (! is_string($sourceFilePath) || $sourceFilePath === '') {
+            return false;
+        }
+
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        return Storage::disk($tempDisk)->exists($sourceFilePath)
+            || file_exists($sourceFilePath);
     }
 
     public function updateStep(string $step): bool
@@ -434,5 +486,67 @@ class MediaProcessingLog extends Model
             get: fn () => $this->source_file_path,
             set: fn ($value) => ['source_file_path' => $value]
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function legacyManualReviewMetadata(): array
+    {
+        $reasonCode = $this->legacyManualReviewReasonCode();
+        if ($reasonCode === null) {
+            return [];
+        }
+
+        return [
+            'status' => 'required',
+            'reason_code' => $reasonCode,
+            'reason_message' => $this->legacyManualReviewReasonMessage(),
+            'flagged_at' => $this->updated_at?->toIso8601String(),
+            'speech_segments' => [],
+        ];
+    }
+
+    private function legacyManualReviewReasonCode(): ?string
+    {
+        $message = $this->legacyManualReviewReasonMessage();
+
+        return match (true) {
+            $message !== null && str_contains($message, 'No speech block met the 20-minute sermon threshold.') => 'no_qualifying_speech_block',
+            $message !== null && str_contains($message, 'Multiple speech blocks met the 20-minute sermon threshold.') => 'multiple_qualifying_speech_blocks',
+            $message !== null && str_contains($message, 'The longest speech block was not at least 1.5x longer than the next-longest speech block.') => 'ratio_below_threshold',
+            $message !== null && str_contains($message, 'Sermon auto-selection confidence was insufficient.') => 'manual_confidence_review',
+            default => null,
+        };
+    }
+
+    private function legacyManualReviewReasonMessage(): ?string
+    {
+        if (
+            $this->processing_type !== MediaType::Livestream
+            || $this->status !== ProcessingStatus::FAILED
+            || $this->current_step !== 'manual_review_required'
+            || ! is_string($this->error_message)
+            || $this->error_message === ''
+        ) {
+            return null;
+        }
+
+        return str_starts_with($this->error_message, 'Manual Review Note: ')
+            ? substr($this->error_message, strlen('Manual Review Note: '))
+            : $this->error_message;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function legacyManualReviewReasonPatterns(): array
+    {
+        return [
+            'No speech block met the 20-minute sermon threshold.',
+            'Multiple speech blocks met the 20-minute sermon threshold.',
+            'The longest speech block was not at least 1.5x longer than the next-longest speech block.',
+            'Sermon auto-selection confidence was insufficient.',
+        ];
     }
 }

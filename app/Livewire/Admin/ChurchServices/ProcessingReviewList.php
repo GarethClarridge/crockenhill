@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
-use App\Enums\MediaType;
-use App\Enums\ProcessingStatus;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Models\MediaProcessingLog;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -25,10 +22,7 @@ class ProcessingReviewList extends Component
     public function render(): View
     {
         $pendingReviews = MediaProcessingLog::query()
-            ->where('processing_type', MediaType::Livestream->value)
-            ->where('status', ProcessingStatus::FAILED->value)
-            ->where('current_step', 'manual_review_required')
-            ->whereNotNull(DB::raw("JSON_UNQUOTE(JSON_EXTRACT(processing_metadata, '$.manual_review.reason_code'))"))
+            ->awaitingManualSermonReview()
             ->orderByDesc('updated_at')
             ->paginate(20);
 
