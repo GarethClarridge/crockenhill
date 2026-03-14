@@ -1,8 +1,6 @@
 @extends('layouts.main')
 
-@section('title')
-Christ
-@stop
+@section('title', 'Christ')
 
 @section('meta_description', 'Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church.')
 
