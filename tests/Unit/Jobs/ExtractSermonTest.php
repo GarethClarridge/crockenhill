@@ -581,6 +581,155 @@ class ExtractSermonTest extends TestCase
     }
 
     #[Test]
+    public function it_stores_structured_manual_review_metadata_when_flagging_ambiguous_run(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/review-structured.mp4',
+        ]);
+
+        // Two similarly-sized speech blocks — ratio will fail
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 1320.0,
+            'duration' => 1320.0,
+        ]);
+
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 2,
+            'start_time' => 1400.0,
+            'end_time' => 2300.0,
+            'duration' => 900.0,
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockStorage = $this->createMock(VideoStorageService::class);
+
+        Mail::fake();
+        Log::shouldReceive('warning')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
+
+        $job = new ExtractSermon($log);
+        $this->runJob($job, $mockExtractor, $mockStorage);
+
+        $log->refresh();
+        $review = $log->manualReviewMetadata();
+        $this->assertSame('required', $review['status']);
+        $this->assertSame('ratio_below_threshold', $review['reason_code']);
+        $this->assertNotEmpty($review['reason_message']);
+        $this->assertNotNull($review['flagged_at']);
+        $this->assertNotEmpty($review['speech_segments']);
+    }
+
+    #[Test]
+    public function it_bypasses_confidence_gating_and_extracts_when_segment_is_manually_confirmed(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        $tempDir = storage_path('app/livestreams');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        $videoFile = $tempDir.'/confirmed-segment.mp4';
+        file_put_contents($videoFile, str_repeat("\x00", 1024));
+
+        $extractedDir = storage_path('app/extracted');
+        if (! is_dir($extractedDir)) {
+            mkdir($extractedDir, 0755, true);
+        }
+        $extractedAudioFile = $extractedDir.'/confirmed-segment.mp3';
+        file_put_contents($extractedAudioFile, str_repeat("\xFF\xFB", 512));
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 999.0,
+            'source_file_path' => 'livestreams/confirmed-segment.mp4',
+        ]);
+
+        // Two similar-sized blocks that would normally fail the confidence check
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 1,
+            'start_time' => 600.0,
+            'end_time' => 1800.0,
+            'duration' => 1200.0,
+        ]);
+
+        $confirmedSegment = LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_order' => 2,
+            'start_time' => 2000.0,
+            'end_time' => 3100.0,
+            'duration' => 1100.0,
+        ]);
+
+        // Simulate the admin having already confirmed the second segment
+        $log->update([
+            'processing_metadata' => [
+                'manual_review' => [
+                    'status' => 'confirmed',
+                    'reason_code' => 'ratio_below_threshold',
+                    'reason_message' => 'The longest speech block was not at least 1.5x longer.',
+                    'flagged_at' => now()->subMinutes(10)->toIso8601String(),
+                    'speech_segments' => [],
+                    'confirmed_segment_id' => $confirmedSegment->id,
+                    'confirmed_by_user_id' => 1,
+                    'confirmed_at' => now()->toIso8601String(),
+                ],
+            ],
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->with(
+                $this->anything(),
+                $this->callback(function ($segment): bool {
+                    return $segment instanceof \App\Data\LivestreamSegment
+                        && $segment->startTime === 2000.0
+                        && $segment->endTime === 3100.0;
+                }),
+                $this->anything()
+            )
+            ->willReturn('extracted/confirmed-segment-video.mp4');
+
+        $mockExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->willReturn([
+                'audio_path' => 'extracted/confirmed-segment.mp3',
+                'full_path' => $extractedAudioFile,
+                'original_size' => 10485760,
+                'final_size' => 5242880,
+                'compression_applied' => true,
+                'compression_ratio' => 0.5,
+                'valid_for_transcription' => true,
+            ]);
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+
+        Mail::fake();
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        $job = new ExtractSermon($log);
+        $this->runJob($job, $mockExtractor, $mockStorage);
+
+        $log->refresh();
+        $this->assertSame('extraction_complete', $log->current_step);
+        $this->assertSame('extracted/confirmed-segment-video.mp4', $log->video_file_path);
+        Mail::assertNothingQueued();
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
+    #[Test]
     public function it_marks_for_manual_review_and_stops_when_multiple_long_speech_blocks_are_similar(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([

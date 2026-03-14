@@ -332,13 +332,13 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
     /**
      * @param  array{
      *     mode: 'single_span'|'concat_spans'|'baseline',
-     *     source: 'service_sections'|'processing_log',
+     *     source: 'service_sections'|'processing_log'|'manual_review',
      *     segments: array<int, array{start_time: float, end_time: float}>,
      *     metadata: array<string, mixed>
      * }  $extractionPlan
      * @return array{
      *     mode: 'single_span'|'concat_spans'|'baseline',
-     *     source: 'service_sections'|'processing_log',
+     *     source: 'service_sections'|'processing_log'|'manual_review',
      *     segments: array<int, array{start_time: float, end_time: float}>,
      *     metadata: array<string, mixed>
      * }|null
@@ -359,10 +359,11 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         }
 
         if (! $evaluation['is_clear']) {
-            $reason = $this->manualReviewReason($evaluation['reason']);
-            $this->processingLog->markForManualReview($reason);
+            $reasonCode = $evaluation['reason'];
+            $reasonMessage = $this->manualReviewReason($reasonCode);
+            $this->processingLog->markForManualReview($reasonCode, $reasonMessage, $speechSegments);
             $this->processingLog->refresh();
-            $this->notifyManualReviewRequired($reason, $speechSegments);
+            $this->notifyManualReviewRequired($reasonMessage, $speechSegments);
 
             // Stop the remaining chained jobs; extraction is intentionally deferred.
             $this->chained = [];

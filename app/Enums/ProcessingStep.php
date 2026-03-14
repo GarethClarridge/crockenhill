@@ -94,6 +94,8 @@ enum ProcessingStep: string
     case TranscribingAudioFailed = 'transcribing_audio_failed';
     case AnalyzingTranscriptFailed = 'analyzing_transcript_failed';
     case UpdatingSermonRecordFailed = 'updating_sermon_record_failed';
+    case ManualReviewRequired = 'manual_review_required';
+    case ManualReviewConfirmed = 'manual_review_confirmed';
     case Cancelled = 'cancelled';
     case Preparing = 'preparing';
     case RetryInitiated = 'retry_initiated';
@@ -135,6 +137,10 @@ enum ProcessingStep: string
 
             self::SectionClassificationComplete,
             self::SectionClassificationSkipped => 52,
+
+            self::ManualReviewRequired => 53,
+
+            self::ManualReviewConfirmed => 54,
 
             self::Extraction,
             self::ExtractingSermon => 55,

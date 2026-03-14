@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 
@@ -14,13 +15,18 @@ class SermonExtractionPlanResolver
     /**
      * @return array{
      *     mode: 'single_span'|'concat_spans'|'baseline',
-     *     source: 'service_sections'|'processing_log',
+     *     source: 'service_sections'|'processing_log'|'manual_review',
      *     segments: array<int, array{start_time: float, end_time: float}>,
      *     metadata: array<string, mixed>
      * }
      */
     public function resolve(MediaProcessingLog $processingLog): array
     {
+        $confirmedSegmentId = $processingLog->manuallyConfirmedSegmentId();
+        if ($confirmedSegmentId !== null) {
+            return $this->confirmedSegmentPlan($processingLog, $confirmedSegmentId);
+        }
+
         $legacySectionPreference = (bool) config(
             'media-processing.section_classification.prefer_high_confidence_sermon_section',
             true
@@ -130,6 +136,37 @@ class SermonExtractionPlanResolver
                 'sermon_section_id' => $sermonSection->id,
                 'bible_section_id' => $bibleSection->id,
                 'gap_seconds' => $gapSeconds,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     mode: 'single_span',
+     *     source: 'manual_review',
+     *     segments: array<int, array{start_time: float, end_time: float}>,
+     *     metadata: array<string, mixed>
+     * }
+     */
+    private function confirmedSegmentPlan(MediaProcessingLog $processingLog, int $segmentId): array
+    {
+        $segment = $processingLog->segments()->find($segmentId);
+
+        if (! $segment instanceof LivestreamSegment) {
+            throw new \Exception("Manually confirmed segment {$segmentId} not found on processing log");
+        }
+
+        return [
+            'mode' => 'single_span',
+            'source' => 'manual_review',
+            'segments' => [[
+                'start_time' => (float) $segment->start_time,
+                'end_time' => (float) $segment->end_time,
+            ]],
+            'metadata' => [
+                'strategy' => 'manual_review_confirmed_segment',
+                'sermon_segment_id' => $segment->id,
+                'manual_confirmation' => true,
             ],
         ];
     }

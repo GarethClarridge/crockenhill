@@ -114,6 +114,27 @@ class ProcessingPipelineBuilder
     }
 
     /**
+     * Resume chain for livestream runs after manual sermon segment confirmation.
+     * Starts at ExtractSermon, skipping all upstream segmentation and analysis steps.
+     *
+     * @return non-empty-list<object>
+     */
+    public function buildLivestreamPostReviewChainJobs(MediaProcessingLog $log): array
+    {
+        return [
+            new ExtractSermon($log),
+            new SubmitToProcessing($log),
+            new IdentifySpeaker($log),
+            new TranscribeAudio($log),
+            new ProcessTranscriptWithAI($log),
+            new GenerateThumbnail($log),
+            new PrepareSectionPublicationCandidates($log),
+            new SendCompletionNotification($log),
+            new CleanupTemporaryFiles($log),
+        ];
+    }
+
+    /**
      * Reclassification chain for existing livestream runs that also refreshes
      * sermon-derived outputs when the original source media is still available.
      *

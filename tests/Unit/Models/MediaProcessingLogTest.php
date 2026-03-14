@@ -153,6 +153,92 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
+    public function it_stores_structured_metadata_when_marked_for_manual_review(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::PROCESSING]);
+
+        $speechSegments = [
+            ['segment_id' => 1, 'start_time' => 0.0, 'end_time' => 1320.0, 'duration' => 1320.0],
+            ['segment_id' => 2, 'start_time' => 1400.0, 'end_time' => 2300.0, 'duration' => 900.0],
+        ];
+
+        $log->markForManualReview('ratio_below_threshold', 'The longest speech block was not at least 1.5x longer.', $speechSegments);
+        $log->refresh();
+
+        $this->assertSame(ProcessingStatus::FAILED, $log->status);
+        $this->assertSame('manual_review_required', $log->current_step);
+        $this->assertSame('The longest speech block was not at least 1.5x longer.', $log->error_message);
+
+        $review = $log->manualReviewMetadata();
+        $this->assertSame('required', $review['status']);
+        $this->assertSame('ratio_below_threshold', $review['reason_code']);
+        $this->assertSame('The longest speech block was not at least 1.5x longer.', $review['reason_message']);
+        $this->assertNotNull($review['flagged_at']);
+        $this->assertCount(2, $review['speech_segments']);
+    }
+
+    #[Test]
+    public function it_requires_manual_sermon_review_when_status_is_required(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        $this->assertFalse($log->requiresManualSermonReview());
+
+        $log->markForManualReview('no_qualifying_speech_block', 'No speech block met the threshold.');
+        $log->refresh();
+
+        $this->assertTrue($log->requiresManualSermonReview());
+    }
+
+    #[Test]
+    public function it_returns_null_for_confirmed_segment_id_before_confirmation(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+
+        $this->assertNull($log->manuallyConfirmedSegmentId());
+    }
+
+    #[Test]
+    public function it_confirms_sermon_segment_and_records_audit_data(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::FAILED]);
+        $log->markForManualReview('ratio_below_threshold', 'Ratio below threshold.');
+        $log->refresh();
+
+        $log->confirmSermonSegment(42, 7);
+        $log->refresh();
+
+        $this->assertSame(ProcessingStatus::PENDING, $log->status);
+        $this->assertSame('manual_review_confirmed', $log->current_step);
+        $this->assertNull($log->error_message);
+        $this->assertSame(42, $log->manuallyConfirmedSegmentId());
+
+        $review = $log->manualReviewMetadata();
+        $this->assertSame('confirmed', $review['status']);
+        $this->assertSame(42, $review['confirmed_segment_id']);
+        $this->assertSame(7, $review['confirmed_by_user_id']);
+        $this->assertNotNull($review['confirmed_at']);
+        $this->assertFalse($log->requiresManualSermonReview());
+    }
+
+    #[Test]
+    public function it_preserves_existing_manual_review_metadata_when_confirming(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $speechSegments = [['segment_id' => 10, 'start_time' => 0.0, 'end_time' => 1200.0, 'duration' => 1200.0]];
+        $log->markForManualReview('no_qualifying_speech_block', 'No qualifying block.', $speechSegments);
+        $log->refresh();
+
+        $log->confirmSermonSegment(10, 1);
+        $log->refresh();
+
+        $review = $log->manualReviewMetadata();
+        $this->assertSame('no_qualifying_speech_block', $review['reason_code']);
+        $this->assertCount(1, $review['speech_segments']);
+        $this->assertSame(10, $review['confirmed_segment_id']);
+    }
+
+    #[Test]
     public function it_has_backward_compatible_stored_file_path(): void
     {
         $log = new MediaProcessingLog;

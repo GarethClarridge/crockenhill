@@ -247,6 +247,52 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertTrue($jobs[0]->preservesRunStatus());
     }
 
+    // --- buildLivestreamPostReviewChainJobs() ---
+
+    #[Test]
+    public function it_builds_post_review_chain_starting_at_extract_sermon(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $jobs = $this->builder->buildLivestreamPostReviewChainJobs($log);
+
+        $this->assertCount(9, $jobs);
+        $this->assertInstanceOf(ExtractSermon::class, $jobs[0]);
+        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[1]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[2]);
+        $this->assertInstanceOf(TranscribeAudio::class, $jobs[3]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[4]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[5]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[6]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[7]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[8]);
+    }
+
+    #[Test]
+    public function it_excludes_upstream_segmentation_jobs_from_post_review_chain(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $jobs = $this->builder->buildLivestreamPostReviewChainJobs($log);
+        $classes = array_map(fn ($job) => get_class($job), $jobs);
+
+        $this->assertNotContains(AnalyzeSegments::class, $classes);
+        $this->assertNotContains(ClassifyServiceSections::class, $classes);
+        $this->assertNotContains(TranscribeSpeechSegments::class, $classes);
+        $this->assertNotContains(ClassifySpeechSections::class, $classes);
+        $this->assertNotContains(AlignWithOos::class, $classes);
+    }
+
+    #[Test]
+    public function it_ends_post_review_chain_with_cleanup(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $jobs = $this->builder->buildLivestreamPostReviewChainJobs($log);
+
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, end($jobs));
+    }
+
     // --- Shared pipeline checks ---
 
     #[Test]
