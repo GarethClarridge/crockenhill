@@ -5,11 +5,124 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Models\Sermon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class SermonRepository
 {
+    /**
+     * Build the base query for public sermon listings and browse pages.
+     *
+     * @return Builder<Sermon>
+     */
+    public function publicSermonQuery(): Builder
+    {
+        return Sermon::query()
+            ->whereSermon()
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type'])
+            ->with('preacherProfile:id,name,slug');
+    }
+
+    /**
+     * Get the latest sermons grouped by date.
+     *
+     * @return Collection<string, Collection<int, Sermon>>
+     */
+    public function getLatestSermons(): Collection
+    {
+        return Cache::flexible('latest_sermons', [86400, 172800], function () {
+            $distinct_dates = Sermon::query()
+                ->whereSermon()
+                ->select('date')
+                ->distinct()
+                ->orderBy('date', 'desc')
+                ->limit(6)
+                ->pluck('date');
+
+            if ($distinct_dates->isEmpty()) {
+                return collect();
+            }
+
+            return $this->publicSermonQuery()
+                ->whereIn('date', $distinct_dates)
+                ->orderBy('date', 'desc')
+                ->orderBy('service', 'asc')
+                ->get()
+                ->groupBy(fn ($sermon) => $sermon->date->format('Y-m-d'));
+        });
+    }
+
+    /**
+     * Get all sermons grouped by date.
+     *
+     * @return Collection<string, Collection<int, Sermon>>
+     */
+    public function getAllSermons(): Collection
+    {
+        return Cache::flexible('all_sermons', [86400, 172800], function () {
+            return $this->publicSermonQuery()
+                ->orderBy('date', 'desc')
+                ->orderBy('service', 'asc')
+                ->get()
+                ->groupBy(function ($sermon) {
+                    return $sermon->date->format('Y-m-d');
+                });
+        });
+    }
+
+    /**
+     * Get sermons for a specific series.
+     *
+     * @return Collection<int, Sermon>
+     */
+    public function getSermonsBySeries(string $seriesName): Collection
+    {
+        return Cache::flexible('sermons_series_'.Str::slug($seriesName), [86400, 172800], function () use ($seriesName) {
+            return $this->publicSermonQuery()
+                ->where('series', $seriesName)
+                ->orderBy('date', 'desc')
+                ->get();
+        });
+    }
+
+    /**
+     * Get sermons for a specific service.
+     *
+     * @return Collection<int, Sermon>
+     */
+    public function getSermonsByService(string $service): Collection
+    {
+        return Cache::flexible("sermons_service_{$service}", [86400, 172800], function () use ($service) {
+            return $this->publicSermonQuery()
+                ->where('service', $service)
+                ->orderBy('date', 'desc')
+                ->get();
+        });
+    }
+
+    /**
+     * Clear all cached sermon listings.
+     */
+    public function clearListingCaches(?Sermon $sermon = null): void
+    {
+        Cache::forget('latest_sermons');
+        Cache::forget('all_sermons');
+        Cache::forget('sermon_series');
+
+        if ($sermon) {
+            if ($sermon->series) {
+                Cache::forget('sermons_series_'.Str::slug($sermon->series));
+            }
+            if ($sermon->service) {
+                $serviceValue = $sermon->service->value;
+                Cache::forget('sermons_service_'.$serviceValue);
+            }
+        }
+    }
+
     /**
      * Get all distinct sermon series from database.
      *

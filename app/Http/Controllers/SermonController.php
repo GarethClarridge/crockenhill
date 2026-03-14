@@ -11,40 +11,25 @@ use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SermonController extends Controller
 {
+    public function __construct(
+        private readonly SermonRepository $sermonRepository
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
     public function index(): View
     {
-        $distinct_dates = Sermon::query()
-            ->whereSermon()
-            ->select('date')
-            ->distinct()
-            ->orderBy('date', 'desc')
-            ->limit(6)
-            ->pluck('date');
-
-        if ($distinct_dates->isNotEmpty()) {
-            /**
-             * Performance Optimization: Eager load preacherProfile and limit retrieved columns
-             * to required fields for cards to reduce memory usage and DB I/O.
-             */
-            $latest_sermons = $this->publicSermonQuery()
-                ->whereIn('date', $distinct_dates)
-                ->orderBy('date', 'desc')
-                ->orderBy('service', 'asc')
-                ->get()
-                ->groupBy(fn ($sermon) => $sermon->date->format('Y-m-d'));
-        } else {
-            $latest_sermons = collect();
-        }
+        /**
+         * Performance Optimization: Use Repository to fetch cached sermon listing.
+         */
+        $latest_sermons = $this->sermonRepository->getLatestSermons();
 
         return view('sermons.index', [
             'latest_sermons' => $latest_sermons,
@@ -55,13 +40,10 @@ class SermonController extends Controller
 
     public function getAll(): View
     {
-        $sermons = $this->publicSermonQuery()
-            ->orderBy('date', 'desc')
-            ->orderBy('service', 'asc')
-            ->get()
-            ->groupBy(function ($sermon) {
-                return $sermon->date->format('Y-m-d');
-            });
+        /**
+         * Performance Optimization: Use Repository to fetch cached full sermon listing.
+         */
+        $sermons = $this->sermonRepository->getAllSermons();
 
         return view('sermons.all', [
             'sermons' => $sermons,
@@ -148,9 +130,9 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getSerieses(SermonRepository $sermonRepository): View
+    public function getSerieses(): View
     {
-        $series = collect($sermonRepository->getSeriesForDisplay());
+        $series = collect($this->sermonRepository->getSeriesForDisplay());
 
         return view('sermons.serieses', [
             'series' => $series,
@@ -162,14 +144,11 @@ class SermonController extends Controller
     public function getSeries(string $series): View
     {
         $series_name = str_replace('-', ' ', Str::title($series));
+
         /**
-         * Performance Optimization: Eager load preacherProfile and limit retrieved columns
-         * to required fields for cards.
+         * Performance Optimization: Use Repository to fetch cached series listing.
          */
-        $sermons = $this->publicSermonQuery()
-            ->where('series', $series_name)
-            ->orderBy('date', 'desc')
-            ->get();
+        $sermons = $this->sermonRepository->getSermonsBySeries($series_name);
 
         return view('sermons.series', [
             'sermons' => $sermons,
@@ -181,13 +160,9 @@ class SermonController extends Controller
     public function getService(string $service): View
     {
         /**
-         * Performance Optimization: Eager load preacherProfile and limit retrieved columns
-         * to required fields for cards.
+         * Performance Optimization: Use Repository to fetch cached service listing.
          */
-        $sermons = $this->publicSermonQuery()
-            ->where('service', $service)
-            ->orderBy('date', 'desc')
-            ->get();
+        $sermons = $this->sermonRepository->getSermonsByService($service);
 
         $serviceLabel = match ($service) {
             'morning' => 'Sunday Morning',
@@ -221,18 +196,5 @@ class SermonController extends Controller
         }
 
         return $this->show($sermon, $pageContextService, $exposurePolicy);
-    }
-
-    /**
-     * Build the base query for public sermon listings and browse pages.
-     *
-     * @return Builder<Sermon>
-     */
-    private function publicSermonQuery(): Builder
-    {
-        return Sermon::query()
-            ->whereSermon()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type'])
-            ->with('preacherProfile:id,name,slug');
     }
 }
