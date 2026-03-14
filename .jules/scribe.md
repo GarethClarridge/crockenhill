@@ -17,3 +17,7 @@
 ## 2026-02-28 - [Testing BinaryFileResponse and Naming Conventions]
 **Learning:** `BinaryFileResponse` (returned by `response()->file()`) can be verified in feature tests using `assertStatus` and `assertHeader`. When using PHPUnit `#[Test]` attributes, method names should not have the `test_` prefix to avoid redundancy and follow strict project conventions.
 **Action:** Use `#[Test]` with descriptive, non-prefixed method names like `can_serve_audio_locally`.
+
+## 2026-03-14 - [Config Mocking in Unit Tests]
+**Learning:** To test services that depend on configuration values (`config('...')`), use `Config::set()` within the test method to dynamically change the environment state. This allows verifying different logic branches (e.g., public vs. private features) within the same test file.
+**Action:** Always wrap such tests with `Config::set()` and consider resetting to defaults if necessary, though Laravel's test state usually handles this per-test.
