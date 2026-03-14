@@ -237,8 +237,8 @@ class AdminPageTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $existing = Page::factory()->create(['slug' => 'existing-slug']);
-        $editable = Page::factory()->create(['slug' => 'editable-slug']);
+        $existing = Page::factory()->create(['slug' => 'existing-slug', 'area' => PageArea::CHURCH->value]);
+        $editable = Page::factory()->create(['slug' => 'editable-slug', 'area' => PageArea::CHURCH->value]);
 
         Livewire::test(EditPage::class, ['page' => $editable])
             ->set('slug', $existing->slug)

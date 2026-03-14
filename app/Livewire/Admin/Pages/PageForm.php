@@ -31,7 +31,15 @@ trait PageForm
 
         return [
             'heading' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|alpha_dash|unique:pages,slug,'.$pageId,
+            'slug' => [
+                'required',
+                'string',
+                'max:255',
+                'alpha_dash',
+                \Illuminate\Validation\Rule::unique('pages', 'slug')
+                    ->where('area', $this->area)
+                    ->ignore($pageId),
+            ],
             'area' => ['required', 'string', 'in:'.implode(',', PageArea::values())],
             'navigation' => 'boolean',
             'description' => 'required|string|max:500',
