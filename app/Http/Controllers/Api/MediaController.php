@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Contracts\ProcessingStatusContract;
 use App\Data\StandardProcessingResponse;
 use App\Enums\ApiTokenAbility;
@@ -169,6 +170,48 @@ class MediaController extends Controller implements ProcessingStatusContract
             return response()->json($result, $result['success'] ? 200 : 400);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Cancel failed'], 500);
+        }
+    }
+
+    /**
+     * Confirm a sermon segment for a livestream run awaiting manual review
+     */
+    public function confirmSegment(Request $request, string $processingId, ConfirmLivestreamSermonSegment $action): JsonResponse
+    {
+        if (($abilityResponse = $this->ensureMediaProcessAbility($request)) !== null) {
+            return $abilityResponse;
+        }
+
+        if (! $this->isValidProcessingId($processingId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid processing ID format',
+            ], 400);
+        }
+
+        $request->validate(['segment_id' => ['required', 'integer', 'min:1']]);
+
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+
+        try {
+            $action->execute($processingId, (int) $request->input('segment_id'), $user);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sermon segment confirmed. Processing has been resumed.',
+                'status_url' => route('api.media.processing.status', ['processingId' => $processingId]),
+            ], 202);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            Log::error('Segment confirmation failed', [
+                'processing_id' => $processingId,
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()?->id,
+            ]);
+
+            return response()->json(['success' => false, 'message' => 'Confirmation failed due to an internal error.'], 500);
         }
     }
 

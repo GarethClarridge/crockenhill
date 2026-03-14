@@ -88,3 +88,12 @@ Route::post('media/processing/{processingId}/retry', [MediaController::class, 'r
         'throttle:media-retry',
     ])
     ->name('api.media.processing.retry');
+
+Route::post('media/processing/{processingId}/confirm-segment', [MediaController::class, 'confirmSegment'])
+    ->middleware([
+        'auth:sanctum',
+        'ability:'.ApiTokenAbility::MEDIA_PROCESS->value,
+        'media.process',
+        'throttle:api',
+    ])
+    ->name('api.media.processing.confirm-segment');
