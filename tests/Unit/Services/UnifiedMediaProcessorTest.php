@@ -289,7 +289,7 @@ class UnifiedMediaProcessorTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->audio()->processing()->create();
 
-        $this->sermonProcessingLogger->method('logProcessingCompletion');
+        $this->sermonProcessingLogger->method('logProcessingComplete');
 
         $result = $this->processor->cancel($log->processing_id);
 
@@ -306,7 +306,7 @@ class UnifiedMediaProcessorTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->video()->processing()->create();
 
-        $this->sermonProcessingLogger->method('logProcessingCompletion');
+        $this->sermonProcessingLogger->method('logProcessingComplete');
 
         $result = $this->processor->cancel($log->processing_id);
 
