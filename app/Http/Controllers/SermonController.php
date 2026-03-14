@@ -11,9 +11,7 @@ use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -199,5 +197,4 @@ class SermonController extends Controller
 
         return $this->show($sermon, $pageContextService, $exposurePolicy);
     }
-
 }
