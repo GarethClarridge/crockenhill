@@ -22,3 +22,8 @@
 **Vulnerability:** User-controlled strings (like sermon titles or page headings) were being rendered inside `<script type="application/ld+json">` tags using the raw `{!! json_encode($data) !!}` directive without sufficient escaping flags. An attacker could inject `</script><script>alert(1)</script>` to break out of the JSON block and execute arbitrary JavaScript.
 **Learning:** Default `json_encode` does not escape `<` and `>` characters. In a Blade template, using `{!! !!}` bypasses Laravel's automatic HTML escaping, creating an XSS vector if the JSON is placed inside a script tag.
 **Prevention:** Always use `JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT` flags when encoding JSON for use within a `<script>` tag. `JSON_HEX_TAG` specifically converts `<` and `>` to `\u003C` and `\u003E`, preventing script termination.
+
+## 2026-03-14 - [Information Leakage in API Responses]
+**Vulnerability:** Core media processing services were catching raw exceptions and returning `$e->getMessage()` directly in API responses and database logs. This leaked internal server paths, SQL errors, and configuration details to end users.
+**Learning:** General exception messages are often too technical and descriptive for public exposure. Failing to explicitly distinguish between "user-safe" and "internal" errors leads to accidental information disclosure.
+**Prevention:** Use the `ProvidesSafeMessage` interface to mark exceptions that are safe for public display. Sanitize all error reporting in public-facing services by replacing non-safe exceptions with generic messages. Always ensure technical details are still captured in system logs (`Log::error`) for developer visibility.

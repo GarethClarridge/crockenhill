@@ -492,18 +492,17 @@ class AutomatedSermonApiSecurityTest extends TestCase
     }
 
     #[Test]
-    public function it_prevents_csrf_attacks(): void
+    public function it_prevents_unauthenticated_access_to_api_uploads(): void
     {
-        // Laravel's CSRF protection should be active for state-changing operations
         $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
 
-        // Make request without CSRF token (if CSRF is enabled for API)
+        // Make request without authentication
         $response = $this->post('/api/media/audio', [
             'file' => $file,
         ]);
 
-        // Should require authentication - Laravel redirects unauthenticated requests
-        $response->assertStatus(302);
+        // API routes should return 401 Unauthorized for unauthenticated requests
+        $response->assertStatus(401);
     }
 
     #[Test]

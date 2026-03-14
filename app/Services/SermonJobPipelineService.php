@@ -42,19 +42,12 @@ class SermonJobPipelineService
             ? $this->livestreamAudioQueue()
             : $this->defaultQueue();
 
-        try {
-            Bus::chain($jobs)
-                ->catch(function (\Throwable $e) use ($processingLog) {
-                    $this->handleJobChainFailure($processingLog, $e);
-                })
-                ->onQueue($queueName)
-                ->dispatch();
-        } catch (\Throwable $e) {
-            // Synchronous dispatch (like in 'sync' queue during tests)
-            // might throw immediately instead of triggering the catch callback.
-            $this->handleJobChainFailure($processingLog, $e);
-            throw $e;
-        }
+        Bus::chain($jobs)
+            ->catch(function (\Throwable $e) use ($processingLog) {
+                $this->handleJobChainFailure($processingLog, $e);
+            })
+            ->onQueue($queueName)
+            ->dispatch();
     }
 
     /**

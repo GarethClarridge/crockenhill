@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Contracts\ProvidesSafeMessage;
 use App\Data\SermonMetadata;
 use App\Data\StandardProcessingResponse;
-use App\Contracts\ProvidesSafeMessage;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
