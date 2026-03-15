@@ -51,4 +51,22 @@ class SermonSeoTest extends TestCase
         $response->assertSee('"@type": "CreativeWork"', false);
         $response->assertSee('Jane Doe');
     }
+
+    #[Test]
+    public function sermon_index_handles_missing_preacher_profile_gracefully()
+    {
+        // Create a sermon with only a preacher string, no ID/profile
+        Sermon::factory()->create([
+            'preacher' => 'Guest Preacher',
+            'preacher_id' => null,
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
+
+        $response = $this->get(route('sermonIndex'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Guest Preacher');
+        $response->assertSee('"@type": "Person"', false);
+        $response->assertSee('"name": "Guest Preacher"', false);
+    }
 }
