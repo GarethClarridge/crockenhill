@@ -16,9 +16,9 @@ class SeoMetadataTest extends TestCase
         $response = $this->get('/christ');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Christ - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Christ | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church.">', false);
-        $response->assertSee('<meta property="og:title" content="Christ - Crockenhill Baptist Church">', false);
+        $response->assertSee('<meta property="og:title" content="Christ | Crockenhill Baptist Church">', false);
     }
 
     public function test_sermon_page_has_seo_metadata()
@@ -34,10 +34,10 @@ class SeoMetadataTest extends TestCase
         $response = $this->get('/christ/sermons/2024/01/the-way-of-peace');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>The Way of Peace | John Doe - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>The Way of Peace | John Doe | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="', false);
         $response->assertSee($sermon->title, false);
-        $response->assertSee('<meta property="og:title" content="The Way of Peace | John Doe - Crockenhill Baptist Church">', false);
+        $response->assertSee('<meta property="og:title" content="The Way of Peace | John Doe | Crockenhill Baptist Church">', false);
         $response->assertSee('<link rel="canonical" href="'.$sermon->public_url.'">', false);
     }
 
@@ -49,9 +49,9 @@ class SeoMetadataTest extends TestCase
         $response = $this->get('/christ/sermons/preachers');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Preachers - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Preachers | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Preachers at Crockenhill Baptist Church.">', false);
-        $response->assertSee('<meta property="og:title" content="Preachers - Crockenhill Baptist Church">', false);
+        $response->assertSee('<meta property="og:title" content="Preachers | Crockenhill Baptist Church">', false);
 
         // JSON-LD assertions - checking for structural presence
         $content = $response->getContent();
@@ -69,7 +69,7 @@ class SeoMetadataTest extends TestCase
         $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Sermons by John Doe - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Sermons by John Doe | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Browse all sermons preached by John Doe at Crockenhill Baptist Church.">', false);
     }
 }

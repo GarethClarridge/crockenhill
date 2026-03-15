@@ -2,6 +2,8 @@
 
 namespace App\Observers;
 
+use App\Models\Preacher;
+use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Facades\Cache;
 
@@ -41,7 +43,11 @@ class SitemapCacheObserver
         Cache::forget('admin_preacher_list');
         Cache::forget('public_preacher_list');
 
-        app(SermonRepository::class)->clearListingCaches($model);
+        $targetModel = ($model instanceof Sermon || $model instanceof Preacher)
+            ? $model
+            : null;
+
+        app(SermonRepository::class)->clearListingCaches($targetModel);
 
         // Note: Podcast feed cache is NOT cleared here to prevent test failures
         // where sequential requests expect the same data (Cache Flexible behavior).

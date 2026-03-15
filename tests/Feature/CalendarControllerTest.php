@@ -58,9 +58,9 @@ class CalendarControllerTest extends TestCase
         $response->assertDontSee('Far Future Event');
 
         // Check SEO tags
-        $response->assertSee('<title>Church Calendar - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Church Calendar | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Upcoming events at Crockenhill Baptist Church.">', false);
-        $response->assertSee('<meta property="og:title" content="Church Calendar - Crockenhill Baptist Church">', false);
+        $response->assertSee('<meta property="og:title" content="Church Calendar | Crockenhill Baptist Church">', false);
 
         // Check JSON-LD
         $response->assertSee('"@type": "ItemList"', false);

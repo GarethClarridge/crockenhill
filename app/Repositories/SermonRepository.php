@@ -125,7 +125,7 @@ class SermonRepository
     /**
      * Clear all cached sermon listings.
      */
-    public function clearListingCaches(mixed $model = null): void
+    public function clearListingCaches(Sermon|Preacher|null $model = null): void
     {
         Cache::forget('latest_sermons');
         Cache::forget('all_sermons');

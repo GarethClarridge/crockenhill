@@ -7,8 +7,8 @@ namespace Tests\Feature\Repositories;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 

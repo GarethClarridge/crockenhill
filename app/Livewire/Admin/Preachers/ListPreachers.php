@@ -81,8 +81,15 @@ class ListPreachers extends Component
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);
 
+        $headers = [
+            ['key' => 'name', 'label' => 'Name', 'sortable' => true],
+            ['key' => 'sermons_count', 'label' => 'Sermons', 'sortable' => true],
+            ['key' => 'is_active', 'label' => 'Status', 'sortable' => true],
+        ];
+
         return view('livewire.admin.preachers.list-preachers', [
             'preachers' => $preachers,
+            'headers' => $headers,
         ])->layout('layouts.admin', ['title' => 'Preachers', 'heading' => 'Preachers']);
     }
 }

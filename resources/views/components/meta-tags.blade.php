@@ -13,7 +13,7 @@
 
 @php
     $siteName = 'Crockenhill Baptist Church';
-    $fullTitle = $title === $siteName ? $title : "{$title} - {$siteName}";
+    $fullTitle = $title === $siteName ? $title : "{$title} | {$siteName}";
     $metaDescription = $description ?? $title;
     $metaImage = $image ?? asset('images/Primary.png');
     $metaUrl = $canonical ?? url()->current();

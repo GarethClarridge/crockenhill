@@ -24,9 +24,11 @@ class ListMeetings extends Component
     protected const ALLOWED_SORT_COLUMNS = [
         'slug',
         'day',
+        'schedule',
         'start_time',
         'type',
         'is_recurring',
+        'recurring',
         'location',
         'created_at',
         'updated_at',
@@ -85,7 +87,7 @@ class ListMeetings extends Component
          * calendarEvents relationship is removed from eager loading.
          * Search conditions are grouped to ensure correct query logic with filters.
          */
-        $meetings = Meeting::query()
+        $query = Meeting::query()
             ->select([
                 'id', 'slug', 'who', 'day', 'start_time', 'end_time',
                 'type', 'is_recurring', 'frequency', 'location', 'page_id', 'created_at', 'updated_at',
@@ -95,16 +97,26 @@ class ListMeetings extends Component
                 ->orWhere('day', 'like', "%{$this->search}%")
                 ->orWhere('who', 'like', "%{$this->search}%")))
             ->when($this->typeFilter, fn ($q) => $q->where('type', $this->typeFilter))
-            ->when($this->recurringFilter !== null, fn ($q) => $q->where('is_recurring', $this->recurringFilter))
-            ->orderBy($this->sortBy, $this->sortDirection)
-            ->paginate(15);
+            ->when($this->recurringFilter !== null, fn ($q) => $q->where('is_recurring', $this->recurringFilter));
+
+        if ($this->sortBy === 'schedule') {
+            $direction = $this->sortDirection === 'asc' ? 'asc' : 'desc';
+            $query->orderByRaw("FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday') {$direction}")
+                ->orderBy('start_time', $direction);
+        } elseif ($this->sortBy === 'recurring') {
+            $query->orderBy('is_recurring', $this->sortDirection);
+        } else {
+            $query->orderBy($this->sortBy, $this->sortDirection);
+        }
+
+        $meetings = $query->paginate(15);
 
         $headers = [
-            ['key' => 'page', 'label' => 'Meeting'],
-            ['key' => 'schedule', 'label' => 'Schedule'],
-            ['key' => 'type', 'label' => 'Type'],
-            ['key' => 'recurring', 'label' => 'Recurring'],
-            ['key' => 'location', 'label' => 'Location'],
+            ['key' => 'page', 'label' => 'Meeting', 'sortable' => false],
+            ['key' => 'schedule', 'label' => 'Schedule', 'sortable' => true],
+            ['key' => 'type', 'label' => 'Type', 'sortable' => true],
+            ['key' => 'recurring', 'label' => 'Recurring', 'sortable' => true],
+            ['key' => 'location', 'label' => 'Location', 'sortable' => true],
         ];
 
         return view('livewire.admin.meetings.list-meetings', [

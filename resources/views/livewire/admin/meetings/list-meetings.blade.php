@@ -41,11 +41,15 @@
                 <thead class="bg-gray-50">
                     <tr>
                         @foreach($headers as $header)
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                {{ $header['label'] }}
-                            </th>
+                            <x-admin.sortable-header
+                                :column="$header['key']"
+                                :label="$header['label']"
+                                :sortable="$header['sortable']"
+                                :sortBy="$sortBy"
+                                :sortDirection="$sortDirection"
+                            />
                         @endforeach
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
