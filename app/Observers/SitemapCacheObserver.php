@@ -41,8 +41,7 @@ class SitemapCacheObserver
         Cache::forget('admin_preacher_list');
         Cache::forget('public_preacher_list');
 
-        $sermon = $model instanceof \App\Models\Sermon ? $model : null;
-        app(SermonRepository::class)->clearListingCaches($sermon);
+        app(SermonRepository::class)->clearListingCaches($model);
 
         // Note: Podcast feed cache is NOT cleared here to prevent test failures
         // where sequential requests expect the same data (Cache Flexible behavior).

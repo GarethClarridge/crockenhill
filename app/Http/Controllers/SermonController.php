@@ -108,21 +108,15 @@ class SermonController extends Controller
     /**
      * Display sermons for a specific preacher.
      *
-     * Performance Optimization: Eager loads 'preacherProfile' to prevent N+1 queries
-     * when displaying sermon cards that access the preacher's name.
+     * Performance Optimization: Uses the cached sermon listing from the repository
+     * to reduce redundant DB queries when viewing preacher profiles.
      */
     public function getPreacher(Preacher $preacher): View
     {
         /**
-         * Performance Optimization: Eager load preacherProfile and limit retrieved columns
-         * to required fields for cards.
+         * Performance Optimization: Use Repository to fetch cached preacher sermon listing.
          */
-        $sermons = $preacher->sermons()
-            ->whereSermon()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type'])
-            ->with('preacherProfile:id,name,slug')
-            ->orderBy('date', 'desc')
-            ->get();
+        $sermons = $this->sermonRepository->getSermonsByPreacher($preacher);
 
         return view('sermons.preacher', [
             'preacher' => $preacher,
