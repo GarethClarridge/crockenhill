@@ -8,6 +8,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -41,7 +42,16 @@ class EditUser extends Component
         ];
 
         if ($this->changePassword) {
-            $rules['password'] = 'required|string|min:8|same:passwordConfirmation';
+            $rules['password'] = [
+                'required',
+                'string',
+                'same:passwordConfirmation',
+                Password::min(12)
+                    ->letters()
+                    ->numbers()
+                    ->symbols()
+                    ->uncompromised(),
+            ];
             $rules['passwordConfirmation'] = 'required';
         }
 

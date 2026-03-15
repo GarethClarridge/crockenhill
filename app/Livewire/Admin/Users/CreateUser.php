@@ -8,6 +8,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -40,7 +41,16 @@ class CreateUser extends Component
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8|same:passwordConfirmation',
+            'password' => [
+                'required',
+                'string',
+                'same:passwordConfirmation',
+                Password::min(12)
+                    ->letters()
+                    ->numbers()
+                    ->symbols()
+                    ->uncompromised(),
+            ],
             'passwordConfirmation' => 'required',
             'isAdmin' => 'boolean',
             'sendVerification' => 'boolean',
