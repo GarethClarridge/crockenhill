@@ -130,12 +130,12 @@ class ListSermons extends Component
         $sermons = $query->paginate(20);
 
         $headers = [
-            ['key' => 'title', 'label' => 'Title'],
-            ['key' => 'date', 'label' => 'Date'],
-            ['key' => 'service', 'label' => 'Service'],
-            ['key' => 'preacher', 'label' => 'Preacher'],
-            ['key' => 'series', 'label' => 'Series'],
-            ['key' => 'media', 'label' => 'Media'],
+            ['key' => 'title', 'label' => 'Title', 'sortable' => true],
+            ['key' => 'date', 'label' => 'Date', 'sortable' => true],
+            ['key' => 'service', 'label' => 'Service', 'sortable' => true],
+            ['key' => 'preacher', 'label' => 'Preacher', 'sortable' => true],
+            ['key' => 'series', 'label' => 'Series', 'sortable' => true],
+            ['key' => 'media', 'label' => 'Media', 'sortable' => false],
         ];
 
         return view('livewire.admin.sermons.list-sermons', [

@@ -42,7 +42,24 @@
                     <tr>
                         @foreach($headers as $header)
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                {{ $header['label'] }}
+                                @if($header['sortable'])
+                                    <button wire:click="sort('{{ $header['key'] }}')" class="group inline-flex items-center gap-1 focus:outline-none">
+                                        {{ $header['label'] }}
+                                        <span class="flex-none rounded bg-gray-100 text-gray-900 group-hover:bg-gray-200">
+                                            @if($sortBy === $header['key'])
+                                                @if($sortDirection === 'asc')
+                                                    <x-heroicon-m-chevron-up class="h-3 w-3" aria-hidden="true" />
+                                                @else
+                                                    <x-heroicon-m-chevron-down class="h-3 w-3" aria-hidden="true" />
+                                                @endif
+                                            @else
+                                                <x-heroicon-m-chevron-up-down class="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true" />
+                                            @endif
+                                        </span>
+                                    </button>
+                                @else
+                                    {{ $header['label'] }}
+                                @endif
                             </th>
                         @endforeach
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>

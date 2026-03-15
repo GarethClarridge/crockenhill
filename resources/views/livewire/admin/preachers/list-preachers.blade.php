@@ -31,9 +31,28 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sermons</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        @foreach($headers as $header)
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                @if($header['sortable'])
+                                    <button wire:click="sort('{{ $header['key'] }}')" class="group inline-flex items-center gap-1 focus:outline-none">
+                                        {{ $header['label'] }}
+                                        <span class="flex-none rounded bg-gray-100 text-gray-900 group-hover:bg-gray-200">
+                                            @if($sortBy === $header['key'])
+                                                @if($sortDirection === 'asc')
+                                                    <x-heroicon-m-chevron-up class="h-3 w-3" aria-hidden="true" />
+                                                @else
+                                                    <x-heroicon-m-chevron-down class="h-3 w-3" aria-hidden="true" />
+                                                @endif
+                                            @else
+                                                <x-heroicon-m-chevron-up-down class="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true" />
+                                            @endif
+                                        </span>
+                                    </button>
+                                @else
+                                    {{ $header['label'] }}
+                                @endif
+                            </th>
+                        @endforeach
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                 </thead>
@@ -70,7 +89,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-8 text-center text-gray-500">
                                 No preachers found.
                             </td>
                         </tr>

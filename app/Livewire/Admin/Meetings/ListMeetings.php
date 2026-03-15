@@ -100,11 +100,11 @@ class ListMeetings extends Component
             ->paginate(15);
 
         $headers = [
-            ['key' => 'page', 'label' => 'Meeting'],
-            ['key' => 'schedule', 'label' => 'Schedule'],
-            ['key' => 'type', 'label' => 'Type'],
-            ['key' => 'recurring', 'label' => 'Recurring'],
-            ['key' => 'location', 'label' => 'Location'],
+            ['key' => 'page', 'label' => 'Meeting', 'sortable' => false],
+            ['key' => 'day', 'label' => 'Schedule', 'sortable' => true],
+            ['key' => 'type', 'label' => 'Type', 'sortable' => true],
+            ['key' => 'is_recurring', 'label' => 'Recurring', 'sortable' => true],
+            ['key' => 'location', 'label' => 'Location', 'sortable' => true],
         ];
 
         return view('livewire.admin.meetings.list-meetings', [

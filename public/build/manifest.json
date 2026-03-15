@@ -4,7 +4,7 @@
     "src": "public/images/homepage/christmas2023.webp"
   },
   "resources/css/app.scss": {
-    "file": "assets/app-yS5fFfs2.css",
+    "file": "assets/app-o16m0H1X.css",
     "src": "resources/css/app.scss",
     "isEntry": true,
     "name": "app",
@@ -13,12 +13,12 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CqxUNTdW.js",
+    "file": "assets/app-_R61aQLK.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "css": [
-      "assets/app-yS5fFfs2.css"
+      "assets/app-o16m0H1X.css"
     ],
     "assets": [
       "assets/christmas2023-s2-ECYC9.webp"
