@@ -92,6 +92,10 @@ class ServiceSectionReviewTriggerEvaluator
             $reviewTriggers[] = 'too_many_low_confidence_sections';
         }
 
+        if ($sections->contains(fn (ServiceSection $section): bool => $section->needs_manual_review)) {
+            $reviewTriggers[] = 'manual_review_sections';
+        }
+
         return array_values(array_unique($reviewTriggers));
     }
 
