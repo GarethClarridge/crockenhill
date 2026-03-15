@@ -210,9 +210,10 @@ class ProcessingLogsViewerTest extends TestCase
         $this->actingAs($this->admin);
 
         // Default mock has 50 MB (52428800 bytes)
+        // Standardized Number::fileSize(..., precision: 2) includes decimals for consistency
         $this->mockControllerResponse();
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
-            ->assertSet('memoryPeak', '50 MB');
+            ->assertSet('memoryPeak', '50.00 MB');
     }
 
     #[Test]

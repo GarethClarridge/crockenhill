@@ -8,6 +8,7 @@ use App\Models\Sermon;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Number;
 
 /**
  * Service for integrating livestream video processing with sermon metadata
@@ -331,13 +332,7 @@ class SermonMetadataIntegrationService
      */
     private function formatFileSize(int $bytes): string
     {
-        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-
-        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
-            $bytes /= 1024;
-        }
-
-        return round($bytes, 2).' '.$units[$i];
+        return Number::fileSize($bytes, precision: 2);
     }
 
     /**
