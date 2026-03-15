@@ -56,7 +56,7 @@ class SeoRegressionTest extends TestCase
         $response = $this->get(route('sermonIndex'));
 
         $response->assertOk();
-        $response->assertSee('<title>Sermons - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="'.$description.'">', false);
         $response->assertSee('<meta property="og:description" content="'.$description.'">', false);
         $response->assertSee(
@@ -91,7 +91,7 @@ class SeoRegressionTest extends TestCase
             $response = $this->get(route('getService', $service));
 
             $response->assertOk();
-            $response->assertSee("<title>{$label} Services - Crockenhill Baptist Church</title>", false);
+            $response->assertSee("<title>{$label} Services | Crockenhill Baptist Church</title>", false);
             $response->assertSee('<meta name="description" content="'.$description.'">', false);
             $response->assertSee(
                 '<link rel="alternate" type="application/rss+xml" title="'.$label.' Services Podcast" href="'.route('podcast.feed', $service).'">',
@@ -112,7 +112,7 @@ class SeoRegressionTest extends TestCase
         $response = $this->get(route('getService', 'other'));
 
         $response->assertOk();
-        $response->assertSee('<title>Other Services - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Other Services | Crockenhill Baptist Church</title>', false);
         $response->assertSee(
             '<meta name="description" content="Listen to recent Other sermons from Crockenhill Baptist Church.">',
             false

@@ -86,7 +86,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('<meta name="description"', false);
         $response->assertSee('Learn about Jesus Christ', false);
-        $response->assertSee('<meta property="og:title" content="Christ - Crockenhill Baptist Church">', false);
+        $response->assertSee('<meta property="og:title" content="Christ | Crockenhill Baptist Church">', false);
         $response->assertSee('<meta name="twitter:card"', false);
     }
 
@@ -98,7 +98,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('<meta name="description"', false);
         $response->assertSee('Learn about Crockenhill Baptist Church', false);
-        $response->assertSee('<meta property="og:title" content="Church - Crockenhill Baptist Church">', false);
+        $response->assertSee('<meta property="og:title" content="Church | Crockenhill Baptist Church">', false);
         $response->assertSee('<meta name="twitter:card"', false);
     }
 
@@ -110,7 +110,7 @@ class SeoMetaTagsTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('<meta name="description"', false);
         $response->assertSee('Join our community activities', false);
-        $response->assertSee('<meta property="og:title" content="Community - Crockenhill Baptist Church">', false);
+        $response->assertSee('<meta property="og:title" content="Community | Crockenhill Baptist Church">', false);
         $response->assertSee('<meta name="twitter:card"', false);
     }
 
