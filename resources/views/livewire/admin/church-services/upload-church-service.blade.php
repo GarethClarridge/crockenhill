@@ -11,6 +11,9 @@
             <x-button link="{{ route('admin.services.songs.index') }}" variant="outline" icon="musical-note" inline>
                 Song Catalog
             </x-button>
+            <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
+                Submit Email Text
+            </x-button>
             <x-form-button variant="primary" wire:click="save" icon="arrow-up-tray">
                 Import
             </x-form-button>

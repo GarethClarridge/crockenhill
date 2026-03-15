@@ -30,7 +30,7 @@
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
             <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
               <x-heroicon-o-microphone class="h-5 w-5 text-gray-500" />
-              Sermons
+              Services, sermons and songs
             </h3>
           </div>
           <div class="p-4 grid grid-cols-2 gap-2">
@@ -124,23 +124,13 @@
         </div>
         @endcan
 
-        {{-- Account Section --}}
-        <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
-          <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
-            <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
-              <x-heroicon-o-user class="h-5 w-5 text-gray-500" />
-              Account
-            </h3>
-          </div>
-          <div class="p-4">
-            <form action="/logout" method="post">
-              @csrf
-              <x-form-button variant="danger" class="w-full" name="logout" icon="arrow-right-start-on-rectangle">
-                Log out
-              </x-form-button>
-            </form>
-          </div>
-        </div>
+        {{-- Log out --}}
+        <form action="/logout" method="post">
+          @csrf
+          <x-form-button variant="danger" class="w-full" icon="arrow-right-start-on-rectangle">
+            Log out
+          </x-form-button>
+        </form>
 
       </div>
     </x-content-wrapper>

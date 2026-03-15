@@ -12,6 +12,9 @@
             <x-button link="{{ route('admin.services.upload') }}" variant="outline" icon="arrow-up-tray" inline>
                 Upload Service
             </x-button>
+            <x-button link="{{ route('admin.services.submit-email') }}" variant="outline" icon="envelope" inline>
+                Submit Email Text
+            </x-button>
         </div>
     </div>
 
