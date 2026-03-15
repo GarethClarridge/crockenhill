@@ -185,7 +185,19 @@ class AdminUserTest extends TestCase
             ->set('password', 'short')
             ->call('save')
             ->assertHasErrors(['email', 'password'])
-            ->set('password', 'password123')
+            ->set('password', 'password123') // 11 chars, no symbols
+            ->set('passwordConfirmation', 'password123')
+            ->call('save')
+            ->assertHasErrors(['password'])
+            ->set('password', 'Short1!') // 7 chars, has everything but length
+            ->set('passwordConfirmation', 'Short1!')
+            ->call('save')
+            ->assertHasErrors(['password'])
+            ->set('password', 'PasswordNoSymbols123') // 20 chars, no symbols
+            ->set('passwordConfirmation', 'PasswordNoSymbols123')
+            ->call('save')
+            ->assertHasErrors(['password'])
+            ->set('password', 'StrongPassword123!')
             ->set('passwordConfirmation', 'different')
             ->call('save')
             ->assertHasErrors(['password']);
@@ -200,11 +212,12 @@ class AdminUserTest extends TestCase
         Livewire::test(CreateUser::class)
             ->set('name', 'New User')
             ->set('email', 'new@example.com')
-            ->set('password', 'password123')
-            ->set('passwordConfirmation', 'password123')
+            ->set('password', 'ValidP@ssword123')
+            ->set('passwordConfirmation', 'ValidP@ssword123')
             ->set('isAdmin', false)
             ->set('sendVerification', true)
             ->call('save')
+            ->assertHasNoErrors()
             ->assertRedirect(route('admin.users.index'));
 
         $this->assertDatabaseHas('users', [
@@ -224,8 +237,8 @@ class AdminUserTest extends TestCase
         Livewire::test(CreateUser::class)
             ->set('name', 'New Admin')
             ->set('email', 'admin_new@example.com')
-            ->set('password', 'password123')
-            ->set('passwordConfirmation', 'password123')
+            ->set('password', 'ValidP@ssword123')
+            ->set('passwordConfirmation', 'ValidP@ssword123')
             ->set('isAdmin', true)
             ->set('sendVerification', false)
             ->call('save')
@@ -279,13 +292,21 @@ class AdminUserTest extends TestCase
 
         Livewire::test(EditUser::class, ['user' => $user])
             ->set('changePassword', true)
-            ->set('password', 'new_password123')
-            ->set('passwordConfirmation', 'new_password123')
+            ->set('password', 'ValidP@ssword123')
+            ->set('passwordConfirmation', 'ValidP@ssword123')
             ->call('save')
             ->assertDispatched('notify', type: 'success', message: 'User updated');
 
         $this->assertNotEquals($oldPassword, $user->fresh()->password);
-        $this->assertTrue(\Hash::check('new_password123', $user->fresh()->password));
+        $this->assertTrue(\Hash::check('ValidP@ssword123', $user->fresh()->password));
+
+        // Test weak password rejection in edit mode
+        Livewire::test(EditUser::class, ['user' => $user])
+            ->set('changePassword', true)
+            ->set('password', 'weak')
+            ->set('passwordConfirmation', 'weak')
+            ->call('save')
+            ->assertHasErrors(['password']);
     }
 
     #[Test]

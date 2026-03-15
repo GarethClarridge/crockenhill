@@ -21,6 +21,7 @@
 !/storage/logs/.gitignore
 
 # Laravel compiled/generated
+/public/build
 /public/hot
 /public/css/filament
 /public/js/filament
