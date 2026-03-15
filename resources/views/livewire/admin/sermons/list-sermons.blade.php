@@ -45,7 +45,7 @@
                     <tr>
                         @foreach($headers as $header)
                             <x-admin.sortable-header
-                                :key="$header['key']"
+                                :column="$header['key']"
                                 :label="$header['label']"
                                 :sortable="$header['sortable']"
                                 :sortBy="$sortBy"

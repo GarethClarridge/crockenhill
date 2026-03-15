@@ -100,8 +100,9 @@ class ListMeetings extends Component
             ->when($this->recurringFilter !== null, fn ($q) => $q->where('is_recurring', $this->recurringFilter));
 
         if ($this->sortBy === 'schedule') {
-            $query->orderByRaw("FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday') {$this->sortDirection}")
-                ->orderBy('start_time', $this->sortDirection);
+            $direction = $this->sortDirection === 'asc' ? 'asc' : 'desc';
+            $query->orderByRaw("FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday') {$direction}")
+                ->orderBy('start_time', $direction);
         } elseif ($this->sortBy === 'recurring') {
             $query->orderBy('is_recurring', $this->sortDirection);
         } else {
