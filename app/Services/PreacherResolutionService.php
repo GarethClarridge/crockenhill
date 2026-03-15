@@ -57,12 +57,12 @@ class PreacherResolutionService
     {
         try {
             return Preacher::firstOrCreate(
-                ['slug' => $slug],
-                ['name' => $name, 'is_active' => true]
+                ['name' => $name],
+                ['slug' => $slug, 'is_active' => true]
             );
         } catch (QueryException $e) {
             if ($this->isUniqueConstraintViolation($e)) {
-                $existing = Preacher::where('slug', $slug)->first();
+                $existing = Preacher::where('name', $name)->first();
                 if ($existing) {
                     return $existing;
                 }
