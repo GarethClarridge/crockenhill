@@ -18,9 +18,7 @@ class SermonItemListPresenter
     public function toItemList(Collection $sermons): array
     {
         /** @var Collection<int, Sermon> $flatSermons */
-        $flatSermons = $sermons->first() instanceof Collection
-            ? $sermons->flatten()
-            : $sermons;
+        $flatSermons = $sermons->flatten(1);
 
         return [
             '@context' => 'https://schema.org',

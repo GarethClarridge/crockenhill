@@ -28,6 +28,7 @@ class SermonSeoTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Sermons | Crockenhill Baptist Church');
         $response->assertSee('"@type": "ItemList"', false);
+        $response->assertSee('"numberOfItems": 3', false);
         $response->assertSee('"@type": "CreativeWork"', false);
         $response->assertSee('John Doe');
     }
@@ -48,6 +49,7 @@ class SermonSeoTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('All Sermons | Crockenhill Baptist Church');
         $response->assertSee('"@type": "ItemList"', false);
+        $response->assertSee('"numberOfItems": 3', false);
         $response->assertSee('"@type": "CreativeWork"', false);
         $response->assertSee('Jane Doe');
     }
