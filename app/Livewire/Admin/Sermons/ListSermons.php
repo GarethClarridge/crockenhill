@@ -124,8 +124,18 @@ class ListSermons extends Component
             ->when($this->seriesFilter, fn ($q) => $q->where('series', $this->seriesFilter))
             ->when($this->hasVideoFilter, fn ($q) => $q->whereNotNull('video_file_path'))
             ->when($this->needsReviewFilter, fn ($q) => $q->where('needs_preacher_review', true))
-            ->when($this->last12Months, fn ($q) => $q->where('date', '>=', now()->subYear()))
-            ->orderBy($this->sortBy, $this->sortDirection);
+            ->when($this->last12Months, fn ($q) => $q->where('date', '>=', now()->subYear()));
+
+        if ($this->sortBy === 'preacher') {
+            $query->orderBy(
+                Preacher::select('name')
+                    ->whereColumn('preachers.id', 'sermons.preacher_id')
+                    ->limit(1),
+                $this->sortDirection
+            )->orderBy('preacher', $this->sortDirection);
+        } else {
+            $query->orderBy($this->sortBy, $this->sortDirection);
+        }
 
         $sermons = $query->paginate(20);
 
