@@ -99,9 +99,7 @@ class SermonRepository
      */
     public function getSermonsByPreacher(Preacher $preacher): Collection
     {
-        $slug = (string) ($preacher->slug ?: Str::slug($preacher->name));
-
-        return Cache::flexible('sermons_preacher_'.$slug, [86400, 172800], function () use ($preacher) {
+        return Cache::flexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher) {
             return $this->publicSermonQuery()
                 ->where('preacher_id', $preacher->id)
                 ->orderBy('date', 'desc')
@@ -127,7 +125,7 @@ class SermonRepository
     /**
      * Clear all cached sermon listings.
      */
-    public function clearListingCaches(Sermon|Preacher|null $model = null): void
+    public function clearListingCaches(mixed $model = null): void
     {
         Cache::forget('latest_sermons');
         Cache::forget('all_sermons');
@@ -142,17 +140,27 @@ class SermonRepository
                 Cache::forget('sermons_service_'.$serviceValue);
             }
             if ($model->preacher_id) {
-                // Eager load preacherProfile if not loaded to get the slug for cache invalidation
+                // Eager load preacherProfile if not loaded to get the key for cache invalidation
                 $model->loadMissing('preacherProfile');
                 if ($model->preacherProfile) {
-                    Cache::forget('sermons_preacher_'.$model->preacherProfile->slug);
+                    Cache::forget($this->preacherCacheKey($model->preacherProfile));
                 }
             }
         }
 
         if ($model instanceof Preacher) {
-            Cache::forget('sermons_preacher_'.$model->slug);
+            Cache::forget($this->preacherCacheKey($model));
         }
+    }
+
+    /**
+     * Get the cache key for a specific preacher's sermon listing.
+     */
+    private function preacherCacheKey(Preacher $preacher): string
+    {
+        $slug = (string) ($preacher->slug ?: Str::slug($preacher->name));
+
+        return 'sermons_preacher_'.$slug;
     }
 
     /**
