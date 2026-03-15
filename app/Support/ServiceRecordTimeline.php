@@ -160,21 +160,43 @@ final class ServiceRecordTimeline
             ];
         }
 
-        // Case 2: expected item from metadata (mismatched scenarios)
-        if ($expectedItemId !== null && isset($activeLookup[$expectedItemId])) {
-            $item = $activeLookup[$expectedItemId];
+        // Case 2: expected item from metadata (mismatched scenarios — markMismatch never sets the FK)
+        if ($expectedItemId !== null) {
+            // Active item still exists: use the live model
+            if (isset($activeLookup[$expectedItemId])) {
+                $item = $activeLookup[$expectedItemId];
 
-            return [
-                'item_id' => $item->id,
-                'position' => $item->position,
-                'item_type' => $item->type,
-                'planned_title' => $item->title,
-                'item_source' => $item->source instanceof ChurchServiceItemSource ? $item->source : null,
-                'planned_item_state' => 'active',
-                'song_id' => $item->song_id,
-                'song_title' => $item->song?->title,
-                'expected_section_type' => self::resolveExpectedSectionType($oosAlignment),
-            ];
+                return [
+                    'item_id' => $item->id,
+                    'position' => $item->position,
+                    'item_type' => $item->type,
+                    'planned_title' => $item->title,
+                    'item_source' => $item->source instanceof ChurchServiceItemSource ? $item->source : null,
+                    'planned_item_state' => 'active',
+                    'song_id' => $item->song_id,
+                    'song_title' => $item->song?->title,
+                    'expected_section_type' => self::resolveExpectedSectionType($oosAlignment),
+                ];
+            }
+
+            // Item has been deleted: fall back to metadata title so the planned side is still visible
+            $expectedTitle = isset($oosAlignment['expected_item_title']) && is_string($oosAlignment['expected_item_title'])
+                ? $oosAlignment['expected_item_title']
+                : null;
+
+            if ($expectedTitle !== null) {
+                return [
+                    'item_id' => $expectedItemId,
+                    'position' => null,
+                    'item_type' => null,
+                    'planned_title' => $expectedTitle,
+                    'item_source' => null,
+                    'planned_item_state' => 'metadata_only',
+                    'song_id' => null,
+                    'song_title' => null,
+                    'expected_section_type' => self::resolveExpectedSectionType($oosAlignment),
+                ];
+            }
         }
 
         // Case 3: matched item from metadata only (no live model lookup needed; use metadata title)
@@ -259,6 +281,7 @@ final class ServiceRecordTimeline
         return array_merge($plannedFields, [
             'row_type' => $rowType,
             'section_id' => $section->id,
+            'section_order' => $section->section_order,
             'section_type' => $section->section_type,
             'section_title' => $section->title,
             'start_time' => $section->start_time,
@@ -292,6 +315,7 @@ final class ServiceRecordTimeline
             'song_title' => $item->song?->title,
             'expected_section_type' => null,
             'section_id' => null,
+            'section_order' => null,
             'section_type' => null,
             'section_title' => null,
             'start_time' => null,

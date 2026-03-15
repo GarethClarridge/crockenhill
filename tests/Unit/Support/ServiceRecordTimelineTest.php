@@ -84,12 +84,14 @@ class ServiceRecordTimelineTest extends TestCase
     #[Test]
     public function mismatched_section_emits_one_combined_row_with_both_sides(): void
     {
+        // Production shape: markMismatch() does NOT set church_service_item_id.
+        // Planned context comes from metadata['oos_alignment']['expected_item_*'] only.
         $run = MediaProcessingLog::factory()->livestream()->create();
         $item = ChurchServiceItem::factory()->create(['position' => 2, 'type' => 'custom', 'title' => 'Prayer']);
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'church_service_item_id' => $item->id,
+            'church_service_item_id' => null,
             'section_type' => ServiceSectionType::WELCOME->value,
             'section_order' => 1,
             'start_time' => 10.0,
@@ -116,6 +118,7 @@ class ServiceRecordTimelineTest extends TestCase
         $this->assertSame('expected_type_mismatch', $rows[0]['mismatch_reason']);
         $this->assertSame(ServiceSectionType::WELCOME, $rows[0]['section_type']);
         $this->assertSame(ServiceSectionType::PRAYER, $rows[0]['expected_section_type']);
+        $this->assertSame(1, $rows[0]['section_order']);
     }
 
     #[Test]
@@ -126,7 +129,7 @@ class ServiceRecordTimelineTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'church_service_item_id' => $item->id,
+            'church_service_item_id' => null,
             'section_type' => ServiceSectionType::SONG->value,
             'section_order' => 1,
             'metadata' => [
@@ -145,6 +148,66 @@ class ServiceRecordTimelineTest extends TestCase
 
         $this->assertCount(1, $rows);
         $this->assertSame('mismatched', $rows[0]['row_type']);
+    }
+
+    #[Test]
+    public function mismatched_section_with_deleted_expected_item_shows_historical_planned_context(): void
+    {
+        // P1 regression: expected item deleted after alignment — must still show as mismatched,
+        // not silently collapse to unplanned.
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->create(['position' => 1, 'title' => 'Deleted Sermon']);
+        $deletedId = $item->id;
+        $item->delete();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 3,
+            'metadata' => [
+                'oos_alignment' => [
+                    'mismatch_reason' => 'oos_type_mismatch',
+                    'expected_item_id' => $deletedId,
+                    'expected_item_title' => 'Deleted Sermon',
+                    'expected_section_type' => ServiceSectionType::SERMON->value,
+                ],
+            ],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem', 'serviceSections.publishedSermon']);
+
+        // Active items collection is empty because the item was deleted
+        $rows = ServiceRecordTimeline::build(new EloquentCollection, $run);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('mismatched', $rows[0]['row_type']);
+        $this->assertSame($deletedId, $rows[0]['item_id']);
+        $this->assertSame('Deleted Sermon', $rows[0]['planned_title']);
+        $this->assertSame('metadata_only', $rows[0]['planned_item_state']);
+        $this->assertSame('oos_type_mismatch', $rows[0]['mismatch_reason']);
+    }
+
+    #[Test]
+    public function section_order_is_included_in_section_rows(): void
+    {
+        // P2 regression: section_order must be in the row so the blade can show
+        // livestream position for unplanned and metadata-only mismatch rows.
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 4,
+            'metadata' => [],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem', 'serviceSections.publishedSermon']);
+
+        $rows = ServiceRecordTimeline::build(new EloquentCollection, $run);
+
+        $this->assertSame(4, $rows[0]['section_order']);
     }
 
     // -------------------------------------------------------------------------

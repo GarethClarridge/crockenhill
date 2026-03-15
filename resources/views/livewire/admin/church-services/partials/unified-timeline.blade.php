@@ -124,9 +124,9 @@
                         @endphp
                         <tr class="{{ $rowBg }}" wire:key="timeline-row-{{ $loop->index }}">
 
-                            {{-- # --}}
+                            {{-- # — prefer section_order (livestream position) when available, fall back to planned position --}}
                             <td class="px-3 py-2 text-sm font-medium text-gray-700">
-                                {{ $row['position'] ?? ($row['section_id'] ? '#' : '—') }}
+                                {{ $row['section_order'] ?? $row['position'] ?? '—' }}
                             </td>
 
                             {{-- Type --}}
