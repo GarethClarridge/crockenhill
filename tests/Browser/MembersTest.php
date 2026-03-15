@@ -40,7 +40,7 @@ class MembersTest extends DuskTestCase
         $this->browse(function (Browser $browser) use ($admin) {
             $browser->loginAs($admin)
                 ->visit('/church/members')
-                ->assertSee('Sermons')
+                ->assertSee('Services, sermons and songs')
                 ->assertSee('Upload sermon')
                 ->assertSee('Manage sermons');
         });
@@ -55,7 +55,7 @@ class MembersTest extends DuskTestCase
                 ->visit('/church/members')
                 ->assertDontSee('Upload sermon')
                 ->assertDontSee('Manage sermons')
-                ->assertSee('Account');
+                ->assertSee('Welcome back');
         });
     }
 

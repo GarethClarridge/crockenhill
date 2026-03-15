@@ -127,7 +127,7 @@
         {{-- Log out --}}
         <form action="/logout" method="post">
           @csrf
-          <x-form-button variant="danger" class="w-full" icon="arrow-right-start-on-rectangle">
+          <x-form-button variant="danger" class="w-full" icon="arrow-right-start-on-rectangle" name="logout">
             Log out
           </x-form-button>
         </form>
