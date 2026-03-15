@@ -14,6 +14,7 @@ use App\Models\SermonProcessingStep;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\ProcessingPipelineBuilder;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\ServiceRecordTimeline;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Bus;
@@ -54,6 +55,7 @@ class ShowChurchService extends Component
             'confidenceScore' => is_numeric($confidenceScore) ? (float) $confidenceScore : null,
             'processingRuns' => $processingRuns,
             'processingTimelines' => $this->buildProcessingTimelines($processingRuns),
+            'serviceTimelines' => $this->buildServiceTimelines($processingRuns),
         ])->layout('layouts.admin', [
             'title' => 'Service: '.$this->churchService->date->format('j M Y'),
             'heading' => 'Service: '.$this->churchService->date->format('j M Y').' '.$this->churchService->service->label(),
@@ -109,7 +111,10 @@ class ShowChurchService extends Component
             ->livestream()
             ->with([
                 'serviceSections' => fn ($query) => $query
-                    ->with('publishedSermon:id,title,slug')
+                    ->with([
+                        'publishedSermon:id,title,slug',
+                        'churchServiceItem' => fn ($q) => $q->withTrashed()->with('song:id,title'),
+                    ])
                     ->orderBy('section_order')
                     ->orderBy('id'),
                 'processingSteps' => fn ($query) => $query
@@ -120,6 +125,22 @@ class ShowChurchService extends Component
             ->orderByDesc('created_at');
 
         return $resolver->scopeMatchesIdentity($query, $serviceDate, $serviceType)->get();
+    }
+
+    /**
+     * @param  EloquentCollection<int, MediaProcessingLog>  $processingRuns
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function buildServiceTimelines(EloquentCollection $processingRuns): array
+    {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\ChurchServiceItem> $items */
+        $items = $this->churchService->items;
+
+        return $processingRuns
+            ->mapWithKeys(fn (MediaProcessingLog $run): array => [
+                $run->id => ServiceRecordTimeline::build($items, $run),
+            ])
+            ->all();
     }
 
     /**

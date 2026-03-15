@@ -609,8 +609,6 @@ class AdminChurchServiceTest extends TestCase
             ->assertSee($matchingRun->processing_id)
             ->assertDontSee($nonMatchingRun->processing_id)
             ->assertSeeInOrder(['Welcome', 'Closing Song'])
-            ->assertSee('High')
-            ->assertSee('Low')
             ->assertSee('Needs review')
             ->assertSee('expected type mismatch')
             ->assertSee('Published')
@@ -775,6 +773,190 @@ class AdminChurchServiceTest extends TestCase
             ->assertDispatched('notify', type: 'error', message: 'Selected run cannot be reclassified because the original livestream file is no longer available.');
 
         Bus::assertNothingChained();
+    }
+
+    #[Test]
+    public function show_component_displays_planned_only_list_when_no_livestream_runs_exist(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-01',
+            'service' => SermonService::MORNING,
+        ]);
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Opening Prayer',
+            'source' => \App\Enums\ChurchServiceItemSource::EMAIL,
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Order of Service')
+            ->assertSee('Opening Prayer')
+            ->assertSee('EMAIL')
+            ->assertDontSee('Classified Livestream Runs');
+    }
+
+    #[Test]
+    public function show_component_displays_unified_timeline_with_matched_sections(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-08',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Notices',
+            'source' => \App\Enums\ChurchServiceItemSource::OPENLP,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-08',
+            'extracted_service' => SermonService::MORNING,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::NOTICES->value,
+            'section_order' => 1,
+            'title' => 'Notices',
+            'start_time' => 300.0,
+            'end_time' => 420.0,
+            'metadata' => [],
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Classified Livestream Runs')
+            ->assertSee('Notices')
+            ->assertSee('OPENLP')
+            ->assertSee('Aligned')
+            ->assertSee('5:00')
+            ->assertSee('7:00');
+    }
+
+    #[Test]
+    public function show_component_shows_mismatch_row_with_expected_and_detected_values(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-15',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'type' => 'custom',
+            'title' => 'Planned Sermon',
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-15',
+            'extracted_service' => SermonService::MORNING,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'section_order' => 1,
+            'title' => 'Detected Song',
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'metadata' => [
+                'oos_alignment' => [
+                    'mismatch_reason' => 'type_mismatch',
+                    'expected_item_id' => $item->id,
+                    'expected_item_title' => 'Planned Sermon',
+                    'expected_section_type' => ServiceSectionType::SERMON->value,
+                ],
+            ],
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Planned Sermon')
+            ->assertSee('Detected Song')
+            ->assertSee('Mismatch')
+            ->assertSee('type mismatch');
+    }
+
+    #[Test]
+    public function show_component_shows_unplanned_sections_in_timeline(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-22',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-22',
+            'extracted_service' => SermonService::MORNING,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'title' => 'Unplanned Section',
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'metadata' => [],
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Unplanned Section')
+            ->assertSee('Unplanned')
+            ->assertSee('Not in plan');
+    }
+
+    #[Test]
+    public function show_component_shows_archived_planned_context_for_soft_deleted_items(): void
+    {
+        $this->actingAs($this->admin);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-29',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 1,
+            'title' => 'Deleted Item',
+        ]);
+        $item->delete();
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-29',
+            'extracted_service' => SermonService::MORNING,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::OTHER->value,
+            'section_order' => 1,
+            'start_time' => 0.0,
+            'end_time' => 60.0,
+            'metadata' => [],
+        ]);
+
+        Livewire::test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Deleted Item')
+            ->assertSee('Archived from plan');
     }
 
     #[Test]

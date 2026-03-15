@@ -64,227 +64,25 @@
                 </div>
             </x-card>
 
-            <x-card heading="Service Items">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pos</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OpenLP Match Key</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @forelse($churchService->items as $item)
-                                <tr>
-                                    <td class="px-4 py-3 text-sm font-medium">{{ $item->position }}</td>
-                                    <td class="px-4 py-3">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ match($item->type) {
-                                            'songs' => 'bg-green-100 text-green-800',
-                                            'bibles' => 'bg-blue-100 text-blue-800',
-                                            'presentations' => 'bg-slate-100 text-slate-800',
-                                            default => 'bg-gray-100 text-gray-800',
-                                        } }}">
-                                            {{ ucfirst($item->type) }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <p class="text-sm font-medium">{{ $item->title }}</p>
-                                        @if($item->song)
-                                            <a
-                                                href="{{ route('admin.services.songs.show', $item->song) }}"
-                                                class="text-xs text-green-700 hover:text-green-800 no-underline"
-                                                wire:navigate>
-                                                View linked song
-                                            </a>
-                                        @endif
-                                        @if($item->source_title && $item->source_title !== $item->title)
-                                            <p class="text-xs text-gray-500">Source: {{ $item->source_title }}</p>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-3 text-xs text-gray-600">
-                                        {{ $item->openlp_search_title ?: '-' }}
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="px-4 py-8 text-center text-gray-500">
-                                        This service has no items.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </x-card>
-
-            <x-card heading="Classified Livestream Runs">
-                <div class="space-y-4">
-                    @forelse($processingRuns as $processingRun)
-                        <div class="rounded-lg border border-gray-200 p-4" wire:key="processing-run-{{ $processingRun->id }}">
-                            @php
-                                $timeline = $processingTimelines[$processingRun->id] ?? [];
-                            @endphp
-                            <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <p class="text-sm font-medium">Run {{ $processingRun->processing_id }}</p>
-                                    <p class="text-xs text-gray-500">
-                                        Status: {{ $processingRun->status->label() }} · Updated {{ $processingRun->updated_at?->diffForHumans() ?? 'Unknown' }}
-                                    </p>
-                                </div>
-
-                                <x-form-button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    icon="arrow-path"
-                                    wire:click="reclassify({{ $processingRun->id }})"
-                                    wire:target="reclassify({{ $processingRun->id }})"
-                                >
-                                    Reclassify
-                                </x-form-button>
-                            </div>
-
-                            @if($timeline !== [])
-                                <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
-                                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                        <h3 class="text-sm font-semibold text-gray-900">Processing Timeline</h3>
-                                        <p class="text-xs text-gray-500">Step logging for this livestream run</p>
-                                    </div>
-
-                                    <ol class="space-y-3">
-                                        @foreach($timeline as $timelineStep)
-                                            <li class="rounded-lg border border-white bg-white p-3 shadow-sm">
-                                                <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                                                    <div class="space-y-2">
-                                                        <div class="flex flex-wrap items-center gap-2">
-                                                            <p class="text-sm font-medium text-gray-900">{{ $timelineStep['label'] }}</p>
-                                                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ match($timelineStep['status']) {
-                                                                'completed' => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
-                                                                'running' => 'bg-sky-100 text-sky-800',
-                                                                'failed' => 'bg-rose-100 text-rose-800',
-                                                                'skipped' => 'bg-amber-100 text-amber-800',
-                                                                'not_recorded' => 'bg-slate-200 text-slate-700',
-                                                                default => 'bg-gray-100 text-gray-700',
-                                                            } }}">
-                                                                {{ match($timelineStep['status']) {
-                                                                    'running' => 'Running',
-                                                                    'failed' => 'Failed',
-                                                                    'skipped' => 'Skipped',
-                                                                    'not_recorded' => 'Not recorded',
-                                                                    'pending' => 'Pending',
-                                                                    default => 'Completed',
-                                                                } }}
-                                                            </span>
-                                                        </div>
-
-                                                        @if($timelineStep['message'])
-                                                            <p class="text-xs {{ $timelineStep['status'] === 'failed' ? 'text-rose-700' : 'text-gray-600' }}">
-                                                                {{ $timelineStep['message'] }}
-                                                            </p>
-                                                        @endif
-                                                    </div>
-
-                                                    <dl class="grid grid-cols-1 gap-3 text-xs text-gray-600 sm:grid-cols-3 xl:min-w-[25rem]">
-                                                        <div>
-                                                            <dt class="font-medium uppercase tracking-wide text-gray-500">Started</dt>
-                                                            <dd class="mt-1">{{ $timelineStep['started_at']?->format('j M Y H:i:s') ?? 'Not recorded' }}</dd>
-                                                        </div>
-                                                        <div>
-                                                            <dt class="font-medium uppercase tracking-wide text-gray-500">Completed</dt>
-                                                            <dd class="mt-1">{{ $timelineStep['completed_at']?->format('j M Y H:i:s') ?? 'Not recorded' }}</dd>
-                                                        </div>
-                                                        <div>
-                                                            <dt class="font-medium uppercase tracking-wide text-gray-500">Duration</dt>
-                                                            <dd class="mt-1">{{ $timelineStep['duration'] ?? 'Not recorded' }}</dd>
-                                                        </div>
-                                                    </dl>
-                                                </div>
-                                            </li>
-                                        @endforeach
-                                    </ol>
-                                </div>
-                            @endif
-
-                            @if($processingRun->serviceSections->isEmpty())
-                                <p class="text-sm text-gray-500">
-                                    No classified sections available for this run yet.
-                                </p>
-                            @else
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Order</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Title</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Time</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Confidence</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Review</th>
-                                                <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Publication</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-gray-200 bg-white">
-                                            @foreach($processingRun->serviceSections as $section)
-                                                @php
-                                                    $confidence = $section->metadata['confidence_level'] ?? 'unknown';
-                                                    $reviewReason = $section->metadata['review_reason'] ?? null;
-                                                @endphp
-                                                <tr wire:key="section-{{ $section->id }}">
-                                                    <td class="px-3 py-2 text-sm font-medium">{{ $section->section_order }}</td>
-                                                    <td class="px-3 py-2 text-sm">{{ $section->section_type->label() }}</td>
-                                                    <td class="px-3 py-2 text-sm">{{ $section->title ?: '-' }}</td>
-                                                    <td class="px-3 py-2 text-xs text-gray-600">
-                                                        {{ number_format($section->start_time, 1) }}s - {{ number_format($section->end_time, 1) }}s
-                                                    </td>
-                                                    <td class="px-3 py-2 text-sm">{{ ucfirst((string) $confidence) }}</td>
-                                                    <td class="px-3 py-2 text-sm">
-                                                        @if($section->needs_manual_review)
-                                                            <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-800">
-                                                                Needs review
-                                                            </span>
-                                                            @if(is_string($reviewReason) && $reviewReason !== '')
-                                                                <p class="mt-1 text-xs text-gray-500">{{ str_replace('_', ' ', $reviewReason) }}</p>
-                                                            @endif
-                                                        @else
-                                                            <span class="inline-flex items-center rounded-full bg-cbc-teal-light/15 px-2.5 py-0.5 text-xs font-medium text-cbc-teal-dark">
-                                                                Clear
-                                                            </span>
-                                                        @endif
-                                                    </td>
-                                                    <td class="px-3 py-2 text-sm">
-                                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ match($section->publication_status) {
-                                                            \App\Enums\ServiceSectionPublicationStatus::PENDING_APPROVAL => 'bg-amber-100 text-amber-800',
-                                                            \App\Enums\ServiceSectionPublicationStatus::APPROVED => 'bg-sky-100 text-sky-800',
-                                                            \App\Enums\ServiceSectionPublicationStatus::REJECTED => 'bg-rose-100 text-rose-800',
-                                                            \App\Enums\ServiceSectionPublicationStatus::PUBLISHED => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
-                                                            default => 'bg-gray-100 text-gray-700',
-                                                        } }}">
-                                                            {{ $section->publication_status->label() }}
-                                                        </span>
-                                                        @if($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PUBLISHED && $section->publishedSermon)
-                                                            <p class="mt-1 text-xs">
-                                                                <a href="{{ $section->publishedSermon->public_url }}" class="text-cbc-teal hover:text-cbc-teal-dark">
-                                                                    View {{ strtolower($section->publishedSermon->content_type->label()) }}
-                                                                </a>
-                                                            </p>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @endif
-                        </div>
-                    @empty
-                        <p class="text-sm text-gray-500">
-                            No related livestream runs found for this service.
-                        </p>
-                    @endforelse
-                </div>
-            </x-card>
+            @if($processingRuns->isEmpty())
+                @include('livewire.admin.church-services.partials.planned-only-list', [
+                    'items' => $churchService->items,
+                ])
+            @else
+                <x-card heading="Classified Livestream Runs">
+                    <div class="space-y-4">
+                        @forelse($processingRuns as $processingRun)
+                            @include('livewire.admin.church-services.partials.unified-timeline', [
+                                'run'                => $processingRun,
+                                'serviceTimeline'    => $serviceTimelines[$processingRun->id] ?? [],
+                                'processingTimeline' => $processingTimelines[$processingRun->id] ?? [],
+                            ])
+                        @empty
+                            <p class="text-sm text-gray-500">No related livestream runs found for this service.</p>
+                        @endforelse
+                    </div>
+                </x-card>
+            @endif
         </div>
 
         <div class="space-y-6">
