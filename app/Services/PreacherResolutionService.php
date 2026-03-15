@@ -57,8 +57,8 @@ class PreacherResolutionService
     {
         try {
             return Preacher::firstOrCreate(
-                ['slug' => $slug],
-                ['name' => $name, 'is_active' => true]
+                ['name' => $name],
+                ['slug' => $slug, 'is_active' => true]
             );
         } catch (QueryException $e) {
             if ($this->isUniqueConstraintViolation($e)) {
