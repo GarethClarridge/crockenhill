@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -89,6 +90,24 @@ class SermonRepository
     }
 
     /**
+     * Get sermons for a specific preacher.
+     *
+     * Performance Optimization: Caches the preacher's sermon listing for 24 hours using flexible
+     * cache to reduce redundant DB queries when viewing preacher profiles.
+     *
+     * @return Collection<int, Sermon>
+     */
+    public function getSermonsByPreacher(Preacher $preacher): Collection
+    {
+        return Cache::flexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher) {
+            return $this->publicSermonQuery()
+                ->where('preacher_id', $preacher->id)
+                ->orderBy('date', 'desc')
+                ->get();
+        });
+    }
+
+    /**
      * Get sermons for a specific service.
      *
      * @return Collection<int, Sermon>
@@ -106,21 +125,42 @@ class SermonRepository
     /**
      * Clear all cached sermon listings.
      */
-    public function clearListingCaches(?Sermon $sermon = null): void
+    public function clearListingCaches(Sermon|Preacher|null $model = null): void
     {
         Cache::forget('latest_sermons');
         Cache::forget('all_sermons');
         Cache::forget('sermon_series');
 
-        if ($sermon) {
-            if ($sermon->series) {
-                Cache::forget('sermons_series_'.Str::slug($sermon->series));
+        if ($model instanceof Sermon) {
+            if ($model->series) {
+                Cache::forget('sermons_series_'.Str::slug($model->series));
             }
-            if ($sermon->service) {
-                $serviceValue = $sermon->service->value;
+            if ($model->service) {
+                $serviceValue = $model->service->value;
                 Cache::forget('sermons_service_'.$serviceValue);
             }
+            if ($model->preacher_id) {
+                // Eager load preacherProfile if not loaded to get the key for cache invalidation
+                $model->loadMissing('preacherProfile');
+                if ($model->preacherProfile) {
+                    Cache::forget($this->preacherCacheKey($model->preacherProfile));
+                }
+            }
         }
+
+        if ($model instanceof Preacher) {
+            Cache::forget($this->preacherCacheKey($model));
+        }
+    }
+
+    /**
+     * Get the cache key for a specific preacher's sermon listing.
+     */
+    private function preacherCacheKey(Preacher $preacher): string
+    {
+        $slug = (string) ($preacher->slug ?: Str::slug($preacher->name));
+
+        return 'sermons_preacher_'.$slug;
     }
 
     /**
