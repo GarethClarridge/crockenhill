@@ -9,6 +9,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 
 class SermonProcessingLogger
@@ -310,14 +311,7 @@ class SermonProcessingLogger
      */
     private function formatBytes(int $bytes): string
     {
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $bytes = max($bytes, 0);
-        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
-        $pow = min($pow, count($units) - 1);
-
-        $bytes /= (1 << (10 * $pow));
-
-        return round($bytes, 2).' '.$units[$pow];
+        return Number::fileSize($bytes, precision: 2);
     }
 
     /**

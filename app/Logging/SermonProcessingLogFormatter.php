@@ -2,6 +2,7 @@
 
 namespace App\Logging;
 
+use Illuminate\Support\Number;
 use Monolog\Formatter\LineFormatter;
 use Monolog\LogRecord;
 
@@ -88,14 +89,7 @@ class SermonProcessingLogFormatter
 
                 private function formatBytes(int $bytes): string
                 {
-                    $units = ['B', 'KB', 'MB', 'GB'];
-                    $bytes = max($bytes, 0);
-                    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
-                    $pow = min($pow, count($units) - 1);
-
-                    $bytes /= (1 << (10 * $pow));
-
-                    return round($bytes, 2).' '.$units[$pow];
+                    return Number::fileSize($bytes, precision: 2);
                 }
             });
         }

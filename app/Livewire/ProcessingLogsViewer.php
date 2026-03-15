@@ -10,6 +10,7 @@ use App\Livewire\Traits\HasConditionalLogging;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Number;
 use Livewire\Attributes\Lazy;
 use Livewire\Component;
 
@@ -296,14 +297,7 @@ class ProcessingLogsViewer extends Component
 
     private function formatBytes(int $bytes): string
     {
-        $units = ['B', 'KB', 'MB', 'GB'];
-        $bytes = max($bytes, 0);
-        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
-        $pow = min($pow, count($units) - 1);
-
-        $bytes /= (1 << (10 * $pow));
-
-        return round($bytes, 2).' '.$units[$pow];
+        return Number::fileSize($bytes, precision: 2);
     }
 
     #[Lazy]
