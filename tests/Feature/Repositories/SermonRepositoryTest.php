@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature\Repositories;
 
 use App\Models\Preacher;
@@ -65,47 +67,69 @@ class SermonRepositoryTest extends TestCase
     }
 
     #[Test]
-    public function it_caches_sermons_by_preacher_using_flexible_cache(): void
+    public function it_returns_sermons_for_a_specific_preacher(): void
     {
-        $preacher = Preacher::factory()->create(['slug' => 'test-preacher']);
-        Sermon::factory()->count(2)->create(['preacher_id' => $preacher->id]);
+        $preacher = Preacher::factory()->create();
+        $otherPreacher = Preacher::factory()->create();
 
-        Cache::shouldReceive('flexible')
-            ->once()
-            ->with('sermons_preacher_test-preacher', [86400, 172800], \Closure::class)
-            ->andReturn(collect());
-
-        $this->repository->getSermonsByPreacher($preacher);
-    }
-
-    #[Test]
-    public function it_clears_preacher_sermon_cache_when_preacher_model_passed_to_clear_caches(): void
-    {
-        $preacher = Preacher::factory()->create(['slug' => 'test-preacher']);
-
-        Cache::shouldReceive('forget')->with('latest_sermons')->once();
-        Cache::shouldReceive('forget')->with('all_sermons')->once();
-        Cache::shouldReceive('forget')->with('sermon_series')->once();
-        Cache::shouldReceive('forget')->with('sermons_preacher_test-preacher')->once();
-
-        $this->repository->clearListingCaches($preacher);
-    }
-
-    #[Test]
-    public function it_clears_preacher_sermon_cache_when_sermon_model_passed_to_clear_caches(): void
-    {
-        $preacher = Preacher::factory()->create(['slug' => 'test-preacher']);
-        $sermon = Sermon::factory()->create([
+        $preacherSermon = Sermon::factory()->create([
             'preacher_id' => $preacher->id,
-            'series' => null,
-            'service' => null,
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
+        Sermon::factory()->create([
+            'preacher_id' => $otherPreacher->id,
+            'content_type' => \App\Enums\SermonContentType::Sermon,
         ]);
 
-        Cache::shouldReceive('forget')->with('latest_sermons')->once();
-        Cache::shouldReceive('forget')->with('all_sermons')->once();
-        Cache::shouldReceive('forget')->with('sermon_series')->once();
-        Cache::shouldReceive('forget')->with('sermons_preacher_test-preacher')->once();
+        $result = $this->repository->getSermonsByPreacher($preacher);
+
+        $this->assertCount(1, $result);
+        $this->assertEquals($preacherSermon->id, $result->first()->id);
+    }
+
+    #[Test]
+    public function it_caches_preacher_sermon_listing(): void
+    {
+        $preacher = Preacher::factory()->create(['slug' => 'caching-preacher']);
+        Sermon::factory()->create(['preacher_id' => $preacher->id]);
+
+        // First call should hit the DB and cache
+        $this->repository->getSermonsByPreacher($preacher);
+        $this->assertTrue(Cache::has('sermons_preacher_caching-preacher'));
+
+        // Manually update DB without clearing cache
+        Sermon::query()->where('preacher_id', $preacher->id)->update(['title' => 'Updated Title']);
+
+        // Second call should return cached data (original title)
+        $result = $this->repository->getSermonsByPreacher($preacher);
+        $this->assertNotEquals('Updated Title', $result->first()->title);
+    }
+
+    #[Test]
+    public function it_invalidates_preacher_cache_when_preacher_listing_is_cleared(): void
+    {
+        $preacher = Preacher::factory()->create(['slug' => 'invalidation-preacher']);
+        Sermon::factory()->create(['preacher_id' => $preacher->id]);
+
+        $this->repository->getSermonsByPreacher($preacher);
+        $this->assertTrue(Cache::has('sermons_preacher_invalidation-preacher'));
+
+        $this->repository->clearListingCaches($preacher);
+
+        $this->assertFalse(Cache::has('sermons_preacher_invalidation-preacher'));
+    }
+
+    #[Test]
+    public function it_invalidates_preacher_cache_when_sermon_is_modified(): void
+    {
+        $preacher = Preacher::factory()->create(['slug' => 'sermon-invalidation-preacher']);
+        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id]);
+
+        $this->repository->getSermonsByPreacher($preacher);
+        $this->assertTrue(Cache::has('sermons_preacher_sermon-invalidation-preacher'));
 
         $this->repository->clearListingCaches($sermon);
+
+        $this->assertFalse(Cache::has('sermons_preacher_sermon-invalidation-preacher'));
     }
 }

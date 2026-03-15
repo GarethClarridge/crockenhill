@@ -99,7 +99,9 @@ class SermonRepository
      */
     public function getSermonsByPreacher(Preacher $preacher): Collection
     {
-        return Cache::flexible('sermons_preacher_'.$preacher->slug, [86400, 172800], function () use ($preacher) {
+        $slug = (string) ($preacher->slug ?: Str::slug($preacher->name));
+
+        return Cache::flexible('sermons_preacher_'.$slug, [86400, 172800], function () use ($preacher) {
             return $this->publicSermonQuery()
                 ->where('preacher_id', $preacher->id)
                 ->orderBy('date', 'desc')
@@ -125,7 +127,7 @@ class SermonRepository
     /**
      * Clear all cached sermon listings.
      */
-    public function clearListingCaches(mixed $model = null): void
+    public function clearListingCaches(Sermon|Preacher|null $model = null): void
     {
         Cache::forget('latest_sermons');
         Cache::forget('all_sermons');
