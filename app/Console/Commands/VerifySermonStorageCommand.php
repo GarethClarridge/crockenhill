@@ -8,6 +8,7 @@ use App\Models\Sermon;
 use App\Services\SermonStorageService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Number;
 
 class VerifySermonStorageCommand extends Command
 {
@@ -127,17 +128,6 @@ class VerifySermonStorageCommand extends Command
 
     private function formatBytes(int $bytes): string
     {
-        if ($bytes === 0) {
-            return '0 B';
-        }
-
-        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        $power = floor(log($bytes, 1024));
-        $power = min($power, count($units) - 1);
-
-        $number = $bytes / pow(1024, $power);
-        $unit = $units[$power];
-
-        return round($number, 2).' '.$unit;
+        return Number::fileSize($bytes, precision: 2);
     }
 }
