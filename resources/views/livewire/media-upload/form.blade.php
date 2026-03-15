@@ -148,6 +148,8 @@
                 :success-message="$successMessage"
                 :error-message="$errorMessage"
                 :cancelled-message="$cancelledMessage"
+                :manual-review-message="$manualReviewMessage"
+                :manual-review-url="$manualReviewUrl"
                 :key="'media-upload-status-'.$this->getId()"
             />
         </div>
