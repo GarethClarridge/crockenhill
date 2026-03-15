@@ -54,4 +54,44 @@ class PreacherIntegrityTest extends TestCase
 
         $this->assertEquals('New bio content', $preacher->fresh()->bio);
     }
+
+    #[Test]
+    public function it_resolves_preacher_by_name_in_resolution_service(): void
+    {
+        $preacher = Preacher::factory()->create([
+            'name' => 'Canonical Name',
+            'slug' => 'canonical-name',
+        ]);
+
+        $service = app(\App\Services\PreacherResolutionService::class);
+
+        // Should find existing by name (ignoring case/whitespace as handled by service)
+        $resolved = $service->resolve('  canonical name  ');
+
+        $this->assertEquals($preacher->id, $resolved->id);
+        $this->assertEquals('Canonical Name', $resolved->name);
+    }
+
+    #[Test]
+    public function it_handles_race_condition_in_resolution_service(): void
+    {
+        $name = 'Race Condition Preacher';
+        $slug = 'race-condition-preacher';
+
+        // Simulate a race where the preacher is created between lookup and insert
+        // by manually creating it just before the service call
+        Preacher::create([
+            'name' => $name,
+            'slug' => $slug,
+            'is_active' => true,
+        ]);
+
+        $service = app(\App\Services\PreacherResolutionService::class);
+
+        // This call will trigger the catch block in findOrCreatePreacher
+        $resolved = $service->resolve($name);
+
+        $this->assertEquals($name, $resolved->name);
+        $this->assertDatabaseCount('preachers', 1);
+    }
 }

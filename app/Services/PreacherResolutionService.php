@@ -62,7 +62,7 @@ class PreacherResolutionService
             );
         } catch (QueryException $e) {
             if ($this->isUniqueConstraintViolation($e)) {
-                $existing = Preacher::where('slug', $slug)->first();
+                $existing = Preacher::where('name', $name)->first();
                 if ($existing) {
                     return $existing;
                 }
