@@ -9,6 +9,7 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\PreacherItemListPresenter;
+use App\Presenters\SermonItemListPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
@@ -19,7 +20,8 @@ use Illuminate\View\View;
 class SermonController extends Controller
 {
     public function __construct(
-        private readonly SermonRepository $sermonRepository
+        private readonly SermonRepository $sermonRepository,
+        private readonly SermonItemListPresenter $itemListPresenter,
     ) {}
 
     /**
@@ -34,6 +36,7 @@ class SermonController extends Controller
 
         return view('sermons.index', [
             'latest_sermons' => $latest_sermons,
+            'json_ld_data' => $this->itemListPresenter->toItemList($latest_sermons),
             'heading' => 'Sermons',
             'description' => 'Listen to recent sermons from Crockenhill Baptist Church. Worshipping God, strengthening believers, and proclaiming Jesus Christ.',
         ]);
@@ -48,6 +51,7 @@ class SermonController extends Controller
 
         return view('sermons.all', [
             'sermons' => $sermons,
+            'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
             'heading' => 'All Sermons',
             'description' => 'Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.',
         ]);

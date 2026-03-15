@@ -16,7 +16,7 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons/all');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>All Sermons - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>All Sermons | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.">', false);
     }
 
@@ -27,7 +27,7 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons/preachers/john-smith');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Sermons by John Smith - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Sermons by John Smith | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Browse all sermons preached by John Smith at Crockenhill Baptist Church.">', false);
     }
 
@@ -38,7 +38,7 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons/series/living-hope');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Sermon Series: Living Hope - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Sermon Series: Living Hope | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Browse all sermons in the &quot;Living Hope&quot; series from Crockenhill Baptist Church.">', false);
     }
 
@@ -47,7 +47,7 @@ class SermonBrowseSeoTest extends TestCase
         $response = $this->get('/christ/sermons/series');
 
         $response->assertStatus(200);
-        $response->assertSee('<title>Sermon Series - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>Sermon Series | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Browse sermon series from Crockenhill Baptist Church.">', false);
     }
 
@@ -67,13 +67,13 @@ class SermonBrowseSeoTest extends TestCase
         $response->assertStatus(200);
 
         // Improved title format
-        $response->assertSee('<title>The Glory of Christ | John Owen - Crockenhill Baptist Church</title>', false);
+        $response->assertSee('<title>The Glory of Christ | John Owen | Crockenhill Baptist Church</title>', false);
 
         // Explicit canonical link
         $response->assertSee('<link rel="canonical" href="'.route('showSermon', 'the-glory-of-christ').'">', false);
 
         // Meta tags title updated
-        $response->assertSee('<meta property="og:title" content="The Glory of Christ | John Owen - Crockenhill Baptist Church">', false);
+        $response->assertSee('<meta property="og:title" content="The Glory of Christ | John Owen | Crockenhill Baptist Church">', false);
 
         // Redundant breadcrumb JSON-LD removed (should only see the one from x-breadcrumbs)
         $response->assertSee('"@type": "Article"', false);
