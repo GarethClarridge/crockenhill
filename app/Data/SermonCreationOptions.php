@@ -39,7 +39,7 @@ class SermonCreationOptions
         public ?PreacherSource $preacherSource = null,
         public ?float $preacherConfidence = null,
         public ?bool $needsPreacherReview = null,
-        public ?string $service = null,
+        public \App\Enums\SermonService|string|null $service = null,
         public ?string $date = null,
         public ?string $customTitle = null,
 
