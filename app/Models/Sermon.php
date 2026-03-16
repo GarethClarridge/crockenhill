@@ -220,7 +220,7 @@ class Sermon extends Model implements Sitemapable
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
-    public function scopeForService(Builder $query, string $serviceType): Builder
+    public function scopeForService(Builder $query, SermonService|string $serviceType): Builder
     {
         return $query->where('service', $serviceType);
     }

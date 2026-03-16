@@ -4,6 +4,7 @@ namespace App\Data;
 
 use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
+use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\ServiceSectionType;
 use App\Enums\TitleGenerationStrategy;
@@ -39,7 +40,7 @@ class SermonCreationOptions
         public ?PreacherSource $preacherSource = null,
         public ?float $preacherConfidence = null,
         public ?bool $needsPreacherReview = null,
-        public \App\Enums\SermonService|string|null $service = null,
+        public ?SermonService $service = null,
         public ?string $date = null,
         public ?string $customTitle = null,
 
@@ -111,7 +112,7 @@ class SermonCreationOptions
         ServiceSection $section,
         MediaProcessingLog $log,
         string $date,
-        string $service
+        SermonService|string $service
     ): self {
         $speaker = $section->publicationChildrensTalkSpeaker();
 
@@ -132,7 +133,7 @@ class SermonCreationOptions
             preacherSource: isset($speaker['source']) ? PreacherSource::tryFrom((string) $speaker['source']) : null,
             preacherConfidence: $speaker['confidence'] ?? null,
             needsPreacherReview: false,
-            service: $service,
+            service: $service instanceof SermonService ? $service : (SermonService::tryFrom($service) ?? SermonService::MORNING),
             date: $date,
             customTitle: $section->title,
             duration: (float) $section->duration,

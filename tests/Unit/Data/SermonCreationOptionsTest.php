@@ -54,14 +54,14 @@ class SermonCreationOptionsTest extends TestCase
             $section,
             $processingLog,
             date: '2026-05-10',
-            service: 'morning'
+            service: \App\Enums\SermonService::MORNING
         );
 
         $this->assertSame('sermons/audio/section-55.mp3', $options->audioFilePath);
         $this->assertSame('sermons/sections/55/video.mp4', $options->videoFilePath);
         $this->assertSame(SermonSourceType::Livestream, $options->sourceType);
         $this->assertSame('2026-05-10', $options->date);
-        $this->assertSame('morning', $options->service);
+        $this->assertSame(\App\Enums\SermonService::MORNING, $options->service);
         $this->assertSame("Children's Talk", $options->customTitle);
         $this->assertSame(SermonContentType::ChildrensTalk, $options->contentType);
         $this->assertSame($preacher->id, $options->preacherId);
