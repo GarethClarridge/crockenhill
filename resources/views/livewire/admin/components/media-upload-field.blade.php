@@ -21,7 +21,7 @@
     @endif
 
     {{-- Upload area --}}
-    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-500 transition-colors">
+    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-cbc-teal transition-colors">
         <label for="file-upload" class="sr-only">Choose image file</label>
         <input type="file"
                id="file-upload"
