@@ -73,7 +73,7 @@ use Spatie\Sitemap\Tags\Url;
  * @method static Builder|Sermon newQuery()
  * @method static Builder|Sermon query()
  * @method static Builder|Sermon last12Months()
- * @method static Builder|Sermon forService(string $serviceType)
+ * @method static Builder|Sermon forService(\App\Enums\SermonService $serviceType)
  * @method static Builder|Sermon inSeries(string $seriesTitle)
  * @method static Builder|Sermon byPreacher(string $preacherName)
  * @method static Builder|Sermon automated()
@@ -220,7 +220,7 @@ class Sermon extends Model implements Sitemapable
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
-    public function scopeForService(Builder $query, SermonService|string $serviceType): Builder
+    public function scopeForService(Builder $query, SermonService $serviceType): Builder
     {
         return $query->where('service', $serviceType);
     }

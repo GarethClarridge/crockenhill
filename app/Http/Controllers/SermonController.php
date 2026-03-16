@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonService;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -159,15 +160,17 @@ class SermonController extends Controller
 
     public function getService(string $service): View
     {
+        $serviceEnum = SermonService::from($service);
+
         /**
          * Performance Optimization: Use Repository to fetch cached service listing.
          */
-        $sermons = $this->sermonRepository->getSermonsByService($service);
+        $sermons = $this->sermonRepository->getSermonsByService($serviceEnum);
 
-        $serviceLabel = match ($service) {
-            'morning' => 'Sunday Morning',
-            'evening' => 'Sunday Evening',
-            default => Str::title($service),
+        $serviceLabel = match ($serviceEnum) {
+            SermonService::MORNING => 'Sunday Morning',
+            SermonService::EVENING => 'Sunday Evening',
+            SermonService::OTHER => Str::title($service),
         };
 
         return view('sermons.service', [

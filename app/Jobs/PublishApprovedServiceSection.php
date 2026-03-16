@@ -130,7 +130,7 @@ class PublishApprovedServiceSection implements ShouldQueue
                 $section,
                 $processingLog,
                 $identity['date'],
-                $identity['service']->value
+                $identity['service']
             );
 
             $sermon = $sermonCreationService->createSermon($processingLog, $options);

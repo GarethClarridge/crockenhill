@@ -113,11 +113,9 @@ class SermonRepository
      *
      * @return Collection<int, Sermon>
      */
-    public function getSermonsByService(SermonService|string $service): Collection
+    public function getSermonsByService(SermonService $service): Collection
     {
-        $serviceValue = $service instanceof SermonService ? $service->value : $service;
-
-        return Cache::flexible("sermons_service_{$serviceValue}", [86400, 172800], function () use ($service) {
+        return Cache::flexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service) {
             return $this->publicSermonQuery()
                 ->where('service', $service)
                 ->orderBy('date', 'desc')

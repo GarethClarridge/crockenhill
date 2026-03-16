@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\SermonService;
 use App\Models\Sermon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -19,9 +20,9 @@ class PodcastFeedService
      *
      * @return Collection<int, Sermon>
      */
-    public function getSermonsForFeed(string $serviceType): Collection
+    public function getSermonsForFeed(SermonService $serviceType): Collection
     {
-        $cacheKey = "podcast_feed_{$serviceType}";
+        $cacheKey = "podcast_feed_{$serviceType->value}";
 
         /** @var array{enabled: bool, ttl: int, stale_ttl: int} $cacheConfig */
         $cacheConfig = config('podcast.cache');
@@ -47,7 +48,7 @@ class PodcastFeedService
      *
      * @return Collection<int, Sermon>
      */
-    private function fetchSermons(string $serviceType): Collection
+    private function fetchSermons(SermonService $serviceType): Collection
     {
         /** @var int $limit */
         $limit = config('podcast.items_limit', 100);

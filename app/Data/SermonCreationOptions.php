@@ -112,7 +112,7 @@ class SermonCreationOptions
         ServiceSection $section,
         MediaProcessingLog $log,
         string $date,
-        SermonService|string $service
+        SermonService $service
     ): self {
         $speaker = $section->publicationChildrensTalkSpeaker();
 
@@ -133,7 +133,7 @@ class SermonCreationOptions
             preacherSource: isset($speaker['source']) ? PreacherSource::tryFrom((string) $speaker['source']) : null,
             preacherConfidence: $speaker['confidence'] ?? null,
             needsPreacherReview: false,
-            service: $service instanceof SermonService ? $service : (SermonService::tryFrom($service) ?? SermonService::MORNING),
+            service: $service,
             date: $date,
             customTitle: $section->title,
             duration: (float) $section->duration,
