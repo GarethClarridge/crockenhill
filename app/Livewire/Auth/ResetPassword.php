@@ -25,7 +25,7 @@ class ResetPassword extends Component
     public string $email = '';
 
     /**
-     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password>>
+     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password|null>>
      */
     public function rules(): array
     {
@@ -35,11 +35,7 @@ class ResetPassword extends Component
                 'required',
                 'string',
                 'confirmed',
-                PasswordRule::min(12)
-                    ->letters()
-                    ->numbers()
-                    ->symbols()
-                    ->uncompromised(),
+                PasswordRule::defaults(),
             ],
         ];
     }

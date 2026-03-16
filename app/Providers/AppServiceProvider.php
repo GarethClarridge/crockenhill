@@ -16,6 +16,7 @@ use App\Services\OpenAiOosEmailItemExtractor;
 use App\Services\SermonAnalysisService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -61,5 +62,13 @@ class AppServiceProvider extends ServiceProvider
             ChurchServiceCanonicalListChanged::class,
             DispatchChurchServiceReconciliation::class,
         );
+
+        Password::defaults(function () {
+            return Password::min(12)
+                ->letters()
+                ->numbers()
+                ->symbols()
+                ->uncompromised();
+        });
     }
 }
