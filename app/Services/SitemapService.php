@@ -26,7 +26,8 @@ class SitemapService
      *
      * Performance Optimization: Limits retrieved columns for dynamic models and eager loads
      * required relationships to prevent N+1 queries. Large text fields like body, markdown,
-     * and transcript are excluded to reduce memory usage during the generation of large collections.
+     * and transcript are excluded to reduce memory usage. For sermons, 'thumbnail_metadata'
+     * is excluded as it is not utilized in sitemap generation.
      */
     public function generate(): bool
     {
@@ -54,25 +55,10 @@ class SitemapService
 
         /** @var Collection<int, Sermon> $sermons */
         $sermons = Sermon::query()
-            /**
-             * Performance Optimization: Only select columns required for sitemap generation.
-             * 'thumbnail_metadata' is excluded as it is not utilized in sitemap generation.
-             */
             ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'thumbnail_file_path', 'summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type'])
             ->with('preacherProfile:id,name,slug')
-            /**
-             * Performance Optimization: Move filtering to the database level to reduce
-             * memory usage and PHP processing time.
-             */
-            ->when(
-                ! $this->exposurePolicy->childrensTalksArePublic(),
-                fn ($query) => $query->whereSermon()
-            )
+            ->whereVisibleInSitemap()
             ->get()
-            /**
-             * Safety Check: Always apply the exposure policy filter to ensure we never
-             * leak private or unpublished content, even with the DB-level optimizations above.
-             */
             ->filter(fn (Sermon $sermon): bool => $this->exposurePolicy->shouldIncludeInSitemap($sermon))
             ->values();
 
