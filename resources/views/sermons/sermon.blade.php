@@ -26,10 +26,14 @@ $fullTitle = $sermon->title . ' | ' . ($sermon->preacherProfile?->name ?? $sermo
 
 {{-- JSON-LD Structured Data --}}
 @php
+$transcript = $sermon->transcript;
+$duration = $sermon->duration ? \Carbon\CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
+
 $schema = [
 '@context' => 'https://schema.org',
 '@type' => 'Article',
 'headline' => $sermon->title,
+'description' => $sermon->meta_description,
 'image' => $sermon->thumbnail_url ?: asset('images/Primary.png'),
 'datePublished' => $sermon->date->toIso8601String(),
 'author' => [
@@ -47,15 +51,33 @@ $schema['video'] = [
 'uploadDate' => $sermon->date->toIso8601String(),
 'contentUrl' => $sermon->video_url,
 ];
+
+if ($duration) {
+$schema['video']['duration'] = $duration;
+}
+
+if ($transcript) {
+$schema['video']['transcript'] = $transcript;
+}
 }
 
 if ($sermon->audio_url) {
 $schema['audio'] = [
 '@type' => 'AudioObject',
+'name' => $sermon->title,
 'contentUrl' => $sermon->audio_url,
 'description' => $sermon->meta_description,
 'encodingFormat' => 'audio/mpeg',
+'uploadDate' => $sermon->date->toIso8601String(),
 ];
+
+if ($duration) {
+$schema['audio']['duration'] = $duration;
+}
+
+if ($transcript) {
+$schema['audio']['transcript'] = $transcript;
+}
 }
 
 @endphp
