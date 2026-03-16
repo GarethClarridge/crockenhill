@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit;
+namespace Tests\Feature\Security;
 
 use Illuminate\Validation\Rules\Password;
 use PHPUnit\Framework\Attributes\Test;
