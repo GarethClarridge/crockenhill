@@ -132,4 +132,166 @@ class SermonRepositoryTest extends TestCase
 
         $this->assertFalse(Cache::has('sermons_preacher_sermon-invalidation-preacher'));
     }
+
+    #[Test]
+    public function it_returns_latest_sermons_grouped_by_date(): void
+    {
+        Sermon::query()->delete();
+        Cache::forget('latest_sermons');
+
+        $today = \Illuminate\Support\Carbon::today();
+
+        // Create sermons for 7 distinct dates
+        for ($i = 0; $i < 7; $i++) {
+            Sermon::factory()->create([
+                'date' => $today->copy()->subDays($i),
+                'content_type' => \App\Enums\SermonContentType::Sermon,
+            ]);
+        }
+
+        $result = $this->repository->getLatestSermons();
+
+        // Should return 6 groups (dates)
+        $this->assertCount(6, $result);
+        $this->assertEquals($today->format('Y-m-d'), $result->keys()->first());
+    }
+
+    #[Test]
+    public function it_filters_out_childrens_talks_from_latest_sermons(): void
+    {
+        Sermon::query()->delete();
+        Cache::forget('latest_sermons');
+
+        $today = \Illuminate\Support\Carbon::today();
+
+        Sermon::factory()->create([
+            'title' => 'Main Sermon',
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+            'date' => $today,
+        ]);
+        Sermon::factory()->create([
+            'title' => "Children's Talk",
+            'content_type' => \App\Enums\SermonContentType::ChildrensTalk,
+            'date' => $today,
+        ]);
+
+        $result = $this->repository->getLatestSermons();
+
+        $this->assertCount(1, $result);
+        $this->assertCount(1, $result->first());
+        $this->assertEquals('Main Sermon', $result->first()->first()->title);
+    }
+
+    #[Test]
+    public function it_caches_latest_sermons(): void
+    {
+        Sermon::query()->delete();
+        Cache::forget('latest_sermons');
+
+        Sermon::factory()->create([
+            'title' => 'Original Title',
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
+
+        // First call caches
+        $this->repository->getLatestSermons();
+        $this->assertTrue(Cache::has('latest_sermons'));
+
+        // Modify DB
+        Sermon::query()->update(['title' => 'Updated Title']);
+
+        // Second call should return cached data
+        $result = $this->repository->getLatestSermons();
+        $this->assertEquals('Original Title', $result->first()->first()->title);
+    }
+
+    #[Test]
+    public function it_returns_all_sermons_grouped_by_date(): void
+    {
+        Sermon::query()->delete();
+        Cache::forget('all_sermons');
+
+        Sermon::factory()->create(['date' => '2024-01-01', 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['date' => '2024-01-02', 'content_type' => \App\Enums\SermonContentType::Sermon]);
+
+        $result = $this->repository->getAllSermons();
+
+        $this->assertCount(2, $result);
+        $this->assertTrue($result->has('2024-01-02'));
+    }
+
+    #[Test]
+    public function it_caches_all_sermons(): void
+    {
+        Sermon::query()->delete();
+        Cache::forget('all_sermons');
+
+        Sermon::factory()->create([
+            'title' => 'Original All Title',
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
+
+        // First call caches
+        $this->repository->getAllSermons();
+        $this->assertTrue(Cache::has('all_sermons'));
+
+        // Modify DB
+        Sermon::query()->update(['title' => 'Updated All Title']);
+
+        // Second call should return cached data
+        $result = $this->repository->getAllSermons();
+        $this->assertEquals('Original All Title', $result->first()->first()->title);
+    }
+
+    #[Test]
+    public function it_returns_sermons_by_service(): void
+    {
+        Sermon::query()->delete();
+        Sermon::factory()->create(['service' => 'morning', 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => 'evening', 'content_type' => \App\Enums\SermonContentType::Sermon]);
+
+        $result = $this->repository->getSermonsByService('morning');
+
+        $this->assertCount(1, $result);
+        $this->assertEquals('morning', $result->first()->service->value);
+    }
+
+    #[Test]
+    public function it_caches_service_listing(): void
+    {
+        Sermon::query()->delete();
+        Cache::forget('sermons_service_morning');
+
+        Sermon::factory()->create([
+            'title' => 'Original Service Title',
+            'service' => 'morning',
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
+
+        // First call caches
+        $this->repository->getSermonsByService('morning');
+        $this->assertTrue(Cache::has('sermons_service_morning'));
+
+        // Modify DB
+        Sermon::query()->update(['title' => 'Updated Service Title']);
+
+        // Second call should return cached data
+        $result = $this->repository->getSermonsByService('morning');
+        $this->assertEquals('Original Service Title', $result->first()->title);
+    }
+
+    #[Test]
+    public function it_caches_series_for_display_sorted_alphabetically(): void
+    {
+        Sermon::query()->delete();
+        Cache::forget('sermon_series');
+
+        Sermon::factory()->create(['series' => 'Z Series', 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['series' => 'A Series', 'content_type' => \App\Enums\SermonContentType::Sermon]);
+
+        $result = $this->repository->getSeriesForDisplay();
+
+        $this->assertEquals(['A Series', 'Z Series'], $result);
+        $this->assertTrue(Cache::has('sermon_series'));
+    }
 }
