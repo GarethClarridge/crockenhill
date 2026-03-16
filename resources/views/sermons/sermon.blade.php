@@ -203,10 +203,7 @@ $schema['audio']['transcript'] = $transcript;
       @endif
 
       {{-- ── Transcript ───────────────────────────────────────── --}}
-      @php
-      $transcriptContent = $sermon->transcript;
-      @endphp
-      @if (is_string($transcriptContent) && trim($transcriptContent) !== '')
+      @if (is_string($transcript) && trim($transcript) !== '')
       <div
         x-data="{
           expanded: false,
@@ -216,7 +213,7 @@ $schema['audio']['transcript'] = $transcript;
               return;
             }
 
-            await navigator.clipboard.writeText(@js($transcriptContent));
+            await navigator.clipboard.writeText(@js($transcript));
             this.copied = true;
             setTimeout(() => this.copied = false, 2000);
           }
@@ -262,7 +259,7 @@ $schema['audio']['transcript'] = $transcript;
           x-transition:enter-end="opacity-100 translate-y-0"
           class="p-6 max-h-96 overflow-y-auto">
           <div class="prose prose-gray max-w-none text-gray-700">
-            {!! Str::markdown($transcriptContent, [
+            {!! Str::markdown($transcript, [
             'html_input' => 'escape',
             'allow_unsafe_links' => false,
             ]) !!}
