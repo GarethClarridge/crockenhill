@@ -135,4 +135,37 @@ class SermonAssetControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/png');
     }
+
+    #[Test]
+    public function it_serves_card_thumbnail_successfully(): void
+    {
+        Storage::fake('public');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'card-test-sermon',
+            'thumbnail_metadata' => [
+                'plain_thumbnail_path' => 'thumbnails/card-plain.jpg',
+            ],
+        ]);
+
+        Storage::disk('public')->put('thumbnails/card-plain.jpg', 'fake plain jpg content');
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'image/jpeg');
+    }
+
+    #[Test]
+    public function it_returns_404_when_card_thumbnail_is_missing(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'no-card-test-sermon',
+            'thumbnail_metadata' => null,
+        ]);
+
+        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+
+        $response->assertStatus(404);
+    }
 }
