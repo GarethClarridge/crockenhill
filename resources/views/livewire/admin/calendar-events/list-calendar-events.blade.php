@@ -39,7 +39,7 @@
                                 {{ $header['label'] }}
                             </th>
                         @endforeach
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -76,7 +76,7 @@
                                             Uncategorized
                                         </span>
                                         <select wire:change="categorize({{ $event->id }}, $event.target.value)"
-                                            class="text-xs rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 w-40">
+                                            class="text-xs rounded-md border-gray-300 shadow-sm focus:border-cbc-teal focus:ring-cbc-teal w-40">
                                             <option value="">Categorize...</option>
                                             @foreach($meetings as $slug => $name)
                                                 <option value="{{ $slug }}">{{ $name }}</option>

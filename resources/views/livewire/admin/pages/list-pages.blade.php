@@ -50,25 +50,20 @@
                         <th class="w-10 px-4 py-3">
                             <input type="checkbox"
                                 aria-label="Select all pages"
-                                class="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal"
                                 wire:click="$set('selected', $event.target.checked ? {{ $pages->pluck('id')->toJson() }} : [])"
                                 {{ count($selected) === $pages->count() && $pages->count() > 0 ? 'checked' : '' }} />
                         </th>
                         @foreach($headers as $header)
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider
-                                {{ ($header['sortable'] ?? false) ? 'cursor-pointer hover:bg-gray-100' : '' }}"
-                                @if($header['sortable'] ?? false) wire:click="sort('{{ $header['key'] }}')" @endif>
-                                {{ $header['label'] }}
-                                @if(($header['sortable'] ?? false) && $sortBy === $header['key'])
-                                    @if($sortDirection === 'asc')
-                                        <x-heroicon-o-chevron-up class="inline w-3 h-3" />
-                                    @else
-                                        <x-heroicon-o-chevron-down class="inline w-3 h-3" />
-                                    @endif
-                                @endif
-                            </th>
+                            <x-admin.sortable-header
+                                :column="$header['key']"
+                                :label="$header['label']"
+                                :sortable="$header['sortable']"
+                                :sortBy="$sortBy"
+                                :sortDirection="$sortDirection"
+                            />
                         @endforeach
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -76,7 +71,7 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3">
                                 <input type="checkbox" value="{{ $page->id }}" wire:model.live="selected"
-                                    class="rounded border-gray-300 text-green-600 focus:ring-green-500" />
+                                    class="rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal" />
                             </td>
                             {{-- Image --}}
                             <td class="px-4 py-3">
