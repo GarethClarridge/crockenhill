@@ -36,7 +36,7 @@
                             type="file"
                             wire:model="file"
                             accept=".osz,.zip,application/zip"
-                            class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm focus:border-green-500 focus:ring-green-500" />
+                            class="block w-full rounded-md border-gray-300 shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal" />
 
                         <p class="mt-1 text-sm text-gray-500">
                             Max size: {{ round(((int) config('service-tracking.upload.max_size_kb', 614400)) / 1024, 1) }} MB

@@ -35,7 +35,7 @@
                 id="songs-date-from"
                 type="date"
                 wire:model.live="dateFrom"
-                class="rounded-md border-gray-300 shadow-sm sm:text-sm focus:border-green-500 focus:ring-green-500" />
+                class="rounded-md border-gray-300 shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal" />
         </div>
 
         <div class="flex items-center gap-2">
@@ -44,7 +44,7 @@
                 id="songs-date-to"
                 type="date"
                 wire:model.live="dateTo"
-                class="rounded-md border-gray-300 shadow-sm sm:text-sm focus:border-green-500 focus:ring-green-500" />
+                class="rounded-md border-gray-300 shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal" />
         </div>
     </div>
 
@@ -64,23 +64,13 @@
                 <thead class="bg-gray-50">
                     <tr>
                         @foreach($headers as $header)
-                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                @if($header['column'] === null)
-                                    <span>{{ $header['label'] }}</span>
-                                @else
-                                    <button
-                                        type="button"
-                                        wire:click="sort('{{ $header['column'] }}')"
-                                        class="inline-flex items-center gap-1 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:text-gray-700">
-                                        <span>{{ $header['label'] }}</span>
-                                        @if($sortBy === $header['column'])
-                                            <span aria-hidden="true">{{ $sortDirection === 'asc' ? 'ASC' : 'DESC' }}</span>
-                                        @else
-                                            <span aria-hidden="true" class="text-gray-300">--</span>
-                                        @endif
-                                    </button>
-                                @endif
-                            </th>
+                            <x-admin.sortable-header
+                                :column="$header['column'] ?? ''"
+                                :label="$header['label']"
+                                :sortable="$header['column'] !== null"
+                                :sortBy="$sortBy"
+                                :sortDirection="$sortDirection"
+                            />
                         @endforeach
                         <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
                     </tr>
