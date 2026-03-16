@@ -271,6 +271,23 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
+     * Scope to filter sermons visible in the public sitemap.
+     *
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
+    public function scopeWhereVisibleInSitemap(Builder $query): Builder
+    {
+        $exposurePolicy = app(\App\Services\SermonExposurePolicy::class);
+
+        if ($exposurePolicy->childrensTalksArePublic()) {
+            return $query;
+        }
+
+        return $query->whereSermon();
+    }
+
+    /**
      * @return BelongsTo<ScripturePassage, $this>
      */
     public function scripturePassage(): BelongsTo
