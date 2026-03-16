@@ -46,11 +46,7 @@ class EditUser extends Component
                 'required',
                 'string',
                 'same:passwordConfirmation',
-                Password::min(12)
-                    ->letters()
-                    ->numbers()
-                    ->symbols()
-                    ->uncompromised(),
+                Password::defaults(),
             ];
             $rules['passwordConfirmation'] = 'required';
         }

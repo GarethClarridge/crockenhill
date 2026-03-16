@@ -24,7 +24,7 @@ class Register extends Component
     public string $email = '';
 
     /**
-     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password>>
+     * @return array<string, array<int, string|\Illuminate\Validation\Rules\Password|null>>
      */
     public function rules(): array
     {
@@ -35,11 +35,7 @@ class Register extends Component
                 'required',
                 'string',
                 'confirmed',
-                Password::min(12)
-                    ->letters()
-                    ->numbers()
-                    ->symbols()
-                    ->uncompromised(),
+                Password::defaults(),
             ],
         ];
     }
