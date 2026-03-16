@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Enums\SermonContentType;
+use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Services\PodcastFeedService;
 use App\Services\SermonStorageService;
@@ -45,7 +46,7 @@ class PodcastFeedServiceTest extends TestCase
 
         config(['podcast.cache.enabled' => false]);
 
-        $sermons = $this->service->getSermonsForFeed('morning');
+        $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $this->assertCount(3, $sermons);
         $sermons->each(fn ($sermon) => $this->assertEquals('morning', $sermon->service->value));
@@ -68,7 +69,7 @@ class PodcastFeedServiceTest extends TestCase
 
         config(['podcast.cache.enabled' => false]);
 
-        $sermons = $this->service->getSermonsForFeed('morning');
+        $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $this->assertCount(2, $sermons);
     }
@@ -94,7 +95,7 @@ class PodcastFeedServiceTest extends TestCase
 
         config(['podcast.cache.enabled' => false]);
 
-        $sermons = $this->service->getSermonsForFeed('morning');
+        $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $this->assertCount(1, $sermons);
         $this->assertSame('Main Sermon', $sermons->sole()->title);
@@ -113,7 +114,7 @@ class PodcastFeedServiceTest extends TestCase
 
         config(['podcast.cache.enabled' => false]);
 
-        $sermons = $this->service->getSermonsForFeed('morning');
+        $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $sermon = $sermons->first();
         $this->assertEquals('https://cdn.example.com/sermon.mp3', $sermon->enclosure_url);
@@ -133,7 +134,7 @@ class PodcastFeedServiceTest extends TestCase
 
         config(['podcast.cache.enabled' => false]);
 
-        $sermons = $this->service->getSermonsForFeed('morning');
+        $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $this->assertEquals(0, $sermons->first()->enclosure_length);
     }
@@ -200,7 +201,7 @@ class PodcastFeedServiceTest extends TestCase
 
         $this->assertFalse(Cache::has('podcast_feed_morning'));
 
-        $this->service->getSermonsForFeed('morning');
+        $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $this->assertTrue(Cache::has('podcast_feed_morning'));
     }
@@ -237,7 +238,7 @@ class PodcastFeedServiceTest extends TestCase
 
         config(['podcast.cache.enabled' => false]);
 
-        $sermons = $this->service->getSermonsForFeed('morning');
+        $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $this->assertCount(0, $sermons);
     }
@@ -255,7 +256,7 @@ class PodcastFeedServiceTest extends TestCase
         $this->storageService->method('getPublicUrl')->willReturn('https://example.com/sermon.mp3');
         $this->storageService->method('getFileSize')->willReturn(1024);
 
-        $sermons = $this->service->getSermonsForFeed('morning');
+        $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $this->assertCount(2, $sermons);
     }

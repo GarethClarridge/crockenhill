@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\SermonService;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SermonResource;
 use App\Models\Sermon;
@@ -50,7 +51,10 @@ class SermonApiController extends Controller
 
         // Filter by service if provided
         if ($request->has('service')) {
-            $query->forService($request->get('service'));
+            $serviceEnum = SermonService::tryFrom((string) $request->get('service'));
+            if ($serviceEnum !== null) {
+                $query->forService($serviceEnum);
+            }
         }
 
         // Filter by preacher if provided

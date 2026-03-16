@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Database\Eloquent\Builder;
@@ -112,9 +113,9 @@ class SermonRepository
      *
      * @return Collection<int, Sermon>
      */
-    public function getSermonsByService(string $service): Collection
+    public function getSermonsByService(SermonService $service): Collection
     {
-        return Cache::flexible("sermons_service_{$service}", [86400, 172800], function () use ($service) {
+        return Cache::flexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service) {
             return $this->publicSermonQuery()
                 ->where('service', $service)
                 ->orderBy('date', 'desc')

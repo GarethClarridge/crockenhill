@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Data\SermonCreationOptions;
 use App\Enums\PreacherSource;
+use App\Enums\SermonService;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
@@ -219,7 +220,7 @@ class SermonCreationService
     public function extractServiceType(
         MediaProcessingLog $processingLog,
         string $filename
-    ): string {
+    ): SermonService {
         // Strategy 1: Check if service was extracted from file metadata
         $processingMetadata = $processingLog->processing_metadata;
 
@@ -231,7 +232,7 @@ class SermonCreationService
                 'extraction_method' => $processingMetadata['service_extraction_method'] ?? 'unknown',
             ]);
 
-            return $extractedService;
+            return SermonService::tryFrom((string) $extractedService) ?? SermonService::MORNING;
         }
 
         // Strategy 2: Fall back to filename parsing
@@ -244,7 +245,7 @@ class SermonCreationService
                 'filename' => $filename,
             ]);
 
-            return 'evening';
+            return SermonService::EVENING;
         }
 
         // Check for morning service indicators (am or morning)
@@ -254,18 +255,18 @@ class SermonCreationService
                 'filename' => $filename,
             ]);
 
-            return 'morning';
+            return SermonService::MORNING;
         }
 
         // Strategy 3: Try to detect service type from time in filename
         $hour = $this->extractTimeFromFilename($filename);
         if ($hour !== null) {
-            $service = $hour < 12 ? 'morning' : 'evening';
+            $service = $hour < 12 ? SermonService::MORNING : SermonService::EVENING;
             Log::info('SermonCreationService: Detected service from time in filename', [
                 'processing_id' => $processingLog->processing_id,
                 'filename' => $filename,
                 'extracted_hour' => $hour,
-                'service' => $service,
+                'service' => $service->value,
             ]);
 
             return $service;
@@ -277,7 +278,7 @@ class SermonCreationService
             'filename' => $filename,
         ]);
 
-        return 'morning';
+        return SermonService::MORNING;
     }
 
     /**
@@ -373,10 +374,11 @@ class SermonCreationService
                 $service = $context['service'] ?? $this->extractServiceType($processingLog, $filename);
             } else {
                 // Fallback: simple filename parsing when no processing log
-                $service = $context['service'] ?? (str_contains(strtolower($filename), 'evening') ? 'evening' : 'morning');
+                $serviceValue = $context['service'] ?? (str_contains(strtolower($filename), 'evening') ? 'evening' : 'morning');
+                $service = $serviceValue instanceof SermonService ? $serviceValue : (SermonService::tryFrom((string) $serviceValue) ?? SermonService::MORNING);
             }
 
-            $serviceLabel = $service === 'evening' ? 'Evening' : 'Morning';
+            $serviceLabel = $service->label();
 
             // Use processing log created_at if available, otherwise parse date
             if ($processingLog) {

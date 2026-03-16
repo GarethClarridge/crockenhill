@@ -19,16 +19,20 @@ class PodcastFeedController extends Controller
      */
     public function show(string $service): Response
     {
-        // Validate service type
-        $validServices = [SermonService::MORNING->value, SermonService::EVENING->value];
-        if (! in_array($service, $validServices, true)) {
+        $serviceEnum = SermonService::tryFrom($service);
+        if ($serviceEnum === null || ! in_array($serviceEnum, [SermonService::MORNING, SermonService::EVENING], true)) {
             abort(404, 'Feed not found');
         }
 
-        $sermons = $this->feedService->getSermonsForFeed($service);
+        $sermons = $this->feedService->getSermonsForFeed($serviceEnum);
         $metadata = $this->feedService->getFeedMetadata($service);
 
-        $content = view("rss.{$service}Feed", [
+        $viewName = match ($serviceEnum) {
+            SermonService::MORNING => 'rss.morningFeed',
+            SermonService::EVENING => 'rss.eveningFeed',
+        };
+
+        $content = view($viewName, [
             'sermons' => $sermons,
             'metadata' => $metadata,
         ])->render();

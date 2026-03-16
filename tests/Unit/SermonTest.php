@@ -112,11 +112,11 @@ class SermonTest extends TestCase
         $this->assertTrue($sermonsLast12Months->contains($futureSermon));
         $this->assertFalse($sermonsLast12Months->contains($olderThan12Months));
 
-        // Test forService scope (no Service model, just use string type)
+        // Test forService scope
         $service1Date = Carbon::parse('2023-03-10');
-        $service1Type = 'morning';
+        $service1Type = \App\Enums\SermonService::MORNING;
         $service2Date = Carbon::parse('2023-03-12');
-        $service2Type = 'evening';
+        $service2Type = \App\Enums\SermonService::EVENING;
 
         $sermonForService1 = \App\Models\Sermon::factory()->create([
             'date' => $service1Date,
@@ -127,17 +127,17 @@ class SermonTest extends TestCase
             'service' => $service2Type,
         ]);
         // Another sermon on same date as service1 but different type
-        \App\Models\Sermon::factory()->create(['date' => $service1Date, 'service' => 'evening']);
+        \App\Models\Sermon::factory()->create(['date' => $service1Date, 'service' => \App\Enums\SermonService::EVENING]);
 
-        // The scopeForService filters by service type (enum 'morning'/'evening')
+        // The scopeForService filters by service type
         $sermonsForService1ByType = \App\Models\Sermon::forService($service1Type)
             ->whereDate('date', $service1Date)
             ->get();
         $this->assertTrue($sermonsForService1ByType->contains($sermonForService1));
         $this->assertFalse($sermonsForService1ByType->contains($sermonForService2));
 
-        // If we want to assert that sermons for 'morning' services on a specific date are found:
-        $sermonsForMorningServiceOnDate = \App\Models\Sermon::forService('morning')
+        // If we want to assert that sermons for morning services on a specific date are found:
+        $sermonsForMorningServiceOnDate = \App\Models\Sermon::forService(\App\Enums\SermonService::MORNING)
             ->whereDate('date', $service1Date)
             ->get();
         $this->assertTrue($sermonsForMorningServiceOnDate->contains($sermonForService1));
