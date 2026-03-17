@@ -76,26 +76,16 @@ class PageLinksRepository
     ): Collection {
         /**
          * Performance Optimization: Use PageRepository to fetch cached area links.
+         * Shuffling and filtering are performed in PHP on the cached collection
+         * to avoid database I/O on every request, which is efficient for
+         * small area-specific datasets.
          */
         return $this->pageRepository->getAllLinksForArea($linkArea)
             ->filter(function (Page $page) use ($slugToExclude, $secondSlugToExclude, $excludeAdminPages, $extraExcludedSlugs) {
-                if ($slugToExclude !== null && $page->slug === $slugToExclude) {
-                    return false;
-                }
-
-                if ($secondSlugToExclude !== null && $page->slug === $secondSlugToExclude) {
-                    return false;
-                }
-
-                if ($excludeAdminPages && $page->admin === 'yes') {
-                    return false;
-                }
-
-                if (in_array($page->slug, $extraExcludedSlugs, true)) {
-                    return false;
-                }
-
-                return true;
+                return ! ($page->slug === $slugToExclude ||
+                    $page->slug === $secondSlugToExclude ||
+                    ($excludeAdminPages && $page->admin === 'yes') ||
+                    in_array($page->slug, $extraExcludedSlugs, true));
             });
     }
 }
