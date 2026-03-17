@@ -82,10 +82,23 @@ class PageLinksRepository
          */
         return $this->pageRepository->getAllLinksForArea($linkArea)
             ->filter(function (Page $page) use ($slugToExclude, $secondSlugToExclude, $excludeAdminPages, $extraExcludedSlugs) {
-                return ! ($page->slug === $slugToExclude ||
-                    $page->slug === $secondSlugToExclude ||
-                    ($excludeAdminPages && $page->admin === 'yes') ||
-                    in_array($page->slug, $extraExcludedSlugs, true));
+                if ($slugToExclude !== null && $page->slug === $slugToExclude) {
+                    return false;
+                }
+
+                if ($secondSlugToExclude !== null && $page->slug === $secondSlugToExclude) {
+                    return false;
+                }
+
+                if ($excludeAdminPages && $page->admin === 'yes') {
+                    return false;
+                }
+
+                if (in_array($page->slug, $extraExcludedSlugs, true)) {
+                    return false;
+                }
+
+                return true;
             });
     }
 }

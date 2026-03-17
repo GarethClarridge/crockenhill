@@ -14,9 +14,6 @@ class PageRepository
     /**
      * Get and cache all public links for an area.
      *
-     * Performance Optimization: Caches the list of pages in an area for 24 hours
-     * to reduce redundant DB queries for related links and page cards.
-     *
      * @return Collection<int, Page>
      */
     public function getAllLinksForArea(string|PageArea $area): Collection
@@ -25,10 +22,6 @@ class PageRepository
 
         return Cache::flexible("page_links_{$areaValue}", [86400, 172800], function () use ($areaValue) {
             return Page::query()
-                /**
-                 * Performance Optimization: Limits retrieved columns to required fields for cards,
-                 * excluding large text fields (like body and markdown) to reduce memory usage.
-                 */
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
                 ->with('media')
                 ->where('area', $areaValue)

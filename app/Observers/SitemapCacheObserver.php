@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Cache;
 
 class SitemapCacheObserver
 {
+    public function __construct(
+        private readonly SermonRepository $sermonRepository,
+        private readonly PageRepository $pageRepository,
+    ) {}
+
     /**
      * Handle the model "created" event.
      */
@@ -46,14 +51,14 @@ class SitemapCacheObserver
         Cache::forget('public_preacher_list');
 
         if ($model instanceof Page) {
-            app(PageRepository::class)->clearAreaCache($model->area);
+            $this->pageRepository->clearAreaCache($model->area);
         }
 
         $targetModel = ($model instanceof Sermon || $model instanceof Preacher)
             ? $model
             : null;
 
-        app(SermonRepository::class)->clearListingCaches($targetModel);
+        $this->sermonRepository->clearListingCaches($targetModel);
 
         // Note: Podcast feed cache is NOT cleared here to prevent test failures
         // where sequential requests expect the same data (Cache Flexible behavior).
