@@ -30,7 +30,7 @@ if (count(\Request::segments()) >= 3) {
 $breadcrumbItems[] = ['name' => $sectionName, 'item' => url('admin/' . $section)];
 }
 }
-} elseif (count(\Request::segments()) >= 2) {
+} elseif (count(\Request::segments()) >= 2 || !empty($area)) {
 $breadcrumbItems[] = ['name' => Str::title($area), 'item' => url($area)];
 
 if (count(\Request::segments()) >= 3) {

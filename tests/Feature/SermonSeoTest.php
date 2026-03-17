@@ -71,4 +71,64 @@ class SermonSeoTest extends TestCase
         $response->assertSee('"@type": "Person"', false);
         $response->assertSee('"name": "Guest Preacher"', false);
     }
+
+    #[Test]
+    public function preacher_sermons_page_has_item_list_structured_data_and_breadcrumbs()
+    {
+        $preacher = Preacher::factory()->create(['name' => 'Preacher Name']);
+        Sermon::factory()->count(2)->create([
+            'preacher' => 'Preacher Name',
+            'preacher_id' => $preacher->id,
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
+
+        $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('Sermons by Preacher Name | Crockenhill Baptist Church');
+        $response->assertSee('"@type": "ItemList"', false);
+        $response->assertSee('"numberOfItems": 2', false);
+        // Breadcrumb check (provided by layout & controller context)
+        $response->assertSee('"@type": "BreadcrumbList"', false);
+        $response->assertSee('"name": "Christ"', false);
+        $response->assertSee('"name": "Sermons"', false);
+    }
+
+    #[Test]
+    public function series_sermons_page_has_item_list_structured_data_and_breadcrumbs()
+    {
+        Sermon::factory()->count(2)->create([
+            'series' => 'My Great Series',
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
+
+        $response = $this->get('/christ/sermons/series/my-great-series');
+
+        $response->assertStatus(200);
+        $response->assertSee('Sermon Series: My Great Series | Crockenhill Baptist Church');
+        $response->assertSee('"@type": "ItemList"', false);
+        $response->assertSee('"numberOfItems": 2', false);
+        // Breadcrumb check
+        $response->assertSee('"@type": "BreadcrumbList"', false);
+        $response->assertSee('"name": "Christ"', false);
+    }
+
+    #[Test]
+    public function service_sermons_page_has_item_list_structured_data_and_breadcrumbs()
+    {
+        Sermon::factory()->count(2)->create([
+            'service' => \App\Enums\SermonService::MORNING,
+            'content_type' => \App\Enums\SermonContentType::Sermon,
+        ]);
+
+        $response = $this->get('/christ/sermons/morning');
+
+        $response->assertStatus(200);
+        $response->assertSee('Sunday Morning Services | Crockenhill Baptist Church');
+        $response->assertSee('"@type": "ItemList"', false);
+        $response->assertSee('"numberOfItems": 2', false);
+        // Breadcrumb check
+        $response->assertSee('"@type": "BreadcrumbList"', false);
+        $response->assertSee('"name": "Christ"', false);
+    }
 }
