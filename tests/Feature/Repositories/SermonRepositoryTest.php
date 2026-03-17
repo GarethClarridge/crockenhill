@@ -247,10 +247,10 @@ class SermonRepositoryTest extends TestCase
     public function it_returns_sermons_by_service(): void
     {
         Sermon::query()->delete();
-        Sermon::factory()->create(['service' => 'morning', 'content_type' => \App\Enums\SermonContentType::Sermon]);
-        Sermon::factory()->create(['service' => 'evening', 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => \App\Enums\SermonService::MORNING, 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => \App\Enums\SermonService::EVENING, 'content_type' => \App\Enums\SermonContentType::Sermon]);
 
-        $result = $this->repository->getSermonsByService('morning');
+        $result = $this->repository->getSermonsByService(\App\Enums\SermonService::MORNING);
 
         $this->assertCount(1, $result);
         $this->assertEquals('morning', $result->first()->service->value);
@@ -264,19 +264,19 @@ class SermonRepositoryTest extends TestCase
 
         Sermon::factory()->create([
             'title' => 'Original Service Title',
-            'service' => 'morning',
+            'service' => \App\Enums\SermonService::MORNING,
             'content_type' => \App\Enums\SermonContentType::Sermon,
         ]);
 
         // First call caches
-        $this->repository->getSermonsByService('morning');
+        $this->repository->getSermonsByService(\App\Enums\SermonService::MORNING);
         $this->assertTrue(Cache::has('sermons_service_morning'));
 
         // Modify DB
         Sermon::query()->update(['title' => 'Updated Service Title']);
 
         // Second call should return cached data
-        $result = $this->repository->getSermonsByService('morning');
+        $result = $this->repository->getSermonsByService(\App\Enums\SermonService::MORNING);
         $this->assertEquals('Original Service Title', $result->first()->title);
     }
 

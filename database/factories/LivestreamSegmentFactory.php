@@ -17,7 +17,7 @@ class LivestreamSegmentFactory extends Factory
 
         return [
             'media_processing_log_id' => 1, // Will be overridden in tests
-            'segment_index' => $this->faker->numberBetween(1, 10),
+            'segment_index' => $this->faker->numberBetween(0, 255),
             'start_time' => $startTime,
             'end_time' => $endTime,
             'duration' => $duration,
@@ -59,6 +59,16 @@ class LivestreamSegmentFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'media_processing_log_id' => $processingLogId,
+        ]);
+    }
+
+    /**
+     * Set a specific segment index.
+     */
+    public function withIndex(int $index): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'segment_index' => $index,
         ]);
     }
 }
