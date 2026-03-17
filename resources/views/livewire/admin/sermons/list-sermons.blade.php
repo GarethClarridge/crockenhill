@@ -124,8 +124,23 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-8 text-center text-gray-500">
-                                No sermons found.
+                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-12 text-center" role="status">
+                                <div class="flex flex-col items-center justify-center space-y-3">
+                                    <div class="rounded-full bg-gray-100 p-3">
+                                        <x-heroicon-o-magnifying-glass class="h-8 w-8 text-gray-400" aria-hidden="true" />
+                                    </div>
+                                    <h3 class="text-sm font-medium text-gray-900">No sermons found</h3>
+                                    <p class="text-sm text-gray-500 max-w-xs mx-auto">
+                                        Your search and filters didn't return any results. Try adjusting your search keywords or clearing the filters.
+                                    </p>
+                                    @if($hasFilters)
+                                        <div class="mt-2">
+                                            <x-form-button variant="outline" size="sm" icon="x-mark" wire:click="resetFilters">
+                                                Clear all filters
+                                            </x-form-button>
+                                        </div>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforelse

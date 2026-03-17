@@ -189,4 +189,17 @@ class ListSermonsTest extends TestCase
 
         $this->assertModelExists($sermon);
     }
+
+    #[Test]
+    public function it_shows_a_polished_empty_state_when_no_results_found(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ListSermons::class)
+            ->set('last12Months', false)
+            ->set('search', 'NonExistentSermon')
+            ->assertSee('No sermons found')
+            ->assertSee("Your search and filters didn't return any results", false)
+            ->assertSee('Clear all filters');
+    }
 }
