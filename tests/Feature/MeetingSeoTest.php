@@ -61,6 +61,11 @@ class MeetingSeoTest extends TestCase
         $response->assertSee('"name": "Home"', false);
         $response->assertSee('"name": "Community"', false);
         $response->assertSee('"name": "Test Meeting"', false);
+
+        // Verify the JSON-LD structure reflects the community area correctly
+        $json = $response->getContent();
+        $this->assertStringContainsString('"name": "Community"', $json);
+        $this->assertStringContainsString('"item": "http://localhost/community"', $json);
     }
 
     #[Test]

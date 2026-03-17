@@ -31,6 +31,8 @@ $breadcrumbItems[] = ['name' => $sectionName, 'item' => url('admin/' . $section)
 }
 }
 } elseif (count(\Request::segments()) >= 2 || !empty($area)) {
+// Always include the area in the breadcrumb path if explicitly provided,
+// supporting future 1-segment pages that may reside within a specific area.
 $breadcrumbItems[] = ['name' => Str::title($area), 'item' => url($area)];
 
 if (count(\Request::segments()) >= 3) {
