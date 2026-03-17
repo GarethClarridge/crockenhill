@@ -324,10 +324,12 @@ class LivestreamProcessingIntegrationTest extends TestCase
         ]);
 
         $processing = MediaProcessingLog::where('processing_id', $processingId)->first();
-        LivestreamSegment::factory()->count(3)->create([
-            'media_processing_log_id' => $processing->id,
-            'segment_index' => 1,
-        ]);
+        LivestreamSegment::factory()
+            ->count(3)
+            ->sequence(fn ($sequence) => ['segment_index' => $sequence->index + 1])
+            ->create([
+                'media_processing_log_id' => $processing->id,
+            ]);
 
         // Generate processing report
         $report = $logger->generateProcessingReport($processingId);

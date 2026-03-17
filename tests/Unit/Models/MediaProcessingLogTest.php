@@ -96,7 +96,10 @@ class MediaProcessingLogTest extends TestCase
             'sermon_id' => $sermon->id,
             'church_service_id' => $churchService->id,
         ]);
-        LivestreamSegment::factory()->count(3)->create(['media_processing_log_id' => $log->id]);
+        LivestreamSegment::factory()
+            ->count(3)
+            ->sequence(fn ($sequence) => ['segment_index' => $sequence->index + 1])
+            ->create(['media_processing_log_id' => $log->id]);
 
         $this->assertInstanceOf(Sermon::class, $log->sermon);
         $this->assertTrue($log->churchService->is($churchService));

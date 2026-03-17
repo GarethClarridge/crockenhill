@@ -523,6 +523,7 @@ class ExtractSermonTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'segment_order' => 1,
             'start_time' => 300.0,
             'end_time' => 1800.0,
@@ -531,6 +532,7 @@ class ExtractSermonTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'segment_order' => 2,
             'start_time' => 1850.0,
             'end_time' => 2600.0,
@@ -592,6 +594,7 @@ class ExtractSermonTest extends TestCase
         // Two similarly-sized speech blocks — ratio will fail
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'segment_order' => 1,
             'start_time' => 0.0,
             'end_time' => 1320.0,
@@ -600,6 +603,7 @@ class ExtractSermonTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'segment_order' => 2,
             'start_time' => 1400.0,
             'end_time' => 2300.0,
@@ -655,6 +659,7 @@ class ExtractSermonTest extends TestCase
         // Two similar-sized blocks that would normally fail the confidence check
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'segment_order' => 1,
             'start_time' => 600.0,
             'end_time' => 1800.0,
@@ -663,6 +668,7 @@ class ExtractSermonTest extends TestCase
 
         $confirmedSegment = LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'segment_order' => 2,
             'start_time' => 2000.0,
             'end_time' => 3100.0,
@@ -740,6 +746,7 @@ class ExtractSermonTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'segment_order' => 1,
             'start_time' => 0.0,
             'end_time' => 1500.0,
@@ -748,6 +755,7 @@ class ExtractSermonTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'segment_order' => 2,
             'start_time' => 1600.0,
             'end_time' => 2900.0,
@@ -785,6 +793,7 @@ class ExtractSermonTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'segment_order' => 1,
             'start_time' => 0.0,
             'end_time' => 600.0,
@@ -793,6 +802,7 @@ class ExtractSermonTest extends TestCase
 
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'segment_order' => 2,
             'start_time' => 650.0,
             'end_time' => 1250.0,
@@ -831,6 +841,7 @@ class ExtractSermonTest extends TestCase
         // 22 minutes - only one exceeds 20 min threshold
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'segment_order' => 1,
             'start_time' => 0.0,
             'end_time' => 1320.0,
@@ -840,6 +851,7 @@ class ExtractSermonTest extends TestCase
         // 15 minutes - 1320 < 900 * 1.5 = 1350, so ratio fails
         LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'segment_order' => 2,
             'start_time' => 1400.0,
             'end_time' => 2300.0,
