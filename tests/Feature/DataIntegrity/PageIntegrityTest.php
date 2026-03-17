@@ -9,14 +9,15 @@ use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class PageIntegrityTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
-    public function it_allows_same_slug_in_different_areas()
+    #[Test]
+    public function it_allows_same_slug_in_different_areas(): void
     {
         Page::factory()->create([
             'area' => PageArea::CHURCH,
@@ -38,8 +39,8 @@ class PageIntegrityTest extends TestCase
         ]);
     }
 
-    /** @test */
-    public function it_prevents_duplicate_slug_in_same_area_at_database_level()
+    #[Test]
+    public function it_prevents_duplicate_slug_in_same_area_at_database_level(): void
     {
         Page::factory()->create([
             'area' => PageArea::CHURCH,
@@ -61,8 +62,8 @@ class PageIntegrityTest extends TestCase
         ]);
     }
 
-    /** @test */
-    public function it_validates_duplicate_slug_in_same_area_in_livewire()
+    #[Test]
+    public function it_validates_duplicate_slug_in_same_area_in_livewire(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);
 
@@ -81,8 +82,8 @@ class PageIntegrityTest extends TestCase
             ->assertHasErrors(['slug' => 'unique']);
     }
 
-    /** @test */
-    public function it_allows_same_slug_in_different_area_in_livewire()
+    #[Test]
+    public function it_allows_same_slug_in_different_area_in_livewire(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);
 

@@ -100,7 +100,8 @@ class PageCacheTest extends TestCase
         $this->assertTrue(Cache::has('page_links_community'));
 
         // Update a page in 'church' area
-        $page = Page::where('area', 'church')->first();
+        $page = Page::where('area', 'church')->first()
+            ?? Page::factory()->create(['area' => 'church', 'slug' => 'cache-test-church', 'admin' => 'no']);
         $page->update(['heading' => 'New Heading']);
 
         $this->assertFalse(Cache::has('page_links_church'));

@@ -32,7 +32,7 @@ class ServiceSectionFactory extends Factory
             'media_processing_log_id' => MediaProcessingLog::factory()->livestream(),
             'church_service_item_id' => ChurchServiceItem::factory(),
             'section_type' => $this->faker->randomElement(ServiceSectionType::cases()),
-            'section_order' => $this->faker->numberBetween(1, 12),
+            'section_order' => $this->faker->unique()->numberBetween(1, 100),
             'title' => $this->faker->optional()->sentence(3),
             'start_time' => $startTime,
             'end_time' => $endTime,

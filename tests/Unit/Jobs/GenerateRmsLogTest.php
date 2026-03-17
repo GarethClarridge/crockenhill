@@ -30,6 +30,7 @@ class GenerateRmsLogTest extends TestCase
     {
         Storage::fake('local');
         config(['media-processing.storage.temp_disk' => 'local']);
+        config(['media-processing.file_wait_retry_delay_seconds' => 0]); // No sleep in tests
 
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([
             'source_file_path' => 'nonexistent-livestream.mp4',

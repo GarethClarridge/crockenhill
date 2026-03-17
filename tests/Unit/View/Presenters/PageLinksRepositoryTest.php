@@ -20,7 +20,7 @@ class PageLinksRepositoryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->repository = new PageLinksRepository;
+        $this->repository = app(PageLinksRepository::class);
     }
 
     #[Test]

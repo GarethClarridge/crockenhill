@@ -58,6 +58,7 @@ class GenerateRmsLog implements ShouldQueue
 
             // Wait for file to be available (handles async upload/storage delays)
             $maxAttempts = 5;
+            $retryDelay = (int) config('media-processing.file_wait_retry_delay_seconds', 2);
             $attempt = 0;
             while (! file_exists($videoPath) && $attempt < $maxAttempts) {
                 $attempt++;
@@ -66,7 +67,9 @@ class GenerateRmsLog implements ShouldQueue
                     'attempt' => $attempt,
                     'expected_path' => $videoPath,
                 ]);
-                sleep(2); // Wait 2 seconds before retrying
+                if ($retryDelay > 0) {
+                    sleep($retryDelay);
+                }
             }
 
             if (! file_exists($videoPath)) {

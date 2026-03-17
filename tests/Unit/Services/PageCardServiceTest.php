@@ -20,7 +20,7 @@ class PageCardServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new PageCardService;
+        $this->service = app(PageCardService::class);
     }
 
     #[Test]

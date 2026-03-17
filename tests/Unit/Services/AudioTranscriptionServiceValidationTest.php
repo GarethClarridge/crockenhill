@@ -83,8 +83,8 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
     public function test_transcribe_validates_file_size_against_config(): void
     {
-        // Set a small file size limit for testing
-        Config::set('media-processing.transcription.max_file_size', 1024); // 1KB
+        // Set a small file size limit for testing (must use the key validateAndCompressIfNeeded reads)
+        Config::set('media-processing.audio_extraction.transcription_optimized.max_file_size', 1024); // 1KB
 
         // Create a test file larger than the limit
         $testFilePath = 'test_large_audio.mp3';
@@ -102,8 +102,8 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
     public function test_file_size_validation_provides_helpful_error_message(): void
     {
-        // Set a specific limit for testing
-        Config::set('media-processing.transcription.max_file_size', 5 * 1024 * 1024); // 5MB
+        // Set a specific limit for testing (must use the key that validateAndCompressIfNeeded reads)
+        Config::set('media-processing.audio_extraction.transcription_optimized.max_file_size', 5 * 1024 * 1024); // 5MB
 
         // Create a test file larger than the limit
         $testFilePath = 'test_oversized_audio.mp3';
@@ -141,26 +141,19 @@ class AudioTranscriptionServiceValidationTest extends TestCase
 
     public function test_validation_passes_for_appropriately_sized_files(): void
     {
-        // Set a reasonable limit
-        Config::set('media-processing.transcription.max_file_size', 25 * 1024 * 1024); // 25MB
+        // Set a reasonable limit (must use the key validateAndCompressIfNeeded reads)
+        Config::set('media-processing.audio_extraction.transcription_optimized.max_file_size', 25 * 1024 * 1024); // 25MB
 
-        // Create a small test file
+        // Create a small test file (well under the limit)
         $testFilePath = 'test_small_audio.mp3';
-        Storage::disk('public')->put($testFilePath, str_repeat('a', 1024 * 1024)); // 1MB
+        Storage::disk('public')->put($testFilePath, str_repeat('a', 1024)); // 1KB — tiny, so size check passes immediately
 
-        // Mock the logger to expect certain calls but not throw errors
-        $this->mockLogger->expects($this->atLeastOnce())
-            ->method('logProcessingStep');
-
-        $this->mockLogger->expects($this->atLeastOnce())
-            ->method('logFileOperation');
-
-        // We expect this to get past validation and fail on the actual OpenAI API call
-        // (which we're not mocking in this test)
+        // We expect this to get past size validation and fail at the FFmpeg duration probe
+        // (because the file isn't a real audio file), not at an "Audio file too large" check.
         try {
             $this->service->transcribe($testFilePath, 'test-processing-id');
         } catch (Exception $e) {
-            // The validation should pass, so any exception should be from later processing
+            // The size validation should pass — any exception must come from FFmpeg or API, not file size.
             $this->assertStringNotContainsString('Audio file too large', $e->getMessage());
             $this->assertStringNotContainsString('file not found', $e->getMessage());
         }
@@ -238,7 +231,6 @@ class AudioTranscriptionServiceValidationTest extends TestCase
     {
         $reflection = new \ReflectionClass($this->service);
         $method = $reflection->getMethod('isNonRetryableError');
-        $method->setAccessible(true);
 
         // Note: OpenAI's ErrorException extends Exception but parent::__construct
         // is called without a code, so getCode() always returns 0.
