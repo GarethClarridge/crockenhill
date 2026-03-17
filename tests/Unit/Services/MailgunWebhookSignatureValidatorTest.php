@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\MailgunWebhookSignatureValidator;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
+#[CoversClass(MailgunWebhookSignatureValidator::class)]
 class MailgunWebhookSignatureValidatorTest extends TestCase
 {
     private MailgunWebhookSignatureValidator $validator;
@@ -68,6 +70,16 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
     }
 
     #[Test]
+    public function it_passes_if_timestamp_is_exactly_at_the_tolerance_limit_old(): void
+    {
+        $timestamp = (string) now()->subSeconds(300)->getTimestamp();
+        $token = 'test-token';
+        $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
+
+        $this->assertTrue($this->validator->isValid($timestamp, $token, $signature));
+    }
+
+    #[Test]
     public function it_fails_if_timestamp_is_in_the_future(): void
     {
         $timestamp = (string) now()->addSeconds(301)->getTimestamp();
@@ -75,6 +87,16 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
         $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
 
         $this->assertFalse($this->validator->isValid($timestamp, $token, $signature));
+    }
+
+    #[Test]
+    public function it_passes_if_timestamp_is_exactly_at_the_tolerance_limit_future(): void
+    {
+        $timestamp = (string) now()->addSeconds(300)->getTimestamp();
+        $token = 'test-token';
+        $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
+
+        $this->assertTrue($this->validator->isValid($timestamp, $token, $signature));
     }
 
     #[Test]
