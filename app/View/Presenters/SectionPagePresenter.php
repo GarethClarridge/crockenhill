@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\View\Presenters;
 
 use App\Models\Page;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -49,9 +48,9 @@ class SectionPagePresenter implements PagePresenter
     }
 
     /**
-     * @return Collection<int, Page>
+     * @return \Illuminate\Support\Collection<int, Page>
      */
-    private function resolveLinks(Request $request, ?string $slug, ?string $area): Collection
+    private function resolveLinks(Request $request, ?string $slug, ?string $area): \Illuminate\Support\Collection
     {
         if ($request->segment(2) === 'sermons') {
             return $this->links->orderedLinks(

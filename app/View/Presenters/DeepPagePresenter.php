@@ -40,9 +40,9 @@ class DeepPagePresenter implements PagePresenter
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\Page>
+     * @return \Illuminate\Support\Collection<int, \App\Models\Page>
      */
-    private function resolveLinks(Request $request, ?string $slug, ?string $area): \Illuminate\Database\Eloquent\Collection
+    private function resolveLinks(Request $request, ?string $slug, ?string $area): \Illuminate\Support\Collection
     {
         if ($request->segment(2) === 'sermons') {
             return $this->links->orderedLinks(
