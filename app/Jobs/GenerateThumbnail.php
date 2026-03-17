@@ -37,16 +37,14 @@ class GenerateThumbnail implements ShouldQueue
 
     private ?string $disk = null;
 
-    private MediaProcessingLog $processingLog;
-
     /**
      * Create a new job instance.
      */
-    public function __construct(MediaProcessingLog $processingLog)
-    {
-        $this->processingLog = $processingLog;
-        $this->sermonId = $processingLog->sermon_id;
-        $this->videoPath = $processingLog->video_file_path;
+    public function __construct(
+        private readonly MediaProcessingLog $processingLog
+    ) {
+        $this->sermonId = $this->processingLog->sermon_id;
+        $this->videoPath = $this->processingLog->video_file_path;
     }
 
     /**
