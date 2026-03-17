@@ -2,8 +2,10 @@
 
 namespace App\Observers;
 
+use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Repositories\PageRepository;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Facades\Cache;
 
@@ -42,6 +44,10 @@ class SitemapCacheObserver
         Cache::forget('nav_pages');
         Cache::forget('admin_preacher_list');
         Cache::forget('public_preacher_list');
+
+        if ($model instanceof Page) {
+            app(PageRepository::class)->clearAreaCache($model->area);
+        }
 
         $targetModel = ($model instanceof Sermon || $model instanceof Preacher)
             ? $model

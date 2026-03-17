@@ -6,10 +6,15 @@ namespace App\Services;
 
 use App\Enums\PageArea;
 use App\Models\Page;
-use Illuminate\Database\Eloquent\Collection;
+use App\Repositories\PageRepository;
+use Illuminate\Support\Collection;
 
 class PageCardService
 {
+    public function __construct(
+        private readonly PageRepository $pageRepository
+    ) {}
+
     /**
      * @return Collection<int, Page>
      */
@@ -55,18 +60,16 @@ class PageCardService
      */
     public function churchLinks(): Collection
     {
-        return Page::query()
-            /**
-             * Performance Optimization: Limits retrieved columns to required fields for cards,
-             * excluding large text fields (like body and markdown) to reduce memory usage.
-             */
-            ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
-            ->with('media')
-            ->where('area', PageArea::CHURCH->value)
-            ->where('slug', '!=', 'privacy-policy')
-            ->where('slug', '!=', 'safeguarding-policy')
-            ->where('admin', '!=', 'yes')
-            ->get();
+        /**
+         * Performance Optimization: Use PageRepository to fetch cached area links.
+         */
+        return $this->pageRepository->getAllLinksForArea(PageArea::CHURCH)
+            ->filter(function (Page $page) {
+                return $page->slug !== 'privacy-policy'
+                    && $page->slug !== 'safeguarding-policy'
+                    && $page->admin !== 'yes';
+            })
+            ->values();
     }
 
     /**
@@ -75,15 +78,13 @@ class PageCardService
      */
     private function communityPages(array $slugs): Collection
     {
-        return Page::query()
-            /**
-             * Performance Optimization: Limits retrieved columns to required fields for cards,
-             * excluding large text fields (like body and markdown) to reduce memory usage.
-             */
-            ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
-            ->with('media')
-            ->where('area', PageArea::COMMUNITY->value)
-            ->whereIn('slug', $slugs)
-            ->get();
+        /**
+         * Performance Optimization: Use PageRepository to fetch cached area links.
+         */
+        return $this->pageRepository->getAllLinksForArea(PageArea::COMMUNITY)
+            ->filter(function (Page $page) use ($slugs) {
+                return in_array($page->slug, $slugs, true);
+            })
+            ->values();
     }
 }

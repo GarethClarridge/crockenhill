@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\View\Presenters;
 
 use App\Models\Page;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
+use App\Repositories\PageRepository;
+use Illuminate\Support\Collection;
 
 class PageLinksRepository
 {
+    public function __construct(
+        private readonly PageRepository $pageRepository
+    ) {}
+
     /**
      * @param  list<string>  $extraExcludedSlugs
      * @return Collection<int, Page>
@@ -25,13 +29,13 @@ class PageLinksRepository
             return new Collection;
         }
 
-        return $this->linksQuery(
+        return $this->getFilteredLinks(
             linkArea: $linkArea,
             slugToExclude: $slugToExclude,
             secondSlugToExclude: $secondSlugToExclude,
             excludeAdminPages: $excludeAdminPages,
             extraExcludedSlugs: $extraExcludedSlugs,
-        )->orderBy('slug', 'asc')->get();
+        )->sortBy('slug')->values();
     }
 
     /**
@@ -50,51 +54,48 @@ class PageLinksRepository
             return new Collection;
         }
 
-        return $this->linksQuery(
+        return $this->getFilteredLinks(
             linkArea: $linkArea,
             slugToExclude: $slugToExclude,
             secondSlugToExclude: $secondSlugToExclude,
             excludeAdminPages: $excludeAdminPages,
             extraExcludedSlugs: $extraExcludedSlugs,
-        )->inRandomOrder()->take($limit)->get();
+        )->shuffle()->take($limit);
     }
 
     /**
      * @param  list<string>  $extraExcludedSlugs
-     * @return Builder<Page>
+     * @return Collection<int, Page>
      */
-    private function linksQuery(
+    private function getFilteredLinks(
         string $linkArea,
         ?string $slugToExclude,
         ?string $secondSlugToExclude,
         bool $excludeAdminPages = false,
         array $extraExcludedSlugs = [],
-    ): Builder {
-        $query = Page::query()
-            /**
-             * Performance Optimization: Limits retrieved columns to required fields for related links cards,
-             * excluding large text fields (like body and markdown) to reduce memory usage.
-             */
-            ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
-            ->with('media')
-            ->where('area', $linkArea);
+    ): Collection {
+        /**
+         * Performance Optimization: Use PageRepository to fetch cached area links.
+         */
+        return $this->pageRepository->getAllLinksForArea($linkArea)
+            ->filter(function (Page $page) use ($slugToExclude, $secondSlugToExclude, $excludeAdminPages, $extraExcludedSlugs) {
+                if ($slugToExclude !== null && $page->slug === $slugToExclude) {
+                    return false;
+                }
 
-        if ($slugToExclude !== null) {
-            $query->where('slug', '!=', $slugToExclude);
-        }
+                if ($secondSlugToExclude !== null && $page->slug === $secondSlugToExclude) {
+                    return false;
+                }
 
-        if ($secondSlugToExclude !== null) {
-            $query->where('slug', '!=', $secondSlugToExclude);
-        }
+                if ($excludeAdminPages && $page->admin === 'yes') {
+                    return false;
+                }
 
-        foreach ($extraExcludedSlugs as $extraExcludedSlug) {
-            $query->where('slug', '!=', $extraExcludedSlug);
-        }
+                if (in_array($page->slug, $extraExcludedSlugs, true)) {
+                    return false;
+                }
 
-        if ($excludeAdminPages) {
-            $query->where('admin', '!=', 'yes');
-        }
-
-        return $query;
+                return true;
+            });
     }
 }
