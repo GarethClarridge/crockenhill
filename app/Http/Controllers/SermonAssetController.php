@@ -4,21 +4,32 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\SermonContentType;
 use App\Models\Sermon;
+use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SermonAssetController extends Controller
 {
-    public function __construct(private readonly SermonStorageService $storageService) {}
+    public function __construct(
+        private readonly SermonStorageService $storageService,
+        private readonly SermonExposurePolicy $exposurePolicy,
+    ) {}
 
     /**
      * Serve audio file for a sermon
      */
     public function serveAudio(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
+        // Security check: Authorize access to Children's Talk assets
+        if ($sermon->content_type === SermonContentType::ChildrensTalk && ! $this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
+            return redirect()->guest(route('login'));
+        }
+
         if (! $sermon->audio_file_path) {
             abort(404, 'Audio file not found.');
         }
@@ -54,8 +65,13 @@ class SermonAssetController extends Controller
     /**
      * Serve thumbnail image for a sermon
      */
-    public function serveThumbnail(Sermon $sermon): BinaryFileResponse
+    public function serveThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
+        // Security check: Authorize access to Children's Talk assets
+        if ($sermon->content_type === SermonContentType::ChildrensTalk && ! $this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
+            return redirect()->guest(route('login'));
+        }
+
         if (! $sermon->thumbnail_file_path) {
             abort(404, 'Thumbnail not found.');
         }
@@ -66,8 +82,13 @@ class SermonAssetController extends Controller
     /**
      * Serve the thumbnail variant intended for compact UI cards.
      */
-    public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse
+    public function serveCardThumbnail(Sermon $sermon): BinaryFileResponse|RedirectResponse
     {
+        // Security check: Authorize access to Children's Talk assets
+        if ($sermon->content_type === SermonContentType::ChildrensTalk && ! $this->exposurePolicy->canAccessChildrensCorner(Auth::user())) {
+            return redirect()->guest(route('login'));
+        }
+
         $cardThumbnailPath = $sermon->plain_thumbnail_file_path;
 
         if (! $cardThumbnailPath) {
