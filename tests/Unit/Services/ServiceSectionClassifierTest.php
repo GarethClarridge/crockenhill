@@ -39,6 +39,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $introSpeech = LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $processingLog->id,
+            'segment_index' => 1,
             'segment_order' => 1,
             'start_time' => 0.0,
             'end_time' => 480.0,
@@ -47,6 +48,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $song = LivestreamSegment::factory()->song()->create([
             'media_processing_log_id' => $processingLog->id,
+            'segment_index' => 2,
             'segment_order' => 2,
             'start_time' => 480.0,
             'end_time' => 720.0,
@@ -55,6 +57,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $sermon = LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $processingLog->id,
+            'segment_index' => 3,
             'segment_order' => 3,
             'start_time' => 720.0,
             'end_time' => 2520.0,
@@ -127,6 +130,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $segmentOne = LivestreamSegment::factory()->song()->create([
             'media_processing_log_id' => $processingLog->id,
+            'segment_index' => 1,
             'segment_order' => 1,
             'start_time' => 120.0,
             'end_time' => 300.0,
@@ -135,6 +139,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $segmentTwo = LivestreamSegment::factory()->speech()->create([
             'media_processing_log_id' => $processingLog->id,
+            'segment_index' => 2,
             'segment_order' => 2,
             'start_time' => 300.0,
             'end_time' => 540.0,
@@ -143,6 +148,7 @@ class ServiceSectionClassifierTest extends TestCase
 
         $segmentThree = LivestreamSegment::factory()->song()->create([
             'media_processing_log_id' => $processingLog->id,
+            'segment_index' => 3,
             'segment_order' => 3,
             'start_time' => 540.0,
             'end_time' => 720.0,

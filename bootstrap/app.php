@@ -25,9 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
-        // The config repository is not guaranteed to be bound at this bootstrap stage.
-        // Read directly from env(); app.trusted_proxies in config/app.php is the canonical reference.
-        $trustedProxies = env('TRUSTED_PROXIES');
+        // Read from config(); app.trusted_proxies in config/app.php is the canonical reference.
+        $trustedProxies = config('app.trusted_proxies');
 
         if (is_string($trustedProxies) && trim($trustedProxies) !== '') {
             $middleware->trustProxies(at: $trustedProxies);
