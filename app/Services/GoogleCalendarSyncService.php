@@ -24,14 +24,7 @@ class GoogleCalendarSyncService
         $endDate = now()->addYears(config('calendar.sync_window.future_years', 2));
 
         try {
-            $googleEvents = Event::get(
-                $startDate,
-                $endDate,
-                [
-                    'singleEvents' => true,
-                    'orderBy' => 'startTime',
-                ]
-            );
+            $googleEvents = $this->fetchEventsFromGoogle($startDate, $endDate);
         } catch (\Exception $e) {
             Log::error('Failed to fetch events from Google Calendar', ['error' => $e->getMessage()]);
             throw $e;
@@ -40,29 +33,40 @@ class GoogleCalendarSyncService
         $existingEventIds = CalendarEvent::whereBetween('start_datetime', [$startDate, $endDate])
             ->pluck('google_event_id')
             ->toArray();
+
+        // Track seen and processed separately: an event that Google returned but failed
+        // to process must NOT be deleted — only events absent from Google entirely should be.
+        $seenUpstreamIds = [];
         $processedEventIds = [];
 
         foreach ($googleEvents as $googleEvent) {
+            /** @phpstan-ignore-next-line */
+            $seenUpstreamIds[] = $googleEvent->id;
             try {
                 $this->syncSingleEvent($googleEvent);
+                /** @phpstan-ignore-next-line */
                 $processedEventIds[] = $googleEvent->id;
             } catch (\Exception $e) {
                 Log::warning('Failed to sync single event', [
+                    /** @phpstan-ignore-next-line */
                     'event_id' => $googleEvent->id,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        $deletedEventIds = array_diff($existingEventIds, $processedEventIds);
+        $deletedEventIds = array_diff($existingEventIds, $seenUpstreamIds);
         CalendarEvent::whereIn('google_event_id', $deletedEventIds)->delete();
 
         $uncategorizedCount = CalendarEvent::whereBetween('start_datetime', [$startDate, $endDate])
             ->whereNull('meeting_slug')
             ->count();
 
+        $skippedEventIds = array_diff($seenUpstreamIds, $processedEventIds);
+
         Log::info('Google Calendar sync completed', [
             'processed_events' => count($processedEventIds),
+            'skipped_events' => count($skippedEventIds),
             'deleted_events' => count($deletedEventIds),
             'uncategorized_events' => $uncategorizedCount,
             'sync_window' => [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')],
@@ -70,11 +74,32 @@ class GoogleCalendarSyncService
 
         return [
             'processed_events' => count($processedEventIds),
+            'skipped_events' => count($skippedEventIds),
             'deleted_events' => count($deletedEventIds),
             'uncategorized_events' => $uncategorizedCount,
             'start_date' => $startDate->format('Y-m-d'),
             'end_date' => $endDate->format('Y-m-d'),
         ];
+    }
+
+    /**
+     * Fetch events from the Google Calendar API for the given window.
+     *
+     * Extracted as a protected method so tests can substitute a known event list
+     * without requiring a live Google Calendar connection.
+     *
+     * @return \Illuminate\Support\Collection<int, Event>
+     */
+    protected function fetchEventsFromGoogle(Carbon $startDate, Carbon $endDate): \Illuminate\Support\Collection
+    {
+        return Event::get(
+            $startDate,
+            $endDate,
+            [
+                'singleEvents' => true,
+                'orderBy' => 'startTime',
+            ]
+        );
     }
 
     public function syncSingleEvent(Event $googleEvent): CalendarEvent

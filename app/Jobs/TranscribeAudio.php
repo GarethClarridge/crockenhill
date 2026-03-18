@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Contracts\TranscriptionServiceInterface;
 use App\Enums\MediaType;
+use App\Exceptions\NonRetryableTranscriptionException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -108,6 +109,24 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
                 'transcript_length' => strlen($transcript),
                 'word_count' => str_word_count($transcript),
             ]);
+        } catch (NonRetryableTranscriptionException $e) {
+            Log::error('Failed to transcribe audio (non-retryable — failing permanently)', [
+                'processing_id' => $this->processingLog->processing_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Clean up any partial transcript files
+            if ($this->processingLog->sermon_id) {
+                $transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
+            }
+
+            // Update processing log and mark step as failed
+            $this->processingLog->markAsFailed($e->getMessage(), 'transcribing_audio');
+            $this->logStepFailed('transcribing', $e->getMessage());
+
+            // Fail the job immediately — do not re-throw, which would trigger queue retries.
+            // Deterministic API errors (401, 413, 400) will not succeed on retry.
+            $this->fail($e);
         } catch (\Exception $e) {
             Log::error('Failed to transcribe audio', [
                 'processing_id' => $this->processingLog->processing_id,

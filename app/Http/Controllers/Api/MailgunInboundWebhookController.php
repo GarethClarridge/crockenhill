@@ -31,9 +31,15 @@ class MailgunInboundWebhookController extends Controller
         );
 
         if (! $inboundEmail->wasRecentlyCreated) {
-            return response()->json([
-                'status' => 'duplicate',
-            ]);
+            // Allow recovery: a redelivery of a previously-failed email should trigger
+            // reprocessing rather than being silently swallowed as a duplicate.
+            if ($inboundEmail->status !== InboundEmailStatus::FAILED) {
+                return response()->json([
+                    'status' => 'duplicate',
+                ]);
+            }
+
+            $inboundEmail->update(['status' => InboundEmailStatus::PENDING]);
         }
 
         ProcessInboundOosEmail::dispatch($inboundEmail);

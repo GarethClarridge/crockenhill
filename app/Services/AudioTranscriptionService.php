@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\TranscriptionServiceInterface;
+use App\Exceptions\NonRetryableTranscriptionException;
 use App\Exceptions\TranscriptionException;
 use App\Traits\DetectsStorageType;
 use Exception;
@@ -179,6 +180,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
         $retryDelayBase = $this->retryDelayBase();
         $attempt = 0;
         $lastException = null;
+        $isNonRetryable = false;
 
         while ($attempt < $maxRetries) {
             $attempt++;
@@ -251,6 +253,7 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 
                 // Don't retry on certain errors
                 if ($this->isNonRetryableError($e)) {
+                    $isNonRetryable = true;
                     break;
                 }
             } catch (TransporterException $e) {
@@ -307,7 +310,9 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
             ]
         );
 
-        throw new TranscriptionException("Transcription failed after {$attempt} attempts: {$errorMessage}", 0, $lastException);
+        $exceptionClass = $isNonRetryable ? NonRetryableTranscriptionException::class : TranscriptionException::class;
+
+        throw new $exceptionClass("Transcription failed after {$attempt} attempts: {$errorMessage}", 0, $lastException);
     }
 
     /**

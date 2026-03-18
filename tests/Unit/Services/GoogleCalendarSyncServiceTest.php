@@ -2,10 +2,12 @@
 
 namespace Tests\Unit\Services;
 
+use App\Models\CalendarEvent;
 use App\Services\GoogleCalendarSyncService;
 use Carbon\Carbon;
 use Google\Service\Calendar\EventExtendedProperties;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\GoogleCalendar\Event;
 use Tests\TestCase;
@@ -50,6 +52,62 @@ class GoogleCalendarSyncServiceTest extends TestCase
 
         $this->assertNull($calendarEvent->meeting_slug);
         $this->assertFalse($calendarEvent->is_categorized_automatically);
+    }
+
+    #[Test]
+    public function it_does_not_delete_local_event_when_single_event_fails_to_process(): void
+    {
+        // A local event that Google returned but whose processing threw an exception.
+        // Before the fix, this event would be deleted because it was never added to
+        // $processedEventIds. After the fix, $seenUpstreamIds protects it.
+        CalendarEvent::factory()->create([
+            'google_event_id' => 'event-that-fails',
+            'start_datetime' => now()->addDays(7),
+            'end_datetime' => now()->addDays(7)->addHour(),
+        ]);
+
+        $fakeGoogleEvent = $this->makeGoogleEvent(id: 'event-that-fails', name: 'Failing Event');
+
+        /** @var GoogleCalendarSyncService&Mockery\MockInterface $service */
+        $service = Mockery::mock(GoogleCalendarSyncService::class)
+            ->makePartial()
+            ->shouldAllowMockingProtectedMethods();
+
+        $service->shouldReceive('fetchEventsFromGoogle')
+            ->once()
+            ->andReturn(collect([$fakeGoogleEvent]));
+
+        $service->shouldReceive('syncSingleEvent')
+            ->with($fakeGoogleEvent)
+            ->andThrow(new \Exception('Simulated processing failure'));
+
+        $service->syncFromGoogleCalendar();
+
+        $this->assertDatabaseHas('calendar_events', ['google_event_id' => 'event-that-fails']);
+    }
+
+    #[Test]
+    public function it_deletes_events_genuinely_removed_from_google(): void
+    {
+        // A local event that Google no longer returns — it was truly deleted upstream.
+        CalendarEvent::factory()->create([
+            'google_event_id' => 'removed-from-google',
+            'start_datetime' => now()->addDays(7),
+            'end_datetime' => now()->addDays(7)->addHour(),
+        ]);
+
+        /** @var GoogleCalendarSyncService&Mockery\MockInterface $service */
+        $service = Mockery::mock(GoogleCalendarSyncService::class)
+            ->makePartial()
+            ->shouldAllowMockingProtectedMethods();
+
+        $service->shouldReceive('fetchEventsFromGoogle')
+            ->once()
+            ->andReturn(collect([]));
+
+        $service->syncFromGoogleCalendar();
+
+        $this->assertDatabaseMissing('calendar_events', ['google_event_id' => 'removed-from-google']);
     }
 
     private function makeGoogleEvent(string $id, string $name, ?string $extendedMeetingSlug = null): Event

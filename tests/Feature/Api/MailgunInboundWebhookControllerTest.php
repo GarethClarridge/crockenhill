@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use App\Enums\InboundEmailStatus;
 use App\Jobs\ProcessInboundOosEmail;
 use App\Models\InboundEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -200,6 +201,32 @@ class MailgunInboundWebhookControllerTest extends TestCase
 
         $this->assertDatabaseCount('inbound_emails', 1);
         Queue::assertNothingPushed();
+    }
+
+    #[Test]
+    public function test_failed_email_redelivery_resets_status_and_dispatches_job(): void
+    {
+        Queue::fake();
+
+        // Pre-seed a record in FAILED state — simulates a previously failed processing attempt.
+        InboundEmail::factory()->create([
+            'message_id' => '<message-1@example.com>',
+            'status' => InboundEmailStatus::FAILED,
+            'processing_metadata' => [
+                'failure' => ['message' => 'OOS parser crashed', 'failed_at' => now()->toIso8601String()],
+            ],
+        ]);
+
+        $this->postJson('/api/webhooks/mailgun/inbound', $this->validPayload())
+            ->assertAccepted()
+            ->assertJson(['status' => 'accepted']);
+
+        $this->assertDatabaseHas('inbound_emails', [
+            'message_id' => '<message-1@example.com>',
+            'status' => InboundEmailStatus::PENDING->value,
+        ]);
+        $this->assertDatabaseCount('inbound_emails', 1);
+        Queue::assertPushed(ProcessInboundOosEmail::class, 1);
     }
 
     /**

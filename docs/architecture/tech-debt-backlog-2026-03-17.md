@@ -239,7 +239,7 @@ The backlog is ordered for safety:
   - `admin-livewire-responsibility-review-2026-03-17.md`
 
 ### TD-002A - Harden webhook trust boundaries and duplicate race handling
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: Very high
 - Risk: Medium

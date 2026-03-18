@@ -3,6 +3,8 @@
 namespace Tests\Unit\Jobs;
 
 use App\Contracts\TranscriptionServiceInterface;
+use App\Exceptions\NonRetryableTranscriptionException;
+use App\Exceptions\TranscriptionException;
 use App\Jobs\TranscribeAudio;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -235,6 +237,63 @@ class TranscribeAudioTest extends TestCase
 
         $log->refresh();
         $this->assertEquals('failed', $log->status->value);
+    }
+
+    #[Test]
+    public function it_fails_permanently_on_non_retryable_transcription_exception(): void
+    {
+        // A NonRetryableTranscriptionException (e.g., 401 invalid key, 413 oversized file)
+        // must NOT be re-thrown — if it were, the job would be retried, burning all
+        // $tries attempts against a deterministically-failing API call.
+        $sermon = Sermon::factory()->create();
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'source_file_path' => 'sermons/audio/test.mp3',
+            'sermon_id' => $sermon->id,
+        ]);
+
+        $mockService = $this->createMock(TranscriptionServiceInterface::class);
+        $mockService->expects($this->once())
+            ->method('transcribe')
+            ->willThrowException(new NonRetryableTranscriptionException('Invalid API key'));
+        $mockService->expects($this->once())
+            ->method('cleanupOnFailure')
+            ->with($sermon->id);
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->atLeast()->once();
+
+        $job = new TranscribeAudio($log);
+
+        // Must complete without throwing — no retry should be triggered.
+        $job->handle($mockService);
+
+        $log->refresh();
+        $this->assertEquals('failed', $log->status->value);
+    }
+
+    #[Test]
+    public function it_rethrows_retryable_transcription_exception_so_the_queue_can_retry(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'source_file_path' => 'sermons/audio/test.mp3',
+        ]);
+
+        $mockService = $this->createMock(TranscriptionServiceInterface::class);
+        $mockService->expects($this->once())
+            ->method('transcribe')
+            ->willThrowException(new TranscriptionException('Rate limit exceeded'));
+        $mockService->expects($this->never())
+            ->method('cleanupOnFailure');
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->atLeast()->once();
+
+        $job = new TranscribeAudio($log);
+
+        $this->expectException(TranscriptionException::class);
+        $this->expectExceptionMessage('Rate limit exceeded');
+
+        $job->handle($mockService);
     }
 
     #[Test]
