@@ -84,7 +84,7 @@ class SendCompletionNotificationTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_missing_admin_email(): void
+    public function it_skips_with_notification_skipped_when_admin_email_not_configured(): void
     {
         config([
             'media-processing.email.send_success_notifications' => true,
@@ -103,7 +103,7 @@ class SendCompletionNotificationTest extends TestCase
         $job->handle();
 
         $log->refresh();
-        $this->assertEquals('notification_sent', $log->current_step);
+        $this->assertEquals('notification_skipped', $log->current_step);
     }
 
     #[Test]

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Feature\MediaProcessing;
 
 use App\Enums\ApiTokenAbility;
 use App\Enums\MediaType;

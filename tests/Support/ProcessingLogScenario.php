@@ -134,7 +134,6 @@ final class ProcessingLogScenario
                 ProcessingStatus::COMPLETED => $factory->completed(),
                 ProcessingStatus::FAILED => $factory->failed(),
                 ProcessingStatus::CANCELLED => $factory->cancelled(),
-                default => $factory->state(['status' => $this->status]),
             };
         }
 

@@ -57,8 +57,14 @@ services:
             - redis
     mysql:
         image: 'mysql:8.0'
-        command: --innodb-buffer-pool-size=256M --innodb-log-file-size=64M --max-connections=200
-        mem_limit: 1g
+        command: >
+          --innodb-buffer-pool-size=384M
+          --innodb-log-file-size=64M
+          --max-connections=200
+          --innodb_flush_log_at_trx_commit=2
+          --innodb_doublewrite=OFF
+          --sync_binlog=0
+        mem_limit: 2g
         ports:
             - '${FORWARD_DB_PORT:-3306}:3306'
         environment:

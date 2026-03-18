@@ -34,7 +34,7 @@ class CleanupTemporaryFiles implements ShouldQueue
             // Collect all temporary file paths from the processing log
             $tempFiles = [];
 
-            // Add source file if it's in temp directory
+            // Add source file (always a temporary upload path during processing)
             if ($this->processingLog->source_file_path) {
                 $tempFiles[] = $this->processingLog->source_file_path;
             }

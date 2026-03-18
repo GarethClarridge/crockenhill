@@ -5,8 +5,11 @@ namespace Tests\Feature;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
@@ -435,6 +438,14 @@ class AutomatedSermonApiSecurityTest extends TestCase
     #[Test]
     public function it_handles_concurrent_requests_safely(): void
     {
+        // Bypass the media-retry rate limiter — this test checks concurrent request safety,
+        // not rate limiting. Without this, 3 requests exceed the 2-per-minute limit.
+        $this->app->bind(
+            ThrottleRequests::class,
+            fn ($app) => new ThrottleRequests($app->make(\Illuminate\Cache\RateLimiter::class))
+        );
+        RateLimiter::for('media-retry', fn () => Limit::perMinute(100)->by($this->user->id));
+
         // Mock SermonJobPipelineService to avoid actual processing on retry
         $mockService = $this->createMock(\App\Services\SermonJobPipelineService::class);
         $mockResult = \App\Services\ProcessingResult::success(

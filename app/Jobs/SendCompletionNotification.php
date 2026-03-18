@@ -51,6 +51,16 @@ class SendCompletionNotification implements ShouldQueue
                 return;
             }
 
+            $adminEmail = $this->getAdminEmail();
+            if ($adminEmail === null) {
+                Log::warning('No admin email configured for notification, skipping', [
+                    'processing_id' => $this->processingLog->processing_id,
+                ]);
+                $this->processingLog->updateStep('notification_skipped');
+
+                return;
+            }
+
             // Update processing log to indicate notification started
             $this->processingLog->updateStep('sending_notification');
 
@@ -64,7 +74,7 @@ class SendCompletionNotification implements ShouldQueue
             $notificationData = $this->prepareNotificationData($sermon, $this->processingLog);
 
             // Send notifications to administrator
-            $this->sendNotifications($notificationData);
+            $this->sendNotifications($notificationData, $adminEmail);
 
             // Update final processing log status
             $this->processingLog->updateStep('notification_sent');
@@ -188,22 +198,12 @@ class SendCompletionNotification implements ShouldQueue
     }
 
     /**
-     * Send notification to the configured admin email
+     * Send notification to the given admin email.
      *
      * @param  array<string, mixed>  $data
      */
-    private function sendNotifications(array $data): void
+    private function sendNotifications(array $data, string $adminEmail): void
     {
-        $adminEmail = $this->getAdminEmail();
-
-        if ($adminEmail === null) {
-            Log::warning('No admin email configured for notification', [
-                'processing_id' => $this->processingLog->processing_id,
-            ]);
-
-            return;
-        }
-
         $this->sendEmailNotification($adminEmail, $data);
 
         Log::info('Notification sent to admin', [
@@ -307,23 +307,20 @@ class SendCompletionNotification implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error('SendCompletionNotification job failed permanently', [
+            'processing_id' => $this->processingLog->processing_id,
             'sermon_id' => $this->processingLog->sermon_id,
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);
 
-        // Don't fail the processing chain for notification failures
-        // Just update the processing log
-        $sermon = Sermon::find($this->processingLog->sermon_id);
-        if ($sermon) {
-            $processingLog = $sermon->processingLogs()->latest()->first();
-            if ($processingLog) {
-                $processingLog->update([
-                    'current_step' => 'notification_failed_permanently',
-                    'error_message' => 'Notification failed permanently: '.$exception->getMessage(),
-                ]);
-            }
-        }
+        // Don't fail the processing chain for notification failures.
+        // Update the injected log directly rather than re-querying via the
+        // sermon relationship, which could resolve to the wrong log when a
+        // sermon has multiple processing runs or when sermon_id is null.
+        $this->processingLog->update([
+            'current_step' => 'notification_failed_permanently',
+            'error_message' => 'Notification failed permanently: '.$exception->getMessage(),
+        ]);
     }
 
     /**

@@ -54,7 +54,9 @@ class LayoutPageComposer
             $content = htmlspecialchars_decode($page->body);
         }
 
-        $area = $page->area->value;
+        // Respect an explicitly provided area (e.g. MeetingController passes 'community'
+        // regardless of the linked Page's own area value).
+        $area = $viewData['area'] ?? $page->area->value;
         $slug = $page->slug;
 
         $view->with([

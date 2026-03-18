@@ -210,7 +210,7 @@ The backlog is ordered for safety:
   - `api-webhook-boundary-review-2026-03-18.md`
 
 ### TD-002 - Close admin Livewire authorization gaps
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low
