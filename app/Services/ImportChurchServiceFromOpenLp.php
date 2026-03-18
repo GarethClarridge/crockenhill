@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Data\OpenLpImportResult;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
@@ -42,28 +43,36 @@ class ImportChurchServiceFromOpenLp
             'cleared' => 0,
         ];
 
-        $churchService = DB::transaction(function () use ($uploadedFile, $parsed, &$wasCreated, &$syncResult, &$linkResult): ChurchService {
-            $churchService = ChurchService::query()->firstOrNew([
-                'date' => $parsed->date,
-                'service' => $parsed->service->value,
-            ]);
+        try {
+            $churchService = DB::transaction(function () use ($uploadedFile, $parsed, &$wasCreated, &$syncResult, &$linkResult): ChurchService {
+                $churchService = ChurchService::query()->firstOrNew([
+                    'date' => $parsed->date,
+                    'service' => $parsed->service->value,
+                ]);
 
-            $wasCreated = ! $churchService->exists;
-            $existingMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
+                $wasCreated = ! $churchService->exists;
+                $existingMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
 
-            $churchService->fill([
-                'source' => ChurchServiceItemSource::OPENLP->value,
-                'original_filename' => $uploadedFile->getClientOriginalName(),
-                'needs_review' => $parsed->needsReview,
-                'import_metadata' => array_replace_recursive($existingMetadata, $parsed->importMetadata),
-            ]);
-            $churchService->save();
+                $churchService->fill([
+                    'source' => ChurchServiceItemSource::OPENLP->value,
+                    'original_filename' => $uploadedFile->getClientOriginalName(),
+                    'needs_review' => $parsed->needsReview,
+                    'import_metadata' => array_replace_recursive($existingMetadata, $parsed->importMetadata),
+                ]);
+                $churchService->save();
 
-            $syncResult = $this->itemSyncService->sync($churchService, $parsed->items, ChurchServiceItemSource::OPENLP);
-            $linkResult = $this->songLinker->linkForService($churchService);
+                $syncResult = $this->itemSyncService->sync($churchService, $parsed->items, ChurchServiceItemSource::OPENLP);
+                $linkResult = $this->songLinker->linkForService($churchService);
 
-            return $churchService;
-        });
+                return $churchService;
+            });
+        } catch (UniqueConstraintViolationException) {
+            $churchService = ChurchService::query()
+                ->where('date', $parsed->date)
+                ->where('service', $parsed->service->value)
+                ->firstOrFail();
+            $wasCreated = false;
+        }
 
         $churchService = $this->canonicalUpdateService->finalize(
             $churchService,

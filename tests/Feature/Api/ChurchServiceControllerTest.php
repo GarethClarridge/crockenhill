@@ -13,6 +13,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Song;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
@@ -452,6 +453,34 @@ class ChurchServiceControllerTest extends TestCase
 
         $this->getJson("/api/services/{$churchService->id}")
             ->assertUnauthorized();
+    }
+
+    #[Test]
+    public function test_concurrent_duplicate_key_race_returns_existing_service(): void
+    {
+        // Pre-seed the service record as a concurrent request would have already inserted it.
+        // The saving observer throws UniqueConstraintViolationException on the first save
+        // attempt inside DB::transaction(), which rolls back the savepoint. The catch block
+        // in ImportChurchServiceFromOpenLp then reloads the pre-seeded record (which survived
+        // at the outer transaction level) and returns a successful response, not a 500.
+        ChurchService::factory()->create([
+            'date' => '2024-11-17',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $raced = false;
+        ChurchService::saving(function () use (&$raced): void {
+            if (! $raced) {
+                $raced = true;
+                throw new UniqueConstraintViolationException('mysql', 'INSERT INTO `church_services`', [], new \PDOException('Duplicate entry'));
+            }
+        });
+
+        $this->withToken($this->serviceTokenFor($this->admin))
+            ->postJson('/api/services/openlp', ['file' => $this->validOpenLpUpload()])
+            ->assertCreated();
+
+        $this->assertDatabaseCount('church_services', 1);
     }
 
     private function serviceTokenFor(User $user): string

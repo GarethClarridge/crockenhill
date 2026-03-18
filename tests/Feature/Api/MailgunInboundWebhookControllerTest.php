@@ -7,6 +7,7 @@ namespace Tests\Feature\Api;
 use App\Jobs\ProcessInboundOosEmail;
 use App\Models\InboundEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -20,6 +21,9 @@ class MailgunInboundWebhookControllerTest extends TestCase
         parent::setUp();
 
         config()->set('service-tracking.mailgun.signing_key', 'test-signing-key');
+
+        // Clear replay-protection cache so each test starts with a clean token slate.
+        Cache::flush();
     }
 
     #[Test]
@@ -150,6 +154,51 @@ class MailgunInboundWebhookControllerTest extends TestCase
             ]);
 
         $this->assertDatabaseCount('inbound_emails', 0);
+        Queue::assertNothingPushed();
+    }
+
+    #[Test]
+    public function test_replay_with_reused_signature_tuple_and_different_message_id_is_rejected(): void
+    {
+        Queue::fake();
+
+        $payload = $this->validPayload();
+
+        $this->postJson('/api/webhooks/mailgun/inbound', $payload)->assertAccepted();
+
+        // Replay: same (timestamp, token, signature) but different Message-Id and body.
+        // Without replay protection, this forged record would be accepted and queued.
+        $replayed = array_merge($payload, [
+            'Message-Id' => '<forged-message@attacker.com>',
+            'subject' => 'Forged subject',
+            'body-plain' => 'Forged content',
+        ]);
+
+        $this->postJson('/api/webhooks/mailgun/inbound', $replayed)->assertForbidden();
+
+        $this->assertDatabaseMissing('inbound_emails', [
+            'message_id' => '<forged-message@attacker.com>',
+        ]);
+        Queue::assertPushed(ProcessInboundOosEmail::class, 1);
+    }
+
+    #[Test]
+    public function test_concurrent_duplicate_key_race_returns_duplicate_response(): void
+    {
+        Queue::fake();
+
+        // Pre-seed the record as a concurrent request would have already inserted it.
+        // Laravel 12's firstOrCreate delegates to createOrFirst, which handles the actual
+        // concurrent-INSERT race natively via withSavepointIfNeeded. Here we verify the
+        // full path: when the record exists, firstOrCreate returns it with wasRecentlyCreated
+        // = false and the controller correctly returns a duplicate response.
+        InboundEmail::factory()->create(['message_id' => '<message-1@example.com>']);
+
+        $this->postJson('/api/webhooks/mailgun/inbound', $this->validPayload())
+            ->assertOk()
+            ->assertJson(['status' => 'duplicate']);
+
+        $this->assertDatabaseCount('inbound_emails', 1);
         Queue::assertNothingPushed();
     }
 

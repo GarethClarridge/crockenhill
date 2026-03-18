@@ -122,6 +122,25 @@ class RateLimitingTest extends TestCase
     }
 
     #[Test]
+    public function mailgun_inbound_webhook_outer_probe_limiter_fires_before_signature_check(): void
+    {
+        // The outer mailgun-probe limiter must run before signature verification so that
+        // invalid probes (bad/missing signature) consume the IP-based limit rather than
+        // bypassing it entirely.
+        $this->forceThrottle('mailgun-probe');
+
+        $this->postJson('/api/webhooks/mailgun/inbound', [
+            'timestamp' => (string) now()->getTimestamp(),
+            'token' => 'abc123',
+            'signature' => 'invalid-signature',
+            'from' => 'x@example.com',
+            'subject' => 'Test',
+            'Message-Id' => '<test@example.com>',
+            'body-plain' => 'content',
+        ])->assertStatus(429);
+    }
+
+    #[Test]
     public function mailgun_inbound_webhook_is_rate_limited(): void
     {
         config()->set('service-tracking.mailgun.signing_key', 'test-signing-key');
