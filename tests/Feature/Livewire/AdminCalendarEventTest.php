@@ -29,6 +29,74 @@ class AdminCalendarEventTest extends TestCase
     }
 
     #[Test]
+    public function non_admin_cannot_mount_list_calendar_events(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $this->actingAs($user);
+
+        Livewire::test(ListCalendarEvents::class)->assertForbidden();
+    }
+
+    #[Test]
+    public function non_admin_cannot_mount_edit_calendar_event(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+        $this->actingAs($user);
+
+        $event = CalendarEvent::factory()->create([
+            'start_datetime' => now()->addDays(2),
+            'end_datetime' => now()->addDays(2)->addHour(),
+        ]);
+
+        Livewire::test(EditCalendarEvent::class, ['calendarEvent' => $event])->assertForbidden();
+    }
+
+    #[Test]
+    public function admin_can_still_categorize_after_authorization_is_added(): void
+    {
+        $this->actingAs($this->admin);
+
+        $page = Page::factory()->create(['heading' => 'Prayer Meeting']);
+        $meeting = Meeting::factory()->create(['slug' => 'prayer-meeting', 'page_id' => $page->id]);
+
+        $event = CalendarEvent::factory()->create([
+            'meeting_slug' => null,
+            'start_datetime' => now()->addDays(3),
+            'end_datetime' => now()->addDays(3)->addHour(),
+        ]);
+
+        Livewire::test(ListCalendarEvents::class)
+            ->call('categorize', $event->id, $meeting->slug)
+            ->assertDispatched('notify', type: 'success', message: 'Event categorized');
+
+        $this->assertDatabaseHas('calendar_events', [
+            'id' => $event->id,
+            'meeting_slug' => $meeting->slug,
+        ]);
+    }
+
+    #[Test]
+    public function admin_can_still_save_calendar_event_after_authorization_is_added(): void
+    {
+        $this->actingAs($this->admin);
+
+        $event = CalendarEvent::factory()->create([
+            'title' => 'Original Title',
+            'start_datetime' => now()->addDays(2)->setTime(9, 0),
+            'end_datetime' => now()->addDays(2)->setTime(10, 0),
+        ]);
+
+        Livewire::test(EditCalendarEvent::class, ['calendarEvent' => $event])
+            ->set('title', 'Updated Title')
+            ->set('startDatetime', now()->addDays(2)->setTime(9, 0)->format('Y-m-d\TH:i'))
+            ->set('endDatetime', now()->addDays(2)->setTime(10, 0)->format('Y-m-d\TH:i'))
+            ->call('save')
+            ->assertDispatched('notify', type: 'success', message: 'Calendar event updated');
+
+        $this->assertDatabaseHas('calendar_events', ['id' => $event->id, 'title' => 'Updated Title']);
+    }
+
+    #[Test]
     public function it_renders_calendar_events_list(): void
     {
         $this->actingAs($this->admin);

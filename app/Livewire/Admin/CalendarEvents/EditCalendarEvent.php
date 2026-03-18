@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\CalendarEvents;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
@@ -12,7 +13,7 @@ use Livewire\Component;
 
 class EditCalendarEvent extends Component
 {
-    use WithNotifications;
+    use WithAdminAuthorization, WithNotifications;
 
     public CalendarEvent $calendarEvent;
 
@@ -48,6 +49,8 @@ class EditCalendarEvent extends Component
 
     public function mount(CalendarEvent $calendarEvent): void
     {
+        $this->authorizeAdmin();
+
         $this->calendarEvent = $calendarEvent;
         $this->title = $calendarEvent->title;
         $this->description = $calendarEvent->description;
@@ -60,6 +63,8 @@ class EditCalendarEvent extends Component
 
     public function save(): void
     {
+        $this->authorizeAdmin();
+
         $validated = $this->validate();
 
         $this->calendarEvent->update([

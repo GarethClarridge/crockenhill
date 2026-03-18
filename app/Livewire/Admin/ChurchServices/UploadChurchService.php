@@ -55,6 +55,7 @@ class UploadChurchService extends Component
 
     public function save(): void
     {
+        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $validated = $this->validate();

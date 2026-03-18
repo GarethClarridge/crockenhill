@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Components;
 
+use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use Exception;
 use Illuminate\Support\Str;
@@ -14,7 +15,7 @@ use Spatie\MediaLibrary\HasMedia;
 
 class MediaUploadField extends Component
 {
-    use WithFileUploads, WithNotifications;
+    use WithAdminAuthorization, WithFileUploads, WithNotifications;
 
     public ?HasMedia $model = null;
 
@@ -38,6 +39,8 @@ class MediaUploadField extends Component
 
     public function upload(): void
     {
+        $this->authorizeAdmin();
+
         if (! $this->file) {
             $this->error('No file selected');
 
@@ -71,6 +74,8 @@ class MediaUploadField extends Component
 
     public function remove(int $mediaId): void
     {
+        $this->authorizeAdmin();
+
         try {
             $media = $this->model?->media()->find($mediaId);
 

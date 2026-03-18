@@ -56,6 +56,8 @@ class SubmitEmailText extends Component
 
     public function submit(): void
     {
+        $this->authorizeAdmin();
+
         $this->validate();
 
         $syntheticId = 'manual-'.Str::uuid().'@admin.crockenhill.org';
