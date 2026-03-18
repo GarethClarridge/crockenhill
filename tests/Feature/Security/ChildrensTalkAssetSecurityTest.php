@@ -65,4 +65,17 @@ class ChildrensTalkAssetSecurityTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    #[Test]
+    public function it_is_not_accessible_via_raw_storage_path(): void
+    {
+        Sermon::factory()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'audio_file_path' => 'private/sermons/audio/test-childrens-talk.mp3',
+        ]);
+
+        $response = $this->get('/storage/private/sermons/audio/test-childrens-talk.mp3');
+
+        $response->assertStatus(404);
+    }
 }

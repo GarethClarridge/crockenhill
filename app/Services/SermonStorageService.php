@@ -23,6 +23,16 @@ class SermonStorageService
             throw new \InvalidArgumentException('Invalid audio file path: Path traversal detected.');
         }
 
+        // Private files stored on the local disk (unreachable via the public/storage symlink)
+        if (str_starts_with($sermon->audio_file_path, 'private/')) {
+            return [
+                'type' => 'private',
+                'disk' => 'local',
+                'path' => $sermon->audio_file_path,
+                'original_path' => $sermon->audio_file_path,
+            ];
+        }
+
         // Determine which storage pattern this sermon uses
         if ($sermon->filetype && ! str_contains($sermon->audio_file_path, '/')) {
             // Legacy pattern
@@ -205,6 +215,7 @@ class SermonStorageService
         $stats = [
             'total_sermons' => Sermon::count(),
             'patterns' => [
+                'private' => 0,
                 'legacy' => 0,
                 'storage' => 0,
                 'processing' => 0,

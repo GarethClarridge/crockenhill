@@ -10,6 +10,7 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Observers\ChurchServiceObserver;
+use App\Observers\SermonObserver;
 use App\Observers\SitemapCacheObserver;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +24,7 @@ class ModelObserverServiceProvider extends ServiceProvider
     public function boot(): void
     {
         ChurchService::observe(ChurchServiceObserver::class);
+        Sermon::observe(SermonObserver::class);
         Sermon::observe(SitemapCacheObserver::class);
         Page::observe(SitemapCacheObserver::class);
         Meeting::observe(SitemapCacheObserver::class);

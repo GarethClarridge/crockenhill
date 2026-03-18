@@ -105,7 +105,9 @@ class SermonAssetController extends Controller
             abort(404, 'Invalid thumbnail file path.');
         }
 
-        $disk = config('thumbnail-generation.storage.disk', 'public');
+        $disk = str_starts_with($thumbnailPath, 'private/')
+            ? 'local'
+            : config('thumbnail-generation.storage.disk', 'public');
 
         if (! Storage::disk($disk)->exists($thumbnailPath)) {
             abort(404, 'Thumbnail file not found.');
