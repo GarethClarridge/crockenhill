@@ -172,7 +172,7 @@ class AdminUserTest extends TestCase
     #[Test]
     public function it_can_sort_users_by_name(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->admin()->create(['name' => 'Admin User']);
         User::factory()->create(['name' => 'Alice']);
         User::factory()->create(['name' => 'Zebra']);
 
@@ -181,17 +181,17 @@ class AdminUserTest extends TestCase
         Livewire::test(ListUsers::class)
             ->set('sortBy', 'name')
             ->set('sortDirection', 'asc')
-            ->assertSeeInOrder(['Alice', 'Zebra'])
+            ->assertSeeInOrder(['Admin User', 'Alice', 'Zebra'])
             ->set('sortDirection', 'desc')
-            ->assertSeeInOrder(['Zebra', 'Alice']);
+            ->assertSeeInOrder(['Zebra', 'Alice', 'Admin User']);
     }
 
     #[Test]
     public function it_can_sort_users_by_created_at(): void
     {
         $admin = User::factory()->admin()->create();
-        $user1 = User::factory()->create(['name' => 'Old User', 'created_at' => now()->subDays(10)]);
-        $user2 = User::factory()->create(['name' => 'New User', 'created_at' => now()]);
+        User::factory()->create(['name' => 'Old User', 'created_at' => now()->subDays(10)]);
+        User::factory()->create(['name' => 'New User', 'created_at' => now()]);
 
         $this->actingAs($admin);
 
@@ -201,6 +201,35 @@ class AdminUserTest extends TestCase
             ->assertSeeInOrder(['Old User', 'New User'])
             ->set('sortDirection', 'desc')
             ->assertSeeInOrder(['New User', 'Old User']);
+    }
+
+    #[Test]
+    public function it_resets_invalid_sort_columns_to_default(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin);
+
+        Livewire::test(ListUsers::class)
+            ->set('sortBy', 'password')
+            ->assertSet('sortBy', 'created_at');
+    }
+
+    #[Test]
+    public function it_can_toggle_sort_direction_via_sort_action(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin);
+
+        Livewire::test(ListUsers::class)
+            ->call('sort', 'name')
+            ->assertSet('sortBy', 'name')
+            ->assertSet('sortDirection', 'asc')
+            ->call('sort', 'name')
+            ->assertSet('sortBy', 'name')
+            ->assertSet('sortDirection', 'desc')
+            ->call('sort', 'email')
+            ->assertSet('sortBy', 'email')
+            ->assertSet('sortDirection', 'asc');
     }
 
     #[Test]

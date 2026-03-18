@@ -95,7 +95,9 @@ class ListUsers extends Component
 
         $this->hasFilters = ! empty($this->search)
             || $this->verifiedFilter !== null
-            || $this->adminFilter !== null;
+            || $this->adminFilter !== null
+            || $this->sortBy !== self::DEFAULT_SORT_COLUMN
+            || $this->sortDirection !== self::DEFAULT_SORT_DIRECTION;
 
         $users = User::query()
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%")
