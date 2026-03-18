@@ -8,13 +8,14 @@ use App\Services\ProcessingResult;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\BuildsTestScenarios;
 
 class MediaUploadTest extends TestCase
 {
+    use BuildsTestScenarios;
     use RefreshDatabase;
 
     protected User $admin;
@@ -23,12 +24,9 @@ class MediaUploadTest extends TestCase
     {
         parent::setUp();
 
-        Storage::fake('local');
+        $this->fakeMediaDisks(['local']);
 
-        $this->admin = User::factory()->create([
-            'is_admin' => true,
-            'email_verified_at' => now(),
-        ]);
+        $this->admin = $this->createVerifiedAdmin();
     }
 
     private function tokenFor(User $user): string
@@ -44,7 +42,7 @@ class MediaUploadTest extends TestCase
     #[Test]
     public function it_rejects_unauthenticated_upload_requests(): void
     {
-        $file = UploadedFile::fake()->create('sermon.mp3', 100, 'audio/mpeg');
+        $file = $this->fakeAudioUpload();
 
         $this->postJson('/api/media/audio', ['file' => $file])
             ->assertUnauthorized();
@@ -56,7 +54,7 @@ class MediaUploadTest extends TestCase
         $user = User::factory()->create(['is_admin' => false, 'email_verified_at' => now()]);
         $token = $user->createToken('test', [ApiTokenAbility::MEDIA_PROCESS->value])->plainTextToken;
 
-        $file = UploadedFile::fake()->create('sermon.mp3', 100, 'audio/mpeg');
+        $file = $this->fakeAudioUpload();
 
         $this->withToken($token)
             ->postJson('/api/media/audio', ['file' => $file])
@@ -67,7 +65,7 @@ class MediaUploadTest extends TestCase
     public function it_rejects_token_without_media_process_ability(): void
     {
         $token = $this->admin->createToken('test', ['some:other'])->plainTextToken;
-        $file = UploadedFile::fake()->create('sermon.mp3', 100, 'audio/mpeg');
+        $file = $this->fakeAudioUpload();
 
         $this->withToken($token)
             ->postJson('/api/media/audio', ['file' => $file])

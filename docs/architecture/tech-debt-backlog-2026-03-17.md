@@ -16,23 +16,23 @@ The backlog is ordered for safety:
 
 ## Source Reviews
 
-- [architectural-review-2026-03-17.md](./architectural-review-2026-03-17.md)
-- [architecture-review-2026-03-17.md](./architecture-review-2026-03-17.md)
-- [media-processing-architecture-review-2026-03-17.md](./media-processing-architecture-review-2026-03-17.md)
-- [media-processing-church-service-observability-audit-2026-03-17.md](./media-processing-church-service-observability-audit-2026-03-17.md)
-- [oos-alignment-service-review.md](./oos-alignment-service-review.md)
-- [oos-alignment-refactor-proposal.md](./oos-alignment-refactor-proposal.md)
-- [eloquent-model-boundary-audit-2026-03-17.md](./eloquent-model-boundary-audit-2026-03-17.md)
-- [admin-livewire-responsibility-review-2026-03-17.md](./admin-livewire-responsibility-review-2026-03-17.md)
-- [json-metadata-inventory-2026-03-17.md](./json-metadata-inventory-2026-03-17.md)
+- [architectural-review-2026-03-17.md](../reviews/architectural-review-2026-03-17.md)
+- [architecture-review-2026-03-17.md](../reviews/architecture-review-2026-03-17.md)
+- [media-processing-architecture-review-2026-03-17.md](../reviews/media-processing-architecture-review-2026-03-17.md)
+- [media-processing-church-service-observability-audit-2026-03-17.md](../reviews/media-processing-church-service-observability-audit-2026-03-17.md)
+- [oos-alignment-service-review.md](../reviews/oos-alignment-service-review.md)
+- [oos-alignment-refactor-proposal.md](../reviews/oos-alignment-refactor-proposal.md)
+- [eloquent-model-boundary-audit-2026-03-17.md](../reviews/eloquent-model-boundary-audit-2026-03-17.md)
+- [admin-livewire-responsibility-review-2026-03-17.md](../reviews/admin-livewire-responsibility-review-2026-03-17.md)
+- [json-metadata-inventory-2026-03-17.md](../reviews/json-metadata-inventory-2026-03-17.md)
 - [api-webhook-boundary-review-2026-03-18.md](../reviews/api-webhook-boundary-review-2026-03-18.md)
-- [read-path-performance-review-2026-03-18.md](./read-path-performance-review-2026-03-18.md)
+- [read-path-performance-review-2026-03-18.md](../reviews/read-path-performance-review-2026-03-18.md)
 - [test-suite-architecture-review-2026-03-18.md](../reviews/test-suite-architecture-review-2026-03-18.md)
-- [database-model-integrity-review-2026-03-18.md](./database-model-integrity-review-2026-03-18.md)
-- [artisan-command-architecture-review-2026-03-18.md](./artisan-command-architecture-review-2026-03-18.md)
+- [database-model-integrity-review-2026-03-18.md](../reviews/database-model-integrity-review-2026-03-18.md)
+- [artisan-command-architecture-review-2026-03-18.md](../reviews/artisan-command-architecture-review-2026-03-18.md)
 - [external-integration-boundary-review-2026-03-18.md](../reviews/external-integration-boundary-review-2026-03-18.md)
-- [public-read-side-architecture-review-2026-03-18.md](./public-read-side-architecture-review-2026-03-18.md)
-- [bootstrap-registration-side-effect-map-2026-03-18.md](./bootstrap-registration-side-effect-map-2026-03-18.md)
+- [public-read-side-architecture-review-2026-03-18.md](../reviews/public-read-side-architecture-review-2026-03-18.md)
+- [bootstrap-registration-side-effect-map-2026-03-18.md](../reviews/bootstrap-registration-side-effect-map-2026-03-18.md)
 
 ## Status Legend
 
@@ -155,7 +155,7 @@ The backlog is ordered for safety:
   - `media-processing-church-service-observability-audit-2026-03-17.md`
 
 ### TD-001A - Build reusable scenario builders and restore real middleware defaults
-- Status: `Open`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low

@@ -7,15 +7,16 @@ use App\Models\MediaProcessingLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\BypassesThrottleRequests;
 use Tests\Traits\MediaProcessingTestHelpers;
 
 class AutomatedSermonApiTest extends TestCase
 {
+    use BypassesThrottleRequests;
     use DatabaseTransactions;
     use MediaProcessingTestHelpers;
 
@@ -25,19 +26,13 @@ class AutomatedSermonApiTest extends TestCase
     {
         parent::setUp();
 
-        // Disable rate limiting so tests assert exact status codes
-        $this->withoutMiddleware(ThrottleRequests::class);
+        $this->withoutThrottleRequests();
 
-        // Create test user with @crockenhill.org email for authorization
-        $this->user = User::factory()->create([
+        $this->user = $this->createVerifiedAdmin([
             'email' => 'test@crockenhill.org',
-            'email_verified_at' => now(),
-            'is_admin' => true,
         ]);
 
-        // Set up storage and configuration
-        Storage::fake('local');
-        Storage::fake('public');
+        $this->fakeMediaDisks();
 
         config([
             'media-processing.types.audio.max_file_size' => 100 * 1024 * 1024, // 100MB
@@ -58,7 +53,7 @@ class AutomatedSermonApiTest extends TestCase
     {
         $this->mockUnifiedMediaProcessor('test-uuid-123');
 
-        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
+        $file = $this->fakeAudioUpload('sermon.mp3', 1024);
 
         $response = $this->actingAs($this->user)
             ->postJson('/api/media/audio', [
@@ -80,7 +75,7 @@ class AutomatedSermonApiTest extends TestCase
     #[Test]
     public function it_requires_authentication_for_upload(): void
     {
-        $file = UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg');
+        $file = $this->fakeAudioUpload('sermon.mp3', 1024);
 
         $response = $this->postJson('/api/media/audio', [
             'file' => $file,
@@ -117,7 +112,7 @@ class AutomatedSermonApiTest extends TestCase
     public function it_validates_file_size(): void
     {
         // Create file larger than 100MB limit
-        $file = UploadedFile::fake()->create('large-sermon.mp3', 101 * 1024, 'audio/mpeg');
+        $file = $this->fakeAudioUpload('large-sermon.mp3', 101 * 1024);
 
         $response = $this->actingAs($this->user)
             ->postJson('/api/media/audio', [

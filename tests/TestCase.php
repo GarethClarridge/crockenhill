@@ -27,10 +27,6 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        // Disable throttling middleware during testing to prevent
-        // race conditions in parallel test execution
-        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
-
         // Clear compiled views once per process to prevent stale cached
         // class references after component refactors.
         if (! self::$viewCacheCleared) {

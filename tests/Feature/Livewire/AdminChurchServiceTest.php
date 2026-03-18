@@ -34,7 +34,6 @@ use App\Models\Song;
 use App\Models\User;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
@@ -43,9 +42,11 @@ use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\OpenLpArchiveFactory;
 use Tests\TestCase;
+use Tests\Traits\BuildsTestScenarios;
 
 class AdminChurchServiceTest extends TestCase
 {
+    use BuildsTestScenarios;
     use RefreshDatabase;
 
     private User $admin;
@@ -54,10 +55,7 @@ class AdminChurchServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->admin = User::factory()->create([
-            'is_admin' => true,
-            'email_verified_at' => now(),
-        ]);
+        $this->admin = $this->createVerifiedAdmin();
     }
 
     #[Test]
@@ -65,19 +63,24 @@ class AdminChurchServiceTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        ChurchService::factory()->create([
-            'date' => '2026-01-12',
-            'service' => SermonService::MORNING,
-            'original_filename' => '2026-01-12 AM.osz',
-            'needs_review' => false,
-        ]);
+        $this->churchServiceScenario()
+            ->openLp()
+            ->state([
+                'date' => '2026-01-12',
+                'service' => SermonService::MORNING,
+                'original_filename' => '2026-01-12 AM.osz',
+            ])
+            ->create();
 
-        ChurchService::factory()->create([
-            'date' => '2026-01-19',
-            'service' => SermonService::EVENING,
-            'original_filename' => '2026-01-19 PM.osz',
-            'needs_review' => true,
-        ]);
+        $this->churchServiceScenario()
+            ->openLp()
+            ->needsReview()
+            ->state([
+                'date' => '2026-01-19',
+                'service' => SermonService::EVENING,
+                'original_filename' => '2026-01-19 PM.osz',
+            ])
+            ->create();
 
         Livewire::test(ListChurchServices::class)
             ->assertSee('Services')
@@ -95,10 +98,12 @@ class AdminChurchServiceTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        ChurchService::factory()->create([
-            'date' => '2026-02-01',
-            'original_filename' => '2026-02-01 AM.osz',
-        ]);
+        $this->churchServiceScenario()
+            ->state([
+                'date' => '2026-02-01',
+                'original_filename' => '2026-02-01 AM.osz',
+            ])
+            ->create();
 
         Livewire::test(ListChurchServices::class)
             ->set('sortBy', 'invalid_column')
@@ -126,14 +131,7 @@ class AdminChurchServiceTest extends TestCase
             ]),
         );
 
-        $archiveContents = file_get_contents($openLpUpload->getRealPath());
-        if ($archiveContents === false) {
-            self::fail('Failed to read generated OpenLP archive.');
-        }
-
-        $upload = UploadedFile::fake()
-            ->createWithContent('2024-11-17 AM.osz', $archiveContents)
-            ->mimeType('application/zip');
+        $upload = $this->makeLivewireUpload($openLpUpload, '2024-11-17 AM.osz', 'application/zip');
 
         $component = Livewire::test(UploadChurchService::class)
             ->set('file', $upload)
@@ -173,14 +171,7 @@ class AdminChurchServiceTest extends TestCase
             ]),
         );
 
-        $archiveContents = file_get_contents($openLpUpload->getRealPath());
-        if ($archiveContents === false) {
-            self::fail('Failed to read generated OpenLP archive.');
-        }
-
-        $upload = UploadedFile::fake()
-            ->createWithContent('2024-11-17 AM.osz', $archiveContents)
-            ->mimeType('application/zip');
+        $upload = $this->makeLivewireUpload($openLpUpload, '2024-11-17 AM.osz', 'application/zip');
 
         Livewire::test(UploadChurchService::class)
             ->set('file', $upload)
@@ -539,10 +530,12 @@ class AdminChurchServiceTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $service = ChurchService::factory()->create([
-            'date' => '2026-02-22',
-            'service' => SermonService::MORNING,
-        ]);
+        $service = $this->churchServiceScenario()
+            ->state([
+                'date' => '2026-02-22',
+                'service' => SermonService::MORNING,
+            ])
+            ->create();
 
         $item = ChurchServiceItem::factory()->create([
             'church_service_id' => $service->id,
@@ -551,58 +544,69 @@ class AdminChurchServiceTest extends TestCase
             'title' => 'Service Opening',
         ]);
 
-        $matchingRun = MediaProcessingLog::factory()->livestream()->create([
-            'extracted_date' => '2026-02-22',
-            'extracted_service' => SermonService::MORNING,
-        ]);
+        $matchingRun = $this->processingLogScenario()
+            ->as(\App\Enums\MediaType::Livestream)
+            ->state([
+                'extracted_date' => '2026-02-22',
+                'extracted_service' => SermonService::MORNING,
+            ])
+            ->create();
 
-        $nonMatchingRun = MediaProcessingLog::factory()->livestream()->create([
-            'extracted_date' => '2026-02-23',
-            'extracted_service' => SermonService::MORNING,
-        ]);
+        $nonMatchingRun = $this->processingLogScenario()
+            ->as(\App\Enums\MediaType::Livestream)
+            ->state([
+                'extracted_date' => '2026-02-23',
+                'extracted_service' => SermonService::MORNING,
+            ])
+            ->create();
 
-        ServiceSection::factory()->create([
-            'media_processing_log_id' => $matchingRun->id,
-            'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::SONG->value,
-            'section_order' => 2,
-            'title' => 'Closing Song',
-            'start_time' => 120.0,
-            'end_time' => 360.0,
-            'duration' => 240.0,
-            'status' => ServiceSectionStatus::IDENTIFIED->value,
-            'needs_manual_review' => true,
-            'source_segment_ids' => [3],
-            'metadata' => [
-                'confidence_level' => 'low',
-                'review_reason' => 'expected_type_mismatch',
-            ],
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
-        ]);
+        $this->serviceSectionScenario()
+            ->forProcessingLog($matchingRun)
+            ->forChurchServiceItem($item)
+            ->type(ServiceSectionType::SONG)
+            ->needsManualReview()
+            ->state([
+                'section_order' => 2,
+                'title' => 'Closing Song',
+                'start_time' => 120.0,
+                'end_time' => 360.0,
+                'duration' => 240.0,
+                'status' => ServiceSectionStatus::IDENTIFIED,
+                'source_segment_ids' => [3],
+                'metadata' => [
+                    'confidence_level' => 'low',
+                    'review_reason' => 'expected_type_mismatch',
+                ],
+                'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL,
+            ])
+            ->create();
 
-        ServiceSection::factory()->create([
-            'media_processing_log_id' => $matchingRun->id,
-            'church_service_item_id' => $item->id,
-            'section_type' => ServiceSectionType::WELCOME->value,
-            'section_order' => 1,
-            'title' => 'Welcome',
-            'start_time' => 0.0,
-            'end_time' => 120.0,
-            'duration' => 120.0,
-            'status' => ServiceSectionStatus::IDENTIFIED->value,
-            'needs_manual_review' => false,
-            'source_segment_ids' => [1],
-            'metadata' => [
-                'confidence_level' => 'high',
-            ],
-            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
-        ]);
+        $this->serviceSectionScenario()
+            ->forProcessingLog($matchingRun)
+            ->forChurchServiceItem($item)
+            ->type(ServiceSectionType::WELCOME)
+            ->state([
+                'section_order' => 1,
+                'title' => 'Welcome',
+                'start_time' => 0.0,
+                'end_time' => 120.0,
+                'duration' => 120.0,
+                'status' => ServiceSectionStatus::IDENTIFIED,
+                'source_segment_ids' => [1],
+                'metadata' => [
+                    'confidence_level' => 'high',
+                ],
+                'publication_status' => ServiceSectionPublicationStatus::PUBLISHED,
+            ])
+            ->create();
 
-        ServiceSection::factory()->create([
-            'media_processing_log_id' => $nonMatchingRun->id,
-            'church_service_item_id' => $item->id,
-            'title' => 'Should Not Appear',
-        ]);
+        $this->serviceSectionScenario()
+            ->forProcessingLog($nonMatchingRun)
+            ->forChurchServiceItem($item)
+            ->state([
+                'title' => 'Should Not Appear',
+            ])
+            ->create();
 
         Livewire::test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('Classified Livestream Runs')

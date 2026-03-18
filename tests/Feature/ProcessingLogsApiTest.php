@@ -12,9 +12,11 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\BuildsTestScenarios;
 
 class ProcessingLogsApiTest extends TestCase
 {
+    use BuildsTestScenarios;
     use RefreshDatabase;
 
     private User $user;
@@ -25,11 +27,9 @@ class ProcessingLogsApiTest extends TestCase
     {
         parent::setUp();
 
-        $this->user = User::factory()->create([
+        $this->user = $this->createVerifiedAdmin([
             'email' => 'admin@test.com',
             'password' => bcrypt('password'),
-            'email_verified_at' => now(),
-            'is_admin' => true,
         ]);
 
         // Create unique log file for this test to avoid parallel test conflicts
@@ -60,13 +60,13 @@ class ProcessingLogsApiTest extends TestCase
         $processingId = Str::uuid()->toString();
 
         // Create a sermon processing log
-        MediaProcessingLog::create([
-            'processing_id' => $processingId,
-            'source_type' => 'audio',
-            'status' => ProcessingStatus::PROCESSING,
-            'original_filename' => 'test.mp3',
-            'current_step' => 'transcribing',
-        ]);
+        $this->processingLogScenario()
+            ->processing('transcribing')
+            ->state([
+                'processing_id' => $processingId,
+                'original_filename' => 'test.mp3',
+            ])
+            ->create();
 
         // Create log entries
         $logEntries = [
@@ -135,12 +135,13 @@ class ProcessingLogsApiTest extends TestCase
     {
         $processingId = Str::uuid()->toString();
 
-        MediaProcessingLog::create([
-            'processing_id' => $processingId,
-            'source_type' => 'audio',
-            'status' => ProcessingStatus::PROCESSING,
-            'original_filename' => 'test.mp3',
-        ]);
+        $this->processingLogScenario()
+            ->processing()
+            ->state([
+                'processing_id' => $processingId,
+                'original_filename' => 'test.mp3',
+            ])
+            ->create();
 
         // Create 10 log entries
         $logEntries = [];
@@ -185,14 +186,17 @@ class ProcessingLogsApiTest extends TestCase
         $processingId = Str::uuid()->toString();
 
         // Create a livestream processing log
-        MediaProcessingLog::create([
-            'processing_id' => $processingId,
-            'original_filename' => 'livestream.mp4',
-            'original_file_path' => '/tmp/livestream.mp4',
-            'status' => 'processing',
-            'file_size' => 1024000,
-            'duration' => 3600.0,
-        ]);
+        $this->processingLogScenario()
+            ->as(\App\Enums\MediaType::Livestream)
+            ->processing()
+            ->state([
+                'processing_id' => $processingId,
+                'original_filename' => 'livestream.mp4',
+                'source_file_path' => '/tmp/livestream.mp4',
+                'file_size' => 1024000,
+                'duration' => 3600.0,
+            ])
+            ->create();
 
         // Create log entries
         $logEntries = [

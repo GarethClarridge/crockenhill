@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Traits;
 
 use App\Data\SermonAnalysis;
@@ -8,6 +10,8 @@ use App\Services\UnifiedMediaProcessor;
 
 trait MediaProcessingTestHelpers
 {
+    use BuildsTestScenarios;
+
     /**
      * Create a mock SermonAnalysis object for testing.
      */

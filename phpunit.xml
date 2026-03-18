@@ -2,6 +2,7 @@
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
          bootstrap="bootstrap/app.php"
+         defaultTestSuite="Default Tests"
          colors="true"
          processIsolation="false"
          stopOnFailure="false"
@@ -9,12 +10,25 @@
          backupGlobals="false"
          backupStaticProperties="false">
     <testsuites>
+        <testsuite name="Default Tests">
+            <directory suffix="Test.php">./tests/Feature</directory>
+            <directory suffix="Test.php">./tests/Unit</directory>
+        </testsuite>
+
         <testsuite name="Feature Tests">
             <directory suffix="Test.php">./tests/Feature</directory>
         </testsuite>
 
         <testsuite name="Unit Tests">
             <directory suffix="Test.php">./tests/Unit</directory>
+        </testsuite>
+
+        <testsuite name="Browser Tests">
+            <directory suffix="Test.php">./tests/Browser</directory>
+        </testsuite>
+
+        <testsuite name="Performance Tests">
+            <directory suffix="Test.php">./tests/Performance</directory>
         </testsuite>
     </testsuites>
     <source>

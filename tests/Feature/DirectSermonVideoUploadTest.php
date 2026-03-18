@@ -7,14 +7,15 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
+use Tests\Traits\BypassesThrottleRequests;
 use Tests\Traits\MediaProcessingTestHelpers;
 
 class DirectSermonVideoUploadTest extends TestCase
 {
+    use BypassesThrottleRequests;
     use MediaProcessingTestHelpers;
     use RefreshDatabase;
 
@@ -22,18 +23,11 @@ class DirectSermonVideoUploadTest extends TestCase
     {
         parent::setUp();
 
-        // Disable rate limiting so tests assert exact status codes
-        $this->withoutMiddleware(ThrottleRequests::class);
+        $this->withoutThrottleRequests();
+        $this->fakeMediaDisks(['local', 'sermon_disk']);
 
-        // Set up fake storage disks for testing
-        Storage::fake('local');
-        Storage::fake('sermon_disk');
-
-        // Create test user with sermon creation permissions
-        $this->user = User::factory()->create([
+        $this->user = $this->createVerifiedAdmin([
             'email' => 'test@crockenhill.org',
-            'email_verified_at' => now(),
-            'is_admin' => true,
         ]);
 
         // Mock the unified processor to avoid FFmpeg dependency in tests
@@ -44,7 +38,7 @@ class DirectSermonVideoUploadTest extends TestCase
     {
         Sanctum::actingAs($this->user, [ApiTokenAbility::MEDIA_PROCESS->value]);
 
-        $videoFile = UploadedFile::fake()->create('test-sermon.mp4', 100 * 1024, 'video/mp4');
+        $videoFile = $this->fakeVideoUpload('test-sermon.mp4', 100 * 1024);
 
         $response = $this->postJson('/api/media/video', [
             'file' => $videoFile,
@@ -93,7 +87,7 @@ class DirectSermonVideoUploadTest extends TestCase
 
     public function test_video_upload_requires_authentication(): void
     {
-        $videoFile = UploadedFile::fake()->create('test-sermon.mp4', 100 * 1024, 'video/mp4');
+        $videoFile = $this->fakeVideoUpload('test-sermon.mp4', 100 * 1024);
 
         $response = $this->postJson('/api/media/video', [
             'file' => $videoFile,

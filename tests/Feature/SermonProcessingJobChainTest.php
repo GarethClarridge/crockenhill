@@ -38,9 +38,7 @@ class SermonProcessingJobChainTest extends TestCase
     {
         parent::setUp();
 
-        // Set up storage and configuration
-        Storage::fake('local');
-        Storage::fake('public');
+        $this->fakeMediaDisks();
 
         config([
             'media-processing.transcription.openai_api_key' => 'test-key',
@@ -71,16 +69,16 @@ class SermonProcessingJobChainTest extends TestCase
         // Create the audio file that the job expects
         Storage::put($storedFilePath, 'fake audio content');
 
-        // Create processing log
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => $processingId,
-            'processing_type' => 'audio',
-            'original_filename' => $metadata->originalName,
-            'source_file_path' => $storedFilePath,
-            'ai_analysis' => json_encode(['title' => 'Test Sermon Title']),
-            'status' => ProcessingStatus::PENDING,
-            'current_step' => 'initiated',
-        ]);
+        $processingLog = $this->processingLogScenario()
+            ->pending()
+            ->state([
+                'processing_id' => $processingId,
+                'original_filename' => $metadata->originalName,
+                'source_file_path' => $storedFilePath,
+                'ai_analysis' => ['title' => 'Test Sermon Title'],
+                'current_step' => 'initiated',
+            ])
+            ->create();
 
         // Create the job
         $job = new CreateSermonRecord($processingLog);
@@ -159,16 +157,15 @@ class SermonProcessingJobChainTest extends TestCase
             'transcript_file_path' => null,
         ]);
 
-        // Create processing log
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-id',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'source_file_path' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
-            'current_step' => 'sermon_record_created',
-            'sermon_id' => $sermon->id,
-        ]);
+        $processingLog = $this->processingLogScenario()
+            ->processing('sermon_record_created')
+            ->withSermon($sermon)
+            ->state([
+                'processing_id' => 'test-id',
+                'original_filename' => 'test-audio.mp3',
+                'source_file_path' => 'test-audio.mp3',
+            ])
+            ->create();
 
         // Create a fake audio file
         Storage::put('test-audio.mp3', 'fake audio content');
@@ -213,16 +210,15 @@ class SermonProcessingJobChainTest extends TestCase
             'audio_file_path' => 'test-audio.mp3',
         ]);
 
-        // Create processing log
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-id',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'source_file_path' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
-            'current_step' => 'sermon_record_created',
-            'sermon_id' => $sermon->id,
-        ]);
+        $processingLog = $this->processingLogScenario()
+            ->processing('sermon_record_created')
+            ->withSermon($sermon)
+            ->state([
+                'processing_id' => 'test-id',
+                'original_filename' => 'test-audio.mp3',
+                'source_file_path' => 'test-audio.mp3',
+            ])
+            ->create();
 
         // Mock the transcription service to throw exception
         $mockTranscriptionService = $this->createMock(TranscriptionServiceInterface::class);
@@ -265,16 +261,15 @@ class SermonProcessingJobChainTest extends TestCase
         // Store transcript content (must be at least 100 characters for validation)
         Storage::put('transcripts/sermon_1.md', 'This is a sample sermon transcript about God\'s amazing love and grace. It contains meaningful content that demonstrates the depth of God\'s love for humanity and how we should respond to that love in our daily lives.');
 
-        // Create processing log
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-id',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
-            'current_step' => 'transcription_completed',
-            'sermon_id' => $sermon->id,
-            'transcript_file_path' => 'transcripts/sermon_1.md',
-        ]);
+        $processingLog = $this->processingLogScenario()
+            ->processing('transcription_completed')
+            ->withSermon($sermon)
+            ->state([
+                'processing_id' => 'test-id',
+                'original_filename' => 'test-audio.mp3',
+                'transcript_file_path' => 'transcripts/sermon_1.md',
+            ])
+            ->create();
 
         // Mock the analysis service
         $mockAnalysisService = $this->createMock(SermonAnalysisService::class);
@@ -307,16 +302,15 @@ class SermonProcessingJobChainTest extends TestCase
         // Store transcript content (must be at least 100 characters for validation)
         Storage::put('transcripts/sermon_1.md', 'This is a sample sermon transcript about God\'s amazing love and grace. It contains meaningful content that demonstrates the depth of God\'s love for humanity and how we should respond to that love in our daily lives.');
 
-        // Create processing log
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-id',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
-            'current_step' => 'transcription_completed',
-            'sermon_id' => $sermon->id,
-            'transcript_file_path' => 'transcripts/sermon_1.md',
-        ]);
+        $processingLog = $this->processingLogScenario()
+            ->processing('transcription_completed')
+            ->withSermon($sermon)
+            ->state([
+                'processing_id' => 'test-id',
+                'original_filename' => 'test-audio.mp3',
+                'transcript_file_path' => 'transcripts/sermon_1.md',
+            ])
+            ->create();
 
         // Mock the analysis service to throw exception
         $mockAnalysisService = $this->createMock(SermonAnalysisService::class);
@@ -348,15 +342,14 @@ class SermonProcessingJobChainTest extends TestCase
         // Store transcript content
         Storage::put('transcripts/sermon_1.md', 'This is a sample sermon transcript about God\'s love and grace.');
 
-        // Create processing log
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-id',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
-            'current_step' => 'ai_analysis_completed',
-            'sermon_id' => $sermon->id,
-        ]);
+        $processingLog = $this->processingLogScenario()
+            ->processing('ai_analysis_completed')
+            ->withSermon($sermon)
+            ->state([
+                'processing_id' => 'test-id',
+                'original_filename' => 'test-audio.mp3',
+            ])
+            ->create();
 
         // Mock the analysis service
         $mockAnalysisService = $this->createMock(SermonAnalysisService::class);
@@ -403,15 +396,14 @@ class SermonProcessingJobChainTest extends TestCase
             'points' => ['Point 1', 'Point 2'],
         ]);
 
-        // Create processing log
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'test-id',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
-            'current_step' => 'updating_sermon_record',
-            'sermon_id' => $sermon->id,
-        ]);
+        $processingLog = $this->processingLogScenario()
+            ->processing('updating_sermon_record')
+            ->withSermon($sermon)
+            ->state([
+                'processing_id' => 'test-id',
+                'original_filename' => 'test-audio.mp3',
+            ])
+            ->create();
 
         // Create and execute the job
         $job = new SendCompletionNotification($processingLog);
@@ -431,14 +423,14 @@ class SermonProcessingJobChainTest extends TestCase
 
         $sermon = Sermon::factory()->create(['title' => 'Test Sermon']);
 
-        $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'skip-test-id',
-            'processing_type' => 'audio',
-            'original_filename' => 'test-audio.mp3',
-            'status' => ProcessingStatus::PROCESSING,
-            'current_step' => 'updating_sermon_record',
-            'sermon_id' => $sermon->id,
-        ]);
+        $processingLog = $this->processingLogScenario()
+            ->processing('updating_sermon_record')
+            ->withSermon($sermon)
+            ->state([
+                'processing_id' => 'skip-test-id',
+                'original_filename' => 'test-audio.mp3',
+            ])
+            ->create();
 
         $job = new SendCompletionNotification($processingLog);
         $job->handle();
