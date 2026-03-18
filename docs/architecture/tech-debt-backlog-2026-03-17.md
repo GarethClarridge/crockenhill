@@ -33,6 +33,10 @@ The backlog is ordered for safety:
 - [external-integration-boundary-review-2026-03-18.md](../reviews/external-integration-boundary-review-2026-03-18.md)
 - [public-read-side-architecture-review-2026-03-18.md](../reviews/public-read-side-architecture-review-2026-03-18.md)
 - [bootstrap-registration-side-effect-map-2026-03-18.md](../reviews/bootstrap-registration-side-effect-map-2026-03-18.md)
+- [authorization-exposure-boundary-review-2026-03-18.md](../reviews/authorization-exposure-boundary-review-2026-03-18.md)
+- [ci-deployment-environment-review-2026-03-18.md](../reviews/ci-deployment-environment-review-2026-03-18.md)
+- [frontend-view-architecture-review-2026-03-18.md](../reviews/frontend-view-architecture-review-2026-03-18.md)
+- [laravel-livewire-idioms-review-2026-03-18.md](../reviews/laravel-livewire-idioms-review-2026-03-18.md)
 
 ## Status Legend
 
@@ -94,6 +98,30 @@ The backlog is ordered for safety:
 34. `TD-017A`
 35. `TD-017B`
 36. `TD-017C`
+37. `TD-018`
+38. `TD-019`
+39. `TD-020`
+40. `TD-021`
+41. `TD-024`
+42. `TD-025`
+43. `TD-026`
+44. `TD-027`
+45. `TD-030`
+46. `TD-031`
+47. `TD-032`
+48. `TD-033`
+49. `TD-022`
+50. `TD-023`
+51. `TD-028`
+52. `TD-029`
+53. `TD-039`
+54. `TD-034`
+55. `TD-035`
+56. `TD-036`
+57. `TD-037`
+58. `TD-038`
+59. `TD-040`
+60. `TD-041`
 
 ## Quick Wins
 
@@ -453,6 +481,309 @@ The backlog is ordered for safety:
   3. Sermon detail pages do not hydrate the full service-section graph just to render one Bible reading reference.
 - Reference reviews:
   - `read-path-performance-review-2026-03-18.md`
+
+### TD-018 - Fix self-contradicting CI bootstrap safety guard
+- Status: `Open`
+- Priority: P0
+- Impact: High
+- Risk: Low
+- Effort: S
+- Dependencies: None
+- Scope:
+  - `scripts/check-bootstrap-safety.sh` false-positive detection for `config()` inside `withMiddleware()`
+  - `bootstrap/app.php` use of `config('app.trusted_proxies')` inside the middleware block
+  - Decide whether to fix the script heuristic or move the config call out of the guarded block
+- Tests needed first:
+  - None (CI tooling fix)
+- Safest implementation order:
+  1. Confirm locally that the script currently exits 1 against the tree.
+  2. Either move the `config(...)` call outside the bootstrap block (preferred) or update the script heuristic if the call is intentionally placed there.
+  3. Verify the script exits 0 cleanly before committing.
+- Acceptance criteria:
+  1. The CI pipeline no longer fails at the bootstrap safety check against the current codebase.
+  2. The script still catches genuinely unsafe bootstrap patterns.
+- Reference reviews:
+  - `ci-deployment-environment-review-2026-03-18.md`
+
+### TD-019 - Pin production deploys to smoke-tested image SHA
+- Status: `Open`
+- Priority: P1
+- Impact: High
+- Risk: Low
+- Effort: S
+- Dependencies: None
+- Scope:
+  - `.github/workflows/deploy.yml` build, smoke, and deploy jobs
+  - `docker-compose.prod.yml` app image tag variable
+- Tests needed first:
+  - None (CI workflow change)
+- Safest implementation order:
+  1. Pass the SHA-tagged image from the build job output to both the smoke and deploy jobs via a workflow output or artifact.
+  2. Update the deploy job to reference the specific SHA rather than `${IMAGE_TAG:-latest}`.
+  3. Verify the full workflow path: build → smoke (same SHA) → deploy (same SHA).
+- Acceptance criteria:
+  1. The deploy job always references the same image SHA that the smoke job validated.
+  2. A re-run of the deploy job in isolation cannot silently pick up a different `latest` image.
+- Reference reviews:
+  - `ci-deployment-environment-review-2026-03-18.md`
+
+### TD-020 - Add scheduler to production runtime and a post-deploy operational smoke path
+- Status: `Open`
+- Priority: P1
+- Impact: High
+- Risk: Low-Medium
+- Effort: M
+- Dependencies: None
+- Scope:
+  - `docker-compose.prod.yml` scheduler sidecar or cron service
+  - `docker/production/supervisord.conf` or dedicated scheduler container
+  - Post-deploy smoke command covering web, DB, queue, writable storage, and scheduler presence
+  - Documentation of the supported health check path, retiring phantom `/health` and `health:check` references
+- Tests needed first:
+  - None (infrastructure and deploy change)
+- Safest implementation order:
+  1. Add an explicit scheduler process to the production runtime using `php artisan schedule:work` or a cron entry in a dedicated container.
+  2. Verify scheduled commands run without out-of-band setup: `calendar:sync`, `media:cleanup-temp-files`, `media:cleanup-unpublished-section-assets`, `scripture:refresh-passages`.
+  3. Add a post-deploy smoke command or script that asserts web up, DB reachable, queue alive, storage writable, and scheduler running.
+  4. Update deployment docs and remove all references to phantom endpoints (`/health`, `health:check`, `/api/sermons/processing/health`).
+- Acceptance criteria:
+  1. The production runtime includes an explicit, discoverable scheduler process.
+  2. A single post-deploy command gives operators a pass/fail signal for all five operational concerns.
+  3. Deployment docs no longer reference health endpoints or commands that do not exist.
+- Reference reviews:
+  - `ci-deployment-environment-review-2026-03-18.md`
+
+### TD-021 - Align deployment documentation to actual production queue and runtime
+- Status: `Open`
+- Priority: P1
+- Impact: Medium
+- Risk: Low
+- Effort: S
+- Dependencies: None
+- Scope:
+  - `docs/deployment/automated-sermon-processing.md` database-queue worker instructions and git branch reference
+  - `docs/deployment/media-processing.md` database-queue worker instructions
+  - `docs/deployment/thumbnail-generation-deployment.md` database-queue worker instruction
+  - `scripts/server-setup.sh` SSH key instruction error (public key stated where private key is required)
+- Tests needed first:
+  - None (documentation change)
+- Safest implementation order:
+  1. Replace all `QUEUE_CONNECTION=database` worker instructions with `queue:work redis` to match the real production worker.
+  2. Correct the `scripts/server-setup.sh` instruction: the deploy action needs the private key, not the public key.
+  3. Update `docs/deployment/automated-sermon-processing.md` to reference `master` rather than `main`.
+  4. Add a single canonical "production stack" summary pointing to Docker Compose + Redis as the authoritative path.
+- Acceptance criteria:
+  1. An operator following the docs alone cannot ship `QUEUE_CONNECTION=database` to a Redis-backed production worker.
+  2. The SSH key instruction is correct.
+  3. There is one unambiguous "this is how production works" reference.
+- Reference reviews:
+  - `ci-deployment-environment-review-2026-03-18.md`
+
+### TD-022 - Remove dead thumbnail queue configuration and correct its queue coverage test
+- Status: `Open`
+- Priority: P2
+- Impact: Medium
+- Risk: Low
+- Effort: S
+- Dependencies: None
+- Scope:
+  - `config/thumbnail-generation.php` dead `queue` and `connection` fields
+  - `tests/Unit/Config/QueueWorkerCoverageTest.php` thumbnail worker assertion
+  - `app/Jobs/GenerateThumbnail.php` (no queue or connection set)
+- Tests needed first:
+  - None (the test itself needs correcting)
+- Safest implementation order:
+  1. Decide whether to wire `THUMBNAIL_QUEUE_CONNECTION` and `THUMBNAIL_QUEUE_NAME` into real dispatch behavior on `GenerateThumbnail`, or to remove the dead config and correct the test.
+  2. If removing: delete the dead config fields and update the queue coverage test to assert only the queues that workers actually serve.
+  3. If wiring: set `$connection` and `$queue` on `GenerateThumbnail`, verify it lands on the thumbnail worker, and keep the config.
+- Acceptance criteria:
+  1. The queue coverage test validates real dispatch behavior rather than a phantom queue.
+  2. Operators cannot waste time debugging a `thumbnails` worker that never receives jobs.
+- Reference reviews:
+  - `ci-deployment-environment-review-2026-03-18.md`
+
+### TD-023 - Restore podcast feed cache invalidation on sermon changes
+- Status: `Open`
+- Priority: P2
+- Impact: Medium
+- Risk: Low
+- Effort: S
+- Dependencies: None
+- Scope:
+  - `app/Observers/SitemapCacheObserver.php` podcast feed cache skip
+  - The test that caused the skip to be added
+  - Cache invalidation coverage for podcast feed
+- Tests needed first:
+  - Feed freshness test verifying the podcast feed is invalidated after sermon create/update/delete
+- Safest implementation order:
+  1. Identify the test that originally broke when podcast feed invalidation was active and fix the test root cause instead of skipping invalidation.
+  2. Re-enable feed cache invalidation in `SitemapCacheObserver`.
+  3. Add a regression test covering feed invalidation after relevant model changes.
+- Acceptance criteria:
+  1. Podcast feed cache is invalidated when underlying sermon data changes.
+  2. The fix does not break the previously problematic test.
+  3. Invalidation behavior is covered by an explicit test rather than the comment "to prevent test failures".
+- Reference reviews:
+  - `ci-deployment-environment-review-2026-03-18.md`
+
+### TD-024 - Move unpublished section-publication media off the public disk
+- Status: `Ready after prerequisite`
+- Priority: P0
+- Impact: Very high
+- Risk: Medium
+- Effort: M
+- Dependencies: `TD-001A`
+- Scope:
+  - `app/Jobs/PrepareSectionPublicationCandidates.php` candidate extraction write path
+  - `config/media-processing.php` `sermon_disk` default
+  - `app/Livewire/Admin/ChurchServices/ServiceReviewDashboard.php` candidate URL generation
+  - Private or signed delivery for candidate media before `APPROVED` + published state
+- Tests needed first:
+  - Direct test proving extracted but not-yet-published section media is not publicly retrievable from a raw storage URL
+  - Regression that the admin review dashboard can still serve candidate media to authenticated admins via a guarded path
+- Safest implementation order:
+  1. Add direct tests for the current public-leakage path and the intended private/signed delivery path.
+  2. Write extracted candidates to a private disk or path prefix instead of the public sermon disk.
+  3. Update the admin review dashboard to generate signed URLs or guarded delivery routes for candidate media.
+  4. Ensure the publication job moves or copies media to the public path only on `APPROVED` → publish transition.
+- Acceptance criteria:
+  1. Pre-publication candidate media cannot be retrieved via a direct storage URL without authentication.
+  2. Admin review dashboard users can still preview candidate media through a guarded path.
+  3. The publication workflow correctly delivers finalized media to the public path.
+- Reference reviews:
+  - `authorization-exposure-boundary-review-2026-03-18.md`
+
+### TD-025 - Normalize admin verification requirement across all admin mutation paths
+- Status: `Open`
+- Priority: P1
+- Impact: High
+- Risk: Low
+- Effort: S
+- Dependencies: None
+- Scope:
+  - `routes/web.php` legacy meeting mutation routes (`meetings.index`, `.update`, `.destroy`) missing `verified`
+  - `routes/web.php` legacy sermon delete endpoints missing `verified`
+  - `app/Policies/MeetingPolicy.php` and `app/Policies/SermonPolicy.php` verification gap
+  - `app/Http/Middleware/EnsureUserIsAdmin.php` verification gap
+  - `app/Livewire/Traits/WithAdminAuthorization.php` verification gap
+- Tests needed first:
+  - Test that an unverified admin cannot reach legacy meeting and sermon mutation routes
+- Safest implementation order:
+  1. Add the `verified` middleware to the legacy meeting and sermon mutation route groups that currently only require `auth + admin`.
+  2. Update `MeetingPolicy` and `SermonPolicy` to include the verified check where they previously only checked `is_admin`.
+  3. Decide whether to update `EnsureUserIsAdmin` and `WithAdminAuthorization` globally or rely on route-level `verified` for mutation coverage.
+- Acceptance criteria:
+  1. Unverified admins cannot reach any admin mutation path.
+  2. The visible admin gates and the enforceable backend rules are consistent.
+  3. Existing verified-admin flows are unchanged.
+- Reference reviews:
+  - `authorization-exposure-boundary-review-2026-03-18.md`
+  - `laravel-livewire-idioms-review-2026-03-18.md`
+
+### TD-026 - Align calendar side routes and sitemap visibility with the confirmed-only exposure policy
+- Status: `Ready after prerequisite`
+- Priority: P1
+- Impact: Medium
+- Risk: Low
+- Effort: S
+- Dependencies: `TD-001A`
+- Scope:
+  - `app/Services/CalendarService::getEventsForMeeting()` status filter
+  - `app/Services/CalendarService::getUncategorizedEvents()` status filter
+  - `app/Services/SitemapService` members-page exclusion (currently only `admin=yes` is excluded)
+  - `app/Services/SitemapService` meeting page-link visibility check
+- Tests needed first:
+  - Test that `/meetings/{meeting}/events` does not return non-confirmed events
+  - Test that `/calendar/uncategorized` does not return non-confirmed events
+  - Test that `sitemap.xml` does not include `PageArea::MEMBERS` URLs
+- Safest implementation order:
+  1. Apply the same `confirmed()` status scope to `getEventsForMeeting()` and `getUncategorizedEvents()`.
+  2. Exclude `PageArea::MEMBERS` pages from sitemap generation, not only `admin=yes` pages.
+  3. Add a page-level visibility check for meetings in the sitemap where meeting-page links are present.
+- Acceptance criteria:
+  1. All public calendar routes use consistent status filtering.
+  2. The sitemap excludes members-area URLs.
+  3. Meeting sitemap entries do not expose linked protected page content.
+- Reference reviews:
+  - `authorization-exposure-boundary-review-2026-03-18.md`
+
+### TD-027 - Bring sermon API and metadata exposure in line with show_summary and show_points
+- Status: `Ready after prerequisite`
+- Priority: P1
+- Impact: Medium
+- Risk: Low
+- Effort: S
+- Dependencies: `TD-001A`
+- Scope:
+  - `app/Models/Sermon::getMetaDescriptionAttribute()` ignores `show_summary`
+  - `app/Http/Resources/SermonResource.php` always returns `points` regardless of `show_points`
+  - `app/Http/Resources/SermonResource.php` exposes `thumbnail_metadata` internal storage paths (`plain_thumbnail_path`, `overlay_thumbnail_path`)
+  - Meta tag and JSON-LD rendering in `resources/views/sermons/sermon.blade.php`
+- Tests needed first:
+  - Test that a sermon with `show_summary=false` does not include the summary in meta description or JSON-LD
+  - Test that the public sermon API omits `points` when `show_points=false`
+  - Test that `thumbnail_metadata` does not include internal storage paths in the public API response
+- Safest implementation order:
+  1. Respect `show_summary` in `getMetaDescriptionAttribute()` and remove summary text from meta tags when the flag is false.
+  2. Conditionally include `points` in `SermonResource` based on `show_points`.
+  3. Remove `plain_thumbnail_path` and `overlay_thumbnail_path` from the public API response; expose only the public CDN URL.
+- Acceptance criteria:
+  1. Hidden summary text is not recoverable from page metadata, JSON-LD, or API responses.
+  2. Hidden outline points are not available through the public API.
+  3. Internal storage paths are not exposed in public API responses.
+- Reference reviews:
+  - `authorization-exposure-boundary-review-2026-03-18.md`
+
+### TD-028 - Expose page visibility admin flag in the page editor UI
+- Status: `Open`
+- Priority: P2
+- Impact: Medium
+- Risk: Low
+- Effort: S
+- Dependencies: None
+- Scope:
+  - `app/Livewire/Admin/Pages/PageForm.php` form fields
+  - `app/Livewire/Admin/Pages/ListPages.php` listing columns
+  - `resources/views/livewire/admin/pages/page-form.blade.php`
+  - `resources/views/livewire/admin/pages/list-pages.blade.php`
+- Tests needed first:
+  - Test that the admin page form loads and saves the `admin` column
+  - Test that the listing shows which pages are admin-only
+- Safest implementation order:
+  1. Add the `admin` boolean field to `PageForm` and its view.
+  2. Add an `admin` column to the `ListPages` view so administrators can see current visibility at a glance.
+  3. Update any related validation that currently omits the `admin` field.
+- Acceptance criteria:
+  1. Administrators can see which pages are admin-only from the listing.
+  2. Administrators can set or change the `admin` restriction through the page editor.
+  3. The `admin` column is saved and retrieved correctly.
+- Reference reviews:
+  - `authorization-exposure-boundary-review-2026-03-18.md`
+
+### TD-029 - Remove WithAdminAuthorization duplication from routed admin components
+- Status: `Ready after prerequisite`
+- Priority: P2
+- Impact: Medium
+- Risk: Low
+- Effort: S
+- Dependencies: `TD-002`
+- Scope:
+  - `app/Livewire/Traits/WithAdminAuthorization.php`
+  - All routed full-page admin Livewire components that call `authorizeAdmin()` in `mount()` and mutating actions
+  - Trivial `manage-*` gates in `app/Providers/AuthServiceProvider.php`
+- Tests needed first:
+  - Regression confirming non-admin users cannot access routed admin components after removing the trait checks
+- Safest implementation order:
+  1. Confirm that the `/admin/*` route group middleware (`auth + verified + admin`) fully covers the authorization requirement for all routed components.
+  2. Remove `WithAdminAuthorization` calls from full-page routed admin components; keep the trait only where a component is not guaranteed to be inside the admin route group.
+  3. Collapse trivial `manage-*` gates that are purely "is admin" and rely on route middleware instead.
+- Acceptance criteria:
+  1. No full-page routed admin component carries redundant `authorizeAdmin()` calls when route middleware already enforces the same rules.
+  2. The trivial `manage-*` gates are replaced by a consistent route/policy-level check.
+  3. No regression in admin access control.
+- Reference reviews:
+  - `laravel-livewire-idioms-review-2026-03-18.md`
+  - `authorization-exposure-boundary-review-2026-03-18.md`
 
 ## Medium Refactors
 
@@ -990,6 +1321,332 @@ The backlog is ordered for safety:
   4. Rollout uses `audit -> backfill -> constraint` instead of destructive cleanup first.
 - Reference reviews:
   - `database-model-integrity-review-2026-03-18.md`
+
+### TD-030 - Decide and enforce consistent access model for members-area and Children's Corner
+- Status: `Open`
+- Priority: P1
+- Impact: High
+- Risk: Medium
+- Effort: M
+- Dependencies: None (product decision required before implementation)
+- Scope:
+  - `app/Livewire/Auth/Register.php` self-registration and immediate login behavior
+  - `routes/web.php` members dashboard, songs, and catch-all page auth requirements
+  - `app/Services/SermonExposurePolicy.php` Children's Corner auth-only check
+  - `app/Http/Middleware/EnsureChildrensCornerAccess.php`
+  - Decision: is "members only" meant to be "has a user account" or "trusted church member"?
+- Tests needed first:
+  - Characterization test documenting current behavior: self-registered, unverified user can reach members dashboard, songs, and Children's Corner
+  - Regression test preventing unauthorized access once the chosen policy is implemented
+- Safest implementation order:
+  1. Agree on the intended access model: current permissive model vs email-verification or invite/approval requirement.
+  2. If tightening: add email verification requirement for members-area routes and Children's Corner access.
+  3. If the current model is intentional: document it explicitly and close the finding.
+  4. Consider whether self-registration should remain open or require an invite/approval step for church membership.
+- Acceptance criteria:
+  1. The effective access boundary for members-area content is explicitly decided and documented.
+  2. The code enforces that decision consistently.
+  3. A self-registered unverified user can only access content that is intentionally public.
+- Reference reviews:
+  - `authorization-exposure-boundary-review-2026-03-18.md`
+
+### TD-031 - Convert admin list/filter components from $queryString to Livewire 3 #[Url]
+- Status: `Open`
+- Priority: P1
+- Impact: Medium
+- Risk: Low
+- Effort: M
+- Dependencies: None
+- Scope:
+  - `app/Livewire/Admin/Sermons/ListSermons.php`
+  - `app/Livewire/Admin/ChurchServices/ManageChurchService.php`
+  - `ListPages`, `ListMeetings`, `ListUsers`, `ListChurchServices`, `ListSongs`, `ReviewInboundEmails`, `ListSectionPublications`, `ListCalendarEvents`, `ListPreachers`
+- Tests needed first:
+  - Regression that URL filter state is preserved correctly after conversion for each component
+- Safest implementation order:
+  1. Convert read-only list components first (lowest risk): `ListSermons`, `ListPages`, `ListMeetings`, `ListUsers`, `ListPreachers`, `ListCalendarEvents`.
+  2. Use `#[Url]` with `except`, aliases, and boolean defaults on filter/search properties.
+  3. Remove the parallel `$queryString` arrays.
+  4. Convert the remaining write-capable components (`ManageChurchService`, `ReviewInboundEmails`) after the read-only set is stable.
+- Acceptance criteria:
+  1. All admin list/filter components use `#[Url]` instead of legacy `$queryString` arrays.
+  2. Filter URL state behavior is unchanged from the user's perspective.
+  3. `$queryString` arrays are removed from all converted components.
+- Reference reviews:
+  - `laravel-livewire-idioms-review-2026-03-18.md`
+
+### TD-032 - Replace PageForm and MeetingForm traits with Livewire\Form objects
+- Status: `Open`
+- Priority: P1
+- Impact: Medium
+- Risk: Low
+- Effort: M
+- Dependencies: None
+- Scope:
+  - `app/Livewire/Admin/Pages/PageForm.php`
+  - `app/Livewire/Admin/Meetings/MeetingForm.php`
+  - `app/Livewire/Admin/Pages/CreatePage.php`, `EditPage.php`
+  - `app/Livewire/Admin/Meetings/CreateMeeting.php`, `EditMeeting.php`
+- Tests needed first:
+  - Regression that page and meeting create/edit flows still work after conversion
+- Safest implementation order:
+  1. Create `PageFormData` extending `Livewire\Form` with the rules, normalization helpers, and derived properties currently in the trait.
+  2. Update `CreatePage` and `EditPage` to use the form object; remove manual model-to-form mapping.
+  3. Repeat for `MeetingFormData` and the meeting components.
+  4. Delete the old trait-based form implementations once all consumers are converted.
+- Acceptance criteria:
+  1. Page and meeting admin forms use `Livewire\Form` objects.
+  2. Host components contain only `mount()`, `save()`, and page-level render concerns.
+  3. The old trait-based form implementations are deleted.
+- Reference reviews:
+  - `laravel-livewire-idioms-review-2026-03-18.md`
+
+### TD-033 - Extract media-processing status query service from ProcessingLogsViewer
+- Status: `Ready after prerequisite`
+- Priority: P1
+- Impact: High
+- Risk: Medium
+- Effort: M
+- Dependencies: `TD-012`
+- Scope:
+  - `app/Livewire/ProcessingLogsViewer.php` controller-resolution in `findControllerForProcessingId()`
+  - `app/Http/Controllers/Api/MediaController.php` `ProcessingStatusContract` implementation
+  - New `GetMediaProcessingStatus` service or equivalent
+- Tests needed first:
+  - Test for the new status query service covering processing log retrieval
+  - Regression that the Livewire viewer still receives the same data after refactor
+- Safest implementation order:
+  1. Extract a dedicated `GetMediaProcessingStatus` service from the controller's `ProcessingStatusContract` implementation.
+  2. Update `MediaController` to call the new service for JSON responses.
+  3. Update `ProcessingLogsViewer` to inject the new service directly rather than resolving `MediaController` from the container.
+  4. Remove `ProcessingStatusContract` from the controller layer once the shared service exists.
+- Acceptance criteria:
+  1. `ProcessingLogsViewer` no longer resolves an HTTP controller as an application service.
+  2. `MediaController` and `ProcessingLogsViewer` share one status query service.
+  3. The Livewire viewer behavior is unchanged.
+- Reference reviews:
+  - `laravel-livewire-idioms-review-2026-03-18.md`
+
+### TD-034 - Build admin shell component family
+- Status: `Open`
+- Priority: P2
+- Impact: High
+- Risk: Low
+- Effort: M
+- Dependencies: None
+- Scope:
+  - `x-admin.page` — consistent page title/action row wrapper
+  - `x-admin.list-shell` — standard header, filter bar, empty state, and table container
+  - `x-admin.form-shell` — standard form card wrapper
+  - `x-admin.filter-bar` — reusable filter/search row
+  - `x-admin.empty-state` — standardized empty state
+  - Shared Livewire trait or computed helper for `hasFilters` and common URL query-string patterns
+- Tests needed first:
+  - None (presentational; existing admin screen tests serve as regression)
+- Safest implementation order:
+  1. Build the new shell components without modifying any existing views yet.
+  2. Test them in isolation in the component gallery.
+  3. Adopt them in one admin list page and one admin form page as a pilot.
+  4. Roll out to remaining admin screens incrementally.
+- Acceptance criteria:
+  1. The shell components exist and are used by at least one admin list page and one admin form page.
+  2. Admin list pages converge on a consistent structure without manual duplication.
+  3. The component gallery documents all new shell components.
+- Reference reviews:
+  - `frontend-view-architecture-review-2026-03-18.md`
+  - `laravel-livewire-idioms-review-2026-03-18.md`
+
+### TD-035 - Refactor shared primitive components for design-system neutrality
+- Status: `Ready after prerequisite`
+- Priority: P2
+- Impact: High
+- Risk: Low-Medium
+- Effort: M-L
+- Dependencies: `TD-034`
+- Scope:
+  - `x-card`: split into a neutral surface card and a prose/content card (currently wraps all content in `.prose`)
+  - `x-button`: make internal/external/download navigation explicit rather than inferring from `#`
+  - `x-toggle`: add a Livewire-optional `x-switch` or make toggle usable in plain Blade forms
+  - New `x-alert` / notice component
+  - New `x-badge` / status-pill component
+  - New `x-checkbox` primitive
+  - New icon-button primitive
+- Tests needed first:
+  - None (presentational; regression covered by existing views and component gallery)
+- Safest implementation order:
+  1. Add the missing primitives (`x-alert`, `x-badge`, `x-checkbox`, icon button) before touching existing ones.
+  2. Split `x-card` by adding a neutral variant, keeping prose behavior available via a prop rather than as the default.
+  3. Update `x-button` to use a navigation prop or explicit method rather than inferring from `#`.
+  4. Update the component gallery to document all primitives.
+- Acceptance criteria:
+  1. `x-card` can be used as a neutral surface without inheriting `.prose` typography by default.
+  2. `x-button` does not silently assume `wire:navigate` for all non-`#` URLs.
+  3. `x-alert`, `x-badge`, `x-checkbox`, and icon-button primitives exist and are documented.
+- Reference reviews:
+  - `frontend-view-architecture-review-2026-03-18.md`
+
+### TD-036 - Migrate legacy admin Blade screens onto the modern admin architecture
+- Status: `Ready after prerequisite`
+- Priority: P2
+- Impact: Medium
+- Risk: Medium
+- Effort: L
+- Dependencies: `TD-034`, `TD-035`
+- Scope:
+  - `resources/views/meetings/index.blade.php`
+  - `resources/views/admin/calendar/uncategorized.blade.php`
+  - `resources/views/admin/calendar/patterns.blade.php`
+  - `resources/views/sermons/edit.blade.php`
+  - `x-admin-table` and `x-admin-actions` legacy components
+  - Migrate from `layouts/page` + raw alerts/selects to `layouts/admin` + modern admin shells
+- Tests needed first:
+  - Route/feature regressions for each legacy screen before migration
+- Safest implementation order:
+  1. Add route regression tests for each legacy admin screen.
+  2. Migrate screens one at a time: replace `layouts/page` with `layouts/admin`, replace raw HTML patterns with shell components.
+  3. Retire `x-admin-table` once all consumers are migrated.
+  4. Retire `x-admin-actions` after confirming no remaining usages.
+- Acceptance criteria:
+  1. All admin-like screens use the modern admin shell architecture.
+  2. `x-admin-table` and `x-admin-actions` are retired.
+  3. Maintainers no longer need to remember two different admin frontend systems.
+- Reference reviews:
+  - `frontend-view-architecture-review-2026-03-18.md`
+
+### TD-037 - Resolve upload and log-viewer frontend state ownership
+- Status: `Ready after prerequisite`
+- Priority: P2
+- Impact: Medium
+- Risk: Medium
+- Effort: M
+- Dependencies: `TD-033`
+- Scope:
+  - `resources/views/livewire/media-upload/form.blade.php` Alpine/Livewire/JS state split
+  - `app/Livewire/MediaUpload/Status.php` event dispatch boundary
+  - `resources/views/livewire/media-upload/progress.blade.php` parent Alpine dependency
+  - `app/Livewire/ProcessingLogsViewer.php` duplicate Livewire/Alpine state (`expanded`, `autoRefresh`)
+  - `resources/views/livewire/processing-logs-viewer.blade.php` global `window.logsViewer`
+- Tests needed first:
+  - Characterization tests for upload cancel behavior and log-viewer expand/refresh state
+- Safest implementation order:
+  1. Pick one owner per concern in the upload flow: Livewire for lifecycle data, small Alpine enhancements for drag/drop only.
+  2. Remove the cross-component Alpine dependency (`progress` calling a parent method it does not own).
+  3. For the logs viewer: prefer fully Livewire-driven state for `expanded` and `autoRefresh`, removing the duplicate Alpine entanglement.
+  4. Remove the `window.logsViewer` global after the state is properly encapsulated.
+- Acceptance criteria:
+  1. Upload lifecycle state has one owner; Alpine is used only for pure client-side enhancements.
+  2. `expanded` and `autoRefresh` are owned by one layer in the logs viewer.
+  3. No cross-component implicit state dependencies remain.
+- Reference reviews:
+  - `frontend-view-architecture-review-2026-03-18.md`
+  - `laravel-livewire-idioms-review-2026-03-18.md`
+
+### TD-038 - Centralise accessibility primitives and fix known gaps
+- Status: `Ready after prerequisite`
+- Priority: P2
+- Impact: Medium
+- Risk: Low
+- Effort: M
+- Dependencies: `TD-035`
+- Scope:
+  - Auth view alert markup (login, verify-email) — replace with shared `x-alert` primitive
+  - `verify-email` success notice: add live-region role (`role="status"` or `aria-live="polite"`)
+  - Processing-log refresh control: replace `title`-only with `aria-label`
+  - Raw blue focus styles in uncategorized calendar, meeting show, and media upload views — replace with design-system tokens
+- Tests needed first:
+  - None (accessibility fixes; manual verification and component gallery checks)
+- Safest implementation order:
+  1. Build `x-alert` first (covered by `TD-035`) and replace the duplicated auth alert markup.
+  2. Add `role="status"` or `aria-live="polite"` to the verify-email success notice.
+  3. Add `aria-label` to the processing-log refresh icon button.
+  4. Replace raw `focus:ring-blue-500` / `focus:border-blue-300` patterns with design-system tokens across the flagged views.
+- Acceptance criteria:
+  1. Auth notices use the shared `x-alert` component.
+  2. The verify-email success notice announces itself to screen readers.
+  3. All icon-only buttons in scope have accessible labels.
+  4. Design-system focus tokens replace raw blue focus styles in the flagged views.
+- Reference reviews:
+  - `frontend-view-architecture-review-2026-03-18.md`
+
+### TD-039 - Sweep internal link navigation and CTA component consistency
+- Status: `Open`
+- Priority: P3
+- Impact: Low
+- Risk: Low
+- Effort: S
+- Dependencies: None
+- Scope:
+  - `resources/views/full-width-pages/community.blade.php` missing `wire:navigate`
+  - `resources/views/full-width-pages/church.blade.php` missing `wire:navigate`
+  - `resources/views/meetings/events.blade.php` missing `wire:navigate`
+  - `resources/views/components/calendar-event-card.blade.php` missing `wire:navigate` (three places)
+  - `resources/views/livewire/auth/login.blade.php` missing `wire:navigate`
+  - `resources/views/livewire/media-upload/form.blade.php` and `status.blade.php` missing `wire:navigate`
+  - `resources/views/childrens-corner/index.blade.php` hand-rolled teal gradient CTA — replace with `x-public-cta`
+  - `resources/views/church/songs/index.blade.php` hand-rolled teal gradient CTA — replace with `x-public-cta`
+- Tests needed first:
+  - None (presentational consistency fix)
+- Safest implementation order:
+  1. Add `wire:navigate` to all internal `<a>` links in the listed files.
+  2. Replace hand-rolled teal gradient CTA wrappers with `x-public-cta`.
+- Acceptance criteria:
+  1. All internal navigation links use `wire:navigate`.
+  2. All teal gradient CTA sections use `x-public-cta` instead of duplicated inline markup.
+- Reference reviews:
+  - `frontend-view-architecture-review-2026-03-18.md`
+
+### TD-040 - Decompose overloaded shared components
+- Status: `Ready after prerequisite`
+- Priority: P3
+- Impact: Medium
+- Risk: Medium
+- Effort: M
+- Dependencies: `TD-034`, `TD-035`
+- Scope:
+  - `resources/views/components/breadcrumbs.blade.php` (JSON-LD generation, clipboard UI, route-dependent data all inline)
+  - `resources/views/components/calendar-event-card.blade.php` (four variants with large repeated markup sections)
+  - `resources/views/components/page-card.blade.php` admin control overlay mixed into public card
+  - `resources/views/components/sermon-card.blade.php` admin control overlay mixed into public card
+- Tests needed first:
+  - Feature regression for breadcrumb rendering in public views
+  - Regression for calendar event card rendering across all four variants
+- Safest implementation order:
+  1. Move breadcrumb data assembly and JSON-LD generation into a presenter/view model; keep the view purely presentational.
+  2. Extract clipboard behavior from breadcrumbs into a small Alpine component or a dedicated partial.
+  3. Break `calendar-event-card` into dedicated variant partials or a more explicit variant prop instead of one template with large repeated sections.
+  4. Separate admin overlay actions from public card components into dedicated wrappers or admin-only components.
+- Acceptance criteria:
+  1. `breadcrumbs.blade.php` does not contain JSON-LD generation or clipboard logic inline.
+  2. `calendar-event-card` is split into components or renders variants through one explicit prop without large duplicated markup sections.
+  3. Public card components do not embed admin controls.
+- Reference reviews:
+  - `frontend-view-architecture-review-2026-03-18.md`
+
+### TD-041 - Normalize legacy sermon route naming to Laravel conventions
+- Status: `Ready after prerequisite`
+- Priority: P3
+- Impact: Low
+- Risk: Low-Medium
+- Effort: M
+- Dependencies: `TD-004A`
+- Scope:
+  - `routes/web.php` sermon route group: `sermonIndex`, `allSermons`, `getPreachers`, `getSerieses`, `showSermonWithDate`
+  - `app/Http/Controllers/SermonController.php` method names: `getAll()`, `getPreachers()`, `getSerieses()`, `getService()`, `showWithDate()`
+  - Compatibility redirect aliases for legacy routes
+- Tests needed first:
+  - Route regression test for all public sermon URLs
+  - Redirect regression test for all legacy aliases
+- Safest implementation order:
+  1. Add redirect aliases for all legacy route names before renaming anything.
+  2. Rename routes to dotted, resource-style names (`sermons.index`, `sermons.show`, etc.).
+  3. Rename controller methods to conventional action names.
+  4. Remove redirect aliases only after all callers (views, controllers, tests) reference the new names.
+- Acceptance criteria:
+  1. Sermon routes follow dotted Laravel naming conventions.
+  2. Controller method names use conventional action names.
+  3. Existing URLs continue to work through redirect aliases during the transition.
+- Reference reviews:
+  - `laravel-livewire-idioms-review-2026-03-18.md`
 
 ## Major Architectural Changes
 

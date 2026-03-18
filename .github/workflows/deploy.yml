@@ -179,7 +179,8 @@ jobs:
 
       - name: Run migrations
         run: |
-          DB_HOST=127.0.0.1 DB_DATABASE=testing DB_USERNAME=root DB_PASSWORD= php artisan migrate --force
+          mysql -h 127.0.0.1 -u root -e "CREATE DATABASE IF NOT EXISTS \`testing_dusk\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          DB_HOST=127.0.0.1 DB_DATABASE=testing_dusk DB_USERNAME=root DB_PASSWORD= php artisan migrate --force
 
       - name: Start application server
         run: |
