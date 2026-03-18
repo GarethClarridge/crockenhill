@@ -41,7 +41,7 @@ class ScripturePassageTest extends TestCase
     }
 
     #[Test]
-    public function is_stale_returns_false_when_recently_fetched(): void
+    public function it_returns_false_when_recently_fetched(): void
     {
         Config::set('services.api_bible.refresh_after_days', 28);
 
@@ -53,28 +53,37 @@ class ScripturePassageTest extends TestCase
     }
 
     #[Test]
-    public function is_stale_returns_true_when_fetched_at_exceeds_threshold(): void
+    public function it_returns_true_when_fetched_at_exceeds_threshold(): void
     {
         Config::set('services.api_bible.refresh_after_days', 28);
 
-        $passage = ScripturePassage::factory()->create([
-            'fetched_at' => now()->subDays(28),
-        ]);
+        // Using factory stale() state as suggested in PR feedback
+        $passage = ScripturePassage::factory()->stale()->create();
 
         $this->assertTrue($passage->isStale());
     }
 
     #[Test]
-    public function is_stale_respects_custom_configuration_threshold(): void
+    public function it_respects_custom_configuration_threshold_when_fresh(): void
     {
         Config::set('services.api_bible.refresh_after_days', 7);
 
         $passage = ScripturePassage::factory()->create([
             'fetched_at' => now()->subDays(6),
         ]);
-        $this->assertFalse($passage->isStale());
 
-        $passage->fetched_at = now()->subDays(7);
+        $this->assertFalse($passage->isStale());
+    }
+
+    #[Test]
+    public function it_respects_custom_configuration_threshold_when_stale(): void
+    {
+        Config::set('services.api_bible.refresh_after_days', 7);
+
+        $passage = ScripturePassage::factory()->create([
+            'fetched_at' => now()->subDays(7),
+        ]);
+
         $this->assertTrue($passage->isStale());
     }
 }
