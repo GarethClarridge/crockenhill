@@ -36,9 +36,13 @@
                 <thead class="bg-gray-50">
                     <tr>
                         @foreach($headers as $header)
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                {{ $header['label'] }}
-                            </th>
+                            <x-admin.sortable-header
+                                :column="$header['key']"
+                                :label="$header['label']"
+                                :sortable="$header['sortable']"
+                                :sortBy="$sortBy"
+                                :sortDirection="$sortDirection"
+                            />
                         @endforeach
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -91,7 +95,7 @@
                                             :icon="$user->is_admin ? 'shield-exclamation' : 'shield-check'"
                                             wire:click="toggleAdmin({{ $user->id }})"
                                             wire:confirm="Toggle admin status for {{ $user->name }}?"
-                                            class="{{ $user->is_admin ? 'text-amber-600' : 'text-green-600' }}"
+                                            class="{{ $user->is_admin ? 'text-amber-600' : 'text-cbc-teal' }}"
                                             :aria-label="$user->is_admin ? 'Remove admin privileges' : 'Grant admin privileges'" />
                                     @endif
                                     <x-button link="{{ route('admin.users.edit', $user) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit user: {{ $user->name }}" />
@@ -106,8 +110,23 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-8 text-center text-gray-500">
-                                No users found.
+                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-12 text-center">
+                                <div class="flex flex-col items-center justify-center space-y-3">
+                                    <div class="rounded-full bg-gray-100 p-3">
+                                        <x-heroicon-o-magnifying-glass class="h-8 w-8 text-gray-400" aria-hidden="true" />
+                                    </div>
+                                    <h3 class="text-sm font-medium text-gray-900">No users found</h3>
+                                    <p class="text-sm text-gray-500 max-w-xs">
+                                        Your search and filters didn't return any results. Try adjusting your search keywords or clearing the filters.
+                                    </p>
+                                    @if($hasFilters)
+                                        <div class="mt-2">
+                                            <x-form-button variant="outline" size="sm" icon="x-mark" wire:click="resetFilters">
+                                                Clear all filters
+                                            </x-form-button>
+                                        </div>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforelse
