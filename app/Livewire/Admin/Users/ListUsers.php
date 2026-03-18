@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\Users;
 
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
+use App\Livewire\Traits\WithSortableListing;
 use App\Models\User;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -13,7 +14,18 @@ use Livewire\WithPagination;
 
 class ListUsers extends Component
 {
-    use WithAdminAuthorization, WithNotifications, WithPagination;
+    use WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
+
+    protected const DEFAULT_SORT_COLUMN = 'created_at';
+
+    protected const DEFAULT_SORT_DIRECTION = 'desc';
+
+    protected const ALLOWED_SORT_COLUMNS = [
+        'name',
+        'email',
+        'is_admin',
+        'created_at',
+    ];
 
     public string $search = '';
 
@@ -23,8 +35,12 @@ class ListUsers extends Component
 
     public bool $hasFilters = false;
 
+    public string $sortBy = self::DEFAULT_SORT_COLUMN;
+
+    public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
+
     /** @var array<int, string> */
-    protected array $queryString = ['search', 'verifiedFilter', 'adminFilter'];
+    protected array $queryString = ['search', 'verifiedFilter', 'adminFilter', 'sortBy', 'sortDirection'];
 
     public function mount(): void
     {
@@ -38,7 +54,7 @@ class ListUsers extends Component
 
     public function resetFilters(): void
     {
-        $this->reset(['search', 'verifiedFilter', 'adminFilter']);
+        $this->reset(['search', 'verifiedFilter', 'adminFilter', 'sortBy', 'sortDirection']);
         $this->resetPage();
     }
 
@@ -75,9 +91,13 @@ class ListUsers extends Component
 
     public function render(): View
     {
+        $this->sanitizeSorting();
+
         $this->hasFilters = ! empty($this->search)
             || $this->verifiedFilter !== null
-            || $this->adminFilter !== null;
+            || $this->adminFilter !== null
+            || $this->sortBy !== self::DEFAULT_SORT_COLUMN
+            || $this->sortDirection !== self::DEFAULT_SORT_DIRECTION;
 
         $users = User::query()
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%")
@@ -86,14 +106,14 @@ class ListUsers extends Component
                     ? $q->whereNotNull('email_verified_at')
                     : $q->whereNull('email_verified_at'))
             ->when($this->adminFilter !== null, fn ($q) => $q->where('is_admin', $this->adminFilter))
-            ->orderBy('created_at', 'desc')
+            ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);
 
         $headers = [
-            ['key' => 'name', 'label' => 'Name'],
-            ['key' => 'verified', 'label' => 'Verified'],
-            ['key' => 'admin', 'label' => 'Role'],
-            ['key' => 'created', 'label' => 'Created'],
+            ['key' => 'name', 'label' => 'Name', 'sortable' => true],
+            ['key' => 'verified', 'label' => 'Verified', 'sortable' => false],
+            ['key' => 'is_admin', 'label' => 'Role', 'sortable' => true],
+            ['key' => 'created_at', 'label' => 'Created', 'sortable' => true],
         ];
 
         return view('livewire.admin.users.list-users', [
