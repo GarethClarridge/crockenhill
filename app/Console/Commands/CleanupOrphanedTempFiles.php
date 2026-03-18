@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Number;
 
 class CleanupOrphanedTempFiles extends Command
 {
@@ -96,13 +97,12 @@ class CleanupOrphanedTempFiles extends Command
 
         $this->info('');
         $this->info('========================================');
-        $totalSizeMB = round($totalSize / 1024 / 1024, 2);
-        $totalSizeGB = round($totalSize / 1024 / 1024 / 1024, 2);
+        $totalSizeDisplay = Number::fileSize($totalSize, precision: 2);
 
         if ($dryRun) {
-            $this->info("Would delete {$totalDeleted} files ({$totalSizeMB} MB / {$totalSizeGB} GB)");
+            $this->info("Would delete {$totalDeleted} files ({$totalSizeDisplay})");
         } else {
-            $this->info("Deleted {$totalDeleted} files ({$totalSizeMB} MB / {$totalSizeGB} GB)");
+            $this->info("Deleted {$totalDeleted} files ({$totalSizeDisplay})");
         }
         $this->info('========================================');
 
@@ -111,7 +111,7 @@ class CleanupOrphanedTempFiles extends Command
             Log::info('Orphaned temp files cleaned up', [
                 'files_deleted' => $totalDeleted,
                 'size_bytes' => $totalSize,
-                'size_mb' => $totalSizeMB,
+                'size_display' => $totalSizeDisplay,
                 'cutoff_hours' => $hours,
                 'cutoff_time' => $cutoffTime->toDateTimeString(),
             ]);
@@ -150,15 +150,15 @@ class CleanupOrphanedTempFiles extends Command
                         $fileSize = $disk->size($file);
                         $totalSize += $fileSize;
 
-                        $fileSizeKB = round($fileSize / 1024, 2);
+                        $fileSizeDisplay = Number::fileSize($fileSize, precision: 2);
                         $age = $fileTime->diffForHumans();
 
                         if ($dryRun) {
-                            $this->line("  [DRY RUN] Would delete: {$file} ({$fileSizeKB} KB, {$age})");
+                            $this->line("  [DRY RUN] Would delete: {$file} ({$fileSizeDisplay}, {$age})");
                         } else {
                             $disk->delete($file);
                             $deletedCount++;
-                            $this->line("  Deleted: {$file} ({$fileSizeKB} KB, {$age})");
+                            $this->line("  Deleted: {$file} ({$fileSizeDisplay}, {$age})");
                         }
                     }
                 } catch (\Exception $e) {
