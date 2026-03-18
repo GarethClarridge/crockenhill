@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\ApiTokenAbility;
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
@@ -254,6 +255,50 @@ class MediaProcessingStatusTransitionsTest extends TestCase
                 'found' => true,
                 'status' => 'cancelled',
                 'progress_percentage' => 0,
+            ]);
+    }
+
+    /**
+     * @return array<string, array{0: MediaType, 1: ProcessingStatus, 2: string, 3: int}>
+     */
+    public static function fallbackCurrentStepProvider(): array
+    {
+        return [
+            'audio initiated from livestream' => [MediaType::Audio, ProcessingStatus::PENDING, 'initiated_from_livestream', 50],
+            'audio initiated from livestream with source id' => [MediaType::Audio, ProcessingStatus::PENDING, 'initiated_from_livestream:livestream-123', 50],
+            'livestream restarting from beginning' => [MediaType::Livestream, ProcessingStatus::PENDING, 'restarting_from_beginning', 50],
+            'audio sending notification' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'sending_notification', 50],
+            'audio notification sent' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'notification_sent', 50],
+            'audio notification skipped' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'notification_skipped', 50],
+            'audio notification failed' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'notification_failed', 50],
+            'audio notification failed permanently' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'notification_failed_permanently', 50],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('fallbackCurrentStepProvider')]
+    public function real_current_steps_that_fall_back_to_default_progress_are_still_reported_consistently(
+        MediaType $mediaType,
+        ProcessingStatus $status,
+        string $step,
+        int $expectedProgress
+    ): void {
+        $log = MediaProcessingLog::factory()->create([
+            'processing_type' => $mediaType,
+            'status' => $status,
+            'current_step' => $step,
+        ]);
+
+        $response = $this->withToken($this->token)
+            ->getJson("/api/media/processing/{$log->processing_id}/status");
+
+        $response->assertOk()
+            ->assertJson([
+                'found' => true,
+                'processing_id' => $log->processing_id,
+                'status' => $status->value,
+                'current_step' => $step,
+                'progress_percentage' => $expectedProgress,
             ]);
     }
 

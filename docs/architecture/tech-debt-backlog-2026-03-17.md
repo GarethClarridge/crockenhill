@@ -36,6 +36,7 @@ The backlog is ordered for safety:
 
 ## Status Legend
 
+- `Completed`: implemented and verified
 - `Open`: not started
 - `Ready after prerequisite`: do not start until the named dependencies are complete
 - `Defer`: valid work, but intentionally behind higher-risk items
@@ -59,44 +60,45 @@ The backlog is ordered for safety:
 
 1. `TD-001`
 2. `TD-001A`
-3. `TD-002`
-4. `TD-002A`
-5. `TD-002B`
-6. `TD-002C`
-7. `TD-004`
-8. `TD-003`
-9. `TD-003A`
-10. `TD-003B`
-11. `TD-004A`
-12. `TD-004B`
-13. `TD-005`
-14. `TD-005A`
-15. `TD-005B`
-16. `TD-005C`
-17. `TD-005D`
-18. `TD-006`
-19. `TD-007`
-20. `TD-008`
-21. `TD-009`
-22. `TD-010`
-23. `TD-011`
-24. `TD-012`
-25. `TD-013`
-26. `TD-013A`
-27. `TD-014`
-28. `TD-014A`
-29. `TD-015`
-30. `TD-016`
-31. `TD-012A`
-32. `TD-012B`
-33. `TD-017A`
-34. `TD-017B`
-35. `TD-017C`
+3. `TD-001B`
+4. `TD-002`
+5. `TD-002A`
+6. `TD-002B`
+7. `TD-002C`
+8. `TD-004`
+9. `TD-003`
+10. `TD-003A`
+11. `TD-003B`
+12. `TD-004A`
+13. `TD-004B`
+14. `TD-005`
+15. `TD-005A`
+16. `TD-005B`
+17. `TD-005C`
+18. `TD-005D`
+19. `TD-006`
+20. `TD-007`
+21. `TD-008`
+22. `TD-009`
+23. `TD-010`
+24. `TD-011`
+25. `TD-012`
+26. `TD-013`
+27. `TD-013A`
+28. `TD-014`
+29. `TD-014A`
+30. `TD-015`
+31. `TD-016`
+32. `TD-012A`
+33. `TD-012B`
+34. `TD-017A`
+35. `TD-017B`
+36. `TD-017C`
 
 ## Quick Wins
 
 ### TD-001 - Add characterization safety net for media, OoS, and church-service glue
-- Status: `Open`
+- Status: `Completed`
 - Priority: P0
 - Impact: Very high
 - Risk: Low
@@ -126,6 +128,31 @@ The backlog is ordered for safety:
   - `media-processing-church-service-observability-audit-2026-03-17.md`
   - `oos-alignment-service-review.md`
   - `admin-livewire-responsibility-review-2026-03-17.md`
+
+### TD-001B - Preserve notification failure outcome across cleanup completion
+- Status: `Open`
+- Priority: P1
+- Impact: Medium
+- Risk: Low
+- Effort: S
+- Dependencies: `TD-001`
+- Scope:
+  - notification error propagation inside `SendCompletionNotification`
+  - final persisted `MediaProcessingLog` state when notification delivery fails
+  - cleanup completion semantics when a non-fatal notification error already occurred
+- Tests needed first:
+  - reuse the `TD-001` completion characterization and convert it from behavior freeze to intended outcome assertions
+- Safest implementation order:
+  1. Decide the intended persisted end state for notification delivery failure: preserve `notification_failed`, preserve the error message, or move the error into dedicated metadata while still completing the run.
+  2. Update `SendCompletionNotification` so transport failures are not silently normalized to `notification_sent`.
+  3. Adjust `CleanupTemporaryFiles` or the completion model helpers only if needed so cleanup does not erase the chosen notification failure signal.
+  4. Keep notification failure non-fatal to the overall media pipeline unless a broader product decision changes that contract.
+- Acceptance criteria:
+  1. Notification delivery failures are visible in the final persisted processing outcome instead of being silently masked.
+  2. Cleanup still runs and temporary files are removed.
+  3. The final behavior is covered by explicit characterization tests rather than inferred from isolated job tests.
+- Reference reviews:
+  - `media-processing-church-service-observability-audit-2026-03-17.md`
 
 ### TD-001A - Build reusable scenario builders and restore real middleware defaults
 - Status: `Open`
