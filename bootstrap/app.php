@@ -25,8 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
-        // Read from config(); app.trusted_proxies in config/app.php is the canonical reference.
-        $trustedProxies = config('app.trusted_proxies');
+        $trustedProxies = env('TRUSTED_PROXIES');
 
         if (is_string($trustedProxies) && trim($trustedProxies) !== '') {
             $middleware->trustProxies(at: $trustedProxies);
