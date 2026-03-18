@@ -27,11 +27,35 @@ class OpenLpServiceParser
             $this->throwValidation('The uploaded file must be a valid OpenLP .osz zip archive.');
         }
 
+        $maxEntries = (int) config('service-tracking.upload.max_zip_entries', 100);
+        if ($zip->numFiles > $maxEntries) {
+            $zip->close();
+            $this->throwValidation(
+                "The uploaded archive contains too many entries ({$zip->numFiles}). Maximum allowed is {$maxEntries}."
+            );
+        }
+
         [$osjIndex, $osjEntryName] = $this->findOsjEntry($zip);
 
         if ($osjIndex === null || $osjEntryName === null) {
             $zip->close();
             $this->throwValidation('The uploaded archive does not contain an .osj service file.');
+        }
+
+        $stat = $zip->statIndex($osjIndex);
+
+        if (is_array($stat)) {
+            $maxBytes = (int) config('service-tracking.upload.max_osj_decompressed_bytes', 10 * 1024 * 1024);
+            if ($stat['size'] > $maxBytes) {
+                $zip->close();
+                $this->throwValidation('The .osj service file exceeds the maximum allowed size when decompressed.');
+            }
+
+            $maxRatio = (float) config('service-tracking.upload.max_expansion_ratio', 1000);
+            if ($stat['size'] > 0 && $stat['comp_size'] > 0 && ($stat['size'] / $stat['comp_size']) > $maxRatio) {
+                $zip->close();
+                $this->throwValidation('The .osj service file has a suspicious compression ratio and was rejected.');
+            }
         }
 
         $osjContents = $zip->getFromIndex($osjIndex);

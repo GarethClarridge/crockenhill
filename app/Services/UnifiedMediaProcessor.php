@@ -224,6 +224,31 @@ class UnifiedMediaProcessor
                 'client_file_date' => $clientFileDate,
             ]);
 
+            $fileHash = ($realPath = $file->getRealPath()) !== false
+                ? hash_file('sha256', $realPath)
+                : null;
+
+            if ($fileHash !== null) {
+                $existingLog = MediaProcessingLog::query()
+                    ->where('file_hash', $fileHash)
+                    ->whereIn('status', [ProcessingStatus::PENDING->value, ProcessingStatus::PROCESSING->value])
+                    ->latest()
+                    ->first();
+
+                if ($existingLog !== null) {
+                    Log::info('Duplicate audio upload detected, reusing existing processing run', [
+                        'file_hash' => $fileHash,
+                        'existing_processing_id' => $existingLog->processing_id,
+                    ]);
+
+                    return ProcessingResult::success(
+                        processingId: $existingLog->processing_id,
+                        message: 'Duplicate upload detected. Returning existing processing run.',
+                        statusUrl: route('api.media.processing.status', ['processingId' => $existingLog->processing_id])
+                    );
+                }
+            }
+
             $processingId = (string) Str::uuid();
 
             $this->mediaValidation->validateUploadedFile(MediaType::Audio, $file);
@@ -243,6 +268,7 @@ class UnifiedMediaProcessor
                 'processing_id' => $processingId,
                 'processing_type' => MediaType::Audio,
                 'original_filename' => $file->getClientOriginalName(),
+                'file_hash' => $fileHash,
                 'owner_user_id' => Auth::id(),
                 'source_file_path' => $storedFilePath,
                 'status' => ProcessingStatus::PENDING,
@@ -340,6 +366,31 @@ class UnifiedMediaProcessor
     private function processDirectVideo(UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
     {
         try {
+            $fileHash = ($realPath = $file->getRealPath()) !== false
+                ? hash_file('sha256', $realPath)
+                : null;
+
+            if ($fileHash !== null) {
+                $existingLog = MediaProcessingLog::query()
+                    ->where('file_hash', $fileHash)
+                    ->whereIn('status', [ProcessingStatus::PENDING->value, ProcessingStatus::PROCESSING->value])
+                    ->latest()
+                    ->first();
+
+                if ($existingLog !== null) {
+                    Log::info('Duplicate video upload detected, reusing existing processing run', [
+                        'file_hash' => $fileHash,
+                        'existing_processing_id' => $existingLog->processing_id,
+                    ]);
+
+                    return ProcessingResult::success(
+                        processingId: $existingLog->processing_id,
+                        message: 'Duplicate upload detected. Returning existing processing run.',
+                        statusUrl: route('api.media.processing.status', ['processingId' => $existingLog->processing_id])
+                    );
+                }
+            }
+
             // Store video file temporarily before processing (preserves file timestamps for metadata extraction)
             $tempPath = $file->store('temp/video-processing');
 
@@ -348,7 +399,7 @@ class UnifiedMediaProcessor
                 $file,
                 MediaType::Video,
                 $clientFileDate,
-                ['source_file_path' => $tempPath]
+                ['source_file_path' => $tempPath, 'file_hash' => $fileHash]
             );
 
             // Build and dispatch job chain using the standardized pipeline builder

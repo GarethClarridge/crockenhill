@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $current_step
  * @property string|null $error_message
  * @property string $original_filename
+ * @property string|null $file_hash
  * @property int|null $file_size
  * @property float|null $duration
  * @property \Illuminate\Support\Carbon|null $extracted_date
@@ -70,6 +71,7 @@ class MediaProcessingLog extends Model
 
         // File info
         'original_filename',
+        'file_hash',
         'file_size',
         'duration',
         'extracted_date',

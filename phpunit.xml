@@ -38,12 +38,6 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
-        <env name="DB_CONNECTION" value="mysql"/>
-        <env name="DB_HOST" value="mysql"/>
-        <env name="DB_PORT" value="3306"/>
-        <env name="DB_DATABASE" value="testing"/>
-        <env name="DB_USERNAME" value="sail"/>
-        <env name="DB_PASSWORD" value="password"/>
         <env name="CACHE_DRIVER" value="array"/>
         <env name="CACHE_PREFIX" value="test_process"/>
         <env name="SESSION_DRIVER" value="array"/>

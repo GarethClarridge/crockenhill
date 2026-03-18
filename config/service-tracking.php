@@ -9,6 +9,9 @@ return [
 
     'upload' => [
         'max_size_kb' => 600 * 1024,
+        'max_zip_entries' => 100,
+        'max_osj_decompressed_bytes' => 10 * 1024 * 1024,
+        'max_expansion_ratio' => 1000,
     ],
 
     'mailgun' => [

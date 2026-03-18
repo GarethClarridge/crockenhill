@@ -48,6 +48,46 @@ class OpenLpArchiveFactory
         );
     }
 
+    /**
+     * Create an archive with a large number of entries to test the entry-count bomb defence.
+     * The archive contains $entryCount dummy .txt files plus one valid .osj entry.
+     */
+    public static function makeUploadWithManyEntries(
+        int $entryCount = 101,
+        string $archiveName = '2024-11-17 AM.osz',
+        string $osjName = '2024-11-17 AM.osj',
+    ): UploadedFile {
+        $path = tempnam(sys_get_temp_dir(), 'openlp_bomb_');
+        if ($path === false) {
+            throw new RuntimeException('Unable to create temporary archive path.');
+        }
+
+        $zip = new ZipArchive;
+        if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new RuntimeException('Unable to create OpenLP bomb archive.');
+        }
+
+        for ($i = 0; $i < $entryCount; $i++) {
+            $zip->addFromString("dummy_{$i}.txt", 'x');
+        }
+
+        try {
+            $json = json_encode(self::payload(), JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new RuntimeException('Unable to encode OpenLP payload JSON.', previous: $exception);
+        }
+
+        $zip->addFromString($osjName, $json);
+        $zip->close();
+
+        return new UploadedFile(
+            path: $path,
+            originalName: $archiveName,
+            mimeType: 'application/zip',
+            test: true,
+        );
+    }
+
     public static function makeUploadWithoutOsj(string $archiveName = '2024-11-17 AM.osz'): UploadedFile
     {
         $path = tempnam(sys_get_temp_dir(), 'openlp_');
