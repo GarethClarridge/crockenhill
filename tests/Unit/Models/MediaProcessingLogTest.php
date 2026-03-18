@@ -164,6 +164,29 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
+    public function it_can_preserve_completion_context_when_marked_as_completed(): void
+    {
+        $log = MediaProcessingLog::factory()->create([
+            'status' => ProcessingStatus::PROCESSING,
+            'current_step' => 'notification_failed',
+            'error_message' => 'Notification failed: SMTP transport unavailable',
+        ]);
+
+        $log->markAsCompleted(
+            step: 'notification_failed',
+            errorMessage: 'Notification failed: SMTP transport unavailable'
+        );
+
+        $this->assertEquals(ProcessingStatus::COMPLETED, $log->status);
+        $this->assertEquals('notification_failed', $log->current_step);
+        $this->assertEquals(
+            'Notification failed: SMTP transport unavailable',
+            $log->error_message
+        );
+        $this->assertNotNull($log->completed_at);
+    }
+
+    #[Test]
     public function it_stores_structured_metadata_when_marked_for_manual_review(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::PROCESSING]);

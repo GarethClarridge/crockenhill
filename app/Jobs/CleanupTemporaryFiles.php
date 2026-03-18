@@ -76,8 +76,12 @@ class CleanupTemporaryFiles implements ShouldQueue
 
             $storageService->cleanupTemporaryFiles($tempFiles);
 
-            // Mark processing as completed
-            $this->processingLog->markAsCompleted();
+            // Preserve a non-fatal notification failure signal while still
+            // marking the run as completed after cleanup.
+            $this->processingLog->markAsCompleted(
+                step: $this->completionStep(),
+                errorMessage: $this->completionErrorMessage()
+            );
 
             Log::info('Temporary file cleanup completed', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -89,8 +93,31 @@ class CleanupTemporaryFiles implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            // Still mark as complete even if cleanup had issues
-            $this->processingLog->markAsCompleted();
+            // Still mark as complete even if cleanup had issues.
+            $this->processingLog->markAsCompleted(
+                step: $this->completionStep(),
+                errorMessage: $this->completionErrorMessage()
+            );
         }
+    }
+
+    private function completionStep(): string
+    {
+        $step = $this->processingLog->current_step;
+
+        if (in_array($step, ['notification_failed', 'notification_failed_permanently'], true)) {
+            return $step;
+        }
+
+        return 'completed';
+    }
+
+    private function completionErrorMessage(): ?string
+    {
+        if (in_array($this->processingLog->current_step, ['notification_failed', 'notification_failed_permanently'], true)) {
+            return $this->processingLog->error_message;
+        }
+
+        return null;
     }
 }

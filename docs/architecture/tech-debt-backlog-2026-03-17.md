@@ -130,7 +130,7 @@ The backlog is ordered for safety:
   - `admin-livewire-responsibility-review-2026-03-17.md`
 
 ### TD-001B - Preserve notification failure outcome across cleanup completion
-- Status: `Open`
+- Status: `Completed`
 - Priority: P1
 - Impact: Medium
 - Risk: Low

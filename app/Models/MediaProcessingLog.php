@@ -340,13 +340,13 @@ class MediaProcessingLog extends Model
         ]);
     }
 
-    public function markAsCompleted(): bool
+    public function markAsCompleted(?string $step = null, ?string $errorMessage = null): bool
     {
         return $this->update([
             'status' => ProcessingStatus::COMPLETED,
-            'current_step' => 'completed',
+            'current_step' => $step ?? 'completed',
             'completed_at' => now(),
-            'error_message' => null,
+            'error_message' => $errorMessage,
         ]);
     }
 

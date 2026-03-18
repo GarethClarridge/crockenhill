@@ -75,7 +75,7 @@ class SendCompletionNotification implements ShouldQueue
                 'sermon_title' => $sermon->title ?? 'N/A',
                 'processing_status' => $this->processingLog->status->value,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Failed to send completion notification', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
@@ -204,20 +204,12 @@ class SendCompletionNotification implements ShouldQueue
             return;
         }
 
-        try {
-            $this->sendEmailNotification($adminEmail, $data);
+        $this->sendEmailNotification($adminEmail, $data);
 
-            Log::info('Notification sent to admin', [
-                'processing_id' => $this->processingLog->processing_id,
-                'admin_email' => $adminEmail,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Failed to send notification to admin', [
-                'processing_id' => $this->processingLog->processing_id,
-                'admin_email' => $adminEmail,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        Log::info('Notification sent to admin', [
+            'processing_id' => $this->processingLog->processing_id,
+            'admin_email' => $adminEmail,
+        ]);
     }
 
     /**
@@ -253,18 +245,10 @@ class SendCompletionNotification implements ShouldQueue
             'message' => $message,
         ]);
 
-        try {
-            Mail::raw($message, function ($mail) use ($adminEmail, $subject) {
-                $mail->to($adminEmail)
-                    ->subject($subject);
-            });
-        } catch (\Exception $e) {
-            Log::warning('Failed to send sermon completion email, continuing processing', [
-                'admin_email' => $adminEmail,
-                'processing_id' => $this->processingLog->processing_id,
-                'email_error' => $e->getMessage(),
-            ]);
-        }
+        Mail::raw($message, function ($mail) use ($adminEmail, $subject) {
+            $mail->to($adminEmail)
+                ->subject($subject);
+        });
     }
 
     /**

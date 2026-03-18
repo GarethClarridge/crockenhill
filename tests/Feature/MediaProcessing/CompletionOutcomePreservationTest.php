@@ -55,16 +55,22 @@ class CompletionOutcomePreservationTest extends TestCase
         $processingLog->refresh();
 
         $this->assertSame(ProcessingStatus::PROCESSING, $processingLog->status);
-        $this->assertSame('notification_sent', $processingLog->current_step);
-        $this->assertNull($processingLog->error_message);
+        $this->assertSame('notification_failed', $processingLog->current_step);
+        $this->assertSame(
+            'Notification failed: SMTP transport unavailable',
+            $processingLog->error_message
+        );
 
         (new CleanupTemporaryFiles($processingLog))->handle($storageService);
 
         $processingLog->refresh();
 
         $this->assertSame(ProcessingStatus::COMPLETED, $processingLog->status);
-        $this->assertSame('completed', $processingLog->current_step);
-        $this->assertNull($processingLog->error_message);
+        $this->assertSame('notification_failed', $processingLog->current_step);
+        $this->assertSame(
+            'Notification failed: SMTP transport unavailable',
+            $processingLog->error_message
+        );
         $this->assertNotNull($processingLog->completed_at);
     }
 }

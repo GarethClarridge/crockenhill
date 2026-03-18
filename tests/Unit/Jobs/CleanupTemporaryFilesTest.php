@@ -159,6 +159,37 @@ class CleanupTemporaryFilesTest extends TestCase
     }
 
     #[Test]
+    public function it_preserves_notification_failure_context_when_marking_completed(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'source_file_path' => 'temp/source-audio.mp3',
+            'current_step' => 'notification_failed',
+            'error_message' => 'Notification failed: SMTP transport unavailable',
+        ]);
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->once())
+            ->method('cleanupTemporaryFiles')
+            ->with($this->callback(function (array $files) {
+                return in_array('temp/source-audio.mp3', $files, true);
+            }));
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new CleanupTemporaryFiles($log);
+        $job->handle($mockStorage);
+
+        $log->refresh();
+
+        $this->assertEquals('completed', $log->status->value);
+        $this->assertSame('notification_failed', $log->current_step);
+        $this->assertSame(
+            'Notification failed: SMTP transport unavailable',
+            $log->error_message
+        );
+    }
+
+    #[Test]
     public function it_has_correct_job_configuration(): void
     {
         $log = MediaProcessingLog::factory()->create();

@@ -60,7 +60,7 @@ class SendCompletionNotificationTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_missing_sermon_gracefully(): void
+    public function it_marks_notification_as_failed_when_sermon_context_is_missing(): void
     {
         config([
             'media-processing.email.send_success_notifications' => true,
@@ -71,17 +71,16 @@ class SendCompletionNotificationTest extends TestCase
             'sermon_id' => null,
         ]);
 
-        // When sermon is null, $data['sermon'] is null. Accessing $data['sermon']['title']
-        // in sendEmailNotification triggers an error caught by sendNotifications' try/catch,
-        // which logs an error but returns normally. handle() then sets notification_sent.
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('error')->once();
+        Log::shouldReceive('warning')->once();
 
         $job = new SendCompletionNotification($log);
         $job->handle();
 
         $log->refresh();
-        $this->assertEquals('notification_sent', $log->current_step);
+        $this->assertEquals('notification_failed', $log->current_step);
+        $this->assertStringContainsString('Notification failed:', (string) $log->error_message);
     }
 
     #[Test]
@@ -125,15 +124,19 @@ class SendCompletionNotificationTest extends TestCase
         ]);
 
         Log::shouldReceive('info')->atLeast()->once();
-        // Inner catch in sendEmailNotification logs warning, not error
-        Log::shouldReceive('warning')->atLeast()->once();
+        Log::shouldReceive('error')->once();
+        Log::shouldReceive('warning')->once();
 
         // Should NOT throw - the inner try/catch absorbs the mail error
         $job = new SendCompletionNotification($log);
         $job->handle();
 
         $log->refresh();
-        $this->assertEquals('notification_sent', $log->current_step);
+        $this->assertEquals('notification_failed', $log->current_step);
+        $this->assertSame(
+            'Notification failed: SMTP connection refused',
+            $log->error_message
+        );
     }
 
     #[Test]
