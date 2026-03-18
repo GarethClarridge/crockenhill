@@ -15,37 +15,6 @@
     :image="$headingpicture"
 />
 
-{{-- JSON-LD Breadcrumbs --}}
-@php
-$breadcrumbsData = [
-    '@context' => 'https://schema.org',
-    '@type' => 'BreadcrumbList',
-    'itemListElement' => [
-        [
-            '@type' => 'ListItem',
-            'position' => 1,
-            'name' => 'Home',
-            'item' => url('/'),
-        ],
-        [
-            '@type' => 'ListItem',
-            'position' => 2,
-            'name' => 'Community',
-            'item' => url('/community'),
-        ],
-        [
-            '@type' => 'ListItem',
-            'position' => 3,
-            'name' => $heading,
-            'item' => url()->current(),
-        ],
-    ],
-];
-@endphp
-<script type="application/ld+json">
-{!! json_encode($breadcrumbsData, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
-</script>
-
 {{-- JSON-LD Events --}}
 @if($upcomingEvents->isNotEmpty())
 <script type="application/ld+json">

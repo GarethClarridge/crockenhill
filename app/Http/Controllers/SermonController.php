@@ -40,6 +40,7 @@ class SermonController extends Controller
             'json_ld_data' => $this->itemListPresenter->toItemList($latest_sermons),
             'heading' => 'Sermons',
             'description' => 'Listen to recent sermons from Crockenhill Baptist Church. Worshipping God, strengthening believers, and proclaiming Jesus Christ.',
+            'area' => 'christ',
         ]);
     }
 
@@ -55,6 +56,7 @@ class SermonController extends Controller
             'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
             'heading' => 'All Sermons',
             'description' => 'Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.',
+            'area' => 'christ',
         ]);
     }
 
@@ -85,6 +87,7 @@ class SermonController extends Controller
             'sermon' => $sermon,
             'readingReference' => $pageContext['reading_reference'],
             'readingUrl' => $pageContext['reading_url'],
+            'area' => 'christ',
         ]);
     }
 
@@ -107,6 +110,7 @@ class SermonController extends Controller
             'heading' => 'Preachers',
             'description' => 'Preachers at Crockenhill Baptist Church.',
             'content' => $page ? $page->body : '',
+            'area' => 'christ',
         ]);
     }
 
@@ -126,8 +130,10 @@ class SermonController extends Controller
         return view('sermons.preacher', [
             'preacher' => $preacher,
             'sermons' => $sermons,
+            'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
             'heading' => 'Sermons by '.$preacher->name,
             'description' => 'Browse all sermons preached by '.$preacher->name.' at Crockenhill Baptist Church.',
+            'area' => 'christ',
         ]);
     }
 
@@ -139,6 +145,7 @@ class SermonController extends Controller
             'series' => $series,
             'heading' => 'Sermon Series',
             'description' => 'Browse sermon series from Crockenhill Baptist Church.',
+            'area' => 'christ',
         ]);
     }
 
@@ -153,8 +160,10 @@ class SermonController extends Controller
 
         return view('sermons.series', [
             'sermons' => $sermons,
+            'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
             'heading' => 'Sermon Series: '.$series_name,
             'description' => 'Browse all sermons in the "'.$series_name.'" series from Crockenhill Baptist Church.',
+            'area' => 'christ',
         ]);
     }
 
@@ -176,8 +185,10 @@ class SermonController extends Controller
         return view('sermons.service', [
             'sermons' => $sermons,
             'service' => $service,
+            'json_ld_data' => $this->itemListPresenter->toItemList($sermons),
             'heading' => $serviceLabel.' Services',
             'description' => "Listen to recent {$serviceLabel} sermons from Crockenhill Baptist Church.",
+            'area' => 'christ',
         ]);
     }
 
