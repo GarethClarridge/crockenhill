@@ -7,6 +7,7 @@ use App\Enums\SermonService;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Number;
 use Owenoj\LaravelGetId3\GetId3;
 
 class MetadataExtractionService
@@ -496,7 +497,7 @@ class MetadataExtractionService
         $maxSize = 100 * 1024 * 1024; // 100MB in bytes
         $fileSize = $this->toNullableFloat($audioInfo['filesize'] ?? null);
         if ($fileSize !== null && $fileSize > $maxSize) {
-            $errors[] = 'File size too large: '.round($fileSize / 1024 / 1024, 2).'MB. Maximum allowed: 100MB';
+            $errors[] = 'File size too large: '.Number::fileSize($fileSize, precision: 2).'. Maximum allowed: 100 MB';
         }
 
         return [

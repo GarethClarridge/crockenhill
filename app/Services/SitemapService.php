@@ -9,7 +9,6 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -53,14 +52,15 @@ class SitemapService
             );
         }
 
-        /** @var Collection<int, Sermon> $sermons */
+        /**
+         * Performance Optimization: Use lazy() to iterate through models one by one,
+         * keeping memory usage low for sites with large numbers of sermons.
+         */
         $sermons = Sermon::query()
             ->select(['id', 'title', 'date', 'slug', 'updated_at', 'video_file_path', 'thumbnail_file_path', 'summary', 'duration', 'preacher', 'preacher_id', 'reference', 'series', 'meta_description', 'content_type'])
             ->with('preacherProfile:id,name,slug')
             ->whereVisibleInSitemap()
-            ->get()
-            ->filter(fn (Sermon $sermon): bool => $this->exposurePolicy->shouldIncludeInSitemap($sermon))
-            ->values();
+            ->lazy();
 
         $sitemap
             // Dynamic content via Sitemapable models
@@ -75,7 +75,7 @@ class SitemapService
                      */
                     ->with(['media'])
                     ->where('admin', 'no')
-                    ->get()
+                    ->lazy()
             )
             ->add(
                 Meeting::query()
@@ -84,12 +84,12 @@ class SitemapService
                      * to reduce memory usage.
                      */
                     ->select(['id', 'slug', 'updated_at'])
-                    ->get()
+                    ->lazy()
             )
             ->add(
                 Preacher::active()
                     ->select(['id', 'slug', 'updated_at'])
-                    ->get()
+                    ->lazy()
             );
 
         // Add Sermon Series

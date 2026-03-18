@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\MediaType;
 use App\Exceptions\InvalidFileException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Number;
 
 class MediaValidationService
 {
@@ -33,11 +34,7 @@ class MediaValidationService
     {
         $bytes = config("media-processing.types.{$type->value}.max_file_size");
 
-        if ($bytes >= 1024 * 1024 * 1024) {
-            return ((int) ($bytes / (1024 * 1024 * 1024))).'GB';
-        }
-
-        return ((int) ($bytes / (1024 * 1024))).'MB';
+        return Number::fileSize($bytes, precision: 2);
     }
 
     /**

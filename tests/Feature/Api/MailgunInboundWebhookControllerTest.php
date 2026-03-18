@@ -96,7 +96,14 @@ class MailgunInboundWebhookControllerTest extends TestCase
         $this->postJson('/api/webhooks/mailgun/inbound', $payload)
             ->assertAccepted();
 
-        $this->postJson('/api/webhooks/mailgun/inbound', $payload)
+        // Use a new token and signature for the second request to bypass replay protection,
+        // while keeping the same Message-Id to test deduplication logic.
+        $secondPayload = array_merge($payload, [
+            'token' => 'def456',
+        ]);
+        $secondPayload['signature'] = $this->signatureFor($secondPayload['timestamp'], $secondPayload['token']);
+
+        $this->postJson('/api/webhooks/mailgun/inbound', $secondPayload)
             ->assertOk()
             ->assertJson([
                 'status' => 'duplicate',

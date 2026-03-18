@@ -102,7 +102,7 @@ class ProcessMediaRequestTest extends TestCase
         $request = $this->makeRequest(['type' => 'audio']);
         $messages = $request->messages();
 
-        $this->assertStringContainsString('100MB', $messages['file.max']);
+        $this->assertStringContainsString('100.00 MB', $messages['file.max']);
     }
 
     #[Test]
