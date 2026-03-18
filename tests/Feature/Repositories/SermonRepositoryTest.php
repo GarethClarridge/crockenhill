@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Repositories;
 
+use App\Enums\SermonService;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
@@ -247,13 +248,13 @@ class SermonRepositoryTest extends TestCase
     public function it_returns_sermons_by_service(): void
     {
         Sermon::query()->delete();
-        Sermon::factory()->create(['service' => \App\Enums\SermonService::MORNING, 'content_type' => \App\Enums\SermonContentType::Sermon]);
-        Sermon::factory()->create(['service' => \App\Enums\SermonService::EVENING, 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => SermonService::MORNING, 'content_type' => \App\Enums\SermonContentType::Sermon]);
+        Sermon::factory()->create(['service' => SermonService::EVENING, 'content_type' => \App\Enums\SermonContentType::Sermon]);
 
-        $result = $this->repository->getSermonsByService(\App\Enums\SermonService::MORNING);
+        $result = $this->repository->getSermonsByService(SermonService::MORNING);
 
         $this->assertCount(1, $result);
-        $this->assertEquals('morning', $result->first()->service->value);
+        $this->assertEquals(SermonService::MORNING, $result->first()->service);
     }
 
     #[Test]
@@ -264,19 +265,19 @@ class SermonRepositoryTest extends TestCase
 
         Sermon::factory()->create([
             'title' => 'Original Service Title',
-            'service' => \App\Enums\SermonService::MORNING,
+            'service' => SermonService::MORNING,
             'content_type' => \App\Enums\SermonContentType::Sermon,
         ]);
 
         // First call caches
-        $this->repository->getSermonsByService(\App\Enums\SermonService::MORNING);
+        $this->repository->getSermonsByService(SermonService::MORNING);
         $this->assertTrue(Cache::has('sermons_service_morning'));
 
         // Modify DB
         Sermon::query()->update(['title' => 'Updated Service Title']);
 
         // Second call should return cached data
-        $result = $this->repository->getSermonsByService(\App\Enums\SermonService::MORNING);
+        $result = $this->repository->getSermonsByService(SermonService::MORNING);
         $this->assertEquals('Original Service Title', $result->first()->title);
     }
 
