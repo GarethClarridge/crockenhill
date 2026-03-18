@@ -59,19 +59,19 @@ class MediaValidationServiceTest extends TestCase
     #[Test]
     public function it_returns_human_readable_size_for_audio(): void
     {
-        $this->assertEquals('100MB', $this->service->maxFileSizeForDisplay(MediaType::Audio));
+        $this->assertEquals('100.00 MB', $this->service->maxFileSizeForDisplay(MediaType::Audio));
     }
 
     #[Test]
     public function it_returns_human_readable_size_for_video(): void
     {
-        $this->assertEquals('1GB', $this->service->maxFileSizeForDisplay(MediaType::Video));
+        $this->assertEquals('1.00 GB', $this->service->maxFileSizeForDisplay(MediaType::Video));
     }
 
     #[Test]
     public function it_returns_human_readable_size_for_livestream(): void
     {
-        $this->assertEquals('2GB', $this->service->maxFileSizeForDisplay(MediaType::Livestream));
+        $this->assertEquals('2.00 GB', $this->service->maxFileSizeForDisplay(MediaType::Livestream));
     }
 
     #[Test]
