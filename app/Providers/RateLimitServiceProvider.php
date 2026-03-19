@@ -11,10 +11,7 @@ use Illuminate\Support\ServiceProvider;
 
 class RateLimitServiceProvider extends ServiceProvider
 {
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
     public function boot(): void
     {
@@ -62,6 +59,24 @@ class RateLimitServiceProvider extends ServiceProvider
             return [
                 Limit::perMinute(120)->by($key),
                 Limit::perHour(2000)->by($key),
+            ];
+        });
+
+        RateLimiter::for('media-audio', function (Request $request): array {
+            $key = $request->user()?->id ?: $request->ip();
+
+            return [
+                Limit::perMinute(10)->by($key),
+                Limit::perHour(50)->by($key),
+            ];
+        });
+
+        RateLimiter::for('media-thumbnail', function (Request $request): array {
+            $key = $request->user()?->id ?: $request->ip();
+
+            return [
+                Limit::perMinute(120)->by($key),
+                Limit::perHour(600)->by($key),
             ];
         });
     }
