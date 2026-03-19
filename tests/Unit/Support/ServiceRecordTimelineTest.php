@@ -461,6 +461,67 @@ class ServiceRecordTimelineTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // presentation_inference read path
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function presentation_inference_is_read_from_nested_oos_alignment_path(): void
+    {
+        // Regression for TD-004: writers store presentation_inference under
+        // metadata['oos_alignment']['presentation_inference'], but the reader
+        // was incorrectly reading the top-level metadata['presentation_inference'].
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->create(['position' => 1]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_order' => 1,
+            'metadata' => [
+                'oos_alignment' => [
+                    'presentation_inference' => [
+                        'resolved_type' => 'other',
+                        'suspected_type' => 'childrens_talk',
+                        'evidence' => 'weak',
+                        'reason' => 'no strong presenter signal',
+                    ],
+                ],
+            ],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem', 'serviceSections.publishedSermon']);
+
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
+
+        $this->assertCount(1, $rows);
+        $inference = $rows[0]['presentation_inference'];
+        $this->assertIsArray($inference);
+        $this->assertSame('other', $inference['resolved_type']);
+        $this->assertSame('childrens_talk', $inference['suspected_type']);
+        $this->assertSame('weak', $inference['evidence']);
+    }
+
+    #[Test]
+    public function presentation_inference_is_null_when_absent_from_metadata(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->create(['position' => 1]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_order' => 1,
+            'metadata' => ['oos_alignment' => []],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem', 'serviceSections.publishedSermon']);
+
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
+
+        $this->assertNull($rows[0]['presentation_inference']);
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 

@@ -825,6 +825,11 @@ class OosAlignmentService
             $section->title,
             $metadata['oos_alignment']['song_title_matched'] ?? null,
             $metadata['oos_alignment']['matched_item_title'] ?? null,
+            // Section-level canonical key: no current production writer, but retained
+            // as an explicit fallback for cases where a section-level override might be
+            // seeded directly (e.g. backfill, migration, or future manual-section editor).
+            // The item-level equivalent is written by ManageChurchService to
+            // church_service_items.metadata and is read by ChurchServiceSongLinker.
             $metadata['linked_song_canonical_key'] ?? null,
         ] as $candidate) {
             if (! is_string($candidate) || trim($candidate) === '') {

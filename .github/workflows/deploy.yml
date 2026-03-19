@@ -478,7 +478,7 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T mysql \
               mysqldump --no-tablespaces -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" \
               | gzip > "$BACKUP_FILE"
-            ls -t backups/*.sql | tail -n +6 | xargs -r rm
+            ls -t backups/*.sql.gz | tail -n +6 | xargs -r rm
 
             # Preview migrations (fail early if there's an issue)
             docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \

@@ -274,8 +274,8 @@ final class ServiceRecordTimeline
             ? $oosAlignment['mismatch_reason']
             : null;
 
-        $presentationInference = isset($metadata['presentation_inference']) && is_array($metadata['presentation_inference'])
-            ? $metadata['presentation_inference']
+        $presentationInference = isset($oosAlignment['presentation_inference']) && is_array($oosAlignment['presentation_inference'])
+            ? $oosAlignment['presentation_inference']
             : null;
 
         return array_merge($plannedFields, [
