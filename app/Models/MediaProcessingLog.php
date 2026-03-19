@@ -344,6 +344,11 @@ class MediaProcessingLog extends Model
 
     public function markAsCompleted(?string $step = null, ?string $errorMessage = null): bool
     {
+        $freshLog = $this->fresh();
+        if ($freshLog?->isCancelled() ?? false) {
+            return false;
+        }
+
         return $this->update([
             'status' => ProcessingStatus::COMPLETED,
             'current_step' => $step ?? 'completed',

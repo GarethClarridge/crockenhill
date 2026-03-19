@@ -398,7 +398,7 @@ The backlog is ordered for safety:
   - `media-processing-architecture-review-2026-03-17.md`
 
 ### TD-004 - Fix live timeline reader drift and step-vocabulary gaps
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low

@@ -445,6 +445,9 @@ jobs:
             set -e
             cd /srv/crockenhill
 
+            # Free disk space before pulling (remove unused images and build cache)
+            docker system prune -f
+
             # Pull new image
             docker compose -f docker-compose.prod.yml --env-file .env.production pull
 
@@ -496,9 +499,6 @@ jobs:
             # while live PHP-FPM workers are serving traffic.
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
               php artisan optimize --except=views
-
-            # Cleanup old images
-            docker image prune -f
 
             # Health check
             sleep 15

@@ -187,6 +187,20 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_false_and_preserves_cancelled_status_when_attempting_to_mark_cancelled_run_as_completed(): void
+    {
+        $log = MediaProcessingLog::factory()->cancelled()->create();
+
+        $result = $log->markAsCompleted();
+
+        $this->assertFalse($result);
+        $log->refresh();
+        $this->assertEquals(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertEquals('cancelled', $log->current_step);
+        $this->assertNull($log->completed_at);
+    }
+
+    #[Test]
     public function it_stores_structured_metadata_when_marked_for_manual_review(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::PROCESSING]);
