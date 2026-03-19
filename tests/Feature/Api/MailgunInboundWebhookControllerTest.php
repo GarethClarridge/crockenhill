@@ -188,11 +188,11 @@ class MailgunInboundWebhookControllerTest extends TestCase
     {
         Queue::fake();
 
-        // Pre-seed the record as a concurrent request would have already inserted it.
-        // Laravel 12's firstOrCreate delegates to createOrFirst, which handles the actual
-        // concurrent-INSERT race natively via withSavepointIfNeeded. Here we verify the
-        // full path: when the record exists, firstOrCreate returns it with wasRecentlyCreated
-        // = false and the controller correctly returns a duplicate response.
+        // Pre-seed the record to simulate the post-race state: a duplicate already exists.
+        // Laravel 12's firstOrCreate uses createOrFirst with savepoint-backed rollback to
+        // handle the actual concurrent-INSERT race natively. This test verifies the observable
+        // outcome — when firstOrCreate finds an existing record (wasRecentlyCreated = false),
+        // the controller correctly returns a duplicate response and does not re-queue the job.
         InboundEmail::factory()->create(['message_id' => '<message-1@example.com>']);
 
         $this->postJson('/api/webhooks/mailgun/inbound', $this->validPayload())

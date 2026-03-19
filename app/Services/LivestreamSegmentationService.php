@@ -25,7 +25,7 @@ class LivestreamSegmentationService
         private readonly ProcessingInitiator $processingInitiator
     ) {}
 
-    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null): ProcessingResult
+    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null): ProcessingResult
     {
         try {
             Log::info('Starting livestream processing', [
@@ -62,6 +62,7 @@ class LivestreamSegmentationService
                     'source_file_path' => $tempPath,
                     'file_size' => $uploadResult['file_size'],
                     'duration' => $metadata['duration'],
+                    'file_hash' => $fileHash,
                     'processing_metadata' => [
                         'upload_time' => now()->toISOString(),
                         'format_details' => $metadata,

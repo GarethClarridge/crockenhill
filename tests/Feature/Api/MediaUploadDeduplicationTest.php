@@ -24,6 +24,8 @@ class MediaUploadDeduplicationTest extends TestCase
 
     private const VIDEO_CONTENT = 'fake dedup video content';
 
+    private const LIVESTREAM_CONTENT = 'fake dedup livestream content';
+
     private User $admin;
 
     protected function setUp(): void
@@ -161,6 +163,50 @@ class MediaUploadDeduplicationTest extends TestCase
 
         $this->assertDatabaseCount('media_processing_logs', 2);
         $this->assertNotNull($response->json('processing_id'));
+    }
+
+    // -------------------------------------------------------------------------
+    // Livestream deduplication
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function it_returns_existing_processing_id_when_same_livestream_file_is_uploaded_while_pending(): void
+    {
+        Bus::fake();
+
+        $existingLog = ProcessingLogScenario::livestream()
+            ->pending()
+            ->state(['file_hash' => hash('sha256', self::LIVESTREAM_CONTENT)])
+            ->create();
+
+        $file = MediaUploadScenario::withContent('recording.mp4', self::LIVESTREAM_CONTENT, 'video/mp4');
+
+        $this->withToken($this->tokenFor($this->admin))
+            ->postJson('/api/media/livestream', ['file' => $file])
+            ->assertStatus(202)
+            ->assertJsonFragment(['processing_id' => $existingLog->processing_id]);
+
+        $this->assertDatabaseCount('media_processing_logs', 1);
+    }
+
+    #[Test]
+    public function it_returns_existing_processing_id_when_same_livestream_file_is_uploaded_while_processing(): void
+    {
+        Bus::fake();
+
+        $existingLog = ProcessingLogScenario::livestream()
+            ->processing()
+            ->state(['file_hash' => hash('sha256', self::LIVESTREAM_CONTENT)])
+            ->create();
+
+        $file = MediaUploadScenario::withContent('recording.mp4', self::LIVESTREAM_CONTENT, 'video/mp4');
+
+        $this->withToken($this->tokenFor($this->admin))
+            ->postJson('/api/media/livestream', ['file' => $file])
+            ->assertStatus(202)
+            ->assertJsonFragment(['processing_id' => $existingLog->processing_id]);
+
+        $this->assertDatabaseCount('media_processing_logs', 1);
     }
 
     // -------------------------------------------------------------------------

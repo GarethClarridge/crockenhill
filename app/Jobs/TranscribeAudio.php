@@ -115,14 +115,21 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            // Clean up any partial transcript files
-            if ($this->processingLog->sermon_id) {
-                $transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
-            }
-
-            // Update processing log and mark step as failed
+            // Write the terminal state first so it is never lost if cleanup throws.
             $this->processingLog->markAsFailed($e->getMessage(), 'transcribing_audio');
             $this->logStepFailed('transcribing', $e->getMessage());
+
+            // Clean up partial transcript files; swallow errors so the status write above is preserved.
+            if ($this->processingLog->sermon_id) {
+                try {
+                    $transcriptionService->cleanupOnFailure($this->processingLog->sermon_id);
+                } catch (\Exception $cleanupException) {
+                    Log::warning('Failed to clean up after non-retryable transcription error', [
+                        'processing_id' => $this->processingLog->processing_id,
+                        'cleanup_error' => $cleanupException->getMessage(),
+                    ]);
+                }
+            }
 
             // Fail the job immediately — do not re-throw, which would trigger queue retries.
             // Deterministic API errors (401, 413, 400) will not succeed on retry.

@@ -60,10 +60,10 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             return;
         }
 
-        $content = Storage::disk($sourceDisk)->get($path);
+        $stream = Storage::disk($sourceDisk)->readStream($path);
 
-        if (! is_string($content)) {
-            Log::warning('MoveSermonToPrivateStorage: could not read audio file', [
+        if (! is_resource($stream)) {
+            Log::warning('MoveSermonToPrivateStorage: could not open audio stream', [
                 'sermon_id' => $this->sermonId,
                 'path' => $path,
             ]);
@@ -71,7 +71,7 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             return;
         }
 
-        Storage::disk('local')->put($targetPath, $content);
+        Storage::disk('local')->writeStream($targetPath, $stream);
         Storage::disk($sourceDisk)->delete($path);
 
         $sermon->update(['audio_file_path' => $targetPath]);
@@ -98,13 +98,13 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             return;
         }
 
-        $content = Storage::disk($sourceDisk)->get($path);
+        $stream = Storage::disk($sourceDisk)->readStream($path);
 
-        if (! is_string($content)) {
+        if (! is_resource($stream)) {
             return;
         }
 
-        Storage::disk('local')->put($targetPath, $content);
+        Storage::disk('local')->writeStream($targetPath, $stream);
         Storage::disk($sourceDisk)->delete($path);
 
         $sermon->update(['thumbnail_file_path' => $targetPath]);
@@ -132,13 +132,13 @@ class MoveSermonToPrivateStorage implements ShouldQueue
             return;
         }
 
-        $content = Storage::disk($sourceDisk)->get($path);
+        $stream = Storage::disk($sourceDisk)->readStream($path);
 
-        if (! is_string($content)) {
+        if (! is_resource($stream)) {
             return;
         }
 
-        Storage::disk('local')->put($targetPath, $content);
+        Storage::disk('local')->writeStream($targetPath, $stream);
         Storage::disk($sourceDisk)->delete($path);
 
         $updated = array_merge($metadata ?? [], ['plain_thumbnail_path' => $targetPath]);

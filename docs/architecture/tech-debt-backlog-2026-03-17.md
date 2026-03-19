@@ -265,7 +265,7 @@ The backlog is ordered for safety:
   - `api-webhook-boundary-review-2026-03-18.md`
 
 ### TD-002B - Restore external integration recovery semantics for transient failures
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: Very high
 - Risk: Low-Medium
@@ -293,7 +293,7 @@ The backlog is ordered for safety:
   - `artisan-command-architecture-review-2026-03-18.md`
 
 ### TD-002C - Harden upload ingestion and private media delivery
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: Very high
 - Risk: Medium

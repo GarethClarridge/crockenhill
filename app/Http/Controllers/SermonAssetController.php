@@ -55,10 +55,14 @@ class SermonAssetController extends Controller
         $path = Storage::disk($fileInfo['disk'])->path($fileInfo['path']);
         $name = basename($fileInfo['path']);
 
+        $cacheControl = str_starts_with($sermon->audio_file_path, 'private/')
+            ? 'private, no-store'
+            : 'public, max-age=3600';
+
         return response()->file($path, [
             'Content-Type' => 'audio/mpeg',
             'Content-Disposition' => 'inline; filename="'.$name.'"',
-            'Cache-Control' => 'public, max-age=3600',
+            'Cache-Control' => $cacheControl,
         ]);
     }
 
@@ -130,10 +134,14 @@ class SermonAssetController extends Controller
             ? gmdate('D, d M Y H:i:s').' GMT'
             : gmdate('D, d M Y H:i:s', $lastModifiedTime).' GMT';
 
+        $cacheControl = str_starts_with($thumbnailPath, 'private/')
+            ? 'private, no-store'
+            : 'public, max-age=86400';
+
         return response()->file($path, [
             'Content-Type' => $contentType,
             'Content-Disposition' => 'inline; filename="'.$name.'"',
-            'Cache-Control' => 'public, max-age=86400', // 24 hours cache for images
+            'Cache-Control' => $cacheControl,
             'ETag' => md5_file($path),
             'Last-Modified' => $lastModified,
         ]);
