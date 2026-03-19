@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Data\SermonAnalysis;
 use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -65,6 +66,7 @@ class UpdateSermonRecord implements ShouldQueue
             $analysis = $this->getOrGenerateAnalysis($sermon, $processingLog);
 
             // Generate final slug from AI-generated title
+            $sermonRepository = app(SermonRepository::class);
             $finalSlug = $sermonRepository->generateUniqueSlug($analysis->title, $sermon->id);
 
             // Update sermon record with all processed data
