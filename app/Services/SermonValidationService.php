@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Enums\MediaType;
@@ -7,12 +9,16 @@ use App\Enums\SermonSourceType;
 use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
 class SermonValidationService
 {
-    public function __construct(private readonly MediaValidationService $mediaValidation) {}
+    public function __construct(
+        private readonly MediaValidationService $mediaValidation,
+        private readonly SermonRepository $sermonRepository,
+    ) {}
 
     /**
      * Validate the uploaded audio file
@@ -87,7 +93,7 @@ class SermonValidationService
         }
 
         // Generate unique slug
-        $slug = $this->generateUniqueSlug($title, $sermon->id);
+        $slug = $this->sermonRepository->generateUniqueSlug($title, $sermon->id);
 
         return [
             'title' => $title,
@@ -119,24 +125,6 @@ class SermonValidationService
         $service = $sermon->service ? $sermon->service->value : '';
 
         return "Sermon - {$sermon->date->format('F j, Y')} {$service}";
-    }
-
-    /**
-     * Generate a unique slug, excluding the current sermon
-     */
-    public function generateUniqueSlug(string $title, int $excludeSermonId): string
-    {
-        $baseSlug = Str::slug($title);
-        $slug = $baseSlug;
-        $counter = 1;
-
-        // Ensure slug is unique (excluding current sermon)
-        while (Sermon::where('slug', $slug)->where('id', '!=', $excludeSermonId)->exists()) {
-            $slug = $baseSlug.'-'.$counter;
-            $counter++;
-        }
-
-        return $slug;
     }
 
     /**

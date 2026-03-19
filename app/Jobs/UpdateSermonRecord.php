@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Contracts\SermonAnalysisInterface;
@@ -65,7 +67,7 @@ class UpdateSermonRecord implements ShouldQueue
             $analysis = $this->getOrGenerateAnalysis($sermon, $analysisService, $sermonRepository);
 
             // Generate final slug from AI-generated title
-            $finalSlug = $this->generateUniqueSlug($analysis->title, $sermon->id);
+            $finalSlug = $sermonRepository->generateUniqueSlug($analysis->title, $sermon->id);
 
             // Update sermon record with all processed data
             $updateData = [
@@ -209,24 +211,6 @@ class UpdateSermonRecord implements ShouldQueue
     }
 
     /**
-     * Generate a unique slug for the sermon, excluding the current sermon
-     */
-    private function generateUniqueSlug(string $title, int $excludeSermonId): string
-    {
-        $baseSlug = Str::slug($title);
-        $slug = $baseSlug;
-        $counter = 1;
-
-        // Ensure slug is unique (excluding current sermon)
-        while (Sermon::where('slug', $slug)->where('id', '!=', $excludeSermonId)->exists()) {
-            $slug = $baseSlug.'-'.$counter;
-            $counter++;
-        }
-
-        return $slug;
-    }
-
-    /**
      * Handle a job failure.
      */
     public function failed(\Throwable $exception): void
@@ -243,7 +227,8 @@ class UpdateSermonRecord implements ShouldQueue
             if ($sermon) {
                 // Create minimal update to get sermon out of processing state
                 $basicTitle = $this->generateBasicTitle($sermon);
-                $basicSlug = $this->generateUniqueSlug($basicTitle, $sermon->id);
+                $sermonRepository = app(SermonRepository::class);
+                $basicSlug = $sermonRepository->generateUniqueSlug($basicTitle, $sermon->id);
 
                 $sermon->update([
                     'title' => $basicTitle,

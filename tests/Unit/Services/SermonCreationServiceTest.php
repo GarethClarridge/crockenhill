@@ -7,6 +7,7 @@ use App\Enums\SermonSourceType;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use App\Services\PreacherResolutionService;
 use App\Services\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,7 +23,10 @@ class SermonCreationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SermonCreationService(new PreacherResolutionService);
+        $this->service = new SermonCreationService(
+            new PreacherResolutionService,
+            new SermonRepository
+        );
     }
 
     #[Test]
@@ -264,38 +268,6 @@ class SermonCreationServiceTest extends TestCase
         // Even though filename says "morning", metadata should win
         $service = $this->service->extractServiceType($log, '2024-03-15-morning-sermon.mp3');
         $this->assertEquals(\App\Enums\SermonService::EVENING, $service);
-    }
-
-    #[Test]
-    public function it_generates_unique_slug(): void
-    {
-        $slug = $this->service->generateUniqueSlug('Test Sermon Title');
-
-        $this->assertEquals('test-sermon-title', $slug);
-    }
-
-    #[Test]
-    public function it_generates_unique_slug_with_counter_when_duplicate_exists(): void
-    {
-        // Create existing sermon with slug
-        Sermon::factory()->create(['slug' => 'test-sermon']);
-
-        $slug = $this->service->generateUniqueSlug('Test Sermon');
-
-        $this->assertEquals('test-sermon-1', $slug);
-    }
-
-    #[Test]
-    public function it_generates_unique_slug_with_incrementing_counter(): void
-    {
-        // Create existing sermons with slugs
-        Sermon::factory()->create(['slug' => 'test-sermon']);
-        Sermon::factory()->create(['slug' => 'test-sermon-1']);
-        Sermon::factory()->create(['slug' => 'test-sermon-2']);
-
-        $slug = $this->service->generateUniqueSlug('Test Sermon');
-
-        $this->assertEquals('test-sermon-3', $slug);
     }
 
     #[Test]
