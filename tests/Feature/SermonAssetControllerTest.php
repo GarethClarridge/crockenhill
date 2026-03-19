@@ -191,26 +191,51 @@ class SermonAssetControllerTest extends TestCase
     }
 
     #[Test]
-    public function it_throttles_media_download_requests(): void
+    public function it_throttles_audio_download_requests(): void
     {
         Storage::fake('public');
 
         $sermon = Sermon::factory()->create([
-            'slug' => 'throttled-sermon',
+            'slug' => 'throttled-audio',
             'audio_file_path' => 'sermons/throttled.mp3',
         ]);
 
         Storage::disk('public')->put('sermons/throttled.mp3', 'fake audio content');
 
-        // We set the limit to 60 per minute in the provider.
-        // Make 60 requests which should all pass.
-        for ($i = 0; $i < 60; $i++) {
+        // Clear limiter state for this test (using an empty key to match the IP-only case or the general pattern)
+        \Illuminate\Support\Facades\RateLimiter::clear('media-audio|127.0.0.1');
+
+        // Limit is 10 per minute for audio
+        for ($i = 0; $i < 10; $i++) {
             $this->get("/christ/sermons/{$sermon->slug}/audio")
                 ->assertStatus(200);
         }
 
-        // The 61st request should be throttled.
         $this->get("/christ/sermons/{$sermon->slug}/audio")
+            ->assertStatus(429);
+    }
+
+    #[Test]
+    public function it_throttles_thumbnail_requests_independently(): void
+    {
+        Storage::fake('public');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'throttled-thumb',
+            'thumbnail_file_path' => 'thumbnails/throttled.webp',
+        ]);
+
+        Storage::disk('public')->put('thumbnails/throttled.webp', 'fake thumb');
+
+        \Illuminate\Support\Facades\RateLimiter::clear('media-thumbnail|127.0.0.1');
+
+        // Limit is 120 per minute for thumbnails
+        for ($i = 0; $i < 120; $i++) {
+            $this->get("/christ/sermons/{$sermon->slug}/thumbnail")
+                ->assertStatus(200);
+        }
+
+        $this->get("/christ/sermons/{$sermon->slug}/thumbnail")
             ->assertStatus(429);
     }
 }
