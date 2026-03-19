@@ -56,4 +56,29 @@ class SermonSeriesListingTest extends TestCase
         $response->assertSee('Sermon Series');
         $response->assertDontSee('Children Series');
     }
+
+    public function test_sermon_serieses_page_includes_item_list_structured_data(): void
+    {
+        Sermon::query()->delete();
+
+        Sermon::factory()->create([
+            'series' => 'Gospel of Mark',
+            'content_type' => SermonContentType::Sermon,
+        ]);
+        Sermon::factory()->create([
+            'series' => 'Advent 2024',
+            'content_type' => SermonContentType::Sermon,
+        ]);
+
+        $response = $this->get('/christ/sermons/series');
+
+        $response->assertStatus(200);
+        $response->assertSee('application/ld+json', false);
+        $response->assertSee('ItemList', false);
+        $response->assertSee('CreativeWorkSeries', false);
+        $response->assertSee('Advent 2024', false);
+        $response->assertSee('Gospel of Mark', false);
+        $response->assertSee('/christ/sermons/series/advent-2024', false);
+        $response->assertSee('/christ/sermons/series/gospel-of-mark', false);
+    }
 }
