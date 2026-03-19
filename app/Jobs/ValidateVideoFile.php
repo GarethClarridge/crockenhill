@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaValidationService;
+use App\Traits\ChecksCancellation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class ValidateVideoFile implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -31,18 +32,7 @@ class ValidateVideoFile implements ShouldQueue
 
     public function handle(MediaValidationService $mediaValidation): void
     {
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
-            return;
-        }
-
-        $this->processingLog = $processingLog;
-
-        if ($this->processingLog->isCancelled()) {
-            Log::info('ValidateVideoFile job skipped: processing cancelled', [
-                'processing_id' => $this->processingLog->processing_id,
-            ]);
-
+        if ($this->abortIfCancelled('ValidateVideoFile')) {
             return;
         }
 

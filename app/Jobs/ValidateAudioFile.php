@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Models\MediaProcessingLog;
 use App\Services\AudioExtractionService;
 use App\Services\StorageAdapterHelper;
+use App\Traits\ChecksCancellation;
 use App\Traits\DetectsStorageType;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -24,7 +25,7 @@ use Illuminate\Support\Facades\Log;
  */
 class ValidateAudioFile implements ShouldQueue
 {
-    use DetectsStorageType, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, DetectsStorageType, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -32,18 +33,7 @@ class ValidateAudioFile implements ShouldQueue
 
     public function handle(AudioExtractionService $audioExtractor, StorageAdapterHelper $storageHelper): void
     {
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
-            return;
-        }
-
-        $this->processingLog = $processingLog;
-
-        if ($this->processingLog->isCancelled()) {
-            Log::info('ValidateAudioFile job skipped: processing cancelled', [
-                'processing_id' => $this->processingLog->processing_id,
-            ]);
-
+        if ($this->abortIfCancelled('ValidateAudioFile')) {
             return;
         }
 

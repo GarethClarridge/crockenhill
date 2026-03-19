@@ -8,6 +8,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonCreationService;
 use App\Services\SermonMetadataIntegrationService;
+use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
 
 class SubmitToProcessing implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
@@ -31,18 +32,7 @@ class SubmitToProcessing implements ShouldQueue
         SermonMetadataIntegrationService $metadataIntegrationService,
         SermonCreationService $sermonCreationService
     ): void {
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
-            return;
-        }
-
-        $this->processingLog = $processingLog;
-
-        if ($this->processingLog->isCancelled()) {
-            Log::info('SubmitToProcessing job skipped: processing cancelled', [
-                'processing_id' => $this->processingLog->processing_id,
-            ]);
-
+        if ($this->abortIfCancelled('SubmitToProcessing')) {
             return;
         }
 

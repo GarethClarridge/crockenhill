@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Mail;
 
 class SendCompletionNotification implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
      * The number of times the job may be attempted.
@@ -37,22 +38,11 @@ class SendCompletionNotification implements ShouldQueue
      */
     public function handle(): void
     {
+        if ($this->abortIfCancelled('SendCompletionNotification')) {
+            return;
+        }
+
         try {
-            $processingLog = $this->processingLog->fresh();
-            if (! $processingLog instanceof MediaProcessingLog) {
-                return;
-            }
-
-            $this->processingLog = $processingLog;
-
-            if ($this->processingLog->isCancelled()) {
-                Log::info('SendCompletionNotification job skipped: processing cancelled', [
-                    'processing_id' => $this->processingLog->processing_id,
-                ]);
-
-                return;
-            }
-
             Log::info('Starting completion notification', [
                 'processing_id' => $this->processingLog->processing_id,
             ]);

@@ -17,7 +17,7 @@ class LivestreamSegmentFactory extends Factory
 
         return [
             'media_processing_log_id' => 1, // Will be overridden in tests
-            'segment_index' => $this->faker->numberBetween(0, 255),
+            'segment_index' => $this->faker->unique()->numberBetween(0, 255),
             'start_time' => $startTime,
             'end_time' => $endTime,
             'duration' => $duration,

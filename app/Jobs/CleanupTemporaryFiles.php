@@ -26,10 +26,14 @@ class CleanupTemporaryFiles implements ShouldQueue
     public function handle(VideoStorageService $storageService): void
     {
         $processingLog = $this->processingLog->fresh();
-        if ($processingLog instanceof MediaProcessingLog) {
-            $this->processingLog = $processingLog;
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return;
         }
 
+        $this->processingLog = $processingLog;
+
+        // Snapshot cancellation state before cleanup runs — cleanup proceeds either way,
+        // but markAsCompleted() must not revive a cancelled run.
         $isCancelled = $this->processingLog->isCancelled();
 
         try {

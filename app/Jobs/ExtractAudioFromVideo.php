@@ -8,6 +8,7 @@ use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoExtractionService;
+use App\Traits\ChecksCancellation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -25,7 +26,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class ExtractAudioFromVideo implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -33,18 +34,7 @@ class ExtractAudioFromVideo implements ShouldQueue
 
     public function handle(VideoExtractionService $videoExtractor): void
     {
-        $processingLog = $this->processingLog->fresh();
-        if (! $processingLog instanceof MediaProcessingLog) {
-            return;
-        }
-
-        $this->processingLog = $processingLog;
-
-        if ($this->processingLog->isCancelled()) {
-            Log::info('ExtractAudioFromVideo job skipped: processing cancelled', [
-                'processing_id' => $this->processingLog->processing_id,
-            ]);
-
+        if ($this->abortIfCancelled('ExtractAudioFromVideo')) {
             return;
         }
 

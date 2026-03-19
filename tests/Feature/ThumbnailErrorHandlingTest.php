@@ -284,7 +284,7 @@ class ThumbnailErrorHandlingTest extends TestCase
     }
 
     #[Test]
-    public function thumbnail_generation_handles_database_connection_errors(): void
+    public function thumbnail_generation_skips_gracefully_when_log_has_no_sermon_or_video(): void
     {
         // A log with no sermon_id and no video_file_path causes an early return
         // before thumbnail generation is attempted — simulates a recoverable
