@@ -100,10 +100,7 @@ class ValidateAudioFile implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            $this->processingLog->update([
-                'status' => 'failed',
-                'error_message' => 'Audio validation failed: '.$e->getMessage(),
-            ]);
+            $this->processingLog->markAsFailed('Audio validation failed: '.$e->getMessage());
 
             throw $e;
         } finally {
@@ -115,9 +112,6 @@ class ValidateAudioFile implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        $this->processingLog->update([
-            'status' => 'failed',
-            'error_message' => 'Audio validation job failed: '.$exception->getMessage(),
-        ]);
+        $this->processingLog->markAsFailed('Audio validation job failed: '.$exception->getMessage());
     }
 }

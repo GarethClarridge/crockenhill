@@ -187,4 +187,41 @@ class ValidateVideoFileTest extends TestCase
         $this->assertEquals('failed', $log->status->value);
         $this->assertEquals('Video validation job failed: Something went wrong', $log->error_message);
     }
+
+    #[Test]
+    public function cancelled_run_is_not_overwritten_to_failed_by_catch_block(): void
+    {
+        Storage::fake('local');
+        config(['filesystems.default' => 'local']);
+
+        $log = MediaProcessingLog::factory()->video()->cancelled()->create([
+            'stored_file_path' => 'videos/nonexistent.mp4',
+        ]);
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->zeroOrMoreTimes();
+
+        $job = new ValidateVideoFile($log);
+
+        try {
+            $job->handle($this->app->make(MediaValidationService::class));
+        } catch (\Exception) {
+            // Expected — file does not exist
+        }
+
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed');
+    }
+
+    #[Test]
+    public function cancelled_run_is_not_overwritten_to_failed_by_failed_method(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->cancelled()->create();
+
+        $job = new ValidateVideoFile($log);
+        $job->failed(new \Exception('Queue exhausted retries'));
+
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed by failed()');
+    }
 }

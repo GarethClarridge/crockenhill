@@ -74,10 +74,7 @@ class ValidateVideoFile implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            $this->processingLog->update([
-                'status' => 'failed',
-                'error_message' => 'Video validation failed: '.$e->getMessage(),
-            ]);
+            $this->processingLog->markAsFailed('Video validation failed: '.$e->getMessage());
 
             throw $e;
         }
@@ -85,9 +82,6 @@ class ValidateVideoFile implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        $this->processingLog->update([
-            'status' => 'failed',
-            'error_message' => 'Video validation job failed: '.$exception->getMessage(),
-        ]);
+        $this->processingLog->markAsFailed('Video validation job failed: '.$exception->getMessage());
     }
 }

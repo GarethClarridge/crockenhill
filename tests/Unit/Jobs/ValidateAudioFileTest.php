@@ -226,4 +226,44 @@ class ValidateAudioFileTest extends TestCase
         $this->assertEquals('failed', $log->status->value);
         $this->assertEquals('Audio validation job failed: Something went wrong', $log->error_message);
     }
+
+    #[Test]
+    public function cancelled_run_is_not_overwritten_to_failed_by_catch_block(): void
+    {
+        config(['media-processing.storage.sermon_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        $log = MediaProcessingLog::factory()->audio()->cancelled()->create([
+            'stored_file_path' => 'sermons/nonexistent-file.mp3',
+            'original_filename' => 'test.mp3',
+        ]);
+
+        $mockExtractor = $this->createMock(AudioExtractionService::class);
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('error')->zeroOrMoreTimes();
+
+        $job = new ValidateAudioFile($log);
+
+        try {
+            $job->handle($mockExtractor, app(StorageAdapterHelper::class));
+        } catch (\Exception) {
+            // Expected — file does not exist
+        }
+
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed');
+    }
+
+    #[Test]
+    public function cancelled_run_is_not_overwritten_to_failed_by_failed_method(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->cancelled()->create();
+
+        $job = new ValidateAudioFile($log);
+        $job->failed(new \Exception('Queue exhausted retries'));
+
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed by failed()');
+    }
 }

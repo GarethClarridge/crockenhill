@@ -209,13 +209,7 @@ class SubmitToProcessing implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $errorMessage = 'Sermon creation from livestream failed: '.$e->getMessage();
-
-            $this->processingLog->update([
-                'status' => 'failed',
-                'error_message' => $errorMessage,
-                'completed_at' => now(),
-            ]);
+            $this->processingLog->markAsFailed('Sermon creation from livestream failed: '.$e->getMessage());
 
             // Cleanup will be handled by the chain failure handler
 

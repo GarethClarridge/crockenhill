@@ -348,7 +348,7 @@ The backlog is ordered for safety:
   - `media-processing-architecture-review-2026-03-17.md`
 
 ### TD-003A - Replace raw string status writes with guarded helpers
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low
