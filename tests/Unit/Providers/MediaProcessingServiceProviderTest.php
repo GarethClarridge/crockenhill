@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Services;
+namespace Tests\Unit\Providers;
 
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Services\LivestreamSegmentationService;
@@ -10,15 +10,12 @@ use App\Services\NullSpeakerIdentificationService;
 use App\Services\ProcessingLogService;
 use App\Services\ResemblyzerSpeakerIdentificationService;
 use App\Services\UnifiedMediaProcessor;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MediaProcessingServiceProviderTest extends TestCase
 {
-    use RefreshDatabase;
-
     #[Test]
     public function it_resolves_unified_media_processor_from_the_container(): void
     {

@@ -56,7 +56,7 @@ class ShowChurchServiceTest extends TestCase
 
         Storage::disk('local')->put('livestreams/2026/service.mp4', 'fake-video');
 
-        $log = MediaProcessingLog::factory()->livestream()->create([
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
             'source_file_path' => 'livestreams/2026/service.mp4',
             'extracted_date' => $serviceDate,
             'extracted_service' => $serviceType,

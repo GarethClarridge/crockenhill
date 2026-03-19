@@ -14,7 +14,6 @@ use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
-use App\Repositories\SermonRepository;
 use App\Services\AudioTranscriptionService;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonJobPipelineService;

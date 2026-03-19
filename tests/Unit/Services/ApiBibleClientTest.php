@@ -7,7 +7,6 @@ namespace Tests\Unit\Services;
 use App\Services\ApiBibleBudgetExhaustedException;
 use App\Services\ApiBibleClient;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;

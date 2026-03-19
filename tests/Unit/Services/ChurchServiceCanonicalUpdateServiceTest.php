@@ -40,7 +40,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
             'import_metadata' => ['confidence_score' => 1.0],
         ]);
 
-        $item = ChurchServiceItem::factory()->create([
+        ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
@@ -125,7 +125,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
             ],
         ]);
 
-        $item = ChurchServiceItem::factory()->create([
+        $itemToUpdate = ChurchServiceItem::factory()->create([
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'songs',
@@ -136,7 +136,7 @@ class ChurchServiceCanonicalUpdateServiceTest extends TestCase
         $canonicalState = app(ChurchServiceCanonicalStateService::class);
         $before = $canonicalState->snapshot($churchService->load('items'));
 
-        $item->update(['title' => 'Amazing Grace (How sweet the sound)']);
+        $itemToUpdate->update(['title' => 'Amazing Grace (How sweet the sound)']);
 
         $result = $this->service->finalize($churchService, $before, ChurchServiceItemSource::OPENLP);
 
