@@ -178,4 +178,35 @@ class MediaProcessingLogFactory extends Factory
             'owner_user_id' => $user->id,
         ]);
     }
+
+    /**
+     * Indicate that the processing log is awaiting manual sermon review.
+     */
+    public function manualReviewRequired(string $reasonCode = 'no_qualifying_speech_block'): static
+    {
+        $reasonMessages = [
+            'no_qualifying_speech_block' => 'No speech block met the 20-minute sermon threshold.',
+            'multiple_qualifying_speech_blocks' => 'Multiple speech blocks met the 20-minute sermon threshold.',
+            'ratio_below_threshold' => 'The longest speech block was not at least 1.5x longer than the next-longest speech block.',
+            'manual_confidence_review' => 'Sermon auto-selection confidence was insufficient.',
+        ];
+
+        $reasonMessage = $reasonMessages[$reasonCode] ?? $reasonMessages['no_qualifying_speech_block'];
+
+        return $this->state(fn (array $attributes) => [
+            'processing_type' => MediaType::Livestream,
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'manual_review_required',
+            'error_message' => $reasonMessage,
+            'processing_metadata' => [
+                'manual_review' => [
+                    'status' => 'required',
+                    'reason_code' => $reasonCode,
+                    'reason_message' => $reasonMessage,
+                    'flagged_at' => now()->toIso8601String(),
+                    'speech_segments' => [],
+                ],
+            ],
+        ]);
+    }
 }

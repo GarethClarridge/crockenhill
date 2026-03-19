@@ -53,12 +53,10 @@ class SermonPageContextService
 
     private function resolveReadingSection(Sermon $sermon): ?ServiceSection
     {
-        $publishedSection = $sermon->publishedServiceSection()
-            ->with(['processingLog.serviceSections.churchServiceItem'])
-            ->first();
+        $publishedSection = $sermon->publishedServiceSection()->first();
 
         if ($publishedSection instanceof ServiceSection) {
-            return $this->findReadingSection($publishedSection->processingLog->serviceSections);
+            return $this->queryReadingSection($publishedSection->media_processing_log_id);
         }
 
         $processingLog = $this->resolveProcessingLog($sermon);
@@ -67,9 +65,20 @@ class SermonPageContextService
             return null;
         }
 
-        $processingLog->loadMissing('serviceSections.churchServiceItem');
+        return $this->queryReadingSection($processingLog->id);
+    }
 
-        return $this->findReadingSection($processingLog->serviceSections);
+    private function queryReadingSection(int $processingLogId): ?ServiceSection
+    {
+        $section = ServiceSection::query()
+            ->with('churchServiceItem')
+            ->where('media_processing_log_id', $processingLogId)
+            ->where('section_type', ServiceSectionType::BIBLE_READING)
+            ->orderBy('section_order')
+            ->orderBy('start_time')
+            ->first();
+
+        return $section instanceof ServiceSection ? $section : null;
     }
 
     private function resolveProcessingLog(Sermon $sermon): ?MediaProcessingLog
@@ -87,27 +96,6 @@ class SermonPageContextService
         return $sermon->processingLogs()
             ->latest('id')
             ->first();
-    }
-
-    /**
-     * @param  iterable<int, ServiceSection>|null  $sections
-     */
-    private function findReadingSection(?iterable $sections): ?ServiceSection
-    {
-        if ($sections === null) {
-            return null;
-        }
-
-        $candidates = collect($sections)
-            ->filter(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BIBLE_READING)
-            ->sortBy([
-                ['section_order', 'asc'],
-                ['start_time', 'asc'],
-            ]);
-
-        $section = $candidates->first();
-
-        return $section instanceof ServiceSection ? $section : null;
     }
 
     private function bibleGatewayUrl(string $reference): string

@@ -339,29 +339,20 @@ class SermonProcessingJobChainTest extends TestCase
             'transcript_file_path' => 'transcripts/sermon_1.md',
         ]);
 
-        // Store transcript content
-        Storage::put('transcripts/sermon_1.md', 'This is a sample sermon transcript about God\'s love and grace.');
-
+        // Store the AI analysis result on the processing log as ProcessTranscriptWithAI would have done
         $processingLog = $this->processingLogScenario()
             ->processing('ai_analysis_completed')
             ->withSermon($sermon)
             ->state([
                 'processing_id' => 'test-id',
                 'original_filename' => 'test-audio.mp3',
+                'ai_analysis' => $this->createMockSermonAnalysis()->toArray(),
             ])
             ->create();
 
-        // Mock the analysis service
-        $mockAnalysisService = $this->createMock(SermonAnalysisService::class);
-        $mockAnalysisService->expects($this->once())
-            ->method('analyzeSermon')
-            ->willReturn($this->createMockSermonAnalysis());
-
-        $this->app->instance(SermonAnalysisService::class, $mockAnalysisService);
-
-        // Create and execute the job
+        // Create and execute the job — no analysis service needed
         $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockAnalysisService, new SermonRepository);
+        $job->handle();
 
         // Assert sermon was updated
         $sermon->refresh();
@@ -708,24 +699,14 @@ class SermonProcessingJobChainTest extends TestCase
         $sermon = Sermon::where('audio_file_path', $storedFilePath)->first();
         $this->assertNotNull($sermon);
 
-        // Add a transcript to the sermon so the UpdateSermonRecord job can work with it
-        $transcriptPath = 'transcripts/sermon_'.$sermon->id.'.md';
-        $transcriptContent = 'This is a sample sermon transcript about God\'s amazing love and grace. It contains meaningful content that demonstrates the depth of God\'s love for humanity and how we should respond to that love in our daily lives. This transcript is long enough to pass validation checks.';
-        Storage::put($transcriptPath, $transcriptContent);
-        $sermon->update(['transcript_file_path' => $transcriptPath]);
-
-        // Test update job with mocked analysis service
-        $mockAnalysisService = $this->createMock(SermonAnalysisService::class);
-        $mockAnalysisService->method('analyzeSermon')
-            ->willReturn($this->createMockSermonAnalysis());
-
-        $this->app->instance(SermonAnalysisService::class, $mockAnalysisService);
-
-        // Mock the processing log relationship to avoid the actual job chain
-        $processingLog->update(['current_step' => 'ai_analysis_completed']);
+        // Store the AI analysis result on the processing log as ProcessTranscriptWithAI would have done
+        $processingLog->update([
+            'current_step' => 'ai_analysis_completed',
+            'ai_analysis' => $this->createMockSermonAnalysis()->toArray(),
+        ]);
 
         $updateJob = new UpdateSermonRecord($sermon->id);
-        $updateJob->handle($mockAnalysisService, new SermonRepository);
+        $updateJob->handle();
 
         // Verify sermon was updated
         $sermon->refresh();

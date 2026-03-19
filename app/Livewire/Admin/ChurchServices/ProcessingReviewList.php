@@ -22,6 +22,19 @@ class ProcessingReviewList extends Component
     public function render(): View
     {
         $pendingReviews = MediaProcessingLog::query()
+            ->select([
+                'id',
+                'processing_id',
+                'processing_type',
+                'status',
+                'current_step',
+                'error_message',
+                'original_filename',
+                'extracted_date',
+                'extracted_service',
+                'processing_metadata',
+                'updated_at',
+            ])
             ->awaitingManualSermonReview()
             ->orderByDesc('updated_at')
             ->paginate(20);

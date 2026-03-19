@@ -426,7 +426,7 @@ The backlog is ordered for safety:
   - `json-metadata-inventory-2026-03-17.md`
 
 ### TD-004A - Fix public read-side correctness, visibility, and canonical invariants
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Low-Medium
@@ -456,7 +456,7 @@ The backlog is ordered for safety:
   - `public-read-side-architecture-review-2026-03-18.md`
 
 ### TD-004B - Remove duplicate AI work and the easiest read-path waste
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Low-Medium
