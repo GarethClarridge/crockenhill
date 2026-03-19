@@ -78,14 +78,17 @@ class LivestreamSegmentTest extends TestCase
 
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'classification' => 'speech',
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'classification' => 'song',
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 3,
             'classification' => 'silence',
         ]);
 
@@ -101,10 +104,12 @@ class LivestreamSegmentTest extends TestCase
 
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'is_sermon_candidate' => true,
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'is_sermon_candidate' => false,
         ]);
 
@@ -118,14 +123,17 @@ class LivestreamSegmentTest extends TestCase
 
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'duration' => 10,
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'duration' => 20,
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 3,
             'duration' => 30,
         ]);
 
@@ -165,11 +173,13 @@ class LivestreamSegmentTest extends TestCase
         $log = MediaProcessingLog::factory()->create();
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
             'classification' => 'speech',
             'duration' => 100,
         ]);
         LivestreamSegment::factory()->create([
             'media_processing_log_id' => $log->id,
+            'segment_index' => 2,
             'classification' => 'song',
             'duration' => 50,
         ]);
