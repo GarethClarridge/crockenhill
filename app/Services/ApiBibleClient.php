@@ -51,7 +51,7 @@ class ApiBibleClient
      * Records one API call against today's daily budget counter.
      * Uses put-with-TTL on the first call of the day, increment thereafter.
      */
-    public function recordCall(): void
+    private function recordCall(): void
     {
         $key = $this->dailyBudgetCacheKey();
 
@@ -91,7 +91,6 @@ class ApiBibleClient
     public function searchPassage(string $normalizedReference): ?ApiBiblePassageResult
     {
         $this->assertDailyBudget('search');
-        $this->recordCall();
 
         try {
             $response = $this->makeRequest('get', "/bibles/{$this->bibleId}/search", [
@@ -183,7 +182,6 @@ class ApiBibleClient
     public function fetchPassageById(string $passageId): ?ApiBiblePassageResult
     {
         $this->assertDailyBudget('passage fetch');
-        $this->recordCall();
 
         try {
             $response = $this->makeRequest('get', "/bibles/{$this->bibleId}/passages/{$passageId}", [
@@ -255,14 +253,26 @@ class ApiBibleClient
     }
 
     /**
+     * Make an HTTP request to api.bible, counting every outbound attempt against the daily budget.
+     *
+     * recordCall() fires once before the first attempt and once inside the retry callback
+     * for each subsequent attempt, so the budget counter reflects actual provider traffic
+     * rather than optimistic logical calls.
+     *
      * @param  array<string, mixed>  $query
      */
     private function makeRequest(string $method, string $path, array $query = []): \Illuminate\Http\Client\Response
     {
+        // Count the first (unconditional) outbound attempt.
+        $this->recordCall();
+
         return Http::withHeaders(['api-key' => $this->apiKey])
             ->timeout($this->timeoutSeconds)
             ->retry($this->maxRetries, 500, function (\Throwable $exception, \Illuminate\Http\Client\PendingRequest $request): bool {
                 if ($exception instanceof ConnectionException) {
+                    // Count the upcoming retry attempt against the budget.
+                    $this->recordCall();
+
                     return true;
                 }
 
@@ -270,7 +280,14 @@ class ApiBibleClient
                     $status = $exception->response->status();
 
                     // Retry on rate-limit (429) and server errors (5xx); do not retry client errors (4xx)
-                    return $status === 429 || $status >= 500;
+                    if ($status === 429 || $status >= 500) {
+                        // Count the upcoming retry attempt against the budget.
+                        $this->recordCall();
+
+                        return true;
+                    }
+
+                    return false;
                 }
 
                 return false;

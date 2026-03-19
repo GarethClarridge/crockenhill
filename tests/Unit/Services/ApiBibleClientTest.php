@@ -48,14 +48,22 @@ class ApiBibleClientTest extends TestCase
     }
 
     #[Test]
-    public function record_call_increments_cache_counter(): void
+    public function daily_budget_counter_increments_on_each_successful_call(): void
     {
+        Http::fake([
+            '*/bibles/test-bible-id/search*' => Http::response([
+                'data' => ['passages' => [
+                    ['id' => 'JHN.3.16', 'reference' => 'John 3:16', 'content' => '<p>text</p>', 'copyright' => 'NIV'],
+                ]],
+            ]),
+        ]);
+
         $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
 
-        $this->client->recordCall();
+        $this->client->searchPassage('John 3:16');
         $this->assertEquals(1, Cache::get($key));
 
-        $this->client->recordCall();
+        $this->client->searchPassage('John 3:16');
         $this->assertEquals(2, Cache::get($key));
     }
 
@@ -206,5 +214,114 @@ class ApiBibleClientTest extends TestCase
 
         $this->assertNotNull($result);
         $this->assertEquals('Success', $result->htmlContent);
+    }
+
+    #[Test]
+    public function budget_is_incremented_once_for_a_successful_single_attempt(): void
+    {
+        Http::fake([
+            '*/bibles/test-bible-id/search*' => Http::response([
+                'data' => [
+                    'passages' => [
+                        ['id' => 'JHN.3.16', 'reference' => 'John 3:16', 'content' => '<p>For God</p>', 'copyright' => 'NIV'],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->client->searchPassage('John 3:16');
+
+        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $this->assertEquals(1, Cache::get($key));
+    }
+
+    #[Test]
+    public function budget_counts_each_retry_attempt_on_server_error(): void
+    {
+        // When the HTTP client retries a 500 twice before succeeding, the budget
+        // counter must reach 3 (1 first attempt + 2 retries) — not 1.
+        Http::fake([
+            '*/bibles/test-bible-id/search*' => Http::sequence()
+                ->pushStatus(500) // attempt 1 — counted by makeRequest() before the call
+                ->pushStatus(500) // attempt 2 — counted by retry callback
+                ->push([          // attempt 3 — counted by retry callback
+                    'data' => [
+                        'passages' => [
+                            ['id' => 'JHN.3.16', 'reference' => 'John 3:16', 'content' => '<p>For God</p>', 'copyright' => 'NIV'],
+                        ],
+                    ],
+                ]),
+        ]);
+
+        $result = $this->client->searchPassage('John 3:16');
+
+        $this->assertNotNull($result);
+
+        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $this->assertEquals(3, Cache::get($key));
+    }
+
+    #[Test]
+    public function budget_counts_all_attempts_when_all_retries_fail(): void
+    {
+        // Even when all retries fail, every outbound attempt must be counted.
+        Config::set('services.api_bible.max_retries', 2);
+        $this->client = new ApiBibleClient;
+
+        Http::fake([
+            '*/bibles/test-bible-id/search*' => Http::response([], 500),
+        ]);
+
+        try {
+            $this->client->searchPassage('John 3:16');
+        } catch (\RuntimeException) {
+            // Expected — 500 after retries exhausted throws RuntimeException
+        }
+
+        // max_retries=2 means 1 initial + 2 retries = 3 total attempts
+        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $this->assertEquals(3, Cache::get($key));
+    }
+
+    #[Test]
+    public function budget_is_not_incremented_when_budget_already_exhausted(): void
+    {
+        // assertDailyBudget() throws before makeRequest() is ever called,
+        // so an exhausted budget must not consume any further quota.
+        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        Cache::put($key, 10); // budget = 10, at limit
+
+        try {
+            $this->client->searchPassage('John 3:16');
+        } catch (\App\Services\ApiBibleBudgetExhaustedException) {
+            // Expected
+        }
+
+        // Counter must remain at 10 — no attempt was made
+        $this->assertEquals(10, Cache::get($key));
+    }
+
+    #[Test]
+    public function budget_counts_each_retry_for_passage_fetch(): void
+    {
+        Http::fake([
+            '*/bibles/test-bible-id/passages/JHN.3.16*' => Http::sequence()
+                ->pushStatus(500)
+                ->push([
+                    'data' => [
+                        'id' => 'JHN.3.16',
+                        'reference' => 'John 3:16',
+                        'content' => '<p>For God</p>',
+                        'copyright' => 'NIV',
+                    ],
+                ]),
+        ]);
+
+        $result = $this->client->fetchPassageById('JHN.3.16');
+
+        $this->assertNotNull($result);
+
+        $key = 'api_bible_daily_calls_'.now()->format('Y-m-d');
+        $this->assertEquals(2, Cache::get($key));
     }
 }

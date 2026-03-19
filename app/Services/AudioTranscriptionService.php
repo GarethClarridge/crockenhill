@@ -17,10 +17,6 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
 {
     use DetectsStorageType;
 
-    private const DEFAULT_MAX_RETRIES = 3;
-
-    private const DEFAULT_RETRY_DELAY_BASE = 2; // seconds
-
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly TranscriptStorageService $storageService,
@@ -29,14 +25,15 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     ) {}
 
     /**
-     * Verify OpenAI API key is configured before making API calls
+     * Verify OpenAI API key is configured before making API calls.
+     * A missing key is a deterministic misconfiguration — retrying will never succeed.
      *
-     * @throws Exception When OpenAI API key is not configured
+     * @throws NonRetryableTranscriptionException When the API key is not set
      */
     private function ensureApiKeyConfigured(): void
     {
         if (empty(config('media-processing.transcription.openai_api_key'))) {
-            throw new Exception('OpenAI API key not configured for transcription service');
+            throw new NonRetryableTranscriptionException('OpenAI API key not configured for transcription service');
         }
     }
 
@@ -50,22 +47,6 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
                 throw new Exception("Failed to create directory: {$directory}");
             }
         }
-    }
-
-    /**
-     * Resolve retry count from configuration.
-     */
-    private function maxRetries(): int
-    {
-        return max(1, (int) config('media-processing.transcription.max_retries', self::DEFAULT_MAX_RETRIES));
-    }
-
-    /**
-     * Resolve retry delay base (seconds) from configuration.
-     */
-    private function retryDelayBase(): int
-    {
-        return max(0, (int) config('media-processing.transcription.retry_delay_base', self::DEFAULT_RETRY_DELAY_BASE));
     }
 
     /**
@@ -166,153 +147,155 @@ class AudioTranscriptionService implements TranscriptionServiceInterface
     }
 
     /**
-     * Transcribe a single audio file with retry logic
+     * Transcribe a single audio file — one attempt only.
+     *
+     * Retry timing and attempt counting are owned entirely by the job layer
+     * (TranscribeAudio::$tries + backoff()). This method classifies failures
+     * and throws the appropriate typed exception so the job can decide whether
+     * to re-queue or fail permanently, without blocking the worker with sleep().
      *
      * @param  string  $filePath  Full path to the audio file
      * @param  string  $processingId  Processing ID for logging
      * @return string The transcribed text
      *
-     * @throws Exception When all retry attempts fail
+     * @throws NonRetryableTranscriptionException When the error is deterministic (bad key, oversized file)
+     * @throws TranscriptionException When the error is transient (rate limit, network, etc.)
      */
     private function transcribeFile(string $filePath, string $processingId = 'unknown'): string
     {
-        $maxRetries = $this->maxRetries();
-        $retryDelayBase = $this->retryDelayBase();
-        $attempt = 0;
-        $lastException = null;
-        $isNonRetryable = false;
+        $apiStartTime = microtime(true);
 
-        while ($attempt < $maxRetries) {
-            $attempt++;
-            $apiStartTime = microtime(true);
-            try {
+        try {
+            $this->logger->logProcessingStep(
+                $processingId,
+                'openai_api_call',
+                'started',
+                ['file' => basename($filePath)]
+            );
 
-                $this->logger->logProcessingStep(
-                    $processingId,
-                    'openai_api_call',
-                    'started',
-                    ['attempt' => $attempt, 'file' => basename($filePath)]
-                );
+            $response = OpenAI::audio()->transcribe([
+                'file' => fopen($filePath, 'r'),
+                'model' => 'gpt-4o-transcribe',
+                'response_format' => 'text',
+                'language' => 'en',
+                'prompt' => 'The following speech is a Christian sermon preached at Crockenhill Baptist Church, in the British conservative evangelical tradition.',
+            ]);
 
-                $response = OpenAI::audio()->transcribe([
-                    'file' => fopen($filePath, 'r'),
-                    'model' => 'gpt-4o-transcribe',
-                    'response_format' => 'text',
-                    'language' => 'en',
-                    'prompt' => 'The following speech is a Christian sermon preached at Crockenhill Baptist Church, in the British conservative evangelical tradition.',
-                ]);
+            $apiTime = microtime(true) - $apiStartTime;
 
-                $apiTime = microtime(true) - $apiStartTime;
+            $this->logger->logApiCall(
+                $processingId,
+                'OpenAI',
+                'audio/transcriptions',
+                $apiTime,
+                200,
+                null,
+                ['model' => 'gpt-4o-transcribe']
+            );
 
-                $this->logger->logApiCall(
-                    $processingId,
-                    'OpenAI',
-                    'audio/transcriptions',
-                    $apiTime,
-                    200,
-                    null,
-                    ['attempt' => $attempt, 'model' => 'gpt-4o-transcribe']
-                );
+            $transcript = $response->text ?? '';
 
-                $transcript = $response->text ?? '';
+            if (empty($transcript)) {
+                throw new TranscriptionException('Received empty transcript from OpenAI API');
+            }
 
-                if (empty($transcript)) {
-                    throw new Exception('Received empty transcript from OpenAI API');
-                }
+            if (! $this->validateTranscript($transcript)) {
+                throw new TranscriptionException('Transcript validation failed - content appears invalid');
+            }
 
-                // Validate transcript quality
-                if (! $this->validateTranscript($transcript)) {
-                    throw new Exception('Transcript validation failed - content appears invalid');
-                }
+            $this->logger->logProcessingStep(
+                $processingId,
+                'transcription_validation',
+                'completed',
+                [
+                    'transcript_length' => strlen($transcript),
+                    'word_count' => str_word_count($transcript),
+                ]
+            );
 
-                $this->logger->logProcessingStep(
-                    $processingId,
-                    'transcription_validation',
-                    'completed',
-                    [
-                        'transcript_length' => strlen($transcript),
-                        'word_count' => str_word_count($transcript),
-                        'attempt' => $attempt,
-                    ]
-                );
+            return $this->formatter->formatAsMarkdown($transcript);
+        } catch (ErrorException $e) {
+            $apiTime = microtime(true) - $apiStartTime;
 
-                return $this->formatter->formatAsMarkdown($transcript);
-            } catch (ErrorException $e) {
-                $lastException = $e;
-                $apiTime = microtime(true) - $apiStartTime;
+            $this->logger->logApiCall(
+                $processingId,
+                'OpenAI',
+                'audio/transcriptions',
+                $apiTime,
+                $e->getCode(),
+                $e->getMessage(),
+                []
+            );
 
-                $this->logger->logApiCall(
-                    $processingId,
-                    'OpenAI',
-                    'audio/transcriptions',
-                    $apiTime,
-                    $e->getCode(),
-                    $e->getMessage(),
-                    ['attempt' => $attempt]
-                );
+            $this->logger->logProcessingStep(
+                $processingId,
+                'audio_transcription',
+                'failed',
+                ['error' => $e->getMessage(), 'file' => basename($filePath)]
+            );
 
-                // Don't retry on certain errors
-                if ($this->isNonRetryableError($e)) {
-                    $isNonRetryable = true;
-                    break;
-                }
-            } catch (TransporterException $e) {
-                $lastException = $e;
-                $apiTime = microtime(true) - $apiStartTime;
-
-                $this->logger->logApiCall(
-                    $processingId,
-                    'OpenAI',
-                    'audio/transcriptions',
-                    $apiTime,
+            if ($this->isNonRetryableError($e)) {
+                throw new NonRetryableTranscriptionException(
+                    "Transcription failed (non-retryable): {$e->getMessage()}",
                     0,
-                    $e->getMessage(),
-                    ['attempt' => $attempt, 'error_type' => 'network']
-                );
-            } catch (Exception $e) {
-                $lastException = $e;
-
-                $this->logger->logError(
-                    $processingId,
-                    'transcription_attempt',
-                    $e,
-                    ['attempt' => $attempt, 'file' => basename($filePath)]
+                    $e
                 );
             }
 
-            // Wait before retry with exponential backoff
-            if ($attempt < $maxRetries) {
-                $delay = $retryDelayBase > 0 ? $retryDelayBase ** $attempt : 0;
-                $this->logger->logProcessingStep(
-                    $processingId,
-                    'retry_delay',
-                    'waiting',
-                    ['delay_seconds' => $delay, 'next_attempt' => $attempt + 1]
-                );
+            throw new TranscriptionException(
+                "Transcription failed (retryable API error): {$e->getMessage()}",
+                0,
+                $e
+            );
+        } catch (TransporterException $e) {
+            $apiTime = microtime(true) - $apiStartTime;
 
-                if ($delay > 0) {
-                    sleep($delay);
-                }
-            }
+            $this->logger->logApiCall(
+                $processingId,
+                'OpenAI',
+                'audio/transcriptions',
+                $apiTime,
+                0,
+                $e->getMessage(),
+                ['error_type' => 'network']
+            );
+
+            $this->logger->logProcessingStep(
+                $processingId,
+                'audio_transcription',
+                'failed',
+                ['error' => $e->getMessage(), 'file' => basename($filePath)]
+            );
+
+            throw new TranscriptionException(
+                "Transcription failed (network error): {$e->getMessage()}",
+                0,
+                $e
+            );
+        } catch (TranscriptionException $e) {
+            // Re-throw typed exceptions from validation checks above
+            $this->logger->logProcessingStep(
+                $processingId,
+                'audio_transcription',
+                'failed',
+                ['error' => $e->getMessage(), 'file' => basename($filePath)]
+            );
+
+            throw $e;
+        } catch (Exception $e) {
+            $this->logger->logError(
+                $processingId,
+                'transcription_attempt',
+                $e,
+                ['file' => basename($filePath)]
+            );
+
+            throw new TranscriptionException(
+                "Transcription failed: {$e->getMessage()}",
+                0,
+                $e
+            );
         }
-
-        // All attempts failed
-        $errorMessage = $lastException?->getMessage() ?? 'Audio transcription failed after all retry attempts.';
-
-        $this->logger->logProcessingStep(
-            $processingId,
-            'audio_transcription',
-            'failed',
-            [
-                'total_attempts' => $attempt,
-                'final_error' => $errorMessage,
-                'file' => basename($filePath),
-            ]
-        );
-
-        $exceptionClass = $isNonRetryable ? NonRetryableTranscriptionException::class : TranscriptionException::class;
-
-        throw new $exceptionClass("Transcription failed after {$attempt} attempts: {$errorMessage}", 0, $lastException);
     }
 
     /**
