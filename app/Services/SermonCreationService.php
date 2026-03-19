@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Data\SermonCreationOptions;
@@ -9,12 +11,16 @@ use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SermonCreationService
 {
-    public function __construct(private readonly PreacherResolutionService $preacherResolutionService) {}
+    public function __construct(
+        private readonly PreacherResolutionService $preacherResolutionService,
+        private readonly SermonRepository $sermonRepository,
+    ) {}
 
     /**
      * Create a sermon record with all necessary metadata
@@ -50,7 +56,7 @@ class SermonCreationService
         );
 
         // Generate unique slug
-        $slug = $this->generateUniqueSlug($title, $sermonDate);
+        $slug = $this->sermonRepository->generateUniqueSlug($title);
 
         [
             'preacher_name' => $preacherName,
@@ -279,24 +285,6 @@ class SermonCreationService
         ]);
 
         return SermonService::MORNING;
-    }
-
-    /**
-     * Generate a unique URL slug for the sermon
-     */
-    public function generateUniqueSlug(string $baseTitle, ?string $date = null): string
-    {
-        $baseSlug = Str::slug($baseTitle);
-        $slug = $baseSlug;
-        $counter = 1;
-
-        // Ensure slug is unique
-        while (Sermon::query()->where('slug', $slug)->exists()) {
-            $slug = $baseSlug.'-'.$counter;
-            $counter++;
-        }
-
-        return $slug;
     }
 
     /**

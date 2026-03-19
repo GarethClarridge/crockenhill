@@ -295,4 +295,44 @@ class SermonRepositoryTest extends TestCase
         $this->assertEquals(['A Series', 'Z Series'], $result);
         $this->assertTrue(Cache::has('sermon_series'));
     }
+
+    #[Test]
+    public function it_generates_base_slug(): void
+    {
+        $slug = $this->repository->generateUniqueSlug('Test Sermon Title');
+
+        $this->assertEquals('test-sermon-title', $slug);
+    }
+
+    #[Test]
+    public function it_appends_counter_for_duplicate_slugs(): void
+    {
+        Sermon::factory()->create(['slug' => 'test-sermon']);
+
+        $slug = $this->repository->generateUniqueSlug('Test Sermon');
+
+        $this->assertEquals('test-sermon-1', $slug);
+    }
+
+    #[Test]
+    public function it_generates_unique_slug_with_incrementing_counter(): void
+    {
+        Sermon::factory()->create(['slug' => 'test-sermon']);
+        Sermon::factory()->create(['slug' => 'test-sermon-1']);
+        Sermon::factory()->create(['slug' => 'test-sermon-2']);
+
+        $slug = $this->repository->generateUniqueSlug('Test Sermon');
+
+        $this->assertEquals('test-sermon-3', $slug);
+    }
+
+    #[Test]
+    public function it_excludes_current_sermon_from_slug_uniqueness(): void
+    {
+        $sermon = Sermon::factory()->create(['slug' => 'test-sermon']);
+
+        $slug = $this->repository->generateUniqueSlug('Test Sermon', $sermon->id);
+
+        $this->assertEquals('test-sermon', $slug);
+    }
 }
