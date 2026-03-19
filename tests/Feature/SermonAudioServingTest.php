@@ -42,7 +42,7 @@ class SermonAudioServingTest extends TestCase
 
         $response->assertStatus(200)
             ->assertHeader('Content-Type', 'audio/mpeg')
-            ->assertHeader('Content-Disposition', 'inline; filename="test.mp3"');
+            ->assertHeader('Content-Disposition', 'inline; filename=test.mp3');
     }
 
     #[Test]

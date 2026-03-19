@@ -148,7 +148,7 @@ class SermonThumbnailServingTest extends TestCase
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
         $response->assertStatus(200)
-            ->assertHeader('Content-Disposition', 'inline; filename="test-plain.webp"');
+            ->assertHeader('Content-Disposition', 'inline; filename=test-plain.webp');
     }
 
     public function test_card_thumbnail_returns_404_when_plain_variant_is_missing(): void

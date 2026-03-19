@@ -29,7 +29,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'audio/mpeg');
-        $response->assertHeader('Content-Disposition', 'inline; filename="test-audio.mp3"');
+        $response->assertHeader('Content-Disposition', 'inline; filename=test-audio.mp3');
     }
 
     #[Test]
@@ -64,7 +64,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'image/webp');
-        $response->assertHeader('Content-Disposition', 'inline; filename="test-thumb.webp"');
+        $response->assertHeader('Content-Disposition', 'inline; filename=test-thumb.webp');
     }
 
     #[Test]
@@ -188,5 +188,29 @@ class SermonAssetControllerTest extends TestCase
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
         $response->assertStatus(404);
+    }
+
+    #[Test]
+    public function it_throttles_media_download_requests(): void
+    {
+        Storage::fake('public');
+
+        $sermon = Sermon::factory()->create([
+            'slug' => 'throttled-sermon',
+            'audio_file_path' => 'sermons/throttled.mp3',
+        ]);
+
+        Storage::disk('public')->put('sermons/throttled.mp3', 'fake audio content');
+
+        // We set the limit to 60 per minute in the provider.
+        // Make 60 requests which should all pass.
+        for ($i = 0; $i < 60; $i++) {
+            $this->get("/christ/sermons/{$sermon->slug}/audio")
+                ->assertStatus(200);
+        }
+
+        // The 61st request should be throttled.
+        $this->get("/christ/sermons/{$sermon->slug}/audio")
+            ->assertStatus(429);
     }
 }

@@ -88,11 +88,18 @@ Route::group(['prefix' => 'christ/sermons'], function () {
         ->name('destroySermonWithDate');
 
     // Audio serving route
-    Route::get('/{sermon:slug}/audio', [SermonAssetController::class, 'serveAudio'])->name('serveSermonAudio');
+    Route::get('/{sermon:slug}/audio', [SermonAssetController::class, 'serveAudio'])
+        ->middleware('throttle:media-download')
+        ->name('serveSermonAudio');
 
     // Thumbnail serving route
-    Route::get('/{sermon:slug}/thumbnail', [SermonAssetController::class, 'serveThumbnail'])->name('serveSermonThumbnail');
-    Route::get('/{sermon:slug}/thumbnail/card', [SermonAssetController::class, 'serveCardThumbnail'])->name('serveSermonCardThumbnail');
+    Route::get('/{sermon:slug}/thumbnail', [SermonAssetController::class, 'serveThumbnail'])
+        ->middleware('throttle:media-download')
+        ->name('serveSermonThumbnail');
+
+    Route::get('/{sermon:slug}/thumbnail/card', [SermonAssetController::class, 'serveCardThumbnail'])
+        ->middleware('throttle:media-download')
+        ->name('serveSermonCardThumbnail');
 
     // Fallback slug-only routes
     Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');

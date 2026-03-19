@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class SermonAssetController extends Controller
 {
@@ -61,7 +62,7 @@ class SermonAssetController extends Controller
 
         return response()->file($path, [
             'Content-Type' => 'audio/mpeg',
-            'Content-Disposition' => 'inline; filename="'.$name.'"',
+            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
             'Cache-Control' => $cacheControl,
         ]);
     }
@@ -140,7 +141,7 @@ class SermonAssetController extends Controller
 
         return response()->file($path, [
             'Content-Type' => $contentType,
-            'Content-Disposition' => 'inline; filename="'.$name.'"',
+            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
             'Cache-Control' => $cacheControl,
             'ETag' => md5_file($path),
             'Last-Modified' => $lastModified,
