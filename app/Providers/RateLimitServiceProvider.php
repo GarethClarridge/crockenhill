@@ -66,9 +66,11 @@ class RateLimitServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('media-download', function (Request $request): array {
+            $key = $request->user()?->id ?: $request->ip();
+
             return [
-                Limit::perMinute(60)->by($request->ip()),
-                Limit::perHour(300)->by($request->ip()),
+                Limit::perMinute(60)->by($key),
+                Limit::perHour(300)->by($key),
             ];
         });
     }
