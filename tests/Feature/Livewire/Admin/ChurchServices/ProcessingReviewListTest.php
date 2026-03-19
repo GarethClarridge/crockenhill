@@ -36,11 +36,11 @@ class ProcessingReviewListTest extends TestCase
     {
         MediaProcessingLog::factory()->livestream()->manualReviewRequired()->create();
 
-        $queriedColumns = [];
+        $selectQueries = [];
 
-        DB::listen(function ($query) use (&$queriedColumns): void {
-            if (str_contains($query->sql, 'media_processing_logs')) {
-                $queriedColumns[] = $query->sql;
+        DB::listen(function ($query) use (&$selectQueries): void {
+            if (str_contains($query->sql, 'media_processing_logs') && str_starts_with(ltrim($query->sql), 'select')) {
+                $selectQueries[] = $query->sql;
             }
         });
 
@@ -48,9 +48,22 @@ class ProcessingReviewListTest extends TestCase
             ->test(ProcessingReviewList::class)
             ->assertStatus(200);
 
+        $this->assertNotEmpty($selectQueries, 'Expected at least one SELECT query against media_processing_logs.');
+
         $blobColumns = ['visual_samples', 'song_clusters', 'rms_stats', 'ai_analysis', 'rms_log_path'];
 
-        foreach ($queriedColumns as $sql) {
+        foreach ($selectQueries as $sql) {
+            $this->assertStringNotContainsString(
+                'select *',
+                strtolower($sql),
+                'ProcessingReviewList must use an explicit column list, not SELECT *.'
+            );
+            $this->assertStringNotContainsString(
+                '"media_processing_logs".*',
+                $sql,
+                'ProcessingReviewList must use an explicit column list, not SELECT *.'
+            );
+
             foreach ($blobColumns as $column) {
                 $this->assertStringNotContainsString(
                     "`{$column}`",

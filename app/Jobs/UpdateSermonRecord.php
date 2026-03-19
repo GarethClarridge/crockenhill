@@ -60,7 +60,7 @@ class UpdateSermonRecord implements ShouldQueue
             $processingLog->updateStep('updating_sermon_record');
 
             // Consume stored AI analysis — no re-analysis performed here
-            $analysis = $this->getOrGenerateAnalysis($sermon);
+            $analysis = $this->getOrGenerateAnalysis($sermon, $processingLog);
 
             // Generate final slug from AI-generated title
             $finalSlug = $this->generateUniqueSlug($analysis->title, $sermon->id);
@@ -89,19 +89,8 @@ class UpdateSermonRecord implements ShouldQueue
                 'points_count' => count($sermon->points ?? []),
             ]);
 
-            // Find the processing log for this sermon to dispatch notification
-            $processingLog = \App\Models\MediaProcessingLog::where('sermon_id', $this->sermonId)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            if ($processingLog) {
-                SendCompletionNotification::dispatch($processingLog)
-                    ->onQueue((string) config('media-processing.queues.default', 'default'));
-            } else {
-                Log::warning('No processing log found for sermon completion notification', [
-                    'sermon_id' => $this->sermonId,
-                ]);
-            }
+            SendCompletionNotification::dispatch($processingLog)
+                ->onQueue((string) config('media-processing.queues.default', 'default'));
         } catch (\Exception $e) {
             Log::error('Failed to update sermon record', [
                 'sermon_id' => $this->sermonId,
@@ -122,12 +111,9 @@ class UpdateSermonRecord implements ShouldQueue
      * Consume the stored ai_analysis from the processing log.
      * Falls back to a basic analysis when no stored result is available.
      */
-    private function getOrGenerateAnalysis(Sermon $sermon): SermonAnalysis
+    private function getOrGenerateAnalysis(Sermon $sermon, \App\Models\MediaProcessingLog $processingLog): SermonAnalysis
     {
-        /** @var \App\Models\MediaProcessingLog|null $processingLog */
-        $processingLog = $sermon->processingLogs()->latest()->first();
-
-        if ($processingLog instanceof \App\Models\MediaProcessingLog && is_array($processingLog->ai_analysis)) {
+        if (is_array($processingLog->ai_analysis)) {
             Log::info('Consuming stored AI analysis for sermon update', [
                 'sermon_id' => $sermon->id,
             ]);

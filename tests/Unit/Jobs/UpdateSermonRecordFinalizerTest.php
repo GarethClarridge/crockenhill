@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Jobs;
 
-use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Repositories\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -45,15 +43,10 @@ class UpdateSermonRecordFinalizerTest extends TestCase
             'ai_analysis' => $storedAnalysis->toArray(),
         ]);
 
-        $mockService = $this->createMock(SermonAnalysisInterface::class);
-        $mockService->expects($this->never())
-            ->method('analyzeSermon');
-
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
-        $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockService, new SermonRepository);
+        (new UpdateSermonRecord($sermon->id))->handle();
 
         $sermon->refresh();
         $this->assertSame('Stored AI Title', $sermon->title);
@@ -77,14 +70,10 @@ class UpdateSermonRecordFinalizerTest extends TestCase
             'ai_analysis' => null,
         ]);
 
-        $mockService = $this->createMock(SermonAnalysisInterface::class);
-        $mockService->expects($this->never())->method('analyzeSermon');
-
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
 
-        $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockService, new SermonRepository);
+        (new UpdateSermonRecord($sermon->id))->handle();
 
         $sermon->refresh();
         $this->assertNotEmpty($sermon->title);
