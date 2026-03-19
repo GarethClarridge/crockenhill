@@ -16,6 +16,7 @@ class HeaderComposer
         $view->with([
             'user' => Auth::user(),
             'pages' => Cache::rememberForever('nav_pages', fn () => Page::isNavigation()
+                ->public()
                 ->select(['id', 'slug', 'heading', 'area'])
                 ->get()),
         ]);

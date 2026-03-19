@@ -8,7 +8,7 @@ $fullTitle = $sermon->title . ' | ' . ($sermon->preacherProfile?->name ?? $sermo
 @section('title'){{ $fullTitle }}@stop
 
 @section('canonical')
-<link rel="canonical" href="{{ $sermon->public_url }}">
+<link rel="canonical" href="{{ $sermon->canonical_url }}">
 @endsection
 
 @section('meta_tags')
@@ -22,7 +22,7 @@ $fullTitle = $sermon->title . ' | ' . ($sermon->preacherProfile?->name ?? $sermo
   :image-alt="'Sermon: ' . $sermon->title"
   :audio="$sermon->audio_url"
   :video="$sermon->video_url"
-  :canonical="$sermon->public_url" />
+  :canonical="$sermon->canonical_url" />
 
 {{-- JSON-LD Structured Data --}}
 @php

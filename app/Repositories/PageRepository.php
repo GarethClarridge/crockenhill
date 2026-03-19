@@ -22,6 +22,7 @@ class PageRepository
 
         return Cache::flexible("page_links_{$areaValue}", [86400, 172800], function () use ($areaValue) {
             return Page::query()
+                ->public()
                 ->select(['id', 'slug', 'heading', 'area', 'description', 'admin'])
                 ->with('media')
                 ->where('area', $areaValue)

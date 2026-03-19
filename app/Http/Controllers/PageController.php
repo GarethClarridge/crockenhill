@@ -22,6 +22,11 @@ class PageController extends Controller
      */
     public function showPage(string $area): Response
     {
+        // Reject segments that do not correspond to a known public area.
+        if (PageArea::tryFrom($area) === null) {
+            abort(404);
+        }
+
         // Fetch the landing page for this area (where slug equals area)
         $page = Page::query()->where('slug', $area)->where('area', $area)->first();
         $user = Auth::user();

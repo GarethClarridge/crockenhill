@@ -62,16 +62,35 @@ class SermonController extends Controller
 
     /**
      * Display the specified resource.
+     *
+     * The slug-only route is a legacy convenience URL. Regular sermons redirect
+     * 301 to the canonical date-based URL so all inbound links, HTML canonical
+     * tags, sitemap entries, and feed enclosures agree on one URL shape.
+     * Children's talks redirect to their dedicated URL only when public.
      */
     public function show(
         Sermon $sermon,
         SermonPageContextService $pageContextService,
         SermonExposurePolicy $exposurePolicy
     ): View|RedirectResponse {
+        // Children's talks: redirect to childrens-corner when public, otherwise fall through to 404.
         if ($exposurePolicy->shouldRedirectGenericSermonRoute($sermon)) {
-            return redirect()->to($exposurePolicy->publicUrl($sermon), 301);
+            return redirect()->to($exposurePolicy->canonicalUrl($sermon), 301);
         }
 
+        // Regular sermons: always redirect slug-only route to canonical date-based URL.
+        if (! $exposurePolicy->isChildrensTalk($sermon)) {
+            return redirect()->to($exposurePolicy->canonicalUrl($sermon), 301);
+        }
+
+        return $this->renderSermon($sermon, $pageContextService);
+    }
+
+    /**
+     * Render sermon view from the canonical date-based route.
+     */
+    private function renderSermon(Sermon $sermon, SermonPageContextService $pageContextService): View
+    {
         abort_unless($sermon->content_type === SermonContentType::Sermon, 404);
 
         $heading = $sermon->title;
@@ -199,16 +218,15 @@ class SermonController extends Controller
         SermonPageContextService $pageContextService,
         SermonExposurePolicy $exposurePolicy
     ): View|RedirectResponse {
+        // Children's talks have a dedicated URL shape — redirect when they are public.
         if ($exposurePolicy->shouldRedirectGenericSermonRoute($sermon)) {
-            return redirect()->to($exposurePolicy->publicUrl($sermon), 301);
+            return redirect()->to($exposurePolicy->canonicalUrl($sermon), 301);
         }
-
-        abort_unless($sermon->content_type === SermonContentType::Sermon, 404);
 
         if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
             abort(404, 'Sermon not found for the specified date.');
         }
 
-        return $this->show($sermon, $pageContextService, $exposurePolicy);
+        return $this->renderSermon($sermon, $pageContextService);
     }
 }

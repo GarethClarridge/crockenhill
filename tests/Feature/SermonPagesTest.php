@@ -77,7 +77,7 @@ class SermonPagesTest extends TestCase
     {
         $sermon = Sermon::first();
         $url = "/christ/sermons/{$sermon->slug}";
-        $response = $this->get($url);
+        $response = $this->followingRedirects()->get($url);
         $response->assertStatus(200);
         $response->assertSee($sermon->title);
         $response->assertSee($sermon->service->label());
@@ -96,7 +96,7 @@ class SermonPagesTest extends TestCase
             'transcript_file_path' => $transcriptPath,
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('Safe transcript content.');
@@ -116,7 +116,7 @@ class SermonPagesTest extends TestCase
             'transcript_file_path' => $transcriptPath,
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('Click me');
@@ -136,7 +136,7 @@ class SermonPagesTest extends TestCase
             'transcript_file_path' => 'transcripts/missing-transcript.md',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertDontSee('Automated transcript (may contain errors)');
@@ -195,7 +195,7 @@ class SermonPagesTest extends TestCase
             'preacher_id' => $preacher->id,
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('href="/christ/sermons/preachers/test-preacher"', false);
@@ -294,7 +294,7 @@ class SermonPagesTest extends TestCase
             ],
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('Passage');
@@ -311,7 +311,7 @@ class SermonPagesTest extends TestCase
             'slug' => 'sermon-without-reading',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertDontSee('>Reading<', false);

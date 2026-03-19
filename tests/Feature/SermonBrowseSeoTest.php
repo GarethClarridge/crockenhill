@@ -62,15 +62,17 @@ class SermonBrowseSeoTest extends TestCase
             'date' => '2024-03-20',
         ]);
 
-        $response = $this->get('/christ/sermons/the-glory-of-christ');
+        // Use the canonical date-based URL directly
+        $canonicalUrl = url('/christ/sermons/2024/03/the-glory-of-christ');
+        $response = $this->get($canonicalUrl);
 
         $response->assertStatus(200);
 
         // Improved title format
         $response->assertSee('<title>The Glory of Christ | John Owen | Crockenhill Baptist Church</title>', false);
 
-        // Explicit canonical link
-        $response->assertSee('<link rel="canonical" href="'.route('showSermon', 'the-glory-of-christ').'">', false);
+        // Canonical link points to the date-based URL
+        $response->assertSee('<link rel="canonical" href="'.$canonicalUrl.'">', false);
 
         // Meta tags title updated
         $response->assertSee('<meta property="og:title" content="The Glory of Christ | John Owen | Crockenhill Baptist Church">', false);

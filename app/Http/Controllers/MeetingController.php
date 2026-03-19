@@ -37,6 +37,11 @@ class MeetingController extends Controller
      */
     public function show(Meeting $meeting): ViewContract
     {
+        // If the meeting is backed by an admin-only page, reject public access.
+        if ($meeting->page !== null && $meeting->page->admin === 'yes') {
+            abort(403, 'Unauthorized action.');
+        }
+
         // Eager load page, media (for photos), and calendar events to avoid N+1 queries
         $meeting->load([
             'page',

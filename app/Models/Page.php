@@ -43,6 +43,7 @@ use Spatie\Sitemap\Tags\Url;
  * @method static Builder|Page query()
  * @method static Builder|Page inArea(string $area)
  * @method static Builder|Page isNavigation(bool $isNavigation = true)
+ * @method static Builder|Page public()
  *
  * @mixin \Eloquent
  */
@@ -118,6 +119,17 @@ class Page extends Model implements HasMedia, Sitemapable
     public function scopeIsNavigation(Builder $query, bool $isNavigation = true): Builder
     {
         return $query->where('navigation', $isNavigation);
+    }
+
+    /**
+     * Scope to only publicly accessible pages (excludes admin-only pages).
+     *
+     * @param  Builder<Page>  $query
+     * @return Builder<Page>
+     */
+    public function scopePublic(Builder $query): Builder
+    {
+        return $query->where('admin', 'no');
     }
 
     /**

@@ -20,6 +20,11 @@ class SermonExposurePolicy
         return $this->childrensTalksArePublic() || $user !== null;
     }
 
+    public function isChildrensTalk(Sermon $sermon): bool
+    {
+        return $sermon->content_type === SermonContentType::ChildrensTalk;
+    }
+
     public function shouldRedirectGenericSermonRoute(Sermon $sermon): bool
     {
         return $sermon->content_type === SermonContentType::ChildrensTalk
