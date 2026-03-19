@@ -10,6 +10,7 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\PreacherItemListPresenter;
+use App\Presenters\SeriesItemListPresenter;
 use App\Presenters\SermonItemListPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
@@ -137,12 +138,13 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getSerieses(): View
+    public function getSerieses(SeriesItemListPresenter $itemListPresenter): View
     {
         $series = collect($this->sermonRepository->getSeriesForDisplay());
 
         return view('sermons.serieses', [
             'series' => $series,
+            'json_ld_data' => $itemListPresenter->toItemList($series),
             'heading' => 'Sermon Series',
             'description' => 'Browse sermon series from Crockenhill Baptist Church.',
             'area' => 'christ',
