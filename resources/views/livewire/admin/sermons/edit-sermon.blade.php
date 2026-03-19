@@ -75,6 +75,14 @@
                     <x-input label="Series" wire:model="series"
                         placeholder="e.g., Gospel of John" />
                 </div>
+
+                <x-slot:footer>
+                    <div class="flex justify-end gap-2">
+                        <x-form-button variant="primary" wire:click="save" icon="check">
+                            Save Details
+                        </x-form-button>
+                    </div>
+                </x-slot:footer>
             </x-card>
 
             @if($isChildrensTalk)
@@ -99,11 +107,19 @@
                                         aria-label="Remove point" />
                                 </div>
                             @endforeach
+                        </div>
+                    </div>
+
+                    <x-slot:footer>
+                        <div class="flex justify-between items-center">
                             <x-form-button variant="ghost" size="sm" icon="plus" wire:click="addPoint" aria-label="Add sermon point">
                                 Add Point
                             </x-form-button>
+                            <x-form-button variant="primary" wire:click="save" icon="check">
+                                Save All
+                            </x-form-button>
                         </div>
-                    </div>
+                    </x-slot:footer>
                 </x-card>
             @endif
         </div>

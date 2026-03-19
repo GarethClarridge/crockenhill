@@ -9,8 +9,13 @@
                 {{ $heading }}
             </h3>
         @endisset
-        <div class="prose">
+        <div class="prose max-w-none">
             {{ $slot }}
         </div>
     </div>
+    @isset($footer)
+        <div class="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+            {{ $footer }}
+        </div>
+    @endisset
 </div>
