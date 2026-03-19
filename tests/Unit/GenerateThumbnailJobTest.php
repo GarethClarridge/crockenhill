@@ -50,7 +50,7 @@ class GenerateThumbnailJobTest extends TestCase
     #[Test]
     public function it_has_correct_job_configuration(): void
     {
-        $job = new GenerateThumbnail(MediaProcessingLog::factory()->video()->create());
+        $job = new GenerateThumbnail(MediaProcessingLog::factory()->video()->processing()->create());
 
         $this->assertSame(1, $job->tries);
         $this->assertSame(300, $job->timeout);
@@ -119,19 +119,19 @@ class GenerateThumbnailJobTest extends TestCase
     #[Test]
     public function it_handles_missing_sermon_gracefully(): void
     {
-        $log = new MediaProcessingLog([
-            'processing_type' => MediaType::Video,
-            'sermon_id' => 999,
-            'video_file_path' => 'sermons/999/video.mp4',
+        // A log with no sermon_id and no video_file_path results in an early return
+        // before any thumbnail generation is attempted.
+        $log = MediaProcessingLog::factory()->video()->processing()->create([
+            'sermon_id' => null,
+            'video_file_path' => null,
         ]);
 
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->never())->method('generateThumbnail');
 
-        Log::shouldReceive('info')->once();
-        Log::shouldReceive('warning')->once()->with(
-            'Sermon not found for thumbnail generation',
-            ['sermon_id' => 999]
+        Log::shouldReceive('error')->once()->with(
+            'Missing sermon ID or video path for thumbnail generation',
+            \Mockery::any()
         );
 
         $job = new GenerateThumbnail($log);
@@ -196,7 +196,7 @@ class GenerateThumbnailJobTest extends TestCase
             'video_file_path' => null,
         ]);
 
-        $log = MediaProcessingLog::factory()->livestream()->create([
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
             'sermon_id' => $sermon->id,
             'video_file_path' => null,
             'processing_metadata' => [
@@ -236,7 +236,7 @@ class GenerateThumbnailJobTest extends TestCase
     #[Test]
     public function it_has_correct_retry_until_time(): void
     {
-        $job = new GenerateThumbnail(MediaProcessingLog::factory()->video()->create());
+        $job = new GenerateThumbnail(MediaProcessingLog::factory()->video()->processing()->create());
 
         $retryUntil = $job->retryUntil();
 
@@ -269,12 +269,28 @@ class GenerateThumbnailJobTest extends TestCase
         $job->failed(new \Exception('Test failure'));
     }
 
+    #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->cancelled()->create([
+            'video_file_path' => 'sermons/1/video.mp4',
+        ]);
+
+        $mockService = $this->createMock(ThumbnailGenerationService::class);
+        $mockService->expects($this->never())->method('generateThumbnail');
+
+        Log::shouldReceive('info')->once()->with('GenerateThumbnail job skipped: processing cancelled', \Mockery::any());
+
+        $job = new GenerateThumbnail($log);
+        $job->handle($mockService);
+    }
+
     private function createProcessingLog(
         Sermon $sermon,
         string $videoPath,
         MediaType $type = MediaType::Video
     ): MediaProcessingLog {
-        return MediaProcessingLog::factory()->create([
+        return MediaProcessingLog::factory()->processing()->create([
             'processing_type' => $type,
             'sermon_id' => $sermon->id,
             'video_file_path' => $videoPath,

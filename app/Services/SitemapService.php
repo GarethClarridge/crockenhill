@@ -68,13 +68,13 @@ class SitemapService
             ->add($sermons)
             ->add(
                 Page::query()
+                    ->public()
                     ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
                     /**
                      * Performance Optimization: Only eager load 'media' (needed for images),
                      * and remove 'meeting' as it is not utilized in sitemap generation.
                      */
                     ->with(['media'])
-                    ->where('admin', 'no')
                     ->lazy()
             )
             ->add(
@@ -83,7 +83,8 @@ class SitemapService
                      * Performance Optimization: Only select columns required for sitemap generation
                      * to reduce memory usage.
                      */
-                    ->select(['id', 'slug', 'updated_at'])
+                    ->select(['id', 'slug', 'updated_at', 'page_id'])
+                    ->publiclyAccessible()
                     ->lazy()
             )
             ->add(

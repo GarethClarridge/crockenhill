@@ -187,6 +187,20 @@ class MediaProcessingLogTest extends TestCase
     }
 
     #[Test]
+    public function it_returns_false_and_preserves_cancelled_status_when_attempting_to_mark_cancelled_run_as_completed(): void
+    {
+        $log = MediaProcessingLog::factory()->cancelled()->create();
+
+        $result = $log->markAsCompleted();
+
+        $this->assertFalse($result);
+        $log->refresh();
+        $this->assertEquals(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertEquals('cancelled', $log->current_step);
+        $this->assertNull($log->completed_at);
+    }
+
+    #[Test]
     public function it_stores_structured_metadata_when_marked_for_manual_review(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create(['status' => ProcessingStatus::PROCESSING]);
@@ -331,5 +345,42 @@ class MediaProcessingLogTest extends TestCase
 
         $this->assertEquals('test-path', $log->source_file_path);
         $this->assertEquals('test-path', $log->stored_file_path);
+    }
+
+    #[Test]
+    public function mark_as_failed_does_not_overwrite_a_cancelled_run(): void
+    {
+        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::CANCELLED]);
+
+        $result = $log->markAsFailed('Should be ignored');
+
+        $this->assertFalse($result);
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertNotEquals('Should be ignored', $log->error_message);
+    }
+
+    #[Test]
+    public function mark_as_completed_does_not_overwrite_a_cancelled_run(): void
+    {
+        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::CANCELLED]);
+
+        $result = $log->markAsCompleted('completed');
+
+        $this->assertFalse($result);
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::CANCELLED, $log->status);
+    }
+
+    #[Test]
+    public function mark_as_processing_does_not_overwrite_a_cancelled_run(): void
+    {
+        $log = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::CANCELLED]);
+
+        $result = $log->markAsProcessing('some_step');
+
+        $this->assertFalse($result);
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::CANCELLED, $log->status);
     }
 }

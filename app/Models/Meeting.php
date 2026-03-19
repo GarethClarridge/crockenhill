@@ -55,6 +55,7 @@ use Spatie\Sitemap\Tags\Url;
  * @method static Builder|Meeting isRecurring()
  * @method static Builder|Meeting upcoming()
  * @method static Builder|Meeting onDate(Carbon $date)
+ * @method static Builder|Meeting publiclyAccessible()
  *
  * @mixin \Eloquent
  */
@@ -187,6 +188,19 @@ class Meeting extends Model implements HasMedia, Sitemapable
         }
 
         return null;
+    }
+
+    /**
+     * Scope to meetings that are not backed by an admin-only page.
+     *
+     * Meetings without a linked page are considered publicly accessible.
+     *
+     * @param  Builder<Meeting>  $query
+     * @return Builder<Meeting>
+     */
+    public function scopePubliclyAccessible(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('page', fn (Builder $q) => $q->where('admin', 'yes'));
     }
 
     /**

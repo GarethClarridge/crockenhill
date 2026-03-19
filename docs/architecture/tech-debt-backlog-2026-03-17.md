@@ -265,7 +265,7 @@ The backlog is ordered for safety:
   - `api-webhook-boundary-review-2026-03-18.md`
 
 ### TD-002B - Restore external integration recovery semantics for transient failures
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: Very high
 - Risk: Low-Medium
@@ -293,7 +293,7 @@ The backlog is ordered for safety:
   - `artisan-command-architecture-review-2026-03-18.md`
 
 ### TD-002C - Harden upload ingestion and private media delivery
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: Very high
 - Risk: Medium
@@ -320,7 +320,7 @@ The backlog is ordered for safety:
   - `api-webhook-boundary-review-2026-03-18.md`
 
 ### TD-003 - Preserve degraded completion evidence and terminal-state correctness
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low-Medium
@@ -348,7 +348,7 @@ The backlog is ordered for safety:
   - `media-processing-architecture-review-2026-03-17.md`
 
 ### TD-003A - Replace raw string status writes with guarded helpers
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low
@@ -374,7 +374,7 @@ The backlog is ordered for safety:
   - `media-processing-architecture-review-2026-03-17.md`
 
 ### TD-003B - Add shared failure handling to resume and reclassification dispatch
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low
@@ -398,7 +398,7 @@ The backlog is ordered for safety:
   - `media-processing-architecture-review-2026-03-17.md`
 
 ### TD-004 - Fix live timeline reader drift and step-vocabulary gaps
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low
@@ -426,7 +426,7 @@ The backlog is ordered for safety:
   - `json-metadata-inventory-2026-03-17.md`
 
 ### TD-004A - Fix public read-side correctness, visibility, and canonical invariants
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Low-Medium
@@ -456,7 +456,7 @@ The backlog is ordered for safety:
   - `public-read-side-architecture-review-2026-03-18.md`
 
 ### TD-004B - Remove duplicate AI work and the easiest read-path waste
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Low-Medium
@@ -788,7 +788,7 @@ The backlog is ordered for safety:
 ## Medium Refactors
 
 ### TD-005 - Add minimal queue and church-service observability hardening
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: Medium-High
 - Risk: Low-Medium
@@ -820,7 +820,7 @@ The backlog is ordered for safety:
   - `bootstrap-registration-side-effect-map-2026-03-18.md`
 
 ### TD-005A - Widen cancellation coverage across remaining jobs
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Low-Medium

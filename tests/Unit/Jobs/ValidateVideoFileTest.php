@@ -187,4 +187,44 @@ class ValidateVideoFileTest extends TestCase
         $this->assertEquals('failed', $log->status->value);
         $this->assertEquals('Video validation job failed: Something went wrong', $log->error_message);
     }
+
+    #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->cancelled()->create([
+            'stored_file_path' => 'videos/some-video.mp4',
+        ]);
+
+        $mockValidation = $this->createMock(MediaValidationService::class);
+        $mockValidation->expects($this->never())->method('validateLocalFile');
+
+        Log::shouldReceive('info')->once()->with('ValidateVideoFile job skipped: processing cancelled', \Mockery::any());
+
+        $job = new ValidateVideoFile($log);
+        $job->handle($mockValidation);
+    }
+
+    #[Test]
+    public function mark_as_failed_does_not_overwrite_a_cancelled_run(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->cancelled()->create();
+
+        $result = $log->markAsFailed('Video validation failed: something went wrong');
+
+        $this->assertFalse($result);
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'markAsFailed must not overwrite a cancelled run');
+    }
+
+    #[Test]
+    public function cancelled_run_is_not_overwritten_to_failed_by_failed_method(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->cancelled()->create();
+
+        $job = new ValidateVideoFile($log);
+        $job->failed(new \Exception('Queue exhausted retries'));
+
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed by failed()');
+    }
 }

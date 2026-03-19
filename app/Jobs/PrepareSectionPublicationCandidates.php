@@ -70,6 +70,16 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         $this->processingLog = $processingLog;
         $this->initializeStepLogging($this->processingLog->processing_id);
 
+        if ($this->isCancelled()) {
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'Processing cancelled');
+
+            Log::info('PrepareSectionPublicationCandidates job skipped: processing cancelled', [
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+
+            return;
+        }
+
         if ($this->processingLog->processing_type !== MediaType::Livestream) {
             $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'Section publication preparation only runs for livestream processing');
 

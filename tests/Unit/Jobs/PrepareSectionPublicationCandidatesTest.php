@@ -19,6 +19,7 @@ use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Support\ChurchServiceProcessingTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -42,7 +43,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.speaker_identification.enabled' => true,
         ]);
 
-        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
             'source_file_path' => 'livestreams/source.mp4',
         ]);
 
@@ -124,7 +125,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.section_publishing.extract_types' => ['childrens_talk'],
         ]);
 
-        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'section_type' => ServiceSectionType::SONG->value,
@@ -156,7 +157,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.section_publishing.require_high_confidence' => true,
         ]);
 
-        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
@@ -195,7 +196,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.speaker_identification.enabled' => true,
         ]);
 
-        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
             'source_file_path' => 'livestreams/source.mp4',
         ]);
 
@@ -257,5 +258,24 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertTrue($section->needs_manual_review);
         $this->assertSame('ambiguous', $section->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
         $this->assertArrayNotHasKey('reviewed', $section->metadata['childrens_talk_speaker'] ?? []);
+    }
+
+    #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        config([
+            'media-processing.section_publishing.enabled' => true,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+
+        Log::shouldReceive('info')->once()->with('PrepareSectionPublicationCandidates job skipped: processing cancelled', \Mockery::any());
+
+        $job = new PrepareSectionPublicationCandidates($log);
+        $job->handle($mockExtractor, app(StorageAdapterHelper::class), app(ChildrensTalkSpeakerService::class));
     }
 }

@@ -8,6 +8,7 @@ use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\ThumbnailGenerationService;
+use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
 
 class GenerateThumbnail implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
      * The number of times the job may be attempted.
@@ -68,6 +69,10 @@ class GenerateThumbnail implements ShouldQueue
      */
     public function handle(ThumbnailGenerationService $thumbnailService): void
     {
+        if ($this->abortIfCancelled('GenerateThumbnail')) {
+            return;
+        }
+
         try {
             $this->resolveFromProcessingLog();
 

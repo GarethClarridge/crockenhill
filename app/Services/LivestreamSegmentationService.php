@@ -2,18 +2,15 @@
 
 namespace App\Services;
 
-use App\Contracts\ProvidesSafeMessage;
 use App\Data\LivestreamProcessingResult;
 use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
-use App\Mail\LivestreamProcessingFailed;
 use App\Models\MediaProcessingLog;
 use Exception;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 
 class LivestreamSegmentationService
@@ -25,7 +22,7 @@ class LivestreamSegmentationService
         private readonly ProcessingInitiator $processingInitiator
     ) {}
 
-    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null): ProcessingResult
+    public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null): ProcessingResult
     {
         try {
             Log::info('Starting livestream processing', [
@@ -62,6 +59,7 @@ class LivestreamSegmentationService
                     'source_file_path' => $tempPath,
                     'file_size' => $uploadResult['file_size'],
                     'duration' => $metadata['duration'],
+                    'file_hash' => $fileHash,
                     'processing_metadata' => [
                         'upload_time' => now()->toISOString(),
                         'format_details' => $metadata,
@@ -218,71 +216,15 @@ class LivestreamSegmentationService
         Bus::batch($parallelJobs)
             ->then(function (Batch $batch) use ($chainJobs, $processingId, $queueName): void {
                 Bus::chain($chainJobs)
-                    ->catch(fn (\Throwable $e) => $this->handleProcessingFailure($processingId, $e))
+                    ->catch(fn (\Throwable $e) => app(LivestreamFailureHandler::class)->handle($processingId, $e))
                     ->onQueue($queueName)
                     ->dispatch();
             })
             ->catch(function (Batch $batch, \Throwable $e) use ($processingId): void {
-                $this->handleProcessingFailure($processingId, $e);
+                app(LivestreamFailureHandler::class)->handle($processingId, $e);
             })
             ->onQueue($queueName)
             ->dispatch();
-    }
-
-    private function handleProcessingFailure(string $processingId, \Throwable $e): void
-    {
-        Log::error('Livestream processing failure', [
-            'processing_id' => $processingId,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ]);
-
-        $processingLog = MediaProcessingLog::where('processing_id', $processingId)->first();
-
-        if ($processingLog) {
-            $message = $e instanceof ProvidesSafeMessage
-                ? $e->getSafeMessage()
-                : 'An internal error occurred during livestream processing.';
-
-            $processingLog->update([
-                'status' => 'failed',
-                'error_message' => $message,
-                'completed_at' => now(),
-            ]);
-
-            // Clean up temporary files - collect paths from processing log
-            $tempFiles = [];
-            if ($processingLog->source_file_path) {
-                $tempFiles[] = $processingLog->source_file_path;
-            }
-
-            $metadata = $processingLog->processing_metadata ?? [];
-            if (isset($metadata['extracted_segment_path'])) {
-                $tempFiles[] = $metadata['extracted_segment_path'];
-            }
-            if (isset($metadata['extracted_audio_path'])) {
-                $tempFiles[] = $metadata['extracted_audio_path'];
-            }
-            if (isset($metadata['temp_video_path'])) {
-                $tempFiles[] = $metadata['temp_video_path'];
-            }
-
-            if (! empty($tempFiles)) {
-                $this->storageService->cleanupTemporaryFiles($tempFiles);
-            }
-        }
-
-        // Send email notification to administrators
-        try {
-            Mail::to(config('media-processing.email.admin_email'))
-                ->queue(new LivestreamProcessingFailed($processingId, $e));
-        } catch (Exception $emailException) {
-            Log::warning('Failed to queue livestream processing failure email, continuing', [
-                'processing_id' => $processingId,
-                'original_error' => $e->getMessage(),
-                'email_error' => $emailException->getMessage(),
-            ]);
-        }
     }
 
     private function buildProcessingResult(MediaProcessingLog $processingLog): LivestreamProcessingResult

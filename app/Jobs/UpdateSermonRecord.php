@@ -1,8 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
-use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
@@ -38,7 +39,7 @@ class UpdateSermonRecord implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(SermonAnalysisInterface $analysisService, SermonRepository $sermonRepository): void
+    public function handle(): void
     {
         try {
             Log::info('Starting sermon record update', [
@@ -61,11 +62,12 @@ class UpdateSermonRecord implements ShouldQueue
             // Update processing log to indicate final update started
             $processingLog->updateStep('updating_sermon_record');
 
-            // Get the analysis results - either from previous job or regenerate
-            $analysis = $this->getOrGenerateAnalysis($sermon, $analysisService, $sermonRepository);
+            // Consume stored AI analysis — no re-analysis performed here
+            $analysis = $this->getOrGenerateAnalysis($sermon, $processingLog);
 
             // Generate final slug from AI-generated title
-            $finalSlug = $this->generateUniqueSlug($analysis->title, $sermon->id);
+            $sermonRepository = app(SermonRepository::class);
+            $finalSlug = $sermonRepository->generateUniqueSlug($analysis->title, $sermon->id);
 
             // Update sermon record with all processed data
             $updateData = [
@@ -91,19 +93,8 @@ class UpdateSermonRecord implements ShouldQueue
                 'points_count' => count($sermon->points ?? []),
             ]);
 
-            // Find the processing log for this sermon to dispatch notification
-            $processingLog = \App\Models\MediaProcessingLog::where('sermon_id', $this->sermonId)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            if ($processingLog) {
-                SendCompletionNotification::dispatch($processingLog)
-                    ->onQueue((string) config('media-processing.queues.default', 'default'));
-            } else {
-                Log::warning('No processing log found for sermon completion notification', [
-                    'sermon_id' => $this->sermonId,
-                ]);
-            }
+            SendCompletionNotification::dispatch($processingLog)
+                ->onQueue((string) config('media-processing.queues.default', 'default'));
         } catch (\Exception $e) {
             Log::error('Failed to update sermon record', [
                 'sermon_id' => $this->sermonId,
@@ -121,40 +112,24 @@ class UpdateSermonRecord implements ShouldQueue
     }
 
     /**
-     * Get existing analysis or generate new one if needed
+     * Consume the stored ai_analysis from the processing log.
+     * Falls back to a basic analysis when no stored result is available.
      */
-    private function getOrGenerateAnalysis(Sermon $sermon, SermonAnalysisInterface $analysisService, SermonRepository $sermonRepository): SermonAnalysis
+    private function getOrGenerateAnalysis(Sermon $sermon, \App\Models\MediaProcessingLog $processingLog): SermonAnalysis
     {
-        try {
-            // Check if we have a transcript to work with
-            $transcript = $sermon->transcript;
-
-            if (empty($transcript)) {
-                Log::warning('No transcript available for analysis', [
-                    'sermon_id' => $sermon->id,
-                ]);
-
-                return $this->createBasicAnalysis($sermon);
-            }
-
-            // Try to get fresh analysis (this will use cached results if available)
-            Log::info('Generating final analysis for sermon update', [
+        if (is_array($processingLog->ai_analysis)) {
+            Log::info('Consuming stored AI analysis for sermon update', [
                 'sermon_id' => $sermon->id,
-                'transcript_length' => strlen($transcript),
             ]);
 
-            $existingSeries = $sermonRepository->getExistingSeries();
-            $analysis = $analysisService->analyzeSermon($transcript, $existingSeries);
-
-            return $analysis;
-        } catch (\Exception $e) {
-            Log::warning('Failed to generate analysis, using basic fallback', [
-                'sermon_id' => $sermon->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return $this->createBasicAnalysis($sermon);
+            return SermonAnalysis::fromAiAnalysis($processingLog->ai_analysis);
         }
+
+        Log::warning('No stored AI analysis found, using basic fallback', [
+            'sermon_id' => $sermon->id,
+        ]);
+
+        return $this->createBasicAnalysis($sermon);
     }
 
     /**
@@ -209,24 +184,6 @@ class UpdateSermonRecord implements ShouldQueue
     }
 
     /**
-     * Generate a unique slug for the sermon, excluding the current sermon
-     */
-    private function generateUniqueSlug(string $title, int $excludeSermonId): string
-    {
-        $baseSlug = Str::slug($title);
-        $slug = $baseSlug;
-        $counter = 1;
-
-        // Ensure slug is unique (excluding current sermon)
-        while (Sermon::where('slug', $slug)->where('id', '!=', $excludeSermonId)->exists()) {
-            $slug = $baseSlug.'-'.$counter;
-            $counter++;
-        }
-
-        return $slug;
-    }
-
-    /**
      * Handle a job failure.
      */
     public function failed(\Throwable $exception): void
@@ -243,7 +200,8 @@ class UpdateSermonRecord implements ShouldQueue
             if ($sermon) {
                 // Create minimal update to get sermon out of processing state
                 $basicTitle = $this->generateBasicTitle($sermon);
-                $basicSlug = $this->generateUniqueSlug($basicTitle, $sermon->id);
+                $sermonRepository = app(SermonRepository::class);
+                $basicSlug = $sermonRepository->generateUniqueSlug($basicTitle, $sermon->id);
 
                 $sermon->update([
                     'title' => $basicTitle,

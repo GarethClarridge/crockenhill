@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Models\MediaProcessingLog;
 use App\Services\AudioExtractionService;
 use App\Services\StorageAdapterHelper;
+use App\Traits\ChecksCancellation;
 use App\Traits\DetectsStorageType;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -24,7 +25,7 @@ use Illuminate\Support\Facades\Log;
  */
 class ValidateAudioFile implements ShouldQueue
 {
-    use DetectsStorageType, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, DetectsStorageType, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -32,6 +33,10 @@ class ValidateAudioFile implements ShouldQueue
 
     public function handle(AudioExtractionService $audioExtractor, StorageAdapterHelper $storageHelper): void
     {
+        if ($this->abortIfCancelled('ValidateAudioFile')) {
+            return;
+        }
+
         Log::info('Validating audio file', [
             'processing_id' => $this->processingLog->processing_id,
         ]);
@@ -100,10 +105,7 @@ class ValidateAudioFile implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            $this->processingLog->update([
-                'status' => 'failed',
-                'error_message' => 'Audio validation failed: '.$e->getMessage(),
-            ]);
+            $this->processingLog->markAsFailed('Audio validation failed: '.$e->getMessage());
 
             throw $e;
         } finally {
@@ -115,9 +117,6 @@ class ValidateAudioFile implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        $this->processingLog->update([
-            'status' => 'failed',
-            'error_message' => 'Audio validation job failed: '.$exception->getMessage(),
-        ]);
+        $this->processingLog->markAsFailed('Audio validation job failed: '.$exception->getMessage());
     }
 }

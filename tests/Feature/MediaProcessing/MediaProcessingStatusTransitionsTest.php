@@ -261,23 +261,24 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     /**
      * @return array<string, array{0: MediaType, 1: ProcessingStatus, 2: string, 3: int}>
      */
-    public static function fallbackCurrentStepProvider(): array
+    public static function previouslyUnmappedStepProvider(): array
     {
         return [
-            'audio initiated from livestream' => [MediaType::Audio, ProcessingStatus::PENDING, 'initiated_from_livestream', 50],
-            'audio initiated from livestream with source id' => [MediaType::Audio, ProcessingStatus::PENDING, 'initiated_from_livestream:livestream-123', 50],
-            'livestream restarting from beginning' => [MediaType::Livestream, ProcessingStatus::PENDING, 'restarting_from_beginning', 50],
-            'audio sending notification' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'sending_notification', 50],
-            'audio notification sent' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'notification_sent', 50],
-            'audio notification skipped' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'notification_skipped', 50],
-            'audio notification failed' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'notification_failed', 50],
-            'audio notification failed permanently' => [MediaType::Audio, ProcessingStatus::PROCESSING, 'notification_failed_permanently', 50],
+            'audio initiated from livestream' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'initiated_from_livestream',          10],
+            'audio initiated from livestream with source id' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'initiated_from_livestream:ls-123',   10],
+            'livestream restarting from beginning' => [MediaType::Livestream, ProcessingStatus::PROCESSING, 'restarting_from_beginning',          10],
+            'audio updating sermon record' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'updating_sermon_record',             87],
+            'audio sending notification' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'sending_notification',               92],
+            'audio notification sent' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_sent',                  93],
+            'audio notification skipped' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_skipped',               93],
+            'audio notification failed' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_failed',                93],
+            'audio notification failed permanently' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_failed_permanently',    93],
         ];
     }
 
     #[Test]
-    #[DataProvider('fallbackCurrentStepProvider')]
-    public function real_current_steps_that_fall_back_to_default_progress_are_still_reported_consistently(
+    #[DataProvider('previouslyUnmappedStepProvider')]
+    public function previously_unmapped_steps_now_return_correct_progress_percentages(
         MediaType $mediaType,
         ProcessingStatus $status,
         string $step,

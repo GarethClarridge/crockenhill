@@ -25,6 +25,17 @@ class CleanupTemporaryFiles implements ShouldQueue
 
     public function handle(VideoStorageService $storageService): void
     {
+        $processingLog = $this->processingLog->fresh();
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return;
+        }
+
+        $this->processingLog = $processingLog;
+
+        // Snapshot cancellation state before cleanup runs — cleanup proceeds either way,
+        // but markAsCompleted() must not revive a cancelled run.
+        $isCancelled = $this->processingLog->isCancelled();
+
         try {
             Log::info('Starting temporary file cleanup', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -76,16 +87,20 @@ class CleanupTemporaryFiles implements ShouldQueue
 
             $storageService->cleanupTemporaryFiles($tempFiles);
 
-            // Preserve a non-fatal notification failure signal while still
-            // marking the run as completed after cleanup.
-            $this->processingLog->markAsCompleted(
-                step: $this->completionStep(),
-                errorMessage: $this->completionErrorMessage()
-            );
-
             Log::info('Temporary file cleanup completed', [
                 'processing_id' => $this->processingLog->processing_id,
             ]);
+
+            // Do not mark as completed when the run was cancelled — the CANCELLED
+            // status must be preserved so nothing can revive it after cleanup.
+            if (! $isCancelled) {
+                // Preserve a non-fatal notification failure signal while still
+                // marking the run as completed after cleanup.
+                $this->processingLog->markAsCompleted(
+                    step: $this->completionStep(),
+                    errorMessage: $this->completionErrorMessage()
+                );
+            }
 
         } catch (\Exception $e) {
             Log::warning('Failed to cleanup some temporary files', [
@@ -93,11 +108,13 @@ class CleanupTemporaryFiles implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            // Still mark as complete even if cleanup had issues.
-            $this->processingLog->markAsCompleted(
-                step: $this->completionStep(),
-                errorMessage: $this->completionErrorMessage()
-            );
+            // Still mark as complete even if cleanup had issues, but not for cancelled runs.
+            if (! $isCancelled) {
+                $this->processingLog->markAsCompleted(
+                    step: $this->completionStep(),
+                    errorMessage: $this->completionErrorMessage()
+                );
+            }
         }
     }
 

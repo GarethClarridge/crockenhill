@@ -284,21 +284,22 @@ class ThumbnailErrorHandlingTest extends TestCase
     }
 
     #[Test]
-    public function thumbnail_generation_handles_database_connection_errors(): void
+    public function thumbnail_generation_skips_gracefully_when_log_has_no_sermon_or_video(): void
     {
-        $log = new MediaProcessingLog([
-            'processing_type' => \App\Enums\MediaType::Video,
-            'sermon_id' => 999,
-            'video_file_path' => 'sermons/missing-sermon/video.mp4',
+        // A log with no sermon_id and no video_file_path causes an early return
+        // before thumbnail generation is attempted — simulates a recoverable
+        // data gap (e.g., sermon not yet created or lookup failed).
+        $log = MediaProcessingLog::factory()->video()->processing()->create([
+            'sermon_id' => null,
+            'video_file_path' => null,
         ]);
 
         $mockService = $this->createMock(ThumbnailGenerationService::class);
         $mockService->expects($this->never())->method('generateThumbnail');
 
-        Log::shouldReceive('info')->once();
-        Log::shouldReceive('warning')->once()->with(
-            'Sermon not found for thumbnail generation',
-            ['sermon_id' => 999]
+        Log::shouldReceive('error')->once()->with(
+            'Missing sermon ID or video path for thumbnail generation',
+            \Mockery::any()
         );
 
         $job = new GenerateThumbnail($log);
@@ -307,7 +308,7 @@ class ThumbnailErrorHandlingTest extends TestCase
 
     private function createVideoProcessingLog(Sermon $sermon): MediaProcessingLog
     {
-        return MediaProcessingLog::factory()->video()->create([
+        return MediaProcessingLog::factory()->video()->processing()->create([
             'sermon_id' => $sermon->getKey(),
             'video_file_path' => $sermon->video_file_path,
         ]);

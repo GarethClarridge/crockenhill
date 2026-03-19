@@ -8,6 +8,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\SermonCreationService;
 use App\Services\SermonMetadataIntegrationService;
+use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
 
 class SubmitToProcessing implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
@@ -31,6 +32,10 @@ class SubmitToProcessing implements ShouldQueue
         SermonMetadataIntegrationService $metadataIntegrationService,
         SermonCreationService $sermonCreationService
     ): void {
+        if ($this->abortIfCancelled('SubmitToProcessing')) {
+            return;
+        }
+
         try {
             // Update status to show sermon processing is starting
             $this->processingLog->markAsProcessing('sermon_creation');
@@ -209,13 +214,7 @@ class SubmitToProcessing implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $errorMessage = 'Sermon creation from livestream failed: '.$e->getMessage();
-
-            $this->processingLog->update([
-                'status' => 'failed',
-                'error_message' => $errorMessage,
-                'completed_at' => now(),
-            ]);
+            $this->processingLog->markAsFailed('Sermon creation from livestream failed: '.$e->getMessage());
 
             // Cleanup will be handled by the chain failure handler
 

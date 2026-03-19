@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaValidationService;
+use App\Traits\ChecksCancellation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class ValidateVideoFile implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -31,6 +32,10 @@ class ValidateVideoFile implements ShouldQueue
 
     public function handle(MediaValidationService $mediaValidation): void
     {
+        if ($this->abortIfCancelled('ValidateVideoFile')) {
+            return;
+        }
+
         Log::info('Validating video file', [
             'processing_id' => $this->processingLog->processing_id,
         ]);
@@ -74,10 +79,7 @@ class ValidateVideoFile implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            $this->processingLog->update([
-                'status' => 'failed',
-                'error_message' => 'Video validation failed: '.$e->getMessage(),
-            ]);
+            $this->processingLog->markAsFailed('Video validation failed: '.$e->getMessage());
 
             throw $e;
         }
@@ -85,9 +87,6 @@ class ValidateVideoFile implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        $this->processingLog->update([
-            'status' => 'failed',
-            'error_message' => 'Video validation job failed: '.$exception->getMessage(),
-        ]);
+        $this->processingLog->markAsFailed('Video validation job failed: '.$exception->getMessage());
     }
 }

@@ -186,4 +186,47 @@ class SubmitToProcessingTest extends TestCase
         $log->refresh();
         $this->assertEquals('failed', $log->status->value);
     }
+
+    #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
+
+        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
+        $mockMetadataService->expects($this->never())->method('storeVideoForSermon');
+
+        $mockCreationService = $this->createMock(SermonCreationService::class);
+        $mockCreationService->expects($this->never())->method('createSermon');
+
+        Log::shouldReceive('info')->once()->with('SubmitToProcessing job skipped: processing cancelled', \Mockery::any());
+
+        $job = new SubmitToProcessing($log);
+        $job->handle($mockMetadataService, $mockCreationService);
+    }
+
+    #[Test]
+    public function mark_as_failed_does_not_overwrite_a_cancelled_run(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
+
+        $result = $log->markAsFailed('Sermon creation from livestream failed: something went wrong');
+
+        $this->assertFalse($result);
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'markAsFailed must not overwrite a cancelled run');
+    }
+
+    #[Test]
+    public function cancelled_run_is_not_overwritten_to_failed_by_failed_method(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
+
+        Log::shouldReceive('error')->atLeast()->once();
+
+        $job = new SubmitToProcessing($log);
+        $job->failed(new \Exception('Queue exhausted retries'));
+
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed by failed()');
+    }
 }

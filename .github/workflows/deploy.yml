@@ -445,6 +445,9 @@ jobs:
             set -e
             cd /srv/crockenhill
 
+            # Free disk space before pulling (remove unused images and build cache)
+            docker system prune -f
+
             # Pull new image
             docker compose -f docker-compose.prod.yml --env-file .env.production pull
 
@@ -473,11 +476,12 @@ jobs:
             fi
 
             # Backup database before migration (keeps last 5 backups)
-            BACKUP_FILE="backups/db-$(date +%Y%m%d-%H%M%S).sql"
+            BACKUP_FILE="backups/db-$(date +%Y%m%d-%H%M%S).sql.gz"
             mkdir -p backups
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T mysql \
-              mysqldump -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" > "$BACKUP_FILE"
-            ls -t backups/*.sql | tail -n +6 | xargs -r rm
+              mysqldump --no-tablespaces -u"${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" \
+              | gzip > "$BACKUP_FILE"
+            ls -t backups/*.sql.gz | tail -n +6 | xargs -r rm
 
             # Preview migrations (fail early if there's an issue)
             docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \
@@ -495,9 +499,6 @@ jobs:
             # while live PHP-FPM workers are serving traffic.
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
               php artisan optimize --except=views
-
-            # Cleanup old images
-            docker image prune -f
 
             # Health check
             sleep 15

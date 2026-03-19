@@ -155,6 +155,33 @@ class SermonRepository
     }
 
     /**
+     * Generate a unique URL slug for the sermon, optionally excluding a specific sermon ID.
+     */
+    public function generateUniqueSlug(string $title, ?int $excludeSermonId = null): string
+    {
+        $baseSlug = Str::slug($title);
+        $slug = $baseSlug;
+        $counter = 1;
+
+        // Ensure slug is unique
+        $query = Sermon::where('slug', $slug);
+        if ($excludeSermonId !== null) {
+            $query->where('id', '!=', $excludeSermonId);
+        }
+
+        while ($query->clone()->exists()) {
+            $slug = $baseSlug.'-'.$counter;
+            $counter++;
+            $query = Sermon::where('slug', $slug);
+            if ($excludeSermonId !== null) {
+                $query->where('id', '!=', $excludeSermonId);
+            }
+        }
+
+        return $slug;
+    }
+
+    /**
      * Get the cache key for a specific preacher's sermon listing.
      */
     private function preacherCacheKey(Preacher $preacher): string

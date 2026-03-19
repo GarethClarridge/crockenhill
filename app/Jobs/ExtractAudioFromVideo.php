@@ -8,6 +8,7 @@ use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoExtractionService;
+use App\Traits\ChecksCancellation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -25,7 +26,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class ExtractAudioFromVideo implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -33,6 +34,10 @@ class ExtractAudioFromVideo implements ShouldQueue
 
     public function handle(VideoExtractionService $videoExtractor): void
     {
+        if ($this->abortIfCancelled('ExtractAudioFromVideo')) {
+            return;
+        }
+
         Log::info('Extracting audio from video', [
             'processing_id' => $this->processingLog->processing_id,
         ]);
@@ -123,10 +128,7 @@ class ExtractAudioFromVideo implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            $this->processingLog->update([
-                'status' => 'failed',
-                'error_message' => 'Audio extraction failed: '.$e->getMessage(),
-            ]);
+            $this->processingLog->markAsFailed('Audio extraction failed: '.$e->getMessage());
 
             throw $e;
         }
@@ -156,9 +158,6 @@ class ExtractAudioFromVideo implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        $this->processingLog->update([
-            'status' => 'failed',
-            'error_message' => 'Audio extraction job failed: '.$exception->getMessage(),
-        ]);
+        $this->processingLog->markAsFailed('Audio extraction job failed: '.$exception->getMessage());
     }
 }

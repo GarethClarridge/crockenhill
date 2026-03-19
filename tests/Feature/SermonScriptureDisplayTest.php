@@ -26,7 +26,7 @@ class SermonScriptureDisplayTest extends TestCase
             'scripture_passage_id' => $passage->id,
         ]);
 
-        $response = $this->get(route('showSermon', $sermon->slug));
+        $response = $this->followingRedirects()->get(route('showSermon', $sermon->slug));
 
         $response->assertStatus(200);
         $response->assertSee('For God so loved the world', false);
@@ -41,7 +41,7 @@ class SermonScriptureDisplayTest extends TestCase
             'scripture_passage_id' => null,
         ]);
 
-        $response = $this->get(route('showSermon', $sermon->slug));
+        $response = $this->followingRedirects()->get(route('showSermon', $sermon->slug));
 
         $response->assertStatus(200);
         $response->assertSee('Romans 8:28', false);
@@ -59,7 +59,7 @@ class SermonScriptureDisplayTest extends TestCase
             'scripture_passage_id' => $passage->id,
         ]);
 
-        $response = $this->get(route('showSermon', $sermon->slug));
+        $response = $this->followingRedirects()->get(route('showSermon', $sermon->slug));
 
         $response->assertStatus(200);
         $response->assertSee('data-fums-token="unique-token-xyz"', false);

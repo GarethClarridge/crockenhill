@@ -226,4 +226,45 @@ class ValidateAudioFileTest extends TestCase
         $this->assertEquals('failed', $log->status->value);
         $this->assertEquals('Audio validation job failed: Something went wrong', $log->error_message);
     }
+
+    #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->cancelled()->create([
+            'stored_file_path' => 'sermons/some-audio.mp3',
+            'original_filename' => 'sermon.mp3',
+        ]);
+
+        $mockExtractor = $this->createMock(AudioExtractionService::class);
+        $mockExtractor->expects($this->never())->method('validateAudioFile');
+
+        Log::shouldReceive('info')->once()->with('ValidateAudioFile job skipped: processing cancelled', \Mockery::any());
+
+        $job = new ValidateAudioFile($log);
+        $job->handle($mockExtractor, app(StorageAdapterHelper::class));
+    }
+
+    #[Test]
+    public function mark_as_failed_does_not_overwrite_a_cancelled_run(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->cancelled()->create();
+
+        $result = $log->markAsFailed('Audio validation failed: something went wrong');
+
+        $this->assertFalse($result);
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'markAsFailed must not overwrite a cancelled run');
+    }
+
+    #[Test]
+    public function cancelled_run_is_not_overwritten_to_failed_by_failed_method(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->cancelled()->create();
+
+        $job = new ValidateAudioFile($log);
+        $job->failed(new \Exception('Queue exhausted retries'));
+
+        $log->refresh();
+        $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed by failed()');
+    }
 }

@@ -84,7 +84,7 @@ class SermonThumbnailUXTest extends TestCase
         // Mock the file existence
         Storage::disk('public')->put('thumbnails/page.jpg', 'fake content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
         $response->assertStatus(200);
         $response->assertSee('/christ/sermons/sermon-page-thumbnail/thumbnail');
     }

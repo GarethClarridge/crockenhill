@@ -8,6 +8,7 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoSegmentationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -357,5 +358,20 @@ class AnalyzeSegmentsVisualTest extends TestCase
 
         $content = implode("\n", $lines);
         Storage::disk('local')->put($path, $content);
+    }
+
+    #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
+
+        $mockService = $this->createMock(VideoSegmentationService::class);
+        $mockService->expects($this->never())->method('analyzeSegments');
+        $mockService->expects($this->never())->method('calibratePerSongThreshold');
+
+        Log::shouldReceive('info')->once()->with('AnalyzeSegments job skipped: processing cancelled', \Mockery::any());
+
+        $job = new AnalyzeSegments($log);
+        $job->handle($mockService);
     }
 }

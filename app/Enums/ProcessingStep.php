@@ -117,6 +117,8 @@ enum ProcessingStep: string
         return match ($this) {
             self::AudioProcessingInitiated,
             self::VideoProcessingInitiated,
+            self::InitiatedFromLivestream,
+            self::RestartingFromBeginning,
             self::VisualAnalysis => 10,
 
             self::Validating,
@@ -161,7 +163,16 @@ enum ProcessingStep: string
             self::AiAnalysisCompleted,
             self::AiAnalysisFallback => 85,
 
+            self::UpdatingSermonRecord => 87,
+
             self::GeneratingThumbnail => 90,
+
+            self::SendingNotification => 92,
+
+            self::NotificationSent,
+            self::NotificationSkipped,
+            self::NotificationFailed,
+            self::NotificationFailedPermanently => 93,
 
             self::Cleanup => 95,
 

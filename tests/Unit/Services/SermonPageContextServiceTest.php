@@ -11,6 +11,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\SermonPageContextService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -99,6 +100,53 @@ class SermonPageContextServiceTest extends TestCase
         $this->assertSame(
             'https://www.biblegateway.com/passage/?search=Psalm%20121&version=NIVUK',
             $context['reading_url']
+        );
+    }
+
+    #[Test]
+    public function it_does_not_load_non_reading_sections_when_resolving_reading_reference(): void
+    {
+        $sermon = Sermon::factory()->create(['livestream_processing_id' => null]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->withSermon($sermon)->create();
+
+        $readingItem = ChurchServiceItem::factory()->create(['title' => 'Acts 2:1-12']);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $readingItem->id,
+            'section_type' => ServiceSectionType::BIBLE_READING->value,
+            'section_order' => 1,
+            'title' => null,
+        ]);
+
+        // Create several non-reading sections that should not be fetched
+        ServiceSection::factory()->count(5)->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::SERMON->value,
+        ]);
+
+        $sectionQueries = [];
+
+        DB::listen(function ($query) use (&$sectionQueries): void {
+            if (str_contains($query->sql, 'service_sections')) {
+                $sectionQueries[] = $query->sql;
+            }
+        });
+
+        $context = app(SermonPageContextService::class)->build($sermon);
+
+        $this->assertSame('Acts 2:1-12', $context['reading_reference']);
+
+        // The service must filter by section_type at the database level —
+        // at least one query targeting service_sections must include the section_type constraint.
+        $typeConstrained = collect($sectionQueries)->contains(
+            fn (string $sql): bool => str_contains($sql, 'section_type')
+        );
+
+        $this->assertTrue(
+            $typeConstrained,
+            'Expected at least one service_sections query to filter by section_type at the DB level, but none did.'
         );
     }
 }

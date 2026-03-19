@@ -49,10 +49,17 @@ class UnifiedMediaProcessor
             );
         }
 
+        $fileHash = $this->computeFileHash($file);
+        $duplicate = $this->findActiveDuplicate($fileHash);
+
+        if ($duplicate !== null) {
+            return $duplicate;
+        }
+
         return match ($mediaType) {
-            MediaType::Audio => $this->processAudio($file, $clientFileDate),
-            MediaType::Video => $this->processDirectVideo($file, $clientFileDate),
-            MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate),
+            MediaType::Audio => $this->processAudio($file, $clientFileDate, $fileHash),
+            MediaType::Video => $this->processDirectVideo($file, $clientFileDate, $fileHash),
+            MediaType::Livestream => $this->livestreamService()->startProcessing($file, $clientFileDate, $fileHash),
         };
     }
 
@@ -214,7 +221,7 @@ class UnifiedMediaProcessor
      * Process an audio file through the complete automation pipeline.
      * Uses ProcessingPipelineBuilder for consistent job chain pattern (same as video processing).
      */
-    private function processAudio(UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
+    private function processAudio(UploadedFile $file, ?string $clientFileDate, ?string $fileHash): ProcessingResult
     {
         try {
             Log::info('Starting audio processing', [
@@ -223,31 +230,6 @@ class UnifiedMediaProcessor
                 'mime_type' => $file->getMimeType(),
                 'client_file_date' => $clientFileDate,
             ]);
-
-            $fileHash = ($realPath = $file->getRealPath()) !== false
-                ? hash_file('sha256', $realPath)
-                : null;
-
-            if ($fileHash !== null) {
-                $existingLog = MediaProcessingLog::query()
-                    ->where('file_hash', $fileHash)
-                    ->whereIn('status', [ProcessingStatus::PENDING->value, ProcessingStatus::PROCESSING->value])
-                    ->latest()
-                    ->first();
-
-                if ($existingLog !== null) {
-                    Log::info('Duplicate audio upload detected, reusing existing processing run', [
-                        'file_hash' => $fileHash,
-                        'existing_processing_id' => $existingLog->processing_id,
-                    ]);
-
-                    return ProcessingResult::success(
-                        processingId: $existingLog->processing_id,
-                        message: 'Duplicate upload detected. Returning existing processing run.',
-                        statusUrl: route('api.media.processing.status', ['processingId' => $existingLog->processing_id])
-                    );
-                }
-            }
 
             $processingId = (string) Str::uuid();
 
@@ -359,38 +341,63 @@ class UnifiedMediaProcessor
         return (string) config('media-processing.queues.audio', 'audio-processing');
     }
 
+    private function computeFileHash(UploadedFile $file): ?string
+    {
+        $realPath = $file->getRealPath();
+
+        if ($realPath === false) {
+            return null;
+        }
+
+        $hash = hash_file('sha256', $realPath);
+
+        return $hash !== false ? $hash : null;
+    }
+
+    /**
+     * Look up an in-progress log with a matching hash.
+     *
+     * Note: there is a narrow TOCTOU window between this check and the subsequent
+     * log creation. Two concurrent uploads of identical files could both pass and
+     * each create their own log. The consequence is a duplicate processing run —
+     * not data corruption — and the window is narrow enough to be an accepted risk.
+     */
+    private function findActiveDuplicate(?string $fileHash): ?ProcessingResult
+    {
+        if ($fileHash === null) {
+            return null;
+        }
+
+        $existingLog = MediaProcessingLog::query()
+            ->where('file_hash', $fileHash)
+            ->whereIn('status', [ProcessingStatus::PENDING->value, ProcessingStatus::PROCESSING->value])
+            ->latest()
+            ->first();
+
+        if ($existingLog === null) {
+            return null;
+        }
+
+        Log::info('Duplicate upload detected, reusing existing processing run', [
+            'file_hash' => $fileHash,
+            'existing_processing_id' => $existingLog->processing_id,
+            'processing_type' => $existingLog->processing_type->value,
+        ]);
+
+        return ProcessingResult::success(
+            processingId: $existingLog->processing_id,
+            message: 'Duplicate upload detected. Returning existing processing run.',
+            statusUrl: route('api.media.processing.status', ['processingId' => $existingLog->processing_id])
+        );
+    }
+
     /**
      * Process video by extracting audio and joining existing sermon processing.
      * Uses ProcessingInitiator for shared metadata extraction and log creation.
      */
-    private function processDirectVideo(UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
+    private function processDirectVideo(UploadedFile $file, ?string $clientFileDate, ?string $fileHash): ProcessingResult
     {
         try {
-            $fileHash = ($realPath = $file->getRealPath()) !== false
-                ? hash_file('sha256', $realPath)
-                : null;
-
-            if ($fileHash !== null) {
-                $existingLog = MediaProcessingLog::query()
-                    ->where('file_hash', $fileHash)
-                    ->whereIn('status', [ProcessingStatus::PENDING->value, ProcessingStatus::PROCESSING->value])
-                    ->latest()
-                    ->first();
-
-                if ($existingLog !== null) {
-                    Log::info('Duplicate video upload detected, reusing existing processing run', [
-                        'file_hash' => $fileHash,
-                        'existing_processing_id' => $existingLog->processing_id,
-                    ]);
-
-                    return ProcessingResult::success(
-                        processingId: $existingLog->processing_id,
-                        message: 'Duplicate upload detected. Returning existing processing run.',
-                        statusUrl: route('api.media.processing.status', ['processingId' => $existingLog->processing_id])
-                    );
-                }
-            }
-
             // Store video file temporarily before processing (preserves file timestamps for metadata extraction)
             $tempPath = $file->store('temp/video-processing');
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Jobs;
 
+use App\Enums\ProcessingStatus;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoStorageService;
@@ -187,6 +188,29 @@ class CleanupTemporaryFilesTest extends TestCase
             'Notification failed: SMTP transport unavailable',
             $log->error_message
         );
+    }
+
+    #[Test]
+    public function it_runs_cleanup_but_does_not_overwrite_cancelled_status(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->cancelled()->create([
+            'source_file_path' => 'temp/source-audio.mp3',
+        ]);
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->once())
+            ->method('cleanupTemporaryFiles')
+            ->with($this->callback(fn (array $files) => in_array('temp/source-audio.mp3', $files, true)));
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        $job = new CleanupTemporaryFiles($log);
+        $job->handle($mockStorage);
+
+        $log->refresh();
+        $this->assertEquals(ProcessingStatus::CANCELLED, $log->status);
+        $this->assertEquals('cancelled', $log->current_step);
+        $this->assertNull($log->completed_at);
     }
 
     #[Test]

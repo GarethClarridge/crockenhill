@@ -7,6 +7,7 @@ use App\Enums\LivestreamSegmentClassification;
 use App\Models\LivestreamSegment as LivestreamSegmentModel;
 use App\Models\MediaProcessingLog;
 use App\Services\VideoSegmentationService;
+use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 
 class AnalyzeSegments implements ShouldQueue
 {
-    use InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksCancellation, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
@@ -27,6 +28,10 @@ class AnalyzeSegments implements ShouldQueue
 
     public function handle(VideoSegmentationService $segmentationService): void
     {
+        if ($this->abortIfCancelled('AnalyzeSegments')) {
+            return;
+        }
+
         try {
             // Update status to show segmentation is starting
             $this->processingLog->markAsProcessing('segmentation');

@@ -11,6 +11,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
+use App\Services\LivestreamFailureHandler;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\ProcessingPipelineBuilder;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -91,7 +92,10 @@ class ShowChurchService extends Component
             return;
         }
 
+        $processingId = $processingLog->processing_id;
+
         Bus::chain($this->pipelineBuilder()->buildSectionReclassificationChainJobs($processingLog))
+            ->catch(fn (\Throwable $e) => app(LivestreamFailureHandler::class)->handle($processingId, $e))
             ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'))
             ->dispatch();
 
