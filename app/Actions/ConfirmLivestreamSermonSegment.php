@@ -8,6 +8,7 @@ use App\Enums\MediaType;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\LivestreamFailureHandler;
 use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -70,6 +71,7 @@ class ConfirmLivestreamSermonSegment
         });
 
         Bus::chain($jobs)
+            ->catch(fn (\Throwable $e) => app(LivestreamFailureHandler::class)->handle($processingId, $e))
             ->onQueue($queueName)
             ->dispatch();
     }

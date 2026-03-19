@@ -320,7 +320,7 @@ The backlog is ordered for safety:
   - `api-webhook-boundary-review-2026-03-18.md`
 
 ### TD-003 - Preserve degraded completion evidence and terminal-state correctness
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low-Medium
@@ -374,7 +374,7 @@ The backlog is ordered for safety:
   - `media-processing-architecture-review-2026-03-17.md`
 
 ### TD-003B - Add shared failure handling to resume and reclassification dispatch
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low

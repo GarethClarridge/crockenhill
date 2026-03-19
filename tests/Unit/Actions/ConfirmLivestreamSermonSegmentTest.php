@@ -5,14 +5,17 @@ namespace Tests\Unit\Actions;
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractSermon;
+use App\Mail\LivestreamProcessingFailed;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\AlwaysFailingJob;
 use Tests\TestCase;
 
 class ConfirmLivestreamSermonSegmentTest extends TestCase
@@ -197,6 +200,37 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $this->expectExceptionMessage('not currently awaiting manual sermon review');
 
         $this->action->execute($log->processing_id, $segment->id, $this->admin);
+    }
+
+    // -------------------------------------------------------------------------
+    // Failure parity
+    // -------------------------------------------------------------------------
+
+    #[Test]
+    public function it_marks_the_run_as_failed_and_sends_notification_when_post_review_chain_fails(): void
+    {
+        Mail::fake();
+        config(['queue.default' => 'sync']);
+        Storage::disk('local')->put('livestreams/2026/service.mp4', 'fake-video');
+
+        $log = $this->makeLivestreamLogAwaitingReview('livestreams/2026/service.mp4');
+        $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
+
+        $builder = $this->mock(ProcessingPipelineBuilder::class);
+        $builder->shouldReceive('buildLivestreamPostReviewChainJobs')->andReturn([new AlwaysFailingJob]);
+        $action = new ConfirmLivestreamSermonSegment($builder);
+
+        try {
+            $action->execute($log->processing_id, $segment->id, $this->admin);
+        } catch (\RuntimeException) {
+            // Sync queue re-throws after firing the catch callback — expected.
+        }
+
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::FAILED, $log->status);
+        $this->assertNotNull($log->error_message);
+        $this->assertNotNull($log->completed_at);
+        Mail::assertQueued(LivestreamProcessingFailed::class, fn ($mail) => $mail->processingId === $log->processing_id);
     }
 
     #[Test]

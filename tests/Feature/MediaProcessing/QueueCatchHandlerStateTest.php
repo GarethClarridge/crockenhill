@@ -256,6 +256,9 @@ class QueueCatchHandlerStateTest extends TestCase
             ->method('initiateProcessing')
             ->willReturn($processingLog);
 
+        // Bind the storage mock so app(LivestreamFailureHandler::class) uses it for cleanup.
+        $this->app->instance(VideoStorageService::class, $storageService);
+
         return new LivestreamSegmentationService(
             $storageService,
             $segmentationService,
