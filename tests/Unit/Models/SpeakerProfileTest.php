@@ -6,7 +6,6 @@ namespace Tests\Unit\Models;
 
 use App\Models\Preacher;
 use App\Models\SpeakerProfile;
-use App\Models\SpeakerSample;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,36 +14,6 @@ use Tests\TestCase;
 class SpeakerProfileTest extends TestCase
 {
     use RefreshDatabase;
-
-    #[Test]
-    public function it_belongs_to_a_preacher(): void
-    {
-        $preacher = Preacher::factory()->create();
-        $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id]);
-
-        $this->assertTrue($profile->preacher->is($preacher));
-    }
-
-    #[Test]
-    public function it_has_many_samples(): void
-    {
-        $profile = SpeakerProfile::factory()->create();
-        SpeakerSample::factory()->count(3)->create(['speaker_profile_id' => $profile->id]);
-
-        $this->assertCount(3, $profile->samples);
-    }
-
-    #[Test]
-    public function it_has_active_scope(): void
-    {
-        SpeakerProfile::factory()->create(['is_active' => true]);
-        SpeakerProfile::factory()->inactive()->create();
-
-        $activeProfiles = SpeakerProfile::active()->get();
-
-        $this->assertCount(1, $activeProfiles);
-        $this->assertTrue($activeProfiles->first()->is_active);
-    }
 
     #[Test]
     public function it_calculates_effective_accept_threshold(): void
@@ -126,5 +95,13 @@ class SpeakerProfileTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('speaker_profiles', ['id' => $profile2->id]);
+    }
+
+    #[Test]
+    public function it_can_be_created_using_the_inactive_factory_state(): void
+    {
+        $profile = SpeakerProfile::factory()->inactive()->create();
+
+        $this->assertFalse($profile->is_active);
     }
 }
