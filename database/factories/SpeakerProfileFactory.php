@@ -20,7 +20,7 @@ class SpeakerProfileFactory extends Factory
         return [
             'preacher_id' => Preacher::factory(),
             'provider' => 'resemblyzer',
-            'model_version' => 'v1.0',
+            'model_version' => $this->faker->unique()->numerify('v#.##'),
             'centroid_embedding' => $this->generateEmbedding(),
             'sample_count' => $this->faker->numberBetween(1, 10),
             'quality_score' => $this->faker->optional()->randomFloat(4, 0.5, 1.0),
