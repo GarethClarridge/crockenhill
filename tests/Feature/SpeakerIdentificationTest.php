@@ -49,7 +49,14 @@ class SpeakerIdentificationTest extends TestCase
     public function test_preacher_has_many_speaker_profiles(): void
     {
         $preacher = Preacher::factory()->create();
-        SpeakerProfile::factory()->count(2)->create(['preacher_id' => $preacher->id]);
+        SpeakerProfile::factory()->create([
+            'preacher_id' => $preacher->id,
+            'provider' => 'provider1',
+        ]);
+        SpeakerProfile::factory()->create([
+            'preacher_id' => $preacher->id,
+            'provider' => 'provider2',
+        ]);
 
         $this->assertCount(2, $preacher->speakerProfiles);
     }
