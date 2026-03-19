@@ -7,6 +7,8 @@ namespace App\Console\Commands;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class CleanupUnpublishedSectionAssetsCommand extends Command
@@ -57,6 +59,7 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
         $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
         $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
         $cleanedCount = 0;
+        $failedCount = 0;
 
         foreach ($sections as $section) {
             $videoPath = $section->extracted_video_path;
@@ -68,15 +71,34 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
                 continue;
             }
 
-            $this->deletePathOnKnownDisks($videoPath, [$sermonDisk, $tempDisk]);
-            $this->deletePathOnKnownDisks($audioPath, [$sermonDisk, $tempDisk]);
+            $previousStatus = $section->publication_status->value;
 
-            $section->update([
-                'extracted_video_path' => null,
-                'extracted_audio_path' => null,
-                'extracted_at' => null,
-                'unpublished_expires_at' => null,
-            ]);
+            if (! $section->transitionTo(ServiceSectionPublicationStatus::NOT_APPLICABLE)) {
+                $this->error('Failed to transition section #'.$section->id.' from '.$previousStatus.' to not_applicable — skipping.');
+                $failedCount++;
+
+                continue;
+            }
+
+            $metadata = is_array($section->metadata) ? $section->metadata : [];
+            $metadata['cleanup'] = [
+                'reason' => 'asset_expiry',
+                'previous_status' => $previousStatus,
+                'cleaned_at' => now()->toIso8601String(),
+                'cleaned_by' => 'scheduler',
+            ];
+
+            $section->extracted_video_path = null;
+            $section->extracted_audio_path = null;
+            $section->extracted_at = null;
+            $section->unpublished_expires_at = null;
+            $section->metadata = $metadata;
+
+            DB::transaction(function () use ($section, $videoPath, $audioPath, $sermonDisk, $tempDisk): void {
+                $section->save();
+                $this->deletePathOnKnownDisks($videoPath, [$sermonDisk, $tempDisk]);
+                $this->deletePathOnKnownDisks($audioPath, [$sermonDisk, $tempDisk]);
+            });
 
             $cleanedCount++;
         }
@@ -89,7 +111,16 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
 
         $this->info('Cleanup complete: '.$cleanedCount.' sections cleaned.');
 
-        return self::SUCCESS;
+        if ($failedCount > 0) {
+            $this->warn("{$failedCount} section(s) could not be transitioned and were skipped.");
+        }
+
+        Log::info('Unpublished section asset cleanup complete', [
+            'sections_cleaned' => $cleanedCount,
+            'sections_failed' => $failedCount,
+        ]);
+
+        return $failedCount > 0 ? self::FAILURE : self::SUCCESS;
     }
 
     private function pathLabel(?string $path): string

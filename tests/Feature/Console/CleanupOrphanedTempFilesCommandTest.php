@@ -1,0 +1,137 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Console;
+
+use App\Models\MediaProcessingLog;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class CleanupOrphanedTempFilesCommandTest extends TestCase
+{
+    use RefreshDatabase;
+
+    #[Test]
+    public function it_does_not_delete_files_referenced_by_processing_logs(): void
+    {
+        Storage::fake('local');
+
+        $filePath = 'livestream/temp/recording.mp4';
+        Storage::disk('local')->put($filePath, 'video content');
+
+        touch(Storage::disk('local')->path($filePath), now()->subHours(48)->timestamp);
+
+        MediaProcessingLog::factory()->processing()->create([
+            'source_file_path' => $filePath,
+        ]);
+
+        $this->artisan('media:cleanup-temp-files', ['--hours' => 1])
+            ->assertSuccessful();
+
+        Storage::disk('local')->assertExists($filePath);
+    }
+
+    #[Test]
+    public function it_does_not_delete_files_referenced_by_manual_review_logs(): void
+    {
+        Storage::fake('local');
+
+        $filePath = 'temp/video-processing/livestream-2024.mp4';
+        Storage::disk('local')->put($filePath, 'video content');
+
+        touch(Storage::disk('local')->path($filePath), now()->subHours(48)->timestamp);
+
+        MediaProcessingLog::factory()->manualReviewRequired()->create([
+            'source_file_path' => $filePath,
+        ]);
+
+        $this->artisan('media:cleanup-temp-files', ['--hours' => 1])
+            ->assertSuccessful();
+
+        Storage::disk('local')->assertExists($filePath);
+    }
+
+    #[Test]
+    public function it_does_not_delete_files_referenced_by_started_logs(): void
+    {
+        Storage::fake('local');
+
+        $filePath = 'livestream/temp/starting-up.mp4';
+        Storage::disk('local')->put($filePath, 'video content');
+
+        touch(Storage::disk('local')->path($filePath), now()->subHours(48)->timestamp);
+
+        MediaProcessingLog::factory()->create([
+            'status' => \App\Enums\ProcessingStatus::STARTED,
+            'source_file_path' => $filePath,
+        ]);
+
+        $this->artisan('media:cleanup-temp-files', ['--hours' => 1])
+            ->assertSuccessful();
+
+        Storage::disk('local')->assertExists($filePath);
+    }
+
+    #[Test]
+    public function it_deletes_orphaned_files_with_no_matching_log(): void
+    {
+        Storage::fake('local');
+
+        $filePath = 'livestream/temp/orphaned-recording.mp4';
+        Storage::disk('local')->put($filePath, 'video content');
+
+        touch(Storage::disk('local')->path($filePath), now()->subHours(48)->timestamp);
+
+        $this->artisan('media:cleanup-temp-files', ['--hours' => 1])
+            ->assertSuccessful();
+
+        Storage::disk('local')->assertMissing($filePath);
+    }
+
+    #[Test]
+    public function it_does_not_delete_anything_in_dry_run_mode(): void
+    {
+        Storage::fake('local');
+
+        $orphanedFile = 'livestream/temp/orphaned.mp4';
+        $protectedFile = 'livestream/temp/protected.mp4';
+        Storage::disk('local')->put($orphanedFile, 'content');
+        Storage::disk('local')->put($protectedFile, 'content');
+
+        touch(Storage::disk('local')->path($orphanedFile), now()->subHours(48)->timestamp);
+        touch(Storage::disk('local')->path($protectedFile), now()->subHours(48)->timestamp);
+
+        MediaProcessingLog::factory()->processing()->create([
+            'source_file_path' => $protectedFile,
+        ]);
+
+        $this->artisan('media:cleanup-temp-files', ['--hours' => 1, '--dry-run' => true])
+            ->assertSuccessful();
+
+        Storage::disk('local')->assertExists($orphanedFile);
+        Storage::disk('local')->assertExists($protectedFile);
+    }
+
+    #[Test]
+    public function it_exits_successfully_when_files_are_skipped_due_to_active_logs(): void
+    {
+        Storage::fake('local');
+
+        $filePath = 'livestream/temp/active-processing.mp4';
+        Storage::disk('local')->put($filePath, 'video content');
+        touch(Storage::disk('local')->path($filePath), now()->subHours(48)->timestamp);
+
+        MediaProcessingLog::factory()->pending()->create([
+            'source_file_path' => $filePath,
+        ]);
+
+        // Skipping a protected file is the correct, safe behavior — exit 0, not 1
+        $this->artisan('media:cleanup-temp-files', ['--hours' => 1])
+            ->assertSuccessful();
+
+        Storage::disk('local')->assertExists($filePath);
+    }
+}

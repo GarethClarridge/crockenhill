@@ -851,7 +851,7 @@ The backlog is ordered for safety:
   - `media-processing-architecture-review-2026-03-17.md`
 
 ### TD-005B - Normalize retry ownership, backoff, and outbound-attempt accounting
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium
@@ -880,7 +880,7 @@ The backlog is ordered for safety:
   - `external-integration-boundary-review-2026-03-18.md`
 
 ### TD-005C - Make scheduled commands and destructive operators safe by default
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium

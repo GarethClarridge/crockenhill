@@ -82,4 +82,64 @@ class CleanupUnpublishedSectionAssetsCommandTest extends TestCase
         Storage::disk('public')->assertMissing('sermons/sections/71/video.mp4');
         Storage::disk('public')->assertMissing('sermons/audio/section-71.mp3');
     }
+
+    #[Test]
+    public function it_transitions_approved_section_to_not_applicable_instead_of_leaving_it_dangling(): void
+    {
+        Storage::fake('public');
+        Storage::fake('local');
+
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.storage.temp_disk' => 'local',
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'published_sermon_id' => null,
+            'extracted_video_path' => 'sermons/sections/72/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-72.mp3',
+            'extracted_at' => now()->subHours(72),
+            'unpublished_expires_at' => now()->subHour(),
+        ]);
+
+        Storage::disk('public')->put('sermons/sections/72/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-72.mp3', 'audio');
+
+        $this->artisan('media:cleanup-unpublished-section-assets')->assertSuccessful();
+
+        $section->refresh();
+        $this->assertEquals(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+    }
+
+    #[Test]
+    public function it_records_audit_metadata_on_cleanup(): void
+    {
+        Storage::fake('public');
+        Storage::fake('local');
+
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.storage.temp_disk' => 'local',
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'published_sermon_id' => null,
+            'extracted_video_path' => 'sermons/sections/73/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-73.mp3',
+            'extracted_at' => now()->subHours(72),
+            'unpublished_expires_at' => now()->subHour(),
+        ]);
+
+        $this->artisan('media:cleanup-unpublished-section-assets')->assertSuccessful();
+
+        $section->refresh();
+        $this->assertEquals(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
+        $this->assertIsArray($section->metadata);
+        $this->assertArrayHasKey('cleanup', $section->metadata);
+        $this->assertEquals('asset_expiry', $section->metadata['cleanup']['reason']);
+        $this->assertEquals('scheduler', $section->metadata['cleanup']['cleaned_by']);
+        $this->assertArrayHasKey('cleaned_at', $section->metadata['cleanup']);
+    }
 }

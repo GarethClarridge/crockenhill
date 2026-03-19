@@ -165,6 +165,12 @@ class ConvertJpgToWebp extends Command
 
     private function updateCodeReferences(): void
     {
+        if (empty($this->convertedFiles)) {
+            $this->warn('Skipping reference update: no files were successfully converted.');
+
+            return;
+        }
+
         // File patterns to search
         // Note: config/ is excluded because it may contain external references
         // (like podcast feeds) that need to remain as JPG for compatibility
@@ -175,7 +181,7 @@ class ConvertJpgToWebp extends Command
             'js' => base_path('resources/js'),
         ];
 
-        // Patterns to find and replace
+        // Patterns to find and replace — only for successfully converted files
         $replacements = $this->buildReplacementPatterns();
 
         foreach ($patterns as $type => $directory) {
@@ -228,12 +234,7 @@ class ConvertJpgToWebp extends Command
             }
         }
 
-        // Add hardcoded patterns from the codebase analysis
-        $hardcodedPatterns = [
-            '.webp' => '.webp', // Generic pattern for dynamic paths like {$slug}.webp
-        ];
-
-        return array_merge($replacements, $hardcodedPatterns);
+        return $replacements;
     }
 
     /**
@@ -258,14 +259,19 @@ class ConvertJpgToWebp extends Command
             $originalContent = $content;
             $changes = [];
 
-            // Check for JPG references
+            // Check for JPG references, but only rewrite paths that were successfully converted
             if (preg_match_all('/[\'"]([^"\']*\.jpe?g)[\'"]|url\([\'"]?([^"\')\s]*\.jpe?g)[\'"]?\)/i', $content, $matches)) {
                 foreach (array_merge($matches[1], $matches[2]) as $match) {
                     if (empty($match)) {
                         continue;
                     }
 
-                    $webpPath = preg_replace('/\.jpe?g$/i', '.webp', $match) ?? $match;
+                    // Only rewrite if this exact path is in our confirmed-conversions map
+                    if (! isset($replacements[$match])) {
+                        continue;
+                    }
+
+                    $webpPath = $replacements[$match];
                     $content = str_replace($match, $webpPath, $content);
                     $changes[] = $match.' -> '.$webpPath;
                 }

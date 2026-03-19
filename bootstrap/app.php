@@ -13,14 +13,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule) {
-        $schedule->command('calendar:sync')->cron('0 */4 * * *');
-        $schedule->command('media:cleanup-temp-files --hours=24')->everySixHours();
+        $schedule->command('calendar:sync')
+            ->cron('0 */4 * * *')
+            ->environments(['production']);
+        $schedule->command('media:cleanup-temp-files --hours=24')
+            ->everySixHours()
+            ->withoutOverlapping(60)
+            ->environments(['production']);
         $schedule->command('media:cleanup-unpublished-section-assets --hours=48')
             ->everySixHours()
-            ->withoutOverlapping(30);
+            ->withoutOverlapping(30)
+            ->environments(['production']);
         $schedule->command('scripture:refresh-passages')
             ->daily()
-            ->withoutOverlapping(60);
+            ->withoutOverlapping(60)
+            ->environments(['production']);
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
