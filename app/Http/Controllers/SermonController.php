@@ -73,7 +73,7 @@ class SermonController extends Controller
         SermonPageContextService $pageContextService,
         SermonExposurePolicy $exposurePolicy
     ): View|RedirectResponse {
-        // Children's talks: redirect to childrens-corner when public, otherwise fall through to 404.
+        // Children's talks: redirect to childrens-corner when public.
         if ($exposurePolicy->shouldRedirectGenericSermonRoute($sermon)) {
             return redirect()->to($exposurePolicy->canonicalUrl($sermon), 301);
         }
@@ -83,7 +83,8 @@ class SermonController extends Controller
             return redirect()->to($exposurePolicy->canonicalUrl($sermon), 301);
         }
 
-        return $this->renderSermon($sermon, $pageContextService);
+        // Non-public children's talks are not accessible via the public sermon route.
+        abort(404);
     }
 
     /**

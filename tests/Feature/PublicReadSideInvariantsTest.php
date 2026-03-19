@@ -8,6 +8,7 @@ use App\Enums\PageArea;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Sermon;
+use App\Models\User;
 use App\Services\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -47,6 +48,7 @@ class PublicReadSideInvariantsTest extends TestCase
     #[Test]
     public function known_areas_still_return_200(): void
     {
+        // 'members' is intentionally excluded — it requires authentication and redirects guests.
         foreach (['christ', 'church', 'community'] as $area) {
             $this->get("/{$area}")->assertStatus(200);
         }
@@ -54,6 +56,7 @@ class PublicReadSideInvariantsTest extends TestCase
 
     // -------------------------------------------------------------------------
     // 2. Meeting linked to an admin-only page is not publicly readable
+    //    Guests are blocked; authenticated admins are allowed through (matching PageController).
     // -------------------------------------------------------------------------
 
     #[Test]
@@ -71,6 +74,27 @@ class PublicReadSideInvariantsTest extends TestCase
         ]);
 
         $this->get('/community/restricted-meeting')->assertStatus(403);
+    }
+
+    #[Test]
+    public function meeting_linked_to_admin_page_is_accessible_to_admin_users(): void
+    {
+        $adminPage = Page::factory()->create([
+            'area' => PageArea::COMMUNITY,
+            'slug' => 'admin-only-meeting-page',
+            'admin' => 'yes',
+        ]);
+
+        Meeting::factory()->create([
+            'slug' => 'admin-only-meeting',
+            'page_id' => $adminPage->id,
+        ]);
+
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get('/community/admin-only-meeting')
+            ->assertStatus(200);
     }
 
     #[Test]

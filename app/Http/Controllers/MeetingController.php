@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Meeting;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\View;
@@ -37,8 +38,9 @@ class MeetingController extends Controller
      */
     public function show(Meeting $meeting): ViewContract
     {
-        // If the meeting is backed by an admin-only page, reject public access.
-        if ($meeting->page !== null && $meeting->page->admin === 'yes') {
+        // If the meeting is backed by an admin-only page, reject non-admin access.
+        $user = Auth::user();
+        if ($meeting->page !== null && $meeting->page->admin === 'yes' && ($user === null || ! $user->is_admin)) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -84,7 +84,7 @@ class SitemapService
                      * to reduce memory usage.
                      */
                     ->select(['id', 'slug', 'updated_at', 'page_id'])
-                    ->whereDoesntHave('page', fn ($q) => $q->where('admin', 'yes'))
+                    ->publiclyAccessible()
                     ->lazy()
             )
             ->add(
