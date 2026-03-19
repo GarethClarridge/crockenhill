@@ -205,32 +205,15 @@ class SubmitToProcessingTest extends TestCase
     }
 
     #[Test]
-    public function cancelled_run_is_not_overwritten_to_failed_by_catch_block(): void
+    public function mark_as_failed_does_not_overwrite_a_cancelled_run(): void
     {
-        Storage::fake('public');
-        config(['media-processing.storage.sermon_disk' => 'public']);
+        $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
 
-        $log = MediaProcessingLog::factory()->livestream()->cancelled()->create([
-            'audio_file_path' => 'sermons/audio/missing.mp3',
-        ]);
+        $result = $log->markAsFailed('Sermon creation from livestream failed: something went wrong');
 
-        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
-        $mockCreationService = $this->createMock(SermonCreationService::class);
-
-        Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('error')->zeroOrMoreTimes();
-        Log::shouldReceive('warning')->zeroOrMoreTimes();
-
-        $job = new SubmitToProcessing($log);
-
-        try {
-            $job->handle($mockMetadataService, $mockCreationService);
-        } catch (\Exception) {
-            // Expected — audio file does not exist
-        }
-
+        $this->assertFalse($result);
         $log->refresh();
-        $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed by catch block');
+        $this->assertEquals('cancelled', $log->status->value, 'markAsFailed must not overwrite a cancelled run');
     }
 
     #[Test]

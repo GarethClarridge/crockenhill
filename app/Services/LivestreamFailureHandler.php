@@ -32,11 +32,7 @@ class LivestreamFailureHandler
                 ? $e->getSafeMessage()
                 : 'An internal error occurred during livestream processing.';
 
-            $processingLog->update([
-                'status' => 'failed',
-                'error_message' => $message,
-                'completed_at' => now(),
-            ]);
+            $processingLog->markAsFailed($message);
 
             $tempFiles = [];
             if ($processingLog->source_file_path) {

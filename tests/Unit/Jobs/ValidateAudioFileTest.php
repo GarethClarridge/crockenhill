@@ -245,31 +245,15 @@ class ValidateAudioFileTest extends TestCase
     }
 
     #[Test]
-    public function cancelled_run_is_not_overwritten_to_failed_by_catch_block(): void
+    public function mark_as_failed_does_not_overwrite_a_cancelled_run(): void
     {
-        config(['media-processing.storage.sermon_disk' => 'local']);
-        config(['filesystems.disks.local.driver' => 'local']);
+        $log = MediaProcessingLog::factory()->audio()->cancelled()->create();
 
-        $log = MediaProcessingLog::factory()->audio()->cancelled()->create([
-            'stored_file_path' => 'sermons/nonexistent-file.mp3',
-            'original_filename' => 'test.mp3',
-        ]);
+        $result = $log->markAsFailed('Audio validation failed: something went wrong');
 
-        $mockExtractor = $this->createMock(AudioExtractionService::class);
-
-        Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('error')->zeroOrMoreTimes();
-
-        $job = new ValidateAudioFile($log);
-
-        try {
-            $job->handle($mockExtractor, app(StorageAdapterHelper::class));
-        } catch (\Exception) {
-            // Expected — file does not exist
-        }
-
+        $this->assertFalse($result);
         $log->refresh();
-        $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed');
+        $this->assertEquals('cancelled', $log->status->value, 'markAsFailed must not overwrite a cancelled run');
     }
 
     #[Test]
