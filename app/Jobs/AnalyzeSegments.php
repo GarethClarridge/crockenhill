@@ -27,6 +27,21 @@ class AnalyzeSegments implements ShouldQueue
 
     public function handle(VideoSegmentationService $segmentationService): void
     {
+        $processingLog = $this->processingLog->fresh();
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return;
+        }
+
+        $this->processingLog = $processingLog;
+
+        if ($this->processingLog->isCancelled()) {
+            Log::info('AnalyzeSegments job skipped: processing cancelled', [
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+
+            return;
+        }
+
         try {
             // Update status to show segmentation is starting
             $this->processingLog->markAsProcessing('segmentation');

@@ -69,6 +69,21 @@ class GenerateThumbnail implements ShouldQueue
     public function handle(ThumbnailGenerationService $thumbnailService): void
     {
         try {
+            $processingLog = $this->processingLog->fresh();
+            if (! $processingLog instanceof MediaProcessingLog) {
+                return;
+            }
+
+            $this->processingLog = $processingLog;
+
+            if ($this->processingLog->isCancelled()) {
+                Log::info('GenerateThumbnail job skipped: processing cancelled', [
+                    'processing_id' => $this->processingLog->processing_id,
+                ]);
+
+                return;
+            }
+
             $this->resolveFromProcessingLog();
 
             if (! $this->sermonId || ! $this->videoPath) {

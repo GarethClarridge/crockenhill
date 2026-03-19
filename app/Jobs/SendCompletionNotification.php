@@ -38,6 +38,21 @@ class SendCompletionNotification implements ShouldQueue
     public function handle(): void
     {
         try {
+            $processingLog = $this->processingLog->fresh();
+            if (! $processingLog instanceof MediaProcessingLog) {
+                return;
+            }
+
+            $this->processingLog = $processingLog;
+
+            if ($this->processingLog->isCancelled()) {
+                Log::info('SendCompletionNotification job skipped: processing cancelled', [
+                    'processing_id' => $this->processingLog->processing_id,
+                ]);
+
+                return;
+            }
+
             Log::info('Starting completion notification', [
                 'processing_id' => $this->processingLog->processing_id,
             ]);

@@ -189,6 +189,22 @@ class ValidateVideoFileTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->cancelled()->create([
+            'stored_file_path' => 'videos/some-video.mp4',
+        ]);
+
+        $mockValidation = $this->createMock(MediaValidationService::class);
+        $mockValidation->expects($this->never())->method('validateLocalFile');
+
+        Log::shouldReceive('info')->once()->with('ValidateVideoFile job skipped: processing cancelled', \Mockery::any());
+
+        $job = new ValidateVideoFile($log);
+        $job->handle($mockValidation);
+    }
+
+    #[Test]
     public function cancelled_run_is_not_overwritten_to_failed_by_catch_block(): void
     {
         Storage::fake('local');

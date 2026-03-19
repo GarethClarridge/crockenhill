@@ -199,6 +199,22 @@ class ExtractAudioFromVideoTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->cancelled()->create([
+            'stored_file_path' => 'temp/some-video.mp4',
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+
+        Log::shouldReceive('info')->once()->with('ExtractAudioFromVideo job skipped: processing cancelled', \Mockery::any());
+
+        $job = new ExtractAudioFromVideo($log);
+        $job->handle($mockExtractor);
+    }
+
+    #[Test]
     public function cancelled_run_is_not_overwritten_to_failed_by_catch_block(): void
     {
         Storage::fake('local');

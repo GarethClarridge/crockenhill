@@ -33,6 +33,21 @@ class ExtractAudioFromVideo implements ShouldQueue
 
     public function handle(VideoExtractionService $videoExtractor): void
     {
+        $processingLog = $this->processingLog->fresh();
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return;
+        }
+
+        $this->processingLog = $processingLog;
+
+        if ($this->processingLog->isCancelled()) {
+            Log::info('ExtractAudioFromVideo job skipped: processing cancelled', [
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+
+            return;
+        }
+
         Log::info('Extracting audio from video', [
             'processing_id' => $this->processingLog->processing_id,
         ]);

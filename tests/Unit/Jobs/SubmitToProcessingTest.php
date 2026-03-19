@@ -188,6 +188,23 @@ class SubmitToProcessingTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
+
+        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
+        $mockMetadataService->expects($this->never())->method('storeVideoForSermon');
+
+        $mockCreationService = $this->createMock(SermonCreationService::class);
+        $mockCreationService->expects($this->never())->method('createSermon');
+
+        Log::shouldReceive('info')->once()->with('SubmitToProcessing job skipped: processing cancelled', \Mockery::any());
+
+        $job = new SubmitToProcessing($log);
+        $job->handle($mockMetadataService, $mockCreationService);
+    }
+
+    #[Test]
     public function cancelled_run_is_not_overwritten_to_failed_by_catch_block(): void
     {
         Storage::fake('public');

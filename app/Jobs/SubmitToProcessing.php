@@ -31,6 +31,21 @@ class SubmitToProcessing implements ShouldQueue
         SermonMetadataIntegrationService $metadataIntegrationService,
         SermonCreationService $sermonCreationService
     ): void {
+        $processingLog = $this->processingLog->fresh();
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return;
+        }
+
+        $this->processingLog = $processingLog;
+
+        if ($this->processingLog->isCancelled()) {
+            Log::info('SubmitToProcessing job skipped: processing cancelled', [
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+
+            return;
+        }
+
         try {
             // Update status to show sermon processing is starting
             $this->processingLog->markAsProcessing('sermon_creation');

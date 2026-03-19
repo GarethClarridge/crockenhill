@@ -32,6 +32,21 @@ class ValidateAudioFile implements ShouldQueue
 
     public function handle(AudioExtractionService $audioExtractor, StorageAdapterHelper $storageHelper): void
     {
+        $processingLog = $this->processingLog->fresh();
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return;
+        }
+
+        $this->processingLog = $processingLog;
+
+        if ($this->processingLog->isCancelled()) {
+            Log::info('ValidateAudioFile job skipped: processing cancelled', [
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+
+            return;
+        }
+
         Log::info('Validating audio file', [
             'processing_id' => $this->processingLog->processing_id,
         ]);

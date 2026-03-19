@@ -161,6 +161,21 @@ class SendCompletionNotificationTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        Mail::fake();
+
+        $log = MediaProcessingLog::factory()->cancelled()->create();
+
+        Log::shouldReceive('info')->once()->with('SendCompletionNotification job skipped: processing cancelled', \Mockery::any());
+
+        $job = new SendCompletionNotification($log);
+        $job->handle();
+
+        Mail::assertNothingSent();
+    }
+
+    #[Test]
     public function failed_method_updates_processing_log(): void
     {
         $sermon = Sermon::factory()->create();

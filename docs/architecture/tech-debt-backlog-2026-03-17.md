@@ -788,7 +788,7 @@ The backlog is ordered for safety:
 ## Medium Refactors
 
 ### TD-005 - Add minimal queue and church-service observability hardening
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: Medium-High
 - Risk: Low-Medium
@@ -820,7 +820,7 @@ The backlog is ordered for safety:
   - `bootstrap-registration-side-effect-map-2026-03-18.md`
 
 ### TD-005A - Widen cancellation coverage across remaining jobs
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Low-Medium

@@ -31,6 +31,21 @@ class ValidateVideoFile implements ShouldQueue
 
     public function handle(MediaValidationService $mediaValidation): void
     {
+        $processingLog = $this->processingLog->fresh();
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return;
+        }
+
+        $this->processingLog = $processingLog;
+
+        if ($this->processingLog->isCancelled()) {
+            Log::info('ValidateVideoFile job skipped: processing cancelled', [
+                'processing_id' => $this->processingLog->processing_id,
+            ]);
+
+            return;
+        }
+
         Log::info('Validating video file', [
             'processing_id' => $this->processingLog->processing_id,
         ]);

@@ -228,6 +228,23 @@ class ValidateAudioFileTest extends TestCase
     }
 
     #[Test]
+    public function it_skips_all_work_when_processing_is_cancelled(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->cancelled()->create([
+            'stored_file_path' => 'sermons/some-audio.mp3',
+            'original_filename' => 'sermon.mp3',
+        ]);
+
+        $mockExtractor = $this->createMock(AudioExtractionService::class);
+        $mockExtractor->expects($this->never())->method('validateAudioFile');
+
+        Log::shouldReceive('info')->once()->with('ValidateAudioFile job skipped: processing cancelled', \Mockery::any());
+
+        $job = new ValidateAudioFile($log);
+        $job->handle($mockExtractor, app(StorageAdapterHelper::class));
+    }
+
+    #[Test]
     public function cancelled_run_is_not_overwritten_to_failed_by_catch_block(): void
     {
         config(['media-processing.storage.sermon_disk' => 'local']);
