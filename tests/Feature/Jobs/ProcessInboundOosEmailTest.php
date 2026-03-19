@@ -212,8 +212,13 @@ class ProcessInboundOosEmailTest extends TestCase
         $email->refresh();
 
         $this->assertSame(InboundEmailStatus::FAILED, $email->status);
-        $this->assertSame('Parser exploded', $email->processing_metadata['failure']['message']);
-        $this->assertArrayHasKey('failed_at', $email->processing_metadata['failure']);
+
+        $failure = $email->processing_metadata['failure'];
+        $this->assertSame('Parser exploded', $failure['message']);
+        $this->assertSame(RuntimeException::class, $failure['exception_class']);
+        $this->assertArrayHasKey('attempt', $failure);
+        $this->assertArrayHasKey('queue_name', $failure);
+        $this->assertArrayHasKey('failed_at', $failure);
     }
 
     private function bindExtractor(OosEmailItemExtractionResult $result): void

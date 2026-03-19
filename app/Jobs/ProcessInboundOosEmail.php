@@ -68,6 +68,9 @@ class ProcessInboundOosEmail implements ShouldQueue
             [
                 'failure' => [
                     'message' => $exception->getMessage(),
+                    'exception_class' => $exception::class,
+                    'attempt' => $this->attempts(),
+                    'queue_name' => $this->job?->getQueue(),
                     'failed_at' => now()->toIso8601String(),
                 ],
             ],
