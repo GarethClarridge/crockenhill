@@ -136,11 +136,11 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="{{ count($headers) + 2 }}" class="px-4 py-8 text-center text-gray-500">
-                                No pages found.
-                            </td>
-                        </tr>
+                        <x-admin.empty-state
+                            colspan="{{ count($headers) + 2 }}"
+                            title="No pages found"
+                            :hasFilters="$hasFilters"
+                        />
                     @endforelse
                 </tbody>
             </table>

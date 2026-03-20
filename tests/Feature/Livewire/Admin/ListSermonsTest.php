@@ -200,7 +200,7 @@ class ListSermonsTest extends TestCase
             ->set('search', 'NonExistentSermon')
             ->assertSet('hasFilters', true)
             ->assertSee('No sermons found')
-            ->assertSee("Your search and filters didn't return any results", false)
+            ->assertSee("Your search and filters didn't return any results")
             ->assertSee('Clear all filters');
     }
 

@@ -106,11 +106,11 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-8 text-center text-gray-500">
-                                No meetings found.
-                            </td>
-                        </tr>
+                        <x-admin.empty-state
+                            colspan="{{ count($headers) + 1 }}"
+                            title="No meetings found"
+                            :hasFilters="$hasFilters"
+                        />
                     @endforelse
                 </tbody>
             </table>

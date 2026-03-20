@@ -109,26 +109,11 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-12 text-center">
-                                <div class="flex flex-col items-center justify-center space-y-3">
-                                    <div class="rounded-full bg-gray-100 p-3">
-                                        <x-heroicon-o-magnifying-glass class="h-8 w-8 text-gray-400" aria-hidden="true" />
-                                    </div>
-                                    <h3 class="text-sm font-medium text-gray-900">No users found</h3>
-                                    <p class="text-sm text-gray-500 max-w-xs">
-                                        Your search and filters didn't return any results. Try adjusting your search keywords or clearing the filters.
-                                    </p>
-                                    @if($hasFilters)
-                                        <div class="mt-2">
-                                            <x-form-button variant="outline" size="sm" icon="x-mark" wire:click="resetFilters">
-                                                Clear all filters
-                                            </x-form-button>
-                                        </div>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
+                        <x-admin.empty-state
+                            colspan="{{ count($headers) + 1 }}"
+                            title="No users found"
+                            :hasFilters="$hasFilters"
+                        />
                     @endforelse
                 </tbody>
             </table>

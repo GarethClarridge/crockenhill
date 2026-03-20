@@ -48,6 +48,12 @@
                 ['id' => '0', 'name' => 'Ready'],
             ]"
             class="w-44" />
+
+        <div x-show="$wire.hasFilters" x-transition x-cloak>
+            <x-form-button variant="ghost" size="sm" icon="x-mark" wire:click="resetFilters">
+                Clear Filters
+            </x-form-button>
+        </div>
     </div>
 
     <x-card>
@@ -117,11 +123,11 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="{{ count($headers) + 1 }}" class="px-4 py-8 text-center text-gray-500">
-                                No services imported yet.
-                            </td>
-                        </tr>
+                        <x-admin.empty-state
+                            colspan="{{ count($headers) + 1 }}"
+                            title="No services found"
+                            :hasFilters="$hasFilters"
+                        />
                     @endforelse
                 </tbody>
             </table>
