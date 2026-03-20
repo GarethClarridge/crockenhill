@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire;
 
-use App\Contracts\OosEmailItemExtractor;
 use App\Data\OosEmailItemExtractionResult;
 use App\Enums\InboundEmailStatus;
 use App\Enums\SermonService;
@@ -17,10 +16,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use Tests\Traits\WithInboundEmailTestHelpers;
 
 class AdminInboundEmailReviewTest extends TestCase
 {
     use RefreshDatabase;
+    use WithInboundEmailTestHelpers;
 
     private User $admin;
 
@@ -458,48 +459,5 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->actingAs($user);
 
         Livewire::test(ReviewInboundEmails::class)->assertForbidden();
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $items
-     * @return array<string, mixed>
-     */
-    private function processingMetadata(string $resolvedDate, string $resolvedService, array $items): array
-    {
-        return [
-            'parsing' => [
-                'confidence_score' => 0.40,
-                'warnings' => ['Needs manual review.'],
-                'resolved_date' => $resolvedDate,
-                'resolved_service' => $resolvedService,
-                'items' => $items,
-            ],
-        ];
-    }
-
-    private function bindExtractor(OosEmailItemExtractionResult $result): void
-    {
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class($result) implements OosEmailItemExtractor
-        {
-            public function __construct(
-                private readonly OosEmailItemExtractionResult $result,
-            ) {}
-
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
-            {
-                return $this->result;
-            }
-        });
-    }
-
-    private function bindFailingExtractor(): void
-    {
-        $this->app->bind(OosEmailItemExtractor::class, fn () => new class implements OosEmailItemExtractor
-        {
-            public function extract(string $subject, string $body): OosEmailItemExtractionResult
-            {
-                throw new \RuntimeException('Stored parse data should have been used instead of reparsing.');
-            }
-        });
     }
 }

@@ -993,7 +993,7 @@ The backlog is ordered for safety:
   - `admin-livewire-responsibility-review-2026-03-17.md`
 
 ### TD-008 - Extract `ReviewInboundEmails` workflows and preview factory
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium
