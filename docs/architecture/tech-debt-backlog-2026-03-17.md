@@ -1057,7 +1057,7 @@ The backlog is ordered for safety:
   - `read-path-performance-review-2026-03-18.md`
 
 ### TD-010 - Stage 1 `OosAlignmentService` extraction: small collaborators first
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium

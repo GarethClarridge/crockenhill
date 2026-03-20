@@ -18,33 +18,12 @@ use Illuminate\Support\Facades\DB;
 
 class OosAlignmentService
 {
-    /**
-     * All review flags that this service owns and recalculates on every alignment pass.
-     * These are cleared at the start of each alignment run and only re-added when still applicable.
-     */
-    private const OOS_REVIEW_FLAGS = [
-        'oos_structure_mismatch',
-        'unmatched_song_section',
-        'song_alignment_inferred',
-        'ambiguous_childrens_talk',
-        'inferred_childrens_talk',
-    ];
-
-    /**
-     * All review reasons that this service owns and recalculates on every alignment pass.
-     */
-    private const OOS_REVIEW_REASONS = [
-        'oos_structure_mismatch',
-        'unmatched_song_section',
-        'song_alignment_inferred',
-        'ambiguous_childrens_talk',
-        'inferred_childrens_talk',
-    ];
-
     public function __construct(
         private readonly MediaProcessingIdentityResolver $identityResolver,
         private readonly ServiceSectionReviewTriggerEvaluator $reviewTriggerEvaluator,
-        private readonly ChurchServiceReviewStateService $reviewStateService,
+        private readonly PresentationItemClassifier $presentationItemClassifier,
+        private readonly ChurchServiceReviewSynchronizer $reviewSynchronizer,
+        private readonly SectionAlignmentBaselineRestorer $baselineRestorer,
     ) {}
 
     /**
@@ -100,7 +79,7 @@ class OosAlignmentService
             $beforeState = $this->reviewTriggerEvaluator->captureAlignmentState($sections);
 
             foreach ($sections as $section) {
-                $this->prepareSectionForAlignment($section);
+                $this->baselineRestorer->prepare($section);
             }
 
             $matchedSongSectionIds = $this->alignSongSections($sections, $items);
@@ -115,11 +94,11 @@ class OosAlignmentService
             );
 
             foreach ($sections as $section) {
-                $this->persistConfidenceLevel($section);
+                $this->baselineRestorer->persistConfidenceLevel($section);
                 $section->save();
             }
 
-            $this->syncChurchServiceReviewState($churchService, $sections, $reviewTriggers);
+            $this->reviewSynchronizer->sync($churchService, $sections, $reviewTriggers);
 
             return [
                 'aligned' => true,
@@ -267,7 +246,7 @@ class OosAlignmentService
      */
     private function alignStructuralSections(EloquentCollection $sections, EloquentCollection $items): int
     {
-        $presentationClassification = $this->classifyPresentationItems($items);
+        $presentationClassification = $this->presentationItemClassifier->classify($items);
         $presentationDecisions = $presentationClassification['decisions'];
         $ambiguousChildrensTalk = $presentationClassification['childrens_talk_count'] > 1;
 
@@ -435,7 +414,7 @@ class OosAlignmentService
                 $metadata['review_reason'] = 'ambiguous_childrens_talk';
             } else {
                 $metadata['review_flags'] = array_values(array_unique($reviewFlags));
-                if (! array_key_exists('review_reason', $metadata) || in_array($metadata['review_reason'], self::OOS_REVIEW_REASONS, true)) {
+                if (! array_key_exists('review_reason', $metadata) || in_array($metadata['review_reason'], SectionAlignmentBaselineRestorer::OOS_REVIEW_REASONS, true)) {
                     $metadata['review_reason'] = $decision['review_flag'];
                 }
             }
@@ -455,14 +434,14 @@ class OosAlignmentService
     private function applyMatchedItem(ServiceSection $section, ChurchServiceItem $item, float $confidenceDelta): void
     {
         $metadata = $this->metadata($section);
-        $metadata['oos_alignment'] = array_merge($this->baseAlignmentMetadata($section), [
+        $metadata['oos_alignment'] = array_merge($this->baselineRestorer->baseAlignmentMetadata($section), [
             'matched_item_id' => $item->id,
             'matched_item_type' => $item->type,
             'matched_item_title' => $item->title,
         ]);
         unset($metadata['oos_alignment']['mismatch_reason']);
 
-        $reviewFlags = $this->clearOosReviewFlags($this->reviewFlags($metadata));
+        $reviewFlags = $this->baselineRestorer->clearOosReviewFlags($this->reviewFlags($metadata));
 
         $metadata['review_flags'] = $reviewFlags;
 
@@ -484,7 +463,7 @@ class OosAlignmentService
     private function markMismatch(ServiceSection $section, ?ChurchServiceItem $item, string $reason): void
     {
         $metadata = $this->metadata($section);
-        $metadata['oos_alignment'] = array_merge($this->baseAlignmentMetadata($section), [
+        $metadata['oos_alignment'] = array_merge($this->baselineRestorer->baseAlignmentMetadata($section), [
             'mismatch_reason' => $reason,
             'expected_item_id' => $item?->id,
             'expected_item_title' => $item?->title,
@@ -507,7 +486,7 @@ class OosAlignmentService
     private function applyInferredSongItem(ServiceSection $section, ChurchServiceItem $item): void
     {
         $metadata = $this->metadata($section);
-        $metadata['oos_alignment'] = array_merge($this->baseAlignmentMetadata($section), [
+        $metadata['oos_alignment'] = array_merge($this->baselineRestorer->baseAlignmentMetadata($section), [
             'matched_item_id' => $item->id,
             'matched_item_type' => $item->type,
             'matched_item_title' => $item->title,
@@ -606,130 +585,6 @@ class OosAlignmentService
         }
 
         return $this->inferCustomItemType($item->title);
-    }
-
-    /**
-     * Classifies presentation items using an evidence-tiered decision model.
-     *
-     * Evidence tiers (from strongest to weakest):
-     * - explicit: metadata.section_type is set → use that type directly, no review required
-     * - strong:   title clearly names a childrens talk or notices → reclassify, flag for review
-     * - weak:     position only → resolve to OTHER, attach a suspected_type hint, no reclassification
-     *
-     * @param  EloquentCollection<int, ChurchServiceItem>  $items
-     * @return array{
-     *     decisions: array<int, array{
-     *         resolved_type: ServiceSectionType,
-     *         suspected_type: ServiceSectionType|null,
-     *         evidence: 'explicit'|'strong'|'weak',
-     *         requires_review: bool,
-     *         review_flag: string|null,
-     *         reason: string
-     *     }>,
-     *     childrens_talk_count: int
-     * }
-     */
-    private function classifyPresentationItems(EloquentCollection $items): array
-    {
-        $firstSongPosition = $items
-            ->filter(fn (ChurchServiceItem $item): bool => strtolower($item->type) === 'songs')
-            ->min('position') ?? PHP_INT_MAX;
-
-        $decisions = [];
-        $childrensTalkCount = 0;
-
-        foreach ($items as $item) {
-            if (strtolower($item->type) !== 'presentations') {
-                continue;
-            }
-
-            $decision = $this->makePresentationDecision($item, $firstSongPosition);
-            $decisions[$item->id] = $decision;
-
-            if ($decision['resolved_type'] === ServiceSectionType::CHILDRENS_TALK) {
-                $childrensTalkCount++;
-            }
-        }
-
-        return ['decisions' => $decisions, 'childrens_talk_count' => $childrensTalkCount];
-    }
-
-    /**
-     * Produce a single presentation classification decision for one item.
-     *
-     * @return array{
-     *     resolved_type: ServiceSectionType,
-     *     suspected_type: ServiceSectionType|null,
-     *     evidence: 'explicit'|'strong'|'weak',
-     *     requires_review: bool,
-     *     review_flag: string|null,
-     *     reason: string
-     * }
-     */
-    private function makePresentationDecision(ChurchServiceItem $item, int $firstSongPosition): array
-    {
-        // Tier 1: explicit section_type in metadata — trusted, no review needed
-        $metadataSectionType = $item->metadata['section_type'] ?? null;
-        if (is_string($metadataSectionType)) {
-            $explicit = ServiceSectionType::tryFrom($metadataSectionType);
-            if ($explicit instanceof ServiceSectionType) {
-                return [
-                    'resolved_type' => $explicit,
-                    'suspected_type' => null,
-                    'evidence' => 'explicit',
-                    'requires_review' => false,
-                    'review_flag' => null,
-                    'reason' => 'explicit_metadata_section_type',
-                ];
-            }
-        }
-
-        $normalizedTitle = strtolower(trim($item->title ?? ''));
-
-        // Tier 2a: title clearly signals a childrens talk
-        if (preg_match('/\b(children\'?s?\s+talk|children)\b/', $normalizedTitle) === 1) {
-            return [
-                'resolved_type' => ServiceSectionType::CHILDRENS_TALK,
-                'suspected_type' => null,
-                'evidence' => 'strong',
-                'requires_review' => true,
-                'review_flag' => 'inferred_childrens_talk',
-                'reason' => 'presentation_title_children_keyword',
-            ];
-        }
-
-        // Tier 2b: title clearly signals notices
-        if (preg_match('/\b(notices?|announcements?)\b/', $normalizedTitle) === 1) {
-            return [
-                'resolved_type' => ServiceSectionType::NOTICES,
-                'suspected_type' => null,
-                'evidence' => 'strong',
-                'requires_review' => false,
-                'review_flag' => null,
-                'reason' => 'presentation_title_notices_keyword',
-            ];
-        }
-
-        // Tier 3: position-only inference — weak, never reclassifies
-        if ($item->position <= $firstSongPosition) {
-            return [
-                'resolved_type' => ServiceSectionType::OTHER,
-                'suspected_type' => ServiceSectionType::NOTICES,
-                'evidence' => 'weak',
-                'requires_review' => false,
-                'review_flag' => null,
-                'reason' => 'pre_first_song_presentation',
-            ];
-        }
-
-        return [
-            'resolved_type' => ServiceSectionType::OTHER,
-            'suspected_type' => ServiceSectionType::CHILDRENS_TALK,
-            'evidence' => 'weak',
-            'requires_review' => false,
-            'review_flag' => null,
-            'reason' => 'post_first_song_presentation',
-        ];
     }
 
     private function inferCustomItemType(string $title): ServiceSectionType
@@ -875,88 +730,6 @@ class OosAlignmentService
         return $reviewFlags !== [];
     }
 
-    private function prepareSectionForAlignment(ServiceSection $section): void
-    {
-        $metadata = $this->metadata($section);
-        $existingAlignment = is_array($metadata['oos_alignment'] ?? null) ? $metadata['oos_alignment'] : [];
-        $legacyAligned = ($metadata['classification_mode'] ?? null) === 'openlp_aligned';
-
-        $section->confidence = ServiceSectionConfidence::resolve(
-            is_numeric($existingAlignment['base_confidence'] ?? null) ? (float) $existingAlignment['base_confidence'] : $section->confidence,
-            $metadata
-        );
-        $section->needs_manual_review = (bool) ($existingAlignment['base_needs_manual_review'] ?? $section->needs_manual_review);
-        $section->title = $legacyAligned
-            ? null
-            : (array_key_exists('base_title', $existingAlignment) ? $existingAlignment['base_title'] : $section->title);
-        $section->church_service_item_id = $legacyAligned
-            ? null
-            : (array_key_exists('base_church_service_item_id', $existingAlignment) ? $existingAlignment['base_church_service_item_id'] : $section->church_service_item_id);
-
-        // Clear all OoS-owned alignment state so each run is rebuilt from scratch
-        unset($metadata['oos_alignment'], $metadata['song_id'], $metadata['reading_reference']);
-
-        $reviewFlags = $this->clearOosReviewFlags($this->reviewFlags($metadata));
-
-        if ($reviewFlags === []) {
-            if (in_array($metadata['review_reason'] ?? null, self::OOS_REVIEW_REASONS, true)) {
-                unset($metadata['review_reason']);
-            }
-
-            unset($metadata['review_flags']);
-        } else {
-            $metadata['review_flags'] = $reviewFlags;
-        }
-
-        $section->metadata = $metadata;
-    }
-
-    /**
-     * Remove all OoS-owned review flags from the given flag list.
-     *
-     * @param  array<int, string>  $flags
-     * @return array<int, string>
-     */
-    private function clearOosReviewFlags(array $flags): array
-    {
-        return array_values(array_filter(
-            $flags,
-            static fn (string $flag): bool => ! in_array($flag, self::OOS_REVIEW_FLAGS, true)
-        ));
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function baseAlignmentMetadata(ServiceSection $section): array
-    {
-        $metadata = $this->metadata($section);
-        $existing = is_array($metadata['oos_alignment'] ?? null) ? $metadata['oos_alignment'] : [];
-
-        return [
-            'base_confidence' => ServiceSectionConfidence::resolve(
-                is_numeric($existing['base_confidence'] ?? null) ? (float) $existing['base_confidence'] : $section->confidence,
-                $metadata
-            ),
-            'base_needs_manual_review' => (bool) ($existing['base_needs_manual_review'] ?? $section->needs_manual_review),
-            'base_title' => array_key_exists('base_title', $existing) ? $existing['base_title'] : $section->title,
-            'base_church_service_item_id' => array_key_exists('base_church_service_item_id', $existing)
-                ? $existing['base_church_service_item_id']
-                : $section->church_service_item_id,
-        ];
-    }
-
-    private function persistConfidenceLevel(ServiceSection $section): void
-    {
-        $metadata = $this->metadata($section);
-        $confidence = ServiceSectionConfidence::resolve($section->confidence, $metadata);
-
-        $section->confidence = $confidence;
-        $metadata['confidence_level'] = ServiceSectionConfidence::levelFor($confidence);
-        $metadata['confidence_score'] = $confidence;
-        $section->metadata = $metadata;
-    }
-
     private function resolveChurchService(MediaProcessingLog $processingLog, ?ChurchService $churchService): ?ChurchService
     {
         if ($churchService instanceof ChurchService) {
@@ -995,56 +768,6 @@ class OosAlignmentService
         }
 
         return $resolved;
-    }
-
-    /**
-     * @param  EloquentCollection<int, ServiceSection>  $sections
-     * @param  array<int, string>  $reviewTriggers
-     */
-    private function syncChurchServiceReviewState(ChurchService $churchService, EloquentCollection $sections, array $reviewTriggers): void
-    {
-        $importMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
-
-        if ($reviewTriggers === []) {
-            unset($importMetadata['review_triggers']);
-        } else {
-            $importMetadata['review_triggers'] = array_values($reviewTriggers);
-        }
-
-        // Defensive fallback: ensure service-level review stays open whenever any section
-        // still requires manual review, even if the evaluator omits a trigger by mistake.
-        $needsSectionReview = $sections->contains(
-            fn (ServiceSection $section): bool => $section->needs_manual_review
-        );
-
-        $churchService->forceFill([
-            'needs_review' => $reviewTriggers !== []
-                || $needsSectionReview
-                || $this->hasImportReviewSignal($churchService, $importMetadata)
-                || $this->reviewStateService->hasOutstandingCanonicalConflict($importMetadata),
-            'import_metadata' => $importMetadata,
-        ])->saveQuietly();
-    }
-
-    /**
-     * @param  array<string, mixed>  $importMetadata
-     */
-    private function hasImportReviewSignal(ChurchService $churchService, array $importMetadata): bool
-    {
-        if ($churchService->source === 'manual') {
-            return false;
-        }
-
-        $confidenceScore = $importMetadata['confidence_score'] ?? null;
-        if (! is_numeric($confidenceScore)) {
-            return false;
-        }
-
-        $reviewThreshold = (float) config('service-tracking.email_parsing.review_threshold', 0.75);
-        $autoImportThreshold = (float) config('service-tracking.email_parsing.auto_import_threshold', 0.90);
-        $score = (float) $confidenceScore;
-
-        return $score >= $reviewThreshold && $score < $autoImportThreshold;
     }
 
     /**
