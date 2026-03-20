@@ -14,6 +14,11 @@ return new class extends Migration
         // Add a specifically named unique index for the page_id column.
         // This enforces the 1-to-1 relationship between Pages and Meetings.
         Schema::table('meetings', function (Blueprint $table) {
+            // Drop the existing non-unique index created by the foreign key migration
+            if (Schema::hasIndex('meetings', 'meetings_page_id_foreign')) {
+                $table->dropIndex('meetings_page_id_foreign');
+            }
+
             $table->unique('page_id', 'meetings_page_id_unique');
         });
     }
