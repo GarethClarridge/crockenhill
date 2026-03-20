@@ -59,12 +59,14 @@ class Page extends Model implements HasMedia, Sitemapable
      */
     protected static function booted(): void
     {
-        static::saved(function (): void {
+        static::saved(function (self $page): void {
             \Illuminate\Support\Facades\Cache::forget('admin_meeting_list');
+            app(\App\Repositories\PageRepository::class)->clearAreaCache($page->area);
         });
 
-        static::deleted(function (): void {
+        static::deleted(function (self $page): void {
             \Illuminate\Support\Facades\Cache::forget('admin_meeting_list');
+            app(\App\Repositories\PageRepository::class)->clearAreaCache($page->area);
         });
     }
 
