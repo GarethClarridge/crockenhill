@@ -4,9 +4,7 @@
 Christmas
 @stop
 
-@section('description')
-Christmas
-@stop
+@section('meta_description', 'Celebrate Christmas at Crockenhill Baptist Church. Join us for Carols by Candlelight, our Christmas morning service, and more festive events.')
 
 @section('content')
 <main id="main-content" class="-mb-10 bg-cover bg-center bg-[url('/public/images/homepage/christmas2023.webp')] bg-gray-700 bg-blend-multiply">
