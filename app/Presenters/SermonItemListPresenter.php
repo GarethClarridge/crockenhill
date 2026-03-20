@@ -9,6 +9,10 @@ use Illuminate\Support\Collection;
 
 class SermonItemListPresenter
 {
+    public function __construct(
+        private readonly SermonViewPresenter $sermonViewPresenter,
+    ) {}
+
     /**
      * Convert a collection of sermons into a Schema.org ItemList data array.
      *
@@ -25,10 +29,12 @@ class SermonItemListPresenter
             '@type' => 'ItemList',
             'numberOfItems' => $flatSermons->count(),
             'itemListElement' => $flatSermons->values()->map(function (Sermon $sermon, int $index) {
+                $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
+
                 $item = [
                     '@type' => 'CreativeWork',
                     'name' => $sermon->title,
-                    'url' => $sermon->public_url,
+                    'url' => $this->sermonViewPresenter->publicUrl($sermon),
                     'description' => $sermon->meta_description,
                     'datePublished' => $sermon->date->toIso8601String(),
                     'inLanguage' => 'en-GB',
@@ -42,8 +48,8 @@ class SermonItemListPresenter
                     ],
                 ];
 
-                if ($sermon->hasThumbnail()) {
-                    $item['image'] = $sermon->thumbnail_url;
+                if ($thumbnailUrl !== null) {
+                    $item['image'] = $thumbnailUrl;
                 }
 
                 return [

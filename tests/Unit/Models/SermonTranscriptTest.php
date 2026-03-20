@@ -4,6 +4,7 @@ namespace Tests\Unit\Models;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +15,8 @@ use Tests\TestCase;
 class SermonTranscriptTest extends TestCase
 {
     use DatabaseTransactions;
+
+    private SermonTranscriptReader $reader;
 
     protected function setUp(): void
     {
@@ -28,6 +31,7 @@ class SermonTranscriptTest extends TestCase
         // Set predictable base configuration for candidate disks
         Config::set('media-processing.storage.transcript_disk', 'local');
         Config::set('media-processing.storage.sermon_disk', 'public');
+        $this->reader = app(SermonTranscriptReader::class);
     }
 
     #[Test]
@@ -35,11 +39,11 @@ class SermonTranscriptTest extends TestCase
     {
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => null]);
-        $this->assertNull($sermon->transcript);
+        $this->assertNull($this->reader->read($sermon));
 
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => '']);
-        $this->assertNull($sermon->transcript);
+        $this->assertNull($this->reader->read($sermon));
     }
 
     #[Test]
@@ -55,7 +59,7 @@ class SermonTranscriptTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => $path]);
 
-        $this->assertEquals($content, $sermon->transcript);
+        $this->assertEquals($content, $this->reader->read($sermon));
     }
 
     #[Test]
@@ -76,7 +80,7 @@ class SermonTranscriptTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => $path]);
 
-        $this->assertEquals($content, $sermon->transcript);
+        $this->assertEquals($content, $this->reader->read($sermon));
     }
 
     #[Test]
@@ -91,7 +95,7 @@ class SermonTranscriptTest extends TestCase
         /** @var Sermon $sermon */
         $sermon = Sermon::factory()->make(['transcript_file_path' => 'missing.md']);
 
-        $this->assertNull($sermon->transcript);
+        $this->assertNull($this->reader->read($sermon));
     }
 
     #[Test]

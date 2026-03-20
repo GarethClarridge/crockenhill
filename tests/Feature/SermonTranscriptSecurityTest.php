@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Sermon;
+use App\Services\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -25,7 +26,7 @@ class SermonTranscriptSecurityTest extends TestCase
         ]);
 
         // Access the transcript attribute
-        $transcript = $sermon->transcript;
+        $transcript = app(SermonTranscriptReader::class)->read($sermon);
 
         // It should be null because of the path traversal check
         $this->assertNull($transcript);

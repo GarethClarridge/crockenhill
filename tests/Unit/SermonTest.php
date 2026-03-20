@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
+use App\Services\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -51,10 +53,11 @@ class SermonTest extends TestCase
         // Test getHumanDateAttribute
         $this->assertEquals($date->format('F j, Y'), $sermon->human_date);
 
-        // Test getAudioUrlAttribute - Returns full URL via SermonStorageService
-        // The model uses SermonStorageService which returns full URLs including the base URL
-        $this->assertNotNull($sermon->audio_url);
-        $this->assertStringContainsString($testFilename, $sermon->audio_url);
+        $sermonViewPresenter = app(SermonViewPresenter::class);
+        $audioUrl = $sermonViewPresenter->audioUrl($sermon);
+
+        $this->assertNotNull($audioUrl);
+        $this->assertStringContainsString($testFilename, $audioUrl);
 
         // Test getSeriesUrlAttribute
         // Assuming the Sermon model has a getSeriesUrlAttribute accessor
@@ -62,11 +65,8 @@ class SermonTest extends TestCase
         $this->assertEquals($expectedSeriesUrl, $sermon->series_url);
         // If the accessor is not yet implemented, this test will guide its creation.
 
-        // Test getPreacherUrlAttribute
-        // Assuming the Sermon model has a getPreacherUrlAttribute accessor
         $expectedPreacherUrl = '/christ/sermons/preachers/'.Str::slug('John Doe'); // Corrected expected path
-        $this->assertEquals($expectedPreacherUrl, $sermon->preacher_url);
-        // If the accessor is not yet implemented, this test will guide its creation.
+        $this->assertEquals($expectedPreacherUrl, $sermonViewPresenter->preacherUrl($sermon));
     }
 
     #[Test]
@@ -206,10 +206,12 @@ class SermonTest extends TestCase
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
 
-        $this->assertSame(route('showSermon', $sermon), $sermon->public_url);
-        $this->assertSame(url('/christ/sermons/2026/02/date-based-sermon'), $sermon->canonical_url);
-        $this->assertSame(route('childrens-corner.show', $childrensTalk), $childrensTalk->public_url);
-        $this->assertSame(route('childrens-corner.show', $childrensTalk), $childrensTalk->canonical_url);
+        $policy = app(SermonExposurePolicy::class);
+
+        $this->assertSame(route('showSermon', $sermon), $policy->publicUrl($sermon));
+        $this->assertSame(url('/christ/sermons/2026/02/date-based-sermon'), $policy->canonicalUrl($sermon));
+        $this->assertSame(route('childrens-corner.show', $childrensTalk), $policy->publicUrl($childrensTalk));
+        $this->assertSame(route('childrens-corner.show', $childrensTalk), $policy->canonicalUrl($childrensTalk));
     }
 
     // /**

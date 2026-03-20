@@ -32,27 +32,27 @@
     <podcast:locked>no</podcast:locked>
     <podcast:guid>{{ $metadata['podcast_guid'] }}</podcast:guid>
 
-    @foreach($sermons as $sermon)
+    @foreach($feedItems as $feedItem)
     <item>
-      <title><![CDATA[{{ $sermon->title }}]]></title>
-      <itunes:title><![CDATA[{{ $sermon->title }}]]></itunes:title>
+      <title><![CDATA[{{ $feedItem['sermon']->title }}]]></title>
+      <itunes:title><![CDATA[{{ $feedItem['sermon']->title }}]]></itunes:title>
       <itunes:author>{{ $metadata['author'] }}</itunes:author>
-      <itunes:image href="{{ $sermon->episode_image_url ?? $metadata['image'] }}" />
-      <link>{{ $sermon->canonical_url }}</link>
-      <itunes:summary><![CDATA[{{ $sermon->podcast_summary }}]]></itunes:summary>
-      <itunes:subtitle><![CDATA[{{ $sermon->podcast_summary }}]]></itunes:subtitle>
-      <description><![CDATA[{{ $sermon->podcast_summary }}]]></description>
+      <itunes:image href="{{ $feedItem['episode_image_url'] ?? $metadata['image'] }}" />
+      <link>{{ $feedItem['canonical_url'] }}</link>
+      <itunes:summary><![CDATA[{{ $feedItem['podcast_summary'] }}]]></itunes:summary>
+      <itunes:subtitle><![CDATA[{{ $feedItem['podcast_summary'] }}]]></itunes:subtitle>
+      <description><![CDATA[{{ $feedItem['podcast_summary'] }}]]></description>
       <enclosure
-        url="{{ $sermon->enclosure_url }}"
+        url="{{ $feedItem['enclosure_url'] }}"
         type="audio/mpeg"
-        length="{{ $sermon->enclosure_length }}" />
-      <itunes:duration>{{ $sermon->itunes_duration }}</itunes:duration>
-      <guid isPermaLink="false">sermon-{{ $sermon->id }}</guid>
-      <pubDate>{{ $sermon->rss_pub_date }}</pubDate>
+        length="{{ $feedItem['enclosure_length'] }}" />
+      <itunes:duration>{{ $feedItem['itunes_duration'] }}</itunes:duration>
+      <guid isPermaLink="false">sermon-{{ $feedItem['sermon']->id }}</guid>
+      <pubDate>{{ $feedItem['rss_pub_date'] }}</pubDate>
       <itunes:explicit>false</itunes:explicit>
       <itunes:episodeType>full</itunes:episodeType>
-@if($sermon->transcript_url)
-      <podcast:transcript url="{{ $sermon->transcript_url }}" type="text/plain" />
+@if($feedItem['transcript_url'])
+      <podcast:transcript url="{{ $feedItem['transcript_url'] }}" type="text/plain" />
 @endif
     </item>
     @endforeach

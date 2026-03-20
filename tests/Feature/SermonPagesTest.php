@@ -240,6 +240,14 @@ class SermonPagesTest extends TestCase
     }
 
     #[Test]
+    public function sermon_show_with_date_route_returns_404_when_sermon_is_missing(): void
+    {
+        $response = $this->get('/christ/sermons/2024/03/non-existent-sermon');
+
+        $response->assertStatus(404);
+    }
+
+    #[Test]
     public function sermon_show_with_date_route_returns_404_on_month_mismatch(): void
     {
         $sermon = Sermon::factory()->create([

@@ -5,13 +5,13 @@
         :title="$sermon->title"
         :description="$sermon->meta_description ?: $sermon->title"
         type="article"
-        :image="$sermon->thumbnail_url && $sermon->hasThumbnail() ? $sermon->thumbnail_url : null"
-        :image-width="$sermon->thumbnail_url && $sermon->hasThumbnail() ? 1280 : 800"
-        :image-height="$sermon->thumbnail_url && $sermon->hasThumbnail() ? 720 : 600"
+        :image="$sermonView['thumbnail_url']"
+        :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
+        :image-height="$sermonView['thumbnail_url'] ? 720 : 600"
         :image-alt="\"Children's Corner: {$sermon->title}\""
-        :audio="$sermon->audio_url"
-        :video="$sermon->video_url"
-        :canonical="$sermon->public_url"
+        :audio="$sermonView['audio_url']"
+        :video="$sermonView['video_url']"
+        :canonical="$sermonView['public_url']"
     />
 @endsection
 
@@ -83,10 +83,10 @@
             <x-card heading="Watch">
                 <div class="not-prose">
                     <video
-                        src="{{ $sermon->video_url }}"
+                        src="{{ $sermonView['video_url'] }}"
                         class="w-full rounded-xl bg-slate-950"
                         controls
-                        @if($sermon->thumbnail_url && $sermon->hasThumbnail()) poster="{{ $sermon->thumbnail_url }}" @endif
+                        @if($sermonView['thumbnail_url']) poster="{{ $sermonView['thumbnail_url'] }}" @endif
                     >
                         Your browser does not support the <code>video</code> element.
                     </video>
@@ -97,7 +97,7 @@
         @if ($hasAudio)
             <x-card heading="Listen">
                 <div class="not-prose">
-                    <audio src="{{ $sermon->audio_url }}" class="w-full" controls>
+                    <audio src="{{ $sermonView['audio_url'] }}" class="w-full" controls>
                         Your browser does not support the <code>audio</code> element.
                     </audio>
                 </div>

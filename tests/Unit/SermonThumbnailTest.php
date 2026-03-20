@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -11,11 +12,20 @@ class SermonThumbnailTest extends TestCase
 {
     use RefreshDatabase;
 
+    private SermonViewPresenter $sermonViewPresenter;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->sermonViewPresenter = app(SermonViewPresenter::class);
+    }
+
     public function test_get_thumbnail_url_attribute_returns_null_when_no_thumbnail_path(): void
     {
         $sermon = Sermon::factory()->create(['thumbnail_file_path' => null]);
 
-        $this->assertNull($sermon->thumbnail_url);
+        $this->assertNull($this->sermonViewPresenter->thumbnailUrl($sermon));
     }
 
     public function test_get_thumbnail_url_attribute_returns_storage_url_when_thumbnail_path_exists(): void
@@ -28,7 +38,7 @@ class SermonThumbnailTest extends TestCase
         Storage::disk('public')->put($thumbnailPath, 'fake image content');
 
         $expectedUrl = Storage::disk('public')->url($thumbnailPath);
-        $this->assertEquals($expectedUrl, $sermon->thumbnail_url);
+        $this->assertEquals($expectedUrl, $this->sermonViewPresenter->thumbnailUrl($sermon));
     }
 
     public function test_has_thumbnail_returns_false_when_no_thumbnail_path(): void
@@ -158,8 +168,10 @@ class SermonThumbnailTest extends TestCase
             Storage::disk('public')->put($thumbnailPath, 'fake image content');
 
             $expectedUrl = Storage::disk('public')->url($thumbnailPath);
-            $this->assertEquals($expectedUrl, $sermon->thumbnail_url);
-            $this->assertStringEndsWith(".{$ext}", $sermon->thumbnail_url);
+            $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
+
+            $this->assertEquals($expectedUrl, $thumbnailUrl);
+            $this->assertStringEndsWith(".{$ext}", $thumbnailUrl ?? '');
         }
     }
 
@@ -275,7 +287,7 @@ class SermonThumbnailTest extends TestCase
 
         // The model should use the configured disk
         $expectedUrl = Storage::disk('custom_disk')->url($thumbnailPath);
-        $this->assertEquals($expectedUrl, $sermon->thumbnail_url);
+        $this->assertEquals($expectedUrl, $this->sermonViewPresenter->thumbnailUrl($sermon));
     }
 
     public function test_sermon_can_be_updated_with_thumbnail_data(): void
@@ -317,7 +329,7 @@ class SermonThumbnailTest extends TestCase
         $this->assertNull($sermon->thumbnail_generated_at);
         $this->assertNull($sermon->thumbnail_metadata);
         $this->assertFalse($sermon->hasThumbnail());
-        $this->assertNull($sermon->thumbnail_url);
+        $this->assertNull($this->sermonViewPresenter->thumbnailUrl($sermon));
     }
 
     public function test_with_thumbnail_scope_can_be_chained_with_other_scopes(): void

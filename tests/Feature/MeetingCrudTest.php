@@ -101,6 +101,22 @@ class MeetingCrudTest extends TestCase
     }
 
     #[Test]
+    public function test_meeting_show_uses_explicit_fallback_layout_data_without_a_page()
+    {
+        $meeting = Meeting::factory()->create([
+            'slug' => 'midweek-prayer',
+            'page_id' => null,
+        ]);
+
+        $response = $this->get("/community/{$meeting->slug}");
+
+        $response->assertOk();
+        $this->assertSame('Midweek Prayer', $response->viewData('heading'));
+        $this->assertSame('community', $response->viewData('area'));
+        $this->assertSame('midweek-prayer', $response->viewData('slug'));
+    }
+
+    #[Test]
     public function test_meeting_show_loads_calendar_events()
     {
         $meeting = Meeting::factory()->create([

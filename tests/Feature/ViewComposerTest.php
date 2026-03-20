@@ -6,8 +6,8 @@ use App\Enums\PageArea;
 use App\Enums\SermonService;
 use App\Models\Page;
 use App\Models\Sermon;
+use App\Presenters\RelatedPagePresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -37,7 +37,7 @@ class ViewComposerTest extends TestCase
     }
 
     #[Test]
-    public function it_populates_page_variables_from_url_segments(): void
+    public function it_populates_page_variables_from_controller_data(): void
     {
         $page = Page::factory()->create([
             'slug' => 'about-us',
@@ -54,7 +54,7 @@ class ViewComposerTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_sermon_url_segments(): void
+    public function it_renders_sermon_layout_from_controller_data(): void
     {
         $date = now();
         $sermon = Sermon::factory()->create([
@@ -73,20 +73,23 @@ class ViewComposerTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_auth_url_segments(): void
+    public function it_keeps_explicit_layout_data_when_rendering_the_layout(): void
     {
-        $response = $this->get('/login');
+        $view = View::make('layouts/page', [
+            'heading' => 'Explicit heading',
+            'description' => 'Explicit description',
+            'content' => '<p>Explicit content</p>',
+            'area' => 'church',
+            'slug' => 'explicit-page',
+            'links' => collect(),
+        ]);
 
-        $response->assertStatus(200);
-        // Login page might be handled by Fortify/Breeze and not use layout/page.blade.php composer
-        // but the composer logic should still run if the layout is used.
-        // We verify that the 'area' is set to 'Members' if the variable exists
-        try {
-            $area = $response->viewData('area');
-            $this->assertEquals('Members', $area);
-        } catch (\ErrorException $e) {
-            // View data key 'area' not found, which is expected for some auth routes
-        }
+        $view->render();
+
+        $this->assertSame('Explicit heading', $view->getData()['heading']);
+        $this->assertSame('Explicit description', $view->getData()['description']);
+        $this->assertSame('church', $view->getData()['area']);
+        $this->assertCount(0, $view->getData()['links']);
     }
 
     #[Test]
@@ -160,7 +163,7 @@ class ViewComposerTest extends TestCase
     }
 
     #[Test]
-    public function it_uses_members_links_for_second_level_members_route(): void
+    public function it_resolves_members_links_explicitly_without_route_inference(): void
     {
         $membersSlug = 'view-composer-members-link';
 
@@ -180,47 +183,16 @@ class ViewComposerTest extends TestCase
             ['area' => PageArea::MEMBERS, 'admin' => 'yes', 'heading' => 'Pages', 'description' => 'Admin pages', 'body' => 'Pages', 'markdown' => '', 'navigation' => false],
         ));
 
-        $this->app->instance('request', Request::create('/church/members', 'GET'));
-
-        $view = View::make('layouts/page');
-        $view->render();
-
-        $links = $view->getData()['links'];
-
-        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === $membersSlug && $page->area === PageArea::MEMBERS));
-        $this->assertFalse($links->contains(fn (Page $page): bool => $page->area === PageArea::SERMONS));
-        $this->assertFalse($links->contains('slug', 'pages'));
-    }
-
-    #[Test]
-    public function it_uses_members_links_for_third_level_members_route(): void
-    {
-        $membersSlug = 'view-composer-members-link-level-3';
-
-        Page::factory()->create([
-            'slug' => $membersSlug,
-            'area' => PageArea::MEMBERS,
-            'admin' => 'no',
-        ]);
-
-        Page::query()->updateOrCreate(
-            ['slug' => 'all-sermons'],
-            Page::factory()->raw([
-                'slug' => 'all-sermons',
-                'area' => PageArea::SERMONS,
-                'admin' => 'no',
-            ]),
+        $links = app(RelatedPagePresenter::class)->ordered(
+            linkArea: PageArea::MEMBERS->value,
+            slugToExclude: 'members',
+            secondSlugToExclude: 'members',
+            excludeAdminPages: true,
         );
 
-        $this->app->instance('request', Request::create('/church/members/view-composer-check', 'GET'));
-
-        $view = View::make('layouts/page');
-        $view->render();
-
-        $links = $view->getData()['links'];
-
-        $this->assertTrue($links->contains(fn (Page $page): bool => $page->slug === $membersSlug && $page->area === PageArea::MEMBERS));
-        $this->assertFalse($links->contains(fn (Page $page): bool => $page->area === PageArea::SERMONS));
+        $this->assertTrue($links->contains(fn (array $link): bool => $link['slug'] === $membersSlug && $link['area'] === PageArea::MEMBERS->value));
+        $this->assertFalse($links->contains(fn (array $link): bool => $link['area'] === PageArea::SERMONS->value));
+        $this->assertFalse($links->contains(fn (array $link): bool => $link['slug'] === 'pages'));
     }
 
     #[Test]

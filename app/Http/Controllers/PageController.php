@@ -6,7 +6,9 @@ namespace App\Http\Controllers;
 
 use App\Enums\PageArea;
 use App\Models\Page;
-use App\Services\SafeMarkdownRenderer;
+use App\Presenters\PageLayoutPresenter;
+use App\Presenters\RelatedPagePresenter;
+use App\Services\PublicPageVisibilityGuard;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -15,6 +17,12 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PageController extends Controller
 {
+    public function __construct(
+        private readonly PageLayoutPresenter $pageLayoutPresenter,
+        private readonly RelatedPagePresenter $relatedPagePresenter,
+        private readonly PublicPageVisibilityGuard $publicPageVisibilityGuard,
+    ) {}
+
     /**
      * Display a generic page layout.
      *
@@ -29,24 +37,31 @@ class PageController extends Controller
 
         // Fetch the landing page for this area (where slug equals area)
         $page = Page::query()->where('slug', $area)->where('area', $area)->first();
-        $user = Auth::user();
-
-        if ($page) {
-            // Security check: Restricted pages
-            if ($page->admin === 'yes' && ($user === null || ! $user->is_admin)) {
-                abort(403, 'Unauthorized action.');
-            }
-
-            // Security check: Members-only area
-            if ($page->area === PageArea::MEMBERS && ! Auth::check()) {
+        if (! $page instanceof Page) {
+            if ($area === PageArea::MEMBERS->value && ! Auth::check()) {
+                // Even if no landing page exists, protect the members area by default
                 return redirect()->guest(route('login'));
             }
-        } elseif ($area === PageArea::MEMBERS->value && ! Auth::check()) {
-            // Even if no landing page exists, protect the members area by default
-            return redirect()->guest(route('login'));
+
+            abort(404);
         }
 
-        return response()->view('layouts/page', ['page' => $page]);
+        if ($redirect = $this->publicPageVisibilityGuard->enforce($page)) {
+            return $redirect;
+        }
+
+        return response()->view('layouts/page', $this->pageLayoutPresenter->present(
+            page: $page,
+            area: $area,
+            slug: $page->slug,
+            links: $this->relatedPagePresenter->random(
+                linkArea: $area,
+                slugToExclude: $page->slug,
+                secondSlugToExclude: $page->slug,
+                excludeAdminPages: true,
+                extraExcludedSlugs: ['privacy-policy'],
+            ),
+        ));
     }
 
     /**
@@ -54,38 +69,26 @@ class PageController extends Controller
      *
      * @param  string  $area  The area of the page.
      * @param  string  $slug  The slug of the page.
-     * @param  \App\Services\SafeMarkdownRenderer  $markdownRenderer  Service to convert markdown to safe HTML.
      */
-    public function show(string $area, string $slug, SafeMarkdownRenderer $markdownRenderer): Response
+    public function show(string $area, string $slug): Response
     {
         $page = Page::query()->where('slug', $slug)->where('area', $area)->firstOrFail();
-        $user = Auth::user();
 
-        // Security check: Restricted pages
-        if ($page->admin === 'yes' && ($user === null || ! $user->is_admin)) {
-            abort(403, 'Unauthorized action.');
+        if ($redirect = $this->publicPageVisibilityGuard->enforce($page)) {
+            return $redirect;
         }
 
-        // Security check: Members-only area
-        if ($page->area === PageArea::MEMBERS && ! Auth::check()) {
-            return redirect()->guest(route('login'));
-        }
-
-        $html = $page->markdown
-            ? $markdownRenderer->convert($page->markdown)
-            : htmlspecialchars_decode($page->body);
-
-        return response()->view('layouts/page', [
-            'page' => $page,
-            'html' => $html,
-            'content' => $html,
-            'heading' => $page->heading,
-            'description' => $page->description,
-            'area' => $page->area->value,
-            'slug' => $page->slug,
-            'headingpicture' => $page->heading_image_url,
-            'headingpictureMobile' => $page->heading_image_mobile_url,
-            'headingpictureTablet' => $page->heading_image_tablet_url,
-        ]);
+        return response()->view('layouts/page', $this->pageLayoutPresenter->present(
+            page: $page,
+            area: $page->area->value,
+            slug: $page->slug,
+            links: $this->relatedPagePresenter->random(
+                linkArea: $page->area->value,
+                slugToExclude: $page->slug,
+                secondSlugToExclude: $page->slug,
+                excludeAdminPages: true,
+                extraExcludedSlugs: ['privacy-policy'],
+            ),
+        ));
     }
 }

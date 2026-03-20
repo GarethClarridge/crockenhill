@@ -32,15 +32,13 @@ class PageCardServiceTest extends TestCase
             'unrelated-page',
         ]);
 
-        /** @var Page $sundayEvenings */
-        $sundayEvenings = Page::factory()->create([
+        Page::factory()->create([
             'slug' => 'sunday-evenings',
             'area' => PageArea::COMMUNITY,
             'admin' => 'no',
         ]);
 
-        /** @var Page $bibleStudy */
-        $bibleStudy = Page::factory()->create([
+        Page::factory()->create([
             'slug' => 'bible-study',
             'area' => PageArea::COMMUNITY,
             'admin' => 'no',
@@ -55,8 +53,8 @@ class PageCardServiceTest extends TestCase
         $results = $this->service->forHome();
 
         $this->assertCount(2, $results);
-        $this->assertTrue($results->contains('id', $sundayEvenings->id));
-        $this->assertTrue($results->contains('id', $bibleStudy->id));
+        $this->assertTrue($results->contains('slug', 'sunday-evenings'));
+        $this->assertTrue($results->contains('slug', 'bible-study'));
         $this->assertFalse($results->contains('slug', 'unrelated-page'));
     }
 
@@ -99,7 +97,7 @@ class PageCardServiceTest extends TestCase
 
         $this->assertCount(count($slugs), $results);
         foreach ($pages as $page) {
-            $this->assertTrue($results->contains('id', $page->id));
+            $this->assertTrue($results->contains('slug', $page->slug));
         }
 
         $this->assertFalse($results->contains('slug', 'unrelated-community'));
@@ -115,22 +113,19 @@ class PageCardServiceTest extends TestCase
             'unrelated-church',
         ]);
 
-        /** @var Page $sundayMornings */
-        $sundayMornings = Page::factory()->create([
+        Page::factory()->create([
             'slug' => 'sunday-mornings',
             'area' => PageArea::COMMUNITY,
             'admin' => 'no',
         ]);
 
-        /** @var Page $sundayEvenings */
-        $sundayEvenings = Page::factory()->create([
+        Page::factory()->create([
             'slug' => 'sunday-evenings',
             'area' => PageArea::COMMUNITY,
             'admin' => 'no',
         ]);
 
-        /** @var Page $bibleStudy */
-        $bibleStudy = Page::factory()->create([
+        Page::factory()->create([
             'slug' => 'bible-study',
             'area' => PageArea::COMMUNITY,
             'admin' => 'no',
@@ -145,9 +140,9 @@ class PageCardServiceTest extends TestCase
         $results = $this->service->forChurch();
 
         $this->assertCount(3, $results);
-        $this->assertTrue($results->contains('id', $sundayMornings->id));
-        $this->assertTrue($results->contains('id', $sundayEvenings->id));
-        $this->assertTrue($results->contains('id', $bibleStudy->id));
+        $this->assertTrue($results->contains('slug', 'sunday-mornings'));
+        $this->assertTrue($results->contains('slug', 'sunday-evenings'));
+        $this->assertTrue($results->contains('slug', 'bible-study'));
         $this->assertFalse($results->contains('slug', 'unrelated-church'));
     }
 
@@ -163,14 +158,12 @@ class PageCardServiceTest extends TestCase
             'community-page',
         ]);
 
-        /** @var Page $page1 */
-        $page1 = Page::factory()->create([
+        Page::factory()->create([
             'area' => PageArea::CHURCH,
             'slug' => 'about-us',
             'admin' => 'no',
         ]);
-        /** @var Page $page2 */
-        $page2 = Page::factory()->create([
+        Page::factory()->create([
             'area' => PageArea::CHURCH,
             'slug' => 'leadership',
             'admin' => 'no',
@@ -199,8 +192,8 @@ class PageCardServiceTest extends TestCase
 
         $results = $this->service->churchLinks();
 
-        $this->assertTrue($results->contains('id', $page1->id));
-        $this->assertTrue($results->contains('id', $page2->id));
+        $this->assertTrue($results->contains('slug', 'about-us'));
+        $this->assertTrue($results->contains('slug', 'leadership'));
         $this->assertFalse($results->contains('slug', 'privacy-policy'));
         $this->assertFalse($results->contains('slug', 'safeguarding-policy'));
         $this->assertFalse($results->contains('slug', 'admin-page'));

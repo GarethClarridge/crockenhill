@@ -29,7 +29,13 @@ class CalendarController extends Controller
             ->limit(50)
             ->get();
 
-        return view('calendar.index', compact('allEvents'));
+        return view('calendar.index', [
+            'allEvents' => $allEvents,
+            'heading' => 'Church Calendar',
+            'description' => 'Upcoming events at Crockenhill Baptist Church.',
+            'content' => '',
+            'links' => collect(),
+        ]);
     }
 
     public function eventsForMeeting(Meeting $meeting): View
@@ -37,7 +43,14 @@ class CalendarController extends Controller
         $events = $this->calendarService->getEventsForMeeting($meeting->slug)
             ->sortBy('start_datetime');
 
-        return view('meetings.events', compact('meeting', 'events'));
+        return view('meetings.events', [
+            'meeting' => $meeting,
+            'events' => $events,
+            'heading' => $meeting->slug.' events',
+            'description' => "All calendar events for {$meeting->slug}.",
+            'content' => '',
+            'links' => collect(),
+        ]);
     }
 
     public function uncategorized(): View
@@ -46,6 +59,12 @@ class CalendarController extends Controller
             ->where('start_datetime', '>=', now())
             ->take(20);
 
-        return view('calendar.uncategorized', compact('uncategorizedEvents'));
+        return view('calendar.uncategorized', [
+            'uncategorizedEvents' => $uncategorizedEvents,
+            'heading' => 'Uncategorized Events',
+            'description' => 'Calendar events that still need assigning to a meeting.',
+            'content' => '',
+            'links' => collect(),
+        ]);
     }
 }

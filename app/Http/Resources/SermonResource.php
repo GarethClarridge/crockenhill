@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use LogicException;
 
 /**
  * @mixin \App\Models\Sermon
@@ -19,6 +20,8 @@ class SermonResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $sermonView = $this->sermonView();
+
         return [
             'id' => $this->id,
             'title' => $this->title,
@@ -44,11 +47,42 @@ class SermonResource extends JsonResource
             'series' => $this->series,
             'reference' => $this->reference,
             'points' => $this->points,
-            'audio_url' => $this->audio_url,
-            'thumbnail_url' => $this->thumbnail_url,
+            'audio_url' => $sermonView['audio_url'],
+            'thumbnail_url' => $sermonView['thumbnail_url'],
             'thumbnail_metadata' => $this->thumbnail_metadata,
             'series_url' => $this->series_url,
-            'preacher_url' => $this->preacher_url,
+            'preacher_url' => $sermonView['preacher_url'],
         ];
+    }
+
+    /**
+     * @return array{
+     *     audio_url: ?string,
+     *     canonical_url: string,
+     *     preacher_url: ?string,
+     *     public_url: string,
+     *     thumbnail_url: ?string,
+     *     transcript: ?string,
+     *     video_url: ?string
+     * }
+     */
+    private function sermonView(): array
+    {
+        $sermonView = $this->resource->getAttribute('sermon_view');
+
+        if (! is_array($sermonView)) {
+            throw new LogicException('SermonResource requires precomputed sermon_view data.');
+        }
+
+        /** @var array{
+         *     audio_url: ?string,
+         *     canonical_url: string,
+         *     preacher_url: ?string,
+         *     public_url: string,
+         *     thumbnail_url: ?string,
+         *     transcript: ?string,
+         *     video_url: ?string
+         * } $sermonView */
+        return $sermonView;
     }
 }

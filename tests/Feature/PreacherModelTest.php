@@ -6,6 +6,7 @@ use App\Enums\PreacherSource;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -117,7 +118,7 @@ class PreacherModelTest extends TestCase
         $this->assertCount(2, $needsReview);
     }
 
-    public function test_preacher_url_accessor_uses_profile_slug(): void
+    public function test_preacher_url_presenter_uses_profile_slug(): void
     {
         $preacher = Preacher::factory()->create(['name' => 'Dr Smith', 'slug' => 'dr-smith']);
         $sermon = Sermon::factory()->create([
@@ -125,16 +126,16 @@ class PreacherModelTest extends TestCase
             'preacher_id' => $preacher->id,
         ]);
 
-        $this->assertStringContainsString('dr-smith', $sermon->preacher_url);
+        $this->assertStringContainsString('dr-smith', app(SermonViewPresenter::class)->preacherUrl($sermon) ?? '');
     }
 
-    public function test_preacher_url_accessor_falls_back_to_legacy_slug(): void
+    public function test_preacher_url_presenter_falls_back_to_legacy_slug(): void
     {
         $sermon = Sermon::factory()->create([
             'preacher' => 'John Doe',
             'preacher_id' => null,
         ]);
 
-        $this->assertStringContainsString('john-doe', $sermon->preacher_url);
+        $this->assertStringContainsString('john-doe', app(SermonViewPresenter::class)->preacherUrl($sermon) ?? '');
     }
 }

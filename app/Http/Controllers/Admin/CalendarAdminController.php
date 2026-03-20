@@ -33,7 +33,14 @@ class CalendarAdminController extends Controller
             ->orderBy('slug')
             ->get();
 
-        return view('admin.calendar.uncategorized', compact('uncategorizedEvents', 'meetings'));
+        return view('admin.calendar.uncategorized', [
+            'uncategorizedEvents' => $uncategorizedEvents,
+            'meetings' => $meetings,
+            'heading' => 'Categorise Calendar Events',
+            'description' => 'Review uncategorized calendar events.',
+            'content' => '',
+            'links' => collect(),
+        ]);
     }
 
     public function categorizeEvent(CategorizeEventRequest $request): RedirectResponse
@@ -62,7 +69,14 @@ class CalendarAdminController extends Controller
             ->orderBy('slug')
             ->get();
 
-        return view('admin.calendar.patterns', compact('patterns', 'meetings'));
+        return view('admin.calendar.patterns', [
+            'patterns' => $patterns,
+            'meetings' => $meetings,
+            'heading' => 'Calendar Patterns',
+            'description' => 'Calendar pattern mappings for meetings.',
+            'content' => '',
+            'links' => collect(),
+        ]);
     }
 
     public function syncCalendar(): RedirectResponse

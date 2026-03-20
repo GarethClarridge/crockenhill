@@ -3,19 +3,14 @@
 namespace App\Presenters;
 
 use App\Models\Sermon;
-use App\Services\SermonExposurePolicy;
 use Carbon\Carbon;
 use Spatie\Sitemap\Tags\Url;
 
 class SermonSitemapPresenter
 {
-    private readonly SermonExposurePolicy $exposurePolicy;
-
     public function __construct(
-        ?SermonExposurePolicy $exposurePolicy = null,
-    ) {
-        $this->exposurePolicy = $exposurePolicy ?? app(SermonExposurePolicy::class);
-    }
+        private readonly SermonViewPresenter $sermonViewPresenter,
+    ) {}
 
     public function toSitemapTag(Sermon $sermon): Url
     {
@@ -34,32 +29,33 @@ class SermonSitemapPresenter
             }
         }
 
-        $url = Url::create($this->exposurePolicy->canonicalUrl($sermon))
+        $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
+        $thumbnailUrl = $this->sermonViewPresenter->thumbnailUrl($sermon);
+
+        $url = Url::create($this->sermonViewPresenter->canonicalUrl($sermon))
             ->setLastModificationDate($lastModified)
             ->setChangeFrequency($changeFreq)
             ->setPriority($priority);
 
-        if ($sermon->hasVideo() && $sermon->video_url) {
-            $thumbnailUrl = $sermon->thumbnail_url;
-            if ($thumbnailUrl) {
-                $videoOptions = [];
-                if ($sermon->duration && $sermon->duration > 0) {
-                    $videoOptions['duration'] = (int) $sermon->duration;
-                }
-                $url->addVideo(
-                    $thumbnailUrl,
-                    $sermon->title,
-                    $sermon->summary ?? $sermon->title,
-                    $sermon->video_url,
-                    null,
-                    $videoOptions
-                );
+        if ($sermon->hasVideo() && $videoUrl !== null && $thumbnailUrl !== null) {
+            $videoOptions = [];
+            if ($sermon->duration && $sermon->duration > 0) {
+                $videoOptions['duration'] = (int) $sermon->duration;
             }
+
+            $url->addVideo(
+                $thumbnailUrl,
+                $sermon->title,
+                $sermon->summary ?? $sermon->title,
+                $videoUrl,
+                null,
+                $videoOptions
+            );
         }
 
-        if ($sermon->hasThumbnail() && $sermon->thumbnail_url) {
+        if ($thumbnailUrl !== null) {
             $url->addImage(
-                $sermon->thumbnail_url,
+                $thumbnailUrl,
                 $sermon->meta_description,
                 '',
                 $sermon->title

@@ -6,15 +6,23 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Meeting;
+use App\Presenters\MeetingShowPresenter;
+use App\Presenters\RelatedPagePresenter;
+use App\Services\PublicPageVisibilityGuard;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\View;
 
 class MeetingController extends Controller
 {
+    public function __construct(
+        private readonly MeetingShowPresenter $meetingShowPresenter,
+        private readonly RelatedPagePresenter $relatedPagePresenter,
+        private readonly PublicPageVisibilityGuard $publicPageVisibilityGuard,
+    ) {}
+
     /**
      * Display a listing of the resource.
      *
@@ -30,18 +38,24 @@ class MeetingController extends Controller
             ->orderBy('meeting_date', 'desc')
             ->get();
 
-        return View::make('meetings.index', ['meetings' => $meetings]);
+        return View::make('meetings.index', [
+            'meetings' => $meetings,
+            'heading' => 'Meetings',
+            'description' => 'Manage church meetings.',
+            'content' => '',
+            'links' => collect(),
+        ]);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Meeting $meeting): ViewContract
+    public function show(Meeting $meeting): ViewContract|RedirectResponse
     {
-        // If the meeting is backed by an admin-only page, reject non-admin access.
-        $user = Auth::user();
-        if ($meeting->page !== null && $meeting->page->admin === 'yes' && ($user === null || ! $user->is_admin)) {
-            abort(403, 'Unauthorized action.');
+        $meeting->loadMissing('page');
+
+        if ($redirect = $this->publicPageVisibilityGuard->enforce($meeting->page)) {
+            return $redirect;
         }
 
         // Eager load page, media (for photos), and calendar events to avoid N+1 queries
@@ -69,29 +83,23 @@ class MeetingController extends Controller
             ->limit(3)
             ->get();
 
-        // Use canonical photo discovery from the model (media library + legacy fallback).
-        $photos = $meeting->photos;
-
-        // Variables for the layout
-        $page = $meeting->page;
-        $heading = $page->heading ?? $meeting->heading;
-        $headingpicture = $page?->heading_image_url;
-        $content = $page?->body; // Page content shown before meeting details
-        $area = 'community';
-        $slug = $meeting->slug;
+        $links = $this->relatedPagePresenter->random(
+            linkArea: 'community',
+            slugToExclude: $meeting->slug,
+            secondSlugToExclude: $meeting->slug,
+            excludeAdminPages: true,
+            extraExcludedSlugs: ['privacy-policy'],
+        );
+        $layoutData = $this->meetingShowPresenter->layoutData($meeting, $links);
+        $photos = $this->meetingShowPresenter->photos($meeting);
 
         return view('meetings.show', [
             'meeting' => $meeting,
-            'page' => $page,
+            'page' => $meeting->page,
             'photos' => $photos,
             'upcomingEvents' => $upcomingEvents,
             'pastEvents' => $pastEvents,
-            // Layout variables
-            'heading' => $heading,
-            'headingpicture' => $headingpicture,
-            'content' => $content,
-            'area' => $area,
-            'slug' => $slug,
+            ...$layoutData,
         ]);
     }
 

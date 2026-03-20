@@ -1116,7 +1116,7 @@ The backlog is ordered for safety:
   - `oos-alignment-service-review.md`
 
 ### TD-012 - Extract processing-run transitions out of `MediaProcessingLog` before orchestrator work
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium
@@ -1199,7 +1199,7 @@ The backlog is ordered for safety:
   - `artisan-command-architecture-review-2026-03-18.md`
 
 ### TD-013 - Replace route-aware layout resolution and move hidden read-side I/O out of models
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Medium

@@ -9,6 +9,9 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
+use App\Services\MediaProcessingRunTransitionService;
+use App\Services\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -45,7 +48,7 @@ class UpdateSermonRecordTest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
-        (new UpdateSermonRecord($sermon->id))->handle();
+        $this->handleJob(new UpdateSermonRecord($sermon->id));
 
         $sermon->refresh();
         $this->assertEquals('The Good Shepherd', $sermon->title);
@@ -72,7 +75,7 @@ class UpdateSermonRecordTest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
-        (new UpdateSermonRecord($sermon->id))->handle();
+        $this->handleJob(new UpdateSermonRecord($sermon->id));
 
         $sermon->refresh();
         $this->assertEquals('the-good-shepherd-1', $sermon->slug);
@@ -95,7 +98,7 @@ class UpdateSermonRecordTest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
 
-        (new UpdateSermonRecord($sermon->id))->handle();
+        $this->handleJob(new UpdateSermonRecord($sermon->id));
 
         $sermon->refresh();
         $this->assertNotEmpty($sermon->title);
@@ -113,7 +116,7 @@ class UpdateSermonRecordTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Sermon not found');
 
-        $job->handle();
+        $this->handleJob($job);
     }
 
     #[Test]
@@ -129,7 +132,7 @@ class UpdateSermonRecordTest extends TestCase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Processing log not found');
 
-        $job->handle();
+        $this->handleJob($job);
     }
 
     #[Test]
@@ -161,5 +164,14 @@ class UpdateSermonRecordTest extends TestCase
         $this->assertEquals(3, $job->tries);
         $this->assertEquals(300, $job->timeout);
         $this->assertEquals([30, 120, 300], $job->backoff());
+    }
+
+    private function handleJob(UpdateSermonRecord $job): void
+    {
+        $job->handle(
+            app(MediaProcessingRunTransitionService::class),
+            app(SermonRepository::class),
+            app(SermonTranscriptReader::class),
+        );
     }
 }

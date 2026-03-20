@@ -50,7 +50,6 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?float $segment_end_time
  * @property array<string, mixed>|null $livestream_metadata
  * @property ?string $bible_reference
- * @property ?string $audio_url
  * @property ?bool $is_guest
  * @property ?string $notes
  * @property ?int $download_count
@@ -60,12 +59,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?\Illuminate\Support\Carbon $updated_at
  * @property-read ?string $human_date
  * @property-read ?string $series_url
- * @property-read ?string $preacher_url
- * @property-read ?string $video_url
- * @property-read ?string $thumbnail_url
  * @property-read ?string $plain_thumbnail_file_path
- * @property-read string $canonical_url
- * @property-read string $public_url
  * @property-read ServiceSection|null $publishedServiceSection
  *
  * @method static \Database\Factories\SermonFactory factory(...$parameters)
@@ -160,22 +154,6 @@ class Sermon extends Model implements Sitemapable
         return $this->date->format('F j, Y');
     }
 
-    public function getAudioUrlAttribute(): ?string
-    {
-        if (! $this->audio_file_path) {
-            return null;
-        }
-
-        $storageService = resolve(\App\Services\SermonStorageService::class);
-
-        return $storageService->getPublicUrl($this);
-    }
-
-    public function getThumbnailUrlAttribute(): ?string
-    {
-        return resolve(\App\Services\SermonStorageService::class)->getThumbnailUrl($this);
-    }
-
     public function getPlainThumbnailFilePathAttribute(): ?string
     {
         $plainThumbnailPath = $this->thumbnail_metadata['plain_thumbnail_path'] ?? null;
@@ -191,20 +169,6 @@ class Sermon extends Model implements Sitemapable
     public function getSeriesUrlAttribute(): ?string
     {
         return $this->series ? '/christ/sermons/series/'.Str::slug($this->series) : null;
-    }
-
-    public function getPublicUrlAttribute(): string
-    {
-        return app(\App\Services\SermonExposurePolicy::class)->publicUrl($this);
-    }
-
-    public function getPreacherUrlAttribute(): ?string
-    {
-        if ($this->relationLoaded('preacherProfile') && $this->preacherProfile) {
-            return '/christ/sermons/preachers/'.$this->preacherProfile->slug;
-        }
-
-        return $this->preacher ? '/christ/sermons/preachers/'.Str::slug($this->preacher) : null;
     }
 
     /**
@@ -406,44 +370,6 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * Get the transcript content for this sermon
-     *
-     * @return string|null The transcript content or null if not available
-     */
-    public function getTranscriptAttribute(): ?string
-    {
-        if (! $this->transcript_file_path) {
-            return null;
-        }
-
-        $path = trim((string) $this->transcript_file_path);
-
-        // Security check: Prevent path traversal
-        if (str_contains($path, '..')) {
-            \Illuminate\Support\Facades\Log::warning('Path traversal attempt detected in transcript path', [
-                'sermon_id' => $this->id,
-                'path' => $path,
-            ]);
-
-            return null;
-        }
-
-        /** @var \App\Services\TranscriptStorageService $service */
-        $service = app(\App\Services\TranscriptStorageService::class);
-        $transcript = $service->readTranscriptFromPath($path);
-
-        if ($transcript === null) {
-            \Illuminate\Support\Facades\Log::warning('Transcript file not found on any configured disk', [
-                'sermon_id' => $this->id,
-                'transcript_file_path' => $path,
-                'disks_checked' => $service->getTranscriptReadDisks(),
-            ]);
-        }
-
-        return $transcript;
-    }
-
-    /**
      * Check if this sermon has a transcript available
      *
      * Performance Optimization: Trust the database column presence to avoid
@@ -614,16 +540,6 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
-     * Get the video URL for this sermon
-     *
-     * @return string|null The video URL or null if no video
-     */
-    public function getVideoUrlAttribute(): ?string
-    {
-        return resolve(\App\Services\SermonStorageService::class)->getVideoUrl($this);
-    }
-
-    /**
      * Scope to get only livestream sermons
      */
     /**
@@ -715,14 +631,6 @@ class Sermon extends Model implements Sitemapable
     public function toSitemapTag(): Url|string|array
     {
         return app(\App\Presenters\SermonSitemapPresenter::class)->toSitemapTag($this);
-    }
-
-    /**
-     * Get canonical sermon URL
-     */
-    public function getCanonicalUrlAttribute(): string
-    {
-        return app(\App\Services\SermonExposurePolicy::class)->canonicalUrl($this);
     }
 
     /**

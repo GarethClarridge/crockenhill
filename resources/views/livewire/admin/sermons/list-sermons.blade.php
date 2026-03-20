@@ -57,6 +57,11 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($sermons as $sermon)
+                        @php
+                            $publicUrl = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
+                                ? route('childrens-corner.show', ['sermon' => $sermon->slug])
+                                : route('showSermon', ['sermon' => $sermon->slug]);
+                        @endphp
                         <tr class="hover:bg-gray-50">
                             {{-- Title --}}
                             <td class="px-4 py-3">
@@ -113,7 +118,7 @@
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">
                                 <div class="flex gap-1 justify-end">
-                                    <x-button link="{{ $sermon->public_url }}" variant="ghost" size="xs" icon="eye" inline aria-label="View {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
+                                    <x-button link="{{ $publicUrl }}" variant="ghost" size="xs" icon="eye" inline aria-label="View {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
                                     <x-button link="{{ route('admin.sermons.edit', $sermon) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit {{ strtolower($sermon->content_type->label()) }}: {{ $sermon->title }}" />
                                     <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                         wire:click="delete({{ $sermon->id }})"

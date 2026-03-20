@@ -14,10 +14,13 @@ use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Repositories\SermonRepository;
 use App\Services\AudioTranscriptionService;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonJobPipelineService;
 use App\Services\SermonProcessingLogger;
+use App\Services\SermonTranscriptReader;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -350,8 +353,7 @@ class SermonProcessingJobChainTest extends TestCase
             ->create();
 
         // Create and execute the job — no analysis service needed
-        $job = new UpdateSermonRecord($sermon->id);
-        $job->handle();
+        $this->handleUpdateSermonRecordJob(new UpdateSermonRecord($sermon->id));
 
         // Assert sermon was updated
         $sermon->refresh();
@@ -704,8 +706,7 @@ class SermonProcessingJobChainTest extends TestCase
             'ai_analysis' => $this->createMockSermonAnalysis()->toArray(),
         ]);
 
-        $updateJob = new UpdateSermonRecord($sermon->id);
-        $updateJob->handle();
+        $this->handleUpdateSermonRecordJob(new UpdateSermonRecord($sermon->id));
 
         // Verify sermon was updated
         $sermon->refresh();
@@ -717,5 +718,14 @@ class SermonProcessingJobChainTest extends TestCase
         // Verify processing log completion
         $processingLog->refresh();
         $this->assertEquals(ProcessingStatus::COMPLETED, $processingLog->status);
+    }
+
+    private function handleUpdateSermonRecordJob(UpdateSermonRecord $job): void
+    {
+        $job->handle(
+            app(MediaProcessingRunTransitionService::class),
+            app(SermonRepository::class),
+            app(SermonTranscriptReader::class),
+        );
     }
 }

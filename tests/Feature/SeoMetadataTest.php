@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Services\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -38,7 +39,7 @@ class SeoMetadataTest extends TestCase
         $response->assertSee('<meta name="description" content="', false);
         $response->assertSee($sermon->title, false);
         $response->assertSee('<meta property="og:title" content="The Way of Peace | John Doe | Crockenhill Baptist Church">', false);
-        $response->assertSee('<link rel="canonical" href="'.$sermon->canonical_url.'">', false);
+        $response->assertSee('<link rel="canonical" href="'.app(SermonExposurePolicy::class)->canonicalUrl($sermon).'">', false);
     }
 
     public function test_preachers_index_page_has_seo_metadata_and_json_ld()

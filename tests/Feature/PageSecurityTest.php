@@ -105,4 +105,11 @@ class PageSecurityTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Legacy Body Content', false);
     }
+
+    public function test_non_members_area_without_landing_page_returns_404(): void
+    {
+        Page::query()->where('area', PageArea::SERMONS)->delete();
+
+        $this->get('/sermons')->assertNotFound();
+    }
 }

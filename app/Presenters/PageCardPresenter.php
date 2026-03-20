@@ -1,0 +1,43 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Presenters;
+
+use App\Models\Page;
+use Illuminate\Support\Collection;
+
+class PageCardPresenter
+{
+    public function __construct(
+        private readonly PageImagePresenter $pageImagePresenter,
+    ) {}
+
+    /**
+     * @return array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}
+     */
+    public function present(Page $page): array
+    {
+        $area = $page->area->value;
+
+        return [
+            'area' => $area,
+            'description' => $page->description,
+            'heading' => $page->heading,
+            'image_url' => $this->pageImagePresenter->headingImageSmallUrl($page) ?? '/images/headings/small/default.webp',
+            'slug' => $page->slug,
+            'url' => $area === 'sermons'
+                ? "/christ/sermons/{$page->slug}"
+                : '/'.$area.'/'.$page->slug,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, Page>  $pages
+     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     */
+    public function presentCollection(Collection $pages): Collection
+    {
+        return $pages->map(fn (Page $page): array => $this->present($page))->values();
+    }
+}

@@ -45,6 +45,7 @@ class SermonAdminController extends Controller
             'description' => '<meta name="description" content="Edit this sermon.">',
             // 'breadcrumbs'   => $breadcrumbs, // Removed
             'content' => '',
+            'links' => collect(),
         ]);
     }
 
@@ -119,6 +120,9 @@ class SermonAdminController extends Controller
 
         return view('sermons.upload', [
             'heading' => 'Upload sermon',
+            'description' => 'Upload sermon media for processing.',
+            'content' => '',
+            'links' => collect(),
         ]);
     }
 

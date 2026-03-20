@@ -10,20 +10,25 @@ use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\PreacherItemListPresenter;
+use App\Presenters\RelatedPagePresenter;
 use App\Presenters\SeriesItemListPresenter;
 use App\Presenters\SermonItemListPresenter;
+use App\Presenters\SermonViewPresenter;
 use App\Repositories\SermonRepository;
 use App\Services\SermonExposurePolicy;
 use App\Services\SermonPageContextService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SermonController extends Controller
 {
     public function __construct(
+        private readonly RelatedPagePresenter $relatedPagePresenter,
         private readonly SermonRepository $sermonRepository,
         private readonly SermonItemListPresenter $itemListPresenter,
+        private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
 
     /**
@@ -42,6 +47,8 @@ class SermonController extends Controller
             'heading' => 'Sermons',
             'description' => 'Listen to recent sermons from Crockenhill Baptist Church. Worshipping God, strengthening believers, and proclaiming Jesus Christ.',
             'area' => 'christ',
+            'links' => $this->sermonLinks('sermons'),
+            'slug' => 'sermons',
         ]);
     }
 
@@ -58,6 +65,8 @@ class SermonController extends Controller
             'heading' => 'All Sermons',
             'description' => 'Browse all sermons from Crockenhill Baptist Church. Search by date, preacher or series.',
             'area' => 'christ',
+            'links' => $this->sermonLinks('all'),
+            'slug' => 'all',
         ]);
     }
 
@@ -106,9 +115,11 @@ class SermonController extends Controller
             'description' => $sermon->meta_description,
             'content' => '',
             'sermon' => $sermon,
+            'sermonView' => $this->sermonViewPresenter->present($sermon),
             'readingReference' => $pageContext['reading_reference'],
             'readingUrl' => $pageContext['reading_url'],
             'area' => 'christ',
+            'links' => $this->sermonLinks($sermon->slug, ['homepage']),
         ]);
     }
 
@@ -132,6 +143,8 @@ class SermonController extends Controller
             'description' => 'Preachers at Crockenhill Baptist Church.',
             'content' => $page ? $page->body : '',
             'area' => 'christ',
+            'links' => $this->sermonLinks('preachers'),
+            'slug' => 'preachers',
         ]);
     }
 
@@ -155,6 +168,8 @@ class SermonController extends Controller
             'heading' => 'Sermons by '.$preacher->name,
             'description' => 'Browse all sermons preached by '.$preacher->name.' at Crockenhill Baptist Church.',
             'area' => 'christ',
+            'links' => $this->sermonLinks('preachers'),
+            'slug' => 'preachers',
         ]);
     }
 
@@ -168,6 +183,8 @@ class SermonController extends Controller
             'heading' => 'Sermon Series',
             'description' => 'Browse sermon series from Crockenhill Baptist Church.',
             'area' => 'christ',
+            'links' => $this->sermonLinks('series'),
+            'slug' => 'series',
         ]);
     }
 
@@ -186,6 +203,8 @@ class SermonController extends Controller
             'heading' => 'Sermon Series: '.$series_name,
             'description' => 'Browse all sermons in the "'.$series_name.'" series from Crockenhill Baptist Church.',
             'area' => 'christ',
+            'links' => $this->sermonLinks('series'),
+            'slug' => 'series',
         ]);
     }
 
@@ -211,6 +230,8 @@ class SermonController extends Controller
             'heading' => $serviceLabel.' Services',
             'description' => "Listen to recent {$serviceLabel} sermons from Crockenhill Baptist Church.",
             'area' => 'christ',
+            'links' => $this->sermonLinks($service),
+            'slug' => $service,
         ]);
     }
 
@@ -231,5 +252,20 @@ class SermonController extends Controller
         }
 
         return $this->renderSermon($sermon, $pageContextService);
+    }
+
+    /**
+     * @param  list<string>  $extraExcludedSlugs
+     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
+     */
+    private function sermonLinks(string $slugToExclude, array $extraExcludedSlugs = []): Collection
+    {
+        return $this->relatedPagePresenter->ordered(
+            linkArea: 'sermons',
+            slugToExclude: $slugToExclude,
+            secondSlugToExclude: 'christ',
+            excludeAdminPages: true,
+            extraExcludedSlugs: $extraExcludedSlugs,
+        );
     }
 }

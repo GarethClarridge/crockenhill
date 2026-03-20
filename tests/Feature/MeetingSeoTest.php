@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\PageArea;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Models\Page;
@@ -20,6 +21,7 @@ class MeetingSeoTest extends TestCase
             'heading' => 'Buzz Club',
             'slug' => 'buzz-club',
             'description' => 'A fun club for kids.',
+            'area' => PageArea::COMMUNITY,
         ]);
 
         $meeting = Meeting::factory()->create([
@@ -47,6 +49,7 @@ class MeetingSeoTest extends TestCase
         $page = Page::factory()->create([
             'heading' => 'Test Meeting',
             'slug' => 'test-meeting',
+            'area' => PageArea::COMMUNITY,
         ]);
 
         Meeting::factory()->create([
@@ -74,6 +77,7 @@ class MeetingSeoTest extends TestCase
         $page = Page::factory()->create([
             'heading' => 'Test Meeting',
             'slug' => 'test-meeting',
+            'area' => PageArea::COMMUNITY,
         ]);
 
         $meeting = Meeting::factory()->create([

@@ -9,6 +9,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\MediaProcessingRunTransitionService;
+use App\Services\SermonTranscriptReader;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -40,10 +41,11 @@ class UpdateSermonRecord implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(): void
-    {
-        $processingRunTransitions = app(MediaProcessingRunTransitionService::class);
-
+    public function handle(
+        MediaProcessingRunTransitionService $processingRunTransitions,
+        SermonRepository $sermonRepository,
+        SermonTranscriptReader $transcriptReader,
+    ): void {
         try {
             Log::info('Starting sermon record update', [
                 'sermon_id' => $this->sermonId,
@@ -66,10 +68,9 @@ class UpdateSermonRecord implements ShouldQueue
             $processingRunTransitions->updateStep($processingLog, 'updating_sermon_record');
 
             // Consume stored AI analysis — no re-analysis performed here
-            $analysis = $this->getOrGenerateAnalysis($sermon, $processingLog);
+            $analysis = $this->getOrGenerateAnalysis($sermon, $processingLog, $transcriptReader);
 
             // Generate final slug from AI-generated title
-            $sermonRepository = app(SermonRepository::class);
             $finalSlug = $sermonRepository->generateUniqueSlug($analysis->title, $sermon->id);
 
             // Update sermon record with all processed data
@@ -118,8 +119,11 @@ class UpdateSermonRecord implements ShouldQueue
      * Consume the stored ai_analysis from the processing log.
      * Falls back to a basic analysis when no stored result is available.
      */
-    private function getOrGenerateAnalysis(Sermon $sermon, \App\Models\MediaProcessingLog $processingLog): SermonAnalysis
-    {
+    private function getOrGenerateAnalysis(
+        Sermon $sermon,
+        \App\Models\MediaProcessingLog $processingLog,
+        SermonTranscriptReader $transcriptReader,
+    ): SermonAnalysis {
         if (is_array($processingLog->ai_analysis)) {
             Log::info('Consuming stored AI analysis for sermon update', [
                 'sermon_id' => $sermon->id,
@@ -132,17 +136,17 @@ class UpdateSermonRecord implements ShouldQueue
             'sermon_id' => $sermon->id,
         ]);
 
-        return $this->createBasicAnalysis($sermon);
+        return $this->createBasicAnalysis($sermon, $transcriptReader);
     }
 
     /**
      * Create basic analysis when AI processing is not available
      */
-    private function createBasicAnalysis(Sermon $sermon): SermonAnalysis
+    private function createBasicAnalysis(Sermon $sermon, SermonTranscriptReader $transcriptReader): SermonAnalysis
     {
         // Use existing sermon data or generate basic values
         $title = $this->generateBasicTitle($sermon);
-        $transcript = $sermon->transcript ?? '';
+        $transcript = $transcriptReader->read($sermon) ?? '';
 
         return SermonAnalysis::create(
             title: $title,

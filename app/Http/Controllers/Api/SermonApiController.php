@@ -6,6 +6,7 @@ use App\Enums\SermonService;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SermonResource;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use App\Services\SermonExposurePolicy;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Http\Request;
@@ -14,6 +15,10 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 class SermonApiController extends Controller
 {
     use EscapesLikeWildcards;
+
+    public function __construct(
+        private readonly SermonViewPresenter $sermonViewPresenter,
+    ) {}
 
     /**
      * Display a listing of sermons
@@ -90,6 +95,7 @@ class SermonApiController extends Controller
 
         $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
         $sermons = $query->paginate($perPage);
+        $sermons->through(fn (Sermon $sermon): Sermon => $this->withSermonView($sermon));
 
         return SermonResource::collection($sermons);
     }
@@ -103,6 +109,13 @@ class SermonApiController extends Controller
 
         $sermon->load('preacherProfile');
 
-        return new SermonResource($sermon);
+        return new SermonResource($this->withSermonView($sermon));
+    }
+
+    private function withSermonView(Sermon $sermon): Sermon
+    {
+        $sermon->setAttribute('sermon_view', $this->sermonViewPresenter->present($sermon));
+
+        return $sermon;
     }
 }

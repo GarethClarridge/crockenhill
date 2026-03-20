@@ -12,7 +12,9 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
 use App\Services\AudioTranscriptionService;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonAnalysisService;
+use App\Services\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -204,12 +206,12 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'sermon_id' => $sermon->id,
         ]);
 
-        $mockAnalysisService = $this->createMock(SermonAnalysisService::class);
-        $mockAnalysisService->method('analyzeSermon')
-            ->willReturn($this->createMockSermonAnalysis('Test Sermon'));
-
         $job = new UpdateSermonRecord($sermon->id);
-        $job->handle($mockAnalysisService, new SermonRepository);
+        $job->handle(
+            app(MediaProcessingRunTransitionService::class),
+            app(SermonRepository::class),
+            app(SermonTranscriptReader::class),
+        );
 
         // Should handle slug conflict by generating unique slug
         $sermon->refresh();

@@ -54,7 +54,7 @@ class ListSectionPublications extends Component
         $sections = ServiceSection::query()
             ->with([
                 'processingLog:id,processing_id,extracted_date,extracted_service,processing_metadata',
-                'publishedSermon:id,title,slug',
+                'publishedSermon:id,title,slug,content_type',
             ])
             ->when($this->publicationStatus !== '', fn ($query) => $query->where('publication_status', $this->publicationStatus))
             ->when($search !== '', function ($query) use ($searchPattern): void {

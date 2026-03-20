@@ -4,6 +4,9 @@
 
 @php
     $sermonUrl = "/christ/sermons/{$sermon->date->format('Y')}/{$sermon->date->format('m')}/{$sermon->slug}";
+    $preacherUrl = filled($sermon->preacherProfile?->slug ?? null)
+        ? '/christ/sermons/preachers/'.$sermon->preacherProfile->slug
+        : (filled($sermon->preacher) ? '/christ/sermons/preachers/'.\Illuminate\Support\Str::slug($sermon->preacher) : null);
 @endphp
 
 <div class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -44,7 +47,11 @@
       @if ($sermon->preacher != null)
       <li class="flex items-center">
         <x-heroicon-o-user class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
-        <a href="{{ $sermon->preacher_url }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
+        @if ($preacherUrl)
+          <a href="{{ $preacherUrl }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
+        @else
+          <span>{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</span>
+        @endif
       </li>
       @endif
       @if ($sermon->series != null)

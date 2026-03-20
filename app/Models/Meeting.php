@@ -42,10 +42,6 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?Carbon $updated_at
  * @property-read ?string $formatted_date_time
  * @property-read string $heading
- * @property-read ?string $description
- * @property-read ?string $body
- * @property-read ?string $markdown
- * @property-read ?string $heading_image_url
  * @property-read Page|null $page
  *
  * @method static \Database\Factories\MeetingFactory factory(...$parameters)
@@ -129,38 +125,6 @@ class Meeting extends Model implements HasMedia, Sitemapable
     public function getHeadingAttribute(): string
     {
         return $this->page->heading ?? Str::title(str_replace('-', ' ', $this->slug));
-    }
-
-    /**
-     * Get the description from the related page.
-     */
-    public function getDescriptionAttribute(): ?string
-    {
-        return $this->page?->description;
-    }
-
-    /**
-     * Get the body content from the related page.
-     */
-    public function getBodyAttribute(): ?string
-    {
-        return $this->page?->body;
-    }
-
-    /**
-     * Get the markdown content from the related page.
-     */
-    public function getMarkdownAttribute(): ?string
-    {
-        return $this->page?->markdown;
-    }
-
-    /**
-     * Get the heading image URL from the related page.
-     */
-    public function getHeadingImageUrlAttribute(): ?string
-    {
-        return $this->page?->heading_image_url;
     }
 
     /**

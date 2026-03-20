@@ -267,8 +267,13 @@
                                         {{ $row['publication_status']->label() }}
                                     </span>
                                     @if($row['publication_status'] === ServiceSectionPublicationStatus::PUBLISHED && $row['published_sermon'])
+                                        @php
+                                            $publishedSermonUrl = $row['published_sermon']->content_type === \App\Enums\SermonContentType::ChildrensTalk
+                                                ? route('childrens-corner.show', ['sermon' => $row['published_sermon']->slug])
+                                                : route('showSermon', ['sermon' => $row['published_sermon']->slug]);
+                                        @endphp
                                         <p class="mt-1 text-xs">
-                                            <a href="{{ $row['published_sermon']->public_url }}" class="text-cbc-teal hover:text-cbc-teal-dark">
+                                            <a href="{{ $publishedSermonUrl }}" class="text-cbc-teal hover:text-cbc-teal-dark">
                                                 View {{ strtolower($row['published_sermon']->content_type->label()) }}
                                             </a>
                                         </p>

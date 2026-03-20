@@ -24,7 +24,7 @@ class PodcastFeedController extends Controller
             abort(404, 'Feed not found');
         }
 
-        $sermons = $this->feedService->getSermonsForFeed($serviceEnum);
+        $feedItems = $this->feedService->getSermonsForFeed($serviceEnum);
         $metadata = $this->feedService->getFeedMetadata($service);
 
         $viewName = match ($serviceEnum) {
@@ -33,7 +33,7 @@ class PodcastFeedController extends Controller
         };
 
         $content = view($viewName, [
-            'sermons' => $sermons,
+            'feedItems' => $feedItems,
             'metadata' => $metadata,
         ])->render();
 

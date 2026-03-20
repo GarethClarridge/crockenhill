@@ -4,6 +4,7 @@ namespace Tests\Unit\Presenters;
 
 use App\Models\Sermon;
 use App\Presenters\SermonSitemapPresenter;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -18,7 +19,7 @@ class SermonSitemapPresenterTest extends TestCase
     {
         parent::setUp();
 
-        $this->presenter = new SermonSitemapPresenter;
+        $this->presenter = new SermonSitemapPresenter(app(SermonViewPresenter::class));
     }
 
     #[Test]

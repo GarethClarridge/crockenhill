@@ -129,8 +129,13 @@
                                             Requeue
                                         </x-form-button>
                                     @elseif($section->publication_status === \App\Enums\ServiceSectionPublicationStatus::PUBLISHED && $section->publishedSermon)
+                                        @php
+                                            $publishedSermonUrl = $section->publishedSermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
+                                                ? route('childrens-corner.show', ['sermon' => $section->publishedSermon->slug])
+                                                : route('showSermon', ['sermon' => $section->publishedSermon->slug]);
+                                        @endphp
                                         <x-button
-                                            link="{{ $section->publishedSermon->public_url }}"
+                                            link="{{ $publishedSermonUrl }}"
                                             size="xs"
                                             variant="ghost"
                                             icon="eye"

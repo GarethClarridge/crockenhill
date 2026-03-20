@@ -25,6 +25,7 @@ class PublicSongListController extends Controller
             'area' => 'church',
             'slug' => 'songs',
             'description' => 'Browse the songs most often sung at Crockenhill Baptist Church.',
+            'links' => collect(),
             'selectedRange' => $range,
             'songs' => $songs,
         ]);
@@ -46,6 +47,7 @@ class PublicSongListController extends Controller
             'area' => 'church',
             'slug' => 'songs',
             'description' => 'Lyrics and recent usage for '.$song->title.' at Crockenhill Baptist Church.',
+            'links' => collect(),
             'song' => $song,
             'usageCount' => $stats['usage_count'],
             'lastSungDate' => $stats['last_sung_date'],

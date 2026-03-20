@@ -8,6 +8,9 @@ use App\Data\SermonAnalysis;
 use App\Jobs\UpdateSermonRecord;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Repositories\SermonRepository;
+use App\Services\MediaProcessingRunTransitionService;
+use App\Services\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -46,7 +49,7 @@ class UpdateSermonRecordFinalizerTest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
 
-        (new UpdateSermonRecord($sermon->id))->handle();
+        $this->handleJob(new UpdateSermonRecord($sermon->id));
 
         $sermon->refresh();
         $this->assertSame('Stored AI Title', $sermon->title);
@@ -73,10 +76,19 @@ class UpdateSermonRecordFinalizerTest extends TestCase
         Log::shouldReceive('info')->atLeast()->once();
         Log::shouldReceive('warning')->atLeast()->once();
 
-        (new UpdateSermonRecord($sermon->id))->handle();
+        $this->handleJob(new UpdateSermonRecord($sermon->id));
 
         $sermon->refresh();
         $this->assertNotEmpty($sermon->title);
         $this->assertNotEmpty($sermon->slug);
+    }
+
+    private function handleJob(UpdateSermonRecord $job): void
+    {
+        $job->handle(
+            app(MediaProcessingRunTransitionService::class),
+            app(SermonRepository::class),
+            app(SermonTranscriptReader::class),
+        );
     }
 }

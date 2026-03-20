@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -16,7 +17,8 @@ use Illuminate\Support\Number;
 class SermonMetadataIntegrationService
 {
     public function __construct(
-        private readonly StorageAdapterHelper $storageHelper
+        private readonly StorageAdapterHelper $storageHelper,
+        private readonly SermonViewPresenter $sermonViewPresenter,
     ) {}
 
     /**
@@ -241,7 +243,7 @@ class SermonMetadataIntegrationService
             'segment_duration' => $this->getSegmentDuration($sermon),
             'segment_duration_formatted' => $this->getSegmentDurationFormatted($sermon),
             'has_video' => $sermon->hasVideo(),
-            'video_url' => $sermon->video_url,
+            'video_url' => $this->sermonViewPresenter->videoUrl($sermon),
         ];
     }
 
@@ -267,7 +269,7 @@ class SermonMetadataIntegrationService
         ];
 
         if ($hasVideo) {
-            $info['video_url'] = $sermon->getVideoUrlAttribute();
+            $info['video_url'] = $this->sermonViewPresenter->videoUrl($sermon);
             $info['video_path'] = $sermon->video_file_path;
 
             // Add livestream-specific information
@@ -302,7 +304,7 @@ class SermonMetadataIntegrationService
 
         $previewData = [
             'has_video' => true,
-            'video_url' => $sermon->getVideoUrlAttribute(),
+            'video_url' => $this->sermonViewPresenter->videoUrl($sermon),
             'format' => pathinfo($videoPath, PATHINFO_EXTENSION),
         ];
 

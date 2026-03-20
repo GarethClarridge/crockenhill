@@ -5,13 +5,13 @@
 @stop
 
 @section('meta_description')
-{{ $page?->meta_description ?? $heading }}
+{{ $description ?? $heading }}
 @stop
 
 @section('meta_tags')
 <x-meta-tags
     :title="$heading . ' | ' . $meeting->day . ($meeting->start_time ? ' ' . $meeting->start_time->format('g:ia') : '')"
-    :description="$page?->meta_description ?? $heading"
+    :description="$description ?? $heading"
     :image="$headingpicture"
 />
 

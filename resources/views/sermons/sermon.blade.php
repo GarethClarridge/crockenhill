@@ -8,7 +8,7 @@ $fullTitle = $sermon->title . ' | ' . ($sermon->preacherProfile?->name ?? $sermo
 @section('title'){{ $fullTitle }}@stop
 
 @section('canonical')
-<link rel="canonical" href="{{ $sermon->canonical_url }}">
+<link rel="canonical" href="{{ $sermonView['canonical_url'] }}">
 @endsection
 
 @section('meta_tags')
@@ -16,17 +16,17 @@ $fullTitle = $sermon->title . ' | ' . ($sermon->preacherProfile?->name ?? $sermo
   :title="$fullTitle"
   :description="$description ?? $sermon->meta_description"
   type="article"
-  :image="$sermon->thumbnail_url && $sermon->hasThumbnail() ? $sermon->thumbnail_url : null"
-  :image-width="$sermon->thumbnail_url && $sermon->hasThumbnail() ? 1280 : 800"
-  :image-height="$sermon->thumbnail_url && $sermon->hasThumbnail() ? 720 : 600"
+  :image="$sermonView['thumbnail_url']"
+  :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
+  :image-height="$sermonView['thumbnail_url'] ? 720 : 600"
   :image-alt="'Sermon: ' . $sermon->title"
-  :audio="$sermon->audio_url"
-  :video="$sermon->video_url"
-  :canonical="$sermon->canonical_url" />
+  :audio="$sermonView['audio_url']"
+  :video="$sermonView['video_url']"
+  :canonical="$sermonView['canonical_url']" />
 
 {{-- JSON-LD Structured Data --}}
 @php
-$transcript = $sermon->transcript;
+$transcript = $sermonView['transcript'];
 $duration = $sermon->duration ? \Carbon\CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
 
 $schema = [
@@ -34,7 +34,7 @@ $schema = [
 '@type' => 'Article',
 'headline' => $sermon->title,
 'description' => $sermon->meta_description,
-'image' => $sermon->thumbnail_url ?: asset('images/Primary.png'),
+'image' => $sermonView['thumbnail_url'] ?: asset('images/Primary.png'),
 'datePublished' => $sermon->date->toIso8601String(),
 'author' => [
 '@type' => 'Person',
@@ -42,14 +42,14 @@ $schema = [
 ],
 ];
 
-if ($sermon->video_url) {
+if ($sermonView['video_url']) {
 $schema['video'] = [
 '@type' => 'VideoObject',
 'name' => $sermon->title,
 'description' => $sermon->meta_description,
-'thumbnailUrl' => $sermon->thumbnail_url ?: asset('images/Primary.png'),
+'thumbnailUrl' => $sermonView['thumbnail_url'] ?: asset('images/Primary.png'),
 'uploadDate' => $sermon->date->toIso8601String(),
-'contentUrl' => $sermon->video_url,
+'contentUrl' => $sermonView['video_url'],
 ];
 
 if ($duration) {
@@ -61,11 +61,11 @@ $schema['video']['transcript'] = $transcript;
 }
 }
 
-if ($sermon->audio_url) {
+if ($sermonView['audio_url']) {
 $schema['audio'] = [
 '@type' => 'AudioObject',
 'name' => $sermon->title,
-'contentUrl' => $sermon->audio_url,
+'contentUrl' => $sermonView['audio_url'],
 'description' => $sermon->meta_description,
 'encodingFormat' => 'audio/mpeg',
 'uploadDate' => $sermon->date->toIso8601String(),
@@ -119,16 +119,16 @@ $schema['audio']['transcript'] = $transcript;
     </div>
     <div class="p-6 space-y-6">
       @if ($sermon->audio_file_path)
-      <audio src="{{ $sermon->audio_url }}" class="w-full rounded-lg" controls>
+      <audio src="{{ $sermonView['audio_url'] }}" class="w-full rounded-lg" controls>
         Your browser does not support the <code>audio</code> element.
       </audio>
       @endif
 
       @if (!empty($sermon->video_file_path))
-      <video src="{{ Storage::disk(config('media-processing.storage.sermon_disk', 'public'))->url($sermon->video_file_path) }}"
+      <video src="{{ $sermonView['video_url'] }}"
         class="w-full rounded-lg"
         controls
-        @if($sermon->thumbnail_url && $sermon->hasThumbnail()) poster="{{ $sermon->thumbnail_url }}" @endif>
+        @if($sermonView['thumbnail_url']) poster="{{ $sermonView['thumbnail_url'] }}" @endif>
         Your browser does not support the <code>video</code> element.
       </video>
       @endif
@@ -304,7 +304,7 @@ $schema['audio']['transcript'] = $transcript;
             <div>
               <dt class="sr-only">Preacher</dt>
               <dd class="text-gray-900 font-medium">
-                <a href="{{ $sermon->preacher_url }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
+                <a href="{{ $sermonView['preacher_url'] }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
               </dd>
             </div>
           </div>

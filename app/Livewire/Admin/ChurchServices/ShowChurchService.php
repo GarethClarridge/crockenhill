@@ -116,7 +116,7 @@ class ShowChurchService extends Component
             ->with([
                 'serviceSections' => fn ($query) => $query
                     ->with([
-                        'publishedSermon:id,title,slug',
+                        'publishedSermon:id,title,slug,content_type',
                         'churchServiceItem' => fn ($q) => $q->withTrashed()->with('song:id,title'),
                     ])
                     ->orderBy('section_order')

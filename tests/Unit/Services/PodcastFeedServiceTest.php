@@ -5,8 +5,11 @@ namespace Tests\Unit\Services;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Models\Sermon;
+use App\Presenters\SermonViewPresenter;
 use App\Services\PodcastFeedService;
+use App\Services\SermonExposurePolicy;
 use App\Services\SermonStorageService;
+use App\Services\SermonTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
@@ -24,7 +27,14 @@ class PodcastFeedServiceTest extends TestCase
     {
         parent::setUp();
         $this->storageService = $this->createMock(SermonStorageService::class);
-        $this->service = new PodcastFeedService($this->storageService);
+        $this->service = new PodcastFeedService(
+            $this->storageService,
+            new SermonViewPresenter(
+                app(SermonExposurePolicy::class),
+                $this->storageService,
+                app(SermonTranscriptReader::class),
+            ),
+        );
         Sermon::query()->delete();
         Cache::flush();
     }
@@ -49,7 +59,7 @@ class PodcastFeedServiceTest extends TestCase
         $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $this->assertCount(3, $sermons);
-        $sermons->each(fn ($sermon) => $this->assertEquals('morning', $sermon->service->value));
+        $sermons->each(fn (array $feedItem) => $this->assertEquals('morning', $feedItem['sermon']->service->value));
     }
 
     #[Test]
@@ -98,7 +108,7 @@ class PodcastFeedServiceTest extends TestCase
         $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $this->assertCount(1, $sermons);
-        $this->assertSame('Main Sermon', $sermons->sole()->title);
+        $this->assertSame('Main Sermon', $sermons->sole()['sermon']->title);
     }
 
     #[Test]
@@ -117,8 +127,8 @@ class PodcastFeedServiceTest extends TestCase
         $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
         $sermon = $sermons->first();
-        $this->assertEquals('https://cdn.example.com/sermon.mp3', $sermon->enclosure_url);
-        $this->assertEquals(5242880, $sermon->enclosure_length);
+        $this->assertEquals('https://cdn.example.com/sermon.mp3', $sermon['enclosure_url']);
+        $this->assertEquals(5242880, $sermon['enclosure_length']);
     }
 
     #[Test]
@@ -136,7 +146,7 @@ class PodcastFeedServiceTest extends TestCase
 
         $sermons = $this->service->getSermonsForFeed(SermonService::MORNING);
 
-        $this->assertEquals(0, $sermons->first()->enclosure_length);
+        $this->assertEquals(0, $sermons->first()['enclosure_length']);
     }
 
     #[Test]

@@ -6,10 +6,17 @@ namespace App\Http\Controllers;
 
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
+use App\Presenters\RelatedPagePresenter;
+use App\Presenters\SermonViewPresenter;
 use Illuminate\View\View;
 
 class ChildrensCornerController extends Controller
 {
+    public function __construct(
+        private readonly RelatedPagePresenter $relatedPagePresenter,
+        private readonly SermonViewPresenter $sermonViewPresenter,
+    ) {}
+
     public function index(): View
     {
         $talks = Sermon::query()
@@ -35,6 +42,13 @@ class ChildrensCornerController extends Controller
             'area' => 'christ',
             'slug' => 'childrens-corner',
             'description' => "Short Bible talks for children from Crockenhill Baptist Church. Browse recent Children's Corner videos and audio.",
+            'links' => $this->relatedPagePresenter->ordered(
+                linkArea: 'christ',
+                slugToExclude: 'childrens-corner',
+                secondSlugToExclude: 'christ',
+                excludeAdminPages: true,
+                extraExcludedSlugs: ['privacy-policy'],
+            ),
             'talks' => $talks,
         ]);
     }
@@ -50,7 +64,15 @@ class ChildrensCornerController extends Controller
             'area' => 'christ',
             'slug' => 'childrens-corner',
             'description' => $sermon->meta_description ?: $sermon->title,
+            'links' => $this->relatedPagePresenter->ordered(
+                linkArea: 'christ',
+                slugToExclude: 'childrens-corner',
+                secondSlugToExclude: 'christ',
+                excludeAdminPages: true,
+                extraExcludedSlugs: ['privacy-policy'],
+            ),
             'sermon' => $sermon,
+            'sermonView' => $this->sermonViewPresenter->present($sermon),
         ]);
     }
 }

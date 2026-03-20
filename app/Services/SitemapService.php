@@ -8,6 +8,7 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Presenters\PageSitemapPresenter;
 use App\Repositories\SermonRepository;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
@@ -18,6 +19,7 @@ class SitemapService
     public function __construct(
         private readonly SermonExposurePolicy $exposurePolicy,
         private readonly SermonRepository $sermonRepository,
+        private readonly PageSitemapPresenter $pageSitemapPresenter,
     ) {}
 
     /**
@@ -76,6 +78,7 @@ class SitemapService
                      */
                     ->with(['media'])
                     ->lazy()
+                    ->map(fn (Page $page): Url|string|array => $this->pageSitemapPresenter->toSitemapTag($page))
             )
             ->add(
                 Meeting::query()

@@ -30,7 +30,6 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?string $markdown
  * @property bool $navigation
  * @property bool $published
- * @property ?string $image_url
  * @property ?int $sort_order
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
@@ -256,74 +255,6 @@ class Page extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * Get the URL for the page's heading image (desktop version).
-     */
-    public function getImageUrlAttribute(): ?string
-    {
-        return $this->heading_image_url;
-    }
-
-    /**
-     * Get the heading image URL for desktop (for backwards compatibility).
-     */
-    public function getHeadingImageUrlAttribute(): ?string
-    {
-        return $this->resolveHeadingImageUrl(['desktop', 'large'], 'large');
-    }
-
-    /**
-     * Get the tablet-sized heading image URL.
-     */
-    public function getHeadingImageTabletUrlAttribute(): ?string
-    {
-        return $this->resolveHeadingImageUrl(['tablet'], 'large');
-    }
-
-    /**
-     * Get the mobile-sized heading image URL.
-     */
-    public function getHeadingImageMobileUrlAttribute(): ?string
-    {
-        return $this->resolveHeadingImageUrl(['mobile'], 'small');
-    }
-
-    /**
-     * Get the small heading image URL (for page cards).
-     */
-    public function getHeadingImageSmallUrlAttribute(): ?string
-    {
-        return $this->resolveHeadingImageUrl(['thumbnail', 'small'], 'small');
-    }
-
-    /**
-     * Resolve a heading image URL by checking Media Library conversions, then new storage.
-     *
-     * @param  array<int, string>  $conversions  Media Library conversion names to try in order.
-     * @param  string  $size  Subfolder name ('large' or 'small') for non-Media-Library fallbacks.
-     */
-    private function resolveHeadingImageUrl(array $conversions, string $size): ?string
-    {
-        $media = $this->getFirstMedia('headings');
-
-        if ($media) {
-            foreach ($conversions as $conversion) {
-                if ($media->hasGeneratedConversion($conversion)) {
-                    return $media->getUrl($conversion);
-                }
-            }
-
-            return $media->getUrl();
-        }
-
-        $storagePath = "pages/headings/{$size}/{$this->slug}.webp";
-        if (Storage::disk('public')->exists($storagePath)) {
-            return Storage::disk('public')->url($storagePath);
-        }
-
-        return null;
-    }
-
-    /**
      * Get responsive image srcset for the heading image.
      *
      * Returns a srcset string suitable for use in an img tag's srcset attribute.
@@ -372,15 +303,6 @@ class Page extends Model implements HasMedia, Sitemapable
             if ($updatedAt->year > 0) {
                 $url->setLastModificationDate($updatedAt);
             }
-        }
-
-        if ($this->hasImage() && $this->image_url) {
-            $url->addImage(
-                $this->image_url,
-                $this->meta_description, // Caption
-                '', // Geo location
-                $this->heading // Title
-            );
         }
 
         return $url;

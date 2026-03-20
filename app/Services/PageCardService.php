@@ -6,17 +6,19 @@ namespace App\Services;
 
 use App\Enums\PageArea;
 use App\Models\Page;
+use App\Presenters\PageCardPresenter;
 use App\Repositories\PageRepository;
 use Illuminate\Support\Collection;
 
 class PageCardService
 {
     public function __construct(
+        private readonly PageCardPresenter $pageCardPresenter,
         private readonly PageRepository $pageRepository
     ) {}
 
     /**
-     * @return Collection<int, Page>
+     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
      */
     public function forHome(): Collection
     {
@@ -27,7 +29,7 @@ class PageCardService
     }
 
     /**
-     * @return Collection<int, Page>
+     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
      */
     public function forCommunity(): Collection
     {
@@ -44,7 +46,7 @@ class PageCardService
     }
 
     /**
-     * @return Collection<int, Page>
+     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
      */
     public function forChurch(): Collection
     {
@@ -56,35 +58,39 @@ class PageCardService
     }
 
     /**
-     * @return Collection<int, Page>
+     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
      */
     public function churchLinks(): Collection
     {
         /**
          * Performance Optimization: Use PageRepository to fetch cached area links.
          */
-        return $this->pageRepository->getAllLinksForArea(PageArea::CHURCH)
+        $pages = $this->pageRepository->getAllLinksForArea(PageArea::CHURCH)
             ->filter(function (Page $page) {
                 return $page->slug !== 'privacy-policy'
                     && $page->slug !== 'safeguarding-policy'
                     && $page->admin !== 'yes';
             })
             ->values();
+
+        return $this->pageCardPresenter->presentCollection($pages);
     }
 
     /**
      * @param  list<string>  $slugs
-     * @return Collection<int, Page>
+     * @return Collection<int, array{area: string, description: string, heading: string, image_url: string, slug: string, url: string}>
      */
     private function communityPages(array $slugs): Collection
     {
         /**
          * Performance Optimization: Use PageRepository to fetch cached area links.
          */
-        return $this->pageRepository->getAllLinksForArea(PageArea::COMMUNITY)
+        $pages = $this->pageRepository->getAllLinksForArea(PageArea::COMMUNITY)
             ->filter(function (Page $page) use ($slugs) {
                 return in_array($page->slug, $slugs, true);
             })
             ->values();
+
+        return $this->pageCardPresenter->presentCollection($pages);
     }
 }
