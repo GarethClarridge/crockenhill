@@ -9,6 +9,7 @@ use App\Mail\LivestreamProcessingFailed;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -33,7 +34,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         Storage::fake('local');
         Storage::fake('public');
 
-        $this->action = new ConfirmLivestreamSermonSegment(new ProcessingPipelineBuilder);
+        $this->action = app(ConfirmLivestreamSermonSegment::class);
 
         $this->admin = User::factory()->create(['is_admin' => true]);
     }
@@ -44,7 +45,8 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
             'source_file_path' => $sourcePath,
         ]);
 
-        $log->markForManualReview(
+        app(MediaProcessingRunTransitionService::class)->markForManualReview(
+            $log,
             reasonCode: 'multiple_qualifying_speech_blocks',
             reasonMessage: 'Multiple speech blocks qualified.',
             speechSegments: [],
@@ -102,7 +104,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $log = MediaProcessingLog::factory()->audio()->create([
             'source_file_path' => 'audio/sermon.mp3',
         ]);
-        $log->markForManualReview('some_reason', 'Some reason.', []);
+        app(MediaProcessingRunTransitionService::class)->markForManualReview($log, 'some_reason', 'Some reason.', []);
         $log = $log->fresh();
 
         $segment = LivestreamSegment::factory()->speech()->forProcessingLog($log->id)->create();
@@ -218,7 +220,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
 
         $builder = $this->mock(ProcessingPipelineBuilder::class);
         $builder->shouldReceive('buildLivestreamPostReviewChainJobs')->andReturn([new AlwaysFailingJob]);
-        $action = new ConfirmLivestreamSermonSegment($builder);
+        $action = new ConfirmLivestreamSermonSegment($builder, app(MediaProcessingRunTransitionService::class));
 
         try {
             $action->execute($log->processing_id, $segment->id, $this->admin);

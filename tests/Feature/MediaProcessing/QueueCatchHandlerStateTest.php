@@ -263,7 +263,8 @@ class QueueCatchHandlerStateTest extends TestCase
             $storageService,
             $segmentationService,
             $pipelineBuilder,
-            $processingInitiator
+            $processingInitiator,
+            app(\App\Services\MediaProcessingRunTransitionService::class)
         );
     }
 

@@ -8,6 +8,7 @@ use App\Data\SermonAnalysis;
 use App\Enums\ProcessingStatus;
 use App\Models\Sermon;
 use App\Repositories\SermonRepository;
+use App\Services\MediaProcessingRunTransitionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -41,6 +42,8 @@ class UpdateSermonRecord implements ShouldQueue
      */
     public function handle(): void
     {
+        $processingRunTransitions = app(MediaProcessingRunTransitionService::class);
+
         try {
             Log::info('Starting sermon record update', [
                 'sermon_id' => $this->sermonId,
@@ -60,7 +63,7 @@ class UpdateSermonRecord implements ShouldQueue
             }
 
             // Update processing log to indicate final update started
-            $processingLog->updateStep('updating_sermon_record');
+            $processingRunTransitions->updateStep($processingLog, 'updating_sermon_record');
 
             // Consume stored AI analysis — no re-analysis performed here
             $analysis = $this->getOrGenerateAnalysis($sermon, $processingLog);
@@ -82,7 +85,7 @@ class UpdateSermonRecord implements ShouldQueue
             $sermon->update($updateData);
 
             // Mark processing as completed
-            $processingLog->markAsCompleted();
+            $processingRunTransitions->markAsCompleted($processingLog);
 
             Log::info('Sermon record updated successfully', [
                 'sermon_id' => $this->sermonId,
@@ -104,7 +107,7 @@ class UpdateSermonRecord implements ShouldQueue
 
             // Update processing log with error
             if (isset($processingLog)) {
-                $processingLog->markAsFailed($e->getMessage(), 'updating_sermon_record');
+                $processingRunTransitions->markAsFailed($processingLog, $e->getMessage(), 'updating_sermon_record');
             }
 
             throw $e;
@@ -238,7 +241,8 @@ class UpdateSermonRecord implements ShouldQueue
             /** @var \App\Models\MediaProcessingLog|null $processingLog */
             $processingLog = $sermon->processingLogs()->latest()->first();
             if ($processingLog) {
-                $processingLog->markAsFailed($exception->getMessage(), 'updating_sermon_record_failed');
+                app(MediaProcessingRunTransitionService::class)
+                    ->markAsFailed($processingLog, $exception->getMessage(), 'updating_sermon_record_failed');
             }
         }
     }

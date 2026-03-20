@@ -52,7 +52,7 @@ class ClassifyServiceSections extends ProcessingJob implements ShouldQueue
                 $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS, 'Section classification disabled');
 
                 if (! $this->preserveRunStatus) {
-                    $this->processingLog->updateStep('section_classification_skipped');
+                    $this->updateProcessingRunStep($this->processingLog, 'section_classification_skipped');
                 }
 
                 Log::info('Service section classification skipped: feature disabled', [
@@ -66,7 +66,7 @@ class ClassifyServiceSections extends ProcessingJob implements ShouldQueue
             $this->logStepStart(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS);
 
             if (! $this->preserveRunStatus) {
-                $this->processingLog->markAsProcessing('classifying_sections');
+                $this->markProcessingRunAsProcessing($this->processingLog, 'classifying_sections');
             }
 
             $result = $classifier->classify($this->processingLog);
@@ -77,7 +77,7 @@ class ClassifyServiceSections extends ProcessingJob implements ShouldQueue
                 $this->logStepSkipped(ChurchServiceProcessingTimeline::CLASSIFY_SERVICE_SECTIONS, (string) $skipReason);
 
                 if (! $this->preserveRunStatus) {
-                    $this->processingLog->updateStep('section_classification_skipped');
+                    $this->updateProcessingRunStep($this->processingLog, 'section_classification_skipped');
                 }
 
                 Log::info('Service section classification skipped', [
@@ -122,7 +122,7 @@ class ClassifyServiceSections extends ProcessingJob implements ShouldQueue
             }
 
             if (! $this->preserveRunStatus) {
-                $this->processingLog->updateStep('section_classification_complete');
+                $this->updateProcessingRunStep($this->processingLog, 'section_classification_complete');
             }
 
             $this->logStepComplete(
@@ -155,7 +155,8 @@ class ClassifyServiceSections extends ProcessingJob implements ShouldQueue
             ]);
 
             if (! $this->preserveRunStatus) {
-                $this->processingLog->markAsFailed(
+                $this->markProcessingRunAsFailed(
+                    $this->processingLog,
                     'Service section classification failed: '.$exception->getMessage(),
                     'classifying_sections'
                 );
@@ -186,7 +187,8 @@ class ClassifyServiceSections extends ProcessingJob implements ShouldQueue
         ]);
 
         if (! $this->preserveRunStatus) {
-            $this->processingLog->markAsFailed(
+            $this->markProcessingRunAsFailed(
+                $this->processingLog,
                 'Service section classification failed after '.$this->tries.' attempts: '.$exception->getMessage(),
                 'classifying_sections'
             );

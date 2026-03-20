@@ -58,7 +58,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
             // Log step start and update processing log
             $this->logStepStart('analyzing', 'Starting AI analysis');
-            $this->processingLog->updateStep('analyzing_transcript');
+            $this->updateProcessingRunStep($this->processingLog, 'analyzing_transcript');
 
             // Get transcript
             $transcriptPath = $this->processingLog->transcript_file_path;
@@ -142,7 +142,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             app(QueueScriptureEnrichment::class)->dispatch($sermon->fresh() ?? $sermon);
 
             // Update processing log and mark step as complete
-            $this->processingLog->updateStep('ai_analysis_completed');
+            $this->updateProcessingRunStep($this->processingLog, 'ai_analysis_completed');
             $this->logStepComplete('analyzing', 'AI analysis completed successfully');
 
             Log::info('AI analysis completed', [
@@ -199,9 +199,9 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                     );
                 }
 
-                $this->processingLog->updateStep('ai_analysis_fallback');
+                $this->updateProcessingRunStep($this->processingLog, 'ai_analysis_fallback');
             } else {
-                $this->processingLog->markAsFailed($e->getMessage(), 'analyzing_transcript');
+                $this->markProcessingRunAsFailed($this->processingLog, $e->getMessage(), 'analyzing_transcript');
                 $this->logStepFailed('analyzing', $e->getMessage());
                 throw $e;
             }
@@ -282,7 +282,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             'error' => $exception->getMessage(),
         ]);
 
-        $this->processingLog->markAsFailed($exception->getMessage(), 'analyzing_transcript_failed');
+        $this->markProcessingRunAsFailed($this->processingLog, $exception->getMessage(), 'analyzing_transcript_failed');
     }
 
     /**

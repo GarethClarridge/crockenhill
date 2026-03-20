@@ -62,7 +62,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             $this->logStepStart(ChurchServiceProcessingTimeline::EXTRACT_SERMON);
 
             // Update status to show sermon extraction is starting
-            $this->processingLog->markAsProcessing('extraction');
+            $this->markProcessingRunAsProcessing($this->processingLog, 'extraction');
 
             $extractionPlan = $planResolver->resolve($this->processingLog);
             $extractionPlan = $this->guardAutoExtractionPolicy(
@@ -242,7 +242,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->processingLog->markAsFailed('Sermon extraction failed: '.$e->getMessage());
+            $this->markProcessingRunAsFailed($this->processingLog, 'Sermon extraction failed: '.$e->getMessage());
 
             // Cleanup will be handled by the chain failure handler
 
@@ -278,7 +278,8 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             'attempts' => $this->attempts(),
         ]);
 
-        $this->processingLog->markAsFailed(
+        $this->markProcessingRunAsFailed(
+            $this->processingLog,
             'Sermon extraction failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
 
@@ -361,7 +362,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         if (! $evaluation['is_clear']) {
             $reasonCode = $evaluation['reason'];
             $reasonMessage = $this->manualReviewReason($reasonCode);
-            $this->processingLog->markForManualReview($reasonCode, $reasonMessage, $speechSegments);
+            $this->markProcessingRunForManualReview($this->processingLog, $reasonCode, $reasonMessage, $speechSegments);
             $this->processingLog->refresh();
             $this->notifyManualReviewRequired($reasonMessage, $speechSegments);
 

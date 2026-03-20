@@ -3,11 +3,15 @@
 namespace App\Jobs;
 
 use App\Enums\ProcessingStatus;
+use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
+use App\Services\MediaProcessingRunTransitionService;
 use Illuminate\Support\Facades\Log;
 
 abstract class ProcessingJob
 {
+    private ?MediaProcessingRunTransitionService $processingRunTransitionService = null;
+
     /**
      * The processing ID for this job chain
      */
@@ -183,5 +187,53 @@ abstract class ProcessingJob
         $processingLog = $sermon->processingLogs()->latest()->first();
 
         return $processingLog?->processing_id;
+    }
+
+    protected function processingRunTransitions(): MediaProcessingRunTransitionService
+    {
+        return $this->processingRunTransitionService ??= app(MediaProcessingRunTransitionService::class);
+    }
+
+    protected function markProcessingRunAsProcessing(MediaProcessingLog $processingLog, ?string $step = null): bool
+    {
+        return $this->processingRunTransitions()->markAsProcessing($processingLog, $step);
+    }
+
+    protected function markProcessingRunAsCompleted(
+        MediaProcessingLog $processingLog,
+        ?string $step = null,
+        ?string $errorMessage = null
+    ): bool {
+        return $this->processingRunTransitions()->markAsCompleted($processingLog, $step, $errorMessage);
+    }
+
+    protected function markProcessingRunAsFailed(
+        MediaProcessingLog $processingLog,
+        string $errorMessage,
+        ?string $step = null
+    ): bool {
+        return $this->processingRunTransitions()->markAsFailed($processingLog, $errorMessage, $step);
+    }
+
+    /**
+     * @param  array<int, array{segment_id: int, start_time: float, end_time: float, duration: float}>  $speechSegments
+     */
+    protected function markProcessingRunForManualReview(
+        MediaProcessingLog $processingLog,
+        string $reasonCode,
+        string $reasonMessage,
+        array $speechSegments = []
+    ): bool {
+        return $this->processingRunTransitions()->markForManualReview(
+            $processingLog,
+            $reasonCode,
+            $reasonMessage,
+            $speechSegments
+        );
+    }
+
+    protected function updateProcessingRunStep(MediaProcessingLog $processingLog, string $step): bool
+    {
+        return $this->processingRunTransitions()->updateStep($processingLog, $step);
     }
 }

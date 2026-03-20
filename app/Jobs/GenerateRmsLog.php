@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\VideoSegmentationService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -24,8 +25,12 @@ class GenerateRmsLog implements ShouldQueue
         private MediaProcessingLog $processingLog
     ) {}
 
-    public function handle(VideoSegmentationService $segmentationService): void
-    {
+    public function handle(
+        VideoSegmentationService $segmentationService,
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null
+    ): void {
+        $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+
         try {
             $processingLog = $this->processingLog->fresh();
             if (! $processingLog instanceof MediaProcessingLog) {
@@ -50,7 +55,7 @@ class GenerateRmsLog implements ShouldQueue
             ]);
 
             // Update status to show RMS generation is starting
-            $this->processingLog->markAsProcessing('rms_generation');
+            $processingRunTransitions->markAsProcessing($this->processingLog, 'rms_generation');
 
             $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
             $videoPath = Storage::disk($tempDisk)
@@ -102,7 +107,7 @@ class GenerateRmsLog implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->processingLog->markAsFailed('RMS log generation failed: '.$e->getMessage());
+            $processingRunTransitions->markAsFailed($this->processingLog, 'RMS log generation failed: '.$e->getMessage());
 
             // Cleanup will be handled by the chain failure handler
 
@@ -118,7 +123,8 @@ class GenerateRmsLog implements ShouldQueue
             'attempts' => $this->attempts(),
         ]);
 
-        $this->processingLog->markAsFailed(
+        app(MediaProcessingRunTransitionService::class)->markAsFailed(
+            $this->processingLog,
             'RMS log generation failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
 

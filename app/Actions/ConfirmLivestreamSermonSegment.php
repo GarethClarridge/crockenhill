@@ -9,6 +9,7 @@ use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\LivestreamFailureHandler;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\ProcessingPipelineBuilder;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,8 @@ use Illuminate\Support\Facades\DB;
 class ConfirmLivestreamSermonSegment
 {
     public function __construct(
-        private readonly ProcessingPipelineBuilder $pipelineBuilder
+        private readonly ProcessingPipelineBuilder $pipelineBuilder,
+        private readonly MediaProcessingRunTransitionService $processingRunTransitions,
     ) {}
 
     /**
@@ -64,7 +66,7 @@ class ConfirmLivestreamSermonSegment
 
             $this->ensureSourceVideoExists($log);
 
-            $log->confirmSermonSegment($segmentId, $user->id);
+            $this->processingRunTransitions->confirmSermonSegment($log, $segmentId, $user->id);
             $log->refresh();
 
             return $this->pipelineBuilder->buildLivestreamPostReviewChainJobs($log);

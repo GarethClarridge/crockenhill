@@ -440,7 +440,8 @@ class SermonProcessingErrorHandlingTest extends TestCase
         ]);
 
         // Mark for manual review directly on the model
-        $result = $processingLog->markForManualReview('manual_review_required', 'Requires human transcription');
+        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+            ->markForManualReview($processingLog, 'manual_review_required', 'Requires human transcription');
 
         $this->assertTrue($result);
 

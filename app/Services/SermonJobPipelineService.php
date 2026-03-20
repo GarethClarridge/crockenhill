@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Log;
 class SermonJobPipelineService
 {
     public function __construct(
-        private readonly SermonValidationService $validationService
+        private readonly SermonValidationService $validationService,
+        private readonly MediaProcessingRunTransitionService $processingRunTransitions,
     ) {}
 
     /**
@@ -66,11 +67,11 @@ class SermonJobPipelineService
             : 'An internal error occurred during the processing chain.';
 
         // Update processing log with error
-        $processingLog->update([
-            'status' => ProcessingStatus::FAILED,
-            'error_message' => "Processing chain failed: {$message}",
-            'current_step' => 'job_chain_failed',
-        ]);
+        $this->processingRunTransitions->markAsFailed(
+            $processingLog,
+            "Processing chain failed: {$message}",
+            'job_chain_failed'
+        );
     }
 
     /**
@@ -129,7 +130,11 @@ class SermonJobPipelineService
             case 'creating_sermon_record_failed':
                 // Restart from the beginning - but we need the original metadata
                 // For now, we'll mark for manual review since we can't easily recreate the metadata
-                $processingLog->markForManualReview('sermon_record_creation_failed', 'Failed during sermon record creation — requires manual intervention.');
+                $this->processingRunTransitions->markForManualReview(
+                    $processingLog,
+                    'sermon_record_creation_failed',
+                    'Failed during sermon record creation — requires manual intervention.'
+                );
                 break;
 
             case 'transcribing_audio':
@@ -166,7 +171,11 @@ class SermonJobPipelineService
 
             default:
                 // Unknown step - mark for manual review
-                $processingLog->markForManualReview('unknown_processing_step', "Unknown processing step: {$currentStep}.");
+                $this->processingRunTransitions->markForManualReview(
+                    $processingLog,
+                    'unknown_processing_step',
+                    "Unknown processing step: {$currentStep}."
+                );
                 break;
         }
     }
@@ -264,10 +273,7 @@ class SermonJobPipelineService
             $originalFailedStep = $processingLog->current_step;
 
             // Reset processing log to pending state, preserving original step
-            $processingLog->update([
-                'status' => ProcessingStatus::PENDING,
-                'error_message' => null,
-            ]);
+            $this->processingRunTransitions->resetForRetry($processingLog);
 
             Log::info('Processing retry - preserving original failed step', [
                 'processing_id' => $processingId,
@@ -326,14 +332,13 @@ class SermonJobPipelineService
             $sourceType = $processingLog->processing_type;
 
             // Update step to indicate we're attempting restart
-            $processingLog->update([
-                'current_step' => 'restarting_from_beginning',
-            ]);
+            $this->processingRunTransitions->updateStep($processingLog, 'restarting_from_beginning');
 
             // For now, we'll mark for manual review since full restart requires
             // the original file which may not be available after early failures
             // In the future, this could be enhanced to store file paths for restart
-            $processingLog->markForManualReview(
+            $this->processingRunTransitions->markForManualReview(
+                $processingLog,
                 'early_processing_failure',
                 "Early processing failure detected. Source type: {$sourceType->value}. File may need to be re-uploaded. Original filename: {$processingLog->original_filename}."
             );
@@ -349,7 +354,11 @@ class SermonJobPipelineService
                 'error' => $e->getMessage(),
             ]);
 
-            $processingLog->markForManualReview('restart_failed', "Failed to restart early processing failure: {$e->getMessage()}.");
+            $this->processingRunTransitions->markForManualReview(
+                $processingLog,
+                'restart_failed',
+                "Failed to restart early processing failure: {$e->getMessage()}."
+            );
         }
     }
 }

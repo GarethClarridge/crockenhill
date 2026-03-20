@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\VideoStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -23,8 +24,12 @@ class CleanupTemporaryFiles implements ShouldQueue
         private MediaProcessingLog $processingLog
     ) {}
 
-    public function handle(VideoStorageService $storageService): void
-    {
+    public function handle(
+        VideoStorageService $storageService,
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null
+    ): void {
+        $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+
         $processingLog = $this->processingLog->fresh();
         if (! $processingLog instanceof MediaProcessingLog) {
             return;
@@ -96,7 +101,8 @@ class CleanupTemporaryFiles implements ShouldQueue
             if (! $isCancelled) {
                 // Preserve a non-fatal notification failure signal while still
                 // marking the run as completed after cleanup.
-                $this->processingLog->markAsCompleted(
+                $processingRunTransitions->markAsCompleted(
+                    $this->processingLog,
                     step: $this->completionStep(),
                     errorMessage: $this->completionErrorMessage()
                 );
@@ -110,7 +116,8 @@ class CleanupTemporaryFiles implements ShouldQueue
 
             // Still mark as complete even if cleanup had issues, but not for cancelled runs.
             if (! $isCancelled) {
-                $this->processingLog->markAsCompleted(
+                $processingRunTransitions->markAsCompleted(
+                    $this->processingLog,
                     step: $this->completionStep(),
                     errorMessage: $this->completionErrorMessage()
                 );

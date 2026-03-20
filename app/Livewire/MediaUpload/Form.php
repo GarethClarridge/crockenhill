@@ -12,6 +12,7 @@ use App\Livewire\Traits\WithUploadLifecycle;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\MediaValidationService;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Contracts\View\View;
@@ -154,7 +155,10 @@ class Form extends Component
 
             if ($this->processingId) {
                 $log = MediaProcessingLog::where('processing_id', $this->processingId)->first();
-                $log?->markAsFailed('Processing failed: '.$e->getMessage());
+                if ($log instanceof MediaProcessingLog) {
+                    app(MediaProcessingRunTransitionService::class)
+                        ->markAsFailed($log, 'Processing failed: '.$e->getMessage());
+                }
             }
 
             $this->status = 'failed';

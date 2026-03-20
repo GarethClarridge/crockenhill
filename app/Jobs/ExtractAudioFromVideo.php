@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\VideoExtractionService;
 use App\Traits\ChecksCancellation;
 use Illuminate\Bus\Queueable;
@@ -32,8 +33,12 @@ class ExtractAudioFromVideo implements ShouldQueue
         private MediaProcessingLog $processingLog
     ) {}
 
-    public function handle(VideoExtractionService $videoExtractor): void
-    {
+    public function handle(
+        VideoExtractionService $videoExtractor,
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null
+    ): void {
+        $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+
         if ($this->abortIfCancelled('ExtractAudioFromVideo')) {
             return;
         }
@@ -128,7 +133,7 @@ class ExtractAudioFromVideo implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            $this->processingLog->markAsFailed('Audio extraction failed: '.$e->getMessage());
+            $processingRunTransitions->markAsFailed($this->processingLog, 'Audio extraction failed: '.$e->getMessage());
 
             throw $e;
         }
@@ -158,6 +163,7 @@ class ExtractAudioFromVideo implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        $this->processingLog->markAsFailed('Audio extraction job failed: '.$exception->getMessage());
+        app(MediaProcessingRunTransitionService::class)
+            ->markAsFailed($this->processingLog, 'Audio extraction job failed: '.$exception->getMessage());
     }
 }

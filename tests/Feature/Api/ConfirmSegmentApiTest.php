@@ -48,7 +48,8 @@ class ConfirmSegmentApiTest extends TestCase
             'source_file_path' => $sourcePath,
         ]);
 
-        $log->markForManualReview(
+        app(\App\Services\MediaProcessingRunTransitionService::class)->markForManualReview(
+            $log,
             reasonCode: 'multiple_qualifying_speech_blocks',
             reasonMessage: 'Multiple speech blocks qualified.',
             speechSegments: [],

@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Services\AudioExtractionService;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\StorageAdapterHelper;
 use App\Traits\ChecksCancellation;
 use App\Traits\DetectsStorageType;
@@ -31,8 +32,13 @@ class ValidateAudioFile implements ShouldQueue
         private MediaProcessingLog $processingLog
     ) {}
 
-    public function handle(AudioExtractionService $audioExtractor, StorageAdapterHelper $storageHelper): void
-    {
+    public function handle(
+        AudioExtractionService $audioExtractor,
+        StorageAdapterHelper $storageHelper,
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null
+    ): void {
+        $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+
         if ($this->abortIfCancelled('ValidateAudioFile')) {
             return;
         }
@@ -105,7 +111,7 @@ class ValidateAudioFile implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            $this->processingLog->markAsFailed('Audio validation failed: '.$e->getMessage());
+            $processingRunTransitions->markAsFailed($this->processingLog, 'Audio validation failed: '.$e->getMessage());
 
             throw $e;
         } finally {
@@ -117,6 +123,7 @@ class ValidateAudioFile implements ShouldQueue
 
     public function failed(\Throwable $exception): void
     {
-        $this->processingLog->markAsFailed('Audio validation job failed: '.$exception->getMessage());
+        app(MediaProcessingRunTransitionService::class)
+            ->markAsFailed($this->processingLog, 'Audio validation job failed: '.$exception->getMessage());
     }
 }

@@ -6,6 +6,7 @@ use App\Data\SermonCreationOptions;
 use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonCreationService;
 use App\Services\SermonMetadataIntegrationService;
 use App\Traits\ChecksCancellation;
@@ -30,15 +31,18 @@ class SubmitToProcessing implements ShouldQueue
 
     public function handle(
         SermonMetadataIntegrationService $metadataIntegrationService,
-        SermonCreationService $sermonCreationService
+        SermonCreationService $sermonCreationService,
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null
     ): void {
+        $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+
         if ($this->abortIfCancelled('SubmitToProcessing')) {
             return;
         }
 
         try {
             // Update status to show sermon processing is starting
-            $this->processingLog->markAsProcessing('sermon_creation');
+            $processingRunTransitions->markAsProcessing($this->processingLog, 'sermon_creation');
 
             Log::info('Starting sermon creation from livestream', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -214,7 +218,7 @@ class SubmitToProcessing implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->processingLog->markAsFailed('Sermon creation from livestream failed: '.$e->getMessage());
+            $processingRunTransitions->markAsFailed($this->processingLog, 'Sermon creation from livestream failed: '.$e->getMessage());
 
             // Cleanup will be handled by the chain failure handler
 
@@ -230,7 +234,8 @@ class SubmitToProcessing implements ShouldQueue
             'attempts' => $this->attempts(),
         ]);
 
-        $this->processingLog->markAsFailed(
+        app(MediaProcessingRunTransitionService::class)->markAsFailed(
+            $this->processingLog,
             'Sermon creation from livestream failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
 

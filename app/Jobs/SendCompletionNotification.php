@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -36,8 +37,10 @@ class SendCompletionNotification implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(?MediaProcessingRunTransitionService $processingRunTransitions = null): void
     {
+        $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+
         if ($this->abortIfCancelled('SendCompletionNotification')) {
             return;
         }
@@ -51,7 +54,7 @@ class SendCompletionNotification implements ShouldQueue
                 Log::info('Success notifications disabled, skipping', [
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
-                $this->processingLog->updateStep('notification_skipped');
+                $processingRunTransitions->updateStep($this->processingLog, 'notification_skipped');
 
                 return;
             }
@@ -61,13 +64,13 @@ class SendCompletionNotification implements ShouldQueue
                 Log::warning('No admin email configured for notification, skipping', [
                     'processing_id' => $this->processingLog->processing_id,
                 ]);
-                $this->processingLog->updateStep('notification_skipped');
+                $processingRunTransitions->updateStep($this->processingLog, 'notification_skipped');
 
                 return;
             }
 
             // Update processing log to indicate notification started
-            $this->processingLog->updateStep('sending_notification');
+            $processingRunTransitions->updateStep($this->processingLog, 'sending_notification');
 
             // Get the sermon record if it was created
             $sermon = null;
@@ -82,7 +85,7 @@ class SendCompletionNotification implements ShouldQueue
             $this->sendNotifications($notificationData, $adminEmail);
 
             // Update final processing log status
-            $this->processingLog->updateStep('notification_sent');
+            $processingRunTransitions->updateStep($this->processingLog, 'notification_sent');
 
             Log::info('Completion notification sent successfully', [
                 'processing_id' => $this->processingLog->processing_id,

@@ -57,7 +57,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
 
             // Log step start and update processing log
             $this->logStepStart('transcribing', 'Starting audio transcription');
-            $this->processingLog->updateStep('transcribing_audio');
+            $this->updateProcessingRunStep($this->processingLog, 'transcribing_audio');
 
             // Resolve audio path based on processing type
             $audioFilePath = $this->resolveAudioPath();
@@ -100,7 +100,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             $sermon->update(['transcript_file_path' => $transcriptPath]);
 
             // Update processing log and mark step as complete
-            $this->processingLog->updateStep('transcription_completed');
+            $this->updateProcessingRunStep($this->processingLog, 'transcription_completed');
             $this->logStepComplete('transcribing', 'Audio transcription completed successfully');
 
             Log::info('Audio transcription completed successfully', [
@@ -116,7 +116,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             ]);
 
             // Write the terminal state first so it is never lost if cleanup throws.
-            $this->processingLog->markAsFailed($e->getMessage(), 'transcribing_audio');
+            $this->markProcessingRunAsFailed($this->processingLog, $e->getMessage(), 'transcribing_audio');
             $this->logStepFailed('transcribing', $e->getMessage());
 
             // Clean up partial transcript files; swallow errors so the status write above is preserved.
@@ -147,7 +147,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
             }
 
             // Update processing log with error and log step failure
-            $this->processingLog->markAsFailed($e->getMessage(), 'transcribing_audio');
+            $this->markProcessingRunAsFailed($this->processingLog, $e->getMessage(), 'transcribing_audio');
             $this->logStepFailed('transcribing', $e->getMessage());
 
             throw $e;
@@ -180,7 +180,7 @@ class TranscribeAudio extends ProcessingJob implements ShouldQueue
         }
 
         // Mark processing as failed
-        $this->processingLog->markAsFailed($exception->getMessage(), 'transcribing_audio_failed');
+        $this->markProcessingRunAsFailed($this->processingLog, $exception->getMessage(), 'transcribing_audio_failed');
     }
 
     /**

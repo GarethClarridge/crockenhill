@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Mail;
 class LivestreamFailureHandler
 {
     public function __construct(
-        private readonly VideoStorageService $storageService
+        private readonly VideoStorageService $storageService,
+        private readonly MediaProcessingRunTransitionService $processingRunTransitions,
     ) {}
 
     public function handle(string $processingId, \Throwable $e): void
@@ -32,7 +33,7 @@ class LivestreamFailureHandler
                 ? $e->getSafeMessage()
                 : 'An internal error occurred during livestream processing.';
 
-            $processingLog->markAsFailed($message);
+            $this->processingRunTransitions->markAsFailed($processingLog, $message);
 
             $tempFiles = [];
             if ($processingLog->source_file_path) {

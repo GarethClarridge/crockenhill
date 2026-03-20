@@ -6,6 +6,7 @@ use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\LivestreamSegmentationService;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\ProcessingInitiator;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
@@ -54,6 +55,7 @@ class LivestreamSegmentationServiceTest extends TestCase
             $this->segmentationService,
             $this->pipelineBuilder,
             $this->processingInitiator,
+            app(MediaProcessingRunTransitionService::class),
         );
     }
 

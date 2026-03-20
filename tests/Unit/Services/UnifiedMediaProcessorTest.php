@@ -7,6 +7,7 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\LivestreamSegmentationService;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\MediaValidationService;
 use App\Services\MetadataExtractionService;
 use App\Services\ProcessingInitiator;
@@ -67,7 +68,8 @@ class UnifiedMediaProcessorTest extends TestCase
             $this->processingLogService,
             $this->processingInitiator,
             $this->metadataService,
-            $this->mediaValidation
+            $this->mediaValidation,
+            app(MediaProcessingRunTransitionService::class)
         );
     }
 

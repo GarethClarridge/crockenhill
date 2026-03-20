@@ -27,7 +27,8 @@ class UnifiedMediaProcessor
         private readonly ProcessingLogService $processingLogService,
         private readonly ProcessingInitiator $processingInitiator,
         private readonly MetadataExtractionService $metadataService,
-        private readonly MediaValidationService $mediaValidation
+        private readonly MediaValidationService $mediaValidation,
+        private readonly MediaProcessingRunTransitionService $processingRunTransitions
     ) {}
 
     public function process(string $type, UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
@@ -153,7 +154,7 @@ class UnifiedMediaProcessor
                 return false;
             }
 
-            $log->markAsCancelled('Processing cancelled by user');
+            $this->processingRunTransitions->markAsCancelled($log, 'Processing cancelled by user');
             $this->sermonProcessingLogger->logProcessingComplete($processingId, ProcessingStatus::CANCELLED, [], 'Processing cancelled by user');
 
             return true;

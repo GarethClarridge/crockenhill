@@ -6,6 +6,7 @@ use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
 use App\Models\LivestreamSegment as LivestreamSegmentModel;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\VideoSegmentationService;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,15 +27,19 @@ class AnalyzeSegments implements ShouldQueue
         private MediaProcessingLog $processingLog
     ) {}
 
-    public function handle(VideoSegmentationService $segmentationService): void
-    {
+    public function handle(
+        VideoSegmentationService $segmentationService,
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null
+    ): void {
+        $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+
         if ($this->abortIfCancelled('AnalyzeSegments')) {
             return;
         }
 
         try {
             // Update status to show segmentation is starting
-            $this->processingLog->markAsProcessing('segmentation');
+            $processingRunTransitions->markAsProcessing($this->processingLog, 'segmentation');
 
             Log::info('Starting segment analysis', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -110,7 +115,8 @@ class AnalyzeSegments implements ShouldQueue
                     'speech_segments' => count(array_filter($segments, fn ($s) => $s->isSpeech())),
                 ]);
 
-                $this->processingLog->markAsFailed(
+                $processingRunTransitions->markAsFailed(
+                    $this->processingLog,
                     'No sermon candidate found. Longest speech segment does not meet minimum duration requirements.'
                 );
 
@@ -126,7 +132,7 @@ class AnalyzeSegments implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->processingLog->markAsFailed('Segment analysis failed: '.$e->getMessage());
+            $processingRunTransitions->markAsFailed($this->processingLog, 'Segment analysis failed: '.$e->getMessage());
 
             // Cleanup will be handled by the chain failure handler
 
@@ -235,7 +241,8 @@ class AnalyzeSegments implements ShouldQueue
             'attempts' => $this->attempts(),
         ]);
 
-        $this->processingLog->markAsFailed(
+        app(MediaProcessingRunTransitionService::class)->markAsFailed(
+            $this->processingLog,
             'Segment analysis failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
 

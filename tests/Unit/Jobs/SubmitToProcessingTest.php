@@ -209,7 +209,8 @@ class SubmitToProcessingTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
 
-        $result = $log->markAsFailed('Sermon creation from livestream failed: something went wrong');
+        $result = app(\App\Services\MediaProcessingRunTransitionService::class)
+            ->markAsFailed($log, 'Sermon creation from livestream failed: something went wrong');
 
         $this->assertFalse($result);
         $log->refresh();

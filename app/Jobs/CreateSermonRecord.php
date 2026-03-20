@@ -74,7 +74,7 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             );
 
             // Update processing log to indicate we're starting
-            $this->processingLog->markAsProcessing('creating_sermon_record');
+            $this->markProcessingRunAsProcessing($this->processingLog, 'creating_sermon_record');
 
             // Get AI analysis - handle both array and JSON string formats
             $aiAnalysis = $this->processingLog->ai_analysis;
@@ -156,7 +156,7 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             );
 
             // Update processing log with error
-            $this->processingLog->markAsFailed($e->getMessage(), 'creating_sermon_record');
+            $this->markProcessingRunAsFailed($this->processingLog, $e->getMessage(), 'creating_sermon_record');
             $this->logStepFailed('creating', $e->getMessage());
 
             throw $e;
@@ -211,6 +211,6 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             'error' => $exception->getMessage(),
         ]);
 
-        $this->processingLog->markAsFailed($exception->getMessage(), 'creating_sermon_record_failed');
+        $this->markProcessingRunAsFailed($this->processingLog, $exception->getMessage(), 'creating_sermon_record_failed');
     }
 }

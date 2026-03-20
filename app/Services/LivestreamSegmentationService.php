@@ -19,7 +19,8 @@ class LivestreamSegmentationService
         private readonly VideoStorageService $storageService,
         private readonly VideoSegmentationService $segmentationService,
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
-        private readonly ProcessingInitiator $processingInitiator
+        private readonly ProcessingInitiator $processingInitiator,
+        private readonly MediaProcessingRunTransitionService $processingRunTransitions
     ) {}
 
     public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null): ProcessingResult
@@ -132,7 +133,7 @@ class LivestreamSegmentationService
             throw new Exception('Cannot cancel completed processing');
         }
 
-        $processingLog->markAsCancelled('Processing cancelled by user');
+        $this->processingRunTransitions->markAsCancelled($processingLog, 'Processing cancelled by user');
 
         // Clean up temporary files - collect paths from processing log
         $tempFiles = [];

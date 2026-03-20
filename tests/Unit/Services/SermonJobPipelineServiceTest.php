@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonJobPipelineService;
 use App\Services\SermonValidationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,7 +23,7 @@ class SermonJobPipelineServiceTest extends TestCase
         parent::setUp();
 
         $validationService = $this->app->make(SermonValidationService::class);
-        $this->service = new SermonJobPipelineService($validationService);
+        $this->service = new SermonJobPipelineService($validationService, app(MediaProcessingRunTransitionService::class));
     }
 
     // --- dispatchProcessingJobs() ---

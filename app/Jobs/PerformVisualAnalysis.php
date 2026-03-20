@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
+use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SongClusteringService;
 use App\Services\VisualAnalysisService;
 use Illuminate\Bus\Batchable;
@@ -27,8 +28,11 @@ class PerformVisualAnalysis implements ShouldQueue
 
     public function handle(
         VisualAnalysisService $visualService,
-        SongClusteringService $clusteringService
+        SongClusteringService $clusteringService,
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null
     ): void {
+        $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+
         try {
             $processingLog = $this->processingLog->fresh();
             if (! $processingLog instanceof MediaProcessingLog) {
@@ -73,7 +77,7 @@ class PerformVisualAnalysis implements ShouldQueue
             ]);
 
             // Update status to show visual analysis is starting
-            $this->processingLog->markAsProcessing('visual_analysis');
+            $processingRunTransitions->markAsProcessing($this->processingLog, 'visual_analysis');
 
             $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
             $videoPath = Storage::disk($tempDisk)
@@ -214,7 +218,7 @@ class PerformVisualAnalysis implements ShouldQueue
             }
 
             // If fallback is disabled, fail the job
-            $this->processingLog->markAsFailed('Visual analysis failed: '.$e->getMessage());
+            $processingRunTransitions->markAsFailed($this->processingLog, 'Visual analysis failed: '.$e->getMessage());
 
             throw $e;
         }
@@ -275,7 +279,8 @@ class PerformVisualAnalysis implements ShouldQueue
             return;
         }
 
-        $this->processingLog->markAsFailed(
+        app(MediaProcessingRunTransitionService::class)->markAsFailed(
+            $this->processingLog,
             'Visual analysis failed after '.$this->tries.' attempts: '.$exception->getMessage()
         );
     }

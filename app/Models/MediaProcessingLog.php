@@ -328,103 +328,9 @@ class MediaProcessingLog extends Model
         return $this->status === ProcessingStatus::PENDING;
     }
 
-    public function markAsProcessing(?string $step = null): bool
-    {
-        $freshLog = $this->fresh();
-        if ($freshLog?->isCancelled() ?? false) {
-            return false;
-        }
-
-        return $this->update([
-            'status' => ProcessingStatus::PROCESSING,
-            'current_step' => $step,
-            'started_at' => $this->started_at ?? now(),
-        ]);
-    }
-
-    public function markAsCompleted(?string $step = null, ?string $errorMessage = null): bool
-    {
-        $freshLog = $this->fresh();
-        if ($freshLog?->isCancelled() ?? false) {
-            return false;
-        }
-
-        return $this->update([
-            'status' => ProcessingStatus::COMPLETED,
-            'current_step' => $step ?? 'completed',
-            'completed_at' => now(),
-            'error_message' => $errorMessage,
-        ]);
-    }
-
-    public function markAsFailed(string $errorMessage, ?string $step = null): bool
-    {
-        $freshLog = $this->fresh();
-        if ($freshLog?->isCancelled() ?? false) {
-            return false;
-        }
-
-        return $this->update([
-            'status' => ProcessingStatus::FAILED,
-            'current_step' => $step ?? $this->current_step,
-            'error_message' => $errorMessage,
-            'completed_at' => now(),
-        ]);
-    }
-
-    public function markAsCancelled(?string $message = null): bool
-    {
-        return $this->update([
-            'status' => ProcessingStatus::CANCELLED,
-            'current_step' => 'cancelled',
-            'error_message' => $message ?? 'Processing cancelled by user',
-            'completed_at' => now(),
-        ]);
-    }
-
     public function isCancelled(): bool
     {
         return $this->status === ProcessingStatus::CANCELLED;
-    }
-
-    /**
-     * @param  array<int, array{segment_id: int, start_time: float, end_time: float, duration: float}>  $speechSegments
-     */
-    public function markForManualReview(string $reasonCode, string $reasonMessage, array $speechSegments = []): bool
-    {
-        $metadata = $this->processing_metadata ?? [];
-        $metadata['manual_review'] = [
-            'status' => 'required',
-            'reason_code' => $reasonCode,
-            'reason_message' => $reasonMessage,
-            'flagged_at' => now()->toIso8601String(),
-            'speech_segments' => $speechSegments,
-        ];
-
-        return $this->update([
-            'status' => ProcessingStatus::FAILED,
-            'current_step' => 'manual_review_required',
-            'error_message' => $reasonMessage,
-            'processing_metadata' => $metadata,
-        ]);
-    }
-
-    public function confirmSermonSegment(int $segmentId, int $userId): bool
-    {
-        $metadata = $this->processing_metadata ?? [];
-        $manualReview = $this->manualReviewMetadata();
-        $manualReview['status'] = 'confirmed';
-        $manualReview['confirmed_segment_id'] = $segmentId;
-        $manualReview['confirmed_by_user_id'] = $userId;
-        $manualReview['confirmed_at'] = now()->toIso8601String();
-        $metadata['manual_review'] = $manualReview;
-
-        return $this->update([
-            'status' => ProcessingStatus::PENDING,
-            'current_step' => 'manual_review_confirmed',
-            'error_message' => null,
-            'processing_metadata' => $metadata,
-        ]);
     }
 
     /**
@@ -477,11 +383,6 @@ class MediaProcessingLog extends Model
 
         return Storage::disk($tempDisk)->exists($sourceFilePath)
             || file_exists($sourceFilePath);
-    }
-
-    public function updateStep(string $step): bool
-    {
-        return $this->update(['current_step' => $step]);
     }
 
     // Accessors for backward compatibility
