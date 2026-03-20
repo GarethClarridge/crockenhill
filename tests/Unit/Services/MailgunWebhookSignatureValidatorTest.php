@@ -120,4 +120,18 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
 
         $this->assertTrue($this->validator->isValid($timestamp, $token, $signature));
     }
+
+    #[Test]
+    public function it_fails_if_token_is_replayed(): void
+    {
+        $timestamp = (string) now()->getTimestamp();
+        $token = 'unique-replay-token';
+        $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
+
+        // First attempt should succeed
+        $this->assertTrue($this->validator->isValid($timestamp, $token, $signature));
+
+        // Second attempt with the same token should fail
+        $this->assertFalse($this->validator->isValid($timestamp, $token, $signature));
+    }
 }

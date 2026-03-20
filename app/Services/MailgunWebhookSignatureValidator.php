@@ -26,6 +26,18 @@ class MailgunWebhookSignatureValidator
 
         $expectedSignature = hash_hmac('sha256', $timestamp.$token, $signingKey);
 
-        return hash_equals($expectedSignature, $signature);
+        if (! hash_equals($expectedSignature, $signature)) {
+            return false;
+        }
+
+        // Replay protection: Ensure the same token cannot be reused within the valid timeframe.
+        // We use Cache::add which only returns true if the key does not already exist.
+        $cacheKey = "mailgun_webhook_token:{$token}";
+
+        return \Illuminate\Support\Facades\Cache::add(
+            $cacheKey,
+            true,
+            $timestampTolerance * 2
+        );
     }
 }
