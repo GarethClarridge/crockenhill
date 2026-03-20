@@ -36,6 +36,8 @@ class ListChurchServices extends Component
 
     public ?string $needsReviewFilter = null;
 
+    public bool $hasFilters = false;
+
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
@@ -64,9 +66,19 @@ class ListChurchServices extends Component
         $this->resetPage();
     }
 
+    public function resetFilters(): void
+    {
+        $this->reset(['search', 'serviceFilter', 'needsReviewFilter']);
+        $this->resetPage();
+    }
+
     public function render(): View
     {
         $this->sanitizeSorting();
+
+        $this->hasFilters = $this->search !== ''
+            || ($this->serviceFilter !== null && $this->serviceFilter !== '')
+            || ($this->needsReviewFilter !== null && $this->needsReviewFilter !== '');
 
         $search = trim($this->search);
 
