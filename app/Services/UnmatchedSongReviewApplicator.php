@@ -1,0 +1,74 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Enums\ServiceSectionSongMatchType;
+use App\Enums\ServiceSectionType;
+use App\Models\ServiceSection;
+use App\Support\ServiceSectionConfidence;
+use App\Traits\ReadsSectionMetadata;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
+
+class UnmatchedSongReviewApplicator
+{
+    use ReadsSectionMetadata;
+
+    /**
+     * Apply unmatched-song review flags and confidence penalties to all song sections
+     * that did not receive a confirmed or inferred match during alignment.
+     *
+     * Mutates sections in place. Returns the collection of unmatched sections so the
+     * coordinator can pass a count to AlignmentTriggerCalculator.
+     *
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     * @param  array<int, int>  $matchedSongSectionIds
+     * @return Collection<int, ServiceSection>
+     */
+    public function apply(EloquentCollection $sections, array $matchedSongSectionIds): Collection
+    {
+        $unmatchedSongSections = $this->unmatchedSongSections($sections, $matchedSongSectionIds);
+
+        foreach ($unmatchedSongSections as $section) {
+            $metadata = $this->metadata($section);
+            $alignment = is_array($metadata['oos_alignment'] ?? null) ? $metadata['oos_alignment'] : [];
+
+            if (($alignment['song_match_type'] ?? null) === null) {
+                $alignment['song_match_type'] = ServiceSectionSongMatchType::UNMATCHED->value;
+            }
+
+            $metadata['oos_alignment'] = $alignment;
+            $reviewFlags = $this->reviewFlags($metadata);
+            $reviewFlags[] = 'unmatched_song_section';
+            $metadata['review_flags'] = array_values(array_unique($reviewFlags));
+
+            if (! array_key_exists('review_reason', $metadata)) {
+                $metadata['review_reason'] = 'unmatched_song_section';
+            }
+
+            $section->needs_manual_review = true;
+            $section->confidence = ServiceSectionConfidence::decrease(
+                ServiceSectionConfidence::resolve($section->confidence, $metadata),
+                0.10
+            );
+            $section->metadata = $metadata;
+        }
+
+        return $unmatchedSongSections;
+    }
+
+    /**
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     * @param  array<int, int>  $matchedSongSectionIds
+     * @return Collection<int, ServiceSection>
+     */
+    private function unmatchedSongSections(EloquentCollection $sections, array $matchedSongSectionIds): Collection
+    {
+        return $sections
+            ->filter(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::SONG)
+            ->reject(fn (ServiceSection $section): bool => in_array($section->id, $matchedSongSectionIds, true))
+            ->values();
+    }
+}

@@ -6,9 +6,12 @@ namespace App\Services;
 
 use App\Models\ServiceSection;
 use App\Support\ServiceSectionConfidence;
+use App\Traits\ReadsSectionMetadata;
 
 class SectionAlignmentBaselineRestorer
 {
+    use ReadsSectionMetadata;
+
     /**
      * All review flags that OosAlignmentService owns and recalculates on every alignment pass.
      * Cleared at the start of each run and only re-added when still applicable.
@@ -132,31 +135,6 @@ class SectionAlignmentBaselineRestorer
         return array_values(array_filter(
             $flags,
             static fn (string $flag): bool => ! in_array($flag, self::OOS_REVIEW_FLAGS, true)
-        ));
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function metadata(ServiceSection $section): array
-    {
-        return is_array($section->metadata) ? $section->metadata : [];
-    }
-
-    /**
-     * @param  array<string, mixed>  $metadata
-     * @return array<int, string>
-     */
-    private function reviewFlags(array $metadata): array
-    {
-        $flags = $metadata['review_flags'] ?? [];
-
-        if (! is_array($flags)) {
-            return [];
-        }
-
-        return array_values(array_filter(
-            array_map(static fn (mixed $flag): ?string => is_string($flag) ? $flag : null, $flags)
         ));
     }
 }

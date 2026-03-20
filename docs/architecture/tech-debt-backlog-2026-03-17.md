@@ -1086,7 +1086,7 @@ The backlog is ordered for safety:
   - `oos-alignment-service-review.md`
 
 ### TD-011 - Stage 2 `OosAlignmentService` extraction: aligners and thin coordinator
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium-High

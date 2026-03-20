@@ -23,7 +23,7 @@ class ServiceSectionReviewTriggerEvaluatorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->evaluator = new ServiceSectionReviewTriggerEvaluator;
+        $this->evaluator = app(ServiceSectionReviewTriggerEvaluator::class);
     }
 
     #[Test]

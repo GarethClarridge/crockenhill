@@ -1,0 +1,128 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\ServiceSection;
+use App\Support\ServiceSectionConfidence;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
+
+class AlignmentTriggerCalculator
+{
+    /**
+     * Capture a snapshot of alignment-relevant state from a set of sections before alignment runs.
+     * Pass the result to calculate() as $beforeState for late-arrival change detection.
+     *
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     * @return array<int, array<string, mixed>>
+     */
+    public function captureAlignmentState(EloquentCollection $sections): array
+    {
+        return $sections->mapWithKeys(
+            fn (ServiceSection $section): array => [$section->id => $this->sectionAlignmentState($section)]
+        )->all();
+    }
+
+    /**
+     * Compute all review triggers based on post-alignment section state.
+     *
+     * This method is read-only — it does not mutate any sections. Unmatched-song
+     * side effects must be applied first via UnmatchedSongReviewApplicator::apply().
+     *
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     * @param  Collection<int, ServiceSection>  $unmatchedSongSections
+     * @param  array<int, array<string, mixed>>  $beforeState
+     * @return array<int, string>
+     */
+    public function calculate(
+        EloquentCollection $sections,
+        int $structureMismatchCount,
+        Collection $unmatchedSongSections,
+        array $beforeState,
+        bool $lateArrival
+    ): array {
+        $reviewTriggers = [];
+
+        if ($this->hasAmbiguousSermon($sections)) {
+            $reviewTriggers[] = 'ambiguous_sermon_detection';
+        }
+
+        if ($unmatchedSongSections->isNotEmpty()) {
+            $reviewTriggers[] = 'unmatched_song_sections';
+        }
+
+        if ($structureMismatchCount > 0) {
+            $reviewTriggers[] = 'oos_structure_mismatch';
+        }
+
+        if ($lateArrival && $beforeState !== $sections->mapWithKeys(
+            fn (ServiceSection $section): array => [$section->id => $this->sectionAlignmentState($section)]
+        )->all()) {
+            $reviewTriggers[] = 'late_oos_alignment_changed';
+        }
+
+        $lowConfidenceSections = $this->lowConfidenceSections($sections);
+        if ($sections->count() > 0 && ($lowConfidenceSections->count() / $sections->count()) > 0.20) {
+            $reviewTriggers[] = 'too_many_low_confidence_sections';
+        }
+
+        if ($sections->contains(fn (ServiceSection $section): bool => $section->needs_manual_review)) {
+            $reviewTriggers[] = 'manual_review_sections';
+        }
+
+        return array_values(array_unique($reviewTriggers));
+    }
+
+    /**
+     * Count sections whose resolved confidence is below the high threshold.
+     *
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     */
+    public function lowConfidenceSectionCount(EloquentCollection $sections): int
+    {
+        return $this->lowConfidenceSections($sections)->count();
+    }
+
+    /**
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     */
+    private function hasAmbiguousSermon(EloquentCollection $sections): bool
+    {
+        return $sections->contains(static function (ServiceSection $section): bool {
+            $reason = $section->metadata['review_reason'] ?? null;
+
+            return in_array($reason, ['secondary_sermon_candidate', 'no_high_confidence_sermon_candidate'], true);
+        });
+    }
+
+    /**
+     * @param  EloquentCollection<int, ServiceSection>  $sections
+     * @return Collection<int, ServiceSection>
+     */
+    private function lowConfidenceSections(EloquentCollection $sections): Collection
+    {
+        return $sections
+            ->filter(fn (ServiceSection $section): bool => ServiceSectionConfidence::resolve($section->confidence, $section->metadata) < ServiceSectionConfidence::HIGH_THRESHOLD)
+            ->values();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sectionAlignmentState(ServiceSection $section): array
+    {
+        $metadata = is_array($section->metadata) ? $section->metadata : [];
+
+        return [
+            'church_service_item_id' => $section->church_service_item_id,
+            'title' => $section->title,
+            'confidence' => ServiceSectionConfidence::resolve($section->confidence, $metadata),
+            'reading_reference' => $metadata['reading_reference'] ?? null,
+            'song_id' => $metadata['song_id'] ?? null,
+            'song_match_type' => $metadata['oos_alignment']['song_match_type'] ?? null,
+            'review_reason' => $metadata['review_reason'] ?? null,
+        ];
+    }
+}
