@@ -195,8 +195,6 @@ Route::middleware('auth')->prefix('church/songs')->name('church.songs.')->group(
     Route::get('{song:slug}', [PublicSongListController::class, 'show'])->name('show');
 });
 
-Route::get('phpinfo', fn () => app()->isLocal() ? phpinfo() : abort(404))->middleware(['auth', 'admin']);
-
 // Sitemap route
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 
@@ -218,6 +216,8 @@ if (app()->isLocal()) {
     });
 
     Route::view('/dev/components', 'dev.components')->name('dev.components');
+
+    Route::get('phpinfo', fn () => phpinfo())->middleware(['auth', 'admin']);
 }
 
 // Catch-all dynamic page routes (these must be last!)

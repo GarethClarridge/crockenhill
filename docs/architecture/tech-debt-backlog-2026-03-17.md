@@ -911,7 +911,7 @@ The backlog is ordered for safety:
   - `bootstrap-registration-side-effect-map-2026-03-18.md`
 
 ### TD-005D - Make registration side effects explicit and after-commit safe
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Low-Medium

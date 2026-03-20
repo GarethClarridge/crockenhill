@@ -37,11 +37,5 @@ class MediaProcessingServiceProvider extends ServiceProvider
 
     }
 
-    public function boot(): void
-    {
-        // Publish config if needed
-        $this->publishes([
-            __DIR__.'/../../config/media-processing.php' => config_path('media-processing.php'),
-        ], 'media-processing');
-    }
+    public function boot(): void {}
 }
