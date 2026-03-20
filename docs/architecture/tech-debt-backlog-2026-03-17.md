@@ -1024,7 +1024,7 @@ The backlog is ordered for safety:
   - `external-integration-boundary-review-2026-03-18.md`
 
 ### TD-009 - Split `ServiceReviewDashboard` into a query model plus focused actions
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium-High

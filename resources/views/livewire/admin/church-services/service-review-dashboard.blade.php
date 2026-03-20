@@ -256,13 +256,13 @@
                                         <div class="grid gap-4 md:grid-cols-[12rem_minmax(0,1fr)_auto]">
                                             <x-select
                                                 label="Section type"
-                                                wire:model.live="sectionEdits.{{ $section->id }}.section_type"
+                                                wire:model.blur="sectionEdits.{{ $section->id }}.section_type"
                                                 :options="$sectionTypeOptions"
                                             />
 
                                             <x-input
                                                 label="Section title"
-                                                wire:model.live.debounce="sectionEdits.{{ $section->id }}.title"
+                                                wire:model.blur="sectionEdits.{{ $section->id }}.title"
                                                 maxlength="255"
                                             />
 
@@ -283,7 +283,7 @@
                                             <div class="grid gap-4 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-2">
                                                 <x-select
                                                     label="Choose preacher"
-                                                    wire:model.live="speakerEdits.{{ $section->id }}.preacher_id"
+                                                    wire:model.blur="speakerEdits.{{ $section->id }}.preacher_id"
                                                     :options="$preacherOptions"
                                                     placeholder="Select a preacher..."
                                                     hint="Pick an existing preacher to confirm or override the detected speaker."
@@ -291,7 +291,7 @@
 
                                                 <x-input
                                                     label="Fallback speaker name"
-                                                    wire:model.live.debounce="speakerEdits.{{ $section->id }}.speaker_name"
+                                                    wire:model.blur="speakerEdits.{{ $section->id }}.speaker_name"
                                                     maxlength="255"
                                                     hint="Use free text when the speaker is not in the preacher list."
                                                 />

@@ -1,0 +1,424 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Queries;
+
+use App\Enums\SermonService;
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
+use App\Queries\ServiceReviewDashboardQuery;
+use App\Support\ServiceSectionConfidence;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class ServiceReviewDashboardQueryTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private ServiceReviewDashboardQuery $query;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->query = app(ServiceReviewDashboardQuery::class);
+    }
+
+    #[Test]
+    public function review_groups_returns_empty_when_nothing_flagged(): void
+    {
+        $groups = $this->query->reviewGroups();
+
+        $this->assertSame([], $groups);
+    }
+
+    #[Test]
+    public function review_groups_includes_services_flagged_for_review(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::MORNING,
+            'needs_review' => true,
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertCount(1, $groups);
+        $this->assertSame('24 May 2026', $groups[0]['date_label']);
+        $this->assertSame('Morning', $groups[0]['service_label']);
+        $this->assertSame([], $groups[0]['sections']);
+    }
+
+    #[Test]
+    public function review_groups_includes_sections_needing_manual_review(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-25',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'title' => 'Flagged Song',
+            'needs_manual_review' => true,
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertCount(1, $groups);
+        $this->assertCount(1, $groups[0]['sections']);
+        $this->assertSame('Flagged Song', $groups[0]['sections'][0]['section']->title);
+    }
+
+    #[Test]
+    public function review_groups_excludes_sections_with_no_review_reasons(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-26',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'title' => 'Clean Section',
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertSame([], $groups);
+    }
+
+    #[Test]
+    public function review_groups_sorts_by_date_descending_then_service_ascending(): void
+    {
+        $olderService = ChurchService::factory()->create([
+            'date' => '2026-05-10',
+            'service' => SermonService::MORNING,
+            'needs_review' => true,
+        ]);
+
+        $newerService = ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::MORNING,
+            'needs_review' => true,
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertCount(2, $groups);
+        $this->assertSame($newerService->date->toDateString(), $groups[0]['date']);
+        $this->assertSame($olderService->date->toDateString(), $groups[1]['date']);
+    }
+
+    #[Test]
+    public function review_groups_sorts_morning_before_evening_on_same_date(): void
+    {
+        ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::EVENING,
+            'needs_review' => true,
+        ]);
+
+        ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::MORNING,
+            'needs_review' => true,
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertCount(2, $groups);
+        $this->assertSame(SermonService::MORNING, $groups[0]['service_enum']);
+        $this->assertSame(SermonService::EVENING, $groups[1]['service_enum']);
+    }
+
+    #[Test]
+    public function review_groups_counts_pending_approvals_and_batch_readiness(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::MORNING,
+            'needs_review' => false,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-05-24',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 1,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'needs_manual_review' => false,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 2,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'needs_manual_review' => true,
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertCount(1, $groups);
+        $this->assertSame(2, $groups[0]['pending_approval_count']);
+        $this->assertSame(1, $groups[0]['batch_ready_count']);
+        $this->assertSame(1, $groups[0]['batch_blocked_count']);
+    }
+
+    #[Test]
+    public function summary_returns_correct_counts(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-24',
+            'service' => SermonService::MORNING,
+            'needs_review' => true,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-05-24',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+        ]);
+
+        $groups = $this->query->reviewGroups();
+        $summary = $this->query->summary($groups);
+
+        $this->assertSame(1, $summary['service_groups']);
+        $this->assertSame(1, $summary['sections']);
+        $this->assertSame(1, $summary['services_needing_review']);
+        $this->assertSame(1, $summary['pending_approvals']);
+    }
+
+    #[Test]
+    public function summary_returns_zeros_for_empty_groups(): void
+    {
+        $summary = $this->query->summary([]);
+
+        $this->assertSame(0, $summary['service_groups']);
+        $this->assertSame(0, $summary['sections']);
+        $this->assertSame(0, $summary['services_needing_review']);
+        $this->assertSame(0, $summary['pending_approvals']);
+    }
+
+    #[Test]
+    public function review_reasons_returns_manual_review_flag(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+        ]);
+
+        $reasons = $this->query->reviewReasons($section);
+
+        $this->assertCount(1, $reasons);
+        $this->assertSame('needs_manual_review', $reasons[0]['key']);
+    }
+
+    #[Test]
+    public function review_reasons_returns_pending_approval_flag(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+        ]);
+
+        $reasons = $this->query->reviewReasons($section);
+
+        $this->assertCount(1, $reasons);
+        $this->assertSame('pending_approval', $reasons[0]['key']);
+    }
+
+    #[Test]
+    public function review_reasons_returns_low_confidence_flag(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => false,
+            'confidence' => ServiceSectionConfidence::HIGH_THRESHOLD - 0.01,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $reasons = $this->query->reviewReasons($section);
+
+        $keys = array_column($reasons, 'key');
+        $this->assertContains('low_confidence', $keys);
+    }
+
+    #[Test]
+    public function review_reasons_returns_inferred_song_label_flag(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $inferredItem = ChurchServiceItem::factory()->create([
+            'type' => 'songs',
+            'song_id' => null,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $inferredItem->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'needs_manual_review' => true,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'metadata' => ['oos_alignment' => ['song_match_type' => 'inferred']],
+        ]);
+
+        $section->load('churchServiceItem');
+
+        $reasons = $this->query->reviewReasons($section);
+
+        $keys = array_column($reasons, 'key');
+        $this->assertContains('inferred_song_label', $keys);
+    }
+
+    #[Test]
+    public function review_reasons_returns_unmatched_song_flag(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::SONG->value,
+            'church_service_item_id' => null,
+            'needs_manual_review' => true,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+            'metadata' => ['oos_alignment' => ['song_match_type' => 'unmatched']],
+        ]);
+
+        $reasons = $this->query->reviewReasons($section);
+
+        $keys = array_column($reasons, 'key');
+        $this->assertContains('unmatched_song', $keys);
+    }
+
+    #[Test]
+    public function is_review_candidate_returns_false_for_clean_section(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NOT_APPLICABLE->value,
+        ]);
+
+        $this->assertFalse($this->query->isReviewCandidate($section));
+    }
+
+    #[Test]
+    public function is_review_candidate_returns_true_for_flagged_section(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+        ]);
+
+        $this->assertTrue($this->query->isReviewCandidate($section));
+    }
+
+    #[Test]
+    public function batch_approval_skip_reason_returns_null_for_pending_only_section(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+        ]);
+
+        $this->assertNull($this->query->batchApprovalSkipReason($section));
+    }
+
+    #[Test]
+    public function batch_approval_skip_reason_returns_blocked_when_other_review_flags_present(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+        ]);
+
+        $this->assertSame('blocked by other review flags', $this->query->batchApprovalSkipReason($section));
+    }
+
+    #[Test]
+    public function pending_publication_sections_for_service_returns_only_that_services_sections(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-01',
+            'service' => SermonService::MORNING,
+        ]);
+
+        $otherService = ChurchService::factory()->create([
+            'date' => '2026-06-01',
+            'service' => SermonService::EVENING,
+        ]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-06-01',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $otherRun = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $otherService->id,
+            'extracted_date' => '2026-06-01',
+            'extracted_service' => SermonService::EVENING->value,
+        ]);
+
+        $matchedSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $otherRun->id,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+        ]);
+
+        $result = $this->query->pendingPublicationSectionsForService($service);
+
+        $this->assertCount(1, $result);
+        $this->assertSame($matchedSection->id, $result->first()->id);
+    }
+}
