@@ -4,25 +4,18 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
-use App\Enums\ChurchServiceItemSource;
+use App\Actions\PrefillChurchServiceFromInboundEmail;
+use App\Actions\SaveChurchServiceFromAdmin;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
-use App\Models\InboundEmail;
 use App\Models\Song;
-use App\Services\ChurchServiceCanonicalStateService;
-use App\Services\ChurchServiceCanonicalUpdateService;
-use App\Services\ChurchServiceItemSyncService;
-use App\Services\ChurchServiceSongLinker;
-use App\Services\InboundEmailImportService;
-use App\Services\OosEmailParserService;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -50,7 +43,7 @@ class ManageChurchService extends Component
     /** @var array<int, string> */
     protected array $queryString = ['inboundEmailId'];
 
-    public function mount(): void
+    public function mount(PrefillChurchServiceFromInboundEmail $prefillAction): void
     {
         $this->authorizeAdmin();
         $this->abortIfDisabled();
@@ -71,7 +64,7 @@ class ManageChurchService extends Component
                 ->values()
                 ->all();
         } elseif (is_int($this->inboundEmailId)) {
-            $this->prefillFromInboundEmail($this->inboundEmailId);
+            $this->applyPrefillData($prefillAction->execute($this->inboundEmailId));
         }
 
         if ($this->items === []) {
@@ -190,63 +183,23 @@ class ManageChurchService extends Component
         }
     }
 
-    public function save(
-        ChurchServiceCanonicalStateService $canonicalStateService,
-        ChurchServiceCanonicalUpdateService $canonicalUpdateService,
-        ChurchServiceItemSyncService $itemSyncService,
-        ChurchServiceSongLinker $songLinker,
-        InboundEmailImportService $inboundEmailImportService,
-    ): mixed {
+    public function save(SaveChurchServiceFromAdmin $saveAction): mixed
+    {
         $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $validated = $this->validate();
-        $payload = $this->buildSyncPayload();
         $wasCreated = ! ($this->churchService instanceof ChurchService && $this->churchService->exists);
-        $beforeSnapshot = $canonicalStateService->snapshot($this->churchService);
-        $syncResult = [];
 
-        $churchService = DB::transaction(function () use ($validated, $payload, $itemSyncService, $songLinker, &$syncResult): ChurchService {
-            $churchService = $this->churchService ?? new ChurchService;
-            $existingMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
-
-            $churchService->fill([
-                'date' => $validated['date'],
-                'service' => $validated['service'],
-                'source' => ChurchServiceItemSource::MANUAL->value,
-                'needs_review' => false,
-                'import_metadata' => array_replace_recursive($existingMetadata, [
-                    'manual_edit' => [
-                        'saved_at' => now()->toIso8601String(),
-                        'saved_by_user_id' => Auth::id(),
-                        'item_count' => count($payload),
-                    ],
-                ]),
-            ]);
-            $churchService->save();
-
-            $syncResult = $itemSyncService->sync($churchService, $payload, ChurchServiceItemSource::MANUAL);
-            $songLinker->linkForService($churchService);
-
-            return $churchService->fresh(['items']) ?? $churchService;
-        });
-
-        $churchService = $canonicalUpdateService->finalize(
-            $churchService,
-            $beforeSnapshot,
-            ChurchServiceItemSource::MANUAL,
-            $syncResult,
+        $churchService = $saveAction->execute(
+            validated: $validated,
+            syncPayload: $this->buildSyncPayload(),
+            churchService: $this->churchService,
+            userId: Auth::user()->id ?? abort(403),
+            inboundEmailId: $this->inboundEmailId,
         );
 
         $this->churchService = $churchService;
-
-        if (is_int($this->inboundEmailId)) {
-            $inboundEmail = InboundEmail::query()->find($this->inboundEmailId);
-
-            if ($inboundEmail instanceof InboundEmail && Auth::id() !== null) {
-                $inboundEmailImportService->markAsProcessedFromManualReview($inboundEmail, $churchService, (int) Auth::id());
-            }
-        }
 
         return $this->success(
             $wasCreated ? 'Service created' : 'Service updated',
@@ -398,105 +351,6 @@ class ManageChurchService extends Component
         ];
     }
 
-    private function prefillFromInboundEmail(int $inboundEmailId): void
-    {
-        $inboundEmail = InboundEmail::query()->find($inboundEmailId);
-        if (! $inboundEmail instanceof InboundEmail) {
-            return;
-        }
-
-        $parseData = $this->parseDataForInboundEmail($inboundEmail);
-
-        $resolvedDate = Arr::get($parseData, 'resolved_date');
-        if (is_string($resolvedDate) && $resolvedDate !== '') {
-            $this->date = $resolvedDate;
-        }
-
-        $resolvedService = Arr::get($parseData, 'resolved_service');
-        if (is_string($resolvedService) && in_array($resolvedService, SermonService::values(), true)) {
-            $this->service = $resolvedService;
-        }
-
-        $parsedItems = Arr::get($parseData, 'items');
-        if (! is_array($parsedItems)) {
-            return;
-        }
-
-        $items = collect($parsedItems)
-            ->map(fn (mixed $item): ?array => is_array($item) ? $this->itemPayloadFromParsedItem($item) : null)
-            ->filter()
-            ->values()
-            ->all();
-
-        if ($items !== []) {
-            $this->items = $items;
-        }
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function parseDataForInboundEmail(InboundEmail $inboundEmail): array
-    {
-        $importService = app(InboundEmailImportService::class);
-        $parseResult = $importService->storedParseResult($inboundEmail);
-
-        if (! $parseResult instanceof \App\Data\OosEmailParseResult) {
-            $parseResult = app(OosEmailParserService::class)->parse($inboundEmail);
-            $importService->storeParseResult($inboundEmail, $parseResult);
-        }
-
-        $refreshedInboundEmail = $inboundEmail->fresh();
-        $refreshedMetadata = $refreshedInboundEmail instanceof InboundEmail && is_array($refreshedInboundEmail->processing_metadata)
-            ? $refreshedInboundEmail->processing_metadata
-            : [];
-
-        return is_array(Arr::get($refreshedMetadata, 'parsing')) ? Arr::get($refreshedMetadata, 'parsing') : [];
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     * @return array{key:string,section_type:string,title:string,song_id:int|null}|null
-     */
-    private function itemPayloadFromParsedItem(array $item): ?array
-    {
-        $title = trim((string) ($item['title'] ?? ''));
-
-        if ($title === '') {
-            return null;
-        }
-
-        return [
-            'key' => (string) Str::uuid(),
-            'section_type' => $this->resolveSectionTypeFromParsedItem($item)->value,
-            'title' => $title,
-            'song_id' => is_int($item['song_id'] ?? null) ? $item['song_id'] : null,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     */
-    private function resolveSectionTypeFromParsedItem(array $item): ServiceSectionType
-    {
-        $metadata = is_array($item['metadata'] ?? null) ? $item['metadata'] : [];
-        $metadataType = $metadata['section_type'] ?? $metadata['email_type'] ?? null;
-
-        if (is_string($metadataType)) {
-            $resolved = ServiceSectionType::tryFrom($metadataType);
-
-            if ($resolved instanceof ServiceSectionType) {
-                return $resolved;
-            }
-        }
-
-        return match ($item['type'] ?? null) {
-            'songs' => ServiceSectionType::SONG,
-            'bibles' => ServiceSectionType::BIBLE_READING,
-            default => $this->inferSectionTypeFromTitle((string) ($item['title'] ?? '')),
-        };
-    }
-
     private function resolveSectionType(ChurchServiceItem $item): ServiceSectionType
     {
         $metadata = is_array($item->metadata) ? $item->metadata : [];
@@ -513,22 +367,26 @@ class ManageChurchService extends Component
         return match ($item->type) {
             'songs' => ServiceSectionType::SONG,
             'bibles' => ServiceSectionType::BIBLE_READING,
-            default => $this->inferSectionTypeFromTitle($item->title),
+            default => ServiceSectionType::inferFromTitle($item->title),
         };
     }
 
-    private function inferSectionTypeFromTitle(string $title): ServiceSectionType
+    /**
+     * @param  array{date?:string,service?:string,items?:array<int,array{key:string,section_type:string,title:string,song_id:int|null}>}  $prefillData
+     */
+    private function applyPrefillData(array $prefillData): void
     {
-        $title = Str::lower($title);
+        if (isset($prefillData['date'])) {
+            $this->date = $prefillData['date'];
+        }
 
-        return match (true) {
-            str_contains($title, 'children') => ServiceSectionType::CHILDRENS_TALK,
-            str_contains($title, 'prayer') => ServiceSectionType::PRAYER,
-            str_contains($title, 'notice'), str_contains($title, 'announcement') => ServiceSectionType::NOTICES,
-            str_contains($title, 'welcome') => ServiceSectionType::WELCOME,
-            str_contains($title, 'sermon'), str_contains($title, 'message') => ServiceSectionType::SERMON,
-            default => ServiceSectionType::OTHER,
-        };
+        if (isset($prefillData['service'])) {
+            $this->service = $prefillData['service'];
+        }
+
+        if (isset($prefillData['items']) && $prefillData['items'] !== []) {
+            $this->items = $prefillData['items'];
+        }
     }
 
     private function abortIfDisabled(): void

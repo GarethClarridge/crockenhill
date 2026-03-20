@@ -1,0 +1,272 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Actions;
+
+use App\Actions\PrefillChurchServiceFromInboundEmail;
+use App\Enums\SermonService;
+use App\Enums\ServiceSectionType;
+use App\Models\InboundEmail;
+use App\Services\OosEmailParserService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class PrefillChurchServiceFromInboundEmailTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private PrefillChurchServiceFromInboundEmail $action;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->action = app(PrefillChurchServiceFromInboundEmail::class);
+    }
+
+    #[Test]
+    public function it_returns_empty_array_when_email_not_found(): void
+    {
+        $result = $this->action->execute(99999);
+
+        $this->assertSame([], $result);
+    }
+
+    #[Test]
+    public function it_uses_stored_parse_result_when_available(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-06-01',
+                    'resolved_service' => SermonService::MORNING->value,
+                    'items' => [
+                        [
+                            'position' => 1,
+                            'type' => 'custom',
+                            'title' => 'Welcome',
+                            'source_title' => 'Welcome',
+                            'openlp_search_title' => null,
+                            'metadata' => ['section_type' => ServiceSectionType::WELCOME->value],
+                        ],
+                        [
+                            'position' => 2,
+                            'type' => 'songs',
+                            'title' => 'Amazing Grace',
+                            'source_title' => 'Amazing Grace',
+                            'openlp_search_title' => null,
+                            'metadata' => null,
+                        ],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertSame('2026-06-01', $result['date']);
+        $this->assertSame(SermonService::MORNING->value, $result['service']);
+        $this->assertCount(2, $result['items']);
+        $this->assertSame(ServiceSectionType::WELCOME->value, $result['items'][0]['section_type']);
+        $this->assertSame('Welcome', $result['items'][0]['title']);
+        $this->assertSame(ServiceSectionType::SONG->value, $result['items'][1]['section_type']);
+        $this->assertSame('Amazing Grace', $result['items'][1]['title']);
+        $this->assertNull($result['items'][0]['song_id']);
+    }
+
+    #[Test]
+    public function it_calls_parser_and_stores_result_when_no_stored_parse_exists(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'body_plain' => 'Order of Service for Sunday 1 June 2026 (Morning)',
+            'processing_metadata' => ['recipient' => 'oos@crockenhill.org'],
+        ]);
+
+        // Mock the parser to return a controlled result
+        $this->mock(OosEmailParserService::class, function ($mock) use ($inboundEmail): void {
+            $mock->shouldReceive('parse')
+                ->once()
+                ->with(\Mockery::on(fn ($arg) => $arg instanceof InboundEmail && $arg->id === $inboundEmail->id))
+                ->andReturn(new \App\Data\OosEmailParseResult(
+                    date: '2026-06-01',
+                    service: SermonService::MORNING,
+                    items: [
+                        [
+                            'position' => 1,
+                            'type' => 'custom',
+                            'title' => 'Opening Prayer',
+                            'source_title' => 'Opening Prayer',
+                            'openlp_search_title' => null,
+                            'metadata' => null,
+                        ],
+                    ],
+                    confidenceScore: 0.85,
+                    needsReview: false,
+                    shouldImport: true,
+                    importMetadata: [],
+                ));
+        });
+
+        // Resolve the action AFTER registering the mock so it picks up the binding
+        $action = app(PrefillChurchServiceFromInboundEmail::class);
+        $result = $action->execute($inboundEmail->id);
+
+        $this->assertSame('2026-06-01', $result['date'] ?? null);
+        $this->assertSame(SermonService::MORNING->value, $result['service'] ?? null);
+
+        // Parser result should be stored
+        $inboundEmail->refresh();
+        $this->assertNotNull($inboundEmail->processing_metadata['parsing'] ?? null);
+    }
+
+    #[Test]
+    public function it_infers_section_types_from_item_titles(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-06-08',
+                    'resolved_service' => SermonService::MORNING->value,
+                    'items' => [
+                        ['position' => 1, 'type' => 'custom', 'title' => "Children's Talk", 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 2, 'type' => 'custom', 'title' => 'Opening Prayer', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 3, 'type' => 'custom', 'title' => 'Notices', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 4, 'type' => 'custom', 'title' => 'Welcome to All', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 5, 'type' => 'custom', 'title' => 'Morning Sermon', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 6, 'type' => 'custom', 'title' => 'Announcements for Today', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 7, 'type' => 'custom', 'title' => 'Bible Reading', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertSame(ServiceSectionType::CHILDRENS_TALK->value, $result['items'][0]['section_type']);
+        $this->assertSame(ServiceSectionType::PRAYER->value, $result['items'][1]['section_type']);
+        $this->assertSame(ServiceSectionType::NOTICES->value, $result['items'][2]['section_type']);
+        $this->assertSame(ServiceSectionType::WELCOME->value, $result['items'][3]['section_type']);
+        $this->assertSame(ServiceSectionType::SERMON->value, $result['items'][4]['section_type']);
+        $this->assertSame(ServiceSectionType::NOTICES->value, $result['items'][5]['section_type']);
+        $this->assertSame(ServiceSectionType::OTHER->value, $result['items'][6]['section_type']);
+    }
+
+    #[Test]
+    public function it_prefers_metadata_section_type_over_title_inference(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-06-15',
+                    'resolved_service' => SermonService::MORNING->value,
+                    'items' => [
+                        [
+                            'position' => 1,
+                            'type' => 'custom',
+                            'title' => 'Welcome',
+                            'source_title' => null,
+                            'openlp_search_title' => null,
+                            'metadata' => ['section_type' => ServiceSectionType::SERMON->value],
+                        ],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        // Metadata section_type (SERMON) should win over title inference (WELCOME)
+        $this->assertSame(ServiceSectionType::SERMON->value, $result['items'][0]['section_type']);
+    }
+
+    #[Test]
+    public function it_skips_items_with_empty_titles(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-06-22',
+                    'resolved_service' => SermonService::EVENING->value,
+                    'items' => [
+                        ['position' => 1, 'type' => 'custom', 'title' => 'Valid Item', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 2, 'type' => 'custom', 'title' => '', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 3, 'type' => 'custom', 'title' => '   ', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertCount(1, $result['items']);
+        $this->assertSame('Valid Item', $result['items'][0]['title']);
+    }
+
+    #[Test]
+    public function it_does_not_include_date_or_service_when_parsing_yields_none(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => null,
+                    'resolved_service' => null,
+                    'items' => [
+                        ['position' => 1, 'type' => 'custom', 'title' => 'Welcome', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'needs_review' => true,
+                    'should_import' => false,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertArrayNotHasKey('date', $result);
+        $this->assertArrayNotHasKey('service', $result);
+        $this->assertArrayHasKey('items', $result);
+    }
+
+    #[Test]
+    public function each_item_gets_a_unique_key(): void
+    {
+        $inboundEmail = InboundEmail::factory()->create([
+            'processing_metadata' => [
+                'recipient' => 'oos@crockenhill.org',
+                'parsing' => [
+                    'resolved_date' => '2026-06-29',
+                    'resolved_service' => SermonService::MORNING->value,
+                    'items' => [
+                        ['position' => 1, 'type' => 'custom', 'title' => 'Item One', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                        ['position' => 2, 'type' => 'custom', 'title' => 'Item Two', 'source_title' => null, 'openlp_search_title' => null, 'metadata' => null],
+                    ],
+                    'needs_review' => false,
+                    'should_import' => true,
+                ],
+            ],
+        ]);
+
+        $result = $this->action->execute($inboundEmail->id);
+
+        $this->assertCount(2, $result['items']);
+        $this->assertNotSame($result['items'][0]['key'], $result['items'][1]['key']);
+        $this->assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
+            $result['items'][0]['key']
+        );
+    }
+}

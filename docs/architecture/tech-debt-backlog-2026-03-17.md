@@ -967,7 +967,7 @@ The backlog is ordered for safety:
   - `artisan-command-architecture-review-2026-03-18.md`
 
 ### TD-007 - Extract `ManageChurchService` write and prefill workflows
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium
