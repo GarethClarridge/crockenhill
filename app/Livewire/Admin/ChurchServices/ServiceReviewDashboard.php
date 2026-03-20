@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
+use App\Actions\Publication\ApproveSectionForPublication;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
@@ -148,7 +149,7 @@ class ServiceReviewDashboard extends Component
             $section->isPublishableType()
             && ! $section->needs_manual_review
             && $section->publication_status === ServiceSectionPublicationStatus::NOT_APPLICABLE
-            && $this->hasExtractedMedia($section)
+            && $section->hasExtractedMedia()
         ) {
             $section->transitionTo(ServiceSectionPublicationStatus::PENDING_APPROVAL);
         }
@@ -235,7 +236,7 @@ class ServiceReviewDashboard extends Component
                 continue;
             }
 
-            $error = $this->approveSectionForPublication($section, $auditMetadata);
+            $error = app(ApproveSectionForPublication::class)->execute($section, $auditMetadata);
             if ($error !== null) {
                 $normalizedError = $this->normalizeBatchApprovalError($error);
                 $skippedReasons[$normalizedError] = ($skippedReasons[$normalizedError] ?? 0) + 1;
@@ -769,7 +770,7 @@ class ServiceReviewDashboard extends Component
             return 'blocked by other review flags';
         }
 
-        $approvalError = $this->approvalBlocker($section);
+        $approvalError = app(ApproveSectionForPublication::class)->approvalBlocker($section);
 
         return $approvalError !== null
             ? $this->normalizeBatchApprovalError($approvalError)

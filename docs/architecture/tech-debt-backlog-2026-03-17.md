@@ -940,7 +940,7 @@ The backlog is ordered for safety:
   - `bootstrap-registration-side-effect-map-2026-03-18.md`
 
 ### TD-006 - Replace `ManagesSectionPublication` with explicit publication actions
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium

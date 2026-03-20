@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Actions\Publication\ExpireSectionPublicationAssets;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
 use Illuminate\Console\Command;
@@ -73,32 +74,23 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
 
             $previousStatus = $section->publication_status->value;
 
-            if (! $section->transitionTo(ServiceSectionPublicationStatus::NOT_APPLICABLE)) {
+            try {
+                DB::transaction(function () use ($section, $videoPath, $audioPath, $sermonDisk, $tempDisk): void {
+                    app(ExpireSectionPublicationAssets::class)->execute($section, [
+                        'reason' => 'asset_expiry',
+                        'cleaned_by' => 'scheduler',
+                    ]);
+                    DB::afterCommit(function () use ($videoPath, $audioPath, $sermonDisk, $tempDisk): void {
+                        $this->deletePathOnKnownDisks($videoPath, [$sermonDisk, $tempDisk]);
+                        $this->deletePathOnKnownDisks($audioPath, [$sermonDisk, $tempDisk]);
+                    });
+                });
+            } catch (\RuntimeException $e) {
                 $this->error('Failed to transition section #'.$section->id.' from '.$previousStatus.' to not_applicable — skipping.');
                 $failedCount++;
 
                 continue;
             }
-
-            $metadata = is_array($section->metadata) ? $section->metadata : [];
-            $metadata['cleanup'] = [
-                'reason' => 'asset_expiry',
-                'previous_status' => $previousStatus,
-                'cleaned_at' => now()->toIso8601String(),
-                'cleaned_by' => 'scheduler',
-            ];
-
-            $section->extracted_video_path = null;
-            $section->extracted_audio_path = null;
-            $section->extracted_at = null;
-            $section->unpublished_expires_at = null;
-            $section->metadata = $metadata;
-
-            DB::transaction(function () use ($section, $videoPath, $audioPath, $sermonDisk, $tempDisk): void {
-                $section->save();
-                $this->deletePathOnKnownDisks($videoPath, [$sermonDisk, $tempDisk]);
-                $this->deletePathOnKnownDisks($audioPath, [$sermonDisk, $tempDisk]);
-            });
 
             $cleanedCount++;
         }

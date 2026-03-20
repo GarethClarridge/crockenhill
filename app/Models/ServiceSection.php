@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * @property int $id
@@ -219,6 +220,24 @@ class ServiceSection extends Model
     public function classificationSignature(): string
     {
         return hash('sha256', (string) json_encode($this->classificationSignaturePayload()));
+    }
+
+    /**
+     * Check whether both extracted video and audio files are present on the sermon disk.
+     */
+    public function hasExtractedMedia(): bool
+    {
+        $videoPath = $this->extracted_video_path;
+        $audioPath = $this->extracted_audio_path;
+
+        if (! is_string($videoPath) || $videoPath === '' || ! is_string($audioPath) || $audioPath === '') {
+            return false;
+        }
+
+        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+
+        return Storage::disk($sermonDisk)->exists($videoPath)
+            && Storage::disk($sermonDisk)->exists($audioPath);
     }
 
     public function songMatchType(): ?ServiceSectionSongMatchType
