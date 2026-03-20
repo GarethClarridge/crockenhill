@@ -58,7 +58,7 @@ trait MeetingForm
             'meetingDate' => 'nullable|date',
             'isRecurring' => 'boolean',
             'frequency' => ['nullable', 'required_if:isRecurring,true', 'in:'.implode(',', MeetingFrequency::values())],
-            'pageId' => 'nullable|exists:pages,id',
+            'pageId' => 'nullable|exists:pages,id|unique:meetings,page_id,'.$meetingId,
         ];
     }
 
