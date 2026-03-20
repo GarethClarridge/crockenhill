@@ -4,8 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
+
 class MailgunWebhookSignatureValidator
 {
+    /**
+     * Validate the signature of an inbound Mailgun webhook.
+     *
+     * @param  string  $timestamp  Unix timestamp from Mailgun
+     * @param  string  $token      Unique token from Mailgun
+     * @param  string  $signature  HMAC signature from Mailgun
+     */
     public function isValid(string $timestamp, string $token, string $signature): bool
     {
         $signingKey = (string) config('service-tracking.mailgun.signing_key', config('services.mailgun.signing_key', ''));
@@ -30,14 +39,17 @@ class MailgunWebhookSignatureValidator
             return false;
         }
 
-        // Replay protection: Ensure the same token cannot be reused within the valid timeframe.
-        // We use Cache::add which only returns true if the key does not already exist.
+        /**
+         * Replay protection: Ensure the same token cannot be reused within the valid timeframe.
+         * We use Cache::add which only returns true if the key does not already exist.
+         * The TTL is at least 1 second to prevent "cache forever" behavior if tolerance is 0.
+         */
         $cacheKey = "mailgun_webhook_token:{$token}";
 
-        return \Illuminate\Support\Facades\Cache::add(
+        return Cache::add(
             $cacheKey,
             true,
-            $timestampTolerance * 2
+            max(1, $timestampTolerance * 2)
         );
     }
 }
