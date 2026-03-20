@@ -30,7 +30,7 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
     public function it_validates_a_correct_signature(): void
     {
         $timestamp = (string) now()->getTimestamp();
-        $token = 'test-token';
+        $token = 'token-correct-signature';
         $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
 
         $this->assertTrue($this->validator->isValid($timestamp, $token, $signature));
@@ -43,7 +43,7 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
         config(['services.mailgun.signing_key' => '']);
 
         $timestamp = (string) now()->getTimestamp();
-        $token = 'test-token';
+        $token = 'token-missing-key';
         $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
 
         $this->assertFalse($this->validator->isValid($timestamp, $token, $signature));
@@ -63,7 +63,7 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
     public function it_fails_if_timestamp_is_too_old(): void
     {
         $timestamp = (string) now()->subSeconds(301)->getTimestamp();
-        $token = 'test-token';
+        $token = 'token-too-old';
         $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
 
         $this->assertFalse($this->validator->isValid($timestamp, $token, $signature));
@@ -73,7 +73,7 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
     public function it_passes_if_timestamp_is_exactly_at_the_tolerance_limit_old(): void
     {
         $timestamp = (string) now()->subSeconds(300)->getTimestamp();
-        $token = 'test-token';
+        $token = 'token-exact-old';
         $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
 
         $this->assertTrue($this->validator->isValid($timestamp, $token, $signature));
@@ -83,7 +83,7 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
     public function it_fails_if_timestamp_is_in_the_future(): void
     {
         $timestamp = (string) now()->addSeconds(301)->getTimestamp();
-        $token = 'test-token';
+        $token = 'token-too-future';
         $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
 
         $this->assertFalse($this->validator->isValid($timestamp, $token, $signature));
@@ -93,7 +93,7 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
     public function it_passes_if_timestamp_is_exactly_at_the_tolerance_limit_future(): void
     {
         $timestamp = (string) now()->addSeconds(300)->getTimestamp();
-        $token = 'test-token';
+        $token = 'token-exact-future';
         $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
 
         $this->assertTrue($this->validator->isValid($timestamp, $token, $signature));
@@ -115,9 +115,23 @@ class MailgunWebhookSignatureValidatorTest extends TestCase
         config(['service-tracking.mailgun.timestamp_tolerance_seconds' => 600]);
 
         $timestamp = (string) now()->subSeconds(450)->getTimestamp();
-        $token = 'test-token';
+        $token = 'token-custom-tolerance';
         $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
 
         $this->assertTrue($this->validator->isValid($timestamp, $token, $signature));
+    }
+
+    #[Test]
+    public function it_fails_if_token_is_replayed(): void
+    {
+        $timestamp = (string) now()->getTimestamp();
+        $token = 'unique-replay-token';
+        $signature = hash_hmac('sha256', $timestamp.$token, $this->signingKey);
+
+        // First attempt should succeed
+        $this->assertTrue($this->validator->isValid($timestamp, $token, $signature));
+
+        // Second attempt with the same token should fail
+        $this->assertFalse($this->validator->isValid($timestamp, $token, $signature));
     }
 }
