@@ -7,6 +7,11 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\PageRepository;
 use App\Repositories\SermonRepository;
+use App\Services\PageImageCacheService;
+use App\Services\PodcastFeedService;
+use App\Services\PublicMeetingReadModelCache;
+use App\Services\PublicPageReadModelCache;
+use App\Services\SermonStorageService;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Illuminate\Support\Facades\Cache;
 
@@ -15,6 +20,11 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
     public function __construct(
         private readonly SermonRepository $sermonRepository,
         private readonly PageRepository $pageRepository,
+        private readonly PageImageCacheService $pageImageCacheService,
+        private readonly PodcastFeedService $podcastFeedService,
+        private readonly PublicMeetingReadModelCache $publicMeetingReadModelCache,
+        private readonly PublicPageReadModelCache $publicPageReadModelCache,
+        private readonly SermonStorageService $sermonStorageService,
     ) {}
 
     /**
@@ -54,6 +64,21 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
 
         if ($model instanceof Page) {
             $this->pageRepository->clearAreaCache($model->area);
+            $this->pageImageCacheService->forget($model);
+            $this->publicPageReadModelCache->forget($model);
+            $model->loadMissing('meeting');
+
+            if ($model->meeting !== null) {
+                $this->publicMeetingReadModelCache->forget($model->meeting);
+            }
+        }
+
+        if ($model instanceof \App\Models\Meeting) {
+            $this->publicMeetingReadModelCache->forget($model);
+        }
+
+        if ($model instanceof Sermon) {
+            $this->sermonStorageService->clearCachedMetadata($model);
         }
 
         $targetModel = ($model instanceof Sermon || $model instanceof Preacher)
@@ -61,8 +86,6 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
             : null;
 
         $this->sermonRepository->clearListingCaches($targetModel);
-
-        // Note: Podcast feed cache is NOT cleared here to prevent test failures
-        // where sequential requests expect the same data (Cache Flexible behavior).
+        $this->podcastFeedService->clearCache();
     }
 }

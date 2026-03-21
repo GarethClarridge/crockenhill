@@ -3,20 +3,21 @@
 ])
 
 @php
+    $cardThumbnailUrl = app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon);
     $speakerName = $sermon->preacherProfile->name ?? $sermon->preacher;
     $hasAudio = filled($sermon->audio_file_path);
     $hasVideo = filled($sermon->video_file_path);
 @endphp
 
 <article class="flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-    @if ($sermon->hasPlainThumbnail())
+    @if ($cardThumbnailUrl)
         <a
             href="{{ route('childrens-corner.show', ['sermon' => $sermon->slug]) }}"
             wire:navigate
             class="group relative block aspect-video overflow-hidden border-b border-gray-100 bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2"
         >
             <img
-                src="{{ route('serveSermonCardThumbnail', $sermon->slug) }}?v={{ md5($sermon->plain_thumbnail_file_path ?? '') }}"
+                src="{{ $cardThumbnailUrl }}"
                 alt="Children's Corner: {{ $sermon->title }}"
                 class="h-full w-full object-cover brightness-110 contrast-105 transition duration-500 ease-out group-hover:scale-105 group-hover:brightness-115"
                 loading="lazy"
@@ -32,7 +33,7 @@
     @endif
 
     <div class="flex flex-1 flex-col gap-5 p-6">
-        @unless ($sermon->hasPlainThumbnail())
+        @unless ($cardThumbnailUrl)
             <div class="space-y-2">
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-cbc-teal-dark/80">Children's Corner</p>
                 <a

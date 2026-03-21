@@ -1233,7 +1233,7 @@ The backlog is ordered for safety:
   - `read-path-performance-review-2026-03-18.md`
 
 ### TD-013A - Add cached public read models and move hot asset delivery off PHP
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: High
 - Risk: Medium

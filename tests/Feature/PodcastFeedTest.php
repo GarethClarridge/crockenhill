@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\SermonService;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\PodcastFeedService;
 use App\Services\SermonStorageService;
@@ -39,6 +40,8 @@ class PodcastFeedTest extends TestCase
             ->andReturn(null);
         $mock->shouldReceive('getVideoUrl')
             ->andReturn(null);
+        $mock->shouldReceive('clearCachedMetadata')
+            ->andReturnNull();
 
         $this->app->instance(SermonStorageService::class, $mock);
     }
@@ -403,7 +406,7 @@ class PodcastFeedTest extends TestCase
     }
 
     #[Test]
-    public function feed_uses_cache(): void
+    public function feed_cache_is_invalidated_when_sermon_changes(): void
     {
         Sermon::factory()->create([
             'service' => SermonService::MORNING->value,
@@ -423,19 +426,35 @@ class PodcastFeedTest extends TestCase
             'title' => 'New Sermon After Cache',
         ]);
 
-        // Second request should still serve cached version
+        // Second request should rebuild because the sermon observer clears the feed cache
         $response2 = $this->get('/christ/sermons/morning/feed');
         $content2 = $response2->getContent();
         $this->assertStringContainsString('Cached Sermon', $content2);
-        $this->assertStringNotContainsString('New Sermon After Cache', $content2);
+        $this->assertStringContainsString('New Sermon After Cache', $content2);
+    }
 
-        // Clear cache
-        Cache::forget('podcast_feed_morning');
+    #[Test]
+    public function feed_cache_is_invalidated_when_preacher_changes(): void
+    {
+        $preacher = Preacher::factory()->create([
+            'name' => 'Original preacher',
+            'slug' => 'original-preacher',
+        ]);
 
-        // Third request should include new sermon
-        $response3 = $this->get('/christ/sermons/morning/feed');
-        $content3 = $response3->getContent();
-        $this->assertStringContainsString('New Sermon After Cache', $content3);
+        Sermon::factory()->create([
+            'service' => SermonService::MORNING->value,
+            'audio_file_path' => 'test.mp3',
+            'preacher' => 'Original preacher',
+            'preacher_id' => $preacher->id,
+        ]);
+
+        $this->get('/christ/sermons/morning/feed')
+            ->assertSee('Original preacher');
+
+        $preacher->update(['name' => 'Updated preacher']);
+
+        $this->get('/christ/sermons/morning/feed')
+            ->assertSee('Updated preacher');
     }
 
     #[Test]

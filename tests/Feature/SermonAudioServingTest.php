@@ -40,9 +40,7 @@ class SermonAudioServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertStatus(200)
-            ->assertHeader('Content-Type', 'audio/mpeg')
-            ->assertHeader('Content-Disposition', 'inline; filename=test.mp3');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
     }
 
     #[Test]
@@ -90,11 +88,11 @@ class SermonAudioServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertRedirect('https://cdn.example.com/sermons/cdn-test.mp3');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
     }
 
     #[Test]
-    public function serves_audio_file_directly_for_do_spaces_without_cdn(): void
+    public function redirects_to_public_audio_url_for_do_spaces_without_cdn(): void
     {
         Config::set('media-processing.storage.sermon_disk', 'do_spaces');
         Config::set('filesystems.disks.do_spaces.cdn_endpoint', null);
@@ -110,7 +108,6 @@ class SermonAudioServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertStatus(200)
-            ->assertHeader('Content-Type', 'audio/mpeg');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
     }
 }

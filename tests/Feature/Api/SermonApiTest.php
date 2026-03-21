@@ -75,9 +75,13 @@ class SermonApiTest extends TestCase
                 'data' => [
                     'id' => $sermon->id,
                     'title' => 'Test Sermon',
-                    'thumbnail_url' => Storage::disk('public')->url('sermons/thumbnails/test-thumbnail.jpg'),
                 ],
             ]);
+
+        $this->assertStringStartsWith(
+            Storage::disk('public')->url('sermons/thumbnails/test-thumbnail.jpg'),
+            $response->json('data.thumbnail_url'),
+        );
     }
 
     public function test_api_includes_preacher_details_image_url_when_preacher_is_loaded(): void

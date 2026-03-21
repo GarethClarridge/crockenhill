@@ -53,6 +53,7 @@ class SermonViewPresenterTest extends TestCase
             'audio_file_path' => 'sermons/test.mp3',
             'video_file_path' => 'sermons/test.mp4',
             'thumbnail_file_path' => 'thumbnails/test.jpg',
+            'thumbnail_metadata' => ['plain_thumbnail_path' => 'thumbnails/test.jpg'],
             'transcript_file_path' => 'transcripts/test.md',
         ]);
 
@@ -61,10 +62,13 @@ class SermonViewPresenterTest extends TestCase
         $presented = $this->presenter->present($sermon);
 
         $this->assertStringContainsString('/storage/sermons/test.mp3', $presented['audio_url'] ?? '');
+        $this->assertStringContainsString('?v=', $presented['audio_url'] ?? '');
         $this->assertSame('http://localhost/christ/sermons/2026/02/presented-sermon', $presented['canonical_url']);
+        $this->assertStringContainsString('/storage/thumbnails/test.jpg', $presented['card_thumbnail_url'] ?? '');
         $this->assertSame('/christ/sermons/preachers/test-preacher', $presented['preacher_url']);
         $this->assertSame('http://localhost/christ/sermons/presented-sermon', $presented['public_url']);
         $this->assertStringContainsString('/storage/thumbnails/test.jpg', $presented['thumbnail_url'] ?? '');
+        $this->assertStringContainsString('?v=', $presented['thumbnail_url'] ?? '');
         $this->assertSame('Transcript body', $presented['transcript']);
         $this->assertStringContainsString('/storage/sermons/test.mp4', $presented['video_url'] ?? '');
     }
@@ -84,6 +88,7 @@ class SermonViewPresenterTest extends TestCase
         $presented = $this->presenter->present($sermon);
 
         $this->assertNull($presented['audio_url']);
+        $this->assertNull($presented['card_thumbnail_url']);
         $this->assertSame('/christ/sermons/preachers/john-doe', $presented['preacher_url']);
         $this->assertNull($presented['thumbnail_url']);
         $this->assertNull($presented['transcript']);

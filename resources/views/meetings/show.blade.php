@@ -28,7 +28,7 @@
             'item' => [
                 '@type' => 'Event',
                 'name' => $event->title,
-                'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? $page?->description ?? $heading), 150),
+                'description' => \Illuminate\Support\Str::limit(strip_tags($event->description ?? $pageDescription ?? $heading), 150),
                 'startDate' => $event->start_datetime->toIso8601String(),
                 'location' => [
                     '@type' => 'Place',

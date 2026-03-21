@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\PodcastFeedItemReadModel;
 use App\Enums\SermonService;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
@@ -20,17 +21,7 @@ class PodcastFeedService
     /**
      * Get sermons for a specific service type feed
      *
-     * @return Collection<int, array{
-     *     canonical_url: string,
-     *     enclosure_length: int,
-     *     enclosure_url: string,
-     *     episode_image_url: ?string,
-     *     itunes_duration: string,
-     *     podcast_summary: string,
-     *     rss_pub_date: string,
-     *     sermon: Sermon,
-     *     transcript_url: ?string
-     * }>
+     * @return Collection<int, PodcastFeedItemReadModel>
      */
     public function getSermonsForFeed(SermonService $serviceType): Collection
     {
@@ -40,17 +31,7 @@ class PodcastFeedService
         $cacheConfig = config('podcast.cache');
 
         if ($cacheConfig['enabled']) {
-            /** @var Collection<int, array{
-             *     canonical_url: string,
-             *     enclosure_length: int,
-             *     enclosure_url: string,
-             *     episode_image_url: ?string,
-             *     itunes_duration: string,
-             *     podcast_summary: string,
-             *     rss_pub_date: string,
-             *     sermon: Sermon,
-             *     transcript_url: ?string
-             * }> */
+            /** @var Collection<int, PodcastFeedItemReadModel> */
             return Cache::flexible(
                 $cacheKey,
                 [$cacheConfig['ttl'], $cacheConfig['stale_ttl']],
@@ -68,17 +49,7 @@ class PodcastFeedService
      * excluding very large text fields (like full transcripts or points) while keeping summary for descriptions.
      * Eager loads 'preacherProfile' with restricted columns to prevent N+1 queries during enrichment.
      *
-     * @return Collection<int, array{
-     *     canonical_url: string,
-     *     enclosure_length: int,
-     *     enclosure_url: string,
-     *     episode_image_url: ?string,
-     *     itunes_duration: string,
-     *     podcast_summary: string,
-     *     rss_pub_date: string,
-     *     sermon: Sermon,
-     *     transcript_url: ?string
-     * }>
+     * @return Collection<int, PodcastFeedItemReadModel>
      */
     private function fetchSermons(SermonService $serviceType): Collection
     {
@@ -88,7 +59,7 @@ class PodcastFeedService
         return Sermon::query()
             ->whereSermon()
             ->forPodcast()
-            ->select(['id', 'title', 'audio_file_path', 'filetype', 'date', 'service', 'series', 'reference', 'preacher', 'preacher_id', 'duration', 'summary', 'slug', 'thumbnail_file_path', 'transcript_file_path'])
+            ->select(['id', 'title', 'audio_file_path', 'filetype', 'date', 'service', 'series', 'reference', 'preacher', 'preacher_id', 'duration', 'summary', 'slug', 'thumbnail_file_path', 'thumbnail_generated_at', 'transcript_file_path', 'updated_at'])
             ->with('preacherProfile:id,name,slug')
             ->forService($serviceType)
             ->limit($limit)
@@ -98,32 +69,21 @@ class PodcastFeedService
 
     /**
      * Enrich sermon with computed values for RSS feed
-     *
-     * @return array{
-     *     canonical_url: string,
-     *     enclosure_length: int,
-     *     enclosure_url: string,
-     *     episode_image_url: ?string,
-     *     itunes_duration: string,
-     *     podcast_summary: string,
-     *     rss_pub_date: string,
-     *     sermon: Sermon,
-     *     transcript_url: ?string
-     * }
      */
-    private function enrichSermonForFeed(Sermon $sermon): array
+    private function enrichSermonForFeed(Sermon $sermon): PodcastFeedItemReadModel
     {
-        return [
-            'canonical_url' => $this->sermonViewPresenter->canonicalUrl($sermon),
-            'enclosure_length' => $this->storageService->getFileSize($sermon) ?? 0,
-            'enclosure_url' => $this->storageService->getPublicUrl($sermon),
-            'episode_image_url' => $this->sermonViewPresenter->thumbnailUrl($sermon),
-            'itunes_duration' => $this->formatItunesDuration((int) ($sermon->duration ?? 0)),
-            'podcast_summary' => $this->buildPodcastSummary($sermon),
-            'rss_pub_date' => $sermon->date->toRfc2822String(),
-            'sermon' => $sermon,
-            'transcript_url' => $this->buildTranscriptUrl($sermon),
-        ];
+        return new PodcastFeedItemReadModel(
+            canonicalUrl: $this->sermonViewPresenter->canonicalUrl($sermon),
+            enclosureLength: $this->storageService->getFileSize($sermon) ?? 0,
+            enclosureUrl: $this->storageService->getPublicUrl($sermon),
+            episodeImageUrl: $this->sermonViewPresenter->thumbnailUrl($sermon),
+            itunesDuration: $this->formatItunesDuration((int) ($sermon->duration ?? 0)),
+            podcastSummary: $this->buildPodcastSummary($sermon),
+            publishedAt: $sermon->date->toRfc2822String(),
+            sermonId: $sermon->id,
+            title: $sermon->title,
+            transcriptUrl: $this->buildTranscriptUrl($sermon),
+        );
     }
 
     private function formatItunesDuration(int $seconds): string

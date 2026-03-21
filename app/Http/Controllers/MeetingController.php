@@ -6,8 +6,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateMeetingRequest;
 use App\Models\Meeting;
-use App\Presenters\MeetingShowPresenter;
 use App\Presenters\RelatedPagePresenter;
+use App\Services\PublicMeetingReadModelCache;
 use App\Services\PublicPageVisibilityGuard;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\View;
 class MeetingController extends Controller
 {
     public function __construct(
-        private readonly MeetingShowPresenter $meetingShowPresenter,
+        private readonly PublicMeetingReadModelCache $publicMeetingReadModelCache,
         private readonly RelatedPagePresenter $relatedPagePresenter,
         private readonly PublicPageVisibilityGuard $publicPageVisibilityGuard,
     ) {}
@@ -58,31 +58,6 @@ class MeetingController extends Controller
             return $redirect;
         }
 
-        // Eager load page, media (for photos), and calendar events to avoid N+1 queries
-        $meeting->load([
-            'page',
-            'media',
-            'calendarEvents' => function ($query) {
-                $query->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
-                    ->upcoming()
-                    ->confirmed()
-                    ->orderBy('start_datetime')
-                    ->limit(6);
-            },
-        ]);
-
-        $upcomingEvents = $meeting->calendarEvents;
-
-        // Load past events separately
-        $pastEvents = \App\Models\CalendarEvent::query()
-            ->select(['id', 'title', 'speaker', 'start_datetime'])
-            ->where('meeting_slug', $meeting->slug)
-            ->past()
-            ->confirmed()
-            ->orderBy('start_datetime', 'desc')
-            ->limit(3)
-            ->get();
-
         $links = $this->relatedPagePresenter->random(
             linkArea: 'community',
             slugToExclude: $meeting->slug,
@@ -90,17 +65,13 @@ class MeetingController extends Controller
             excludeAdminPages: true,
             extraExcludedSlugs: ['privacy-policy'],
         );
-        $layoutData = $this->meetingShowPresenter->layoutData($meeting, $links);
-        $photos = $this->meetingShowPresenter->photos($meeting);
+        $readModel = $this->publicMeetingReadModelCache->get($meeting);
 
-        return view('meetings.show', [
-            'meeting' => $meeting,
-            'page' => $meeting->page,
-            'photos' => $photos,
-            'upcomingEvents' => $upcomingEvents,
-            'pastEvents' => $pastEvents,
-            ...$layoutData,
-        ]);
+        return view('meetings.show', $readModel->toViewData(
+            links: $links,
+            meeting: $meeting,
+            page: $meeting->page,
+        ));
     }
 
     /**

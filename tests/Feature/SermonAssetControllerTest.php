@@ -27,9 +27,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'audio/mpeg');
-        $response->assertHeader('Content-Disposition', 'inline; filename=test-audio.mp3');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
     }
 
     #[Test]
@@ -62,9 +60,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'image/webp');
-        $response->assertHeader('Content-Disposition', 'inline; filename=test-thumb.webp');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -96,8 +92,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'image/jpeg');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -114,8 +109,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'image/jpeg');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -132,8 +126,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'image/png');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -153,8 +146,7 @@ class SermonAssetControllerTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
-        $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'image/jpeg');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
 
     #[Test]
@@ -208,7 +200,7 @@ class SermonAssetControllerTest extends TestCase
         // Limit is 10 per minute for audio
         for ($i = 0; $i < 10; $i++) {
             $this->get("/christ/sermons/{$sermon->slug}/audio")
-                ->assertStatus(200);
+                ->assertStatus(302);
         }
 
         $this->get("/christ/sermons/{$sermon->slug}/audio")
@@ -232,7 +224,7 @@ class SermonAssetControllerTest extends TestCase
         // Limit is 120 per minute for thumbnails
         for ($i = 0; $i < 120; $i++) {
             $this->get("/christ/sermons/{$sermon->slug}/thumbnail")
-                ->assertStatus(200);
+                ->assertStatus(302);
         }
 
         $this->get("/christ/sermons/{$sermon->slug}/thumbnail")

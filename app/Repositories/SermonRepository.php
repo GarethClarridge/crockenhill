@@ -24,7 +24,7 @@ class SermonRepository
     {
         return Sermon::query()
             ->whereSermon()
-            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_metadata', 'source_type', 'content_type'])
+            ->select(['id', 'title', 'date', 'slug', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'thumbnail_file_path', 'thumbnail_generated_at', 'thumbnail_metadata', 'source_type', 'content_type', 'updated_at'])
             ->with('preacherProfile:id,name,slug');
     }
 

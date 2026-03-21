@@ -63,7 +63,7 @@ class ChildrensTalkAssetSecurityTest extends TestCase
 
         $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/audio");
 
-        $response->assertStatus(200);
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getPublicUrl($sermon));
     }
 
     #[Test]

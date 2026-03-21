@@ -47,23 +47,17 @@ class SermonAssetController extends Controller
             abort(404, 'Audio file not found.');
         }
 
-        // For cloud storage, redirect to CDN URL for better performance
-        if ($fileInfo['disk'] === 'do_spaces' && config('filesystems.disks.do_spaces.cdn_endpoint')) {
-            return redirect($storageService->getPublicUrl($sermon));
+        if (! str_starts_with($sermon->audio_file_path, 'private/')) {
+            return redirect()->to($storageService->getPublicUrl($sermon));
         }
 
-        // Fallback to Laravel serving (useful for private files or local storage)
         $path = Storage::disk($fileInfo['disk'])->path($fileInfo['path']);
         $name = basename($fileInfo['path']);
-
-        $cacheControl = str_starts_with($sermon->audio_file_path, 'private/')
-            ? 'private, no-store'
-            : 'public, max-age=3600';
 
         return response()->file($path, [
             'Content-Type' => 'audio/mpeg',
             'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
-            'Cache-Control' => $cacheControl,
+            'Cache-Control' => 'private, no-store',
         ]);
     }
 
@@ -79,6 +73,23 @@ class SermonAssetController extends Controller
 
         if (! $sermon->thumbnail_file_path) {
             abort(404, 'Thumbnail not found.');
+        }
+
+        // Security check: Prevent path traversal
+        if (str_contains($sermon->thumbnail_file_path, '..')) {
+            abort(404, 'Invalid thumbnail file path.');
+        }
+
+        $disk = str_starts_with($sermon->thumbnail_file_path, 'private/')
+            ? 'local'
+            : config('thumbnail-generation.storage.disk', 'public');
+
+        if (! Storage::disk($disk)->exists($sermon->thumbnail_file_path)) {
+            abort(404, 'Thumbnail file not found.');
+        }
+
+        if (! str_starts_with($sermon->thumbnail_file_path, 'private/')) {
+            return redirect()->to((string) $this->storageService->getThumbnailUrl($sermon));
         }
 
         return $this->serveStoredThumbnail($sermon->thumbnail_file_path);
@@ -98,6 +109,24 @@ class SermonAssetController extends Controller
 
         if (! $cardThumbnailPath) {
             abort(404, 'Card thumbnail not found.');
+        }
+
+        // Security check: Prevent path traversal
+        if (str_contains($cardThumbnailPath, '..')) {
+            abort(404, 'Invalid thumbnail file path.');
+        }
+
+        $disk = str_starts_with($cardThumbnailPath, 'private/')
+            ? 'local'
+            : config('thumbnail-generation.storage.disk', 'public');
+
+        if (! Storage::disk($disk)->exists($cardThumbnailPath)) {
+            abort(404, 'Thumbnail file not found.');
+        }
+
+        $cardThumbnailUrl = $this->storageService->getCardThumbnailUrl($sermon);
+        if ($cardThumbnailUrl !== null && ! str_starts_with($cardThumbnailPath, 'private/')) {
+            return redirect()->to($cardThumbnailUrl);
         }
 
         return $this->serveStoredThumbnail($cardThumbnailPath);
@@ -135,14 +164,10 @@ class SermonAssetController extends Controller
             ? gmdate('D, d M Y H:i:s').' GMT'
             : gmdate('D, d M Y H:i:s', $lastModifiedTime).' GMT';
 
-        $cacheControl = str_starts_with($thumbnailPath, 'private/')
-            ? 'private, no-store'
-            : 'public, max-age=86400';
-
         return response()->file($path, [
             'Content-Type' => $contentType,
             'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $name),
-            'Cache-Control' => $cacheControl,
+            'Cache-Control' => 'private, no-store',
             'ETag' => md5_file($path),
             'Last-Modified' => $lastModified,
         ]);

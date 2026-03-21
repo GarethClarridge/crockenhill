@@ -5,55 +5,31 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use App\Models\Page;
-use Illuminate\Support\Facades\Storage;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use App\Services\PageImageCacheService;
 
 class PageImagePresenter
 {
+    public function __construct(
+        private readonly PageImageCacheService $pageImageCacheService,
+    ) {}
+
     public function headingImageUrl(Page $page): ?string
     {
-        return $this->resolveHeadingImageUrl($page, ['desktop', 'large'], 'large');
+        return $this->pageImageCacheService->get($page)['desktop'];
     }
 
     public function headingImageTabletUrl(Page $page): ?string
     {
-        return $this->resolveHeadingImageUrl($page, ['tablet'], 'large');
+        return $this->pageImageCacheService->get($page)['tablet'];
     }
 
     public function headingImageMobileUrl(Page $page): ?string
     {
-        return $this->resolveHeadingImageUrl($page, ['mobile'], 'small');
+        return $this->pageImageCacheService->get($page)['mobile'];
     }
 
     public function headingImageSmallUrl(Page $page): ?string
     {
-        return $this->resolveHeadingImageUrl($page, ['thumbnail', 'small'], 'small');
-    }
-
-    /**
-     * @param  array<int, string>  $conversions
-     */
-    private function resolveHeadingImageUrl(Page $page, array $conversions, string $size): ?string
-    {
-        /** @var Media|null $media */
-        $media = $page->getFirstMedia('headings');
-
-        if ($media instanceof Media) {
-            foreach ($conversions as $conversion) {
-                if ($media->hasGeneratedConversion($conversion)) {
-                    return $media->getUrl($conversion);
-                }
-            }
-
-            return $media->getUrl();
-        }
-
-        $storagePath = "pages/headings/{$size}/{$page->slug}.webp";
-
-        if (Storage::disk('public')->exists($storagePath)) {
-            return Storage::disk('public')->url($storagePath);
-        }
-
-        return null;
+        return $this->pageImageCacheService->get($page)['small'];
     }
 }

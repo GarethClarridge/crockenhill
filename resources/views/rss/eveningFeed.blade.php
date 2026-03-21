@@ -34,25 +34,25 @@
 
     @foreach($feedItems as $feedItem)
     <item>
-      <title><![CDATA[{{ $feedItem['sermon']->title }}]]></title>
-      <itunes:title><![CDATA[{{ $feedItem['sermon']->title }}]]></itunes:title>
+      <title><![CDATA[{{ $feedItem->title }}]]></title>
+      <itunes:title><![CDATA[{{ $feedItem->title }}]]></itunes:title>
       <itunes:author>{{ $metadata['author'] }}</itunes:author>
-      <itunes:image href="{{ $feedItem['episode_image_url'] ?? $metadata['image'] }}" />
-      <link>{{ $feedItem['canonical_url'] }}</link>
-      <itunes:summary><![CDATA[{{ $feedItem['podcast_summary'] }}]]></itunes:summary>
-      <itunes:subtitle><![CDATA[{{ $feedItem['podcast_summary'] }}]]></itunes:subtitle>
-      <description><![CDATA[{{ $feedItem['podcast_summary'] }}]]></description>
+      <itunes:image href="{{ $feedItem->episodeImageUrl ?? $metadata['image'] }}" />
+      <link>{{ $feedItem->canonicalUrl }}</link>
+      <itunes:summary><![CDATA[{{ $feedItem->podcastSummary }}]]></itunes:summary>
+      <itunes:subtitle><![CDATA[{{ $feedItem->podcastSummary }}]]></itunes:subtitle>
+      <description><![CDATA[{{ $feedItem->podcastSummary }}]]></description>
       <enclosure
-        url="{{ $feedItem['enclosure_url'] }}"
+        url="{{ $feedItem->enclosureUrl }}"
         type="audio/mpeg"
-        length="{{ $feedItem['enclosure_length'] }}" />
-      <itunes:duration>{{ $feedItem['itunes_duration'] }}</itunes:duration>
-      <guid isPermaLink="false">sermon-{{ $feedItem['sermon']->id }}</guid>
-      <pubDate>{{ $feedItem['rss_pub_date'] }}</pubDate>
+        length="{{ $feedItem->enclosureLength }}" />
+      <itunes:duration>{{ $feedItem->itunesDuration }}</itunes:duration>
+      <guid isPermaLink="false">sermon-{{ $feedItem->sermonId }}</guid>
+      <pubDate>{{ $feedItem->publishedAt }}</pubDate>
       <itunes:explicit>false</itunes:explicit>
       <itunes:episodeType>full</itunes:episodeType>
-@if($feedItem['transcript_url'])
-      <podcast:transcript url="{{ $feedItem['transcript_url'] }}" type="text/plain" />
+@if($feedItem->transcriptUrl)
+      <podcast:transcript url="{{ $feedItem->transcriptUrl }}" type="text/plain" />
 @endif
     </item>
     @endforeach

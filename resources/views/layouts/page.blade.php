@@ -4,12 +4,12 @@
 {{$heading}}
 @stop
 
-@section('meta_description'){{ isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading) }}@stop
+@section('meta_description'){{ $metaDescription ?? (isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading)) }}@stop
 
 @section('meta_tags')
 <x-meta-tags
     :title="$heading"
-    :description="isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading)"
+    :description="$metaDescription ?? (isset($page) ? $page->meta_description : (isset($description) ? \Illuminate\Support\Str::limit(strip_tags($description), 155) : $heading))"
 />
 @stop
 

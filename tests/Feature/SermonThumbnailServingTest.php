@@ -17,6 +17,7 @@ class SermonThumbnailServingTest extends TestCase
 
         // Mock the storage disk
         Storage::fake('public');
+        Storage::fake('local');
     }
 
     public function test_can_serve_sermon_thumbnail(): void
@@ -31,19 +32,7 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertStatus(200)
-            ->assertHeader('Content-Type', 'image/jpeg');
-
-        // Check that Cache-Control header is present (Laravel test environment may override with private cache directives)
-        $cacheControl = $response->headers->get('Cache-Control');
-        $this->assertNotNull($cacheControl, 'Cache-Control header should be present');
-
-        // In production, we expect public caching, but Laravel test framework may override
-        // The controller sets the correct headers - this is a test environment limitation
-        $this->assertTrue(
-            str_contains($cacheControl, 'public') || str_contains($cacheControl, 'private'),
-            'Cache-Control should contain caching directive'
-        );
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     public function test_returns_404_when_sermon_has_no_thumbnail(): void
@@ -82,8 +71,7 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertStatus(200)
-            ->assertHeader('Content-Type', 'image/png');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
     public function test_serves_webp_thumbnails_with_correct_content_type(): void
@@ -98,36 +86,23 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
-        $response->assertStatus(200)
-            ->assertHeader('Content-Type', 'image/webp');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getThumbnailUrl($sermon));
     }
 
-    public function test_thumbnail_response_includes_caching_headers(): void
+    public function test_private_thumbnail_response_includes_caching_headers(): void
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'test-sermon',
-            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => 'private/sermons/thumbnails/test-thumbnail.jpg',
         ]);
 
         // Create a fake thumbnail file
-        Storage::disk('public')->put('sermons/thumbnails/test-thumbnail.jpg', 'fake image content');
+        Storage::disk('local')->put('private/sermons/thumbnails/test-thumbnail.jpg', 'fake image content');
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(200);
-
-        // Check that Cache-Control header is present (Laravel test environment may override with private cache directives)
-        $cacheControl = $response->headers->get('Cache-Control');
-        $this->assertNotNull($cacheControl, 'Cache-Control header should be present');
-
-        // In production, we expect public caching, but Laravel test framework may override
-        // The controller sets the correct headers - this is a test environment limitation
-        $this->assertTrue(
-            str_contains($cacheControl, 'public') || str_contains($cacheControl, 'private'),
-            'Cache-Control should contain caching directive'
-        );
-
-        // Check that caching headers are present
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
         $this->assertNotNull($response->headers->get('ETag'));
         $this->assertNotNull($response->headers->get('Last-Modified'));
     }
@@ -147,8 +122,7 @@ class SermonThumbnailServingTest extends TestCase
 
         $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
 
-        $response->assertStatus(200)
-            ->assertHeader('Content-Disposition', 'inline; filename=test-plain.webp');
+        $response->assertRedirect(app(\App\Services\SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
 
     public function test_card_thumbnail_returns_404_when_plain_variant_is_missing(): void

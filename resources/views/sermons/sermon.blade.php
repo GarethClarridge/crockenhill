@@ -96,7 +96,7 @@ $schema['audio']['transcript'] = $transcript;
   @if(!$sermon->video_file_path && $sermon->hasThumbnail())
   <div class="overflow-hidden rounded-xl shadow-sm border border-gray-100">
     <img
-      src="{{ route('serveSermonThumbnail', $sermon->slug) }}"
+      src="{{ $sermonView['thumbnail_url'] }}"
       alt="Sermon: {{ $sermon->title }}"
       class="w-full max-h-96 object-cover">
   </div>

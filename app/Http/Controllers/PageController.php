@@ -6,8 +6,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\PageArea;
 use App\Models\Page;
-use App\Presenters\PageLayoutPresenter;
 use App\Presenters\RelatedPagePresenter;
+use App\Services\PublicPageReadModelCache;
 use App\Services\PublicPageVisibilityGuard;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
 class PageController extends Controller
 {
     public function __construct(
-        private readonly PageLayoutPresenter $pageLayoutPresenter,
+        private readonly PublicPageReadModelCache $publicPageReadModelCache,
         private readonly RelatedPagePresenter $relatedPagePresenter,
         private readonly PublicPageVisibilityGuard $publicPageVisibilityGuard,
     ) {}
@@ -50,10 +50,7 @@ class PageController extends Controller
             return $redirect;
         }
 
-        return response()->view('layouts/page', $this->pageLayoutPresenter->present(
-            page: $page,
-            area: $area,
-            slug: $page->slug,
+        return response()->view('layouts/page', $this->publicPageReadModelCache->get($page)->toViewData(
             links: $this->relatedPagePresenter->random(
                 linkArea: $area,
                 slugToExclude: $page->slug,
@@ -61,6 +58,7 @@ class PageController extends Controller
                 excludeAdminPages: true,
                 extraExcludedSlugs: ['privacy-policy'],
             ),
+            page: $page,
         ));
     }
 
@@ -78,10 +76,7 @@ class PageController extends Controller
             return $redirect;
         }
 
-        return response()->view('layouts/page', $this->pageLayoutPresenter->present(
-            page: $page,
-            area: $page->area->value,
-            slug: $page->slug,
+        return response()->view('layouts/page', $this->publicPageReadModelCache->get($page)->toViewData(
             links: $this->relatedPagePresenter->random(
                 linkArea: $page->area->value,
                 slugToExclude: $page->slug,
@@ -89,6 +84,7 @@ class PageController extends Controller
                 excludeAdminPages: true,
                 extraExcludedSlugs: ['privacy-policy'],
             ),
+            page: $page,
         ));
     }
 }

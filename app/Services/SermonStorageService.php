@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Sermon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class SermonStorageService
@@ -89,8 +90,27 @@ class SermonStorageService
         }
 
         $disk = config('thumbnail-generation.storage.disk', 'public');
+        $url = Storage::disk($disk)->url($sermon->thumbnail_file_path);
 
-        return Storage::disk($disk)->url($sermon->thumbnail_file_path);
+        return $this->appendVersion($url, $this->thumbnailVersion($sermon, $sermon->thumbnail_file_path));
+    }
+
+    public function getCardThumbnailUrl(Sermon $sermon): ?string
+    {
+        $cardThumbnailPath = $sermon->plain_thumbnail_file_path;
+
+        if (! is_string($cardThumbnailPath) || $cardThumbnailPath === '') {
+            return null;
+        }
+
+        $disk = str_starts_with($cardThumbnailPath, 'private/')
+            ? 'local'
+            : config('thumbnail-generation.storage.disk', 'public');
+
+        return $this->appendVersion(
+            Storage::disk($disk)->url($cardThumbnailPath),
+            $this->thumbnailVersion($sermon, $cardThumbnailPath),
+        );
     }
 
     /**
@@ -103,10 +123,10 @@ class SermonStorageService
         // Use CDN for public files if available
         $cdnEndpoint = config('filesystems.disks.do_spaces.cdn_endpoint');
         if ($info['disk'] === 'do_spaces' && $cdnEndpoint) {
-            return $cdnEndpoint.'/'.$info['path'];
+            return $this->appendVersion($cdnEndpoint.'/'.$info['path'], $this->audioVersion($sermon));
         }
 
-        return Storage::disk($info['disk'])->url($info['path']);
+        return $this->appendVersion(Storage::disk($info['disk'])->url($info['path']), $this->audioVersion($sermon));
     }
 
     /**
@@ -127,14 +147,7 @@ class SermonStorageService
      */
     public function getFileSize(Sermon $sermon): ?int
     {
-        $info = $this->getSermonFileInfo($sermon);
-
-        try {
-            return Storage::disk($info['disk'])->size($info['path']);
-        } catch (\Exception $e) {
-            // File likely doesn't exist or is inaccessible
-            return null;
-        }
+        return $this->fileMetadata($sermon)['size'];
     }
 
     /**
@@ -145,14 +158,12 @@ class SermonStorageService
      */
     public function getLastModified(Sermon $sermon): ?int
     {
-        $info = $this->getSermonFileInfo($sermon);
+        return $this->fileMetadata($sermon)['last_modified'];
+    }
 
-        try {
-            return Storage::disk($info['disk'])->lastModified($info['path']);
-        } catch (\Exception $e) {
-            // File likely doesn't exist or is inaccessible
-            return null;
-        }
+    public function clearCachedMetadata(Sermon $sermon): void
+    {
+        Cache::forget($this->fileMetadataCacheKey($sermon));
     }
 
     /**
@@ -255,5 +266,64 @@ class SermonStorageService
             });
 
         return $stats;
+    }
+
+    private function appendVersion(string $url, string $version): string
+    {
+        $separator = str_contains($url, '?') ? '&' : '?';
+
+        return "{$url}{$separator}v={$version}";
+    }
+
+    private function audioVersion(Sermon $sermon): string
+    {
+        return sha1(implode('|', [
+            'audio',
+            $sermon->audio_file_path,
+            $sermon->updated_at?->getTimestamp() ?? 0,
+        ]));
+    }
+
+    /**
+     * @return array{last_modified: ?int, size: ?int}
+     */
+    private function fileMetadata(Sermon $sermon): array
+    {
+        /** @var array{last_modified: ?int, size: ?int} */
+        return Cache::rememberForever($this->fileMetadataCacheKey($sermon), function () use ($sermon): array {
+            $info = $this->getSermonFileInfo($sermon);
+
+            try {
+                return [
+                    'last_modified' => Storage::disk($info['disk'])->lastModified($info['path']),
+                    'size' => Storage::disk($info['disk'])->size($info['path']),
+                ];
+            } catch (\Exception $e) {
+                return [
+                    'last_modified' => null,
+                    'size' => null,
+                ];
+            }
+        });
+    }
+
+    private function fileMetadataCacheKey(Sermon $sermon): string
+    {
+        return 'sermon_file_metadata_'.sha1(implode('|', [
+            $sermon->id,
+            $sermon->audio_file_path,
+            $sermon->updated_at?->getTimestamp() ?? 0,
+        ]));
+    }
+
+    private function thumbnailVersion(Sermon $sermon, string $thumbnailPath): string
+    {
+        return sha1(implode('|', [
+            'thumbnail',
+            $thumbnailPath,
+            $sermon->thumbnail_generated_at?->getTimestamp()
+                ?? $sermon->updated_at?->getTimestamp()
+                ?? 0,
+        ]));
     }
 }

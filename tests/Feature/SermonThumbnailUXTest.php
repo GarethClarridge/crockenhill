@@ -36,7 +36,7 @@ class SermonThumbnailUXTest extends TestCase
 
         $response = $this->get('/christ/sermons/all');
         $response->assertStatus(200);
-        $response->assertSee(route('serveSermonCardThumbnail', $sermon->slug), false);
+        $response->assertSee(app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon), false);
         $response->assertSee('?v=', false);
         $response->assertSee('alt="Sermon: Sermon with Thumbnail"', false);
     }
@@ -55,7 +55,7 @@ class SermonThumbnailUXTest extends TestCase
 
         $response = $this->get('/christ/sermons/all');
         $response->assertStatus(200);
-        $response->assertDontSee(route('serveSermonCardThumbnail', $sermon->slug), false);
+        $response->assertDontSee('/thumbnail/card', false);
     }
 
     public function test_sermon_card_does_not_render_livestream_badge(): void
@@ -86,6 +86,6 @@ class SermonThumbnailUXTest extends TestCase
 
         $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
         $response->assertStatus(200);
-        $response->assertSee('/christ/sermons/sermon-page-thumbnail/thumbnail');
+        $response->assertSee(app(\App\Presenters\SermonViewPresenter::class)->thumbnailUrl($sermon), false);
     }
 }

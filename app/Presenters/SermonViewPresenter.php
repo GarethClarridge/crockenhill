@@ -32,6 +32,15 @@ class SermonViewPresenter
         return $this->exposurePolicy->canonicalUrl($sermon);
     }
 
+    public function cardThumbnailUrl(Sermon $sermon): ?string
+    {
+        if (! $sermon->hasPlainThumbnail()) {
+            return null;
+        }
+
+        return $this->storageService->getCardThumbnailUrl($sermon);
+    }
+
     public function preacherUrl(Sermon $sermon): ?string
     {
         if ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile !== null) {
@@ -47,6 +56,7 @@ class SermonViewPresenter
      * @return array{
      *     audio_url: ?string,
      *     canonical_url: string,
+     *     card_thumbnail_url: ?string,
      *     preacher_url: ?string,
      *     public_url: string,
      *     thumbnail_url: ?string,
@@ -59,6 +69,7 @@ class SermonViewPresenter
         return [
             'audio_url' => $this->audioUrl($sermon),
             'canonical_url' => $this->canonicalUrl($sermon),
+            'card_thumbnail_url' => $this->cardThumbnailUrl($sermon),
             'preacher_url' => $this->preacherUrl($sermon),
             'public_url' => $this->publicUrl($sermon),
             'thumbnail_url' => $this->thumbnailUrl($sermon),

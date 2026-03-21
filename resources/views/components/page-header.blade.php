@@ -9,7 +9,7 @@
     $hasHeadingPicture = $picture && (
         str_starts_with($picture, 'http') ||
         str_starts_with($picture, '//') ||
-        file_exists($_SERVER['DOCUMENT_ROOT'] . $picture)
+        str_starts_with($picture, '/')
     );
 @endphp
 

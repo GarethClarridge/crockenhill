@@ -66,8 +66,8 @@ class SermonStorageServiceTest extends TestCase
 
         $url = $this->service->getPublicUrl($sermon);
 
-        // Storage::fake('public')->url() typically returns /storage/path
         $this->assertStringContainsString('/storage/sermons/test.mp3', $url);
+        $this->assertStringContainsString('?v=', $url);
     }
 
     #[Test]
@@ -82,7 +82,7 @@ class SermonStorageServiceTest extends TestCase
 
         $url = $this->service->getPublicUrl($sermon);
 
-        $this->assertEquals('https://cdn.example.com/sermons/cdn-test.mp3', $url);
+        $this->assertStringStartsWith('https://cdn.example.com/sermons/cdn-test.mp3?v=', $url);
     }
 
     #[Test]
@@ -202,6 +202,7 @@ class SermonStorageServiceTest extends TestCase
         $url = $this->service->getThumbnailUrl($sermon);
 
         $this->assertStringContainsString('thumbnails/sermon-1.jpg', $url);
+        $this->assertStringContainsString('?v=', $url);
     }
 
     #[Test]
