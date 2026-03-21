@@ -39,9 +39,9 @@ $describedBy = implode(' ', $describedBy);
             @if($maxlength)
                 <p class="text-xs tabular-nums ml-auto transition-colors duration-200"
                    :class="{
-                       'text-red-600 font-bold': limit && count >= limit,
-                       'text-amber-600 font-medium': limit && count >= (limit * 0.9) && count < limit,
-                       'text-gray-400': !limit || count < (limit * 0.9)
+                       'text-red-600 font-bold': limit !== null && count >= limit,
+                       'text-amber-600 font-medium': limit !== null && count >= (limit * 0.9) && count < limit,
+                       'text-gray-400': limit === null || count < (limit * 0.9)
                    }"
                    aria-live="polite">
                     <span x-text="count"></span> / {{ $maxlength }}
