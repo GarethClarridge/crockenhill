@@ -1,6 +1,7 @@
 @props([
 'area',
 'heading',
+'jsonOnly' => false,
 ])
 
 @php
@@ -35,8 +36,9 @@ $breadcrumbItems[] = ['name' => $sectionName, 'item' => url('admin/' . $section)
 // supporting future 1-segment pages that may reside within a specific area.
 $breadcrumbItems[] = ['name' => Str::title($area), 'item' => url($area)];
 
-if (count(\Request::segments()) >= 3) {
-if (\Request::segment(2) === 'sermons') {
+    // If the current page is the area page itself, don't add it twice
+    if (count(\Request::segments()) >= 3 || (count(\Request::segments()) === 2 && \Request::segment(2) !== null)) {
+        if (\Request::segment(2) === 'sermons') {
 $breadcrumbItems[] = ['name' => 'Sermons', 'item' => url('christ/sermons')];
 if (count(\Request::segments()) === 4) {
 $breadcrumbItems[] = ['name' => Str::title(\Request::segment(3)), 'item' => url('christ/sermons/' . \Request::segment(3))];
@@ -47,7 +49,9 @@ $breadcrumbItems[] = ['name' => 'Members', 'item' => url('church/members')];
 }
 }
 
-$breadcrumbItems[] = ['name' => $heading, 'item' => url()->current()];
+    if (end($breadcrumbItems)['item'] !== url()->current()) {
+        $breadcrumbItems[] = ['name' => $heading, 'item' => url()->current()];
+    }
 
 $breadcrumbList = [
 '@context' => 'https://schema.org',
@@ -67,6 +71,7 @@ return [
   {!! json_encode($breadcrumbList, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
 
+@if(!$jsonOnly)
 <div class="my-6 flex flex-wrap items-center justify-between gap-4" x-data="{
     copied: false,
     copy() {
@@ -129,3 +134,4 @@ return [
     <span x-text="copied ? 'Copied!' : 'Copy link'"></span>
   </button>
 </div>
+@endif
