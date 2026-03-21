@@ -42,7 +42,9 @@ trait MeetingForm
      */
     protected function rules(): array
     {
-        $meetingId = isset($this->meeting) && $this->meeting->exists ? $this->meeting->id : '';
+        $meetingId = (isset($this->meeting) && $this->meeting->exists)
+            ? $this->meeting->id
+            : '';
 
         return [
             'slug' => 'required|string|max:255|alpha_dash|unique:meetings,slug,'.$meetingId,
@@ -58,7 +60,7 @@ trait MeetingForm
             'meetingDate' => 'nullable|date',
             'isRecurring' => 'boolean',
             'frequency' => ['nullable', 'required_if:isRecurring,true', 'in:'.implode(',', MeetingFrequency::values())],
-            'pageId' => 'nullable|exists:pages,id',
+            'pageId' => 'nullable|exists:pages,id|unique:meetings,page_id,'.$meetingId,
         ];
     }
 
