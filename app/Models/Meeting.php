@@ -66,19 +66,6 @@ class Meeting extends Model implements HasMedia, Sitemapable
 
     use InteractsWithMedia;
 
-    /**
-     * The "booted" method of the model.
-     */
-    protected static function booted(): void
-    {
-        static::saved(function (): void {
-            \Illuminate\Support\Facades\Cache::forget('admin_meeting_list');
-        });
-
-        static::deleted(function (): void {
-            \Illuminate\Support\Facades\Cache::forget('admin_meeting_list');
-        });
-    }
 
     /**
      * The attributes that are mass assignable.

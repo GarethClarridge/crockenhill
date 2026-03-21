@@ -7,9 +7,10 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Repositories\PageRepository;
 use App\Repositories\SermonRepository;
+use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Illuminate\Support\Facades\Cache;
 
-class SitemapCacheObserver
+class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
 {
     public function __construct(
         private readonly SermonRepository $sermonRepository,
@@ -49,6 +50,7 @@ class SitemapCacheObserver
         Cache::forget('nav_pages');
         Cache::forget('admin_preacher_list');
         Cache::forget('public_preacher_list');
+        Cache::forget('admin_meeting_list');
 
         if ($model instanceof Page) {
             $this->pageRepository->clearAreaCache($model->area);

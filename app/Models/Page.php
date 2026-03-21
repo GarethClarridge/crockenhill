@@ -54,21 +54,6 @@ class Page extends Model implements HasMedia, Sitemapable
 
     use InteractsWithMedia;
 
-    /**
-     * The "booted" method of the model.
-     */
-    protected static function booted(): void
-    {
-        static::saved(function (self $page): void {
-            \Illuminate\Support\Facades\Cache::forget('admin_meeting_list');
-            app(\App\Repositories\PageRepository::class)->clearAreaCache($page->area);
-        });
-
-        static::deleted(function (self $page): void {
-            \Illuminate\Support\Facades\Cache::forget('admin_meeting_list');
-            app(\App\Repositories\PageRepository::class)->clearAreaCache($page->area);
-        });
-    }
 
     /**
      * The attributes that are mass assignable.
