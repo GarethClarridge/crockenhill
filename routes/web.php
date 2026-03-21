@@ -114,15 +114,15 @@ Route::group(['prefix' => 'christ/sermons'], function () {
 
 // Add Livewire authentication routes
 Route::middleware('guest')->group(function () {
-    Route::view('login', 'auth.login')->name('login');
-    Route::view('register', 'auth.register')->name('register');
-    Route::view('forgot-password', 'auth.forgot-password')->name('password.request');
+    Route::view('login', 'auth.login', ['heading' => 'Login'])->name('login');
+    Route::view('register', 'auth.register', ['heading' => 'Register'])->name('register');
+    Route::view('forgot-password', 'auth.forgot-password', ['heading' => 'Forgot Password'])->name('password.request');
     Route::get('reset-password/{token}', function ($token) {
-        return view('auth.reset-password', ['token' => $token]);
+        return view('auth.reset-password', ['token' => $token, 'heading' => 'Reset Password']);
     })->name('password.reset');
 });
 Route::get('verify-email', function () {
-    return view('auth.verify-email');
+    return view('auth.verify-email', ['heading' => 'Verify Email']);
 })->middleware('auth')->name('verification.notice');
 
 // Admin routes (Livewire)

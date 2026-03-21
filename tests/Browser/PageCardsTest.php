@@ -4,12 +4,23 @@ namespace Tests\Browser;
 
 use App\Models\Page;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
 class PageCardsTest extends DuskTestCase
 {
     use DatabaseTruncation;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Page cards are cached in Redis — clear before each test so freshly
+        // created factory pages are visible rather than stale cached results.
+        Cache::forget('page_links_community');
+        Cache::forget('page_links_church');
+    }
 
     // Pages required by PageCardService::forHome()
     private function createHomepagePages(): void
