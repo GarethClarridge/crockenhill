@@ -51,27 +51,23 @@ class SecurityHeaders
     protected function applyContentSecurityPolicy(Response $response): void
     {
         $cdnUrl = config('filesystems.disks.do_spaces.cdn_endpoint');
-        $cdnSource = $cdnUrl ? (string) $cdnUrl : '';
+        $cdnSource = is_string($cdnUrl) && $cdnUrl !== '' ? " {$cdnUrl}" : '';
 
         $policy = [
             "default-src 'self'",
             // Alpine.js and Livewire 3 require 'unsafe-inline' and 'unsafe-eval' for core functionality.
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://pkg.api.bible",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: https://www.googletagmanager.com ".$cdnSource,
-            "connect-src 'self' https://*.google-analytics.com https://api.scripture.api.bible ".$cdnSource,
+            "img-src 'self' data: https://www.googletagmanager.com{$cdnSource}",
+            "connect-src 'self' https://*.google-analytics.com https://api.scripture.api.bible{$cdnSource}",
             "font-src 'self'",
-            "media-src 'self' ".$cdnSource,
+            "media-src 'self'{$cdnSource}",
             "frame-src 'self' https://www.youtube.com",
             "object-src 'none'",
             "base-uri 'self'",
             "form-action 'self'",
         ];
 
-        // Filter out empty sources (e.g. if CDN is not configured) and join directives
-        $directives = array_map('trim', $policy);
-        $directives = array_filter($directives, fn (string $directive): bool => ! str_ends_with($directive, ' '));
-
-        $response->headers->set('Content-Security-Policy', implode('; ', $directives));
+        $response->headers->set('Content-Security-Policy', implode('; ', $policy));
     }
 }
