@@ -56,4 +56,30 @@ class SecurityHeadersTest extends TestCase
         $this->assertStringContainsString("img-src 'self' data:", $csp);
         $this->assertStringContainsString("object-src 'none'", $csp);
     }
+
+    #[Test]
+    public function it_whitelists_do_spaces_origins_in_csp(): void
+    {
+        config(['filesystems.disks.do_spaces.endpoint' => 'https://nyc3.digitaloceanspaces.com']);
+        config(['filesystems.disks.do_spaces.bucket' => 'my-bucket']);
+        config(['filesystems.disks.do_spaces.cdn_endpoint' => 'https://cdn.example.com']);
+
+        $response = $this->get('/');
+        $csp = $response->headers->get('Content-Security-Policy');
+
+        $this->assertStringContainsString('https://my-bucket.nyc3.digitaloceanspaces.com', $csp);
+        $this->assertStringContainsString('https://cdn.example.com', $csp);
+    }
+
+    #[Test]
+    public function it_adds_local_origins_to_csp_in_local_environment(): void
+    {
+        $this->app['env'] = 'local';
+
+        $response = $this->get('/');
+        $csp = $response->headers->get('Content-Security-Policy');
+
+        $this->assertStringContainsString('http://localhost:*', $csp);
+        $this->assertStringContainsString('ws://localhost:*', $csp);
+    }
 }
