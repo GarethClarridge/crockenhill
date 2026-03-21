@@ -12,14 +12,14 @@
 @if(in_array($service, ['morning', 'evening']))
 <link rel="alternate" type="application/rss+xml" title="{{ $heading }} Podcast" href="{{ route('podcast.feed', $service) }}">
 @endif
+
+{{-- JSON-LD Sermon List --}}
+<script type="application/ld+json">
+{!! json_encode($json_ld_data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+</script>
 @endsection
 
 @section('full_width_content')
-
-  {{-- JSON-LD Sermon List --}}
-  <script type="application/ld+json">
-  {!! json_encode($json_ld_data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
-  </script>
 
   <x-sermon-list :sermons="$sermons" :groupedByDate="false" />
 
