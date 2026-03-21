@@ -37,13 +37,7 @@ $describedBy = implode(' ', $describedBy);
                 <p @if($id) id="{{ $id }}-hint" @endif class="text-sm text-gray-500">{{ $hint }}</p>
             @endif
             @if($maxlength)
-                <p class="text-xs tabular-nums ml-auto transition-colors duration-200"
-                   :class="{
-                       'text-red-600 font-bold': limit && count >= limit,
-                       'text-amber-600 font-medium': limit && count >= (limit * 0.9) && count < limit,
-                       'text-gray-400': !limit || count < (limit * 0.9)
-                   }"
-                   aria-live="polite">
+                <p class="text-xs text-gray-400 tabular-nums ml-auto" aria-live="polite">
                     <span x-text="count"></span> / {{ $maxlength }}
                 </p>
             @endif
