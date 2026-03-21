@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Models\LivestreamSegment;
@@ -17,7 +19,7 @@ class LivestreamSegmentFactory extends Factory
 
         return [
             'media_processing_log_id' => 1, // Will be overridden in tests
-            'segment_index' => $this->faker->unique()->numberBetween(0, 255),
+            'segment_index' => $this->faker->unique()->numberBetween(0, 5000),
             'start_time' => $startTime,
             'end_time' => $endTime,
             'duration' => $duration,

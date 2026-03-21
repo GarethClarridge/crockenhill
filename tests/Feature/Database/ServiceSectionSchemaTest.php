@@ -12,6 +12,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -119,5 +120,29 @@ class ServiceSectionSchemaTest extends TestCase
             'media_processing_log_id' => $processingLog->id,
             'confidence' => 1.5,
         ]);
+    }
+
+    #[Test]
+    public function invalid_status_values_are_rejected_by_the_database(): void
+    {
+        $section = ServiceSection::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('service_sections')
+            ->where('id', $section->id)
+            ->update(['status' => 'free_text_drift']);
+    }
+
+    #[Test]
+    public function invalid_publication_status_values_are_rejected_by_the_database(): void
+    {
+        $section = ServiceSection::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('service_sections')
+            ->where('id', $section->id)
+            ->update(['publication_status' => 'some_future_state']);
     }
 }
