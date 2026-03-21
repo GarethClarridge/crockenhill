@@ -1685,7 +1685,7 @@ The backlog is ordered for safety:
   - `architectural-review-2026-03-17.md`
 
 ### TD-016 - Replace string-based retry/cancel behavior with phase-cursor rebuild and explicit idempotency rules
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: Very high
 - Risk: High
@@ -1714,7 +1714,7 @@ The backlog is ordered for safety:
   - `api-webhook-boundary-review-2026-03-18.md`
 
 ### TD-016A - Remove legacy media-processing orchestration helpers after orchestrator cutover
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: High
 - Risk: Medium

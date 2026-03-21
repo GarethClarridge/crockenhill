@@ -15,6 +15,7 @@ use App\Services\AudioTranscriptionService;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonAnalysisService;
 use App\Services\SermonTranscriptReader;
+use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -377,7 +378,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_processing_retry_scenarios(): void
     {
-        $service = app(\App\Services\SermonJobPipelineService::class);
+        $service = app(UnifiedMediaProcessor::class);
 
         // Create failed processing log
         $processingLog = MediaProcessingLog::create([
@@ -390,7 +391,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         ]);
 
         // Test retry
-        $result = $service->retryProcessing('retry-test-id');
+        $result = $service->retry('retry-test-id');
 
         // Retry may succeed or fail depending on underlying service availability
         if ($result->success) {
@@ -409,7 +410,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_retry_of_non_failed_processing(): void
     {
-        $service = app(\App\Services\SermonJobPipelineService::class);
+        $service = app(UnifiedMediaProcessor::class);
 
         // Create processing log that's not failed
         $processingLog = MediaProcessingLog::create([
@@ -421,7 +422,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
         ]);
 
         // Test retry
-        $result = $service->retryProcessing('active-test-id');
+        $result = $service->retry('active-test-id');
 
         $this->assertFalse($result->success);
         $this->assertEquals('PROCESSING_NOT_FAILED', $result->errorCode);
@@ -486,11 +487,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'error_message' => 'Connection could not be established with host "mailpit:1025"',
         ]);
 
-        // Mock the SermonJobPipelineService
-        $pipelineService = app(\App\Services\SermonJobPipelineService::class);
-
-        // Test retry
-        $result = $pipelineService->retryProcessing('retry-test-preparing');
+        $result = app(UnifiedMediaProcessor::class)->retry('retry-test-preparing');
 
         $this->assertTrue($result->success, 'Retry should succeed: '.$result->message);
         $this->assertEquals('Processing retry initiated successfully', $result->message);
@@ -524,11 +521,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'sermon_id' => $sermon->id,
         ]);
 
-        // Mock the SermonJobPipelineService
-        $pipelineService = app(\App\Services\SermonJobPipelineService::class);
-
-        // Test retry
-        $result = $pipelineService->retryProcessing('retry-test-analyzing');
+        $result = app(UnifiedMediaProcessor::class)->retry('retry-test-analyzing');
 
         $this->assertTrue($result->success, 'Retry should succeed: '.$result->message);
         $this->assertEquals('Processing retry initiated successfully', $result->message);
@@ -552,32 +545,26 @@ class SermonProcessingErrorHandlingTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_retry_initiated_step_for_backwards_compatibility(): void
+    public function it_routes_unknown_retry_steps_to_manual_review(): void
     {
-        // Create a failed processing log with legacy 'retry_initiated' step
         $processingLog = MediaProcessingLog::create([
-            'processing_id' => 'retry-test-legacy',
-            'processing_type' => 'livestream',
-            'original_filename' => 'test-livestream.mp4',
+            'processing_id' => 'retry-test-unknown',
+            'processing_type' => 'audio',
+            'original_filename' => 'test-sermon.mp3',
             'status' => ProcessingStatus::FAILED,
-            'current_step' => 'retry_initiated', // Legacy invalid step
-            'error_message' => 'Unknown processing step: retry_initiated',
+            'current_step' => 'legacy_unknown_phase',
+            'error_message' => 'Unknown processing step: legacy_unknown_phase',
         ]);
 
-        // Mock the SermonJobPipelineService
-        $pipelineService = app(\App\Services\SermonJobPipelineService::class);
-
-        // Test retry
-        $result = $pipelineService->retryProcessing('retry-test-legacy');
+        $result = app(UnifiedMediaProcessor::class)->retry('retry-test-unknown');
 
         $this->assertTrue($result->success, 'Retry should succeed: '.$result->message);
         $this->assertEquals('Processing retry initiated successfully', $result->message);
 
-        // Check processing log was updated to handle legacy step - should be marked for manual review
         $processingLog->refresh();
         $this->assertEquals(ProcessingStatus::FAILED, $processingLog->status);
         $this->assertEquals('manual_review_required', $processingLog->current_step);
-        $this->assertStringContainsString('Early processing failure detected', $processingLog->error_message);
+        $this->assertStringContainsString('Unknown processing step: legacy_unknown_phase.', $processingLog->error_message);
     }
 
     #[Test]
@@ -592,11 +579,7 @@ class SermonProcessingErrorHandlingTest extends TestCase
             'current_step' => 'completed',
         ]);
 
-        // Mock the SermonJobPipelineService
-        $pipelineService = app(\App\Services\SermonJobPipelineService::class);
-
-        // Test retry
-        $result = $pipelineService->retryProcessing('retry-test-not-failed');
+        $result = app(UnifiedMediaProcessor::class)->retry('retry-test-not-failed');
 
         // Should fail
         $this->assertFalse($result->success);
@@ -607,15 +590,10 @@ class SermonProcessingErrorHandlingTest extends TestCase
     #[Test]
     public function it_handles_retry_for_nonexistent_processing_id(): void
     {
-        // Mock the SermonJobPipelineService
-        $pipelineService = app(\App\Services\SermonJobPipelineService::class);
+        $result = app(UnifiedMediaProcessor::class)->retry('nonexistent-processing-id');
 
-        // Test retry with non-existent ID
-        $result = $pipelineService->retryProcessing('nonexistent-processing-id');
-
-        // Should fail
         $this->assertFalse($result->success);
-        $this->assertEquals('Processing log not found', $result->message);
-        $this->assertEquals('PROCESSING_LOG_NOT_FOUND', $result->errorCode);
+        $this->assertEquals('Processing ID not found for retry', $result->message);
+        $this->assertEquals('NOT_FOUND', $result->errorCode);
     }
 }

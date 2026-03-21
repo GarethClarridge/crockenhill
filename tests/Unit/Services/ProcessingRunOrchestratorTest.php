@@ -31,6 +31,28 @@ class ProcessingRunOrchestratorTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
+    public function it_starts_audio_runs_via_the_canonical_orchestrator_entrypoint(): void
+    {
+        Bus::fake();
+
+        $processingLog = MediaProcessingLog::factory()->audio()->pending()->create();
+
+        $builder = $this->mock(ProcessingPipelineBuilder::class);
+        $builder->shouldReceive('buildAudioPipeline')
+            ->once()
+            ->with($processingLog)
+            ->andReturn([new CleanupTemporaryFiles($processingLog)]);
+
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
+
+        app(ProcessingRunOrchestrator::class)->start($processingLog);
+
+        Bus::assertDispatched(CleanupTemporaryFiles::class, function (CleanupTemporaryFiles $job): bool {
+            return $job->queue === 'audio-processing';
+        });
+    }
+
+    #[Test]
     public function it_retries_audio_from_the_failed_phase_using_registry_order(): void
     {
         Bus::fake();

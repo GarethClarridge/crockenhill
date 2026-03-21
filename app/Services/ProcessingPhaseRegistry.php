@@ -76,7 +76,7 @@ class ProcessingPhaseRegistry
     {
         $normalizedStep = $this->normalizeStep($processingLog->current_step);
 
-        if (in_array($normalizedStep, ['preparing', 'retry_initiated'], true)) {
+        if ($normalizedStep === 'preparing') {
             return $this->manualReviewPlan(
                 reasonCode: 'early_processing_failure',
                 reasonMessage: sprintf(

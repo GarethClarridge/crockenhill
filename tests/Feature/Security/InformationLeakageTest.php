@@ -7,6 +7,7 @@ use App\Enums\ProcessingStatus;
 use App\Exceptions\InvalidFileException;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\ProcessingRunFailureHandler;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -89,58 +90,26 @@ class InformationLeakageTest extends TestCase
         $user = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
         $this->actingAs($user);
 
-        // We will trigger a failure in a queued job or similar, but for unit testing the service logic:
-        $service = app(\App\Services\SermonJobPipelineService::class);
-
         $processingLog = MediaProcessingLog::create([
             'processing_id' => (string) \Illuminate\Support\Str::uuid(),
             'processing_type' => MediaType::Audio,
             'original_filename' => 'test.mp3',
             'status' => ProcessingStatus::PENDING,
-            'current_step' => 'transcribing_audio',
+            'current_step' => 'audio_processing_initiated',
             'owner_user_id' => $user->id,
         ]);
 
-        // Simulate a job failure that calls dispatchProcessingJobs which has the catch block
-        // Actually, dispatchProcessingJobs catches job chain failures.
-
-        $job = new class
-        {
-            use \Illuminate\Bus\Queueable;
-
-            public function handle()
-            {
-                throw new \RuntimeException('Sensitive DB Error');
-            }
-        };
-
-        // We need to use Bus::fake() or similar if we want to test the catch block,
-        // but for a synchronous test we can just mock the dispatcher or trigger the failure manually
-        // Since I removed the test-only branching, I will adjust the test to use a real (sync) queue
-
-        // Note: For sync queues, we rely on the catch() callback in the chain.
-        // In synchronous mode, exceptions might throw immediately.
-        config(['queue.default' => 'sync']);
-
-        try {
-            $service->dispatchProcessingJobs(
-                [$job],
-                $processingLog
-            );
-        } catch (\Throwable $e) {
-            // Explicitly call the failure handler if it didn't fire in sync mode
-            if ($processingLog->fresh()->status !== ProcessingStatus::FAILED) {
-                $method = new \ReflectionMethod($service, 'handleJobChainFailure');
-                $method->setAccessible(true);
-                $method->invoke($service, $processingLog, $e);
-            }
-        }
+        app(ProcessingRunFailureHandler::class)->handle(
+            $processingLog->processing_id,
+            new \RuntimeException('Sensitive DB Error'),
+            ProcessingRunFailureHandler::PROFILE_AUDIO
+        );
 
         $processingLog->refresh();
 
         $this->assertEquals(ProcessingStatus::FAILED, $processingLog->status);
-        $this->assertStringContainsString('Processing chain failed:', $processingLog->error_message);
-        $this->assertMatchesRegularExpression('/internal error.*processing chain/i', $processingLog->error_message);
+        $this->assertStringContainsString('Audio processing failed:', $processingLog->error_message);
+        $this->assertMatchesRegularExpression('/internal error.*audio processing/i', $processingLog->error_message);
         $this->assertStringNotContainsString('Sensitive DB Error', $processingLog->error_message);
     }
 
@@ -189,44 +158,25 @@ class InformationLeakageTest extends TestCase
             $logs[] = $level;
         });
 
-        $service = app(\App\Services\SermonJobPipelineService::class);
-
         $processingLog = MediaProcessingLog::create([
             'processing_id' => (string) \Illuminate\Support\Str::uuid(),
             'processing_type' => MediaType::Audio,
             'original_filename' => 'test.mp3',
             'status' => ProcessingStatus::PENDING,
-            'current_step' => 'transcribing_audio',
+            'current_step' => 'audio_processing_initiated',
             'owner_user_id' => $user->id,
         ]);
 
-        $job = new class
-        {
-            use \Illuminate\Bus\Queueable;
-
-            public function handle()
-            {
-                throw new \RuntimeException('Sensitive DB Error');
-            }
-        };
-
-        config(['queue.default' => 'sync']);
-
-        try {
-            $service->dispatchProcessingJobs([$job], $processingLog);
-        } catch (\Throwable $e) {
-            // Explicitly call the failure handler if it didn't fire in sync mode
-            if ($processingLog->fresh()->status !== ProcessingStatus::FAILED) {
-                $method = new \ReflectionMethod($service, 'handleJobChainFailure');
-                $method->setAccessible(true);
-                $method->invoke($service, $processingLog, $e);
-            }
-        }
+        app(ProcessingRunFailureHandler::class)->handle(
+            $processingLog->processing_id,
+            new \RuntimeException('Sensitive DB Error'),
+            ProcessingRunFailureHandler::PROFILE_AUDIO
+        );
 
         // Verify that the specific sensitive error message was captured in the logs
         $errorLogs = array_filter($logs, function ($log) {
             return $log->level === 'error'
-                && str_contains($log->message, 'Sermon processing job chain failed')
+                && str_contains($log->message, 'Processing run failure')
                 && isset($log->context['error'])
                 && $log->context['error'] === 'Sensitive DB Error';
         });

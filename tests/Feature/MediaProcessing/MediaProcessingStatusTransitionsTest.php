@@ -304,6 +304,28 @@ class MediaProcessingStatusTransitionsTest extends TestCase
             ]);
     }
 
+    #[Test]
+    public function failed_historical_logs_with_removed_legacy_retry_steps_still_round_trip_cleanly(): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->create([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'retry_initiated',
+            'error_message' => 'Unknown processing step: retry_initiated',
+        ]);
+
+        $this->withToken($this->token)
+            ->getJson("/api/media/processing/{$log->processing_id}/status")
+            ->assertOk()
+            ->assertJson([
+                'found' => true,
+                'processing_id' => $log->processing_id,
+                'status' => ProcessingStatus::FAILED->value,
+                'current_step' => 'retry_initiated',
+                'progress_percentage' => 0,
+                'error_message' => 'Unknown processing step: retry_initiated',
+            ]);
+    }
+
     // -------------------------------------------------------------------------
     // Visibility: non-owner cannot see another user's processing record
     // -------------------------------------------------------------------------

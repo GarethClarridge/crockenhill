@@ -18,9 +18,9 @@ use App\Repositories\SermonRepository;
 use App\Services\AudioTranscriptionService;
 use App\Services\MediaProcessingRunTransitionService;
 use App\Services\SermonAnalysisService;
-use App\Services\SermonJobPipelineService;
 use App\Services\SermonProcessingLogger;
 use App\Services\SermonTranscriptReader;
+use App\Services\UnifiedMediaProcessor;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -592,14 +592,14 @@ class SermonProcessingJobChainTest extends TestCase
         ]);
 
         // Test recovery by retrying from failed step
-        $service = app(SermonJobPipelineService::class);
+        $service = app(UnifiedMediaProcessor::class);
 
         // Verify the processing log exists before retry
         $this->assertDatabaseHas('media_processing_logs', [
             'processing_id' => 'failed-test-id',
         ]);
 
-        $result = $service->retryProcessing('failed-test-id');
+        $result = $service->retry('failed-test-id');
 
         // Retry may succeed or fail depending on underlying service availability
         if ($result->success) {

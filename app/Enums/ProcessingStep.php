@@ -101,7 +101,6 @@ enum ProcessingStep: string
     case ManualReviewConfirmed = 'manual_review_confirmed';
     case Cancelled = 'cancelled';
     case Preparing = 'preparing';
-    case RetryInitiated = 'retry_initiated';
     case RestartingFromBeginning = 'restarting_from_beginning';
     case SermonSubmitted = 'sermon_submitted';
 
