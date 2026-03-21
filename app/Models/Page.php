@@ -53,6 +53,7 @@ class Page extends Model implements HasMedia, Sitemapable
 
     use InteractsWithMedia;
 
+
     /**
      * The attributes that are mass assignable.
      *

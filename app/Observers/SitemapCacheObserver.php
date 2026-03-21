@@ -50,6 +50,7 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
         Cache::forget('nav_pages');
         Cache::forget('admin_preacher_list');
         Cache::forget('public_preacher_list');
+        Cache::forget('admin_meeting_list');
 
         if ($model instanceof Page) {
             $this->pageRepository->clearAreaCache($model->area);

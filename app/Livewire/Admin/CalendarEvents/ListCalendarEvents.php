@@ -63,8 +63,13 @@ class ListCalendarEvents extends Component
             || $this->uncategorizedOnly === true
             || $this->upcomingOnly === false;
 
+        /**
+         * Performance Optimization: Limits retrieved columns for calendar events and eager-loaded
+         * meeting/page to required fields to reduce memory usage and DB I/O.
+         */
         $events = CalendarEvent::query()
-            ->with('meeting.page')
+            ->select(['id', 'meeting_slug', 'title', 'speaker', 'location', 'start_datetime', 'end_datetime', 'status', 'is_categorized_automatically'])
+            ->with(['meeting:id,slug,page_id', 'meeting.page:id,heading'])
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")
                 ->orWhere('description', 'like', "%{$this->search}%"))
             ->when($this->meetingFilter, fn ($q) => $q->where('meeting_slug', $this->meetingFilter))
@@ -73,8 +78,7 @@ class ListCalendarEvents extends Component
             ->orderBy('start_datetime', 'desc')
             ->paginate(20);
 
-        $meetings = Meeting::with('page')->get()
-            ->mapWithKeys(fn ($m) => [$m->slug => $m->page->heading ?? $m->slug]);
+        $meetings = Meeting::getForAdminList();
 
         $headers = [
             ['key' => 'title', 'label' => 'Title'],
