@@ -93,35 +93,36 @@ The backlog is ordered for safety:
 29. `TD-014A`
 30. `TD-015`
 31. `TD-016`
-32. `TD-012A`
-33. `TD-012B`
-34. `TD-017A`
-35. `TD-017B`
-36. `TD-017C`
-37. `TD-018`
-38. `TD-019`
-39. `TD-020`
-40. `TD-021`
-41. `TD-024`
-42. `TD-025`
-43. `TD-026`
-44. `TD-027`
-45. `TD-030`
-46. `TD-031`
-47. `TD-032`
-48. `TD-033`
-49. `TD-022`
-50. `TD-023`
-51. `TD-028`
-52. `TD-029`
-53. `TD-039`
-54. `TD-034`
-55. `TD-035`
-56. `TD-036`
-57. `TD-037`
-58. `TD-038`
-59. `TD-040`
-60. `TD-041`
+32. `TD-016A`
+33. `TD-012A`
+34. `TD-012B`
+35. `TD-017A`
+36. `TD-017B`
+37. `TD-017C`
+38. `TD-018`
+39. `TD-019`
+40. `TD-020`
+41. `TD-021`
+42. `TD-024`
+43. `TD-025`
+44. `TD-026`
+45. `TD-027`
+46. `TD-030`
+47. `TD-031`
+48. `TD-032`
+49. `TD-033`
+50. `TD-022`
+51. `TD-023`
+52. `TD-028`
+53. `TD-029`
+54. `TD-039`
+55. `TD-034`
+56. `TD-035`
+57. `TD-036`
+58. `TD-037`
+59. `TD-038`
+60. `TD-040`
+61. `TD-041`
 
 ## Quick Wins
 
@@ -1653,7 +1654,7 @@ The backlog is ordered for safety:
 ## Major Architectural Changes
 
 ### TD-015 - Introduce one `ProcessingRunOrchestrator` and a phase registry
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: Very high
 - Risk: High
@@ -1711,6 +1712,35 @@ The backlog is ordered for safety:
 - Reference reviews:
   - `media-processing-architecture-review-2026-03-17.md`
   - `api-webhook-boundary-review-2026-03-18.md`
+
+### TD-016A - Remove legacy media-processing orchestration helpers after orchestrator cutover
+- Status: `Ready after prerequisite`
+- Priority: P2
+- Impact: High
+- Risk: Medium
+- Effort: M
+- Dependencies: `TD-015`, `TD-016`
+- Scope:
+  - remove `SermonJobPipelineService` once no active runtime path depends on it
+  - remove dead orchestration wrappers/helpers left behind by the orchestrator migration
+  - rewrite or delete tests that still model legacy orchestration concepts instead of active pipelines
+  - retire compatibility-only step names only if they are no longer needed for persisted historical runs
+- Tests needed first:
+  - direct coverage for the surviving orchestrator entrypoints
+  - replacement coverage for any legacy helper tests that are still asserting useful runtime behavior
+  - regression coverage for status/progress on historical processing logs if compatibility-only step names are removed
+- Safest implementation order:
+  1. Audit container bindings, production call sites, and test-only references for `SermonJobPipelineService` and similar orchestration leftovers.
+  2. Migrate any still-useful assertions onto `ProcessingRunOrchestrator`, `ProcessingPhaseRegistry`, and the active controller/action entrypoints.
+  3. Remove the dead helper classes, stale retry/restart branches, and redundant test scaffolding.
+  4. Drop compatibility-only step names only after confirming they are no longer needed for persisted rows or operator-facing history.
+- Acceptance criteria:
+  1. The active media-processing runtime no longer depends on legacy orchestration helper classes.
+  2. Tests describe the orchestrator-era pipeline behavior rather than obsolete helper internals.
+  3. Dead orchestration abstractions do not remain available to drift away from the hot path again.
+- Reference reviews:
+  - `media-processing-architecture-review-2026-03-17.md`
+  - `architectural-review-2026-03-17.md`
 
 ### TD-017A - Promote high-value JSON/reporting state into first-class columns
 - Status: `Ready after prerequisite`

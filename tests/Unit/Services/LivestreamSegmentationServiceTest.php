@@ -6,10 +6,11 @@ use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use App\Services\LivestreamSegmentationService;
-use App\Services\MediaProcessingRunTransitionService;
 use App\Services\ProcessingInitiator;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
+use App\Services\ProcessingRunFailureHandler;
+use App\Services\ProcessingRunOrchestrator;
 use App\Services\VideoSegmentationService;
 use App\Services\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,13 +50,15 @@ class LivestreamSegmentationServiceTest extends TestCase
         $this->segmentationService = Mockery::mock(VideoSegmentationService::class);
         $this->pipelineBuilder = Mockery::mock(ProcessingPipelineBuilder::class);
         $this->processingInitiator = Mockery::mock(ProcessingInitiator::class);
+        $this->app->instance(VideoStorageService::class, $this->storageService);
+        $this->app->instance(ProcessingPipelineBuilder::class, $this->pipelineBuilder);
+        $this->app->forgetInstance(ProcessingRunFailureHandler::class);
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         $this->service = new LivestreamSegmentationService(
             $this->storageService,
             $this->segmentationService,
-            $this->pipelineBuilder,
             $this->processingInitiator,
-            app(MediaProcessingRunTransitionService::class),
         );
     }
 

@@ -14,21 +14,17 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class UnifiedMediaProcessor
 {
     public function __construct(
-        private readonly SermonJobPipelineService $jobPipelineService,
-        private readonly SermonProcessingLogger $sermonProcessingLogger,
-        private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingLogService $processingLogService,
         private readonly ProcessingInitiator $processingInitiator,
         private readonly MetadataExtractionService $metadataService,
         private readonly MediaValidationService $mediaValidation,
-        private readonly MediaProcessingRunTransitionService $processingRunTransitions
+        private readonly ProcessingRunOrchestrator $processingRunOrchestrator,
     ) {}
 
     public function process(string $type, UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
@@ -118,10 +114,7 @@ class UnifiedMediaProcessor
             return ['success' => false, 'message' => 'Processing ID not found'];
         }
 
-        $result = match ($log->processing_type) {
-            MediaType::Audio, MediaType::Video => $this->cancelSermonProcessing($processingId, $log),
-            MediaType::Livestream => $this->livestreamService()->cancelProcessing($processingId),
-        };
+        $result = $this->processingRunOrchestrator->cancel($log);
 
         return [
             'success' => $result,
@@ -141,47 +134,7 @@ class UnifiedMediaProcessor
             );
         }
 
-        return match ($log->processing_type) {
-            MediaType::Audio, MediaType::Video => $this->jobPipelineService->retryProcessing($processingId),
-            MediaType::Livestream => $this->convertLivestreamRetryResult($this->livestreamService()->retryProcessing($processingId)),
-        };
-    }
-
-    private function cancelSermonProcessing(string $processingId, MediaProcessingLog $log): bool
-    {
-        try {
-            if ($log->status === ProcessingStatus::COMPLETED) {
-                return false;
-            }
-
-            $this->processingRunTransitions->markAsCancelled($log, 'Processing cancelled by user');
-            $this->sermonProcessingLogger->logProcessingComplete($processingId, ProcessingStatus::CANCELLED, [], 'Processing cancelled by user');
-
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Failed to cancel processing', [
-                'processing_id' => $processingId,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
-    private function convertLivestreamRetryResult(\App\Data\LivestreamProcessingResult $livestreamResult): ProcessingResult
-    {
-        if ($livestreamResult->errorMessage) {
-            return ProcessingResult::failure(
-                processingId: $livestreamResult->processingId,
-                message: $livestreamResult->errorMessage,
-                errorCode: 'RETRY_FAILED'
-            );
-        }
-
-        return ProcessingResult::success(
-            processingId: $livestreamResult->processingId,
-            message: 'Livestream processing retry initiated successfully'
-        );
+        return $this->processingRunOrchestrator->retry($log);
     }
 
     public function canHandle(string $processingId): bool
@@ -261,33 +214,7 @@ class UnifiedMediaProcessor
                 ],
             ]);
 
-            $jobs = $this->pipelineBuilder->buildAudioPipeline($processingLog);
-
-            Log::info('Audio processing pipeline created', [
-                'processing_id' => $processingId,
-                'jobs_count' => count($jobs),
-                'job_classes' => array_map(fn ($job) => get_class($job), $jobs),
-            ]);
-
-            Bus::chain($jobs)
-                ->catch(function (\Throwable $e) use ($processingLog) {
-                    Log::error('Audio processing failed in job chain', [
-                        'processing_id' => $processingLog->processing_id,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
-                    ]);
-
-                    $message = $e instanceof ProvidesSafeMessage
-                        ? $e->getSafeMessage()
-                        : 'An internal error occurred during audio processing.';
-
-                    $processingLog->update([
-                        'status' => ProcessingStatus::FAILED,
-                        'error_message' => "Audio processing failed: {$message}",
-                    ]);
-                })
-                ->onQueue($this->audioQueue())
-                ->dispatch();
+            $this->processingRunOrchestrator->start($processingLog);
 
             Log::info('Audio processing jobs dispatched', [
                 'processing_id' => $processingId,
@@ -306,13 +233,9 @@ class UnifiedMediaProcessor
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $message = $e instanceof ProvidesSafeMessage
-                ? $e->getSafeMessage()
-                : 'An internal error occurred while initiating audio processing.';
-
             return ProcessingResult::failure(
                 processingId: 'failed-'.Str::uuid(),
-                message: "Failed to initiate audio processing: {$message}",
+                message: 'Failed to initiate audio processing: '.$this->safeInitiationMessage($e, 'audio'),
                 errorCode: 'AUDIO_PROCESSING_INITIATION_FAILED'
             );
         }
@@ -335,11 +258,6 @@ class UnifiedMediaProcessor
         }
 
         return $path;
-    }
-
-    private function audioQueue(): string
-    {
-        return (string) config('media-processing.queues.audio', 'audio-processing');
     }
 
     private function computeFileHash(UploadedFile $file): ?string
@@ -410,28 +328,7 @@ class UnifiedMediaProcessor
                 ['source_file_path' => $tempPath, 'file_hash' => $fileHash]
             );
 
-            // Build and dispatch job chain using the standardized pipeline builder
-            $jobs = $this->pipelineBuilder->buildDirectVideoPipeline($processingLog);
-
-            Bus::chain($jobs)
-                ->catch(function (\Throwable $e) use ($processingLog) {
-                    Log::error('Video processing failed in job chain', [
-                        'processing_id' => $processingLog->processing_id,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
-                    ]);
-
-                    $message = $e instanceof ProvidesSafeMessage
-                        ? $e->getSafeMessage()
-                        : 'An internal error occurred during video processing.';
-
-                    $processingLog->update([
-                        'status' => \App\Enums\ProcessingStatus::FAILED,
-                        'error_message' => "Video processing failed: {$message}",
-                    ]);
-                })
-                ->onQueue((string) config('media-processing.queues.video', config('media-processing.types.video.queue', 'video-processing')))
-                ->dispatch();
+            $this->processingRunOrchestrator->start($processingLog);
 
             return ProcessingResult::success(
                 processingId: $processingLog->processing_id,
@@ -446,15 +343,20 @@ class UnifiedMediaProcessor
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $message = $e instanceof ProvidesSafeMessage
-                ? $e->getSafeMessage()
-                : 'An internal error occurred while initiating video processing.';
-
             return ProcessingResult::failure(
                 processingId: 'failed-'.Str::uuid(),
-                message: "Failed to initiate video processing: {$message}",
+                message: 'Failed to initiate video processing: '.$this->safeInitiationMessage($e, 'video'),
                 errorCode: 'VIDEO_PROCESSING_FAILED'
             );
         }
+    }
+
+    private function safeInitiationMessage(\Throwable $exception, string $type): string
+    {
+        if ($exception instanceof ProvidesSafeMessage) {
+            return $exception->getSafeMessage();
+        }
+
+        return "An internal error occurred while initiating {$type} processing.";
     }
 }

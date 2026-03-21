@@ -11,14 +11,11 @@ use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
-use App\Services\LivestreamFailureHandler;
 use App\Services\MediaProcessingIdentityResolver;
-use App\Services\ProcessingPipelineBuilder;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ServiceRecordTimeline;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -92,12 +89,8 @@ class ShowChurchService extends Component
             return;
         }
 
-        $processingId = $processingLog->processing_id;
-
-        Bus::chain($this->pipelineBuilder()->buildSectionReclassificationChainJobs($processingLog))
-            ->catch(fn (\Throwable $e) => app(LivestreamFailureHandler::class)->handle($processingId, $e))
-            ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'))
-            ->dispatch();
+        // Resolve on demand because Livewire serializes component state between requests.
+        app(\App\Services\ProcessingRunOrchestrator::class)->reclassify($processingLog);
 
         $this->success('Section reclassification queued');
     }
@@ -336,11 +329,6 @@ class ShowChurchService extends Component
     private function identityResolver(): MediaProcessingIdentityResolver
     {
         return app(MediaProcessingIdentityResolver::class);
-    }
-
-    private function pipelineBuilder(): ProcessingPipelineBuilder
-    {
-        return app(ProcessingPipelineBuilder::class);
     }
 
     private function sourceVideoIsAvailable(MediaProcessingLog $processingLog): bool

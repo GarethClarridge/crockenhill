@@ -2,6 +2,8 @@
 
 namespace App\Enums;
 
+use App\Services\ProcessingPhaseRegistry;
+
 /**
  * Canonical processing step names and their associated progress percentages.
  *
@@ -114,71 +116,7 @@ enum ProcessingStep: string
      */
     public function progressPercentage(): int
     {
-        return match ($this) {
-            self::AudioProcessingInitiated,
-            self::VideoProcessingInitiated,
-            self::InitiatedFromLivestream,
-            self::RestartingFromBeginning,
-            self::VisualAnalysis => 10,
-
-            self::Validating,
-            self::AudioValidationComplete,
-            self::VideoValidationComplete => 15,
-
-            self::RmsGeneration => 20,
-
-            self::ExtractingAudio,
-            self::AudioExtractionComplete => 25,
-
-            self::Segmentation => 30,
-
-            self::AnalyzingSegments,
-            self::Segmenting => 40,
-
-            self::ClassifyingSections => 45,
-
-            self::SectionClassificationComplete,
-            self::SectionClassificationSkipped => 52,
-
-            self::ManualReviewRequired => 53,
-
-            self::ManualReviewConfirmed => 54,
-
-            self::Extraction,
-            self::ExtractingSermon => 55,
-
-            self::ExtractionComplete => 58,
-
-            self::SermonCreation,
-            self::CreatingSermon,
-            self::CreatingSermonRecord,
-            self::SermonRecordCreated,
-            self::SermonSubmitted => 60,
-
-            self::TranscribingAudio,
-            self::TranscriptionCompleted,
-            self::Transcription => 70,
-
-            self::AnalyzingTranscript,
-            self::AiAnalysisCompleted,
-            self::AiAnalysisFallback => 85,
-
-            self::UpdatingSermonRecord => 87,
-
-            self::GeneratingThumbnail => 90,
-
-            self::SendingNotification => 92,
-
-            self::NotificationSent,
-            self::NotificationSkipped,
-            self::NotificationFailed,
-            self::NotificationFailedPermanently => 93,
-
-            self::Cleanup => 95,
-
-            // All other steps default to mid-progress
-            default => 50,
-        };
+        return self::progressForStep($this->value);
     }
 
     /**
@@ -197,12 +135,12 @@ enum ProcessingStep: string
     /**
      * Return the progress percentage for a raw step string, falling back to 50 for unknowns.
      */
-    public static function progressForStep(?string $step): int
+    public static function progressForStep(?string $step, ?MediaType $mediaType = null): int
     {
-        if ($step === null) {
+        if (! function_exists('app')) {
             return 50;
         }
 
-        return self::tryFromString($step)?->progressPercentage() ?? 50;
+        return app(ProcessingPhaseRegistry::class)->progressForStep($step, $mediaType);
     }
 }

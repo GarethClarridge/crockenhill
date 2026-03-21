@@ -93,6 +93,68 @@ class QueueCatchHandlerStateTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_overwrite_a_cancelled_audio_run_when_a_late_chain_failure_arrives(): void
+    {
+        Bus::fake();
+        Storage::fake('public');
+
+        $metadataService = $this->createMock(MetadataExtractionService::class);
+        $metadataService->expects($this->once())
+            ->method('extractId3Metadata')
+            ->willReturn(['title' => 'Test Sermon']);
+
+        $mediaValidation = $this->createMock(MediaValidationService::class);
+        $mediaValidation->expects($this->once())
+            ->method('validateUploadedFile');
+
+        $pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
+        $pipelineBuilder->expects($this->once())
+            ->method('buildAudioPipeline')
+            ->willReturnCallback(
+                fn (MediaProcessingLog $log): array => [new CleanupTemporaryFiles($log)]
+            );
+
+        $this->app->instance(MetadataExtractionService::class, $metadataService);
+        $this->app->instance(MediaValidationService::class, $mediaValidation);
+        $this->app->instance(ProcessingPipelineBuilder::class, $pipelineBuilder);
+        $this->app->forgetInstance(\App\Services\ProcessingRunOrchestrator::class);
+        $this->app->forgetInstance(UnifiedMediaProcessor::class);
+
+        $processor = $this->app->make(UnifiedMediaProcessor::class);
+        $result = $processor->process(
+            'audio',
+            UploadedFile::fake()->create('sermon.mp3', 1024, 'audio/mpeg')
+        );
+
+        $processingLog = MediaProcessingLog::query()
+            ->where('processing_id', $result->processingId)
+            ->firstOrFail();
+
+        $catchCallbacks = [];
+
+        Bus::assertDispatched(CleanupTemporaryFiles::class, function (CleanupTemporaryFiles $job) use (&$catchCallbacks): bool {
+            $catchCallbacks = $job->chainCatchCallbacks ?? [];
+
+            return true;
+        });
+
+        app(\App\Services\MediaProcessingRunTransitionService::class)->markAsCancelled(
+            $processingLog,
+            'Processing cancelled by user'
+        );
+
+        $callback = $this->unwrapCallback($catchCallbacks[0]);
+        $callback(new SafeQueueCatchException('Audio pipeline blew up', 'Transcription service unavailable'));
+
+        $processingLog->refresh();
+
+        $this->assertSame('cancelled', $processingLog->status->value);
+        $this->assertSame('cancelled', $processingLog->current_step);
+        $this->assertSame('Processing cancelled by user', $processingLog->error_message);
+        $this->assertNotNull($processingLog->completed_at);
+    }
+
+    #[Test]
     public function it_persists_the_livestream_batch_catch_state(): void
     {
         Bus::fake();
@@ -256,15 +318,16 @@ class QueueCatchHandlerStateTest extends TestCase
             ->method('initiateProcessing')
             ->willReturn($processingLog);
 
-        // Bind the storage mock so app(LivestreamFailureHandler::class) uses it for cleanup.
+        // Bind the storage mock so the orchestrator/failure handler cleanup path uses it.
         $this->app->instance(VideoStorageService::class, $storageService);
+        $this->app->instance(ProcessingPipelineBuilder::class, $pipelineBuilder);
+        $this->app->forgetInstance(\App\Services\ProcessingRunFailureHandler::class);
+        $this->app->forgetInstance(\App\Services\ProcessingRunOrchestrator::class);
 
         return new LivestreamSegmentationService(
             $storageService,
             $segmentationService,
-            $pipelineBuilder,
             $processingInitiator,
-            app(\App\Services\MediaProcessingRunTransitionService::class)
         );
     }
 

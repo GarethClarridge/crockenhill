@@ -321,6 +321,6 @@ class StandardProcessingResponse
             return 0;
         }
 
-        return \App\Enums\ProcessingStep::progressForStep($log->current_step);
+        return app(\App\Services\ProcessingPhaseRegistry::class)->progressForLog($log);
     }
 }

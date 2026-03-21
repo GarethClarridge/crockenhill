@@ -8,16 +8,12 @@ use App\Enums\MediaType;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
-use App\Services\LivestreamFailureHandler;
 use App\Services\MediaProcessingRunTransitionService;
-use App\Services\ProcessingPipelineBuilder;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 
 class ConfirmLivestreamSermonSegment
 {
     public function __construct(
-        private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
     ) {}
 
@@ -31,10 +27,7 @@ class ConfirmLivestreamSermonSegment
      */
     public function execute(string $processingId, int $segmentId, User $user): void
     {
-        $queueName = (string) config('media-processing.queues.livestream', 'livestream-processing');
-
-        /** @var array<int, object> $jobs */
-        $jobs = DB::transaction(function () use ($processingId, $segmentId, $user): array {
+        $log = DB::transaction(function () use ($processingId, $segmentId, $user): MediaProcessingLog {
             /** @var MediaProcessingLog|null $log */
             $log = MediaProcessingLog::where('processing_id', $processingId)
                 ->lockForUpdate()
@@ -69,13 +62,12 @@ class ConfirmLivestreamSermonSegment
             $this->processingRunTransitions->confirmSermonSegment($log, $segmentId, $user->id);
             $log->refresh();
 
-            return $this->pipelineBuilder->buildLivestreamPostReviewChainJobs($log);
+            return $log;
         });
 
-        Bus::chain($jobs)
-            ->catch(fn (\Throwable $e) => app(LivestreamFailureHandler::class)->handle($processingId, $e))
-            ->onQueue($queueName)
-            ->dispatch();
+        // Resolve the orchestrator after the transaction commits so we do not
+        // hold a container-resolved collaborator across the DB lock boundary.
+        app(\App\Services\ProcessingRunOrchestrator::class)->resumeAfterManualReview($log);
     }
 
     /**

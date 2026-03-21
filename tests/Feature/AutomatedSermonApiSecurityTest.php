@@ -446,14 +446,14 @@ class AutomatedSermonApiSecurityTest extends TestCase
         );
         RateLimiter::for('media-retry', fn () => Limit::perMinute(100)->by($this->user->id));
 
-        // Mock SermonJobPipelineService to avoid actual processing on retry
-        $mockService = $this->createMock(\App\Services\SermonJobPipelineService::class);
+        // Mock the current retry entrypoint to avoid dispatching real work.
         $mockResult = \App\Services\ProcessingResult::success(
             processingId: 'test-uuid-123',
             message: 'Processing retry initiated successfully'
         );
-        $mockService->method('retryProcessing')->willReturn($mockResult);
-        $this->app->instance(\App\Services\SermonJobPipelineService::class, $mockService);
+        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor->method('retry')->willReturn($mockResult);
+        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
 
         // Test for race conditions by making concurrent requests
         $processingId = (string) Str::uuid();

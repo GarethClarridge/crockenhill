@@ -16,9 +16,7 @@ class MediaProcessingServiceProvider extends ServiceProvider
             return new \App\Services\LivestreamSegmentationService(
                 $app->make(\App\Services\VideoStorageService::class),
                 $app->make(\App\Services\VideoSegmentationService::class),
-                $app->make(\App\Services\ProcessingPipelineBuilder::class),
                 $app->make(\App\Services\ProcessingInitiator::class),
-                $app->make(\App\Services\MediaProcessingRunTransitionService::class)
             );
         });
         $this->app->bind(\App\Services\ProcessingLogService::class);

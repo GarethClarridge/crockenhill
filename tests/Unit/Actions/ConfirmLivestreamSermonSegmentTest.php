@@ -220,7 +220,9 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
 
         $builder = $this->mock(ProcessingPipelineBuilder::class);
         $builder->shouldReceive('buildLivestreamPostReviewChainJobs')->andReturn([new AlwaysFailingJob]);
-        $action = new ConfirmLivestreamSermonSegment($builder, app(MediaProcessingRunTransitionService::class));
+        $this->app->forgetInstance(\App\Services\ProcessingRunOrchestrator::class);
+
+        $action = new ConfirmLivestreamSermonSegment(app(MediaProcessingRunTransitionService::class));
 
         try {
             $action->execute($log->processing_id, $segment->id, $this->admin);

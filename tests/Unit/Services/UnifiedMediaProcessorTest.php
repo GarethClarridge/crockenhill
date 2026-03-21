@@ -2,20 +2,17 @@
 
 namespace Tests\Unit\Services;
 
-use App\Data\LivestreamProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
 use App\Services\LivestreamSegmentationService;
-use App\Services\MediaProcessingRunTransitionService;
 use App\Services\MediaValidationService;
 use App\Services\MetadataExtractionService;
 use App\Services\ProcessingInitiator;
 use App\Services\ProcessingLogService;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingResult;
-use App\Services\SermonJobPipelineService;
-use App\Services\SermonProcessingLogger;
+use App\Services\ProcessingRunOrchestrator;
 use App\Services\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -32,10 +29,6 @@ class UnifiedMediaProcessorTest extends TestCase
 
     private LivestreamSegmentationService $livestreamService;
 
-    private SermonJobPipelineService $jobPipelineService;
-
-    private SermonProcessingLogger $sermonProcessingLogger;
-
     private ProcessingPipelineBuilder $pipelineBuilder;
 
     private ProcessingLogService $processingLogService;
@@ -51,8 +44,6 @@ class UnifiedMediaProcessorTest extends TestCase
         parent::setUp();
 
         $this->livestreamService = $this->createMock(LivestreamSegmentationService::class);
-        $this->jobPipelineService = $this->createMock(SermonJobPipelineService::class);
-        $this->sermonProcessingLogger = $this->createMock(SermonProcessingLogger::class);
         $this->pipelineBuilder = $this->createMock(ProcessingPipelineBuilder::class);
         $this->processingLogService = $this->createMock(ProcessingLogService::class);
         $this->processingInitiator = $this->createMock(ProcessingInitiator::class);
@@ -60,16 +51,15 @@ class UnifiedMediaProcessorTest extends TestCase
         $this->mediaValidation = $this->createMock(MediaValidationService::class);
 
         $this->app->instance(LivestreamSegmentationService::class, $this->livestreamService);
+        $this->app->instance(ProcessingPipelineBuilder::class, $this->pipelineBuilder);
+        $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         $this->processor = new UnifiedMediaProcessor(
-            $this->jobPipelineService,
-            $this->sermonProcessingLogger,
-            $this->pipelineBuilder,
             $this->processingLogService,
             $this->processingInitiator,
             $this->metadataService,
             $this->mediaValidation,
-            app(MediaProcessingRunTransitionService::class)
+            app(ProcessingRunOrchestrator::class)
         );
     }
 
@@ -291,8 +281,6 @@ class UnifiedMediaProcessorTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->audio()->processing()->create();
 
-        $this->sermonProcessingLogger->method('logProcessingComplete');
-
         $result = $this->processor->cancel($log->processing_id);
 
         $this->assertTrue($result['success']);
@@ -308,8 +296,6 @@ class UnifiedMediaProcessorTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->video()->processing()->create();
 
-        $this->sermonProcessingLogger->method('logProcessingComplete');
-
         $result = $this->processor->cancel($log->processing_id);
 
         $this->assertTrue($result['success']);
@@ -320,14 +306,11 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
-    public function it_cancels_livestream_processing_via_livestream_service(): void
+    public function it_cancels_livestream_processing_via_the_orchestrator(): void
     {
-        $log = MediaProcessingLog::factory()->livestream()->processing()->create();
-
-        $this->livestreamService
-            ->method('cancelProcessing')
-            ->with($log->processing_id)
-            ->willReturn(true);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => null,
+        ]);
 
         $result = $this->processor->cancel($log->processing_id);
 
@@ -374,18 +357,17 @@ class UnifiedMediaProcessorTest extends TestCase
     // --- retry() tests ---
 
     #[Test]
-    public function it_retries_audio_processing_via_job_pipeline_service(): void
+    public function it_retries_audio_processing_via_the_orchestrator(): void
     {
-        $log = MediaProcessingLog::factory()->audio()->failed()->create();
-        $expectedResult = ProcessingResult::success(
-            processingId: $log->processing_id,
-            message: 'Retry initiated'
-        );
+        Bus::fake();
 
-        $this->jobPipelineService
-            ->method('retryProcessing')
-            ->with($log->processing_id)
-            ->willReturn($expectedResult);
+        $log = MediaProcessingLog::factory()->audio()->failed()->create([
+            'current_step' => 'transcribing_audio_failed',
+        ]);
+
+        $this->pipelineBuilder
+            ->method('buildAudioPipeline')
+            ->willReturn((new ProcessingPipelineBuilder)->buildAudioPipeline($log));
 
         $result = $this->processor->retry($log->processing_id);
 
@@ -394,18 +376,17 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
-    public function it_retries_video_processing_via_job_pipeline_service(): void
+    public function it_retries_video_processing_via_the_orchestrator(): void
     {
-        $log = MediaProcessingLog::factory()->video()->failed()->create();
-        $expectedResult = ProcessingResult::success(
-            processingId: $log->processing_id,
-            message: 'Video retry initiated'
-        );
+        Bus::fake();
 
-        $this->jobPipelineService
-            ->method('retryProcessing')
-            ->with($log->processing_id)
-            ->willReturn($expectedResult);
+        $log = MediaProcessingLog::factory()->video()->failed()->create([
+            'current_step' => 'transcribing_audio_failed',
+        ]);
+
+        $this->pipelineBuilder
+            ->method('buildDirectVideoPipeline')
+            ->willReturn((new ProcessingPipelineBuilder)->buildDirectVideoPipeline($log));
 
         $result = $this->processor->retry($log->processing_id);
 
@@ -413,53 +394,41 @@ class UnifiedMediaProcessorTest extends TestCase
     }
 
     #[Test]
-    public function it_retries_livestream_processing_via_livestream_service(): void
+    public function it_retries_livestream_processing_via_the_orchestrator(): void
     {
-        $log = MediaProcessingLog::factory()->livestream()->failed()->create();
-        $livestreamResult = new LivestreamProcessingResult(
-            processingId: $log->processing_id,
-            status: 'processing',
-            originalFilename: 'livestream.mp4',
-            fileSize: 1073741824,
-            fileFormat: 'mp4',
-            errorMessage: null
-        );
+        Bus::fake();
 
-        $this->livestreamService
-            ->method('retryProcessing')
-            ->with($log->processing_id)
-            ->willReturn($livestreamResult);
+        $log = MediaProcessingLog::factory()->livestream()->failed()->create();
+
+        $this->pipelineBuilder
+            ->method('buildLivestreamParallelJobs')
+            ->willReturn([new AudioStubJob]);
+
+        $this->pipelineBuilder
+            ->method('buildLivestreamChainJobs')
+            ->willReturn([new AudioStubJob]);
 
         $result = $this->processor->retry($log->processing_id);
 
         $this->assertTrue($result->success);
         $this->assertEquals($log->processing_id, $result->processingId);
-        $this->assertStringContainsString('Livestream processing retry initiated', $result->message);
+        $this->assertStringContainsString('Processing retry initiated successfully', $result->message);
     }
 
     #[Test]
-    public function it_converts_failed_livestream_retry_to_failure_result(): void
+    public function it_marks_unknown_audio_retry_steps_for_manual_review(): void
     {
-        $log = MediaProcessingLog::factory()->livestream()->failed()->create();
-        $livestreamResult = new LivestreamProcessingResult(
-            processingId: $log->processing_id,
-            status: 'failed',
-            originalFilename: 'livestream.mp4',
-            fileSize: 1073741824,
-            fileFormat: 'mp4',
-            errorMessage: 'Retry failed: storage unavailable'
-        );
-
-        $this->livestreamService
-            ->method('retryProcessing')
-            ->with($log->processing_id)
-            ->willReturn($livestreamResult);
+        $log = MediaProcessingLog::factory()->audio()->failed()->create([
+            'current_step' => 'creating_sermon_record_failed',
+        ]);
 
         $result = $this->processor->retry($log->processing_id);
 
-        $this->assertFalse($result->success);
-        $this->assertEquals('RETRY_FAILED', $result->errorCode);
-        $this->assertStringContainsString('storage unavailable', $result->message);
+        $this->assertTrue($result->success);
+
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::FAILED, $log->status);
+        $this->assertSame('manual_review_required', $log->current_step);
     }
 
     #[Test]
@@ -481,10 +450,6 @@ class UnifiedMediaProcessorTest extends TestCase
         ]);
 
         $this->actingAs($owner);
-
-        $this->jobPipelineService
-            ->expects($this->never())
-            ->method('retryProcessing');
 
         $result = $this->processor->retry($log->processing_id);
 

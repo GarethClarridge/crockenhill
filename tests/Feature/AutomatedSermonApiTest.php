@@ -263,12 +263,12 @@ class AutomatedSermonApiTest extends TestCase
         $processingId = (string) Str::uuid();
         MediaProcessingLog::create([
             'processing_id' => $processingId,
+            'processing_type' => 'audio',
             'original_filename' => 'failed-sermon.mp3',
             'status' => ProcessingStatus::FAILED,
             'current_step' => 'transcribing_audio_failed',
             'error_message' => 'Temporary service unavailable',
-            'source_type' => 'audio',
-            'stored_file_path' => 'temp/test-audio.mp3',
+            'source_file_path' => 'temp/test-audio.mp3',
         ]);
 
         $response = $this->actingAs($this->user)

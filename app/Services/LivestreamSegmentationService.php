@@ -7,9 +7,7 @@ use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
 use Exception;
-use Illuminate\Bus\Batch;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -18,9 +16,7 @@ class LivestreamSegmentationService
     public function __construct(
         private readonly VideoStorageService $storageService,
         private readonly VideoSegmentationService $segmentationService,
-        private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingInitiator $processingInitiator,
-        private readonly MediaProcessingRunTransitionService $processingRunTransitions
     ) {}
 
     public function startProcessing(UploadedFile $videoFile, ?string $clientFileDate = null, ?string $fileHash = null): ProcessingResult
@@ -70,7 +66,7 @@ class LivestreamSegmentationService
                 ]
             );
 
-            $this->dispatchProcessingJobs($processingLog);
+            app(ProcessingRunOrchestrator::class)->start($processingLog);
 
             Log::info('Livestream processing initiated', [
                 'processing_id' => $processingLog->processing_id,
@@ -106,15 +102,7 @@ class LivestreamSegmentationService
             throw new Exception('Only failed or cancelled processing can be retried');
         }
 
-        $processingLog->update([
-            'status' => 'pending',
-            'error_message' => null,
-            'started_at' => null,
-            'completed_at' => null,
-        ]);
-
-        $processingLog->segments()->delete();
-        $this->dispatchProcessingJobs($processingLog);
+        app(ProcessingRunOrchestrator::class)->retry($processingLog);
 
         return $this->buildProcessingResult($processingLog->fresh() ?? $processingLog);
     }
@@ -133,30 +121,7 @@ class LivestreamSegmentationService
             throw new Exception('Cannot cancel completed processing');
         }
 
-        $this->processingRunTransitions->markAsCancelled($processingLog, 'Processing cancelled by user');
-
-        // Clean up temporary files - collect paths from processing log
-        $tempFiles = [];
-        if ($processingLog->source_file_path) {
-            $tempFiles[] = $processingLog->source_file_path;
-        }
-
-        $metadata = $processingLog->processingMetadataData()->toArray();
-        if (isset($metadata['extracted_segment_path'])) {
-            $tempFiles[] = $metadata['extracted_segment_path'];
-        }
-        if (isset($metadata['extracted_audio_path'])) {
-            $tempFiles[] = $metadata['extracted_audio_path'];
-        }
-        if (isset($metadata['temp_video_path'])) {
-            $tempFiles[] = $metadata['temp_video_path'];
-        }
-
-        if (! empty($tempFiles)) {
-            $this->storageService->cleanupTemporaryFiles($tempFiles);
-        }
-
-        return true;
+        return app(ProcessingRunOrchestrator::class)->cancel($processingLog);
     }
 
     public function getProcessingStatus(string $processingId): StandardProcessingResponse
@@ -204,28 +169,6 @@ class LivestreamSegmentationService
             'failed' => $failed,
             'success_rate' => $total > 0 ? round(($completed / $total) * 100, 2) : 0,
         ];
-    }
-
-    private function dispatchProcessingJobs(MediaProcessingLog $processingLog): void
-    {
-        $processingId = $processingLog->processing_id;
-        $queueName = (string) config('media-processing.queues.livestream', 'livestream-processing');
-
-        $parallelJobs = $this->pipelineBuilder->buildLivestreamParallelJobs($processingLog);
-        $chainJobs = $this->pipelineBuilder->buildLivestreamChainJobs($processingLog);
-
-        Bus::batch($parallelJobs)
-            ->then(function (Batch $batch) use ($chainJobs, $processingId, $queueName): void {
-                Bus::chain($chainJobs)
-                    ->catch(fn (\Throwable $e) => app(LivestreamFailureHandler::class)->handle($processingId, $e))
-                    ->onQueue($queueName)
-                    ->dispatch();
-            })
-            ->catch(function (Batch $batch, \Throwable $e) use ($processingId): void {
-                app(LivestreamFailureHandler::class)->handle($processingId, $e);
-            })
-            ->onQueue($queueName)
-            ->dispatch();
     }
 
     private function buildProcessingResult(MediaProcessingLog $processingLog): LivestreamProcessingResult

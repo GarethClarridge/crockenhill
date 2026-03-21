@@ -63,7 +63,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
             'audio validating' => [ProcessingStatus::PROCESSING, 'validating', 15],
             'audio transcribing' => [ProcessingStatus::PROCESSING, 'transcribing_audio', 70],
             'audio analyzing transcript' => [ProcessingStatus::PROCESSING, 'analyzing_transcript', 85],
-            'audio generating thumbnail' => [ProcessingStatus::PROCESSING, 'generating_thumbnail', 90],
+            'audio generating thumbnail' => [ProcessingStatus::PROCESSING, 'generating_thumbnail', 88],
             'audio cleanup' => [ProcessingStatus::PROCESSING, 'cleanup', 95],
             'audio completed' => [ProcessingStatus::COMPLETED, 'completed', 100],
             'audio failed' => [ProcessingStatus::FAILED, 'transcribing_audio', 0],
@@ -110,7 +110,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
             'video extracting audio' => [ProcessingStatus::PROCESSING, 'extracting_audio', 25],
             'video sermon creation' => [ProcessingStatus::PROCESSING, 'sermon_creation', 60],
             'video transcribing' => [ProcessingStatus::PROCESSING, 'transcribing_audio', 70],
-            'video thumbnail' => [ProcessingStatus::PROCESSING, 'generating_thumbnail', 90],
+            'video thumbnail' => [ProcessingStatus::PROCESSING, 'generating_thumbnail', 88],
             'video completed' => [ProcessingStatus::COMPLETED, 'completed', 100],
             'video failed' => [ProcessingStatus::FAILED, 'extracting_audio', 0],
             'video cancelled' => [ProcessingStatus::CANCELLED, 'cancelled', 0],
@@ -268,6 +268,7 @@ class MediaProcessingStatusTransitionsTest extends TestCase
             'audio initiated from livestream with source id' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'initiated_from_livestream:ls-123',   10],
             'livestream restarting from beginning' => [MediaType::Livestream, ProcessingStatus::PROCESSING, 'restarting_from_beginning',          10],
             'audio updating sermon record' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'updating_sermon_record',             87],
+            'video updating sermon record' => [MediaType::Video,     ProcessingStatus::PROCESSING, 'updating_sermon_record',             90],
             'audio sending notification' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'sending_notification',               92],
             'audio notification sent' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_sent',                  93],
             'audio notification skipped' => [MediaType::Audio,     ProcessingStatus::PROCESSING, 'notification_skipped',               93],
@@ -380,12 +381,11 @@ class MediaProcessingStatusTransitionsTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->audio()->failed()->create();
 
-        // Mock SermonJobPipelineService to avoid real job dispatch on retry
-        $mockPipelineService = $this->createMock(\App\Services\SermonJobPipelineService::class);
-        $mockPipelineService->method('retryProcessing')->willReturn(
+        $mockProcessor = $this->createMock(\App\Services\UnifiedMediaProcessor::class);
+        $mockProcessor->method('retry')->willReturn(
             \App\Services\ProcessingResult::success($log->processing_id, 'Retry initiated')
         );
-        $this->app->instance(\App\Services\SermonJobPipelineService::class, $mockPipelineService);
+        $this->app->instance(\App\Services\UnifiedMediaProcessor::class, $mockProcessor);
 
         $this->withToken($this->token)
             ->postJson("/api/media/processing/{$log->processing_id}/retry")
