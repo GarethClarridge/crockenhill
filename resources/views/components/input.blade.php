@@ -53,8 +53,10 @@ $describedBy = implode(' ', $describedBy);
             <button type="button"
                 aria-label="Clear input"
                 wire:click="$set('{{ $modelName }}', '')"
+                @click="count = 0"
                 class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded"
                 x-show="$wire.{{ $modelName }}"
+                x-transition
                 wire:loading.remove wire:target="{{ $modelName }}">
                 <x-heroicon-o-x-mark class="h-4 w-4" />
             </button>
@@ -67,7 +69,13 @@ $describedBy = implode(' ', $describedBy);
                 <p @if($id) id="{{ $id }}-hint" @endif class="text-sm text-gray-500">{{ $hint }}</p>
             @endif
             @if($maxlength)
-                <p class="text-xs text-gray-400 tabular-nums ml-auto" aria-live="polite">
+                <p class="text-xs tabular-nums ml-auto transition-colors duration-200"
+                   :class="{
+                       'text-red-600 font-bold': limit && count >= limit,
+                       'text-amber-600 font-medium': limit && count >= (limit * 0.9) && count < limit,
+                       'text-gray-400': !limit || count < (limit * 0.9)
+                   }"
+                   aria-live="polite">
                     <span x-text="count"></span> / {{ $maxlength }}
                 </p>
             @endif
