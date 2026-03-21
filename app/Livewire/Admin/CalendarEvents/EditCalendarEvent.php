@@ -83,6 +83,10 @@ class EditCalendarEvent extends Component
 
     public function render(): View
     {
+        /**
+         * Performance Optimization: Uses cached meeting list for admin dropdowns
+         * to reduce redundant DB queries.
+         */
         $meetings = Meeting::getForAdminList();
 
         return view('livewire.admin.calendar-events.edit-calendar-event', [

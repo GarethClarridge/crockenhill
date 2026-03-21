@@ -54,6 +54,11 @@ class UpdateMeetingRequest extends FormRequest
             'meeting_date' => 'nullable|date',
             'is_recurring' => 'nullable|boolean',
             'frequency' => ['nullable', new EnumRule(MeetingFrequency::class)],
+            'page_id' => [
+                'nullable',
+                'exists:pages,id',
+                Rule::unique('meetings', 'page_id')->ignore($meetingId),
+            ],
         ];
     }
 }

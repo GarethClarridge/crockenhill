@@ -1,6 +1,8 @@
 <?php
 
-namespace Tests\Feature;
+declare(strict_types=1);
+
+namespace Tests\Unit\Models;
 
 use App\Enums\PreacherSource;
 use App\Models\Preacher;
@@ -9,7 +11,7 @@ use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class PreacherModelTest extends TestCase
+class PreacherTest extends TestCase
 {
     use RefreshDatabase;
 
