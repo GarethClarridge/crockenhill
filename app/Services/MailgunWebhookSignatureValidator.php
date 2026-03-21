@@ -12,7 +12,7 @@ class MailgunWebhookSignatureValidator
      * Validate the signature of an inbound Mailgun webhook.
      *
      * @param  string  $timestamp  Unix timestamp from Mailgun
-     * @param  string  $token      Unique token from Mailgun
+     * @param  string  $token  Unique token from Mailgun
      * @param  string  $signature  HMAC signature from Mailgun
      */
     public function isValid(string $timestamp, string $token, string $signature): bool
