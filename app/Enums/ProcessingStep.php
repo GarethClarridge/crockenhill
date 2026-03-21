@@ -74,6 +74,7 @@ enum ProcessingStep: string
     // Post-processing
     // -------------------------------------------------------------------------
     case GeneratingThumbnail = 'generating_thumbnail';
+    case PreparingSectionPublicationCandidates = 'preparing_section_publication_candidates';
     case UpdatingSermonRecord = 'updating_sermon_record';
     case Cleanup = 'cleanup';
 

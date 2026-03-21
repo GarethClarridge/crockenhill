@@ -374,4 +374,74 @@ class AnalyzeSegmentsVisualTest extends TestCase
         $job = new AnalyzeSegments($log);
         $job->handle($mockService);
     }
+
+    #[Test]
+    public function it_replaces_partial_segment_rows_when_rerun(): void
+    {
+        Storage::fake('local');
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'rms_log_path' => 'temp/rms.log',
+            'sermon_start_time' => 10.0,
+            'sermon_end_time' => 20.0,
+            'threshold_method' => 'stale',
+        ]);
+
+        LivestreamSegment::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'segment_index' => 0,
+            'segment_order' => 0,
+            'start_time' => 0.0,
+            'end_time' => 30.0,
+            'duration' => 30.0,
+            'classification' => 'song',
+        ]);
+
+        $this->createMockRmsLog('temp/rms.log', 900.0);
+
+        $mockService = Mockery::mock(VideoSegmentationService::class);
+        $mockService->shouldReceive('analyzeSegments')
+            ->once()
+            ->andReturn([
+                'segments' => [
+                    new LivestreamSegmentData(
+                        startTime: 0.0,
+                        endTime: 120.0,
+                        duration: 120.0,
+                        classification: 'song',
+                        avgRms: -35.0,
+                        peakRms: -30.0,
+                        segmentOrder: 0
+                    ),
+                    new LivestreamSegmentData(
+                        startTime: 120.0,
+                        endTime: 780.0,
+                        duration: 660.0,
+                        classification: 'speech',
+                        avgRms: -50.0,
+                        peakRms: -40.0,
+                        isSermonCandidate: true,
+                        segmentOrder: 1
+                    ),
+                ],
+                'threshold_metadata' => [
+                    'method' => 'adaptive',
+                    'threshold' => -45.0,
+                ],
+            ]);
+
+        $job = new AnalyzeSegments($processingLog);
+        $job->handle($mockService);
+
+        $processingLog->refresh();
+
+        $this->assertSame(2, LivestreamSegment::query()->where('media_processing_log_id', $processingLog->id)->count());
+        $this->assertSame(120.0, (float) LivestreamSegment::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('segment_index', 1)
+            ->value('start_time'));
+        $this->assertSame('adaptive', $processingLog->threshold_method);
+        $this->assertSame(120.0, $processingLog->sermon_start_time);
+        $this->assertSame(780.0, $processingLog->sermon_end_time);
+    }
 }

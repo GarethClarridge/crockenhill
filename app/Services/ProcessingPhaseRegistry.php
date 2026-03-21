@@ -14,7 +14,10 @@ class ProcessingPhaseRegistry
      *     key: string,
      *     progress: int,
      *     job_offset: int,
-     *     steps: list<string>
+     *     steps: list<string>,
+     *     retry_action?: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream',
+     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none'
      * }>
      */
     public function phasesForPipeline(string $pipeline): array
@@ -60,9 +63,11 @@ class ProcessingPhaseRegistry
 
     /**
      * @return array{
-     *     action: 'dispatch_chain'|'restart_livestream'|'manual_review',
-     *     pipeline?: 'audio'|'video',
+     *     action: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream'|'manual_review',
+     *     pipeline?: 'audio'|'video'|'livestream',
      *     job_offset?: int,
+     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
      *     reason_code?: string,
      *     reason_message?: string
      * }
@@ -70,25 +75,6 @@ class ProcessingPhaseRegistry
     public function retryPlanFor(MediaProcessingLog $processingLog): array
     {
         $normalizedStep = $this->normalizeStep($processingLog->current_step);
-
-        if ($processingLog->processing_type === MediaType::Livestream) {
-            if (in_array($normalizedStep, ['preparing', 'retry_initiated'], true)) {
-                return $this->manualReviewPlan(
-                    reasonCode: 'early_processing_failure',
-                    reasonMessage: sprintf(
-                        'Early processing failure detected. Source type: %s. File may need to be re-uploaded. Original filename: %s.',
-                        $processingLog->processing_type->value,
-                        $processingLog->original_filename
-                    )
-                );
-            }
-
-            // Livestream retries always restart the segmented pipeline, even when
-            // the run has already reached downstream sermon-processing steps. The
-            // child-audio work depends on upstream extracted artifacts and review
-            // state that are safer to rebuild than to resume piecemeal.
-            return ['action' => 'restart_livestream'];
-        }
 
         if (in_array($normalizedStep, ['preparing', 'retry_initiated'], true)) {
             return $this->manualReviewPlan(
@@ -108,16 +94,24 @@ class ProcessingPhaseRegistry
             );
         }
 
-        $pipeline = $processingLog->processing_type === MediaType::Video ? 'video' : 'audio';
+        /** @var 'audio'|'video'|'livestream' $pipeline */
+        $pipeline = $this->pipelineForMediaType($processingLog->processing_type);
+        $phase = $this->phaseForPipelineStep($pipeline, $normalizedStep);
 
-        foreach ($this->phasesForPipeline($pipeline) as $phase) {
-            if (in_array($normalizedStep, $phase['steps'], true)) {
-                return [
-                    'action' => 'dispatch_chain',
-                    'pipeline' => $pipeline,
-                    'job_offset' => $phase['job_offset'],
-                ];
-            }
+        if ($phase !== null) {
+            $action = $phase['retry_action'] ?? 'dispatch_chain';
+
+            return [
+                'action' => $action,
+                'pipeline' => $pipeline,
+                'job_offset' => $phase['job_offset'],
+                'rerun_strategy' => $phase['rerun_strategy'] ?? 'safe_to_rerun',
+                'reset_scope' => $phase['reset_scope'] ?? 'none',
+            ];
+        }
+
+        if ($processingLog->processing_type === MediaType::Livestream) {
+            return ['action' => 'restart_livestream'];
         }
 
         return $this->manualReviewPlan(
@@ -162,6 +156,32 @@ class ProcessingPhaseRegistry
             MediaType::Video => 'video',
             MediaType::Livestream => 'livestream',
         };
+    }
+
+    /**
+     * @return array{
+     *     key: string,
+     *     progress: int,
+     *     job_offset: int,
+     *     steps: list<string>,
+     *     retry_action?: 'dispatch_chain'|'dispatch_livestream_chain'|'restart_livestream',
+     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none'
+     * }|null
+     */
+    private function phaseForPipelineStep(string $pipeline, ?string $step): ?array
+    {
+        if ($step === null) {
+            return null;
+        }
+
+        foreach ($this->phasesForPipeline($pipeline) as $phase) {
+            if (in_array($step, $phase['steps'], true)) {
+                return $phase;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -404,6 +424,9 @@ class ProcessingPhaseRegistry
                 'key' => 'parallel_start',
                 'progress' => 10,
                 'job_offset' => 0,
+                'retry_action' => 'restart_livestream',
+                'rerun_strategy' => 'full_restart',
+                'reset_scope' => 'none',
                 'steps' => [
                     'livestream_processing_initiated',
                     'visual_analysis',
@@ -414,6 +437,9 @@ class ProcessingPhaseRegistry
                 'key' => 'rms_generation',
                 'progress' => 20,
                 'job_offset' => 0,
+                'retry_action' => 'restart_livestream',
+                'rerun_strategy' => 'full_restart',
+                'reset_scope' => 'none',
                 'steps' => [
                     'rms_generation',
                 ],
@@ -422,6 +448,9 @@ class ProcessingPhaseRegistry
                 'key' => 'analyze_segments',
                 'progress' => 30,
                 'job_offset' => 0,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'targeted_reset',
+                'reset_scope' => 'analyze_segments',
                 'steps' => [
                     'segmentation',
                 ],
@@ -430,6 +459,9 @@ class ProcessingPhaseRegistry
                 'key' => 'segment_analysis',
                 'progress' => 40,
                 'job_offset' => 0,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'targeted_reset',
+                'reset_scope' => 'analyze_segments',
                 'steps' => [
                     'segmenting',
                     'analyzing_segments',
@@ -439,6 +471,9 @@ class ProcessingPhaseRegistry
                 'key' => 'classify_sections',
                 'progress' => 45,
                 'job_offset' => 1,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'classifying_sections',
                 ],
@@ -447,6 +482,9 @@ class ProcessingPhaseRegistry
                 'key' => 'classified_sections',
                 'progress' => 52,
                 'job_offset' => 1,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'section_classification_complete',
                     'section_classification_skipped',
@@ -472,6 +510,9 @@ class ProcessingPhaseRegistry
                 'key' => 'extract_sermon',
                 'progress' => 55,
                 'job_offset' => 5,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'extraction',
                     'extracting_sermon',
@@ -481,6 +522,9 @@ class ProcessingPhaseRegistry
                 'key' => 'extraction_complete',
                 'progress' => 58,
                 'job_offset' => 5,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'extraction_complete',
                 ],
@@ -489,6 +533,9 @@ class ProcessingPhaseRegistry
                 'key' => 'submit_to_processing',
                 'progress' => 60,
                 'job_offset' => 6,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'targeted_reset',
+                'reset_scope' => 'submit_to_processing',
                 'steps' => [
                     'sermon_submitted',
                     'sermon_creation',
@@ -498,6 +545,9 @@ class ProcessingPhaseRegistry
                 'key' => 'transcription',
                 'progress' => 70,
                 'job_offset' => 8,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'transcribing_audio',
                     'transcribing_audio_failed',
@@ -509,6 +559,9 @@ class ProcessingPhaseRegistry
                 'key' => 'analysis',
                 'progress' => 85,
                 'job_offset' => 9,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'analyzing_transcript',
                     'analyzing_transcript_failed',
@@ -520,14 +573,33 @@ class ProcessingPhaseRegistry
                 'key' => 'thumbnail',
                 'progress' => 90,
                 'job_offset' => 10,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'generating_thumbnail',
+                ],
+            ],
+            [
+                'key' => 'prepare_section_publication_candidates',
+                'progress' => 91,
+                'job_offset' => 11,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                // The job owns its own provenance-aware rerun rules, so no
+                // orchestrator-side reset is required before dispatch.
+                'reset_scope' => 'none',
+                'steps' => [
+                    'preparing_section_publication_candidates',
                 ],
             ],
             [
                 'key' => 'send_notification',
                 'progress' => 92,
                 'job_offset' => 12,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'sending_notification',
                 ],
@@ -536,6 +608,9 @@ class ProcessingPhaseRegistry
                 'key' => 'notification_complete',
                 'progress' => 93,
                 'job_offset' => 12,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'notification_sent',
                     'notification_skipped',
@@ -547,6 +622,9 @@ class ProcessingPhaseRegistry
                 'key' => 'cleanup',
                 'progress' => 95,
                 'job_offset' => 13,
+                'retry_action' => 'dispatch_livestream_chain',
+                'rerun_strategy' => 'safe_to_rerun',
+                'reset_scope' => 'none',
                 'steps' => [
                     'cleanup',
                 ],

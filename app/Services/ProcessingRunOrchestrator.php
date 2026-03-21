@@ -17,6 +17,7 @@ class ProcessingRunOrchestrator
     public function __construct(
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
         private readonly ProcessingPhaseRegistry $phaseRegistry,
+        private readonly ProcessingPhaseResetService $phaseResetService,
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
         private readonly VideoStorageService $videoStorageService,
     ) {}
@@ -74,7 +75,7 @@ class ProcessingRunOrchestrator
             $retryPlan = $this->phaseRegistry->retryPlanFor($processingLog);
 
             return match ($retryPlan['action']) {
-                'dispatch_chain' => $this->retryWithChainFromPlan($processingLog, $retryPlan),
+                'dispatch_chain', 'dispatch_livestream_chain' => $this->retryWithChainFromPlan($processingLog, $retryPlan),
                 'restart_livestream' => $this->restartLivestream($processingLog),
                 'manual_review' => $this->markForManualReviewFromPlan($processingLog, $retryPlan),
             };
@@ -124,6 +125,10 @@ class ProcessingRunOrchestrator
      */
     private function dispatchChain(array $jobs, string $queueName, string $processingId, string $failureProfile): void
     {
+        if (! $this->shouldDispatch($processingId)) {
+            return;
+        }
+
         Bus::chain($jobs)
             ->catch(function (\Throwable $exception) use ($processingId, $failureProfile): void {
                 app(ProcessingRunFailureHandler::class)->handle($processingId, $exception, $failureProfile);
@@ -141,6 +146,10 @@ class ProcessingRunOrchestrator
 
         Bus::batch($parallelJobs)
             ->then(function (Batch $batch) use ($chainJobs, $queueName, $processingId): void {
+                if (! $this->shouldDispatch($processingId)) {
+                    return;
+                }
+
                 Bus::chain($chainJobs)
                     ->catch(function (\Throwable $exception) use ($processingId): void {
                         app(ProcessingRunFailureHandler::class)->handle(
@@ -167,9 +176,12 @@ class ProcessingRunOrchestrator
     {
         $this->processingRunTransitions->resetForRetry($processingLog);
 
+        $freshLog = $processingLog->fresh() ?? $processingLog;
+
         $jobs = match ($pipeline) {
-            'audio' => array_slice($this->pipelineBuilder->buildAudioPipeline($processingLog), $jobOffset),
-            'video' => array_slice($this->pipelineBuilder->buildDirectVideoPipeline($processingLog), $jobOffset),
+            'audio' => array_slice($this->pipelineBuilder->buildAudioPipeline($freshLog), $jobOffset),
+            'video' => array_slice($this->pipelineBuilder->buildDirectVideoPipeline($freshLog), $jobOffset),
+            'livestream' => array_slice($this->pipelineBuilder->buildLivestreamChainJobs($freshLog), $jobOffset),
             default => [],
         };
 
@@ -189,11 +201,17 @@ class ProcessingRunOrchestrator
 
         $this->dispatchChain(
             $jobs,
-            $pipeline === 'video' ? $this->videoQueue() : $this->audioQueue(),
+            match ($pipeline) {
+                'video' => $this->videoQueue(),
+                'livestream' => $this->livestreamQueue(),
+                default => $this->audioQueue(),
+            },
             $processingLog->processing_id,
-            $pipeline === 'video'
-                ? ProcessingRunFailureHandler::PROFILE_VIDEO
-                : ProcessingRunFailureHandler::PROFILE_AUDIO
+            match ($pipeline) {
+                'video' => ProcessingRunFailureHandler::PROFILE_VIDEO,
+                'livestream' => ProcessingRunFailureHandler::PROFILE_LIVESTREAM,
+                default => ProcessingRunFailureHandler::PROFILE_AUDIO,
+            }
         );
 
         return ProcessingResult::success(
@@ -205,9 +223,11 @@ class ProcessingRunOrchestrator
 
     /**
      * @param  array{
-     *     action: 'dispatch_chain',
-     *     pipeline?: 'audio'|'video',
+     *     action: 'dispatch_chain'|'dispatch_livestream_chain',
+     *     pipeline?: 'audio'|'video'|'livestream',
      *     job_offset?: int,
+     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
      *     reason_code?: string,
      *     reason_message?: string
      * }  $retryPlan
@@ -224,6 +244,8 @@ class ProcessingRunOrchestrator
                 errorCode: 'INVALID_RETRY_PLAN'
             );
         }
+
+        $this->phaseResetService->resetForRetry($processingLog, $retryPlan);
 
         return $this->retryWithChain($processingLog, $pipeline, $jobOffset);
     }
@@ -247,6 +269,7 @@ class ProcessingRunOrchestrator
         string $reasonCode,
         string $reasonMessage
     ): ProcessingResult {
+        $this->processingRunTransitions->resetForRetry($processingLog);
         $this->processingRunTransitions->updateStep($processingLog, 'restarting_from_beginning');
         $this->processingRunTransitions->markForManualReview($processingLog, $reasonCode, $reasonMessage);
 
@@ -260,8 +283,10 @@ class ProcessingRunOrchestrator
     /**
      * @param  array{
      *     action: 'manual_review',
-     *     pipeline?: 'audio'|'video',
+     *     pipeline?: 'audio'|'video'|'livestream',
      *     job_offset?: int,
+     *     rerun_strategy?: 'safe_to_rerun'|'targeted_reset'|'full_restart',
+     *     reset_scope?: 'analyze_segments'|'submit_to_processing'|'none',
      *     reason_code?: string,
      *     reason_message?: string
      * }  $retryPlan
@@ -316,5 +341,26 @@ class ProcessingRunOrchestrator
     private function livestreamQueue(): string
     {
         return (string) config('media-processing.queues.livestream', 'livestream-processing');
+    }
+
+    private function shouldDispatch(string $processingId): bool
+    {
+        $processingLog = MediaProcessingLog::query()
+            ->where('processing_id', $processingId)
+            ->first();
+
+        if (! $processingLog instanceof MediaProcessingLog) {
+            return false;
+        }
+
+        if ($processingLog->isCancelled()) {
+            Log::info('Skipping downstream dispatch for cancelled processing run', [
+                'processing_id' => $processingId,
+            ]);
+
+            return false;
+        }
+
+        return true;
     }
 }

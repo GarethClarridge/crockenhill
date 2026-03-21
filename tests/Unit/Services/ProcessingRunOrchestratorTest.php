@@ -6,6 +6,8 @@ namespace Tests\Unit\Services;
 
 use App\Enums\ProcessingStatus;
 use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\GenerateThumbnail;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\TranscribeAudio;
@@ -14,9 +16,11 @@ use App\Models\MediaProcessingLog;
 use App\Services\ProcessingPipelineBuilder;
 use App\Services\ProcessingRunOrchestrator;
 use App\Services\VideoStorageService;
+use Illuminate\Bus\PendingBatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Mail;
+use Laravel\SerializableClosure\SerializableClosure;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\AlwaysFailingJob;
@@ -151,5 +155,82 @@ class ProcessingRunOrchestratorTest extends TestCase
         $this->assertTrue($cancelled);
         $processingLog->refresh();
         $this->assertSame(ProcessingStatus::CANCELLED, $processingLog->status);
+    }
+
+    #[Test]
+    public function it_retries_livestream_runs_from_the_phase_cursor_instead_of_restarting_the_full_pipeline(): void
+    {
+        Bus::fake();
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'current_step' => 'transcribing_audio_failed',
+            'error_message' => 'Temporary outage',
+        ]);
+
+        $result = app(ProcessingRunOrchestrator::class)->retry($processingLog);
+
+        $this->assertTrue($result->success);
+
+        $processingLog->refresh();
+        $this->assertSame(ProcessingStatus::PENDING, $processingLog->status);
+        $this->assertNull($processingLog->error_message);
+
+        Bus::assertChained([
+            TranscribeAudio::class,
+            ProcessTranscriptWithAI::class,
+            GenerateThumbnail::class,
+            PrepareSectionPublicationCandidates::class,
+            SendCompletionNotification::class,
+            CleanupTemporaryFiles::class,
+        ]);
+    }
+
+    #[Test]
+    public function it_does_not_dispatch_the_livestream_follow_on_chain_after_cancellation(): void
+    {
+        Bus::fake();
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'processing_id' => 'cancel-before-then-chain',
+            'current_step' => 'rms_generation',
+        ]);
+
+        app(ProcessingRunOrchestrator::class)->start($processingLog);
+
+        $pendingBatch = null;
+
+        Bus::assertBatched(function (PendingBatch $batch) use (&$pendingBatch): bool {
+            $pendingBatch = $batch;
+
+            return true;
+        });
+
+        $this->assertInstanceOf(PendingBatch::class, $pendingBatch);
+
+        app(\App\Services\MediaProcessingRunTransitionService::class)->markAsCancelled(
+            $processingLog,
+            'Processing cancelled by user'
+        );
+
+        $thenCallbacks = $pendingBatch->thenCallbacks();
+        $this->assertCount(1, $thenCallbacks);
+
+        $thenCallback = $this->unwrapCallback($thenCallbacks[0]);
+        $thenCallback(Bus::dispatchFakeBatch('cancel-before-then-chain'));
+
+        Bus::assertNotDispatched(CleanupTemporaryFiles::class);
+    }
+
+    private function unwrapCallback(mixed $callback): callable
+    {
+        if ($callback instanceof SerializableClosure) {
+            return $callback->getClosure();
+        }
+
+        if (is_object($callback) && method_exists($callback, 'getClosure')) {
+            return $callback->getClosure();
+        }
+
+        return $callback;
     }
 }

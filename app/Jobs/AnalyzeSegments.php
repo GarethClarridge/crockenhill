@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
+use App\Enums\ProcessingStep;
 use App\Models\LivestreamSegment as LivestreamSegmentModel;
 use App\Models\MediaProcessingLog;
 use App\Services\MediaProcessingRunTransitionService;
@@ -39,7 +40,7 @@ class AnalyzeSegments implements ShouldQueue
 
         try {
             // Update status to show segmentation is starting
-            $processingRunTransitions->markAsProcessing($this->processingLog, 'segmentation');
+            $processingRunTransitions->markAsProcessing($this->processingLog, ProcessingStep::Segmentation->value);
 
             Log::info('Starting segment analysis', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -94,10 +95,14 @@ class AnalyzeSegments implements ShouldQueue
             $sermonCandidate = $this->findSermonCandidate($segments);
 
             if ($sermonCandidate) {
-                $this->processingLog->update([
+                if ($this->abortIfCancelled('AnalyzeSegments')) {
+                    return;
+                }
+
+                $processingRunTransitions->updateRunFields($this->processingLog, [
                     'sermon_start_time' => $sermonCandidate->startTime,
                     'sermon_end_time' => $sermonCandidate->endTime,
-                    'current_step' => 'segmenting',
+                    'current_step' => ProcessingStep::Segmenting->value,
                 ]);
 
                 Log::info('Sermon candidate identified', [
@@ -109,6 +114,10 @@ class AnalyzeSegments implements ShouldQueue
 
                 // Job chain will automatically proceed to next job
             } else {
+                if ($this->abortIfCancelled('AnalyzeSegments')) {
+                    return;
+                }
+
                 Log::warning('No sermon candidate found', [
                     'processing_id' => $this->processingLog->processing_id,
                     'total_segments' => count($segments),
@@ -201,7 +210,13 @@ class AnalyzeSegments implements ShouldQueue
                 $segmentRecord['calibration_method'] = $segmentData->metadata['calibration_method'];
             }
 
-            LivestreamSegmentModel::create($segmentRecord);
+            LivestreamSegmentModel::query()->updateOrCreate(
+                [
+                    'media_processing_log_id' => $this->processingLog->id,
+                    'segment_index' => $segmentData->segmentOrder,
+                ],
+                $segmentRecord
+            );
         }
 
         Log::info('Segments stored in database', [

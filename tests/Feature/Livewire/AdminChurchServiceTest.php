@@ -692,7 +692,7 @@ class AdminChurchServiceTest extends TestCase
             'service' => SermonService::MORNING,
         ]);
 
-        $processingRun = MediaProcessingLog::factory()->livestream()->create([
+        $processingRun = MediaProcessingLog::factory()->livestream()->pending()->create([
             'extracted_date' => '2026-04-05',
             'extracted_service' => SermonService::MORNING,
             'source_file_path' => 'temp/reclassify-source.mp4',

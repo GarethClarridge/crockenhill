@@ -398,7 +398,9 @@ class UnifiedMediaProcessorTest extends TestCase
     {
         Bus::fake();
 
-        $log = MediaProcessingLog::factory()->livestream()->failed()->create();
+        $log = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'current_step' => 'transcribing_audio_failed',
+        ]);
 
         $this->pipelineBuilder
             ->method('buildLivestreamParallelJobs')
@@ -406,7 +408,7 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->pipelineBuilder
             ->method('buildLivestreamChainJobs')
-            ->willReturn([new AudioStubJob]);
+            ->willReturn((new ProcessingPipelineBuilder)->buildLivestreamChainJobs($log));
 
         $result = $this->processor->retry($log->processing_id);
 

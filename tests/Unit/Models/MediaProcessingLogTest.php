@@ -351,7 +351,7 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function it_requires_manual_sermon_review_when_status_is_required(): void
     {
-        $log = MediaProcessingLog::factory()->livestream()->create();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
 
         $this->assertFalse($log->requiresManualSermonReview());
 
@@ -436,7 +436,7 @@ class MediaProcessingLogTest extends TestCase
     #[Test]
     public function it_preserves_existing_manual_review_metadata_when_confirming(): void
     {
-        $log = MediaProcessingLog::factory()->livestream()->create();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
         $speechSegments = [['segment_id' => 10, 'start_time' => 0.0, 'end_time' => 1200.0, 'duration' => 1200.0]];
         app(\App\Services\MediaProcessingRunTransitionService::class)
             ->markForManualReview($log, 'no_qualifying_speech_block', 'No qualifying block.', $speechSegments);

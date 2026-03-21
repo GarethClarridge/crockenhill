@@ -20,6 +20,7 @@ class SermonJobPipelineService
     public function __construct(
         private readonly SermonValidationService $validationService,
         private readonly MediaProcessingRunTransitionService $processingRunTransitions,
+        private readonly ?ProcessingRunOrchestrator $processingRunOrchestrator = null,
     ) {}
 
     /**
@@ -269,29 +270,8 @@ class SermonJobPipelineService
                 );
             }
 
-            // Store original failed step for proper restart context
-            $originalFailedStep = $processingLog->current_step;
-
-            // Reset processing log to pending state, preserving original step
-            $this->processingRunTransitions->resetForRetry($processingLog);
-
-            Log::info('Processing retry - preserving original failed step', [
-                'processing_id' => $processingId,
-                'original_failed_step' => $originalFailedStep,
-            ]);
-
-            // Determine where to restart the processing chain based on current step
-            $this->restartProcessingChain($processingLog);
-
-            Log::info('Processing retry initiated successfully', [
-                'processing_id' => $processingId,
-            ]);
-
-            return ProcessingResult::success(
-                processingId: $processingId,
-                message: 'Processing retry initiated successfully',
-                statusUrl: route('api.media.processing.status', ['processingId' => $processingId])
-            );
+            return ($this->processingRunOrchestrator ?? app(ProcessingRunOrchestrator::class))
+                ->retry($processingLog);
         } catch (Exception $e) {
             Log::error('Failed to retry processing', [
                 'processing_id' => $processingId,

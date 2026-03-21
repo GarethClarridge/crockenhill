@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
+use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
@@ -87,6 +89,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         }
 
         $this->logStepStart(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES);
+        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::PreparingSectionPublicationCandidates->value);
 
         $extractTypes = config('media-processing.section_publishing.extract_types', ['childrens_talk']);
         $requireHighConfidence = (bool) config('media-processing.section_publishing.require_high_confidence', true);
@@ -200,14 +203,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper
     ): void {
-        if (
-            is_string($section->extracted_video_path)
-            && $section->extracted_video_path !== ''
-            && is_string($section->extracted_audio_path)
-            && $section->extracted_audio_path !== ''
-            && Storage::disk($this->sermonDisk())->exists($section->extracted_video_path)
-            && Storage::disk($this->sermonDisk())->exists($section->extracted_audio_path)
-        ) {
+        if ($this->shouldReuseExtractedMedia($section)) {
             return;
         }
 
@@ -268,6 +264,16 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $section->extracted_video_path = $videoStoragePath;
             $section->extracted_audio_path = $audioResult['audio_path'];
             $section->extracted_at = now();
+            $section->metadata = ServiceSectionMetadata::fromArray(array_replace(
+                $section->metadataData()->toArray(),
+                [
+                    'publication_candidate_extraction' => [
+                        'processing_id' => $this->processingLog->processing_id,
+                        'classification_signature' => $section->classificationSignature(),
+                        'extracted_at' => now()->toIso8601String(),
+                    ],
+                ]
+            ));
         } finally {
             if ($isS3TempDisk) {
                 $storageHelper->cleanupTempFile($localSourcePath);
@@ -278,6 +284,22 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
     private function sermonDisk(): string
     {
         return (string) config('media-processing.storage.sermon_disk', 'public');
+    }
+
+    private function shouldReuseExtractedMedia(ServiceSection $section): bool
+    {
+        if (! $section->hasExtractedMedia()) {
+            return false;
+        }
+
+        $provenance = $section->metadataData()->toArray()['publication_candidate_extraction'] ?? null;
+
+        if (! is_array($provenance)) {
+            return true;
+        }
+
+        return ($provenance['processing_id'] ?? null) === $this->processingLog->processing_id
+            && ($provenance['classification_signature'] ?? null) === $section->classificationSignature();
     }
 
     public function failed(\Throwable $exception): void

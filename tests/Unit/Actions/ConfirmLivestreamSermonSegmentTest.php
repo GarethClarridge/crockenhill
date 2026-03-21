@@ -41,7 +41,7 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
 
     private function makeLivestreamLogAwaitingReview(?string $sourcePath = 'livestreams/2026/service.mp4'): MediaProcessingLog
     {
-        $log = MediaProcessingLog::factory()->livestream()->create([
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
             'source_file_path' => $sourcePath,
         ]);
 

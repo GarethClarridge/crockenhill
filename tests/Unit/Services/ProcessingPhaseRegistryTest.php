@@ -59,7 +59,7 @@ class ProcessingPhaseRegistryTest extends TestCase
     }
 
     #[Test]
-    public function it_restarts_livestream_retries_from_the_beginning_even_after_downstream_audio_failures(): void
+    public function it_retries_livestream_runs_from_the_active_phase_cursor(): void
     {
         $registry = app(ProcessingPhaseRegistry::class);
 
@@ -69,7 +69,31 @@ class ProcessingPhaseRegistryTest extends TestCase
         ]);
 
         $this->assertSame([
-            'action' => 'restart_livestream',
+            'action' => 'dispatch_livestream_chain',
+            'pipeline' => 'livestream',
+            'job_offset' => 8,
+            'rerun_strategy' => 'safe_to_rerun',
+            'reset_scope' => 'none',
+        ], $registry->retryPlanFor($processingLog));
+    }
+
+    #[Test]
+    public function it_maps_section_publication_preparation_to_a_retryable_livestream_phase(): void
+    {
+        $registry = app(ProcessingPhaseRegistry::class);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'status' => ProcessingStatus::FAILED,
+            'current_step' => 'preparing_section_publication_candidates',
+        ]);
+
+        $this->assertSame(91, $registry->progressForStep('preparing_section_publication_candidates', MediaType::Livestream));
+        $this->assertSame([
+            'action' => 'dispatch_livestream_chain',
+            'pipeline' => 'livestream',
+            'job_offset' => 11,
+            'rerun_strategy' => 'safe_to_rerun',
+            'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
     }
 }

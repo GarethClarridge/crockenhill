@@ -102,7 +102,7 @@ class SendCompletionNotification implements ShouldQueue
 
             // Don't fail the entire processing chain for notification failures
             // Just log the error and mark as completed
-            $this->processingLog->update([
+            $processingRunTransitions->updateRunFields($this->processingLog, [
                 'current_step' => 'notification_failed',
                 'error_message' => 'Notification failed: '.$e->getMessage(),
             ]);
@@ -325,7 +325,7 @@ class SendCompletionNotification implements ShouldQueue
         // Update the injected log directly rather than re-querying via the
         // sermon relationship, which could resolve to the wrong log when a
         // sermon has multiple processing runs or when sermon_id is null.
-        $this->processingLog->update([
+        app(MediaProcessingRunTransitionService::class)->updateRunFields($this->processingLog, [
             'current_step' => 'notification_failed_permanently',
             'error_message' => 'Notification failed permanently: '.$exception->getMessage(),
         ]);

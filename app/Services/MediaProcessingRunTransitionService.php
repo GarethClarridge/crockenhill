@@ -10,13 +10,21 @@ use App\Models\MediaProcessingLog;
 
 class MediaProcessingRunTransitionService
 {
-    public function markAsProcessing(MediaProcessingLog $processingLog, ?string $step = null): bool
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function updateRunFields(MediaProcessingLog $processingLog, array $attributes): bool
     {
         if ($this->isCancelled($processingLog)) {
             return false;
         }
 
-        return $processingLog->update([
+        return $processingLog->update($attributes);
+    }
+
+    public function markAsProcessing(MediaProcessingLog $processingLog, ?string $step = null): bool
+    {
+        return $this->updateRunFields($processingLog, [
             'status' => ProcessingStatus::PROCESSING,
             'current_step' => $step,
             'started_at' => $processingLog->started_at ?? now(),
@@ -28,11 +36,7 @@ class MediaProcessingRunTransitionService
         ?string $step = null,
         ?string $errorMessage = null
     ): bool {
-        if ($this->isCancelled($processingLog)) {
-            return false;
-        }
-
-        return $processingLog->update([
+        return $this->updateRunFields($processingLog, [
             'status' => ProcessingStatus::COMPLETED,
             'current_step' => $step ?? 'completed',
             'completed_at' => now(),
@@ -42,11 +46,7 @@ class MediaProcessingRunTransitionService
 
     public function markAsFailed(MediaProcessingLog $processingLog, string $errorMessage, ?string $step = null): bool
     {
-        if ($this->isCancelled($processingLog)) {
-            return false;
-        }
-
-        return $processingLog->update([
+        return $this->updateRunFields($processingLog, [
             'status' => ProcessingStatus::FAILED,
             'current_step' => $step ?? $processingLog->current_step,
             'error_message' => $errorMessage,
@@ -75,6 +75,10 @@ class MediaProcessingRunTransitionService
         string $reasonMessage,
         array $speechSegments = []
     ): bool {
+        if ($this->isCancelled($processingLog)) {
+            return false;
+        }
+
         $metadata = $processingLog->processingMetadataData()->toArray();
         $metadata['manual_review'] = (new ProcessingManualReviewMetadata(
             status: 'required',
@@ -121,7 +125,7 @@ class MediaProcessingRunTransitionService
 
     public function updateStep(MediaProcessingLog $processingLog, string $step): bool
     {
-        return $processingLog->update(['current_step' => $step]);
+        return $this->updateRunFields($processingLog, ['current_step' => $step]);
     }
 
     public function resetForRetry(MediaProcessingLog $processingLog): bool

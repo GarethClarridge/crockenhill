@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Data\SermonCreationOptions;
+use App\Enums\ProcessingStep;
 use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -42,7 +43,7 @@ class SubmitToProcessing implements ShouldQueue
 
         try {
             // Update status to show sermon processing is starting
-            $processingRunTransitions->markAsProcessing($this->processingLog, 'sermon_creation');
+            $processingRunTransitions->markAsProcessing($this->processingLog, ProcessingStep::SermonCreation->value);
 
             Log::info('Starting sermon creation from livestream', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -133,7 +134,7 @@ class SubmitToProcessing implements ShouldQueue
                 'video_file_path' => $this->processingLog->video_file_path,
             ];
 
-            $existingSermon = $this->processingLog->sermon;
+            $existingSermon = $this->resolveExistingLivestreamSermon();
 
             if ($existingSermon instanceof Sermon) {
                 $sermon = $this->refreshExistingLivestreamSermon($existingSermon);
@@ -191,9 +192,9 @@ class SubmitToProcessing implements ShouldQueue
                 }
             }
 
-            $this->processingLog->update([
+            $processingRunTransitions->updateRunFields($this->processingLog, [
                 'sermon_id' => $sermonId,
-                'current_step' => 'transcription',
+                'current_step' => ProcessingStep::Transcription->value,
                 'processing_metadata' => array_merge(
                     $this->processingLog->processingMetadataData()->toArray(),
                     [
@@ -253,5 +254,19 @@ class SubmitToProcessing implements ShouldQueue
         ]);
 
         return $sermon->fresh() ?? $sermon;
+    }
+
+    private function resolveExistingLivestreamSermon(): ?Sermon
+    {
+        $existingSermon = $this->processingLog->sermon;
+
+        if ($existingSermon instanceof Sermon) {
+            return $existingSermon;
+        }
+
+        return Sermon::query()
+            ->where('livestream_processing_id', $this->processingLog->processing_id)
+            ->latest('id')
+            ->first();
     }
 }

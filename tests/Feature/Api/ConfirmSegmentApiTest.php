@@ -44,7 +44,7 @@ class ConfirmSegmentApiTest extends TestCase
     {
         Storage::disk('local')->put($sourcePath, 'fake-video');
 
-        $log = MediaProcessingLog::factory()->livestream()->create([
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
             'source_file_path' => $sourcePath,
         ]);
 

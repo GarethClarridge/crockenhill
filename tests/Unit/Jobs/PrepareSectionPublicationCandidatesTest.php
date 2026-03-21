@@ -278,4 +278,82 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job = new PrepareSectionPublicationCandidates($log);
         $job->handle($mockExtractor, app(StorageAdapterHelper::class), app(ChildrensTalkSpeakerService::class));
     }
+
+    #[Test]
+    public function it_reextracts_candidate_media_when_existing_assets_belong_to_a_stale_classification_signature(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.extract_types' => ['childrens_talk'],
+            'media-processing.section_publishing.retain_unpublished_hours' => 48,
+            'media-processing.speaker_identification.enabled' => false,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+        ]);
+
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('public')->put('sermons/sections/old/video.mp4', 'stale-video');
+        Storage::disk('public')->put('sermons/audio/old.mp3', 'stale-audio');
+        Storage::disk('local')->put('temp/section-video.mp4', 'fresh-section-video');
+        Storage::disk('public')->put('sermons/audio/fresh-section.mp3', 'fresh-section-audio');
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::CHILDRENS_TALK->value,
+            'status' => ServiceSectionStatus::IDENTIFIED->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'publication_candidate_extraction' => [
+                    'processing_id' => $processingLog->processing_id,
+                    'classification_signature' => 'stale-signature',
+                    'extracted_at' => now()->subDay()->toIso8601String(),
+                ],
+            ],
+            'extracted_video_path' => 'sermons/sections/old/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/old.mp3',
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+        ]);
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->willReturn('temp/section-video.mp4');
+        $videoExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->willReturn([
+                'audio_path' => 'sermons/audio/fresh-section.mp3',
+                'full_path' => Storage::disk('public')->path('sermons/audio/fresh-section.mp3'),
+                'original_size' => 1024,
+                'final_size' => 1024,
+                'compression_applied' => false,
+                'compression_ratio' => 1.0,
+                'valid_for_transcription' => true,
+            ]);
+
+        $job = new PrepareSectionPublicationCandidates($processingLog);
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(ChildrensTalkSpeakerService::class)
+        );
+
+        $section->refresh();
+
+        $this->assertSame('sermons/audio/fresh-section.mp3', $section->extracted_audio_path);
+        $this->assertSame('sermons/sections/'.$section->id.'/video.mp4', $section->extracted_video_path);
+        $this->assertSame(
+            $section->classificationSignature(),
+            $section->metadata['publication_candidate_extraction']['classification_signature'] ?? null
+        );
+    }
 }

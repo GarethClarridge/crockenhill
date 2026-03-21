@@ -230,4 +230,54 @@ class SubmitToProcessingTest extends TestCase
         $log->refresh();
         $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed by failed()');
     }
+
+    #[Test]
+    public function it_reuses_the_existing_run_owned_sermon_when_the_log_is_in_a_mixed_state(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('sermons/audio/mixed-state.mp3', 'fake-audio-content');
+
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $log = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'processing_id' => 'mixed-state-processing',
+            'sermon_id' => null,
+            'audio_file_path' => 'sermons/audio/mixed-state.mp3',
+            'video_file_path' => 'temp/video.mp4',
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'current_step' => 'sermon_creation',
+        ]);
+
+        $sermon = Sermon::factory()->fromLivestream()->create([
+            'audio_file_path' => 'sermons/audio/original.mp3',
+            'livestream_processing_id' => $log->processing_id,
+        ]);
+
+        $mockMetadataService = $this->createMock(SermonMetadataIntegrationService::class);
+        $mockMetadataService->expects($this->once())
+            ->method('storeVideoForSermon')
+            ->with($log->processing_id, $sermon->id)
+            ->willReturn('sermons/'.$sermon->id.'/video.mp4');
+        $mockMetadataService->expects($this->once())
+            ->method('linkVideoToSermon')
+            ->with($log->processing_id, $sermon->id, 'sermons/'.$sermon->id.'/video.mp4');
+
+        $mockCreationService = $this->createMock(SermonCreationService::class);
+        $mockCreationService->expects($this->never())->method('createSermon');
+
+        Log::shouldReceive('info')->atLeast()->once();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        $job = new SubmitToProcessing($log);
+        $job->handle($mockMetadataService, $mockCreationService);
+
+        $log->refresh();
+        $sermon->refresh();
+
+        $this->assertSame($sermon->id, $log->sermon_id);
+        $this->assertSame('sermons/audio/mixed-state.mp3', $sermon->audio_file_path);
+        $this->assertSame($log->processing_id, $sermon->livestream_processing_id);
+        $this->assertSame(1, Sermon::query()->where('livestream_processing_id', $log->processing_id)->count());
+    }
 }
