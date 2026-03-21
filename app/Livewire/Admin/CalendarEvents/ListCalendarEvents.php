@@ -73,8 +73,7 @@ class ListCalendarEvents extends Component
             ->orderBy('start_datetime', 'desc')
             ->paginate(20);
 
-        $meetings = Meeting::with('page')->get()
-            ->mapWithKeys(fn ($m) => [$m->slug => $m->page->heading ?? $m->slug]);
+        $meetings = Meeting::getForAdminList();
 
         $headers = [
             ['key' => 'title', 'label' => 'Title'],

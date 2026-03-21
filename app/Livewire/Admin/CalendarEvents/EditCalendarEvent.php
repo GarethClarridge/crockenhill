@@ -83,8 +83,7 @@ class EditCalendarEvent extends Component
 
     public function render(): View
     {
-        $meetings = Meeting::with('page')->get()
-            ->mapWithKeys(fn ($m) => [$m->slug => $m->page->heading ?? $m->slug]);
+        $meetings = Meeting::getForAdminList();
 
         return view('livewire.admin.calendar-events.edit-calendar-event', [
             'meetings' => $meetings,

@@ -447,4 +447,20 @@ class Meeting extends Model implements HasMedia, Sitemapable
     {
         return $this->getMedia('photos')->isNotEmpty();
     }
+
+    /**
+     * Get a list of meetings for admin dropdowns.
+     *
+     * Performance Optimization: Caches the meeting list (slug => heading) for 24-48 hours
+     * to reduce redundant DB queries in the admin interface.
+     *
+     * @return \Illuminate\Support\Collection<string, string>
+     */
+    public static function getForAdminList(): \Illuminate\Support\Collection
+    {
+        return \Illuminate\Support\Facades\Cache::flexible('admin_meeting_list', [86400, 172800], function () {
+            return self::with('page:id,heading')->get()
+                ->mapWithKeys(fn ($m) => [$m->slug => $m->page->heading ?? $m->slug]);
+        });
+    }
 }
