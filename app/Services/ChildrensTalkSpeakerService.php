@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Contracts\SpeakerIdentificationInterface;
+use App\Data\ServiceSectionMetadata;
 use App\Data\SpeakerMatchResult;
 use App\Enums\PreacherSource;
 use App\Enums\ServiceSectionType;
@@ -29,8 +30,8 @@ class ChildrensTalkSpeakerService
             return;
         }
 
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
-        $speakerMetadata = $section->childrensTalkSpeakerMetadata();
+        $metadata = $section->metadataData()->toArray();
+        $speakerMetadata = $section->metadataData()->childrensTalkSpeaker?->toArray() ?? [];
         $prediction = $this->predictionPayload($section);
 
         $speakerMetadata['predicted'] = $prediction;
@@ -57,7 +58,7 @@ class ChildrensTalkSpeakerService
         }
 
         $metadata['childrens_talk_speaker'] = $speakerMetadata;
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     public function storeManualReview(
@@ -70,8 +71,8 @@ class ChildrensTalkSpeakerService
             return;
         }
 
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
-        $speakerMetadata = $section->childrensTalkSpeakerMetadata();
+        $metadata = $section->metadataData()->toArray();
+        $speakerMetadata = $section->metadataData()->childrensTalkSpeaker?->toArray() ?? [];
         $normalizedName = is_string($speakerName) ? trim($speakerName) : '';
 
         $reviewed = null;
@@ -111,7 +112,7 @@ class ChildrensTalkSpeakerService
         unset($metadata['review_reason']);
         $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
 
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         $section->needs_manual_review = false;
     }
 

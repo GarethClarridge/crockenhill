@@ -88,34 +88,31 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             }
 
             // Store in processing log
-            $this->processingLog->update(['ai_analysis' => $analysis->toArray()]);
+            $this->processingLog->update(['ai_analysis' => $analysis]);
 
             // Update sermon - preserve ID3 metadata, only fill in missing fields with AI data
             $sermon = $this->processingLog->sermon;
             $updateData = [];
 
             // Get ID3 metadata from processing log if available
-            $id3Metadata = is_array($this->processingLog->processing_metadata)
-                && isset($this->processingLog->processing_metadata['id3_metadata'])
-                ? $this->processingLog->processing_metadata['id3_metadata']
-                : null;
+            $id3Metadata = $this->processingLog->processingMetadataData()->id3Metadata;
 
             // Only update title if not set by ID3 tags OR if ID3 title looks like a filename
-            $hasValidId3Title = $id3Metadata
-                && ! empty($id3Metadata['title'])
-                && ! $this->looksLikeFilename($id3Metadata['title']);
+            $id3Title = $id3Metadata?->title;
+            $hasValidId3Title = $id3Title !== null
+                && ! $this->looksLikeFilename($id3Title);
 
             if (! $hasValidId3Title) {
                 $updateData['title'] = $analysis->title;
             }
 
             // Only update series if not set by ID3 tags
-            if (! $id3Metadata || empty($id3Metadata['series'])) {
+            if ($id3Metadata?->series === null) {
                 $updateData['series'] = $analysis->series;
             }
 
             // Only update reference if not set by ID3 tags
-            if (! $id3Metadata || empty($id3Metadata['reference'])) {
+            if ($id3Metadata?->reference === null) {
                 $updateData['reference'] = $analysis->reference;
                 // Clear any stale passage link so the old text is not shown while re-enrichment runs
                 $updateData['scripture_passage_id'] = null;
@@ -128,7 +125,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             Log::info('Updating sermon with AI analysis', [
                 'processing_id' => $this->processingLog->processing_id,
                 'has_id3_metadata' => $id3Metadata !== null,
-                'id3_fields_preserved' => $id3Metadata ? array_keys(array_filter($id3Metadata)) : [],
+                'id3_fields_preserved' => $id3Metadata ? array_keys(array_filter($id3Metadata->toArray())) : [],
                 'ai_fields_applied' => array_keys($updateData),
             ]);
 
@@ -159,30 +156,27 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             // Try fallback
             $fallbackAnalysis = $this->createFallbackAnalysis();
             if ($fallbackAnalysis) {
-                $this->processingLog->update(['ai_analysis' => $fallbackAnalysis->toArray()]);
+                $this->processingLog->update(['ai_analysis' => $fallbackAnalysis]);
 
                 // Update sermon if it exists - preserve ID3 metadata
                 if ($this->processingLog->sermon) {
                     $updateData = [];
 
                     // Get ID3 metadata from processing log if available
-                    $id3Metadata = is_array($this->processingLog->processing_metadata)
-                        && isset($this->processingLog->processing_metadata['id3_metadata'])
-                        ? $this->processingLog->processing_metadata['id3_metadata']
-                        : null;
+                    $id3Metadata = $this->processingLog->processingMetadataData()->id3Metadata;
 
                     // Only update fields not set by ID3 tags OR if ID3 title looks like a filename
-                    $hasValidId3Title = $id3Metadata
-                        && ! empty($id3Metadata['title'])
-                        && ! $this->looksLikeFilename($id3Metadata['title']);
+                    $id3Title = $id3Metadata?->title;
+                    $hasValidId3Title = $id3Title !== null
+                        && ! $this->looksLikeFilename($id3Title);
 
                     if (! $hasValidId3Title) {
                         $updateData['title'] = $fallbackAnalysis->title;
                     }
-                    if (! $id3Metadata || empty($id3Metadata['series'])) {
+                    if ($id3Metadata?->series === null) {
                         $updateData['series'] = $fallbackAnalysis->series;
                     }
-                    if (! $id3Metadata || empty($id3Metadata['reference'])) {
+                    if ($id3Metadata?->reference === null) {
                         $updateData['reference'] = $fallbackAnalysis->reference;
                         // Clear stale passage link so old text is not shown during re-enrichment
                         $updateData['scripture_passage_id'] = null;

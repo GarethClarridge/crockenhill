@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Publication;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
 
@@ -29,7 +30,7 @@ class ExpireSectionPublicationAssets
             );
         }
 
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $metadata = $section->metadataData()->toArray();
         $metadata['cleanup'] = array_merge($auditContext, [
             'previous_status' => $previousStatus,
             'cleaned_at' => now()->toIso8601String(),
@@ -39,7 +40,7 @@ class ExpireSectionPublicationAssets
         $section->extracted_audio_path = null;
         $section->extracted_at = null;
         $section->unpublished_expires_at = null;
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         $section->save();
     }
 }

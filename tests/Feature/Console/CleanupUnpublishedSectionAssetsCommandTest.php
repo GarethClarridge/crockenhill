@@ -135,11 +135,11 @@ class CleanupUnpublishedSectionAssetsCommandTest extends TestCase
         $this->artisan('media:cleanup-unpublished-section-assets')->assertSuccessful();
 
         $section->refresh();
+        $metadata = $section->metadataData()->toArray();
         $this->assertEquals(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
-        $this->assertIsArray($section->metadata);
-        $this->assertArrayHasKey('cleanup', $section->metadata);
-        $this->assertEquals('asset_expiry', $section->metadata['cleanup']['reason']);
-        $this->assertEquals('scheduler', $section->metadata['cleanup']['cleaned_by']);
-        $this->assertArrayHasKey('cleaned_at', $section->metadata['cleanup']);
+        $this->assertArrayHasKey('cleanup', $metadata);
+        $this->assertEquals('asset_expiry', $metadata['cleanup']['reason']);
+        $this->assertEquals('scheduler', $metadata['cleanup']['cleaned_by']);
+        $this->assertArrayHasKey('cleaned_at', $metadata['cleanup']);
     }
 }

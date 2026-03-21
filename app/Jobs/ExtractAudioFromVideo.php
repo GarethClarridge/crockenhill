@@ -104,7 +104,7 @@ class ExtractAudioFromVideo implements ShouldQueue
                 'audio_file_path' => $sermonAudioPath,
                 'duration' => $duration,
                 'processing_metadata' => array_merge(
-                    $this->processingLog->processing_metadata ?? [],
+                    $this->processingLog->processingMetadataData()->toArray(),
                     [
                         'audio_compression' => [
                             'original_size_mb' => round($audioExtractionResult['original_size'] / 1024 / 1024, 1),

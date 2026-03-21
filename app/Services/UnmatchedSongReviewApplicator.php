@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
@@ -53,7 +54,7 @@ class UnmatchedSongReviewApplicator
                 ServiceSectionConfidence::resolve($section->confidence, $metadata),
                 0.10
             );
-            $section->metadata = $metadata;
+            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         }
 
         return $unmatchedSongSections;

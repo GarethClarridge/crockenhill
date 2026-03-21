@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Data\ThumbnailMetadata;
+use App\Data\ThumbnailMetadataCast;
 use App\Enums\PreacherSource;
 use App\Enums\SermonContentType;
 use App\Enums\SermonService;
@@ -44,7 +46,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?string $transcript_file_path
  * @property ?string $thumbnail_file_path
  * @property ?\Illuminate\Support\Carbon $thumbnail_generated_at
- * @property array<string, mixed>|null $thumbnail_metadata
+ * @property ThumbnailMetadata|null $thumbnail_metadata
  * @property ?string $livestream_processing_id
  * @property ?string $video_file_path
  * @property ?SermonSourceType $source_type
@@ -141,7 +143,7 @@ class Sermon extends Model implements Sitemapable
             'segment_start_time' => 'float',
             'segment_end_time' => 'float',
             'thumbnail_generated_at' => 'datetime',
-            'thumbnail_metadata' => 'array',
+            'thumbnail_metadata' => ThumbnailMetadataCast::class,
             'show_summary' => 'boolean',
             'show_points' => 'boolean',
             'source_type' => SermonSourceType::class,
@@ -158,14 +160,18 @@ class Sermon extends Model implements Sitemapable
 
     public function getPlainThumbnailFilePathAttribute(): ?string
     {
-        $plainThumbnailPath = $this->thumbnail_metadata['plain_thumbnail_path'] ?? null;
-        if (! is_string($plainThumbnailPath)) {
-            return null;
+        return $this->thumbnailMetadataData()?->plainThumbnailPath;
+    }
+
+    public function thumbnailMetadataData(): ?ThumbnailMetadata
+    {
+        $metadata = $this->thumbnail_metadata;
+
+        if ($metadata instanceof ThumbnailMetadata) {
+            return $metadata;
         }
 
-        $plainThumbnailPath = trim($plainThumbnailPath);
-
-        return $plainThumbnailPath === '' ? null : $plainThumbnailPath;
+        return ThumbnailMetadata::fromArray($metadata);
     }
 
     public function getSeriesUrlAttribute(): ?string

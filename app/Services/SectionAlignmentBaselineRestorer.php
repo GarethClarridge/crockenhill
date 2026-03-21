@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\ServiceSectionMetadata;
 use App\Models\ServiceSection;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\ReadsSectionMetadata;
@@ -80,7 +81,7 @@ class SectionAlignmentBaselineRestorer
             $metadata['review_flags'] = $reviewFlags;
         }
 
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     /**
@@ -97,7 +98,7 @@ class SectionAlignmentBaselineRestorer
         $section->confidence = $confidence;
         $metadata['confidence_level'] = ServiceSectionConfidence::levelFor($confidence);
         $metadata['confidence_score'] = $confidence;
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     /**

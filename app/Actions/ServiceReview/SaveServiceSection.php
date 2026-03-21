@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\ServiceReview;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
@@ -83,7 +84,7 @@ class SaveServiceSection
         $section->section_type = ServiceSectionType::from($validated['section_type']);
         $section->title = trim($validated['title']);
 
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $metadata = $section->metadataData()->toArray();
 
         if ($section->section_type === ServiceSectionType::CHILDRENS_TALK) {
             $this->speakerService->storeManualReview(
@@ -95,16 +96,16 @@ class SaveServiceSection
         } else {
             unset($metadata['childrens_talk_speaker']);
             $section->needs_manual_review = false;
-            $section->metadata = $metadata;
+            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         }
 
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $metadata = $section->metadataData()->toArray();
         unset($metadata['review_reason'], $metadata['review_flags']);
         $metadata['manual_review'] = [
             'updated_at' => now()->toIso8601String(),
             'updated_by_user_id' => $userId,
         ];
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
         if (
             ! $section->isPublishableType()

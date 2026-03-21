@@ -59,12 +59,13 @@ class SaveServiceSectionTest extends TestCase
         );
 
         $section->refresh();
+        $metadata = $section->metadataData()->toArray();
 
         $this->assertSame(ServiceSectionType::PRAYER, $section->section_type);
         $this->assertSame('Pastoral Prayer', $section->title);
         $this->assertFalse($section->needs_manual_review);
-        $this->assertArrayNotHasKey('review_reason', $section->metadata ?? []);
-        $this->assertArrayHasKey('manual_review', $section->metadata ?? []);
+        $this->assertArrayNotHasKey('review_reason', $metadata);
+        $this->assertArrayHasKey('manual_review', $metadata);
     }
 
     #[Test]

@@ -76,32 +76,23 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             // Update processing log to indicate we're starting
             $this->markProcessingRunAsProcessing($this->processingLog, 'creating_sermon_record');
 
-            // Get AI analysis - handle both array and JSON string formats
-            $aiAnalysis = $this->processingLog->ai_analysis;
-            // @phpstan-ignore-next-line (defensive code for potential legacy data)
-            if (is_string($aiAnalysis)) {
-                $aiAnalysis = json_decode($aiAnalysis, true);
-            }
-
-            // Extract ID3 metadata from processing_metadata if available
-            $processingMetadata = $this->processingLog->processing_metadata;
-            $id3Metadata = is_array($processingMetadata) && isset($processingMetadata['id3_metadata'])
-                ? $processingMetadata['id3_metadata']
-                : null;
+            $aiAnalysisData = $this->processingLog->aiAnalysisData();
+            $aiAnalysis = $aiAnalysisData?->toArray() ?? [];
+            $id3Metadata = $this->processingLog->processingMetadataData()->id3Metadata;
 
             // Prepare options using factory method based on processing type
             $options = match ($this->processingLog->processing_type) {
-                MediaType::Audio => SermonCreationOptions::fromAudioUpload($refreshedLog, $aiAnalysis ?? []),
-                MediaType::Video => SermonCreationOptions::fromVideoUpload($refreshedLog, $aiAnalysis ?? []),
+                MediaType::Audio => SermonCreationOptions::fromAudioUpload($refreshedLog, $aiAnalysis),
+                MediaType::Video => SermonCreationOptions::fromVideoUpload($refreshedLog, $aiAnalysis),
                 MediaType::Livestream => throw new \Exception('CreateSermonRecord should not be used for livestream processing'),
             };
 
             // Overlay ID3 metadata if available (takes priority over AI/defaults)
-            if ($id3Metadata && is_array($id3Metadata)) {
-                $options->id3Title = $id3Metadata['title'] ?? null;
-                $options->id3Preacher = $id3Metadata['preacher'] ?? null;
-                $options->id3Series = $id3Metadata['series'] ?? null;
-                $options->id3Reference = $id3Metadata['reference'] ?? null;
+            if ($id3Metadata !== null) {
+                $options->id3Title = $id3Metadata->title;
+                $options->id3Preacher = $id3Metadata->preacher;
+                $options->id3Series = $id3Metadata->series;
+                $options->id3Reference = $id3Metadata->reference;
 
                 Log::info('Using ID3 metadata for sermon creation', [
                     'processing_id' => $this->processingLog->processing_id,

@@ -1,6 +1,6 @@
 # Tech Debt Backlog (2026-03-17)
 
-_Last updated: 2026-03-18_
+_Last updated: 2026-03-21_
 
 ## Purpose
 
@@ -1262,7 +1262,7 @@ The backlog is ordered for safety:
   - `public-read-side-architecture-review-2026-03-18.md`
 
 ### TD-014 - Wrap stable JSON shapes in typed casts or value objects
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Low-Medium
@@ -1287,6 +1287,8 @@ The backlog is ordered for safety:
   1. The highest-value stable JSON blobs are no longer handled as ad hoc arrays everywhere.
   2. Existing persisted shapes remain readable during transition.
   3. No schema migration is required for this item.
+- Follow-up note:
+  - If the typed-wrapper pattern expands further, add a small successor item to introduce `with*()`-style builders for readonly JSON value objects and extract shared cast plumbing so callers do not have to unwrap-mutate-rewrap arrays everywhere.
 - Reference reviews:
   - `json-metadata-inventory-2026-03-17.md`
 

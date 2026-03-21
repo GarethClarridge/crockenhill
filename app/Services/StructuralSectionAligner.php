@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
@@ -80,7 +81,7 @@ class StructuralSectionAligner
                 if ($expectedType === ServiceSectionType::BIBLE_READING) {
                     $metadata = $this->metadata($section);
                     $metadata['reading_reference'] = $item->title;
-                    $section->metadata = $metadata;
+                    $section->metadata = ServiceSectionMetadata::fromArray($metadata);
                 } elseif (($section->title === null || trim($section->title) === '') && $expectedType !== ServiceSectionType::SERMON) {
                     $section->title = $item->title;
                 }
@@ -106,7 +107,7 @@ class StructuralSectionAligner
                     'reclassified_from' => ServiceSectionType::OTHER->value,
                     'reclassified_by' => 'oos_alignment',
                 ]);
-                $section->metadata = $metadata;
+                $section->metadata = ServiceSectionMetadata::fromArray($metadata);
                 $section->title = $item->title;
 
                 // Apply evidence-aware review flags for presentation items
@@ -133,7 +134,7 @@ class StructuralSectionAligner
                         'reason' => $decision['reason'],
                     ],
                 ]);
-                $section->metadata = $metadata;
+                $section->metadata = ServiceSectionMetadata::fromArray($metadata);
             }
 
             if ($this->remainingSectionsContainType($structuralSections, $sectionIndex + 1, $expectedType)) {
@@ -215,7 +216,7 @@ class StructuralSectionAligner
             $section->needs_manual_review = true;
         }
 
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     private function applyMatchedItem(ServiceSection $section, ChurchServiceItem $item, float $confidenceDelta): void
@@ -244,7 +245,7 @@ class StructuralSectionAligner
                 $confidenceDelta
             )
         );
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     private function markMismatch(ServiceSection $section, ?ChurchServiceItem $item, string $reason): void
@@ -267,7 +268,7 @@ class StructuralSectionAligner
             ServiceSectionConfidence::resolve($section->confidence, $metadata),
             0.20
         );
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     /**

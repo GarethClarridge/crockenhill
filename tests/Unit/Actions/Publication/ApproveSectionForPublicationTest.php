@@ -136,11 +136,11 @@ class ApproveSectionForPublicationTest extends TestCase
         $this->assertNull($result);
 
         $section->refresh();
+        $metadata = $section->metadataData()->toArray();
         $this->assertSame(ServiceSectionPublicationStatus::APPROVED, $section->publication_status);
-        $this->assertIsArray($section->metadata);
-        $this->assertArrayHasKey('publication', $section->metadata);
-        $this->assertArrayHasKey('approved_signature', $section->metadata['publication']);
-        $this->assertArrayHasKey('approved_at', $section->metadata['publication']);
+        $this->assertArrayHasKey('publication', $metadata);
+        $this->assertArrayHasKey('approved_signature', $metadata['publication']);
+        $this->assertArrayHasKey('approved_at', $metadata['publication']);
 
         Queue::assertPushed(PublishApprovedServiceSection::class);
     }

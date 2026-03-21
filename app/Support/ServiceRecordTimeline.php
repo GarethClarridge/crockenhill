@@ -263,7 +263,7 @@ final class ServiceRecordTimeline
         ServiceSection $section,
         array $oosAlignment,
     ): array {
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $metadata = $section->metadataData()->toArray();
         $confidenceLevel = isset($metadata['confidence_level']) && is_string($metadata['confidence_level'])
             ? $metadata['confidence_level']
             : null;
@@ -347,7 +347,7 @@ final class ServiceRecordTimeline
      */
     private static function oosAlignment(ServiceSection $section): array
     {
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $metadata = $section->metadataData()->toArray();
         $alignment = $metadata['oos_alignment'] ?? null;
 
         return is_array($alignment) ? $alignment : [];

@@ -2,6 +2,9 @@
 
 namespace Tests\Unit\Models;
 
+use App\Data\ProcessingMetadata;
+use App\Data\SermonAnalysis;
+use App\Data\SongClusterCollection;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\ChurchService;
@@ -43,13 +46,26 @@ class MediaProcessingLogTest extends TestCase
             'rms_log_path' => 'path/to/rms',
             'sermon_start_time' => 10.0,
             'sermon_end_time' => 50.0,
-            'ai_analysis' => ['foo' => 'bar'],
+            'ai_analysis' => [
+                'title' => 'Example Sermon',
+                'series' => 'Test Series',
+                'reference' => 'John 3:16',
+                'points' => ['Point 1'],
+                'summary' => 'Summary',
+                'transcript' => str_repeat('Transcript ', 20),
+            ],
             'processing_metadata' => ['meta' => 'data'],
             'threshold_method' => 'adaptive',
             'adaptive_threshold' => -20.0,
             'rms_stats' => ['avg' => -25],
             'visual_samples' => ['sample1'],
-            'song_clusters' => ['cluster1'],
+            'song_clusters' => [[
+                'start_estimate' => 10.0,
+                'end_estimate' => 30.0,
+                'sample_count' => 2,
+                'samples' => [10.0, 20.0],
+                'confidence' => 0.85,
+            ]],
             'visual_sample_count' => 5,
             'visual_processing_time' => 10.5,
             'sermon_id' => 1,
@@ -64,6 +80,28 @@ class MediaProcessingLogTest extends TestCase
             if (in_array($key, ['started_at', 'completed_at'])) {
                 continue;
             }
+
+            if ($key === 'ai_analysis') {
+                $this->assertInstanceOf(SermonAnalysis::class, $log->ai_analysis);
+                $this->assertEquals($value, $log->ai_analysis?->toArray());
+
+                continue;
+            }
+
+            if ($key === 'song_clusters') {
+                $this->assertInstanceOf(SongClusterCollection::class, $log->song_clusters);
+                $this->assertEquals($value, $log->song_clusters?->toArray());
+
+                continue;
+            }
+
+            if ($key === 'processing_metadata') {
+                $this->assertInstanceOf(ProcessingMetadata::class, $log->processing_metadata);
+                $this->assertEquals($value, $log->processing_metadata?->toArray());
+
+                continue;
+            }
+
             $this->assertEquals($value, $log->$key);
         }
     }
@@ -73,7 +111,14 @@ class MediaProcessingLogTest extends TestCase
     {
         $log = MediaProcessingLog::factory()->create([
             'status' => 'processing',
-            'ai_analysis' => ['result' => 'ok'],
+            'ai_analysis' => [
+                'title' => 'Stored Title',
+                'series' => 'Series',
+                'reference' => 'Psalm 23',
+                'points' => ['Hope'],
+                'summary' => 'Summary',
+                'transcript' => str_repeat('Transcript ', 20),
+            ],
             'processing_metadata' => ['step' => 1],
             'duration' => '60.5',
             'started_at' => '2024-01-01 10:00:00',
@@ -81,10 +126,55 @@ class MediaProcessingLogTest extends TestCase
 
         $this->assertInstanceOf(ProcessingStatus::class, $log->status);
         $this->assertEquals(ProcessingStatus::PROCESSING, $log->status);
-        $this->assertIsArray($log->ai_analysis);
-        $this->assertIsArray($log->processing_metadata);
+        $this->assertInstanceOf(SermonAnalysis::class, $log->ai_analysis);
+        $this->assertInstanceOf(ProcessingMetadata::class, $log->processing_metadata);
         $this->assertIsFloat($log->duration);
         $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $log->started_at);
+    }
+
+    #[Test]
+    public function it_wraps_processing_metadata_and_song_clusters_without_losing_historical_keys(): void
+    {
+        $processingMetadata = [
+            'id3_metadata' => [
+                'title' => 'ID3 Title',
+                'preacher' => 'Mark Drury',
+                'series' => 'Romans',
+                'reference' => 'Romans 8',
+            ],
+            'manual_review' => [
+                'status' => 'required',
+                'reason_code' => 'ratio_below_threshold',
+                'reason_message' => 'Needs review',
+                'flagged_at' => '2026-03-17T12:00:00+00:00',
+                'speech_segments' => [
+                    ['segment_id' => 3, 'start_time' => 10.0, 'end_time' => 20.0, 'duration' => 10.0],
+                ],
+            ],
+            'speaker_identification' => [
+                'outcome' => 'matched',
+            ],
+            'legacy_context' => 'preserve-me',
+        ];
+
+        $songClusters = [[
+            'start_estimate' => 10.0,
+            'end_estimate' => 20.0,
+            'sample_count' => 2,
+            'samples' => [10.0, 20.0],
+            'confidence' => 0.91,
+            'refined_visual_start' => 9.0,
+        ]];
+
+        $log = MediaProcessingLog::factory()->create([
+            'processing_metadata' => $processingMetadata,
+            'song_clusters' => $songClusters,
+        ]);
+
+        $this->assertSame('ID3 Title', $log->processingMetadataData()->id3Metadata?->title);
+        $this->assertSame('ratio_below_threshold', $log->manualReviewData()?->reasonCode);
+        $this->assertSame($processingMetadata, $log->processingMetadataData()->toArray());
+        $this->assertSame($songClusters, $log->songClustersData()->toArray());
     }
 
     #[Test]
@@ -225,6 +315,37 @@ class MediaProcessingLogTest extends TestCase
         $this->assertSame('The longest speech block was not at least 1.5x longer.', $review['reason_message']);
         $this->assertNotNull($review['flagged_at']);
         $this->assertCount(2, $review['speech_segments']);
+    }
+
+    #[Test]
+    public function it_confirms_manual_review_without_rehydrating_unmodelled_keys(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'processing_metadata' => [
+                'manual_review' => [
+                    'status' => 'required',
+                    'reason_code' => 'ratio_below_threshold',
+                    'reason_message' => 'Needs review',
+                    'flagged_at' => '2026-03-17T12:00:00+00:00',
+                    'speech_segments' => [
+                        ['segment_id' => 3, 'start_time' => 10.0, 'end_time' => 20.0, 'duration' => 10.0],
+                    ],
+                    'legacy_extra_field' => 'should-not-survive-confirmation',
+                ],
+            ],
+        ]);
+
+        app(\App\Services\MediaProcessingRunTransitionService::class)
+            ->confirmSermonSegment($log, 3, 7);
+
+        $log->refresh();
+
+        $review = $log->manualReviewMetadata();
+
+        $this->assertSame('confirmed', $review['status']);
+        $this->assertSame(3, $review['confirmed_segment_id']);
+        $this->assertSame(7, $review['confirmed_by_user_id']);
+        $this->assertArrayNotHasKey('legacy_extra_field', $review);
     }
 
     #[Test]

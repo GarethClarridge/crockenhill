@@ -45,7 +45,7 @@ class ShowChurchService extends Component
 
     public function render(): View
     {
-        $importMetadata = $this->churchService->import_metadata ?? [];
+        $importMetadata = $this->churchService->importMetadataData()->toArray();
         $warnings = is_array($importMetadata['warnings'] ?? null) ? $importMetadata['warnings'] : [];
         $confidenceScore = $importMetadata['confidence_score'] ?? null;
         $processingRuns = $this->relatedProcessingRuns();

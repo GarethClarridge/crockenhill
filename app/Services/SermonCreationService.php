@@ -192,9 +192,9 @@ class SermonCreationService
         string $filename
     ): string {
         // Strategy 1: Check if date was extracted from video/audio metadata
-        $processingMetadata = $processingLog->processing_metadata;
+        $processingMetadata = $processingLog->processingMetadataData()->toArray();
 
-        if (is_array($processingMetadata) && isset($processingMetadata['extracted_date'])) {
+        if (isset($processingMetadata['extracted_date'])) {
             $extractedDate = $processingMetadata['extracted_date'];
             Log::info('SermonCreationService: Using date extracted from file metadata', [
                 'processing_id' => $processingLog->processing_id,
@@ -228,9 +228,9 @@ class SermonCreationService
         string $filename
     ): SermonService {
         // Strategy 1: Check if service was extracted from file metadata
-        $processingMetadata = $processingLog->processing_metadata;
+        $processingMetadata = $processingLog->processingMetadataData()->toArray();
 
-        if (is_array($processingMetadata) && isset($processingMetadata['extracted_service'])) {
+        if (isset($processingMetadata['extracted_service'])) {
             $extractedService = $processingMetadata['extracted_service'];
             Log::info('SermonCreationService: Using service extracted from file metadata', [
                 'processing_id' => $processingLog->processing_id,

@@ -51,7 +51,7 @@ class ImportChurchServiceFromOpenLp
                 ]);
 
                 $wasCreated = ! $churchService->exists;
-                $existingMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
+                $existingMetadata = $churchService->importMetadataData()->toArray();
 
                 $churchService->fill([
                     'source' => ChurchServiceItemSource::OPENLP->value,

@@ -40,7 +40,7 @@ class LivestreamFailureHandler
                 $tempFiles[] = $processingLog->source_file_path;
             }
 
-            $metadata = $processingLog->processing_metadata ?? [];
+            $metadata = $processingLog->processingMetadataData()->toArray();
             foreach (['extracted_segment_path', 'extracted_audio_path', 'temp_video_path'] as $key) {
                 if (isset($metadata[$key])) {
                     $tempFiles[] = $metadata[$key];

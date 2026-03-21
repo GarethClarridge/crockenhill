@@ -2,11 +2,16 @@
 
 namespace App\Data;
 
+use ArrayAccess;
+use LogicException;
 use Spatie\LaravelData\Attributes\Validation\Max;
 use Spatie\LaravelData\Attributes\Validation\Required;
 use Spatie\LaravelData\Data;
 
-class SermonAnalysis extends Data
+/**
+ * @implements ArrayAccess<int|string, mixed>
+ */
+class SermonAnalysis extends Data implements ArrayAccess
 {
     /**
      * @param  array<int, string>  $points
@@ -154,5 +159,25 @@ class SermonAnalysis extends Data
             'transcript_length' => strlen($this->transcript),
             'has_valid_transcript' => $this->hasValidTranscript(),
         ];
+    }
+
+    public function offsetExists(mixed $offset): bool
+    {
+        return array_key_exists($offset, $this->toArray());
+    }
+
+    public function offsetGet(mixed $offset): mixed
+    {
+        return $this->toArray()[$offset] ?? null;
+    }
+
+    public function offsetSet(mixed $offset, mixed $value): void
+    {
+        throw new LogicException('Sermon analysis data is read-only.');
+    }
+
+    public function offsetUnset(mixed $offset): void
+    {
+        throw new LogicException('Sermon analysis data is read-only.');
     }
 }

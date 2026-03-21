@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Data\ProcessingManualReviewMetadata;
+use App\Data\ProcessingMetadata;
+use App\Data\ProcessingMetadataCast;
+use App\Data\SermonAnalysis;
+use App\Data\SermonAnalysisCast;
+use App\Data\SongClusterCollection;
+use App\Data\SongClusterCollectionCast;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
@@ -36,13 +43,13 @@ use Illuminate\Support\Facades\Storage;
  * @property string|null $rms_log_path
  * @property float|null $sermon_start_time
  * @property float|null $sermon_end_time
- * @property array<string, mixed>|null $ai_analysis
- * @property array<string, mixed>|null $processing_metadata
+ * @property SermonAnalysis|null $ai_analysis
+ * @property ProcessingMetadata|null $processing_metadata
  * @property string|null $threshold_method
  * @property float|null $adaptive_threshold
  * @property array<string, mixed>|null $rms_stats
  * @property array<int, array<string, mixed>>|null $visual_samples
- * @property array<int, array<string, mixed>>|null $song_clusters
+ * @property SongClusterCollection|null $song_clusters
  * @property int|null $visual_sample_count
  * @property float|null $visual_processing_time
  * @property int|null $sermon_id
@@ -124,11 +131,11 @@ class MediaProcessingLog extends Model
         return [
             'processing_type' => MediaType::class,
             'status' => ProcessingStatus::class,
-            'ai_analysis' => 'array',
-            'processing_metadata' => 'array',
+            'ai_analysis' => SermonAnalysisCast::class,
+            'processing_metadata' => ProcessingMetadataCast::class,
             'rms_stats' => 'array',
             'visual_samples' => 'array',
-            'song_clusters' => 'array',
+            'song_clusters' => SongClusterCollectionCast::class,
             'duration' => 'float',
             'extracted_date' => 'date',
             'extracted_service' => SermonService::class,
@@ -340,9 +347,10 @@ class MediaProcessingLog extends Model
      */
     public function manualReviewMetadata(): array
     {
-        $manualReview = ($this->processing_metadata ?? [])['manual_review'] ?? null;
-        if (is_array($manualReview)) {
-            return $manualReview;
+        $manualReview = $this->manualReviewData();
+
+        if ($manualReview instanceof ProcessingManualReviewMetadata) {
+            return $manualReview->toArray();
         }
 
         return $this->legacyManualReviewMetadata();
@@ -350,14 +358,12 @@ class MediaProcessingLog extends Model
 
     public function manuallyConfirmedSegmentId(): ?int
     {
-        $segmentId = $this->manualReviewMetadata()['confirmed_segment_id'] ?? null;
-
-        return is_int($segmentId) ? $segmentId : null;
+        return $this->manualReviewData()?->confirmedSegmentId;
     }
 
     public function requiresManualSermonReview(): bool
     {
-        $manualReviewStatus = $this->manualReviewMetadata()['status'] ?? null;
+        $manualReviewStatus = $this->manualReviewData()?->status;
 
         if ($manualReviewStatus === 'required') {
             return true;
@@ -463,5 +469,35 @@ class MediaProcessingLog extends Model
             'The longest speech block was not at least 1.5x longer than the next-longest speech block.',
             'Sermon auto-selection confidence was insufficient.',
         ];
+    }
+
+    public function aiAnalysisData(): ?SermonAnalysis
+    {
+        $analysis = $this->ai_analysis;
+
+        return $analysis instanceof SermonAnalysis ? $analysis : null;
+    }
+
+    public function processingMetadataData(): ProcessingMetadata
+    {
+        $metadata = $this->processing_metadata;
+
+        return $metadata instanceof ProcessingMetadata
+            ? $metadata
+            : ProcessingMetadata::fromArray($metadata);
+    }
+
+    public function manualReviewData(): ?ProcessingManualReviewMetadata
+    {
+        return $this->processingMetadataData()->manualReview;
+    }
+
+    public function songClustersData(): SongClusterCollection
+    {
+        $clusters = $this->song_clusters;
+
+        return $clusters instanceof SongClusterCollection
+            ? $clusters
+            : new SongClusterCollection([]);
     }
 }

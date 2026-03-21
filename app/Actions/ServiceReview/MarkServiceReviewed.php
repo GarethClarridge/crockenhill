@@ -13,7 +13,7 @@ class MarkServiceReviewed
      */
     public function execute(ChurchService $service, int $userId): void
     {
-        $importMetadata = is_array($service->import_metadata) ? $service->import_metadata : [];
+        $importMetadata = $service->importMetadataData()->toArray();
         $importMetadata['manual_review'] = [
             'reviewed_at' => now()->toIso8601String(),
             'reviewed_by_user_id' => $userId,

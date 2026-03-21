@@ -109,7 +109,7 @@ class ServiceSectionReviewTriggerEvaluatorTest extends TestCase
             $section->id => [
                 'church_service_item_id' => 999999, // Different from $item->id
                 'title' => $section->title,
-                'confidence' => ServiceSectionConfidence::resolve($section->confidence, $section->metadata),
+                'confidence' => ServiceSectionConfidence::resolve($section->confidence, $section->metadataData()->toArray()),
                 'reading_reference' => null,
                 'song_id' => null,
                 'song_match_type' => null,

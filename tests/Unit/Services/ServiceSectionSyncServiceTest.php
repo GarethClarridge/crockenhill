@@ -187,6 +187,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         ]);
 
         $section->refresh();
+        $metadata = $section->metadataData()->toArray();
 
         $this->assertSame(ServiceSectionPublicationStatus::NOT_APPLICABLE, $section->publication_status);
         $this->assertNull($section->published_sermon_id);
@@ -194,9 +195,8 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertNull($section->extracted_video_path);
         $this->assertNull($section->extracted_audio_path);
         $this->assertNull($section->unpublished_expires_at);
-        $this->assertIsArray($section->metadata);
-        $this->assertArrayHasKey('superseded', $section->metadata);
-        $this->assertTrue((bool) ($section->metadata['publishable_type_after_supersede'] ?? false));
+        $this->assertArrayHasKey('superseded', $metadata);
+        $this->assertTrue((bool) ($metadata['publishable_type_after_supersede'] ?? false));
         $this->assertDatabaseHas('sermons', ['id' => $publishedSermon->id]);
         Storage::disk('public')->assertMissing('sermons/sections/'.$churchServiceItem->id.'/video.mp4');
         Storage::disk('public')->assertMissing('sermons/audio/section-'.$churchServiceItem->id.'.mp3');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Publication;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\ServiceSection;
@@ -34,7 +35,7 @@ class ApproveSectionForPublication
             return 'This section cannot be approved in its current state.';
         }
 
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $metadata = $section->metadataData()->toArray();
         $publicationMetadata = is_array($metadata['publication'] ?? null) ? $metadata['publication'] : [];
         $publicationMetadata['approved_signature'] = $section->classificationSignature();
         $publicationMetadata['approved_at'] = now()->toIso8601String();
@@ -48,7 +49,7 @@ class ApproveSectionForPublication
         }
 
         $metadata['publication'] = $publicationMetadata;
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         $section->save();
 
         PublishApprovedServiceSection::dispatch($section->id)

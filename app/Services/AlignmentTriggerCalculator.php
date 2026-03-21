@@ -104,7 +104,7 @@ class AlignmentTriggerCalculator
     private function lowConfidenceSections(EloquentCollection $sections): Collection
     {
         return $sections
-            ->filter(fn (ServiceSection $section): bool => ServiceSectionConfidence::resolve($section->confidence, $section->metadata) < ServiceSectionConfidence::HIGH_THRESHOLD)
+            ->filter(fn (ServiceSection $section): bool => ServiceSectionConfidence::resolve($section->confidence, $section->metadataData()->toArray()) < ServiceSectionConfidence::HIGH_THRESHOLD)
             ->values();
     }
 
@@ -113,7 +113,7 @@ class AlignmentTriggerCalculator
      */
     private function sectionAlignmentState(ServiceSection $section): array
     {
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $metadata = $section->metadataData()->toArray();
 
         return [
             'church_service_item_id' => $section->church_service_item_id,

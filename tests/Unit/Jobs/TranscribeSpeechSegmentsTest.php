@@ -148,7 +148,7 @@ class TranscribeSpeechSegmentsTest extends TestCase
 
         $section->refresh();
 
-        $this->assertArrayNotHasKey('transcript', $section->metadata ?? []);
+        $this->assertArrayNotHasKey('transcript', $section->metadataData()->toArray());
         $this->assertDatabaseHas('sermon_processing_steps', [
             'processing_id' => $processingLog->processing_id,
             'step' => ChurchServiceProcessingTimeline::TRANSCRIBE_SPEECH_SEGMENTS,

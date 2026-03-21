@@ -565,8 +565,9 @@ class AdminServiceReviewDashboardTest extends TestCase
             ->assertDispatched('notify', type: 'success', message: 'Service marked as reviewed.');
 
         $this->assertFalse($service->fresh()->needs_review);
-        $this->assertArrayNotHasKey('canonical_conflict', $service->fresh()->import_metadata ?? []);
-        $this->assertCount(1, $service->fresh()->import_metadata['canonical_conflict_history'] ?? []);
+        $metadata = $service->fresh()?->importMetadataData()->toArray() ?? [];
+        $this->assertArrayNotHasKey('canonical_conflict', $metadata);
+        $this->assertCount(1, $metadata['canonical_conflict_history'] ?? []);
     }
 
     #[Test]

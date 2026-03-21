@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Data\ChildrensTalkSpeakerMetadata;
+use App\Data\ServiceSectionMetadata;
+use App\Data\ServiceSectionMetadataCast;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
@@ -29,7 +32,7 @@ use Illuminate\Support\Facades\Storage;
  * @property ServiceSectionStatus $status
  * @property bool $needs_manual_review
  * @property array<int, int> $source_segment_ids
- * @property array<string, mixed>|null $metadata
+ * @property ServiceSectionMetadata|null $metadata
  * @property ServiceSectionPublicationStatus $publication_status
  * @property int|null $published_sermon_id
  * @property string|null $extracted_video_path
@@ -96,7 +99,7 @@ class ServiceSection extends Model
             'status' => ServiceSectionStatus::class,
             'needs_manual_review' => 'boolean',
             'source_segment_ids' => 'array',
-            'metadata' => 'array',
+            'metadata' => ServiceSectionMetadataCast::class,
             'publication_status' => ServiceSectionPublicationStatus::class,
             'published_sermon_id' => 'integer',
             'published_at' => 'datetime',
@@ -242,8 +245,7 @@ class ServiceSection extends Model
 
     public function songMatchType(): ?ServiceSectionSongMatchType
     {
-        $metadata = is_array($this->metadata) ? $this->metadata : [];
-        $matchType = $metadata['oos_alignment']['song_match_type'] ?? null;
+        $matchType = $this->metadataData()->oosAlignment?->songMatchType;
 
         return is_string($matchType)
             ? ServiceSectionSongMatchType::tryFrom($matchType)
@@ -270,10 +272,9 @@ class ServiceSection extends Model
      */
     public function childrensTalkSpeakerMetadata(): array
     {
-        $metadata = is_array($this->metadata) ? $this->metadata : [];
-        $speaker = $metadata['childrens_talk_speaker'] ?? null;
+        $speaker = $this->metadataData()->childrensTalkSpeaker;
 
-        return is_array($speaker) ? $speaker : [];
+        return $speaker instanceof ChildrensTalkSpeakerMetadata ? $speaker->toArray() : [];
     }
 
     /**
@@ -281,9 +282,7 @@ class ServiceSection extends Model
      */
     public function predictedChildrensTalkSpeaker(): ?array
     {
-        $prediction = $this->childrensTalkSpeakerMetadata()['predicted'] ?? null;
-
-        return is_array($prediction) ? $prediction : null;
+        return $this->metadataData()->childrensTalkSpeaker?->predicted;
     }
 
     /**
@@ -291,9 +290,7 @@ class ServiceSection extends Model
      */
     public function reviewedChildrensTalkSpeaker(): ?array
     {
-        $reviewed = $this->childrensTalkSpeakerMetadata()['reviewed'] ?? null;
-
-        return is_array($reviewed) ? $reviewed : null;
+        return $this->metadataData()->childrensTalkSpeaker?->reviewed;
     }
 
     /**
@@ -301,26 +298,7 @@ class ServiceSection extends Model
      */
     public function publicationChildrensTalkSpeaker(): ?array
     {
-        $reviewed = $this->reviewedChildrensTalkSpeaker();
-        if (! is_array($reviewed)) {
-            return null;
-        }
-
-        $name = $reviewed['preacher_name'] ?? null;
-        if (! is_string($name) || trim($name) === '') {
-            return null;
-        }
-
-        $preacherId = $reviewed['preacher_id'] ?? null;
-        $confidence = $reviewed['confidence'] ?? null;
-        $source = $reviewed['source'] ?? 'manual';
-
-        return [
-            'preacher_id' => is_numeric($preacherId) ? (int) $preacherId : null,
-            'preacher_name' => trim($name),
-            'source' => is_string($source) && $source !== '' ? $source : 'manual',
-            'confidence' => is_numeric($confidence) ? (float) $confidence : null,
-        ];
+        return $this->metadataData()->childrensTalkSpeaker?->publicationSpeaker();
     }
 
     public function hasResolvedChildrensTalkSpeaker(): bool
@@ -344,5 +322,14 @@ class ServiceSection extends Model
             'preacher_name' => $speaker['preacher_name'],
             'source' => $speaker['source'],
         ];
+    }
+
+    public function metadataData(): ServiceSectionMetadata
+    {
+        $metadata = $this->metadata;
+
+        return $metadata instanceof ServiceSectionMetadata
+            ? $metadata
+            : ServiceSectionMetadata::fromArray($metadata);
     }
 }

@@ -177,7 +177,7 @@ class GenerateThumbnail implements ShouldQueue
 
             // Fallback to processing metadata if video_file_path still not set
             if (! $this->videoPath) {
-                $processingMetadata = $this->processingLog->processing_metadata ?? [];
+                $processingMetadata = $this->processingLog->processingMetadataData()->toArray();
                 $this->videoPath = $processingMetadata['final_video_path'] ?? null;
 
                 Log::debug('Attempted to resolve video path from processing metadata', [

@@ -13,7 +13,7 @@ trait ReadsSectionMetadata
      */
     private function metadata(ServiceSection $section): array
     {
-        return is_array($section->metadata) ? $section->metadata : [];
+        return $section->metadataData()->toArray();
     }
 
     /**

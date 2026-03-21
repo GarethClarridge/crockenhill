@@ -65,7 +65,7 @@ class PerformVisualAnalysis implements ShouldQueue
                 Log::info('Visual analysis already completed, skipping re-run', [
                     'processing_id' => $this->processingLog->processing_id,
                     'sample_count' => $this->processingLog->visual_sample_count,
-                    'cluster_count' => count($this->processingLog->song_clusters ?? []),
+                    'cluster_count' => count($this->processingLog->songClustersData()),
                 ]);
 
                 return;
@@ -124,7 +124,7 @@ class PerformVisualAnalysis implements ShouldQueue
 
                 $this->processingLog->update([
                     'processing_metadata' => array_merge(
-                        $this->processingLog->processing_metadata ?? [],
+                        $this->processingLog->processingMetadataData()->toArray(),
                         ['visual_analysis_progress' => $percentage]
                     ),
                 ]);

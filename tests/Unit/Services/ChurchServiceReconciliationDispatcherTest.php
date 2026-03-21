@@ -86,7 +86,7 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
         $processingLog->refresh();
 
         $this->assertSame(1, $count);
-        $this->assertSame(['existing' => 'value'], $processingLog->processing_metadata);
+        $this->assertSame(['existing' => 'value'], $processingLog->processingMetadataData()->toArray());
         Bus::assertDispatched(ReconcileServiceSections::class, 1);
     }
 

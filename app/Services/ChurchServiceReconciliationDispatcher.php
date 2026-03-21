@@ -49,7 +49,7 @@ class ChurchServiceReconciliationDispatcher
             return;
         }
 
-        $processingMetadata = is_array($processingLog->processing_metadata) ? $processingLog->processing_metadata : [];
+        $processingMetadata = $processingLog->processingMetadataData()->toArray();
         $history = $processingMetadata['reconciliation_triggers'] ?? [];
 
         if (! is_array($history)) {

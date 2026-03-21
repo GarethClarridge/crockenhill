@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
@@ -176,7 +177,7 @@ class SongSectionAligner
             ServiceSectionConfidence::scoreForLevel('high')
         ));
         $section->title = $item->title;
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     private function applyInferredSongMatch(ServiceSection $section, ChurchServiceItem $item): void
@@ -209,7 +210,7 @@ class SongSectionAligner
             ),
             0.84
         ));
-        $section->metadata = $metadata;
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     private function songMatchScore(ServiceSection $section, ChurchServiceItem $item): float

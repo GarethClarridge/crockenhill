@@ -57,8 +57,9 @@ class MarkServiceReviewedTest extends TestCase
         $this->action->execute($service, $this->admin->id);
 
         $fresh = $service->fresh();
-        $this->assertArrayNotHasKey('canonical_conflict', $fresh->import_metadata ?? []);
-        $this->assertCount(1, $fresh->import_metadata['canonical_conflict_history'] ?? []);
+        $metadata = $fresh?->importMetadataData()->toArray() ?? [];
+        $this->assertArrayNotHasKey('canonical_conflict', $metadata);
+        $this->assertCount(1, $metadata['canonical_conflict_history'] ?? []);
     }
 
     #[Test]
@@ -68,7 +69,7 @@ class MarkServiceReviewedTest extends TestCase
 
         $this->action->execute($service, $this->admin->id);
 
-        $metadata = $service->fresh()->import_metadata ?? [];
+        $metadata = $service->fresh()?->importMetadataData()->toArray() ?? [];
         $this->assertArrayHasKey('manual_review', $metadata);
         $this->assertSame($this->admin->id, $metadata['manual_review']['reviewed_by_user_id'] ?? null);
     }
@@ -85,7 +86,7 @@ class MarkServiceReviewedTest extends TestCase
 
         $this->action->execute($service, $this->admin->id);
 
-        $metadata = $service->fresh()->import_metadata ?? [];
+        $metadata = $service->fresh()?->importMetadataData()->toArray() ?? [];
         $this->assertArrayHasKey('openlp_import', $metadata);
     }
 }

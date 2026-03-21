@@ -276,7 +276,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
      */
     private function storeDecision(string $outcome, ?string $reason = null, array $details = []): void
     {
-        $current = $this->processingLog->processing_metadata ?? [];
+        $current = $this->processingLog->processingMetadataData()->toArray();
 
         $current['speaker_identification'] = array_merge(
             [

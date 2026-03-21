@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\ChurchServiceCanonicalConflictMetadata;
+use App\Data\ChurchServiceImportMetadata;
 use Carbon\CarbonImmutable;
 
 class ChurchServiceReviewStateService
@@ -13,22 +15,23 @@ class ChurchServiceReviewStateService
      */
     public function hasOutstandingCanonicalConflict(array $importMetadata): bool
     {
-        $canonicalConflict = $importMetadata['canonical_conflict'] ?? null;
+        $metadata = ChurchServiceImportMetadata::fromArray($importMetadata);
+        $canonicalConflict = $metadata->canonicalConflict;
 
-        if (! is_array($canonicalConflict)) {
+        if (! $canonicalConflict instanceof ChurchServiceCanonicalConflictMetadata) {
             return false;
         }
 
-        if (($canonicalConflict['review_reopened'] ?? false) !== true) {
+        if ($canonicalConflict->reviewReopened !== true) {
             return false;
         }
 
-        $detectedAt = $this->parseTimestamp($canonicalConflict['detected_at'] ?? null);
+        $detectedAt = $this->parseTimestamp($canonicalConflict->detectedAt);
         if (! $detectedAt instanceof CarbonImmutable) {
             return false;
         }
 
-        $reviewedAt = $this->parseTimestamp(data_get($importMetadata, 'manual_review.reviewed_at'));
+        $reviewedAt = $this->parseTimestamp($metadata->manualReview?->reviewedAt);
 
         return ! $reviewedAt instanceof CarbonImmutable || $reviewedAt->lt($detectedAt);
     }
@@ -40,17 +43,15 @@ class ChurchServiceReviewStateService
      */
     public function withRecordedCanonicalConflict(array $importMetadata, array $canonicalConflict): array
     {
-        $history = $importMetadata['canonical_conflict_history'] ?? [];
-
-        if (! is_array($history)) {
-            $history = [];
-        }
-
+        $metadata = ChurchServiceImportMetadata::fromArray($importMetadata);
+        $history = $metadata->canonicalConflictHistory;
         $history[] = $canonicalConflict;
-        $importMetadata['canonical_conflict_history'] = $history;
-        $importMetadata['canonical_conflict'] = $canonicalConflict;
 
-        return $importMetadata;
+        $data = $metadata->toArray();
+        $data['canonical_conflict_history'] = $history;
+        $data['canonical_conflict'] = $canonicalConflict;
+
+        return $data;
     }
 
     private function parseTimestamp(mixed $value): ?CarbonImmutable

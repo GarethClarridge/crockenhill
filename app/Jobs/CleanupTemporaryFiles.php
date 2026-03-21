@@ -56,7 +56,7 @@ class CleanupTemporaryFiles implements ShouldQueue
             }
 
             // Add extracted segment paths if they exist in metadata (livestream processing)
-            $metadata = $this->processingLog->processing_metadata ?? [];
+            $metadata = $this->processingLog->processingMetadataData()->toArray();
             if (isset($metadata['extracted_segment_path'])) {
                 $tempFiles[] = $metadata['extracted_segment_path'];
             }

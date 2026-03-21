@@ -148,7 +148,7 @@ class InboundEmailImportService
                 'date' => $parseResult->date,
                 'service' => $parseResult->service->value,
             ]);
-            $existingMetadata = is_array($churchService->import_metadata) ? $churchService->import_metadata : [];
+            $existingMetadata = $churchService->importMetadataData()->toArray();
 
             $churchService->fill([
                 'source' => ChurchServiceItemSource::EMAIL->value,

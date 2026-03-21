@@ -85,7 +85,7 @@ class GenerateThumbnailJobTest extends TestCase
         $sermon->refresh();
         $this->assertSame('sermons/thumbnails/test.jpg', $sermon->thumbnail_file_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
-        $this->assertSame(['width' => 1280, 'height' => 720], $sermon->thumbnail_metadata);
+        $this->assertSame(['width' => 1280, 'height' => 720], $sermon->thumbnail_metadata?->toArray());
     }
 
     #[Test]

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Data\ThumbnailMetadata;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -86,15 +87,15 @@ class SermonThumbnailTest extends TestCase
         $this->assertFalse($sermonsWithThumbnails->contains($sermonWithoutThumbnail));
     }
 
-    public function test_thumbnail_metadata_is_cast_to_array(): void
+    public function test_thumbnail_metadata_is_cast_to_typed_wrapper(): void
     {
         $metadata = ['width' => 1280, 'height' => 720, 'size' => 'web'];
         $sermon = Sermon::factory()->create([
             'thumbnail_metadata' => $metadata,
         ]);
 
-        $this->assertIsArray($sermon->thumbnail_metadata);
-        $this->assertEquals($metadata, $sermon->thumbnail_metadata);
+        $this->assertInstanceOf(ThumbnailMetadata::class, $sermon->thumbnail_metadata);
+        $this->assertEquals($metadata, $sermon->thumbnail_metadata->toArray());
     }
 
     public function test_plain_thumbnail_file_path_attribute_returns_metadata_value(): void
@@ -153,7 +154,7 @@ class SermonThumbnailTest extends TestCase
 
         $this->assertEquals($data['thumbnail_file_path'], $sermon->thumbnail_file_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
-        $this->assertEquals($data['thumbnail_metadata'], $sermon->thumbnail_metadata);
+        $this->assertEquals($data['thumbnail_metadata'], $sermon->thumbnail_metadata?->toArray());
     }
 
     public function test_thumbnail_url_handles_different_file_extensions(): void
@@ -238,8 +239,8 @@ class SermonThumbnailTest extends TestCase
             'thumbnail_metadata' => $complexMetadata,
         ]);
 
-        $this->assertIsArray($sermon->thumbnail_metadata);
-        $this->assertEquals($complexMetadata, $sermon->thumbnail_metadata);
+        $this->assertInstanceOf(ThumbnailMetadata::class, $sermon->thumbnail_metadata);
+        $this->assertEquals($complexMetadata, $sermon->thumbnail_metadata->toArray());
         $this->assertEquals(1280, $sermon->thumbnail_metadata['width']);
         $this->assertEquals('bottom-right', $sermon->thumbnail_metadata['generation_info']['brand_position']);
         $this->assertEquals(245760, $sermon->thumbnail_metadata['file_info']['size_bytes']);
@@ -260,8 +261,27 @@ class SermonThumbnailTest extends TestCase
             'thumbnail_metadata' => [],
         ]);
 
-        $this->assertIsArray($sermon->thumbnail_metadata);
-        $this->assertEmpty($sermon->thumbnail_metadata);
+        $this->assertInstanceOf(ThumbnailMetadata::class, $sermon->thumbnail_metadata);
+        $this->assertSame([], $sermon->thumbnail_metadata->toArray());
+    }
+
+    public function test_thumbnail_metadata_round_trips_extra_historical_keys(): void
+    {
+        $metadata = [
+            'plain_thumbnail_path' => 'sermons/thumbnails/test-plain.webp',
+            'legacy_shape' => [
+                'foo' => 'bar',
+            ],
+        ];
+
+        $sermon = Sermon::factory()->create([
+            'thumbnail_metadata' => $metadata,
+        ]);
+
+        $sermon->refresh();
+
+        $this->assertEquals($metadata, $sermon->thumbnail_metadata?->toArray());
+        $this->assertSame('sermons/thumbnails/test-plain.webp', $sermon->plain_thumbnail_file_path);
     }
 
     public function test_thumbnail_generated_at_can_be_null(): void
@@ -307,7 +327,7 @@ class SermonThumbnailTest extends TestCase
 
         $this->assertEquals('sermons/thumbnails/updated.jpg', $sermon->thumbnail_file_path);
         $this->assertNotNull($sermon->thumbnail_generated_at);
-        $this->assertEquals(['width' => 1920, 'height' => 1080], $sermon->thumbnail_metadata);
+        $this->assertEquals(['width' => 1920, 'height' => 1080], $sermon->thumbnail_metadata?->toArray());
     }
 
     public function test_sermon_thumbnail_data_can_be_cleared(): void

@@ -434,7 +434,7 @@ class ServiceReviewDashboardQuery
 
     private function reviewReasonLabel(ServiceSection $section): ?string
     {
-        $metadata = is_array($section->metadata) ? $section->metadata : [];
+        $metadata = $section->metadataData()->toArray();
         $reason = $metadata['review_reason'] ?? null;
 
         if (! is_string($reason) || $reason === '') {

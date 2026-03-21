@@ -81,7 +81,7 @@ class PerformVisualAnalysisTest extends TestCase
         $this->assertEquals(2, $processingLog->visual_sample_count);
         $this->assertNotNull($processingLog->visual_processing_time);
 
-        // visual_samples and song_clusters are already arrays due to model cast
+        // visual_samples stays as raw JSON, song_clusters is now a typed collection wrapper
         $this->assertCount(2, $processingLog->visual_samples);
         $this->assertCount(1, $processingLog->song_clusters);
     }

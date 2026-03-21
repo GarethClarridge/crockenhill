@@ -47,7 +47,7 @@ class SaveChurchServiceFromAdmin
          */
         $transactionResult = DB::transaction(function () use ($validated, $syncPayload, $churchService, $userId): array {
             $model = $churchService ?? new ChurchService;
-            $existingMetadata = is_array($model->import_metadata) ? $model->import_metadata : [];
+            $existingMetadata = $model->importMetadataData()->toArray();
 
             $model->fill([
                 'date' => $validated['date'],

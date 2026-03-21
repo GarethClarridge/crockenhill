@@ -275,11 +275,7 @@ class ServiceSectionSyncService
      */
     private function mergeExistingMetadata(ServiceSection $existing, array $incomingMetadata): array
     {
-        $existingMetadata = $existing->metadata;
-
-        if (! is_array($existingMetadata)) {
-            return $incomingMetadata;
-        }
+        $existingMetadata = $existing->metadataData()->toArray();
 
         return array_merge($existingMetadata, $incomingMetadata);
     }

@@ -42,9 +42,15 @@ class ChurchServiceCanonicalUpdateService
 
         $conflicts = $syncResult['conflicts'] ?? [];
 
-        $reviewedPreviously = is_string(data_get($freshChurchService->import_metadata, 'manual_review.reviewed_at'));
+        $originalImportMetadata = $freshChurchService->getRawOriginal('import_metadata');
+        $originalImportMetadata = is_string($originalImportMetadata) && trim($originalImportMetadata) !== ''
+            ? json_decode($originalImportMetadata, true)
+            : [];
+        $originalImportMetadata = is_array($originalImportMetadata) ? $originalImportMetadata : [];
+        $importMetadataData = $freshChurchService->importMetadataData();
+        $reviewedPreviously = is_string($importMetadataData->manualReview?->reviewedAt);
         $shouldReopenReview = $reviewedPreviously && ($changes !== [] || $conflicts !== []);
-        $importMetadata = is_array($freshChurchService->import_metadata) ? $freshChurchService->import_metadata : [];
+        $importMetadata = $importMetadataData->toArray();
 
         if ($changes !== [] || $conflicts !== []) {
             $canonicalConflict = [
@@ -73,7 +79,7 @@ class ChurchServiceCanonicalUpdateService
 
         if (
             $needsReview !== $freshChurchService->needs_review
-            || $importMetadata !== (is_array($freshChurchService->import_metadata) ? $freshChurchService->import_metadata : [])
+            || $importMetadata !== $originalImportMetadata
         ) {
             $freshChurchService->forceFill([
                 'needs_review' => $needsReview,

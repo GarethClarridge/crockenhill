@@ -171,11 +171,11 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
             'start_time' => (float) $section->start_time,
             'end_time' => (float) $section->end_time,
             'duration' => max(0.0, (float) $section->end_time - (float) $section->start_time),
-            'confidence' => ServiceSectionConfidence::resolve($section->confidence, $section->metadata),
+            'confidence' => ServiceSectionConfidence::resolve($section->confidence, $section->metadataData()->toArray()),
             'status' => $section->status->value,
             'needs_manual_review' => $section->needs_manual_review,
             'source_segment_ids' => $this->normaliseSourceSegmentIds($section->source_segment_ids),
-            'metadata' => is_array($section->metadata) ? $section->metadata : [],
+            'metadata' => $section->metadataData()->toArray(),
         ];
     }
 
@@ -210,7 +210,7 @@ class ClassifySpeechSections extends ProcessingJob implements ShouldQueue
         $sectionType = ServiceSectionType::from($classifiedSection['section_type']);
         $sameSignatureType = $sectionType === $originalSection->section_type;
 
-        $metadata = array_merge($originalSection->metadata ?? [], $classifiedSection['metadata'], [
+        $metadata = array_merge($originalSection->metadataData()->toArray(), $classifiedSection['metadata'], [
             'source_segment_ids' => $this->normaliseSourceSegmentIds($originalSection->source_segment_ids),
             'derived_from_section_type' => $originalSection->section_type->value,
         ]);

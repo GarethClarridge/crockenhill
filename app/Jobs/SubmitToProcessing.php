@@ -195,7 +195,7 @@ class SubmitToProcessing implements ShouldQueue
                 'sermon_id' => $sermonId,
                 'current_step' => 'transcription',
                 'processing_metadata' => array_merge(
-                    $this->processingLog->processing_metadata ?? [],
+                    $this->processingLog->processingMetadataData()->toArray(),
                     [
                         'final_video_path' => $finalVideoPath,
                         'sermon_creation_completed_at' => now()->toISOString(),

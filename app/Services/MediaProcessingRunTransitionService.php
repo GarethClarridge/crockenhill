@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Data\ProcessingManualReviewMetadata;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 
@@ -74,14 +75,14 @@ class MediaProcessingRunTransitionService
         string $reasonMessage,
         array $speechSegments = []
     ): bool {
-        $metadata = $processingLog->processing_metadata ?? [];
-        $metadata['manual_review'] = [
-            'status' => 'required',
-            'reason_code' => $reasonCode,
-            'reason_message' => $reasonMessage,
-            'flagged_at' => now()->toIso8601String(),
-            'speech_segments' => $speechSegments,
-        ];
+        $metadata = $processingLog->processingMetadataData()->toArray();
+        $metadata['manual_review'] = (new ProcessingManualReviewMetadata(
+            status: 'required',
+            reasonCode: $reasonCode,
+            reasonMessage: $reasonMessage,
+            flaggedAt: now()->toIso8601String(),
+            speechSegments: array_values($speechSegments),
+        ))->toArray();
 
         return $processingLog->update([
             'status' => ProcessingStatus::FAILED,
@@ -93,13 +94,22 @@ class MediaProcessingRunTransitionService
 
     public function confirmSermonSegment(MediaProcessingLog $processingLog, int $segmentId, int $userId): bool
     {
-        $metadata = $processingLog->processing_metadata ?? [];
-        $manualReview = $processingLog->manualReviewMetadata();
-        $manualReview['status'] = 'confirmed';
-        $manualReview['confirmed_segment_id'] = $segmentId;
-        $manualReview['confirmed_by_user_id'] = $userId;
-        $manualReview['confirmed_at'] = now()->toIso8601String();
-        $metadata['manual_review'] = $manualReview;
+        $metadata = $processingLog->processingMetadataData()->toArray();
+        $manualReview = $processingLog->manualReviewData()
+            ?? ProcessingManualReviewMetadata::fromArray($processingLog->manualReviewMetadata());
+        $speechSegments = $manualReview instanceof ProcessingManualReviewMetadata
+            ? $manualReview->speechSegments
+            : [];
+        $metadata['manual_review'] = (new ProcessingManualReviewMetadata(
+            status: 'confirmed',
+            reasonCode: $manualReview?->reasonCode,
+            reasonMessage: $manualReview?->reasonMessage,
+            flaggedAt: $manualReview?->flaggedAt,
+            speechSegments: $speechSegments,
+            confirmedSegmentId: $segmentId,
+            confirmedByUserId: $userId,
+            confirmedAt: now()->toIso8601String(),
+        ))->toArray();
 
         return $processingLog->update([
             'status' => ProcessingStatus::PENDING,

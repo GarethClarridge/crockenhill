@@ -141,7 +141,7 @@ class LivestreamSegmentationService
             $tempFiles[] = $processingLog->source_file_path;
         }
 
-        $metadata = $processingLog->processing_metadata ?? [];
+        $metadata = $processingLog->processingMetadataData()->toArray();
         if (isset($metadata['extracted_segment_path'])) {
             $tempFiles[] = $metadata['extracted_segment_path'];
         }
@@ -230,6 +230,8 @@ class LivestreamSegmentationService
 
     private function buildProcessingResult(MediaProcessingLog $processingLog): LivestreamProcessingResult
     {
+        $processingMetadata = $processingLog->processingMetadataData()->toArray();
+
         $segments = $processingLog->segments->map(function (\App\Models\LivestreamSegment $segment) {
             return new \App\Data\LivestreamSegment(
                 startTime: (float) ($segment->start_time ?? 0.0),
@@ -254,15 +256,15 @@ class LivestreamSegmentationService
             status: $processingLog->status->value,
             originalFilename: $processingLog->original_filename,
             fileSize: (int) ($processingLog->file_size ?? 0),
-            fileFormat: is_string($processingLog->processing_metadata['file_format'] ?? null)
-                ? $processingLog->processing_metadata['file_format']
+            fileFormat: is_string($processingMetadata['file_format'] ?? null)
+                ? $processingMetadata['file_format']
                 : 'unknown',
             duration: $processingLog->duration,
             sermonStartTime: $processingLog->sermon_start_time,
             sermonEndTime: $processingLog->sermon_end_time,
             sermonId: $processingLog->sermon_id,
             errorMessage: $processingLog->error_message,
-            processingMetadata: $processingLog->processing_metadata,
+            processingMetadata: $processingMetadata,
             startedAt: $processingLog->started_at?->toISOString(),
             completedAt: $processingLog->completed_at?->toISOString(),
             segments: $segments,
