@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\PageArea;
@@ -52,7 +54,6 @@ class Page extends Model implements HasMedia, Sitemapable
     use HasFactory;
 
     use InteractsWithMedia;
-
 
     /**
      * The attributes that are mass assignable.

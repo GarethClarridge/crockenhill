@@ -1,6 +1,8 @@
 <?php
 
-namespace Tests\Unit;
+declare(strict_types=1);
+
+namespace Tests\Unit\Models;
 
 use App\Models\Meeting;
 use Illuminate\Foundation\Testing\DatabaseTransactions;

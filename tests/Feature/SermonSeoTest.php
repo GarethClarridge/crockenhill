@@ -5,12 +5,19 @@ namespace Tests\Feature;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonSeoTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Cache::flush();
+    }
 
     #[Test]
     public function sermon_index_has_item_list_structured_data_and_correct_title()
@@ -58,10 +65,12 @@ class SermonSeoTest extends TestCase
     public function sermon_index_handles_missing_preacher_profile_gracefully()
     {
         // Create a sermon with only a preacher string, no ID/profile
+        // Ensure it has a very recent date to appear in 'latest'
         Sermon::factory()->create([
             'preacher' => 'Guest Preacher',
             'preacher_id' => null,
             'content_type' => \App\Enums\SermonContentType::Sermon,
+            'date' => now(),
         ]);
 
         $response = $this->get(route('sermonIndex'));

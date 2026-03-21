@@ -42,7 +42,9 @@ trait MeetingForm
      */
     protected function rules(): array
     {
-        $meetingId = isset($this->meeting) && $this->meeting->exists ? $this->meeting->id : '';
+        $meetingId = (isset($this->meeting) && $this->meeting->exists)
+            ? $this->meeting->id
+            : '';
 
         return [
             'slug' => 'required|string|max:255|alpha_dash|unique:meetings,slug,'.$meetingId,
