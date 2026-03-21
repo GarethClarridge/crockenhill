@@ -38,6 +38,71 @@ class SecurityHeaders
         // Restricts sensitive browser features that this application does not use
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
 
+        // Security Header: Content Security Policy (CSP)
+        // Provides an additional layer of security by restricting where resources can be loaded from.
+        $this->applyContentSecurityPolicy($response);
+
         return $response;
+    }
+
+    /**
+     * Apply Content Security Policy (CSP) headers to the response.
+     */
+    protected function applyContentSecurityPolicy(Response $response): void
+    {
+        $mediaOrigins = $this->getMediaOrigins();
+        $mediaSource = $mediaOrigins !== [] ? ' '.implode(' ', $mediaOrigins) : '';
+
+        // Vite dev server support for local development (HMR, asset serving)
+        $isLocal = app()->environment('local');
+        $localOrigins = $isLocal ? ' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*' : '';
+
+        $policy = [
+            "default-src 'self'",
+            // Alpine.js and Livewire 3 require 'unsafe-inline' and 'unsafe-eval' for core functionality.
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://pkg.api.bible{$localOrigins}",
+            "style-src 'self' 'unsafe-inline'{$localOrigins}",
+            "img-src 'self' data: https://www.googletagmanager.com{$mediaSource}{$localOrigins}",
+            "connect-src 'self' https://*.google-analytics.com https://api.scripture.api.bible{$mediaSource}{$localOrigins}",
+            "font-src 'self'".($isLocal ? ' data: http://localhost:* http://127.0.0.1:*' : ''),
+            "media-src 'self'{$mediaSource}",
+            "frame-src 'self' https://www.youtube.com",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+        ];
+
+        $response->headers->set('Content-Security-Policy', implode('; ', $policy));
+    }
+
+    /**
+     * Get the allowed origins for media resources (S3/Spaces/CDN).
+     *
+     * @return array<int, string>
+     */
+    private function getMediaOrigins(): array
+    {
+        $origins = [];
+
+        // Whitelist the primary DigitalOcean Spaces endpoint
+        $endpoint = config('filesystems.disks.do_spaces.endpoint');
+        $bucket = config('filesystems.disks.do_spaces.bucket');
+
+        if (is_string($endpoint) && $endpoint !== '' && is_string($bucket) && $bucket !== '') {
+            $scheme = parse_url($endpoint, PHP_URL_SCHEME) ?: 'https';
+            $host = parse_url($endpoint, PHP_URL_HOST);
+
+            if ($host) {
+                $origins[] = "{$scheme}://{$bucket}.{$host}";
+            }
+        }
+
+        // Whitelist the CDN endpoint if configured
+        $cdnUrl = config('filesystems.disks.do_spaces.cdn_endpoint');
+        if (is_string($cdnUrl) && $cdnUrl !== '') {
+            $origins[] = $cdnUrl;
+        }
+
+        return array_values(array_unique(array_filter($origins)));
     }
 }

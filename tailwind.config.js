@@ -14,7 +14,7 @@ module.exports = {
         'display' : ['Oswald', 'Open Sans', 'Helvetica', 'Arial', 'sans-serif'],
       },
       backgroundImage: {
-        'cbc-pattern': "url('/svg/pattern.svg')",
+        'cbc-pattern': "url('../svg/pattern.svg')",
       },
       colors: {
         'cbc-teal': {
