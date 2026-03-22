@@ -8,13 +8,14 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\User;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ListUsers extends Component
 {
-    use WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'created_at';
 
@@ -99,9 +100,11 @@ class ListUsers extends Component
             || $this->sortBy !== self::DEFAULT_SORT_COLUMN
             || $this->sortDirection !== self::DEFAULT_SORT_DIRECTION;
 
+        $escapedSearch = $this->escapeLike(trim($this->search));
+
         $users = User::query()
-            ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%")
-                ->orWhere('email', 'like', "%{$this->search}%"))
+            ->when($this->search !== '', fn ($q) => $q->where(fn ($sub) => $sub->where('name', 'like', "%{$escapedSearch}%")
+                ->orWhere('email', 'like', "%{$escapedSearch}%")))
             ->when($this->verifiedFilter !== null, fn ($q) => $this->verifiedFilter
                     ? $q->whereNotNull('email_verified_at')
                     : $q->whereNull('email_verified_at'))

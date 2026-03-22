@@ -8,13 +8,14 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ListCalendarEvents extends Component
 {
-    use WithAdminAuthorization, WithNotifications, WithPagination;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination;
 
     public string $search = '';
 
@@ -67,11 +68,13 @@ class ListCalendarEvents extends Component
          * Performance Optimization: Limits retrieved columns for calendar events and eager-loaded
          * meeting/page to required fields to reduce memory usage and DB I/O.
          */
+        $escapedSearch = $this->escapeLike(trim($this->search));
+
         $events = CalendarEvent::query()
             ->select(['id', 'meeting_slug', 'title', 'speaker', 'location', 'start_datetime', 'end_datetime', 'status', 'is_categorized_automatically'])
             ->with(['meeting:id,slug,page_id', 'meeting.page:id,heading'])
-            ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%")
-                ->orWhere('description', 'like', "%{$this->search}%"))
+            ->when($this->search !== '', fn ($q) => $q->where(fn ($sub) => $sub->where('title', 'like', "%{$escapedSearch}%")
+                ->orWhere('description', 'like', "%{$escapedSearch}%")))
             ->when($this->meetingFilter, fn ($q) => $q->where('meeting_slug', $this->meetingFilter))
             ->when($this->uncategorizedOnly, fn ($q) => $q->whereNull('meeting_slug'))
             ->when($this->upcomingOnly, fn ($q) => $q->upcoming())

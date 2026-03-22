@@ -9,13 +9,14 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Meeting;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ListMeetings extends Component
 {
-    use WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
@@ -81,6 +82,8 @@ class ListMeetings extends Component
             || $this->typeFilter !== null
             || $this->recurringFilter !== null;
 
+        $escapedSearch = $this->escapeLike(trim($this->search));
+
         /**
          * Performance Optimization: Limits retrieved columns for meetings and eager-loaded
          * page to required fields to reduce memory usage and DB I/O. Unused
@@ -93,9 +96,9 @@ class ListMeetings extends Component
                 'type', 'is_recurring', 'frequency', 'location', 'page_id', 'created_at', 'updated_at',
             ])
             ->with('page:id,heading')
-            ->when($this->search, fn ($q) => $q->where(fn ($sub) => $sub->whereHas('page', fn ($q2) => $q2->where('heading', 'like', "%{$this->search}%"))
-                ->orWhere('day', 'like', "%{$this->search}%")
-                ->orWhere('who', 'like', "%{$this->search}%")))
+            ->when($this->search !== '', fn ($q) => $q->where(fn ($sub) => $sub->whereHas('page', fn ($q2) => $q2->where('heading', 'like', "%{$escapedSearch}%"))
+                ->orWhere('day', 'like', "%{$escapedSearch}%")
+                ->orWhere('who', 'like', "%{$escapedSearch}%")))
             ->when($this->typeFilter, fn ($q) => $q->where('type', $this->typeFilter))
             ->when($this->recurringFilter !== null, fn ($q) => $q->where('is_recurring', $this->recurringFilter));
 
