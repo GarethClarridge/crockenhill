@@ -8,13 +8,14 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ListPreachers extends Component
 {
-    use WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'name';
 
@@ -74,9 +75,16 @@ class ListPreachers extends Component
         $this->hasFilters = ! empty($this->search)
             || $this->activeFilter !== null;
 
+        $escapedSearch = $this->escapeLike($this->search);
+
+        /**
+         * Performance Optimization: Limits retrieved columns for preachers to required fields
+         * to reduce memory usage and DB I/O. Search terms are escaped to prevent LIKE injection.
+         */
         $preachers = Preacher::query()
+            ->select(['id', 'name', 'slug', 'is_active'])
             ->withCount('sermons')
-            ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
+            ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$escapedSearch}%"))
             ->when($this->activeFilter !== null, fn ($q) => $q->where('is_active', $this->activeFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);

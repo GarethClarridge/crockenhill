@@ -8,6 +8,7 @@ use App\Enums\SermonService;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\ChurchService;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -15,7 +16,7 @@ use Livewire\WithPagination;
 
 class ListChurchServices extends Component
 {
-    use WithAdminAuthorization, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'date';
 
@@ -81,14 +82,20 @@ class ListChurchServices extends Component
             || ($this->needsReviewFilter !== null && $this->needsReviewFilter !== '');
 
         $search = trim($this->search);
+        $escapedSearch = $this->escapeLike($search);
 
+        /**
+         * Performance Optimization: Limits retrieved columns for church services to required fields
+         * to reduce memory usage and DB I/O. Search terms are escaped to prevent LIKE injection.
+         */
         $churchServices = ChurchService::query()
+            ->select(['id', 'date', 'service', 'source', 'original_filename', 'needs_review', 'updated_at'])
             ->withCount('items')
-            ->when($search !== '', function (Builder $query) use ($search): void {
-                $query->where(function (Builder $searchQuery) use ($search): void {
-                    $searchQuery->where('original_filename', 'like', "%{$search}%")
-                        ->orWhere('source', 'like', "%{$search}%")
-                        ->orWhere('service', 'like', "%{$search}%");
+            ->when($search !== '', function (Builder $query) use ($search, $escapedSearch): void {
+                $query->where(function (Builder $searchQuery) use ($search, $escapedSearch): void {
+                    $searchQuery->where('original_filename', 'like', "%{$escapedSearch}%")
+                        ->orWhere('source', 'like', "%{$escapedSearch}%")
+                        ->orWhere('service', 'like', "%{$escapedSearch}%");
 
                     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $search) === 1) {
                         $searchQuery->orWhereDate('date', $search);
