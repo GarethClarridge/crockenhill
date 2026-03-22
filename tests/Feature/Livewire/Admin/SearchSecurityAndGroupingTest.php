@@ -1,24 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature\Livewire\Admin;
 
 use App\Enums\SermonService;
-use App\Livewire\Admin\Pages\ListPages;
-use App\Livewire\Admin\Preachers\ListPreachers;
-use App\Livewire\Admin\Users\ListUsers;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\ListChurchServices;
 use App\Livewire\Admin\ChurchServices\ListSongs;
 use App\Livewire\Admin\Meetings\ListMeetings;
+use App\Livewire\Admin\Pages\ListPages;
+use App\Livewire\Admin\Preachers\ListPreachers;
 use App\Livewire\Admin\Sermons\ListSermons;
+use App\Livewire\Admin\Users\ListUsers;
+use App\Models\CalendarEvent;
 use App\Models\ChurchService;
+use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
-use App\Models\User;
-use App\Models\CalendarEvent;
-use App\Models\Meeting;
 use App\Models\Sermon;
 use App\Models\Song;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -33,7 +35,7 @@ class SearchSecurityAndGroupingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->admin = User::factory()->admin()->create();
+        $this->admin = User::factory()->crockenhillAdmin()->create();
     }
 
     #[Test]
@@ -83,8 +85,8 @@ class SearchSecurityAndGroupingTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        CalendarEvent::factory()->create(['title' => 'Morning Prayer', 'start_datetime' => now()]);
-        CalendarEvent::factory()->create(['title' => 'Evening % Prayer', 'start_datetime' => now()]);
+        CalendarEvent::factory()->create(['title' => 'Morning Prayer', 'start_datetime' => now()->addDay()]);
+        CalendarEvent::factory()->create(['title' => 'Evening % Prayer', 'start_datetime' => now()->addDays(2)]);
 
         Livewire::test(ListCalendarEvents::class)
             ->set('search', '%')
@@ -97,9 +99,7 @@ class SearchSecurityAndGroupingTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        // Page in area 'christ' matching search
         Page::factory()->create(['heading' => 'Grace', 'area' => 'christ', 'slug' => 'grace']);
-        // Page in area 'community' matching search (should be filtered out by areaFilter)
         Page::factory()->create(['heading' => 'Grace Community', 'area' => 'community', 'slug' => 'grace-comm']);
 
         Livewire::test(ListPages::class)
@@ -114,14 +114,12 @@ class SearchSecurityAndGroupingTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        // Sermon matching search in 'morning' service
         Sermon::factory()->create([
             'title' => 'The Grace of God',
             'service' => SermonService::MORNING,
             'date' => now()->subDays(1),
         ]);
 
-        // Sermon matching search in 'evening' service (should be filtered out by serviceFilter)
         Sermon::factory()->create([
             'title' => 'Evening Grace',
             'service' => SermonService::EVENING,
@@ -178,5 +176,55 @@ class SearchSecurityAndGroupingTest extends TestCase
             ->set('search', '%')
             ->assertSee('Special % Meeting')
             ->assertDontSee('Normal Meeting');
+    }
+
+    #[Test]
+    public function it_groups_search_conditions_correctly_in_users(): void
+    {
+        $this->actingAs($this->admin);
+
+        User::factory()->create([
+            'name' => 'John Search',
+            'email' => 'john@example.com',
+            'is_admin' => false,
+        ]);
+
+        User::factory()->create([
+            'name' => 'John Admin',
+            'email' => 'johnadmin@example.com',
+            'is_admin' => true,
+        ]);
+
+        Livewire::test(ListUsers::class)
+            ->set('search', 'John')
+            ->set('adminFilter', '1')
+            ->assertDontSee('John Search')
+            ->assertSee('John Admin');
+    }
+
+    #[Test]
+    public function it_groups_search_conditions_correctly_in_church_services(): void
+    {
+        $this->actingAs($this->admin);
+
+        ChurchService::factory()->create([
+            'original_filename' => 'Match Ready',
+            'needs_review' => false,
+            'date' => '2026-01-01',
+            'service' => SermonService::MORNING,
+        ]);
+
+        ChurchService::factory()->create([
+            'original_filename' => 'Match Review',
+            'needs_review' => true,
+            'date' => '2026-01-02',
+            'service' => SermonService::EVENING,
+        ]);
+
+        Livewire::test(ListChurchServices::class)
+            ->set('search', 'Match')
+            ->set('needsReviewFilter', '1')
+            ->assertDontSee('Match Ready')
+            ->assertSee('Match Review');
     }
 }

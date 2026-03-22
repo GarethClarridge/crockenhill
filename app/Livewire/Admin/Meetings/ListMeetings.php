@@ -86,9 +86,8 @@ class ListMeetings extends Component
 
         /**
          * Performance Optimization: Limits retrieved columns for meetings and eager-loaded
-         * page to required fields to reduce memory usage and DB I/O. Unused
-         * calendarEvents relationship is removed from eager loading.
-         * Search conditions are grouped to ensure correct query logic with filters.
+         * page to required fields to reduce memory usage and DB I/O. Search terms are escaped
+         * to prevent LIKE injection. Search conditions are grouped to ensure correct query logic with filters.
          */
         $query = Meeting::query()
             ->select([

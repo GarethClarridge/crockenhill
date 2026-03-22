@@ -84,7 +84,12 @@ class ListChurchServices extends Component
         $search = trim($this->search);
         $escapedSearch = $this->escapeLike($search);
 
+        /**
+         * Performance Optimization: Limits retrieved columns for church services to required fields
+         * to reduce memory usage and DB I/O. Search terms are escaped to prevent LIKE injection.
+         */
         $churchServices = ChurchService::query()
+            ->select(['id', 'date', 'service', 'source', 'original_filename', 'needs_review', 'updated_at'])
             ->withCount('items')
             ->when($search !== '', function (Builder $query) use ($search, $escapedSearch): void {
                 $query->where(function (Builder $searchQuery) use ($search, $escapedSearch): void {

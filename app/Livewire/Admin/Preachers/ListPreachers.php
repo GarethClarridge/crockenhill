@@ -77,7 +77,12 @@ class ListPreachers extends Component
 
         $escapedSearch = $this->escapeLike(trim($this->search));
 
+        /**
+         * Performance Optimization: Limits retrieved columns for preachers to required fields
+         * to reduce memory usage and DB I/O. Search terms are escaped to prevent LIKE injection.
+         */
         $preachers = Preacher::query()
+            ->select(['id', 'name', 'slug', 'is_active'])
             ->withCount('sermons')
             ->when($this->search !== '', fn ($q) => $q->where('name', 'like', "%{$escapedSearch}%"))
             ->when($this->activeFilter !== null, fn ($q) => $q->where('is_active', $this->activeFilter))
