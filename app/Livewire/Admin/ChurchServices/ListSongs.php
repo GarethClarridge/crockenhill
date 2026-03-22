@@ -9,6 +9,7 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -16,7 +17,7 @@ use Livewire\WithPagination;
 
 class ListSongs extends Component
 {
-    use WithAdminAuthorization, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'usage_count';
 
@@ -76,6 +77,7 @@ class ListSongs extends Component
         $this->sanitizeSorting();
 
         $search = trim($this->search);
+        $escapedSearch = $this->escapeLike($search);
 
         $usageSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(*)');
         $servicesSubQuery = $this->usageBaseQuery()->selectRaw('COUNT(DISTINCT church_service_items.church_service_id)');
@@ -89,13 +91,13 @@ class ListSongs extends Component
             ->selectSub($usageSubQuery, 'usage_count')
             ->selectSub($servicesSubQuery, 'services_count')
             ->selectSub($lastUsedDateSubQuery, 'last_used_date')
-            ->when($search !== '', function (Builder $query) use ($search): void {
-                $query->where(function (Builder $searchQuery) use ($search): void {
-                    $searchQuery->where('songs.title', 'like', "%{$search}%")
-                        ->orWhere('songs.alternate_title', 'like', "%{$search}%")
-                        ->orWhere('songs.canonical_key', 'like', "%{$search}%")
-                        ->orWhere('songs.ccli_number', 'like', "%{$search}%")
-                        ->orWhereHas('authors', fn (Builder $authorQuery) => $authorQuery->where('display_name', 'like', "%{$search}%"));
+            ->when($search !== '', function (Builder $query) use ($escapedSearch): void {
+                $query->where(function (Builder $searchQuery) use ($escapedSearch): void {
+                    $searchQuery->where('songs.title', 'like', "%{$escapedSearch}%")
+                        ->orWhere('songs.alternate_title', 'like', "%{$escapedSearch}%")
+                        ->orWhere('songs.canonical_key', 'like', "%{$escapedSearch}%")
+                        ->orWhere('songs.ccli_number', 'like', "%{$escapedSearch}%")
+                        ->orWhereHas('authors', fn (Builder $authorQuery) => $authorQuery->where('display_name', 'like', "%{$escapedSearch}%"));
                 });
             })
             ->orderBy($this->sortBy, $this->sortDirection)

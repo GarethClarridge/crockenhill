@@ -9,13 +9,14 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Page;
+use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ListPages extends Component
 {
-    use WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
@@ -87,11 +88,13 @@ class ListPages extends Component
             || $this->areaFilter !== null
             || $this->navigationFilter !== null;
 
+        $escapedSearch = $this->escapeLike(trim($this->search));
+
         $pages = Page::query()
             ->select(['id', 'slug', 'heading', 'description', 'area', 'navigation', 'updated_at'])
             ->with(['media', 'meeting'])
-            ->when($this->search, fn ($q) => $q->where('heading', 'like', "%{$this->search}%")
-                ->orWhere('description', 'like', "%{$this->search}%"))
+            ->when($this->search !== '', fn ($q) => $q->where(fn ($sub) => $sub->where('heading', 'like', "%{$escapedSearch}%")
+                ->orWhere('description', 'like', "%{$escapedSearch}%")))
             ->when($this->areaFilter, fn ($q) => $q->where('area', $this->areaFilter))
             ->when($this->navigationFilter !== null, fn ($q) => $q->where('navigation', $this->navigationFilter))
             ->orderBy($this->sortBy, $this->sortDirection)
