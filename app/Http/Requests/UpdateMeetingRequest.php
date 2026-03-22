@@ -51,7 +51,7 @@ class UpdateMeetingRequest extends FormRequest
             'end_time' => 'nullable|date_format:H:i:s,H:i',
             'leaders_phone' => 'nullable|string|max:255',
             'leaders_email' => 'nullable|email|max:255',
-            'meeting_date' => 'nullable|date',
+            'meeting_date' => 'nullable|date_format:Y-m-d',
             'is_recurring' => 'nullable|boolean',
             'frequency' => ['nullable', new EnumRule(MeetingFrequency::class)],
             'page_id' => [
