@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('meetings', function (Blueprint $table) {
-            if (!Schema::hasIndex('meetings', 'meetings_meeting_date_index')) {
+            if (! Schema::hasIndex('meetings', 'meetings_meeting_date_index')) {
                 $table->index('meeting_date');
             }
         });
