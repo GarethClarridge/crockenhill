@@ -16,6 +16,7 @@
 />
 
 {{-- JSON-LD Recurring Event --}}
+@if($meeting->is_recurring && $meeting->frequency)
 <script type="application/ld+json">
 {!! json_encode([
     '@context' => 'https://schema.org',
@@ -44,7 +45,7 @@
     ],
     'schedule' => [
         '@type' => 'Schedule',
-        'repeatFrequency' => match($meeting->frequency?->value) {
+        'repeatFrequency' => match($meeting->frequency->value) {
             'daily' => 'P1D',
             'weekly' => 'P1W',
             'monthly' => 'P1M',
@@ -66,6 +67,7 @@
     ],
 ], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
+@endif
 
 {{-- JSON-LD Events --}}
 @if($upcomingEvents->isNotEmpty())

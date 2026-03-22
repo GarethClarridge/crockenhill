@@ -83,6 +83,8 @@ class MeetingSeoTest extends TestCase
         $meeting = Meeting::factory()->create([
             'page_id' => $page->id,
             'slug' => 'test-meeting',
+            'is_recurring' => true,
+            'frequency' => \App\Enums\MeetingFrequency::WEEKLY,
         ]);
 
         $event = CalendarEvent::factory()->create([
@@ -137,5 +139,30 @@ class MeetingSeoTest extends TestCase
         $this->assertStringContainsString('"byDay": "https://schema.org/Friday"', $content);
         $this->assertStringContainsString('"startTime": "18:00:00"', $content);
         $this->assertStringContainsString('"endTime": "19:30:00"', $content);
+    }
+
+    #[Test]
+    public function meeting_page_does_not_contain_recurring_event_json_ld_for_non_recurring_meetings()
+    {
+        $page = Page::factory()->create([
+            'heading' => 'One-off Event',
+            'slug' => 'one-off',
+            'area' => PageArea::COMMUNITY,
+        ]);
+
+        $meeting = Meeting::factory()->create([
+            'page_id' => $page->id,
+            'slug' => 'one-off',
+            'is_recurring' => false,
+            'frequency' => null,
+        ]);
+
+        $response = $this->get('/community/one-off');
+
+        $response->assertStatus(200);
+
+        $content = $response->getContent();
+        // The recurring event block should not be present
+        $this->assertStringNotContainsString('"@type": "Schedule"', $content);
     }
 }
