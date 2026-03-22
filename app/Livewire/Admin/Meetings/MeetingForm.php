@@ -57,7 +57,7 @@ trait MeetingForm
             'pictures' => 'boolean',
             'leadersPhone' => 'nullable|string|max:255',
             'leadersEmail' => 'nullable|email|max:255',
-            'meetingDate' => 'nullable|date',
+            'meetingDate' => 'nullable|date_format:Y-m-d',
             'isRecurring' => 'boolean',
             'frequency' => ['nullable', 'required_if:isRecurring,true', 'in:'.implode(',', MeetingFrequency::values())],
             'pageId' => 'nullable|exists:pages,id|unique:meetings,page_id,'.$meetingId,
