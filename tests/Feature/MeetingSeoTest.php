@@ -14,6 +14,12 @@ class MeetingSeoTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \Illuminate\Support\Facades\Cache::flush();
+    }
+
     #[Test]
     public function meeting_page_contains_expected_seo_metadata()
     {
@@ -29,6 +35,8 @@ class MeetingSeoTest extends TestCase
             'slug' => 'buzz-club',
             'day' => 'Friday',
             'start_time' => '18:00:00',
+            'is_recurring' => true,
+            'frequency' => \App\Enums\MeetingFrequency::WEEKLY,
         ]);
 
         $response = $this->get('/community/buzz-club');
@@ -55,6 +63,8 @@ class MeetingSeoTest extends TestCase
         Meeting::factory()->create([
             'page_id' => $page->id,
             'slug' => 'test-meeting',
+            'is_recurring' => false,
+            'frequency' => null,
         ]);
 
         $response = $this->get('/community/test-meeting');
@@ -124,6 +134,7 @@ class MeetingSeoTest extends TestCase
             'day' => 'Friday',
             'start_time' => '18:00:00',
             'end_time' => '19:30:00',
+            'is_recurring' => true,
             'frequency' => \App\Enums\MeetingFrequency::WEEKLY,
         ]);
 
