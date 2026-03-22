@@ -105,4 +105,37 @@ class MeetingSeoTest extends TestCase
 
         $response->assertSee('"@type": "Event"', false);
     }
+
+    #[Test]
+    public function meeting_page_contains_recurring_event_json_ld()
+    {
+        $page = Page::factory()->create([
+            'heading' => 'Buzz Club',
+            'slug' => 'buzz-club',
+            'description' => 'A fun club for kids.',
+            'area' => PageArea::COMMUNITY,
+        ]);
+
+        $meeting = Meeting::factory()->create([
+            'page_id' => $page->id,
+            'slug' => 'buzz-club',
+            'day' => 'Friday',
+            'start_time' => '18:00:00',
+            'end_time' => '19:30:00',
+            'frequency' => \App\Enums\MeetingFrequency::WEEKLY,
+        ]);
+
+        $response = $this->get('/community/buzz-club');
+
+        $response->assertStatus(200);
+
+        $content = $response->getContent();
+        $this->assertStringContainsString('"@type": "Event"', $content);
+        $this->assertStringContainsString('"name": "Buzz Club"', $content);
+        $this->assertStringContainsString('"@type": "Schedule"', $content);
+        $this->assertStringContainsString('"repeatFrequency": "P1W"', $content);
+        $this->assertStringContainsString('"byDay": "https://schema.org/Friday"', $content);
+        $this->assertStringContainsString('"startTime": "18:00:00"', $content);
+        $this->assertStringContainsString('"endTime": "19:30:00"', $content);
+    }
 }
