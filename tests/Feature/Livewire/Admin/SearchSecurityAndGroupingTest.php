@@ -7,12 +7,18 @@ use App\Livewire\Admin\Pages\ListPages;
 use App\Livewire\Admin\Preachers\ListPreachers;
 use App\Livewire\Admin\Users\ListUsers;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
+use App\Livewire\Admin\ChurchServices\ListChurchServices;
+use App\Livewire\Admin\ChurchServices\ListSongs;
+use App\Livewire\Admin\Meetings\ListMeetings;
 use App\Livewire\Admin\Sermons\ListSermons;
+use App\Models\ChurchService;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\User;
 use App\Models\CalendarEvent;
+use App\Models\Meeting;
 use App\Models\Sermon;
+use App\Models\Song;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -127,5 +133,50 @@ class SearchSecurityAndGroupingTest extends TestCase
             ->set('search', 'Grace')
             ->assertSee('The Grace of God')
             ->assertDontSee('Evening Grace');
+    }
+
+    #[Test]
+    public function it_escapes_wildcards_in_church_services_search(): void
+    {
+        $this->actingAs($this->admin);
+
+        ChurchService::factory()->create(['original_filename' => 'normal.mp4', 'date' => now()->subDays(1)]);
+        ChurchService::factory()->create(['original_filename' => 'special %.mp4', 'date' => now()->subDays(2)]);
+
+        Livewire::test(ListChurchServices::class)
+            ->set('search', '%')
+            ->assertSee('special %.mp4')
+            ->assertDontSee('normal.mp4');
+    }
+
+    #[Test]
+    public function it_escapes_wildcards_in_songs_search(): void
+    {
+        $this->actingAs($this->admin);
+
+        Song::factory()->create(['title' => 'Normal Song', 'canonical_key' => 'normal-song']);
+        Song::factory()->create(['title' => 'Special _ Song', 'canonical_key' => 'special-song']);
+
+        Livewire::test(ListSongs::class)
+            ->set('search', '_')
+            ->assertSee('Special _ Song')
+            ->assertDontSee('Normal Song');
+    }
+
+    #[Test]
+    public function it_escapes_wildcards_in_meetings_search(): void
+    {
+        $this->actingAs($this->admin);
+
+        $page1 = Page::factory()->create(['heading' => 'Normal Meeting', 'slug' => 'normal']);
+        Meeting::factory()->create(['page_id' => $page1->id, 'slug' => 'normal']);
+
+        $page2 = Page::factory()->create(['heading' => 'Special % Meeting', 'slug' => 'special']);
+        Meeting::factory()->create(['page_id' => $page2->id, 'slug' => 'special']);
+
+        Livewire::test(ListMeetings::class)
+            ->set('search', '%')
+            ->assertSee('Special % Meeting')
+            ->assertDontSee('Normal Meeting');
     }
 }
