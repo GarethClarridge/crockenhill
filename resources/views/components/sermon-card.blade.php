@@ -5,9 +5,11 @@
 @php
     $sermonUrl = "/christ/sermons/{$sermon->date->format('Y')}/{$sermon->date->format('m')}/{$sermon->slug}";
     $cardThumbnailUrl = app(\App\Presenters\SermonViewPresenter::class)->cardThumbnailUrl($sermon);
+    $preacherName = $sermon->displayPreacherName();
+    $reference = $sermon->displayReference();
     $preacherUrl = filled($sermon->preacherProfile?->slug ?? null)
         ? '/christ/sermons/preachers/'.$sermon->preacherProfile->slug
-        : (filled($sermon->preacher) ? '/christ/sermons/preachers/'.\Illuminate\Support\Str::slug($sermon->preacher) : null);
+        : (filled($preacherName) ? '/christ/sermons/preachers/'.\Illuminate\Support\Str::slug($preacherName) : null);
 @endphp
 
 <div class="flex h-full max-w-sm flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -45,13 +47,13 @@
         {{ $sermon->service instanceof \App\Enums\SermonService ? $sermon->service->label() : \Illuminate\Support\Str::title($sermon->service) }}
       </li>
       @endif
-      @if ($sermon->preacher != null)
+      @if ($preacherName != null)
       <li class="flex items-center">
         <x-heroicon-o-user class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
         @if ($preacherUrl)
-          <a href="{{ $preacherUrl }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
+          <a href="{{ $preacherUrl }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $preacherName }}</a>
         @else
-          <span>{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</span>
+          <span>{{ $preacherName }}</span>
         @endif
       </li>
       @endif
@@ -61,10 +63,10 @@
         <a href="/christ/sermons/series/{{ \Illuminate\Support\Str::slug($sermon->series) }}" wire:navigate class="hover:text-cbc-teal-dark transition-colors">{{ $sermon->series }}</a>
       </li>
       @endif
-      @if ($sermon->reference != null)
+      @if ($reference != null)
       <li class="flex items-center">
         <x-heroicon-o-book-open class="h-5 w-5 mr-2 text-gray-500" aria-hidden="true" />
-        {{ $sermon->reference }}
+        {{ $reference }}
       </li>
       @endif
     </ul>

@@ -71,8 +71,8 @@
                                         {{ $sermon->content_type->label() }}
                                     </span>
                                 </p>
-                                @if($sermon->reference)
-                                    <p class="text-sm text-gray-500">{{ $sermon->reference }}</p>
+                                @if($sermon->displayReference())
+                                    <p class="text-sm text-gray-500">{{ $sermon->displayReference() }}</p>
                                 @endif
                             </td>
                             {{-- Date --}}
@@ -91,7 +91,7 @@
                             </td>
                             {{-- Preacher --}}
                             <td class="px-4 py-3">
-                                <span class="text-sm">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</span>
+                                <span class="text-sm">{{ $sermon->displayPreacherName() }}</span>
                                 @if($sermon->needs_preacher_review)
                                     <span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Review</span>
                                 @endif

@@ -2,7 +2,8 @@
 
 @php
 use Illuminate\Support\Str;
-$fullTitle = $sermon->title . ' | ' . ($sermon->preacherProfile?->name ?? $sermon->preacher);
+$fullTitle = $sermon->title . ' | ' . ($sermon->displayPreacherName() ?? 'Unknown preacher');
+$displayReference = $sermon->displayReference();
 @endphp
 
 @section('title'){{ $fullTitle }}@stop
@@ -38,7 +39,7 @@ $schema = [
 'datePublished' => $sermon->date->toIso8601String(),
 'author' => [
 '@type' => 'Person',
-'name' => $sermon->preacherProfile?->name ?? $sermon->preacher,
+'name' => $sermon->displayPreacherName(),
 ],
 ];
 
@@ -298,13 +299,13 @@ $schema['audio']['transcript'] = $transcript;
           </div>
           @endif
 
-          @if ($sermon->preacher != null)
+          @if ($sermon->displayPreacherName() != null)
           <div class="flex items-center gap-3">
             <x-heroicon-o-user class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
             <div>
               <dt class="sr-only">Preacher</dt>
               <dd class="text-gray-900 font-medium">
-                <a href="{{ $sermonView['preacher_url'] }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->preacherProfile->name ?? $sermon->preacher }}</a>
+                <a href="{{ $sermonView['preacher_url'] }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->displayPreacherName() }}</a>
               </dd>
             </div>
           </div>
@@ -326,7 +327,7 @@ $schema['audio']['transcript'] = $transcript;
       </div>
 
       {{-- ── Bible passage ──────────────────────────────────── --}}
-      @if ($sermon->reference != null)
+      @if ($displayReference != null)
       <div
         x-data="{ expanded: false }"
         class="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
@@ -337,7 +338,7 @@ $schema['audio']['transcript'] = $transcript;
               @if (! empty($readingReference))
               <p class="text-xs font-semibold uppercase tracking-[0.2em] text-cbc-teal-dark/75 mb-0.5">Passage</p>
               @endif
-              <span class="font-display text-xl text-gray-900">{{ $sermon->reference }}</span>
+              <span class="font-display text-xl text-gray-900">{{ $displayReference }}</span>
             </div>
           </div>
           @if ($sermon->scripturePassage || ! empty($readingReference))

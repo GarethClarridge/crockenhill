@@ -17,7 +17,7 @@
 
 @section('dynamic_content')
     @php
-        $speakerName = $sermon->preacherProfile->name ?? $sermon->preacher;
+        $speakerName = $sermon->displayPreacherName();
         $hasAudio = filled($sermon->audio_file_path);
         $hasVideo = filled($sermon->video_file_path);
     @endphp

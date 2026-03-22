@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Enums\SermonService;
@@ -35,10 +37,13 @@ class SermonApiController extends Controller
             ->select([
                 'id', 'title', 'slug', 'date', 'service', 'preacher', 'preacher_id',
                 'preacher_source', 'preacher_confidence', 'needs_preacher_review',
-                'series', 'reference', 'points', 'audio_file_path', 'filetype', 'thumbnail_file_path',
+                'series', 'reference', 'scripture_passage_id', 'points', 'audio_file_path', 'filetype', 'thumbnail_file_path',
                 'thumbnail_metadata',
             ])
-            ->with('preacherProfile:id,name,slug,image_path');
+            ->with([
+                'preacherProfile:id,name,slug,image_path',
+                'scripturePassage:id,display_reference,normalized_reference',
+            ]);
 
         // Search functionality
         if ($request->has('search')) {
@@ -46,11 +51,17 @@ class SermonApiController extends Controller
             // Escape special characters to prevent LIKE injection (Defense in Depth)
             $escapedSearch = $this->escapeLike($search);
 
-            $query->where(function ($q) use ($escapedSearch) {
-                $q->where('title', 'like', '%'.$escapedSearch.'%')
-                    ->orWhere('preacher', 'like', '%'.$escapedSearch.'%')
-                    ->orWhere('series', 'like', '%'.$escapedSearch.'%')
-                    ->orWhere('reference', 'like', '%'.$escapedSearch.'%');
+            $searchPattern = '%'.$escapedSearch.'%';
+
+            $query->where(function ($q) use ($searchPattern) {
+                $q->where('title', 'like', $searchPattern)
+                    ->orWhere('preacher', 'like', $searchPattern)
+                    ->orWhereHas('preacherProfile', fn ($preacherQuery) => $preacherQuery->where('name', 'like', $searchPattern))
+                    ->orWhere('series', 'like', $searchPattern)
+                    ->orWhere('reference', 'like', $searchPattern)
+                    ->orWhereHas('scripturePassage', fn ($passageQuery) => $passageQuery
+                        ->where('display_reference', 'like', $searchPattern)
+                        ->orWhere('normalized_reference', 'like', $searchPattern));
             });
         }
 
@@ -91,7 +102,11 @@ class SermonApiController extends Controller
         $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'date';
         $sortOrder = in_array(strtolower($sortOrder), ['asc', 'desc']) ? $sortOrder : 'desc';
 
-        $query->orderBy($sortField, $sortOrder);
+        if ($sortField === 'preacher') {
+            $query->orderByPreacherName($sortOrder);
+        } else {
+            $query->orderBy($sortField, $sortOrder);
+        }
 
         $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
         $sermons = $query->paginate($perPage);
@@ -107,7 +122,7 @@ class SermonApiController extends Controller
     {
         abort_unless($exposurePolicy->shouldExposeOnSermonApi($sermon), 404);
 
-        $sermon->load('preacherProfile');
+        $sermon->load('preacherProfile', 'scripturePassage');
 
         return new SermonResource($this->withSermonView($sermon));
     }

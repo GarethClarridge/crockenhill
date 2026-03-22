@@ -99,13 +99,12 @@ class PodcastFeedService
     {
         $parts = [];
 
-        if ($sermon->reference) {
-            $parts[] = "A sermon on {$sermon->reference}";
+        $reference = $sermon->displayReference();
+        if ($reference !== null) {
+            $parts[] = "A sermon on {$reference}";
         }
 
-        $preacherName = ($sermon->relationLoaded('preacherProfile') && $sermon->preacherProfile)
-            ? $sermon->preacherProfile->name
-            : $sermon->preacher;
+        $preacherName = $sermon->displayPreacherName();
         if ($preacherName) {
             $prefix = empty($parts) ? 'A sermon from' : 'from';
             $parts[] = "{$prefix} {$preacherName}";

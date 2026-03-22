@@ -212,7 +212,10 @@ class Sermon extends Model implements Sitemapable
      */
     public function scopeByPreacher(Builder $query, string $preacherName): Builder
     {
-        return $query->where('preacher', $preacherName);
+        return $query->where(function (Builder $builder) use ($preacherName): void {
+            $builder->where('preacher', $preacherName)
+                ->orWhereHas('preacherProfile', fn (Builder $preacherQuery): Builder => $preacherQuery->where('name', $preacherName));
+        });
     }
 
     /**
@@ -273,6 +276,32 @@ class Sermon extends Model implements Sitemapable
     public function preacherProfile(): BelongsTo
     {
         return $this->belongsTo(Preacher::class, 'preacher_id');
+    }
+
+    public function displayPreacherName(): ?string
+    {
+        $preacherName = $this->relationLoaded('preacherProfile')
+            ? $this->preacherProfile?->name
+            : null;
+
+        $preacherName = trim((string) ($preacherName ?? $this->preacher));
+
+        return $preacherName !== '' ? $preacherName : null;
+    }
+
+    public function displayReference(): ?string
+    {
+        if ($this->relationLoaded('scripturePassage') && $this->scripturePassage instanceof ScripturePassage) {
+            $displayReference = $this->scripturePassage->display_reference ?: $this->scripturePassage->normalized_reference;
+
+            if (trim((string) $displayReference) !== '') {
+                return $displayReference;
+            }
+        }
+
+        $reference = trim((string) $this->reference);
+
+        return $reference !== '' ? $reference : null;
     }
 
     /**
@@ -596,6 +625,23 @@ class Sermon extends Model implements Sitemapable
     }
 
     /**
+     * @param  Builder<Sermon>  $query
+     * @return Builder<Sermon>
+     */
+    public function scopeOrderByPreacherName(Builder $query, string $direction = 'asc'): Builder
+    {
+        return $query
+            ->orderBy(
+                Preacher::query()
+                    ->select('name')
+                    ->whereColumn('preachers.id', 'sermons.preacher_id')
+                    ->limit(1),
+                $direction
+            )
+            ->orderBy('preacher', $direction);
+    }
+
+    /**
      * Get the SEO meta description for the sermon.
      * Auto-generates from summary or title if not explicitly set.
      */
@@ -607,14 +653,12 @@ class Sermon extends Model implements Sitemapable
         }
 
         // Auto-generate from available content
-        $preacherName = ($this->relationLoaded('preacherProfile') && $this->preacherProfile)
-            ? $this->preacherProfile->name
-            : $this->preacher;
+        $preacherName = $this->displayPreacherName() ?? 'Unknown preacher';
         $description = "Listen to '{$this->title}' by {$preacherName}";
         $description .= " preached on {$this->human_date}";
 
-        if ($this->reference) {
-            $description .= " - {$this->reference}";
+        if ($this->displayReference()) {
+            $description .= ' - '.$this->displayReference();
         }
 
         if ($this->series) {

@@ -13,6 +13,8 @@ use App\Models\Sermon;
 use App\Observers\CalendarEventObserver;
 use App\Observers\ChurchServiceObserver;
 use App\Observers\MediaLibraryCacheObserver;
+use App\Observers\PreacherObserver;
+use App\Observers\SermonIdentityObserver;
 use App\Observers\SermonObserver;
 use App\Observers\SitemapCacheObserver;
 use Illuminate\Support\ServiceProvider;
@@ -30,10 +32,12 @@ class ModelObserverServiceProvider extends ServiceProvider
         CalendarEvent::observe(CalendarEventObserver::class);
         ChurchService::observe(ChurchServiceObserver::class);
         Media::observe(MediaLibraryCacheObserver::class);
+        Sermon::observe(SermonIdentityObserver::class);
         Sermon::observe(SermonObserver::class);
         Sermon::observe(SitemapCacheObserver::class);
         Page::observe(SitemapCacheObserver::class);
         Meeting::observe(SitemapCacheObserver::class);
+        Preacher::observe(PreacherObserver::class);
         Preacher::observe(SitemapCacheObserver::class);
     }
 }

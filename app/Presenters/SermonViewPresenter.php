@@ -47,8 +47,10 @@ class SermonViewPresenter
             return '/christ/sermons/preachers/'.$sermon->preacherProfile->slug;
         }
 
-        return filled($sermon->preacher)
-            ? '/christ/sermons/preachers/'.Str::slug($sermon->preacher)
+        $preacherName = $sermon->displayPreacherName();
+
+        return filled($preacherName)
+            ? '/christ/sermons/preachers/'.Str::slug($preacherName)
             : null;
     }
 

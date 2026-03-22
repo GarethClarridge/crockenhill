@@ -1,6 +1,6 @@
 # Tech Debt Backlog (2026-03-17)
 
-_Last updated: 2026-03-21_
+_Last updated: 2026-03-22_
 
 ## Purpose
 
@@ -119,10 +119,11 @@ The backlog is ordered for safety:
 55. `TD-034`
 56. `TD-035`
 57. `TD-036`
-58. `TD-037`
-59. `TD-038`
-60. `TD-040`
-61. `TD-041`
+58. `TD-036A`
+59. `TD-037`
+60. `TD-038`
+61. `TD-040`
+62. `TD-041`
 
 ## Quick Wins
 
@@ -1516,6 +1517,34 @@ The backlog is ordered for safety:
 - Reference reviews:
   - `frontend-view-architecture-review-2026-03-18.md`
 
+### TD-036A - Retire legacy sermon admin edit/update controller path after Livewire cutover
+- Status: `Ready after prerequisite`
+- Priority: P2
+- Impact: Medium
+- Risk: Low-Medium
+- Effort: S
+- Dependencies: `TD-017C`, `TD-036`
+- Scope:
+  - `app/Http/Controllers/SermonAdminController.php` legacy `edit`, `update`, and `updateWithDate` actions
+  - legacy sermon edit routes in `routes/web.php`
+  - retired compatibility references to `resources/views/sermons/edit.blade.php` once the Livewire editor is the only supported edit surface
+  - route and mutation coverage proving sermon editing resolves through `App\Livewire\Admin\Sermons\EditSermon`
+- Tests needed first:
+  - route regression confirming every surviving sermon edit URL redirects to or resolves through the Livewire editor
+  - mutation regression confirming no controller-only sermon edit write path remains
+- Safest implementation order:
+  1. Freeze the current redirect behavior for legacy sermon edit URLs.
+  2. Confirm any remaining shared sermon identity/write compatibility logic lives behind reusable services rather than controller-only code.
+  3. Delete the retired controller edit/update actions and remove their unused route entries and view references.
+  4. Keep only the still-active non-edit responsibilities on `SermonAdminController` until those flows are migrated separately.
+- Acceptance criteria:
+  1. There is one supported sermon edit UI and write path.
+  2. `SermonAdminController` no longer owns legacy sermon edit/update behavior.
+  3. Legacy sermon edit URLs either redirect to the Livewire editor or are removed with explicit compatibility coverage.
+- Reference reviews:
+  - `frontend-view-architecture-review-2026-03-18.md`
+  - `laravel-livewire-idioms-review-2026-03-18.md`
+
 ### TD-037 - Resolve upload and log-viewer frontend state ownership
 - Status: `Ready after prerequisite`
 - Priority: P2
@@ -1801,7 +1830,7 @@ The backlog is ordered for safety:
   - `database-model-integrity-review-2026-03-18.md`
 
 ### TD-017C - Resolve sermon identity authority and finish aggregate ownership boundaries
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: High

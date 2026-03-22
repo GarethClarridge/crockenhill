@@ -29,7 +29,7 @@ class SermonResource extends JsonResource
             'date' => $this->date->format('Y-m-d'),
             'human_date' => $this->human_date,
             'service' => $this->service,
-            'preacher' => $this->preacher,
+            'preacher' => $this->displayPreacherName(),
             'preacher_id' => $this->preacher_id,
             'preacher_details' => $this->whenLoaded('preacherProfile', fn () => $this->preacherProfile ? [
                 'id' => $this->preacherProfile->id,
@@ -45,7 +45,7 @@ class SermonResource extends JsonResource
             'preacher_confidence' => $this->preacher_confidence,
             'needs_preacher_review' => $this->needs_preacher_review,
             'series' => $this->series,
-            'reference' => $this->reference,
+            'reference' => $this->displayReference(),
             'points' => $this->points,
             'audio_url' => $sermonView['audio_url'],
             'thumbnail_url' => $sermonView['thumbnail_url'],

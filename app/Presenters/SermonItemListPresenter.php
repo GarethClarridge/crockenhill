@@ -44,7 +44,7 @@ class SermonItemListPresenter
                     ],
                     'author' => [
                         '@type' => 'Person',
-                        'name' => $sermon->preacherProfile->name ?? $sermon->preacher,
+                        'name' => $sermon->displayPreacherName(),
                     ],
                 ];
 

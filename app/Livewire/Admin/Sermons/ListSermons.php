@@ -114,11 +114,24 @@ class ListSermons extends Component
         $escapedSearch = $this->escapeLike(trim($this->search));
 
         $query = Sermon::query()
-            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path', 'content_type'])
-            ->with('preacherProfile:id,name,slug')
-            ->when($this->search !== '', fn ($q) => $q->where(fn ($sub) => $sub->where('title', 'like', "%{$escapedSearch}%")
-                ->orWhere('preacher', 'like', "%{$escapedSearch}%")
-                ->orWhere('reference', 'like', "%{$escapedSearch}%")))
+            ->select(['id', 'title', 'date', 'service', 'preacher', 'preacher_id', 'series', 'reference', 'scripture_passage_id', 'needs_preacher_review', 'audio_file_path', 'video_file_path', 'slug', 'transcript_file_path', 'content_type'])
+            ->with([
+                'preacherProfile:id,name,slug',
+                'scripturePassage:id,display_reference,normalized_reference',
+            ])
+            ->when($this->search !== '', function ($query) use ($escapedSearch): void {
+                $searchPattern = "%{$escapedSearch}%";
+
+                $query->where(function ($sub) use ($searchPattern): void {
+                    $sub->where('title', 'like', $searchPattern)
+                        ->orWhere('preacher', 'like', $searchPattern)
+                        ->orWhereHas('preacherProfile', fn ($preacherQuery) => $preacherQuery->where('name', 'like', $searchPattern))
+                        ->orWhere('reference', 'like', $searchPattern)
+                        ->orWhereHas('scripturePassage', fn ($passageQuery) => $passageQuery
+                            ->where('display_reference', 'like', $searchPattern)
+                            ->orWhere('normalized_reference', 'like', $searchPattern));
+                });
+            })
             ->when($this->serviceFilter, fn ($q) => $q->where('service', $this->serviceFilter))
             ->when($this->preacherFilter, fn ($q) => $q->where('preacher_id', $this->preacherFilter))
             ->when($this->seriesFilter, fn ($q) => $q->where('series', $this->seriesFilter))
@@ -127,12 +140,7 @@ class ListSermons extends Component
             ->when($this->last12Months, fn ($q) => $q->where('date', '>=', now()->subYear()));
 
         if ($this->sortBy === 'preacher') {
-            $query->orderBy(
-                Preacher::select('name')
-                    ->whereColumn('preachers.id', 'sermons.preacher_id')
-                    ->limit(1),
-                $this->sortDirection
-            )->orderBy('preacher', $this->sortDirection);
+            $query->orderByPreacherName($this->sortDirection);
         } else {
             $query->orderBy($this->sortBy, $this->sortDirection);
         }

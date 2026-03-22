@@ -11,6 +11,8 @@ use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Services\PreacherResolutionService;
+use App\Services\SermonIdentitySyncService;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Component;
@@ -77,6 +79,7 @@ class EditSermon extends Component
     public function mount(Sermon $sermon): void
     {
         $this->authorizeAdmin();
+        $sermon->loadMissing('preacherProfile', 'scripturePassage');
 
         $service = $sermon->service;
         if (! $service instanceof SermonService) {
@@ -91,9 +94,9 @@ class EditSermon extends Component
         $this->slug = $sermon->slug;
         $this->date = $sermon->date->format('Y-m-d');
         $this->service = $service->value;
-        $this->preacher = $sermon->preacherProfile->name ?? $sermon->preacher;
+        $this->preacher = $sermon->displayPreacherName() ?? '';
         $this->preacherId = $sermon->preacher_id;
-        $this->reference = $sermon->reference;
+        $this->reference = $sermon->displayReference();
         $this->series = $sermon->series;
         $this->summary = $sermon->summary;
         $this->points = $sermon->points ?? [];
@@ -123,11 +126,10 @@ class EditSermon extends Component
 
         $validated = $this->validate();
 
-        // If a preacher_id is selected, use it; otherwise look up or create by name
         if ($validated['preacherId']) {
             $preacher = Preacher::find($validated['preacherId']);
         } else {
-            $preacher = Preacher::where('slug', Str::slug($validated['preacher']))->first();
+            $preacher = app(PreacherResolutionService::class)->resolve($validated['preacher']);
         }
 
         if (! ($preacher instanceof Preacher)) {
@@ -136,6 +138,10 @@ class EditSermon extends Component
 
         $referenceChanged = $this->sermon->reference !== $validated['reference'];
         $newReference = $validated['reference'];
+        $scripturePassage = app(SermonIdentitySyncService::class)->findExistingScripturePassage($newReference);
+        $scripturePassageId = ($referenceChanged || $this->sermon->scripture_passage_id === null)
+            ? $scripturePassage?->id
+            : $this->sermon->scripture_passage_id;
 
         $updateData = [
             'title' => $validated['title'],
@@ -147,17 +153,13 @@ class EditSermon extends Component
             'preacher_source' => $preacher ? PreacherSource::MANUAL->value : null,
             'needs_preacher_review' => false,
             'reference' => $newReference,
+            'scripture_passage_id' => $scripturePassageId,
             'series' => $validated['series'],
             'summary' => $validated['summary'],
             'points' => array_filter($this->points),
             'show_summary' => $validated['showSummary'],
             'show_points' => $validated['showPoints'],
         ];
-
-        // Clear stale scripture passage immediately when reference changes
-        if ($referenceChanged) {
-            $updateData['scripture_passage_id'] = null;
-        }
 
         $this->sermon->update($updateData);
 
