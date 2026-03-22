@@ -32,6 +32,9 @@ use Illuminate\Support\Facades\Storage;
  * @property bool $needs_manual_review
  * @property array<int, int> $source_segment_ids
  * @property ServiceSectionMetadata|null $metadata
+ * @property ServiceSectionSongMatchType|null $song_match_type
+ * @property int|null $matched_item_id
+ * @property int|null $expected_item_id
  * @property ServiceSectionPublicationStatus $publication_status
  * @property int|null $published_sermon_id
  * @property string|null $extracted_video_path
@@ -74,6 +77,9 @@ class ServiceSection extends Model
         'needs_manual_review',
         'source_segment_ids',
         'metadata',
+        'song_match_type',
+        'matched_item_id',
+        'expected_item_id',
         'publication_status',
         'published_sermon_id',
         'published_at',
@@ -99,6 +105,9 @@ class ServiceSection extends Model
             'needs_manual_review' => 'boolean',
             'source_segment_ids' => 'array',
             'metadata' => ServiceSectionMetadataCast::class,
+            'song_match_type' => ServiceSectionSongMatchType::class,
+            'matched_item_id' => 'integer',
+            'expected_item_id' => 'integer',
             'publication_status' => ServiceSectionPublicationStatus::class,
             'published_sermon_id' => 'integer',
             'published_at' => 'datetime',
@@ -183,11 +192,29 @@ class ServiceSection extends Model
 
     public function songMatchType(): ?ServiceSectionSongMatchType
     {
+        if ($this->song_match_type instanceof ServiceSectionSongMatchType) {
+            return $this->song_match_type;
+        }
+
         $matchType = $this->metadataData()->oosAlignment?->songMatchType;
 
         return is_string($matchType)
             ? ServiceSectionSongMatchType::tryFrom($matchType)
             : null;
+    }
+
+    public function matchedItemId(): ?int
+    {
+        return is_int($this->matched_item_id)
+            ? $this->matched_item_id
+            : $this->metadataData()->oosAlignment?->matchedItemId;
+    }
+
+    public function expectedItemId(): ?int
+    {
+        return is_int($this->expected_item_id)
+            ? $this->expected_item_id
+            : $this->metadataData()->oosAlignment?->expectedItemId;
     }
 
     public function hasConfirmedSongMatch(): bool

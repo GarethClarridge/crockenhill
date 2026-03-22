@@ -14,7 +14,6 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
 use App\Traits\EscapesLikeWildcards;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -284,7 +283,7 @@ class ManageChurchService extends Component
     }
 
     /**
-     * @return array<int, array{position:int,type:string,title:string,source_title:string,openlp_search_title:null,song_id:int|null,metadata:array<string,mixed>}>
+     * @return array<int, array{position:int,type:string,section_type:string,title:string,source_title:string,openlp_search_title:null,song_id:int|null,metadata:array<string,mixed>}>
      */
     private function buildSyncPayload(): array
     {
@@ -314,6 +313,7 @@ class ManageChurchService extends Component
             $payload[] = [
                 'position' => $index + 1,
                 'type' => $storageType,
+                'section_type' => $sectionType->value,
                 'title' => trim((string) $item['title']),
                 'source_title' => trim((string) $item['title']),
                 'openlp_search_title' => null,
@@ -345,30 +345,10 @@ class ManageChurchService extends Component
     {
         return [
             'key' => (string) Str::uuid(),
-            'section_type' => $this->resolveSectionType($item)->value,
+            'section_type' => $item->semanticSectionType()->value,
             'title' => $item->title,
             'song_id' => $item->song_id,
         ];
-    }
-
-    private function resolveSectionType(ChurchServiceItem $item): ServiceSectionType
-    {
-        $metadata = is_array($item->metadata) ? $item->metadata : [];
-        $metadataType = Arr::get($metadata, 'section_type');
-
-        if (is_string($metadataType)) {
-            $resolved = ServiceSectionType::tryFrom($metadataType);
-
-            if ($resolved instanceof ServiceSectionType) {
-                return $resolved;
-            }
-        }
-
-        return match ($item->type) {
-            'songs' => ServiceSectionType::SONG,
-            'bibles' => ServiceSectionType::BIBLE_READING,
-            default => ServiceSectionType::inferFromTitle($item->title),
-        };
     }
 
     /**

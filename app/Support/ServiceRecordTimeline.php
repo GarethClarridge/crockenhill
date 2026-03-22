@@ -59,13 +59,9 @@ final class ServiceRecordTimeline
                 : null;
 
             // Priority 2/3: metadata fallback when the FK is unset
-            $expectedItemId = isset($oosAlignment['expected_item_id']) && is_numeric($oosAlignment['expected_item_id'])
-                ? (int) $oosAlignment['expected_item_id']
-                : null;
+            $expectedItemId = $section->expectedItemId();
 
-            $matchedItemId = isset($oosAlignment['matched_item_id']) && is_numeric($oosAlignment['matched_item_id'])
-                ? (int) $oosAlignment['matched_item_id']
-                : null;
+            $matchedItemId = $section->matchedItemId();
 
             // Determine the active item that should be consumed so it isn't also emitted as planned_only
             $consumableActiveItemId = null;

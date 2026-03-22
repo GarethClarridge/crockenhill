@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ServiceSectionType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $church_service_id
  * @property int $position
  * @property string $type
+ * @property ServiceSectionType|null $section_type
  * @property ChurchServiceItemSource|null $source
  * @property string $title
  * @property string|null $source_title
@@ -51,6 +53,7 @@ class ChurchServiceItem extends Model
         'church_service_id',
         'position',
         'type',
+        'section_type',
         'source',
         'title',
         'source_title',
@@ -66,10 +69,40 @@ class ChurchServiceItem extends Model
     {
         return [
             'position' => 'integer',
+            'section_type' => ServiceSectionType::class,
             'source' => ChurchServiceItemSource::class,
             'song_id' => 'integer',
             'metadata' => 'array',
         ];
+    }
+
+    public function semanticSectionType(): ServiceSectionType
+    {
+        if ($this->section_type instanceof ServiceSectionType) {
+            return $this->section_type;
+        }
+
+        $explicitMetadataType = $this->explicitMetadataSectionType();
+
+        if ($explicitMetadataType instanceof ServiceSectionType) {
+            return $explicitMetadataType;
+        }
+
+        return match (strtolower($this->type)) {
+            'songs' => ServiceSectionType::SONG,
+            'bibles' => ServiceSectionType::BIBLE_READING,
+            default => ServiceSectionType::inferFromTitle($this->title),
+        };
+    }
+
+    public function explicitMetadataSectionType(): ?ServiceSectionType
+    {
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+        $metadataType = $metadata['section_type'] ?? null;
+
+        return is_string($metadataType)
+            ? ServiceSectionType::tryFrom($metadataType)
+            : null;
     }
 
     /**

@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Data\OpenLpParseResult;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionType;
 use DateTimeImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
@@ -153,7 +154,7 @@ class OpenLpServiceParser
 
     /**
      * @param  array<int, mixed>  $decoded
-     * @return array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
+     * @return array<int, array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
      */
     private function extractItems(array $decoded): array
     {
@@ -221,6 +222,7 @@ class OpenLpServiceParser
             $items[] = [
                 'position' => $position,
                 'type' => $type,
+                'section_type' => $this->semanticTypeForStorageType($type, $title),
                 'title' => $title,
                 'source_title' => $sourceTitle,
                 'openlp_search_title' => $openLpSearchTitle,
@@ -231,6 +233,15 @@ class OpenLpServiceParser
         }
 
         return $items;
+    }
+
+    private function semanticTypeForStorageType(string $type, string $title): string
+    {
+        return match ($type) {
+            'songs' => ServiceSectionType::SONG->value,
+            'bibles' => ServiceSectionType::BIBLE_READING->value,
+            default => ServiceSectionType::inferFromTitle($title)->value,
+        };
     }
 
     /**

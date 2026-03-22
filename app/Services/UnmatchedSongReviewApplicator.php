@@ -50,6 +50,7 @@ class UnmatchedSongReviewApplicator
             }
 
             $section->needs_manual_review = true;
+            $section->song_match_type = $section->songMatchType() ?? ServiceSectionSongMatchType::UNMATCHED;
             $section->confidence = ServiceSectionConfidence::decrease(
                 ServiceSectionConfidence::resolve($section->confidence, $metadata),
                 0.10

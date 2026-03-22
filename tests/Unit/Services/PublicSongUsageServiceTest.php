@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -83,6 +84,35 @@ class PublicSongUsageServiceTest extends TestCase
                     'song_match_type' => 'confirmed',
                 ],
             ],
+        ]);
+
+        $results = $this->service->query()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame($song->id, $results->first()->id);
+    }
+
+    #[Test]
+    public function test_query_includes_livestreamed_songs_matched_via_promoted_song_match_type_column(): void
+    {
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+            'type' => 'songs',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::SONG,
+            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'metadata' => ['oos_alignment' => []],
         ]);
 
         $results = $this->service->query()->get();

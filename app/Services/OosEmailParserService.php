@@ -180,7 +180,7 @@ class OosEmailParserService
 
     /**
      * @param  array<int, array{type:string,title:string}>  $items
-     * @return array<int, array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
+     * @return array<int, array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,metadata:?array<string,mixed>}>
      */
     private function normaliseItems(array $items): array
     {
@@ -208,6 +208,7 @@ class OosEmailParserService
             $normalised[] = [
                 'position' => $position,
                 'type' => $storageType,
+                'section_type' => $semanticType,
                 'title' => $title,
                 'source_title' => $title,
                 'openlp_search_title' => null,

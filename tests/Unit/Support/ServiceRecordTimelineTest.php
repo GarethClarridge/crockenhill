@@ -407,6 +407,58 @@ class ServiceRecordTimelineTest extends TestCase
         $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $rows[0]['song_match_type']);
     }
 
+    #[Test]
+    public function song_match_type_from_promoted_column_is_included_in_row(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->create(['position' => 1]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_order' => 1,
+            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'metadata' => ['oos_alignment' => []],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem', 'serviceSections.publishedSermon']);
+
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
+
+        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $rows[0]['song_match_type']);
+    }
+
+    #[Test]
+    public function mismatched_section_uses_promoted_expected_item_id_when_json_id_is_absent(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->create(['position' => 2, 'type' => 'custom', 'title' => 'Prayer']);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::WELCOME->value,
+            'section_order' => 1,
+            'expected_item_id' => $item->id,
+            'metadata' => [
+                'oos_alignment' => [
+                    'mismatch_reason' => 'expected_type_mismatch',
+                    'expected_item_title' => 'Prayer',
+                    'expected_section_type' => ServiceSectionType::PRAYER->value,
+                ],
+            ],
+        ]);
+
+        $run->load(['serviceSections.churchServiceItem', 'serviceSections.publishedSermon']);
+
+        $rows = ServiceRecordTimeline::build($this->itemCollection([$item]), $run);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('mismatched', $rows[0]['row_type']);
+        $this->assertSame($item->id, $rows[0]['item_id']);
+        $this->assertSame('Prayer', $rows[0]['planned_title']);
+    }
+
     // -------------------------------------------------------------------------
     // publication status
     // -------------------------------------------------------------------------

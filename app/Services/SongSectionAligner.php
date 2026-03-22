@@ -165,6 +165,9 @@ class SongSectionAligner
         $metadata['song_id'] = $item->song_id;
 
         $section->church_service_item_id = $item->id;
+        $section->matched_item_id = $item->id;
+        $section->expected_item_id = null;
+        $section->song_match_type = ServiceSectionSongMatchType::CONFIRMED;
         $section->needs_manual_review = $section->needs_manual_review || $this->hasBlockingReviewFlag($reviewFlags);
         // Apply the +0.25 item-match delta first, then floor at the high-confidence threshold.
         // This preserves the original two-step logic from OosAlignmentService: applyMatchedItem(+0.25)
@@ -198,6 +201,9 @@ class SongSectionAligner
         $metadata['review_reason'] = 'song_alignment_inferred';
 
         $section->church_service_item_id = $item->id;
+        $section->matched_item_id = $item->id;
+        $section->expected_item_id = null;
+        $section->song_match_type = ServiceSectionSongMatchType::INFERRED;
         $section->title = $item->title;
         $section->needs_manual_review = true;
         $section->confidence = ServiceSectionConfidence::clamp(min(
@@ -300,16 +306,6 @@ class SongSectionAligner
      */
     private function isSongItem(ChurchServiceItem $item): bool
     {
-        $metadataSectionType = $item->metadata['section_type'] ?? null;
-
-        if (is_string($metadataSectionType)) {
-            $resolved = ServiceSectionType::tryFrom($metadataSectionType);
-
-            if ($resolved instanceof ServiceSectionType) {
-                return $resolved === ServiceSectionType::SONG;
-            }
-        }
-
-        return strtolower($item->type) === 'songs';
+        return $item->semanticSectionType() === ServiceSectionType::SONG;
     }
 }

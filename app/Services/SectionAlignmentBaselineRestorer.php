@@ -65,6 +65,9 @@ class SectionAlignmentBaselineRestorer
         $section->church_service_item_id = $legacyAligned
             ? null
             : (array_key_exists('base_church_service_item_id', $existingAlignment) ? $existingAlignment['base_church_service_item_id'] : $section->church_service_item_id);
+        $section->song_match_type = null;
+        $section->matched_item_id = null;
+        $section->expected_item_id = null;
 
         // Clear all OoS-owned alignment state so each run is rebuilt from scratch
         unset($metadata['oos_alignment'], $metadata['song_id'], $metadata['reading_reference']);

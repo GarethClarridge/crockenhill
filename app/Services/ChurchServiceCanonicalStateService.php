@@ -27,6 +27,7 @@ class ChurchServiceCanonicalStateService
                 'id' => $item->id,
                 'position' => $item->position,
                 'type' => $item->type,
+                'section_type' => $item->semanticSectionType()->value,
                 'source' => $item->source?->value,
                 'title' => $item->title,
                 'source_title' => $item->source_title,
@@ -69,7 +70,7 @@ class ChurchServiceCanonicalStateService
 
             $fieldChanges = [];
 
-            foreach (['position', 'type', 'source', 'title', 'source_title', 'openlp_search_title', 'song_id', 'metadata'] as $field) {
+            foreach (['position', 'type', 'section_type', 'source', 'title', 'source_title', 'openlp_search_title', 'song_id', 'metadata'] as $field) {
                 if (($beforeItem[$field] ?? null) === ($afterItem[$field] ?? null)) {
                     continue;
                 }

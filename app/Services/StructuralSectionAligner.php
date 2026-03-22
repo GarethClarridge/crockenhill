@@ -238,6 +238,8 @@ class StructuralSectionAligner
         }
 
         $section->church_service_item_id = $item->id;
+        $section->matched_item_id = $item->id;
+        $section->expected_item_id = null;
         $section->needs_manual_review = $section->needs_manual_review || $this->hasBlockingReviewFlag($reviewFlags);
         $section->confidence = ServiceSectionConfidence::clamp(
             ServiceSectionConfidence::increase(
@@ -264,6 +266,8 @@ class StructuralSectionAligner
         $metadata['review_reason'] = 'oos_structure_mismatch';
 
         $section->needs_manual_review = true;
+        $section->matched_item_id = null;
+        $section->expected_item_id = $item?->id;
         $section->confidence = ServiceSectionConfidence::decrease(
             ServiceSectionConfidence::resolve($section->confidence, $metadata),
             0.20

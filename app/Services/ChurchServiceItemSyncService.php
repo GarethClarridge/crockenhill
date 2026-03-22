@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
@@ -78,6 +79,7 @@ class ChurchServiceItemSyncService
                 $created = $lockedService->items()->create([
                     'position' => $incomingItem['position'],
                     'type' => $incomingItem['type'],
+                    'section_type' => $incomingItem['section_type'],
                     'source' => $incomingSource->value,
                     'title' => $incomingItem['title'],
                     'source_title' => $incomingItem['source_title'],
@@ -124,7 +126,7 @@ class ChurchServiceItemSyncService
 
     /**
      * @param  array<string, mixed>  $item
-     * @return array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}
+     * @return array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}
      */
     private function normaliseIncomingItem(array $item, int $defaultPosition): array
     {
@@ -156,9 +158,12 @@ class ChurchServiceItemSyncService
             throw new RuntimeException('Incoming service item song_id must be an integer or null.');
         }
 
+        $sectionType = $this->resolveSectionType($item, $type, $title, $metadata);
+
         return [
             'position' => $position,
             'type' => $type,
+            'section_type' => $sectionType->value,
             'title' => $title,
             'source_title' => $this->normaliseString($item['source_title'] ?? null),
             'openlp_search_title' => $this->normaliseString($item['openlp_search_title'] ?? null),
@@ -169,7 +174,7 @@ class ChurchServiceItemSyncService
 
     /**
      * @param  Collection<int, ChurchServiceItem>  $existingItems
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @param  array<int, int>  $matchedExistingItemIds
      */
     private function findStableMatch(
@@ -210,7 +215,7 @@ class ChurchServiceItemSyncService
 
     /**
      * @param  Collection<int, ChurchServiceItem>  $existingItems
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @param  array<int, int>  $matchedExistingItemIds
      */
     private function findPositionFallbackMatch(
@@ -237,7 +242,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @return array<int, array<string, mixed>>
      */
     private function updateMatchedItem(
@@ -264,6 +269,7 @@ class ChurchServiceItemSyncService
         $existingItem->fill([
             'position' => $position,
             'type' => $incomingItem['type'],
+            'section_type' => $incomingItem['section_type'],
             'source' => $this->resolveSource($existingItem, $incomingSource)->value,
             'title' => $this->resolveTitle($existingItem, $incomingItem, $preserveOpenLpSongMetadata),
             'source_title' => $this->resolveSourceTitle($existingItem, $incomingItem, $incomingSource),
@@ -278,7 +284,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      */
     private function shouldUseCrossSourceSongTitleMatch(
         ChurchServiceItem $existingItem,
@@ -290,7 +296,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      */
     private function hasMatchingNormalisedSongTitle(ChurchServiceItem $existingItem, array $incomingItem): bool
     {
@@ -313,7 +319,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @return list<string>
      */
     private function normalisedSongTitlesForIncomingItem(array $incomingItem): array
@@ -388,7 +394,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      */
     private function resolveOpenLpSearchTitle(
         ChurchServiceItem $existingItem,
@@ -403,7 +409,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      */
     private function resolveTitle(
         ChurchServiceItem $existingItem,
@@ -418,7 +424,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      */
     private function resolveSourceTitle(
         ChurchServiceItem $existingItem,
@@ -471,7 +477,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @return array<string, mixed>|null
      */
     private function resolveMetadata(
@@ -514,6 +520,43 @@ class ChurchServiceItemSyncService
         $merged = array_merge($base, $overlay);
 
         return $merged !== [] ? $merged : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @param  array<string, mixed>|null  $metadata
+     */
+    private function resolveSectionType(
+        array $item,
+        string $type,
+        string $title,
+        ?array $metadata,
+    ): ServiceSectionType {
+        $incomingSectionType = $item['section_type'] ?? null;
+
+        if (is_string($incomingSectionType)) {
+            $resolved = ServiceSectionType::tryFrom($incomingSectionType);
+
+            if ($resolved instanceof ServiceSectionType) {
+                return $resolved;
+            }
+        }
+
+        $metadataType = $metadata['section_type'] ?? $metadata['email_type'] ?? null;
+
+        if (is_string($metadataType)) {
+            $resolved = ServiceSectionType::tryFrom($metadataType);
+
+            if ($resolved instanceof ServiceSectionType) {
+                return $resolved;
+            }
+        }
+
+        return match (strtolower($type)) {
+            'songs' => ServiceSectionType::SONG,
+            'bibles' => ServiceSectionType::BIBLE_READING,
+            default => ServiceSectionType::inferFromTitle($title),
+        };
     }
 
     private function shouldPreserveOpenLpSongMetadata(
@@ -613,7 +656,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @return array<int, array<string, mixed>>
      */
     private function conflictsForMatchedItem(
@@ -640,7 +683,7 @@ class ChurchServiceItemSyncService
     }
 
     /**
-     * @param  array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
+     * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
      * @return array<int, array<string, mixed>>
      */
     private function songFieldDifferences(ChurchServiceItem $existingItem, array $incomingItem): array
@@ -702,6 +745,7 @@ class ChurchServiceItemSyncService
             'id' => $item->id,
             'position' => $item->position,
             'type' => $item->type,
+            'section_type' => $item->semanticSectionType()->value,
             'source' => $this->sourceForExistingItem($item)->value,
             'title' => $item->title,
             'source_title' => $item->source_title,

@@ -110,6 +110,16 @@ class PrefillChurchServiceFromInboundEmail
      */
     private function resolveSectionTypeFromParsedItem(array $item): ServiceSectionType
     {
+        $sectionType = $item['section_type'] ?? null;
+
+        if (is_string($sectionType)) {
+            $resolved = ServiceSectionType::tryFrom($sectionType);
+
+            if ($resolved instanceof ServiceSectionType) {
+                return $resolved;
+            }
+        }
+
         $metadata = is_array($item['metadata'] ?? null) ? $item['metadata'] : [];
         $metadataType = $metadata['section_type'] ?? $metadata['email_type'] ?? null;
 

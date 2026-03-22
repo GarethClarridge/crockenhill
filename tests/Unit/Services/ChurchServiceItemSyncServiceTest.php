@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Song;
@@ -108,6 +109,29 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->assertSame('Prayer', $existing->title);
         $this->assertSame(1, $existing->position);
+    }
+
+    #[Test]
+    public function test_preserves_explicit_section_type_from_incoming_payload(): void
+    {
+        $churchService = ChurchService::factory()->create();
+
+        $this->service->sync($churchService, [
+            $this->incomingItem(
+                position: 1,
+                type: 'custom',
+                title: 'Welcome from explicit payload',
+                sourceTitle: 'Welcome from explicit payload',
+                openLpSearchTitle: null,
+                sectionType: ServiceSectionType::WELCOME->value,
+            ),
+        ], ChurchServiceItemSource::MANUAL);
+
+        /** @var ChurchServiceItem $item */
+        $item = $churchService->fresh('items')?->items->sole();
+
+        $this->assertSame(ServiceSectionType::WELCOME, $item->section_type);
+        $this->assertSame(ServiceSectionType::WELCOME, $item->semanticSectionType());
     }
 
     #[Test]
@@ -519,6 +543,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
                     'id' => $preservedSong->id,
                     'position' => 2,
                     'type' => 'songs',
+                    'section_type' => ServiceSectionType::SONG->value,
                     'source' => ChurchServiceItemSource::MANUAL->value,
                     'title' => 'Closing Song',
                     'source_title' => 'Closing Song',
@@ -532,7 +557,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
     /**
      * @param  array<string, mixed>|null  $metadata
-     * @return array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}
+     * @return array{position:int,type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>,section_type?:string}
      */
     private function incomingItem(
         int $position,
@@ -542,8 +567,9 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         ?string $openLpSearchTitle,
         ?array $metadata = null,
         ?int $songId = null,
+        ?string $sectionType = null,
     ): array {
-        return [
+        $item = [
             'position' => $position,
             'type' => $type,
             'title' => $title,
@@ -552,5 +578,11 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'song_id' => $songId,
             'metadata' => $metadata,
         ];
+
+        if ($sectionType !== null) {
+            $item['section_type'] = $sectionType;
+        }
+
+        return $item;
     }
 }
