@@ -6,7 +6,8 @@ $id = $attributes->get('id', $modelName ? str_replace(['.', ' ', '[', ']'], '-',
 $hasError = $modelName && $errors->has($modelName);
 $inputClasses = 'block w-full rounded-md shadow-sm sm:text-sm focus:border-cbc-teal focus:ring-cbc-teal'
     . ($icon ? ' pl-10' : '')
-    . ($hasError ? ' border-red-300' : ' border-gray-300');
+    . ($hasError ? ' border-red-300' : ' border-gray-300')
+    . ($clearable ? ' pr-10' : '');
 
 $describedBy = [];
 if ($hint) $describedBy[] = $id . '-hint';
@@ -38,6 +39,9 @@ $describedBy = implode(' ', $describedBy);
             @if(!$label && $attributes->get('placeholder')) aria-label="{{ $attributes->get('placeholder') }}" @endif
             @if($hasError) aria-invalid="true" @endif
             @if($describedBy) aria-describedby="{{ $describedBy }}" @endif
+            @if($clearable && $modelName)
+                @keydown.escape="$wire.set('{{ $modelName }}', ''); count = 0; $refs.input.focus()"
+            @endif
         />
 
         @if($modelName)
@@ -52,8 +56,9 @@ $describedBy = implode(' ', $describedBy);
         @if($clearable && $modelName)
             <button type="button"
                 aria-label="Clear input"
+                title="Clear input"
                 wire:click="$set('{{ $modelName }}', '')"
-                @click="count = 0"
+                @click="count = 0; $nextTick(() => $refs.input.focus())"
                 class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-2 rounded"
                 x-show="$wire.{{ $modelName }}"
                 x-transition
