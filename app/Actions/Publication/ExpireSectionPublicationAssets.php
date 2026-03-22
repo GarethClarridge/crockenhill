@@ -7,9 +7,14 @@ namespace App\Actions\Publication;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
+use App\Services\ServiceSectionPublicationTransitionService;
 
 class ExpireSectionPublicationAssets
 {
+    public function __construct(
+        private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
+    ) {}
+
     /**
      * Transition a section to NOT_APPLICABLE and record expiry audit metadata.
      *
@@ -24,7 +29,7 @@ class ExpireSectionPublicationAssets
     {
         $previousStatus = $section->publication_status->value;
 
-        if (! $section->transitionTo(ServiceSectionPublicationStatus::NOT_APPLICABLE)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::NOT_APPLICABLE)) {
             throw new \RuntimeException(
                 "Failed to transition section #{$section->id} from {$previousStatus} to not_applicable."
             );

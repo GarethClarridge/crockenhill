@@ -13,6 +13,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
+use App\Services\ServiceSectionPublicationTransitionService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -55,7 +56,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
     public function handle(
         VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper,
-        ChildrensTalkSpeakerService $childrensTalkSpeakerService
+        ChildrensTalkSpeakerService $childrensTalkSpeakerService,
+        ServiceSectionPublicationTransitionService $publicationTransitions
     ): void {
         if (! (bool) config('media-processing.section_publishing.enabled', true)) {
             $this->initializeStepLogging($this->processingLog->processing_id);
@@ -128,7 +130,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                     continue;
                 }
 
-                $this->moveToNotApplicable($section);
+                $this->moveToNotApplicable($section, $publicationTransitions);
 
                 continue;
             }
@@ -151,7 +153,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                     continue;
                 }
 
-                $this->moveToNotApplicable($section);
+                $this->moveToNotApplicable($section, $publicationTransitions);
 
                 continue;
             }
@@ -164,7 +166,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
             if (
                 $section->publication_status !== ServiceSectionPublicationStatus::PENDING_APPROVAL
-                && ! $section->transitionTo(ServiceSectionPublicationStatus::PENDING_APPROVAL)
+                && ! $publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL)
             ) {
                 continue;
             }
@@ -184,13 +186,15 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         );
     }
 
-    private function moveToNotApplicable(ServiceSection $section): void
-    {
+    private function moveToNotApplicable(
+        ServiceSection $section,
+        ServiceSectionPublicationTransitionService $publicationTransitions
+    ): void {
         if ($section->publication_status === ServiceSectionPublicationStatus::PUBLISHED) {
             return;
         }
 
-        if (! $section->transitionTo(ServiceSectionPublicationStatus::NOT_APPLICABLE)) {
+        if (! $publicationTransitions->transition($section, ServiceSectionPublicationStatus::NOT_APPLICABLE)) {
             return;
         }
 

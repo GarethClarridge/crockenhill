@@ -6,9 +6,14 @@ namespace App\Actions\Publication;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
+use App\Services\ServiceSectionPublicationTransitionService;
 
 class RequeueSectionPublication
 {
+    public function __construct(
+        private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
+    ) {}
+
     /**
      * Transition a section back to pending approval.
      *
@@ -16,7 +21,7 @@ class RequeueSectionPublication
      */
     public function execute(ServiceSection $section): bool
     {
-        if (! $section->transitionTo(ServiceSectionPublicationStatus::PENDING_APPROVAL)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL)) {
             return false;
         }
 

@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
+use App\Services\ServiceSectionPublicationTransitionService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +18,7 @@ class SaveServiceSection
 {
     public function __construct(
         private readonly ChildrensTalkSpeakerService $speakerService,
+        private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
     ) {}
 
     /**
@@ -108,17 +110,17 @@ class SaveServiceSection
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
         if (
-            ! $section->isPublishableType()
+            ! $this->publicationTransitions->isPublishableType($section)
             && $section->publication_status !== ServiceSectionPublicationStatus::NOT_APPLICABLE
         ) {
-            $section->transitionTo(ServiceSectionPublicationStatus::NOT_APPLICABLE);
+            $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::NOT_APPLICABLE);
         } elseif (
-            $section->isPublishableType()
+            $this->publicationTransitions->isPublishableType($section)
             && ! $section->needs_manual_review
             && $section->publication_status === ServiceSectionPublicationStatus::NOT_APPLICABLE
             && $section->hasExtractedMedia()
         ) {
-            $section->transitionTo(ServiceSectionPublicationStatus::PENDING_APPROVAL);
+            $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL);
         }
 
         $section->save();

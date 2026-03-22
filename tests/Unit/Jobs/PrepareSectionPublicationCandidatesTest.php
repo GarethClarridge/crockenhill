@@ -15,6 +15,7 @@ use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
 use App\Services\ChildrensTalkSpeakerService;
+use App\Services\ServiceSectionPublicationTransitionService;
 use App\Services\StorageAdapterHelper;
 use App\Services\VideoExtractionService;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -96,7 +97,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class)
+            app(ChildrensTalkSpeakerService::class),
+            app(ServiceSectionPublicationTransitionService::class)
         );
 
         $section->refresh();
@@ -140,7 +142,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class)
+            app(ChildrensTalkSpeakerService::class),
+            app(ServiceSectionPublicationTransitionService::class)
         );
 
         $section->refresh();
@@ -175,7 +178,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class)
+            app(ChildrensTalkSpeakerService::class),
+            app(ServiceSectionPublicationTransitionService::class)
         );
 
         $section->refresh();
@@ -249,7 +253,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class)
+            app(ChildrensTalkSpeakerService::class),
+            app(ServiceSectionPublicationTransitionService::class)
         );
 
         $section->refresh();
@@ -276,7 +281,12 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         Log::shouldReceive('info')->once()->with('PrepareSectionPublicationCandidates job skipped: processing cancelled', \Mockery::any());
 
         $job = new PrepareSectionPublicationCandidates($log);
-        $job->handle($mockExtractor, app(StorageAdapterHelper::class), app(ChildrensTalkSpeakerService::class));
+        $job->handle(
+            $mockExtractor,
+            app(StorageAdapterHelper::class),
+            app(ChildrensTalkSpeakerService::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
     }
 
     #[Test]
@@ -344,7 +354,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
-            app(ChildrensTalkSpeakerService::class)
+            app(ChildrensTalkSpeakerService::class),
+            app(ServiceSectionPublicationTransitionService::class)
         );
 
         $section->refresh();

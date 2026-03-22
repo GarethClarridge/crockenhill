@@ -23,7 +23,7 @@ class ExpireSectionPublicationAssetsTest extends TestCase
     {
         parent::setUp();
 
-        $this->action = new ExpireSectionPublicationAssets;
+        $this->action = app(ExpireSectionPublicationAssets::class);
     }
 
     #[Test]
@@ -96,7 +96,7 @@ class ExpireSectionPublicationAssetsTest extends TestCase
     public function it_handles_idempotent_transition_when_section_is_already_not_applicable(): void
     {
         // All states allow NOT_APPLICABLE (either in their allowed list, or via same-state guard).
-        // A section already in NOT_APPLICABLE should succeed since transitionTo returns true for same-state.
+        // A section already in NOT_APPLICABLE should succeed since transition returns true for same-state.
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,

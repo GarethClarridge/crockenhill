@@ -16,6 +16,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\SermonCreationService;
+use App\Services\ServiceSectionPublicationTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -70,7 +71,11 @@ class PublishApprovedServiceSectionTest extends TestCase
             ->willReturn($createdSermon);
 
         $job = new PublishApprovedServiceSection($section->id);
-        $job->handle($sermonCreationService, app(MediaProcessingIdentityResolver::class));
+        $job->handle(
+            $sermonCreationService,
+            app(MediaProcessingIdentityResolver::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
 
         $section->refresh();
 
@@ -110,7 +115,11 @@ class PublishApprovedServiceSectionTest extends TestCase
         $sermonCreationService->expects($this->never())->method('createSermon');
 
         $job = new PublishApprovedServiceSection($section->id);
-        $job->handle($sermonCreationService, app(MediaProcessingIdentityResolver::class));
+        $job->handle(
+            $sermonCreationService,
+            app(MediaProcessingIdentityResolver::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
 
         $section->refresh();
         $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
@@ -159,7 +168,11 @@ class PublishApprovedServiceSectionTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Section classification changed since approval');
 
-        $job->handle($sermonCreationService, app(MediaProcessingIdentityResolver::class));
+        $job->handle(
+            $sermonCreationService,
+            app(MediaProcessingIdentityResolver::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
     }
 
     #[Test]
@@ -182,7 +195,11 @@ class PublishApprovedServiceSectionTest extends TestCase
         $sermonCreationService->expects($this->never())->method('createSermon');
 
         $job = new PublishApprovedServiceSection($section->id);
-        $job->handle($sermonCreationService, app(MediaProcessingIdentityResolver::class));
+        $job->handle(
+            $sermonCreationService,
+            app(MediaProcessingIdentityResolver::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
 
         $section->refresh();
         $this->assertSame(ServiceSectionPublicationStatus::PUBLISHED, $section->publication_status);
@@ -239,7 +256,11 @@ class PublishApprovedServiceSectionTest extends TestCase
         Storage::disk('public')->put('sermons/audio/section-13.mp3', 'audio');
 
         $job = new PublishApprovedServiceSection($section->id);
-        $job->handle(app(SermonCreationService::class), app(MediaProcessingIdentityResolver::class));
+        $job->handle(
+            app(SermonCreationService::class),
+            app(MediaProcessingIdentityResolver::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
 
         $section->refresh();
         $sermon = Sermon::query()->findOrFail($section->published_sermon_id);
@@ -298,6 +319,10 @@ class PublishApprovedServiceSectionTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage("Children's talk speaker must be reviewed before publication");
 
-        $job->handle(app(SermonCreationService::class), app(MediaProcessingIdentityResolver::class));
+        $job->handle(
+            app(SermonCreationService::class),
+            app(MediaProcessingIdentityResolver::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
     }
 }

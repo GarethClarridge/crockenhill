@@ -9,11 +9,13 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\ServiceSection;
 use App\Services\ChildrensTalkSpeakerService;
+use App\Services\ServiceSectionPublicationTransitionService;
 
 class ApproveSectionForPublication
 {
     public function __construct(
-        private readonly ChildrensTalkSpeakerService $speakerService
+        private readonly ChildrensTalkSpeakerService $speakerService,
+        private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
     ) {}
 
     /**
@@ -31,7 +33,7 @@ class ApproveSectionForPublication
             return $error;
         }
 
-        if (! $section->transitionTo(ServiceSectionPublicationStatus::APPROVED)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::APPROVED)) {
             return 'This section cannot be approved in its current state.';
         }
 

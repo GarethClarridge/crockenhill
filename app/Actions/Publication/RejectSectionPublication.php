@@ -6,9 +6,14 @@ namespace App\Actions\Publication;
 
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
+use App\Services\ServiceSectionPublicationTransitionService;
 
 class RejectSectionPublication
 {
+    public function __construct(
+        private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
+    ) {}
+
     /**
      * Transition a section to the rejected state.
      *
@@ -16,7 +21,7 @@ class RejectSectionPublication
      */
     public function execute(ServiceSection $section): bool
     {
-        if (! $section->transitionTo(ServiceSectionPublicationStatus::REJECTED)) {
+        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::REJECTED)) {
             return false;
         }
 

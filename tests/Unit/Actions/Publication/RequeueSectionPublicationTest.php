@@ -22,7 +22,7 @@ class RequeueSectionPublicationTest extends TestCase
     {
         parent::setUp();
 
-        $this->action = new RequeueSectionPublication;
+        $this->action = app(RequeueSectionPublication::class);
     }
 
     #[Test]

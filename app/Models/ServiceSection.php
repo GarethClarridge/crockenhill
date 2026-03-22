@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -131,67 +130,6 @@ class ServiceSection extends Model
     public function publishedSermon(): BelongsTo
     {
         return $this->belongsTo(Sermon::class, 'published_sermon_id');
-    }
-
-    public function isPublishableType(): bool
-    {
-        $publishableTypes = config('media-processing.section_publishing.publishable_types', ['childrens_talk']);
-        if (! is_array($publishableTypes)) {
-            return false;
-        }
-
-        return in_array($this->section_type->value, $publishableTypes, true);
-    }
-
-    public function canTransitionTo(ServiceSectionPublicationStatus $target): bool
-    {
-        $current = $this->publication_status;
-        $allowed = match ($current) {
-            ServiceSectionPublicationStatus::NOT_APPLICABLE => [
-                ServiceSectionPublicationStatus::PENDING_APPROVAL,
-            ],
-            ServiceSectionPublicationStatus::PENDING_APPROVAL => [
-                ServiceSectionPublicationStatus::APPROVED,
-                ServiceSectionPublicationStatus::REJECTED,
-                ServiceSectionPublicationStatus::NOT_APPLICABLE,
-            ],
-            ServiceSectionPublicationStatus::APPROVED => [
-                ServiceSectionPublicationStatus::PUBLISHED,
-                ServiceSectionPublicationStatus::REJECTED,
-                ServiceSectionPublicationStatus::NOT_APPLICABLE,
-            ],
-            ServiceSectionPublicationStatus::REJECTED => [
-                ServiceSectionPublicationStatus::PENDING_APPROVAL,
-                ServiceSectionPublicationStatus::NOT_APPLICABLE,
-            ],
-            ServiceSectionPublicationStatus::PUBLISHED => [
-                ServiceSectionPublicationStatus::PENDING_APPROVAL,
-                ServiceSectionPublicationStatus::NOT_APPLICABLE,
-            ],
-        };
-
-        if ($target === $current) {
-            return true;
-        }
-
-        return in_array($target, $allowed, true);
-    }
-
-    public function transitionTo(ServiceSectionPublicationStatus $target): bool
-    {
-        if (! $this->canTransitionTo($target)) {
-            Log::error('Invalid service section publication transition attempted', [
-                'service_section_id' => $this->id,
-                'from' => $this->publication_status->value,
-                'to' => $target->value,
-            ]);
-
-            return false;
-        }
-
-        $this->publication_status = $target;
-
-        return true;
     }
 
     /**

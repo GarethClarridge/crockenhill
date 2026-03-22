@@ -22,7 +22,7 @@ class RejectSectionPublicationTest extends TestCase
     {
         parent::setUp();
 
-        $this->action = new RejectSectionPublication;
+        $this->action = app(RejectSectionPublication::class);
     }
 
     #[Test]

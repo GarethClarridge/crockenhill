@@ -6,7 +6,6 @@ namespace App\Models;
 
 use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
-use App\Services\GoogleCalendarSyncService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
-use Spatie\GoogleCalendar\Event;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -353,14 +351,6 @@ class Meeting extends Model implements HasMedia, Sitemapable
     {
         /** @var \App\Models\CalendarEvent|null */
         return $this->past_events->first();
-    }
-
-    /**
-     * @param  array<string, mixed>  $eventData
-     */
-    public function createEvent(array $eventData): Event
-    {
-        return app(GoogleCalendarSyncService::class)->createEventForMeeting($this->slug, $eventData);
     }
 
     /**

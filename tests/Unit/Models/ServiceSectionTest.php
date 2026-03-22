@@ -74,16 +74,4 @@ class ServiceSectionTest extends TestCase
 
         $this->assertSame($sermon->id, $section->publishedSermon?->id);
     }
-
-    #[Test]
-    public function it_validates_publication_status_transitions(): void
-    {
-        $section = ServiceSection::factory()->create([
-            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
-        ]);
-
-        $this->assertTrue($section->canTransitionTo(ServiceSectionPublicationStatus::APPROVED));
-        $this->assertTrue($section->transitionTo(ServiceSectionPublicationStatus::APPROVED));
-        $this->assertFalse($section->canTransitionTo(ServiceSectionPublicationStatus::PENDING_APPROVAL));
-    }
 }

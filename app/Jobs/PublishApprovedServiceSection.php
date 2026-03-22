@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ServiceSection;
 use App\Services\MediaProcessingIdentityResolver;
 use App\Services\SermonCreationService;
+use App\Services\ServiceSectionPublicationTransitionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -47,13 +48,18 @@ class PublishApprovedServiceSection implements ShouldQueue
 
     public function handle(
         SermonCreationService $sermonCreationService,
-        MediaProcessingIdentityResolver $identityResolver
+        MediaProcessingIdentityResolver $identityResolver,
+        ServiceSectionPublicationTransitionService $publicationTransitions
     ): void {
         if (! (bool) config('media-processing.section_publishing.enabled', true)) {
             return;
         }
 
-        DB::transaction(function () use ($sermonCreationService, $identityResolver): void {
+        DB::transaction(function () use (
+            $identityResolver,
+            $publicationTransitions,
+            $sermonCreationService
+        ): void {
             $section = ServiceSection::query()
                 ->with('processingLog')
                 ->lockForUpdate()
@@ -122,7 +128,7 @@ class PublishApprovedServiceSection implements ShouldQueue
                 throw new \RuntimeException("Children's talk speaker must be reviewed before publication");
             }
 
-            if (! $section->transitionTo(ServiceSectionPublicationStatus::PUBLISHED)) {
+            if (! $publicationTransitions->transition($section, ServiceSectionPublicationStatus::PUBLISHED)) {
                 throw new \RuntimeException('Invalid state transition when publishing approved section');
             }
 
