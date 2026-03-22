@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
@@ -55,7 +57,8 @@ class SermonAnalysisValidator
     public function validateAndCleanAnalysisData(array $analysisData, string $originalTranscript): array
     {
         // Validate and clean title
-        $title = $this->validateAndCleanTitle($analysisData['title'] ?? '');
+        $rawTitle = $analysisData['title'] ?? '';
+        $title = $this->validateAndCleanTitle(is_string($rawTitle) ? $rawTitle : (string) $rawTitle);
 
         // Validate series (must be null or non-empty string)
         $series = null;
@@ -94,7 +97,8 @@ class SermonAnalysisValidator
         }
 
         // Validate and clean summary
-        $summary = $this->validateAndCleanSummary($analysisData['summary'] ?? '');
+        $rawSummary = $analysisData['summary'] ?? '';
+        $summary = $this->validateAndCleanSummary(is_string($rawSummary) ? $rawSummary : (string) $rawSummary);
 
         return [
             'title' => $title,
