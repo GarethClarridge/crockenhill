@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -186,7 +187,8 @@ class OosAlignmentServiceCharacterizationTest extends TestCase
         $this->assertTrue($result['aligned']);
         $this->assertSame($songItem->id, $section->church_service_item_id);
         $this->assertSame('Be Thou My Vision', $section->title);
-        $this->assertSame('confirmed', $section->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
     }
 
     #[Test]

@@ -130,11 +130,8 @@ class PublicSongDetailTest extends TestCase
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $detectedItem->id,
             'section_type' => ServiceSectionType::SONG,
-            'metadata' => [
-                'oos_alignment' => [
-                    'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
-                ],
-            ],
+            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'metadata' => ['oos_alignment' => []],
         ]);
 
         $response = $this->get(route('church.songs.show', $song->slug));

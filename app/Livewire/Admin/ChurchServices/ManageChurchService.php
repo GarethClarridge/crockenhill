@@ -283,7 +283,7 @@ class ManageChurchService extends Component
     }
 
     /**
-     * @return array<int, array{position:int,type:string,section_type:string,title:string,source_title:string,openlp_search_title:null,song_id:int|null,metadata:array<string,mixed>}>
+     * @return array<int, array{position:int,type:string,section_type:string,title:string,source_title:string,openlp_search_title:null,song_id:int|null,metadata:array<string,mixed>|null}>
      */
     private function buildSyncPayload(): array
     {
@@ -302,9 +302,7 @@ class ManageChurchService extends Component
                 default => 'custom',
             };
             $songId = is_int($item['song_id']) ? $item['song_id'] : null;
-            $metadata = [
-                'section_type' => $sectionType->value,
-            ];
+            $metadata = [];
 
             if ($songId !== null && array_key_exists($songId, $selectedSongCanonicalKeys)) {
                 $metadata['linked_song_canonical_key'] = $selectedSongCanonicalKeys[$songId];
@@ -318,7 +316,7 @@ class ManageChurchService extends Component
                 'source_title' => trim((string) $item['title']),
                 'openlp_search_title' => null,
                 'song_id' => $songId,
-                'metadata' => $metadata,
+                'metadata' => $metadata !== [] ? $metadata : null,
             ];
         }
 

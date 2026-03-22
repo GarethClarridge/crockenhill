@@ -1743,7 +1743,7 @@ The backlog is ordered for safety:
   - `architectural-review-2026-03-17.md`
 
 ### TD-017A - Promote high-value JSON/reporting state into first-class columns
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium-High

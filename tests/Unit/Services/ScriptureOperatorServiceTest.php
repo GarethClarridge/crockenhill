@@ -8,7 +8,9 @@ use App\Data\ApiBiblePassageResult;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Services\ApiBibleClient;
+use App\Services\ScriptureHtmlSanitizer;
 use App\Services\ScriptureOperatorService;
+use App\Services\ScriptureReferenceResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -41,6 +43,27 @@ class ScriptureOperatorServiceTest extends TestCase
         return $client;
     }
 
+    /**
+     * @param  array<string, string|null>  $normalizedReferences
+     */
+    private function mockResolver(array $normalizedReferences): void
+    {
+        $resolver = $this->createMock(ScriptureReferenceResolver::class);
+        $resolver->method('normalize')
+            ->willReturnCallback(static fn (string $reference): ?string => $normalizedReferences[$reference] ?? null);
+
+        $this->app->instance(ScriptureReferenceResolver::class, $resolver);
+    }
+
+    private function mockSanitizer(): void
+    {
+        $sanitizer = $this->createMock(ScriptureHtmlSanitizer::class);
+        $sanitizer->method('sanitize')
+            ->willReturnCallback(static fn (?string $html): ?string => $html);
+
+        $this->app->instance(ScriptureHtmlSanitizer::class, $sanitizer);
+    }
+
     public function test_run_enrichment_processes_sermons_through_shared_service(): void
     {
         $sermon = Sermon::factory()->create([
@@ -53,6 +76,11 @@ class ScriptureOperatorServiceTest extends TestCase
         ]);
 
         $client = $this->mockClientWithBudget();
+        $this->mockResolver([
+            'John 3:16' => 'John 3:16',
+            'xyzzy 99:99' => null,
+        ]);
+        $this->mockSanitizer();
         $client->expects($this->once())
             ->method('searchPassage')
             ->with('John 3:16')
@@ -81,6 +109,7 @@ class ScriptureOperatorServiceTest extends TestCase
         ]);
 
         $client = $this->mockClientWithBudget();
+        $this->mockSanitizer();
         $client->expects($this->once())
             ->method('fetchPassageById')
             ->with('JHN.3.16')

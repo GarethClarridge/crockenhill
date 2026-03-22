@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
@@ -83,7 +84,8 @@ class ServiceSectionReviewTriggerEvaluatorTest extends TestCase
         $this->assertTrue($section->needs_manual_review);
         $this->assertContains('unmatched_song_section', $section->metadata['review_flags']);
         $this->assertEquals('unmatched_song_section', $section->metadata['review_reason']);
-        $this->assertSame('unmatched', $section->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::UNMATCHED, $section->song_match_type);
+        $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         // 0.9 - 0.10 = 0.8
         $this->assertEquals(0.8, $section->confidence);
     }

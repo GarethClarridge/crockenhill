@@ -102,7 +102,9 @@ class ReportingStatePromotionSchemaTest extends TestCase
         });
 
         $migration = require database_path('migrations/2026_03_22_120000_promote_service_reporting_state_to_columns.php');
+        ob_start();
         $migration->up();
+        $auditOutput = (string) ob_get_clean();
 
         $this->assertSame(
             ServiceSectionType::WELCOME->value,
@@ -127,5 +129,19 @@ class ReportingStatePromotionSchemaTest extends TestCase
         );
         $this->assertNull(DB::table('service_sections')->where('id', $invalidSection->id)->value('song_match_type'));
         $this->assertNull(DB::table('service_sections')->where('id', $invalidSection->id)->value('matched_item_id'));
+        $this->assertStringContainsString(
+            sprintf(
+                '[TD-017A] service_sections.invalid_song_match_type rows=1 sample_ids=%d',
+                $invalidSection->id
+            ),
+            $auditOutput
+        );
+        $this->assertStringContainsString(
+            sprintf(
+                '[TD-017A] service_sections.invalid_matched_item_id rows=1 sample_ids=%d',
+                $invalidSection->id
+            ),
+            $auditOutput
+        );
     }
 }

@@ -61,7 +61,7 @@ class PublicSongUsageServiceTest extends TestCase
     }
 
     #[Test]
-    public function test_query_includes_livestreamed_songs_matched_via_service_section(): void
+    public function test_query_excludes_legacy_json_only_song_match_state_from_livestream_reporting(): void
     {
         $song = Song::factory()->create();
         $churchService = ChurchService::factory()->create(['date' => now()->subMonths(2)]);
@@ -88,8 +88,7 @@ class PublicSongUsageServiceTest extends TestCase
 
         $results = $this->service->query()->get();
 
-        $this->assertCount(1, $results);
-        $this->assertSame($song->id, $results->first()->id);
+        $this->assertCount(0, $results);
     }
 
     #[Test]
@@ -162,11 +161,8 @@ class PublicSongUsageServiceTest extends TestCase
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::SONG,
             'needs_manual_review' => true,
-            'metadata' => [
-                'oos_alignment' => [
-                    'song_match_type' => 'inferred',
-                ],
-            ],
+            'song_match_type' => ServiceSectionSongMatchType::INFERRED->value,
+            'metadata' => ['oos_alignment' => []],
         ]);
 
         $results = $this->service->query()->get();

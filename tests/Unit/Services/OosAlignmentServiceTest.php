@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -82,8 +83,10 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertSame($firstSong->id, $secondDetected->church_service_item_id);
         $this->assertSame('Song Two', $firstDetected->title);
         $this->assertSame('Song One', $secondDetected->title);
-        $this->assertSame('confirmed', $firstDetected->metadata['oos_alignment']['song_match_type'] ?? null);
-        $this->assertSame('confirmed', $secondDetected->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $firstDetected->song_match_type);
+        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $secondDetected->song_match_type);
+        $this->assertArrayNotHasKey('song_match_type', $firstDetected->metadata['oos_alignment'] ?? []);
+        $this->assertArrayNotHasKey('song_match_type', $secondDetected->metadata['oos_alignment'] ?? []);
         $this->assertSame('high', $firstDetected->metadata['confidence_level']);
         $this->assertSame('high', $secondDetected->metadata['confidence_level']);
     }
@@ -239,7 +242,8 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertSame('song_alignment_inferred', $section->metadata['review_reason']);
         $this->assertContains('song_alignment_inferred', $section->metadata['review_flags']);
         $this->assertContains('unmatched_song_section', $section->metadata['review_flags']);
-        $this->assertSame('inferred', $section->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         $this->assertNull($section->metadata['song_id'] ?? null);
         $this->assertTrue($churchService->needs_review);
     }
@@ -283,7 +287,8 @@ class OosAlignmentServiceTest extends TestCase
         $this->assertContains('unmatched_song_sections', $result['review_triggers']);
         $this->assertTrue($section->needs_manual_review);
         $this->assertNull($section->church_service_item_id);
-        $this->assertSame('unmatched', $section->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::UNMATCHED, $section->song_match_type);
+        $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
     }
 
     #[Test]

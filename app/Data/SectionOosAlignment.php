@@ -69,10 +69,7 @@ final class SectionOosAlignment extends JsonData
     public function toArray(): array
     {
         $data = $this->raw;
-
-        if ($this->songMatchType !== null) {
-            $data['song_match_type'] = $this->songMatchType;
-        }
+        unset($data['song_match_type'], $data['matched_item_id'], $data['expected_item_id']);
 
         if ($this->songMatchScore !== null) {
             $data['song_match_score'] = $this->songMatchScore;
@@ -94,10 +91,6 @@ final class SectionOosAlignment extends JsonData
             $data['reclassified_by'] = $this->reclassifiedBy;
         }
 
-        if ($this->matchedItemId !== null) {
-            $data['matched_item_id'] = $this->matchedItemId;
-        }
-
         if ($this->matchedItemType !== null) {
             $data['matched_item_type'] = $this->matchedItemType;
         }
@@ -108,10 +101,6 @@ final class SectionOosAlignment extends JsonData
 
         if ($this->mismatchReason !== null) {
             $data['mismatch_reason'] = $this->mismatchReason;
-        }
-
-        if ($this->expectedItemId !== null) {
-            $data['expected_item_id'] = $this->expectedItemId;
         }
 
         if ($this->expectedItemTitle !== null) {

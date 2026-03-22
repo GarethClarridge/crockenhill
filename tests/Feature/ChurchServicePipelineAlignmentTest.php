@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Jobs\AlignWithOos;
 use App\Jobs\ClassifyServiceSections;
@@ -110,7 +111,8 @@ class ChurchServicePipelineAlignmentTest extends TestCase
         $this->assertSame($churchService->id, $processingLog->church_service_id);
         $this->assertSame($song->id, $section->church_service_item_id);
         $this->assertSame('Opening Song', $section->title);
-        $this->assertSame('inferred', $section->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         $this->assertSame('oos_order_inference', $section->metadata['oos_alignment']['song_match_strategy']);
         $this->assertTrue($churchService->fresh()->needs_review);
     }

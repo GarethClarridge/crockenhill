@@ -231,12 +231,14 @@ class AdminChurchServiceTest extends TestCase
 
         $this->assertCount(3, $service->items);
         $this->assertSame('custom', $service->items[0]->type);
-        $this->assertSame(ServiceSectionType::WELCOME->value, $service->items[0]->metadata['section_type'] ?? null);
+        $this->assertSame(ServiceSectionType::WELCOME, $service->items[0]->section_type);
+        $this->assertArrayNotHasKey('section_type', $service->items[0]->metadata ?? []);
         $this->assertSame('songs', $service->items[1]->type);
         $this->assertSame($song->id, $service->items[1]->song_id);
         $this->assertSame('blessed assurance', $service->items[1]->metadata['linked_song_canonical_key'] ?? null);
         $this->assertSame('bibles', $service->items[2]->type);
-        $this->assertSame(ServiceSectionType::BIBLE_READING->value, $service->items[2]->metadata['section_type'] ?? null);
+        $this->assertSame(ServiceSectionType::BIBLE_READING, $service->items[2]->section_type);
+        $this->assertArrayNotHasKey('section_type', $service->items[2]->metadata ?? []);
     }
 
     #[Test]
@@ -335,9 +337,11 @@ class AdminChurchServiceTest extends TestCase
         $this->assertSame('2026-05-10 PM.osz', $service->original_filename);
         $this->assertSame(3, $service->items->count());
         $this->assertSame('Opening Prayer', $service->items[0]->title);
-        $this->assertSame(ServiceSectionType::PRAYER->value, $service->items[0]->metadata['section_type'] ?? null);
+        $this->assertSame(ServiceSectionType::PRAYER, $service->items[0]->section_type);
+        $this->assertArrayNotHasKey('section_type', $service->items[0]->metadata ?? []);
         $this->assertSame('Welcome and Notices', $service->items[1]->title);
-        $this->assertSame(ServiceSectionType::WELCOME->value, $service->items[1]->metadata['section_type'] ?? null);
+        $this->assertSame(ServiceSectionType::WELCOME, $service->items[1]->section_type);
+        $this->assertArrayNotHasKey('section_type', $service->items[1]->metadata ?? []);
         $this->assertSame('Closing Song', $service->items[2]->title);
         $this->assertSame($song->id, $service->items[2]->song_id);
         $this->assertDatabaseMissing('church_service_items', [

@@ -223,7 +223,6 @@ class StructuralSectionAligner
     {
         $metadata = $this->metadata($section);
         $metadata['oos_alignment'] = array_merge($this->baselineRestorer->baseAlignmentMetadata($section), [
-            'matched_item_id' => $item->id,
             'matched_item_type' => $item->type,
             'matched_item_title' => $item->title,
         ]);
@@ -255,7 +254,6 @@ class StructuralSectionAligner
         $metadata = $this->metadata($section);
         $metadata['oos_alignment'] = array_merge($this->baselineRestorer->baseAlignmentMetadata($section), [
             'mismatch_reason' => $reason,
-            'expected_item_id' => $item?->id,
             'expected_item_title' => $item?->title,
             'expected_section_type' => $item instanceof ChurchServiceItem ? $this->resolvedItemType($item)->value : null,
         ]);
@@ -287,24 +285,20 @@ class StructuralSectionAligner
      */
     private function resolvedItemType(ChurchServiceItem $item, array $presentationDecisions = []): ServiceSectionType
     {
-        $metadataSectionType = $item->metadata['section_type'] ?? null;
+        $explicitSectionType = $item->explicitMetadataSectionType();
 
-        if (is_string($metadataSectionType)) {
-            $resolved = ServiceSectionType::tryFrom($metadataSectionType);
-
-            if ($resolved instanceof ServiceSectionType) {
-                return $resolved;
-            }
+        if ($explicitSectionType instanceof ServiceSectionType) {
+            return $explicitSectionType;
         }
 
         $itemType = strtolower($item->type);
 
         if ($itemType === 'songs') {
-            return ServiceSectionType::SONG;
+            return $item->semanticSectionType();
         }
 
         if ($itemType === 'bibles') {
-            return ServiceSectionType::BIBLE_READING;
+            return $item->semanticSectionType();
         }
 
         if ($itemType === 'presentations') {
@@ -323,21 +317,7 @@ class StructuralSectionAligner
             return ServiceSectionType::OTHER;
         }
 
-        return $this->inferCustomItemType($item->title);
-    }
-
-    private function inferCustomItemType(string $title): ServiceSectionType
-    {
-        $normalizedTitle = strtolower(trim($title));
-
-        return match (true) {
-            preg_match('/\b(children|children\'s)\b/', $normalizedTitle) === 1 => ServiceSectionType::CHILDRENS_TALK,
-            preg_match('/\bprayer(s)?\b/', $normalizedTitle) === 1 => ServiceSectionType::PRAYER,
-            preg_match('/\b(notices?|announcements?)\b/', $normalizedTitle) === 1 => ServiceSectionType::NOTICES,
-            preg_match('/\bwelcome\b/', $normalizedTitle) === 1 => ServiceSectionType::WELCOME,
-            preg_match('/\b(sermon|message)\b/', $normalizedTitle) === 1 => ServiceSectionType::SERMON,
-            default => ServiceSectionType::OTHER,
-        };
+        return $item->semanticSectionType();
     }
 
     /**

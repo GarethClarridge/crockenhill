@@ -34,13 +34,6 @@ class UnmatchedSongReviewApplicator
 
         foreach ($unmatchedSongSections as $section) {
             $metadata = $this->metadata($section);
-            $alignment = is_array($metadata['oos_alignment'] ?? null) ? $metadata['oos_alignment'] : [];
-
-            if (($alignment['song_match_type'] ?? null) === null) {
-                $alignment['song_match_type'] = ServiceSectionSongMatchType::UNMATCHED->value;
-            }
-
-            $metadata['oos_alignment'] = $alignment;
             $reviewFlags = $this->reviewFlags($metadata);
             $reviewFlags[] = 'unmatched_song_section';
             $metadata['review_flags'] = array_values(array_unique($reviewFlags));

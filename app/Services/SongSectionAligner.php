@@ -145,10 +145,8 @@ class SongSectionAligner
     {
         $metadata = $this->metadata($section);
         $metadata['oos_alignment'] = array_merge($this->baselineRestorer->baseAlignmentMetadata($section), [
-            'matched_item_id' => $item->id,
             'matched_item_type' => $item->type,
             'matched_item_title' => $item->title,
-            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
             'song_match_score' => round($score, 3),
             'song_match_strategy' => 'normalized_title',
             'song_title_matched' => $item->title,
@@ -187,10 +185,8 @@ class SongSectionAligner
     {
         $metadata = $this->metadata($section);
         $metadata['oos_alignment'] = array_merge($this->baselineRestorer->baseAlignmentMetadata($section), [
-            'matched_item_id' => $item->id,
             'matched_item_type' => $item->type,
             'matched_item_title' => $item->title,
-            'song_match_type' => ServiceSectionSongMatchType::INFERRED->value,
             'song_match_strategy' => 'oos_order_inference',
             'song_title_matched' => $item->title,
         ]);

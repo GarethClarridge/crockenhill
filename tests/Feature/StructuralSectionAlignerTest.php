@@ -175,7 +175,8 @@ class StructuralSectionAlignerTest extends TestCase
 
         $this->assertContains('oos_structure_mismatch', $result['review_triggers']);
         $this->assertSame('oos_type_mismatch', $mismatchSection->metadata['oos_alignment']['mismatch_reason'] ?? null);
-        $this->assertSame($bibleItem->id, $mismatchSection->metadata['oos_alignment']['expected_item_id'] ?? null);
+        $this->assertSame($bibleItem->id, $mismatchSection->expected_item_id);
+        $this->assertArrayNotHasKey('expected_item_id', $mismatchSection->metadata['oos_alignment'] ?? []);
         $this->assertTrue($mismatchSection->needs_manual_review);
     }
 

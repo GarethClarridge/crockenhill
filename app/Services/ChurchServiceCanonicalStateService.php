@@ -33,7 +33,7 @@ class ChurchServiceCanonicalStateService
                 'source_title' => $item->source_title,
                 'openlp_search_title' => $item->openlp_search_title,
                 'song_id' => $item->song_id,
-                'metadata' => $this->normaliseValue($item->metadata),
+                'metadata' => $this->normaliseValue($this->normaliseItemMetadata($item->metadata)),
             ])
             ->values()
             ->all();
@@ -127,5 +127,20 @@ class ChurchServiceCanonicalStateService
         ksort($value);
 
         return $value;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     * @return array<string, mixed>|null
+     */
+    private function normaliseItemMetadata(?array $metadata): ?array
+    {
+        if (! is_array($metadata)) {
+            return $metadata;
+        }
+
+        unset($metadata['section_type']);
+
+        return $metadata === [] ? null : $metadata;
     }
 }

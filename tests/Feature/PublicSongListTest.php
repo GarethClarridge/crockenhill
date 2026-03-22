@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -80,11 +81,8 @@ class PublicSongListTest extends TestCase
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $countedItem->id,
             'section_type' => ServiceSectionType::SONG,
-            'metadata' => [
-                'oos_alignment' => [
-                    'song_match_type' => 'confirmed',
-                ],
-            ],
+            'song_match_type' => ServiceSectionSongMatchType::CONFIRMED->value,
+            'metadata' => ['oos_alignment' => []],
         ]);
 
         $response = $this->get(route('church.songs.index'));

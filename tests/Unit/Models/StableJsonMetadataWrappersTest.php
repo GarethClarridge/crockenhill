@@ -120,6 +120,11 @@ class StableJsonMetadataWrappersTest extends TestCase
         $this->assertSame('inferred', $metadata->oosAlignment?->songMatchType);
         $this->assertSame('Mary Helper', $metadata->childrensTalkSpeaker?->reviewed['preacher_name'] ?? null);
         $this->assertSame('Mary Helper', $section->publicationChildrensTalkSpeaker()['preacher_name'] ?? null);
-        $this->assertSame($payload, $metadata->toArray());
+        $serialized = $metadata->toArray();
+
+        $this->assertArrayNotHasKey('song_match_type', $serialized['oos_alignment'] ?? []);
+        $this->assertArrayNotHasKey('matched_item_id', $serialized['oos_alignment'] ?? []);
+        $this->assertSame('oos_order_inference', $serialized['oos_alignment']['song_match_strategy'] ?? null);
+        $this->assertSame('presentation', $serialized['oos_alignment']['presentation_inference']['resolved_type'] ?? null);
     }
 }

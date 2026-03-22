@@ -70,20 +70,18 @@ class PresentationItemClassifier
      */
     private function makeDecision(ChurchServiceItem $item, int $firstSongPosition): array
     {
-        // Tier 1: explicit section_type in metadata — trusted, no review needed
-        $metadataSectionType = $item->metadata['section_type'] ?? null;
-        if (is_string($metadataSectionType)) {
-            $explicit = ServiceSectionType::tryFrom($metadataSectionType);
-            if ($explicit instanceof ServiceSectionType) {
-                return [
-                    'resolved_type' => $explicit,
-                    'suspected_type' => null,
-                    'evidence' => 'explicit',
-                    'requires_review' => false,
-                    'review_flag' => null,
-                    'reason' => 'explicit_metadata_section_type',
-                ];
-            }
+        // Historical compatibility: legacy rows may still carry an explicit metadata override
+        // until the transition window closes.
+        $explicit = $item->explicitMetadataSectionType();
+        if ($explicit instanceof ServiceSectionType) {
+            return [
+                'resolved_type' => $explicit,
+                'suspected_type' => null,
+                'evidence' => 'explicit',
+                'requires_review' => false,
+                'review_flag' => null,
+                'reason' => 'explicit_metadata_section_type',
+            ];
         }
 
         $normalizedTitle = strtolower(trim($item->title ?? ''));

@@ -122,7 +122,8 @@ class SongSectionAlignerTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED->value, $section->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         $this->assertSame($song->id, $section->metadata['song_id'] ?? null);
         $this->assertGreaterThanOrEqual(ServiceSectionConfidence::HIGH_THRESHOLD, $section->confidence);
     }
@@ -169,7 +170,8 @@ class SongSectionAlignerTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionSongMatchType::INFERRED->value, $section->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::INFERRED, $section->song_match_type);
+        $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         $this->assertNull($section->metadata['song_id'] ?? null);
         $this->assertLessThanOrEqual(0.84, $section->confidence);
         $this->assertTrue($section->needs_manual_review);
@@ -266,7 +268,8 @@ class SongSectionAlignerTest extends TestCase
 
         $this->assertSame(1, $result['matched_song_sections']);
         $this->assertSame($item->id, $section->church_service_item_id);
-        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED->value, $section->metadata['oos_alignment']['song_match_type'] ?? null);
+        $this->assertSame(ServiceSectionSongMatchType::CONFIRMED, $section->song_match_type);
+        $this->assertArrayNotHasKey('song_match_type', $section->metadata['oos_alignment'] ?? []);
         // song_id is re-written from item.song_id after a confirmed match
         $this->assertSame($song->id, $section->metadata['song_id'] ?? null);
     }
