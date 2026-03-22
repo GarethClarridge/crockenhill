@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Models\Sermon;
-use App\Services\SermonStorageService;
+use App\Services\SermonStorageMaintenanceService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Number;
 
 class VerifySermonStorageCommand extends Command
@@ -16,56 +14,29 @@ class VerifySermonStorageCommand extends Command
 
     protected $description = 'Verify that all sermon files are accessible on the specified disk';
 
-    public function handle(): int
+    public function handle(SermonStorageMaintenanceService $storageMaintenanceService): int
     {
         $disk = $this->option('disk');
-        $storageService = app(SermonStorageService::class);
-
-        $sermons = Sermon::all();
-        $missing = [];
-        $accessible = 0;
-        $totalSize = 0;
-
-        $this->info("Verifying {$sermons->count()} sermons on {$disk} disk...");
-
-        $progressBar = $this->output->createProgressBar($sermons->count());
+        $progressBar = $this->output->createProgressBar($storageMaintenanceService->countVerifiableSermons());
         $progressBar->start();
-
-        foreach ($sermons as $sermon) {
-            $fileInfo = $storageService->getSermonFileInfo($sermon);
-
-            if (Storage::disk($disk)->exists($fileInfo['path'])) {
-                $accessible++;
-                try {
-                    $size = Storage::disk($disk)->size($fileInfo['path']);
-                    $totalSize += $size;
-                } catch (\Exception $e) {
-                    // Size calculation failed, but file exists
-                }
-            } else {
-                $missing[] = [
-                    'id' => $sermon->id,
-                    'title' => $sermon->title,
-                    'filename' => $sermon->audio_file_path,
-                    'expected_path' => $fileInfo['path'],
-                    'pattern' => $fileInfo['type'],
-                ];
-            }
-
+        $result = $storageMaintenanceService->verifyStorage((string) $disk, function (array $_item) use ($progressBar): void {
             $progressBar->advance();
-        }
-
+        });
         $progressBar->finish();
         $this->newLine(2);
+        $summary = $result['summary'];
+        $missing = $result['missing'];
+
+        $this->info('Verifying sermon files on '.$disk.' disk...');
 
         // Display results
-        $this->info("✓ Accessible files: {$accessible}");
+        $this->info("✓ Accessible files: {$summary['accessible']}");
 
-        if ($totalSize > 0) {
-            $this->info('✓ Total size: '.$this->formatBytes($totalSize));
+        if ($summary['total_size'] > 0) {
+            $this->info('✓ Total size: '.$this->formatBytes($summary['total_size']));
         }
 
-        if (count($missing) > 0) {
+        if ($missing !== []) {
             $this->error('✗ Missing files: '.count($missing));
             $this->table(
                 ['ID', 'Title', 'Filename', 'Expected Path', 'Pattern'],
@@ -85,15 +56,16 @@ class VerifySermonStorageCommand extends Command
 
         // Display storage statistics
         $this->newLine();
-        $this->displayStorageStats($storageService);
+        $this->displayStorageStats($result['storage_stats']);
 
         return count($missing) > 0 ? 1 : 0;
     }
 
-    private function displayStorageStats(SermonStorageService $storageService): void
+    /**
+     * @param  array<string, mixed>  $stats
+     */
+    private function displayStorageStats(array $stats): void
     {
-        $stats = $storageService->getStorageStats();
-
         $this->info('Storage Statistics:');
         $this->table(
             ['Metric', 'Value'],

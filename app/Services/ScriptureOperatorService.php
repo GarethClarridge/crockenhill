@@ -1,0 +1,374 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Actions\QueueScriptureEnrichment;
+use App\Models\ScripturePassage;
+use App\Models\Sermon;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * @phpstan-type EnrichmentSummary array{
+ *     resolved:int,
+ *     updated:int,
+ *     not_found:int,
+ *     unparseable:int,
+ *     rate_limited:int,
+ *     failed:int,
+ *     queued:int,
+ *     budget_exceeded:int
+ * }
+ * @phpstan-type RefreshSummary array{
+ *     updated:int,
+ *     not_found:int,
+ *     rate_limited:int,
+ *     failed:int,
+ *     budget_exceeded:int
+ * }
+ */
+class ScriptureOperatorService
+{
+    public function __construct(
+        private readonly ApiBibleClient $client,
+        private readonly ScriptureReferenceResolver $resolver,
+        private readonly ScriptureHtmlSanitizer $sanitizer,
+        private readonly QueueScriptureEnrichment $queueScriptureEnrichment,
+    ) {}
+
+    public function countEnrichmentCandidates(int $limit = 100): int
+    {
+        return Sermon::query()
+            ->whereNotNull('reference')
+            ->where('reference', '!=', '')
+            ->whereNull('scripture_passage_id')
+            ->limit($limit)
+            ->count();
+    }
+
+    public function countRefreshCandidates(): int
+    {
+        $refreshAfterDays = (int) config('services.api_bible.refresh_after_days', 28);
+
+        return ScripturePassage::query()
+            ->where('fetched_at', '<', now()->subDays($refreshAfterDays))
+            ->count();
+    }
+
+    /**
+     * @return array{
+     *     sermons: Collection<int, Sermon>,
+     *     summary: EnrichmentSummary,
+     *     dry_run: bool,
+     *     queue: bool,
+     *     stopped_early: bool
+     * }
+     */
+    public function runEnrichment(
+        int $limit = 100,
+        bool $dryRun = false,
+        bool $queue = false,
+        int $delayMs = 500,
+        ?callable $progress = null,
+    ): array {
+        $sermons = Sermon::query()
+            ->whereNotNull('reference')
+            ->where('reference', '!=', '')
+            ->whereNull('scripture_passage_id')
+            ->limit($limit)
+            ->get();
+
+        $summary = $this->emptySummary();
+        $stoppedEarly = false;
+
+        foreach ($sermons as $index => $sermon) {
+            if ($dryRun) {
+                if ($progress !== null) {
+                    $progress('dry-run', $sermon, (string) $sermon->reference);
+                }
+
+                continue;
+            }
+
+            if ($queue) {
+                $this->queueScriptureEnrichment->dispatch($sermon);
+                $summary['queued']++;
+                if ($progress !== null) {
+                    $progress('queued', $sermon, (string) $sermon->reference);
+                }
+
+                continue;
+            }
+
+            if (! $this->client->hasDailyBudget()) {
+                $summary['budget_exceeded'] += $sermons->count() - $index;
+                $stoppedEarly = true;
+                if ($progress !== null) {
+                    $progress('budget_exceeded', $sermon, (string) $sermon->reference);
+                }
+
+                break;
+            }
+
+            try {
+                $status = $this->enrichSermon($sermon);
+                $summary[$status]++;
+                if ($progress !== null) {
+                    $progress($status, $sermon, (string) $sermon->reference);
+                }
+            } catch (\RuntimeException $exception) {
+                $summary['rate_limited']++;
+                if ($progress !== null) {
+                    $progress('rate_limited', $sermon, $exception->getMessage());
+                }
+            } catch (\Throwable $exception) {
+                $summary['failed']++;
+                if ($progress !== null) {
+                    $progress('failed', $sermon, $exception->getMessage());
+                }
+            }
+
+            if ($delayMs > 0) {
+                usleep($delayMs * 1000);
+            }
+        }
+
+        return [
+            'sermons' => $sermons,
+            'summary' => $summary,
+            'dry_run' => $dryRun,
+            'queue' => $queue,
+            'stopped_early' => $stoppedEarly,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     passages: Collection<int, ScripturePassage>,
+     *     summary: RefreshSummary,
+     *     dry_run: bool,
+     *     stopped_early: bool
+     * }
+     */
+    public function runRefresh(bool $dryRun = false, int $delayMs = 500, ?callable $progress = null): array
+    {
+        $refreshAfterDays = (int) config('services.api_bible.refresh_after_days', 28);
+        $passages = ScripturePassage::query()
+            ->where('fetched_at', '<', now()->subDays($refreshAfterDays))
+            ->get();
+
+        $summary = [
+            'updated' => 0,
+            'not_found' => 0,
+            'rate_limited' => 0,
+            'failed' => 0,
+            'budget_exceeded' => 0,
+        ];
+        $stoppedEarly = false;
+
+        foreach ($passages as $index => $passage) {
+            if ($dryRun) {
+                if ($progress !== null) {
+                    $progress('dry-run', $passage, $passage->normalized_reference);
+                }
+
+                continue;
+            }
+
+            if (! $this->client->hasDailyBudget()) {
+                $summary['budget_exceeded'] += $passages->count() - $index;
+                $stoppedEarly = true;
+                if ($progress !== null) {
+                    $progress('budget_exceeded', $passage, $passage->normalized_reference);
+                }
+
+                break;
+            }
+
+            try {
+                $status = $this->refreshPassage($passage);
+                $summary[$status]++;
+                if ($progress !== null) {
+                    $progress($status, $passage, $passage->normalized_reference);
+                }
+            } catch (\RuntimeException $exception) {
+                $summary['rate_limited']++;
+                if ($progress !== null) {
+                    $progress('rate_limited', $passage, $exception->getMessage());
+                }
+            } catch (\Throwable $exception) {
+                $summary['failed']++;
+                if ($progress !== null) {
+                    $progress('failed', $passage, $exception->getMessage());
+                }
+            }
+
+            if ($delayMs > 0) {
+                usleep($delayMs * 1000);
+            }
+        }
+
+        return [
+            'passages' => $passages,
+            'summary' => $summary,
+            'dry_run' => $dryRun,
+            'stopped_early' => $stoppedEarly,
+        ];
+    }
+
+    /**
+     * @return 'resolved'|'updated'|'not_found'|'unparseable'|'failed'
+     */
+    public function enrichSermon(Sermon $sermon): string
+    {
+        $rawReference = $sermon->reference;
+
+        if (! is_string($rawReference) || trim($rawReference) === '') {
+            Log::info('FetchBibleTextForSermon: skipping — no reference', ['sermon_id' => $sermon->id]);
+
+            return 'unparseable';
+        }
+
+        $normalizedReference = $this->resolver->normalize($rawReference);
+
+        if ($normalizedReference === null) {
+            Log::info('FetchBibleTextForSermon: skipping — unparseable reference', [
+                'sermon_id' => $sermon->id,
+                'reference' => $rawReference,
+            ]);
+
+            return 'unparseable';
+        }
+
+        $bibleId = (string) config('services.api_bible.default_bible_id');
+        $existing = ScripturePassage::query()
+            ->where('bible_id', $bibleId)
+            ->where('normalized_reference', $normalizedReference)
+            ->first();
+
+        if ($existing instanceof ScripturePassage && ! $existing->isStale()) {
+            $sermon->update(['scripture_passage_id' => $existing->id]);
+
+            Log::info('FetchBibleTextForSermon: linked cached passage', [
+                'sermon_id' => $sermon->id,
+                'passage_id' => $existing->id,
+            ]);
+
+            return 'resolved';
+        }
+
+        $result = $existing instanceof ScripturePassage && is_string($existing->api_passage_id) && $existing->api_passage_id !== ''
+            ? $this->client->fetchPassageById($existing->api_passage_id)
+            : $this->client->searchPassage($normalizedReference);
+
+        if ($result === null) {
+            Log::info('FetchBibleTextForSermon: passage not found (terminal — not retrying)', [
+                'sermon_id' => $sermon->id,
+                'reference' => $normalizedReference,
+                'result_category' => 'not_found',
+            ]);
+
+            return 'not_found';
+        }
+
+        $sanitizedHtml = $this->sanitizer->sanitize($result->htmlContent);
+
+        if ($sanitizedHtml === null) {
+            Log::warning('FetchBibleTextForSermon: sanitized HTML was empty', [
+                'sermon_id' => $sermon->id,
+                'reference' => $normalizedReference,
+            ]);
+
+            return 'failed';
+        }
+
+        $passage = ScripturePassage::query()->updateOrCreate(
+            ['bible_id' => $bibleId, 'normalized_reference' => $normalizedReference],
+            [
+                'api_passage_id' => $result->passageId,
+                'display_reference' => $result->displayReference,
+                'html_content' => $sanitizedHtml,
+                'copyright' => $result->copyright,
+                'fums_token' => $result->fumsToken,
+                'fetched_at' => now(),
+            ]
+        );
+
+        $sermon->update(['scripture_passage_id' => $passage->id]);
+
+        Log::info('FetchBibleTextForSermon: passage resolved and linked', [
+            'sermon_id' => $sermon->id,
+            'passage_id' => $passage->id,
+            'reference' => $normalizedReference,
+        ]);
+
+        return $existing instanceof ScripturePassage ? 'updated' : 'resolved';
+    }
+
+    /**
+     * @return 'updated'|'not_found'|'failed'
+     */
+    public function refreshPassage(ScripturePassage $passage): string
+    {
+        $result = is_string($passage->api_passage_id) && $passage->api_passage_id !== ''
+            ? $this->client->fetchPassageById($passage->api_passage_id)
+            : $this->client->searchPassage($passage->normalized_reference);
+
+        if ($result === null) {
+            Log::info('scripture:refresh-passages passage not found', [
+                'passage_id' => $passage->id,
+                'reference' => $passage->normalized_reference,
+                'result_category' => 'not_found',
+            ]);
+
+            return 'not_found';
+        }
+
+        $sanitizedHtml = $this->sanitizer->sanitize($result->htmlContent);
+
+        if ($sanitizedHtml === null) {
+            Log::warning('scripture:refresh-passages sanitized HTML was empty', [
+                'passage_id' => $passage->id,
+                'reference' => $passage->normalized_reference,
+            ]);
+
+            return 'failed';
+        }
+
+        $passage->update([
+            'api_passage_id' => $result->passageId,
+            'display_reference' => $result->displayReference,
+            'html_content' => $sanitizedHtml,
+            'copyright' => $result->copyright,
+            'fums_token' => $result->fumsToken,
+            'fetched_at' => now(),
+        ]);
+
+        Log::info('scripture:refresh-passages passage refreshed', [
+            'passage_id' => $passage->id,
+            'reference' => $passage->normalized_reference,
+            'result_category' => 'updated',
+        ]);
+
+        return 'updated';
+    }
+
+    /**
+     * @return EnrichmentSummary
+     */
+    private function emptySummary(): array
+    {
+        return [
+            'resolved' => 0,
+            'updated' => 0,
+            'not_found' => 0,
+            'unparseable' => 0,
+            'rate_limited' => 0,
+            'failed' => 0,
+            'queued' => 0,
+            'budget_exceeded' => 0,
+        ];
+    }
+}

@@ -96,7 +96,7 @@ class MediaProcessingRunTransitionService
         ]);
     }
 
-    public function confirmSermonSegment(MediaProcessingLog $processingLog, int $segmentId, int $userId): bool
+    public function confirmSermonSegment(MediaProcessingLog $processingLog, int $segmentId, ?int $userId): bool
     {
         $metadata = $processingLog->processingMetadataData()->toArray();
         $manualReview = $processingLog->manualReviewData()

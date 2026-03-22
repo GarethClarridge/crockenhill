@@ -1144,7 +1144,7 @@ The backlog is ordered for safety:
   - `external-integration-boundary-review-2026-03-18.md`
 
 ### TD-012A - Move publication and meeting transition commands out of models
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium-High
 - Risk: Medium
@@ -1171,7 +1171,7 @@ The backlog is ordered for safety:
   - `external-integration-boundary-review-2026-03-18.md`
 
 ### TD-012B - Consolidate console/operator workflows around reusable services
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: High
 - Risk: Medium

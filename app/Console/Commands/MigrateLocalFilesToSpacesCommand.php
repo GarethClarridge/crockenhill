@@ -2,95 +2,65 @@
 
 namespace App\Console\Commands;
 
+use App\Services\SermonStorageMaintenanceService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 
 class MigrateLocalFilesToSpacesCommand extends Command
 {
     protected $signature = 'sermons:migrate-local-files
-                           {--dry-run : Preview migration without executing}';
+                           {--dry-run : Preview migration without executing}
+                           {--force : Overwrite files that already exist on the target disk}';
 
     protected $description = 'Migrate local sermon files from public disk to DigitalOcean Spaces';
 
-    public function handle(): int
+    public function handle(SermonStorageMaintenanceService $storageMaintenanceService): int
     {
         $dryRun = $this->option('dry-run');
+        $force = (bool) $this->option('force');
+        $progressBar = $dryRun
+            ? null
+            : $this->output->createProgressBar($storageMaintenanceService->countLocalFiles());
 
-        $localDisk = Storage::disk('public');
-        $spacesDisk = Storage::disk('do_spaces');
+        if ($progressBar !== null) {
+            $progressBar->start();
+        }
 
-        // Get all files recursively
-        $files = $localDisk->allFiles('sermons');
+        $result = $storageMaintenanceService->migrateLocalFiles(
+            (bool) $dryRun,
+            force: $force,
+            progress: function (array $_item) use ($progressBar): void {
+                $progressBar?->advance();
+            }
+        );
 
-        $this->info('Found '.count($files).' files to migrate');
+        if ($progressBar !== null) {
+            $progressBar->finish();
+            $this->newLine(2);
+        }
+        $summary = $result['summary'];
+
+        $this->info('Found '.$summary['examined'].' files to migrate');
 
         if ($dryRun) {
             $this->warn('DRY RUN MODE - No files will be actually migrated');
-            foreach ($files as $file) {
-                $this->line("Would migrate: {$file}");
-            }
-
-            return 0;
+        } elseif (! $force) {
+            $this->line('Existing remote files are skipped by default. Use --force to overwrite them.');
         }
 
-        $progressBar = $this->output->createProgressBar(count($files));
-        $progressBar->start();
-
-        $success = 0;
-        $failed = 0;
-        $errors = [];
-
-        foreach ($files as $file) {
-            try {
-                $content = $localDisk->get($file);
-
-                if (! is_string($content)) {
-                    throw new \RuntimeException("Unable to read file contents for {$file}");
-                }
-
-                $spacesDisk->put($file, $content);
-
-                // Verify upload with retry
-                $verified = false;
-                for ($attempt = 1; $attempt <= 3; $attempt++) {
-                    if ($spacesDisk->exists($file)) {
-                        $verified = true;
-                        break;
-                    }
-                    if ($attempt < 3) {
-                        usleep(500000); // Wait 0.5 seconds before retry
-                    }
-                }
-
-                if ($verified) {
-                    $success++;
-                } else {
-                    $failed++;
-                    $errors[] = "{$file}: verification failed after 3 attempts";
-                }
-            } catch (\Exception $e) {
-                $failed++;
-                $errors[] = "{$file}: {$e->getMessage()}";
+        foreach ($result['items'] as $item) {
+            if ($dryRun || in_array($item['status'], ['error', 'skip'], true)) {
+                $this->line($item['label']);
             }
-
-            $progressBar->advance();
         }
 
-        $progressBar->finish();
-        $this->newLine(2);
-
+        $this->newLine();
         $this->info('Migration complete!');
-        $this->info("Success: {$success}");
+        $this->info("Examined: {$summary['examined']}");
+        $this->info("Migrated: {$summary['migrated']}");
+        $this->info("Skipped: {$summary['skipped']}");
+        $this->info("Missing: {$summary['missing']}");
+        $this->info("Failed: {$summary['failed']}");
 
-        if ($failed > 0) {
-            $this->error("Failed: {$failed}");
-            $this->newLine();
-            $this->error('Errors:');
-            foreach ($errors as $error) {
-                $this->line("  - {$error}");
-            }
-        }
-
-        return $failed > 0 ? 1 : 0;
+        return $summary['failed'] > 0 ? 1 : 0;
     }
 }
