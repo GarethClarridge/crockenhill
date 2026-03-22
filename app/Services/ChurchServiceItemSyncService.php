@@ -42,6 +42,8 @@ class ChurchServiceItemSyncService
             $matchedExistingItemIds = [];
             $seenPositions = [];
             $conflicts = [];
+            $pendingUpdates = [];
+            $pendingCreates = [];
 
             foreach ($incomingItems as $index => $rawIncomingItem) {
                 $incomingItem = $this->normaliseIncomingItem($rawIncomingItem, $index + 1);
@@ -69,15 +71,80 @@ class ChurchServiceItemSyncService
                 $match = $stableMatch ?? $positionFallback;
 
                 if ($match !== null) {
-                    $matchConflicts = $this->updateMatchedItem($match, $incomingItem, $incomingSource);
+                    $existingSource = $this->sourceForExistingItem($match);
+                    $preserveOpenLpSongMetadata = $this->shouldPreserveOpenLpSongMetadata($match, $incomingSource);
+                    $matchConflicts = $this->conflictsForMatchedItem(
+                        $match,
+                        $incomingItem,
+                        $incomingSource,
+                        $preserveOpenLpSongMetadata,
+                    );
                     $conflicts = [...$conflicts, ...$matchConflicts];
+                    $pendingUpdates[] = [
+                        'existing_item' => $match,
+                        'incoming_item' => $incomingItem,
+                        'desired_position' => $this->shouldKeepExistingPosition($existingSource, $incomingSource)
+                            ? $match->position
+                            : $incomingItem['position'],
+                    ];
                     $matchedExistingItemIds[] = $match->id;
 
                     continue;
                 }
 
+                $pendingCreates[] = $incomingItem;
+            }
+
+            $positionsToPreserve = [];
+            $itemsToDelete = [];
+
+            foreach ($existingItems as $existingItem) {
+                if (
+                    ! in_array($existingItem->id, $matchedExistingItemIds, true)
+                    && ! $existingItem->trashed()
+                ) {
+                    if ($this->shouldDeleteUnmatchedItem($existingItem, $incomingSource, $replaceMode)) {
+                        $itemsToDelete[] = $existingItem;
+
+                        continue;
+                    }
+
+                    $positionsToPreserve[$existingItem->position] = true;
+
+                    if ($this->shouldFlagPreservedSongConflict($existingItem, $incomingSource)) {
+                        $conflicts[] = [
+                            'type' => 'preserved_existing_song',
+                            'incoming_source' => $incomingSource->value,
+                            'existing_item' => $this->snapshotItem($existingItem),
+                        ];
+                    }
+                }
+            }
+
+            foreach ($itemsToDelete as $itemToDelete) {
+                $itemToDelete->delete();
+            }
+
+            $this->stagePendingMatchedItems($lockedService, $pendingUpdates);
+
+            foreach ($pendingUpdates as $pendingUpdate) {
+                /** @var ChurchServiceItem $existingItem */
+                $existingItem = $pendingUpdate['existing_item'];
+                /** @var array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>} $incomingItem */
+                $incomingItem = $pendingUpdate['incoming_item'];
+                $resolvedPosition = $this->claimNextAvailablePosition(
+                    $pendingUpdate['desired_position'],
+                    $positionsToPreserve,
+                );
+
+                $this->updateMatchedItem($existingItem, $incomingItem, $incomingSource, $resolvedPosition);
+            }
+
+            foreach ($pendingCreates as $incomingItem) {
+                $resolvedPosition = $this->claimNextAvailablePosition($incomingItem['position'], $positionsToPreserve);
+
                 $created = $lockedService->items()->create([
-                    'position' => $incomingItem['position'],
+                    'position' => $resolvedPosition,
                     'type' => $incomingItem['type'],
                     'section_type' => $incomingItem['section_type'],
                     'source' => $incomingSource->value,
@@ -89,27 +156,6 @@ class ChurchServiceItemSyncService
                 ]);
 
                 $matchedExistingItemIds[] = $created->id;
-            }
-
-            foreach ($existingItems as $existingItem) {
-                if (
-                    ! in_array($existingItem->id, $matchedExistingItemIds, true)
-                    && ! $existingItem->trashed()
-                ) {
-                    if ($this->shouldDeleteUnmatchedItem($existingItem, $incomingSource, $replaceMode)) {
-                        $existingItem->delete();
-
-                        continue;
-                    }
-
-                    if ($this->shouldFlagPreservedSongConflict($existingItem, $incomingSource)) {
-                        $conflicts[] = [
-                            'type' => 'preserved_existing_song',
-                            'incoming_source' => $incomingSource->value,
-                            'existing_item' => $this->snapshotItem($existingItem),
-                        ];
-                    }
-                }
             }
 
             if ($this->hasDuplicateActivePositions($lockedService)) {
@@ -243,28 +289,19 @@ class ChurchServiceItemSyncService
 
     /**
      * @param  array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>}  $incomingItem
-     * @return array<int, array<string, mixed>>
      */
     private function updateMatchedItem(
         ChurchServiceItem $existingItem,
         array $incomingItem,
-        ChurchServiceItemSource $incomingSource
-    ): array {
+        ChurchServiceItemSource $incomingSource,
+        int $position,
+    ): void {
         if ($existingItem->trashed()) {
             $existingItem->restore();
         }
 
         $existingSource = $this->sourceForExistingItem($existingItem);
         $preserveOpenLpSongMetadata = $this->shouldPreserveOpenLpSongMetadata($existingItem, $incomingSource);
-        $conflicts = $this->conflictsForMatchedItem(
-            $existingItem,
-            $incomingItem,
-            $incomingSource,
-            $preserveOpenLpSongMetadata,
-        );
-        $position = $this->shouldKeepExistingPosition($existingSource, $incomingSource)
-            ? $existingItem->position
-            : $incomingItem['position'];
 
         $existingItem->fill([
             'position' => $position,
@@ -279,8 +316,6 @@ class ChurchServiceItemSyncService
         ]);
 
         $existingItem->save();
-
-        return $conflicts;
     }
 
     /**
@@ -634,6 +669,48 @@ class ChurchServiceItemSyncService
             ->groupBy('position')
             ->havingRaw('COUNT(*) > 1')
             ->exists();
+    }
+
+    /**
+     * @param  array<int, array{existing_item:ChurchServiceItem,incoming_item:array{position:int,type:string,section_type:string,title:string,source_title:?string,openlp_search_title:?string,song_id:int|null,metadata:?array<string,mixed>},desired_position:int}>  $pendingUpdates
+     */
+    private function stagePendingMatchedItems(ChurchService $churchService, array $pendingUpdates): void
+    {
+        if ($pendingUpdates === []) {
+            return;
+        }
+
+        $maxPosition = (int) ChurchServiceItem::withTrashed()
+            ->where('church_service_id', $churchService->id)
+            ->max('position');
+
+        foreach (array_values($pendingUpdates) as $index => $pendingUpdate) {
+            $temporaryPosition = $maxPosition + $index + 1;
+            $existingItem = $pendingUpdate['existing_item'];
+
+            ChurchServiceItem::withTrashed()
+                ->whereKey($existingItem->id)
+                ->update(['position' => $temporaryPosition]);
+
+            $existingItem->position = $temporaryPosition;
+            $existingItem->syncOriginalAttribute('position');
+        }
+    }
+
+    /**
+     * @param  array<int, bool>  $occupiedPositions
+     */
+    private function claimNextAvailablePosition(int $desiredPosition, array &$occupiedPositions): int
+    {
+        $resolvedPosition = $desiredPosition;
+
+        while (isset($occupiedPositions[$resolvedPosition])) {
+            $resolvedPosition++;
+        }
+
+        $occupiedPositions[$resolvedPosition] = true;
+
+        return $resolvedPosition;
     }
 
     private function normaliseString(mixed $value): ?string

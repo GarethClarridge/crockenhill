@@ -16,6 +16,45 @@ class ChurchServiceItemFactory extends Factory
 {
     protected $model = ChurchServiceItem::class;
 
+    public function configure(): static
+    {
+        $pendingPositions = [];
+
+        return $this->afterMaking(function (ChurchServiceItem $item) use (&$pendingPositions): void {
+            $churchServiceId = $item->church_service_id;
+
+            if (! is_int($churchServiceId)) {
+                return;
+            }
+
+            $requestedPosition = is_int($item->position) && $item->position > 0
+                ? $item->position
+                : 1;
+
+            $occupiedPositions = $pendingPositions[$churchServiceId] ?? [];
+
+            if (
+                isset($occupiedPositions[$requestedPosition])
+                || ChurchServiceItem::query()
+                    ->where('church_service_id', $churchServiceId)
+                    ->whereNull('deleted_at')
+                    ->where('position', $requestedPosition)
+                    ->exists()
+            ) {
+                $maxPendingPosition = $occupiedPositions === [] ? 0 : max(array_keys($occupiedPositions));
+                $maxPersistedPosition = (int) ChurchServiceItem::query()
+                    ->where('church_service_id', $churchServiceId)
+                    ->whereNull('deleted_at')
+                    ->max('position');
+
+                $requestedPosition = max($maxPendingPosition, $maxPersistedPosition) + 1;
+                $item->position = $requestedPosition;
+            }
+
+            $pendingPositions[$churchServiceId][$requestedPosition] = true;
+        });
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -23,7 +62,20 @@ class ChurchServiceItemFactory extends Factory
     {
         return [
             'church_service_id' => ChurchService::factory(),
-            'position' => $this->faker->numberBetween(1, 12),
+            'position' => function (array $attributes): int {
+                $churchServiceId = $attributes['church_service_id'] ?? null;
+
+                if (! is_numeric($churchServiceId)) {
+                    return 1;
+                }
+
+                $serviceId = (int) $churchServiceId;
+                $maxPosition = ChurchServiceItem::query()
+                    ->where('church_service_id', $serviceId)
+                    ->max('position');
+
+                return is_numeric($maxPosition) ? ((int) $maxPosition + 1) : 1;
+            },
             'type' => $this->faker->randomElement(['songs', 'bibles', 'presentations', 'custom']),
             'section_type' => null,
             'source' => ChurchServiceItemSource::OPENLP->value,

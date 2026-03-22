@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Database;
 
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -144,5 +146,110 @@ class ServiceSectionSchemaTest extends TestCase
         DB::table('service_sections')
             ->where('id', $section->id)
             ->update(['publication_status' => 'some_future_state']);
+    }
+
+    #[Test]
+    public function timing_invariants_are_rejected_by_the_database(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+
+        $this->expectException(QueryException::class);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'start_time' => 120.0,
+            'end_time' => 110.0,
+            'duration' => 10.0,
+        ]);
+    }
+
+    #[Test]
+    public function published_sections_must_have_a_published_sermon_link_and_timestamp(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $sermon = Sermon::factory()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'published_sermon_id' => $sermon->id,
+            'published_at' => now(),
+            'extracted_video_path' => 'sermons/sections/10/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-10.mp3',
+            'extracted_at' => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('service_sections')
+            ->where('id', $section->id)
+            ->update([
+                'published_sermon_id' => null,
+                'published_at' => null,
+            ]);
+    }
+
+    #[Test]
+    public function unpublished_sections_cannot_keep_a_published_sermon_link(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $sermon = Sermon::factory()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'published_sermon_id' => null,
+            'published_at' => null,
+            'extracted_video_path' => 'sermons/sections/11/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-11.mp3',
+            'extracted_at' => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('service_sections')
+            ->where('id', $section->id)
+            ->update([
+                'published_sermon_id' => $sermon->id,
+                'published_at' => now(),
+            ]);
+    }
+
+    #[Test]
+    public function approved_sections_must_have_extracted_media_and_timestamp(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
+            'extracted_video_path' => 'sermons/sections/12/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-12.mp3',
+            'extracted_at' => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('service_sections')
+            ->where('id', $section->id)
+            ->update([
+                'extracted_video_path' => null,
+                'extracted_audio_path' => null,
+                'extracted_at' => null,
+            ]);
+    }
+
+    #[Test]
+    public function skipped_sections_cannot_enter_the_publication_lifecycle(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+
+        $this->expectException(QueryException::class);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'status' => ServiceSectionStatus::SKIPPED->value,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_video_path' => 'sermons/sections/12/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-12.mp3',
+            'extracted_at' => now(),
+        ]);
     }
 }

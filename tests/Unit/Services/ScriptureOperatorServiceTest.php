@@ -25,6 +25,9 @@ class ScriptureOperatorServiceTest extends TestCase
     {
         parent::setUp();
 
+        Sermon::query()->delete();
+        ScripturePassage::query()->delete();
+
         Config::set('services.api_bible.enabled', true);
         Config::set('services.api_bible.default_bible_id', 'de4e12af7f28f599-02');
         Config::set('services.api_bible.refresh_after_days', 28);

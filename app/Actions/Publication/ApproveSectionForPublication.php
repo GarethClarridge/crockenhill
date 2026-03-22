@@ -52,6 +52,7 @@ class ApproveSectionForPublication
 
         $metadata['publication'] = $publicationMetadata;
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $section->extracted_at ??= now();
         $section->save();
 
         PublishApprovedServiceSection::dispatch($section->id)

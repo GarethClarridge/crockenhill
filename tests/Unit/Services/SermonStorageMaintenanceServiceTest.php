@@ -19,6 +19,8 @@ class SermonStorageMaintenanceServiceTest extends TestCase
     {
         parent::setUp();
 
+        Sermon::query()->delete();
+
         Storage::fake('public');
         Storage::fake('do_spaces');
         Storage::fake('public_images');

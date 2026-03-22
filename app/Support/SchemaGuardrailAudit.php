@@ -16,8 +16,11 @@ class SchemaGuardrailAudit
      *     speaker_profile_duplicates: array<int, array{preacher_id:int,provider:string,model_version:string,duplicate_count:int}>,
      *     speaker_sample_duplicates: array<int, array{speaker_profile_id:int,sermon_id:int,source:string,duplicate_count:int}>,
      *     orphaned_media_processing_logs: int,
+     *     duplicate_active_church_service_item_positions: array<int, array{church_service_id:int,position:int,row_count:int}>,
      *     invalid_service_section_statuses: array<int, array{status:?string,row_count:int}>,
      *     invalid_service_section_publication_statuses: array<int, array{publication_status:?string,row_count:int}>,
+     *     invalid_service_section_publication_lifecycle_rows: int,
+     *     invalid_service_section_timing_rows: int,
      *     legacy_livestream_processing_log_rows: int
      * }
      */
@@ -27,8 +30,11 @@ class SchemaGuardrailAudit
             'speaker_profile_duplicates' => $this->speakerProfileDuplicates(),
             'speaker_sample_duplicates' => $this->speakerSampleDuplicates(),
             'orphaned_media_processing_logs' => $this->orphanedMediaProcessingLogs(),
+            'duplicate_active_church_service_item_positions' => $this->duplicateActiveChurchServiceItemPositions(),
             'invalid_service_section_statuses' => $this->invalidServiceSectionStatuses(),
             'invalid_service_section_publication_statuses' => $this->invalidServiceSectionPublicationStatuses(),
+            'invalid_service_section_publication_lifecycle_rows' => $this->invalidServiceSectionPublicationLifecycleRows(),
+            'invalid_service_section_timing_rows' => $this->invalidServiceSectionTimingRows(),
             'legacy_livestream_processing_log_rows' => $this->legacyLivestreamProcessingLogRows(),
         ];
     }
@@ -38,8 +44,11 @@ class SchemaGuardrailAudit
      *     speaker_profile_duplicates: array<int, array{preacher_id:int,provider:string,model_version:string,duplicate_count:int}>,
      *     speaker_sample_duplicates: array<int, array{speaker_profile_id:int,sermon_id:int,source:string,duplicate_count:int}>,
      *     orphaned_media_processing_logs: int,
+     *     duplicate_active_church_service_item_positions: array<int, array{church_service_id:int,position:int,row_count:int}>,
      *     invalid_service_section_statuses: array<int, array{status:?string,row_count:int}>,
      *     invalid_service_section_publication_statuses: array<int, array{publication_status:?string,row_count:int}>,
+     *     invalid_service_section_publication_lifecycle_rows: int,
+     *     invalid_service_section_timing_rows: int,
      *     legacy_livestream_processing_log_rows: int
      * }|null  $report
      */
@@ -50,8 +59,11 @@ class SchemaGuardrailAudit
         return $report['speaker_profile_duplicates'] !== []
             || $report['speaker_sample_duplicates'] !== []
             || $report['orphaned_media_processing_logs'] > 0
+            || $report['duplicate_active_church_service_item_positions'] !== []
             || $report['invalid_service_section_statuses'] !== []
             || $report['invalid_service_section_publication_statuses'] !== []
+            || $report['invalid_service_section_publication_lifecycle_rows'] > 0
+            || $report['invalid_service_section_timing_rows'] > 0
             || $report['legacy_livestream_processing_log_rows'] > 0;
     }
 
@@ -110,6 +122,27 @@ class SchemaGuardrailAudit
     }
 
     /**
+     * @return array<int, array{church_service_id:int,position:int,row_count:int}>
+     */
+    public function duplicateActiveChurchServiceItemPositions(): array
+    {
+        return DB::table('church_service_items')
+            ->selectRaw('church_service_id, position, COUNT(*) as row_count')
+            ->whereNull('deleted_at')
+            ->groupBy('church_service_id', 'position')
+            ->havingRaw('COUNT(*) > 1')
+            ->orderBy('church_service_id')
+            ->orderBy('position')
+            ->get()
+            ->map(fn (object $row): array => [
+                'church_service_id' => (int) $row->church_service_id,
+                'position' => (int) $row->position,
+                'row_count' => (int) $row->row_count,
+            ])
+            ->all();
+    }
+
+    /**
      * @return array<int, array{status:?string,row_count:int}>
      */
     public function invalidServiceSectionStatuses(): array
@@ -159,6 +192,51 @@ class SchemaGuardrailAudit
                 'row_count' => (int) $row->row_count,
             ])
             ->all();
+    }
+
+    public function invalidServiceSectionPublicationLifecycleRows(): int
+    {
+        return DB::table('service_sections')
+            ->where(function ($query): void {
+                $query->where(function ($query): void {
+                    $query->where('publication_status', ServiceSectionPublicationStatus::PUBLISHED->value)
+                        ->where(function ($query): void {
+                            $query->whereNull('published_sermon_id')
+                                ->orWhereNull('published_at');
+                        });
+                })->orWhere(function ($query): void {
+                    $query->where('publication_status', '!=', ServiceSectionPublicationStatus::PUBLISHED->value)
+                        ->where(function ($query): void {
+                            $query->whereNotNull('published_sermon_id')
+                                ->orWhereNotNull('published_at');
+                        });
+                })->orWhere(function ($query): void {
+                    $query->whereIn('publication_status', [
+                        ServiceSectionPublicationStatus::APPROVED->value,
+                        ServiceSectionPublicationStatus::PUBLISHED->value,
+                    ])->where(function ($query): void {
+                        $query->whereNull('extracted_video_path')
+                            ->orWhereNull('extracted_audio_path')
+                            ->orWhereNull('extracted_at');
+                    });
+                })->orWhere(function ($query): void {
+                    $query->where('status', ServiceSectionStatus::SKIPPED->value)
+                        ->where('publication_status', '!=', ServiceSectionPublicationStatus::NOT_APPLICABLE->value);
+                });
+            })
+            ->count();
+    }
+
+    public function invalidServiceSectionTimingRows(): int
+    {
+        return DB::table('service_sections')
+            ->where(function ($query): void {
+                $query->where('start_time', '<', 0)
+                    ->orWhere('duration', '<', 0)
+                    ->orWhereRaw('end_time <= start_time')
+                    ->orWhereRaw('ABS((end_time - start_time) - duration) > 0.050');
+            })
+            ->count();
     }
 
     public function legacyLivestreamProcessingLogRows(): int

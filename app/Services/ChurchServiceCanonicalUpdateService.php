@@ -76,14 +76,17 @@ class ChurchServiceCanonicalUpdateService
             || $conflicts !== []
             || $shouldReopenReview
             || $this->reviewStateService->hasOutstandingCanonicalConflict($importMetadata);
+        $normalizedColumns = $this->reviewStateService->normalizedColumns($importMetadata);
 
         if (
             $needsReview !== $freshChurchService->needs_review
             || $importMetadata !== $originalImportMetadata
+            || $this->hasNormalizedStateChanges($freshChurchService, $normalizedColumns)
         ) {
             $freshChurchService->forceFill([
                 'needs_review' => $needsReview,
                 'import_metadata' => $importMetadata,
+                ...$normalizedColumns,
             ])->saveQuietly();
         }
 
@@ -98,5 +101,25 @@ class ChurchServiceCanonicalUpdateService
         return $freshChurchService->fresh([
             'items' => fn ($query) => $query->orderBy('position')->orderBy('id'),
         ]) ?? $freshChurchService;
+    }
+
+    /**
+     * @param  array<string, mixed>  $normalizedColumns
+     */
+    private function hasNormalizedStateChanges(ChurchService $churchService, array $normalizedColumns): bool
+    {
+        foreach ($normalizedColumns as $column => $value) {
+            $current = $churchService->getRawOriginal($column);
+
+            if ($value instanceof \BackedEnum) {
+                $value = $value->value;
+            }
+
+            if ($current !== $value) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

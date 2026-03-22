@@ -120,6 +120,15 @@ class SaveServiceSection
             && $section->publication_status === ServiceSectionPublicationStatus::NOT_APPLICABLE
             && $section->hasExtractedMedia()
         ) {
+            if ($section->extracted_at === null) {
+                $section->extracted_at = now();
+            }
+
+            if ($section->unpublished_expires_at === null) {
+                $retainHours = (int) config('media-processing.section_publishing.retain_unpublished_hours', 48);
+                $section->unpublished_expires_at = now()->addHours(max(1, $retainHours));
+            }
+
             $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL);
         }
 

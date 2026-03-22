@@ -18,8 +18,11 @@ class AuditSchemaGuardrailsCommandTest extends TestCase
             'speaker_profile_duplicates' => [],
             'speaker_sample_duplicates' => [],
             'orphaned_media_processing_logs' => 0,
+            'duplicate_active_church_service_item_positions' => [],
             'invalid_service_section_statuses' => [],
             'invalid_service_section_publication_statuses' => [],
+            'invalid_service_section_publication_lifecycle_rows' => 0,
+            'invalid_service_section_timing_rows' => 0,
             'legacy_livestream_processing_log_rows' => 0,
         ];
 
@@ -45,8 +48,11 @@ class AuditSchemaGuardrailsCommandTest extends TestCase
             ]],
             'speaker_sample_duplicates' => [],
             'orphaned_media_processing_logs' => 1,
+            'duplicate_active_church_service_item_positions' => [],
             'invalid_service_section_statuses' => [],
             'invalid_service_section_publication_statuses' => [],
+            'invalid_service_section_publication_lifecycle_rows' => 0,
+            'invalid_service_section_timing_rows' => 0,
             'legacy_livestream_processing_log_rows' => 3,
         ];
 

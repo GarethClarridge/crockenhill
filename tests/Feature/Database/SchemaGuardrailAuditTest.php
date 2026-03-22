@@ -34,8 +34,11 @@ class SchemaGuardrailAuditTest extends TestCase
         $this->assertSame([], $report['speaker_profile_duplicates']);
         $this->assertSame([], $report['speaker_sample_duplicates']);
         $this->assertSame(0, $report['orphaned_media_processing_logs']);
+        $this->assertSame([], $report['duplicate_active_church_service_item_positions']);
         $this->assertSame([], $report['invalid_service_section_statuses']);
         $this->assertSame([], $report['invalid_service_section_publication_statuses']);
+        $this->assertSame(0, $report['invalid_service_section_publication_lifecycle_rows']);
+        $this->assertSame(0, $report['invalid_service_section_timing_rows']);
         $this->assertSame(0, $report['legacy_livestream_processing_log_rows']);
     }
 

@@ -43,7 +43,6 @@ class ServiceSectionPublicationTransitionService
                 ServiceSectionPublicationStatus::NOT_APPLICABLE,
             ],
             ServiceSectionPublicationStatus::PUBLISHED => [
-                ServiceSectionPublicationStatus::PENDING_APPROVAL,
                 ServiceSectionPublicationStatus::NOT_APPLICABLE,
             ],
         };

@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace App\Actions\ServiceReview;
 
 use App\Models\ChurchService;
+use App\Services\ChurchServiceReviewStateService;
 
 class MarkServiceReviewed
 {
+    public function __construct(
+        private readonly ChurchServiceReviewStateService $reviewStateService,
+    ) {}
+
     /**
      * Clear the service-level review flag and record audit metadata.
      */
@@ -19,10 +24,12 @@ class MarkServiceReviewed
             'reviewed_by_user_id' => $userId,
         ];
         unset($importMetadata['canonical_conflict']);
+        $normalizedColumns = $this->reviewStateService->normalizedColumns($importMetadata);
 
         $service->forceFill([
             'needs_review' => false,
             'import_metadata' => $importMetadata,
+            ...$normalizedColumns,
         ])->save();
     }
 }

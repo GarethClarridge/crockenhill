@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Actions\ServiceReview;
 
 use App\Actions\ServiceReview\MarkServiceReviewed;
+use App\Enums\ChurchServiceCanonicalConflictState;
+use App\Enums\ChurchServiceReviewState;
 use App\Models\ChurchService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +62,7 @@ class MarkServiceReviewedTest extends TestCase
         $metadata = $fresh?->importMetadataData()->toArray() ?? [];
         $this->assertArrayNotHasKey('canonical_conflict', $metadata);
         $this->assertCount(1, $metadata['canonical_conflict_history'] ?? []);
+        $this->assertSame(ChurchServiceCanonicalConflictState::NONE, $fresh?->canonical_conflict_state);
     }
 
     #[Test]
@@ -72,6 +75,7 @@ class MarkServiceReviewedTest extends TestCase
         $metadata = $service->fresh()?->importMetadataData()->toArray() ?? [];
         $this->assertArrayHasKey('manual_review', $metadata);
         $this->assertSame($this->admin->id, $metadata['manual_review']['reviewed_by_user_id'] ?? null);
+        $this->assertSame(ChurchServiceReviewState::REVIEWED, $service->fresh()?->review_state);
     }
 
     #[Test]

@@ -281,12 +281,12 @@ class AudioTranscriptionServiceChunkingTest extends TestCase
                     $filePath = $dir.DIRECTORY_SEPARATOR.$file;
                     if (is_dir($filePath)) {
                         $this->removeDirectoryRecursively($filePath);
-                    } else {
-                        unlink($filePath);
+                    } elseif (file_exists($filePath)) {
+                        @unlink($filePath);
                     }
                 }
             }
-            rmdir($dir);
+            @rmdir($dir);
         }
     }
 

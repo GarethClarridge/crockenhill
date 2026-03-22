@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\ChurchServiceCanonicalConflictState;
 use App\Enums\SermonService;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
@@ -188,5 +189,6 @@ class ChurchServiceReviewSynchronizerTest extends TestCase
 
         $churchService->refresh();
         $this->assertTrue($churchService->needs_review);
+        $this->assertSame(ChurchServiceCanonicalConflictState::REOPENED, $churchService->canonical_conflict_state);
     }
 }

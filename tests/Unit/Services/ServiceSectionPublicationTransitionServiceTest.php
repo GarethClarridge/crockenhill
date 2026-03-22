@@ -86,4 +86,16 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
 
         Log::shouldHaveReceived('error')->once();
     }
+
+    #[Test]
+    public function published_sections_cannot_be_requeued_without_explicit_unpublish_logic(): void
+    {
+        $section = ServiceSection::factory()->create([
+            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+        ]);
+
+        $this->assertFalse(
+            $this->service->canTransition($section, ServiceSectionPublicationStatus::PENDING_APPROVAL)
+        );
+    }
 }
