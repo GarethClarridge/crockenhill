@@ -15,6 +15,60 @@
     :image="$headingpicture"
 />
 
+{{-- JSON-LD Recurring Event --}}
+@if($meeting->is_recurring && $meeting->frequency)
+<script type="application/ld+json">
+{!! json_encode([
+    '@context' => 'https://schema.org',
+    '@type' => 'Event',
+    'name' => $heading,
+    'description' => \Illuminate\Support\Str::limit(strip_tags($description ?? $heading), 150),
+    'image' => $headingpicture ?? asset('images/Primary.png'),
+    'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
+    'eventStatus' => 'https://schema.org/EventScheduled',
+    'location' => [
+        '@type' => 'Place',
+        'name' => $meeting->location ?? config('organization.name'),
+        'address' => [
+            '@type' => 'PostalAddress',
+            'streetAddress' => config('organization.address.street'),
+            'addressLocality' => config('organization.address.locality'),
+            'addressRegion' => config('organization.address.region'),
+            'postalCode' => config('organization.address.postal_code'),
+            'addressCountry' => config('organization.address.country'),
+        ],
+    ],
+    'organizer' => [
+        '@type' => 'Organization',
+        'name' => config('organization.name'),
+        'url' => url('/'),
+    ],
+    'schedule' => [
+        '@type' => 'Schedule',
+        'repeatFrequency' => match($meeting->frequency->value) {
+            'daily' => 'P1D',
+            'weekly' => 'P1W',
+            'monthly' => 'P1M',
+            'annually' => 'P1Y',
+            default => 'P1W',
+        },
+        'byDay' => match($meeting->day) {
+            'Monday' => 'https://schema.org/Monday',
+            'Tuesday' => 'https://schema.org/Tuesday',
+            'Wednesday' => 'https://schema.org/Wednesday',
+            'Thursday' => 'https://schema.org/Thursday',
+            'Friday' => 'https://schema.org/Friday',
+            'Saturday' => 'https://schema.org/Saturday',
+            'Sunday' => 'https://schema.org/Sunday',
+            default => null,
+        },
+        'startTime' => $meeting->start_time?->format('H:i:s'),
+        'endTime' => $meeting->end_time?->format('H:i:s'),
+    ],
+], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+</script>
+@endif
+
 {{-- JSON-LD Events --}}
 @if($upcomingEvents->isNotEmpty())
 <script type="application/ld+json">
