@@ -105,11 +105,12 @@ class ListUsers extends Component
         /**
          * Performance Optimization: Limits retrieved columns for users to required fields
          * to reduce memory usage and DB I/O. Search terms are escaped to prevent LIKE injection.
+         * Search conditions are grouped to ensure correct query logic with other filters.
          */
         $users = User::query()
             ->select(['id', 'name', 'email', 'is_admin', 'email_verified_at', 'created_at'])
-            ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$escapedSearch}%")
-                ->orWhere('email', 'like', "%{$escapedSearch}%"))
+            ->when($this->search, fn ($q) => $q->where(fn ($sub) => $sub->where('name', 'like', "%{$escapedSearch}%")
+                ->orWhere('email', 'like', "%{$escapedSearch}%")))
             ->when($this->verifiedFilter !== null, fn ($q) => $this->verifiedFilter
                     ? $q->whereNotNull('email_verified_at')
                     : $q->whereNull('email_verified_at'))
