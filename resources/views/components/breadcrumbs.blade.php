@@ -131,7 +131,7 @@ return [
   >
     <x-heroicon-o-link x-show="!copied" class="w-4 h-4" aria-hidden="true" />
     <x-heroicon-o-check x-show="copied" class="w-4 h-4 text-cbc-teal" aria-hidden="true" x-cloak />
-    <span x-text="copied ? 'Copied!' : 'Copy link'"></span>
+    <span x-text="copied ? 'Copied!' : 'Copy link'" aria-live="polite"></span>
   </button>
 </div>
 @endif
