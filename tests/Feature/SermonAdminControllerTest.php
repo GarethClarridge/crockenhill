@@ -22,6 +22,8 @@ class SermonAdminControllerTest extends TestCase
 
     private User $admin;
 
+    private User $unverifiedAdmin;
+
     private User $user;
 
     protected function setUp(): void
@@ -32,6 +34,11 @@ class SermonAdminControllerTest extends TestCase
         $this->admin = User::factory()->create([
             'is_admin' => true,
             'email_verified_at' => now(),
+        ]);
+
+        $this->unverifiedAdmin = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => null,
         ]);
 
         $this->user = User::factory()->create([
@@ -79,6 +86,18 @@ class SermonAdminControllerTest extends TestCase
         $response = $this->actingAs($this->user)->post("/christ/sermons/{$sermon->slug}/delete");
 
         $response->assertStatus(403);
+        $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
+    }
+
+    #[Test]
+    public function unverified_admin_cannot_delete_sermon(): void
+    {
+        $sermon = Sermon::factory()->create();
+
+        $response = $this->actingAs($this->unverifiedAdmin)
+            ->post("/christ/sermons/{$sermon->slug}/delete");
+
+        $response->assertRedirect(route('verification.notice'));
         $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
     }
 
@@ -165,6 +184,18 @@ class SermonAdminControllerTest extends TestCase
         $response = $this->actingAs($this->admin)->post("/christ/sermons/2023/03/{$sermon->slug}/delete");
 
         $response->assertStatus(404);
+        $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
+    }
+
+    #[Test]
+    public function unverified_admin_cannot_delete_sermon_with_date_route(): void
+    {
+        $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
+
+        $response = $this->actingAs($this->unverifiedAdmin)
+            ->post("/christ/sermons/2024/03/{$sermon->slug}/delete");
+
+        $response->assertRedirect(route('verification.notice'));
         $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
     }
 

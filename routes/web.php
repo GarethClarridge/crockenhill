@@ -45,7 +45,7 @@ Route::permanentRedirect('whats-on/buzz-club', '/community/buzz-club');
 // Meeting routes
 Route::resource('meetings', MeetingController::class)
     ->only(['index', 'update', 'destroy'])
-    ->middleware(['auth', 'admin']);
+    ->middleware(['auth', 'verified', 'admin']);
 
 // Calendar routes
 Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
@@ -84,7 +84,7 @@ Route::group(['prefix' => 'christ/sermons'], function () {
         ->name('editSermonWithDate');
     Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonAdminController::class, 'destroyWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->middleware(['auth', 'admin'])
+        ->middleware(['auth', 'verified', 'admin'])
         ->name('destroySermonWithDate');
 
     // Audio serving route
@@ -107,7 +107,7 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/{sermon:slug}/edit', function (\App\Models\Sermon $sermon) {
         return redirect()->route('admin.sermons.edit', $sermon->slug);
     })->middleware(['auth', 'admin'])->name('editSermon');
-    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'admin'])->name('destroySermon');
+    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'verified', 'admin'])->name('destroySermon');
 });
 
 // Members routes

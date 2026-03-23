@@ -20,6 +20,8 @@ class MeetingCrudTest extends TestCase
 
     private User $adminUser;
 
+    private User $unverifiedAdminUser;
+
     private User $regularUser;
 
     protected function setUp(): void
@@ -33,6 +35,11 @@ class MeetingCrudTest extends TestCase
         $this->adminUser = User::factory()->create([
             'is_admin' => true,
             'email_verified_at' => now(),
+        ]);
+
+        $this->unverifiedAdminUser = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => null,
         ]);
 
         // Create regular user with unique email
@@ -66,6 +73,54 @@ class MeetingCrudTest extends TestCase
         $this->actingAs($this->adminUser);
         $response = $this->get("/admin/meetings/{$meeting->slug}/edit");
         $response->assertStatus(200);
+    }
+
+    #[Test]
+    public function test_unverified_admin_cannot_access_legacy_meetings_index(): void
+    {
+        $response = $this->actingAs($this->unverifiedAdminUser)
+            ->get(route('meetings.index'));
+
+        $response->assertRedirect(route('verification.notice'));
+    }
+
+    #[Test]
+    public function test_unverified_admin_cannot_update_meeting_through_legacy_route(): void
+    {
+        $meeting = Meeting::factory()->recurring()->create();
+
+        $response = $this->actingAs($this->unverifiedAdminUser)
+            ->put(route('meetings.update', $meeting), [
+                'slug' => $meeting->slug,
+                'type' => $meeting->type->value,
+                'day' => $meeting->day,
+                'location' => $meeting->location,
+                'who' => $meeting->who,
+                'pictures' => $meeting->pictures,
+                'start_time' => $meeting->start_time?->format('H:i:s'),
+                'end_time' => $meeting->end_time?->format('H:i:s'),
+                'leaders_phone' => $meeting->leaders_phone,
+                'leaders_email' => $meeting->leaders_email,
+                'meeting_date' => $meeting->meeting_date?->format('Y-m-d'),
+                'is_recurring' => $meeting->is_recurring,
+                'frequency' => $meeting->frequency?->value,
+                'page_id' => $meeting->page_id,
+            ]);
+
+        $response->assertRedirect(route('verification.notice'));
+        $this->assertDatabaseHas('meetings', ['id' => $meeting->id]);
+    }
+
+    #[Test]
+    public function test_unverified_admin_cannot_delete_meeting_through_legacy_route(): void
+    {
+        $meeting = Meeting::factory()->create();
+
+        $response = $this->actingAs($this->unverifiedAdminUser)
+            ->delete(route('meetings.destroy', $meeting));
+
+        $response->assertRedirect(route('verification.notice'));
+        $this->assertDatabaseHas('meetings', ['id' => $meeting->id]);
     }
 
     #[Test]

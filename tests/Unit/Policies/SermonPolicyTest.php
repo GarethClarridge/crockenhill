@@ -25,6 +25,21 @@ class SermonPolicyTest extends TestCase
     }
 
     #[Test]
+    public function it_denies_unverified_admins(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => null,
+        ]);
+        $sermon = Sermon::factory()->create();
+
+        $this->assertFalse($user->can('viewAny', Sermon::class));
+        $this->assertFalse($user->can('create', Sermon::class));
+        $this->assertFalse($user->can('update', $sermon));
+        $this->assertFalse($user->can('delete', $sermon));
+    }
+
+    #[Test]
     public function it_denies_non_admin_users_regardless_of_email_domain(): void
     {
         $regularUser = User::factory()->create([

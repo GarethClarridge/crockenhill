@@ -8,6 +8,12 @@ trait WithAdminAuthorization
 {
     protected function authorizeAdmin(): void
     {
-        abort_unless(auth()->user()?->is_admin === true, 403, 'Unauthorized');
+        $user = auth()->user();
+
+        abort_unless(
+            $user?->is_admin === true && $user->hasVerifiedEmail(),
+            403,
+            'Unauthorized',
+        );
     }
 }

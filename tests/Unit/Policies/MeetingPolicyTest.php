@@ -25,6 +25,21 @@ class MeetingPolicyTest extends TestCase
     }
 
     #[Test]
+    public function it_denies_unverified_admins(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => null,
+        ]);
+        $meeting = Meeting::factory()->create();
+
+        $this->assertFalse($user->can('viewAny', Meeting::class));
+        $this->assertFalse($user->can('create', Meeting::class));
+        $this->assertFalse($user->can('update', $meeting));
+        $this->assertFalse($user->can('delete', $meeting));
+    }
+
+    #[Test]
     public function it_denies_non_admin_users_regardless_of_email_domain(): void
     {
         $regularUser = User::factory()->create([

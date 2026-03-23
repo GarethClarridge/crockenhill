@@ -16,7 +16,10 @@ class MiddlewareTest extends TestCase
     #[Test]
     public function it_allows_admins_to_pass(): void
     {
-        $user = User::factory()->create(['is_admin' => true]);
+        $user = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => now(),
+        ]);
         $this->actingAs($user);
 
         $request = Request::create('/admin', 'GET');
@@ -27,6 +30,24 @@ class MiddlewareTest extends TestCase
         });
 
         $this->assertEquals('passed', $response->getContent());
+    }
+
+    #[Test]
+    public function it_aborts_for_unverified_admins(): void
+    {
+        $user = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => null,
+        ]);
+        $this->actingAs($user);
+
+        $request = Request::create('/admin', 'GET');
+        $middleware = new EnsureUserIsAdmin;
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectExceptionMessage('Unauthorized action.');
+
+        $middleware->handle($request, function () {});
     }
 
     #[Test]
