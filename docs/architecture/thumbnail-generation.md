@@ -29,7 +29,7 @@ Laravel queue job for asynchronous thumbnail processing.
 **Configuration:**
 - **Single Attempt**: `tries = 1` - no retries for non-critical work
 - **5-minute Timeout**: Prevents long-running processes
-- **Dedicated Queue**: Uses `thumbnails` queue to avoid blocking critical operations
+- **Inherited Queue**: Runs on the parent video or livestream processing queue
 - **Graceful Failure**: Logs warnings but never fails main processing
 
 **Job Chain Integration:**
@@ -237,9 +237,6 @@ THUMBNAIL_TITLE_SIZE=48
 THUMBNAIL_DATE_SIZE=32
 THUMBNAIL_BRAND_POSITION=bottom-right
 
-# Queue Configuration
-THUMBNAIL_QUEUE_NAME=thumbnails
-THUMBNAIL_QUEUE_TIMEOUT=300
 ```
 
 ### Configuration File
@@ -252,7 +249,7 @@ THUMBNAIL_QUEUE_TIMEOUT=300
 - **Extraction**: Frame selection parameters
 - **Sizes**: Multiple thumbnail dimensions
 - **Overlay**: Branding and text configuration
-- **Queue**: Background processing settings
+- **Processing**: Runtime and temporary-file settings
 
 ## Error Handling & Resilience
 

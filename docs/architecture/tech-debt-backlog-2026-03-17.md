@@ -582,7 +582,7 @@ The backlog is ordered for safety:
   - `ci-deployment-environment-review-2026-03-18.md`
 
 ### TD-022 - Remove dead thumbnail queue configuration and correct its queue coverage test
-- Status: `Open`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Low

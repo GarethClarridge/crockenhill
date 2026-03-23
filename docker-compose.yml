@@ -46,7 +46,7 @@ services:
             - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
         command: >
             php artisan queue:work redis
-            --queue=video-processing,audio-processing,sermon-processing,livestream-processing,speaker-identification,thumbnails,default
+            --queue=video-processing,audio-processing,sermon-processing,livestream-processing,speaker-identification,default
             --sleep=1
             --tries=3
             --timeout=7200

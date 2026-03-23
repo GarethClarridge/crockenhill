@@ -120,12 +120,6 @@ THUMBNAIL_BRAND_IMAGE=images/BrandOverlay.png
 THUMBNAIL_BRAND_POSITION=bottom-right
 THUMBNAIL_BRAND_MARGIN=20
 
-# Queue configuration
-THUMBNAIL_QUEUE_NAME=thumbnails
-THUMBNAIL_QUEUE_CONNECTION=redis
-THUMBNAIL_QUEUE_TIMEOUT=300
-THUMBNAIL_QUEUE_TRIES=1
-
 # Processing limits
 THUMBNAIL_MAX_CONCURRENT=3
 THUMBNAIL_MEMORY_LIMIT=512M
@@ -189,25 +183,26 @@ php artisan tinker
 
 Production uses the Docker Compose and Redis runtime described in
 [`media-processing.md`](./media-processing.md#production-stack-authoritative).
-If you are running workers outside that containerized production setup, keep the
-worker connection aligned with Redis as shown below.
+`GenerateThumbnail` inherits the `video-processing` or
+`livestream-processing` queue from the parent pipeline, so there is no
+standalone `thumbnails` worker to provision.
 
 **Supervisor Configuration:**
 
-Create `/etc/supervisor/conf.d/thumbnail-worker.conf`:
+Create `/etc/supervisor/conf.d/processing-worker.conf`:
 
 ```ini
-[program:thumbnail-worker]
+[program:processing-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /path/to/your/project/artisan queue:work redis --queue=thumbnails --timeout=300 --tries=1 --memory=512
+command=php /path/to/your/project/artisan queue:work redis --queue=video-processing,audio-processing,sermon-processing,livestream-processing,speaker-identification,default --timeout=7200 --tries=3 --memory=512
 directory=/path/to/your/project
 autostart=true
 autorestart=true
 user=www-data
 numprocs=2
 redirect_stderr=true
-stdout_logfile=/var/log/thumbnail-worker.log
-stopwaitsecs=3600
+stdout_logfile=/var/log/processing-worker.log
+stopwaitsecs=7260
 ```
 
 **Start Supervisor:**
@@ -216,27 +211,27 @@ stopwaitsecs=3600
 sudo supervisorctl reread
 sudo supervisorctl update
 
-# Start thumbnail workers
-sudo supervisorctl start thumbnail-worker:*
+# Start processing workers
+sudo supervisorctl start processing-worker:*
 
 # Check worker status
-sudo supervisorctl status thumbnail-worker:*
+sudo supervisorctl status processing-worker:*
 ```
 
 **Systemd Configuration (Alternative):**
 
-Create `/etc/systemd/system/thumbnail-worker@.service`:
+Create `/etc/systemd/system/processing-worker@.service`:
 
 ```ini
 [Unit]
-Description=Thumbnail Generation Worker %i
+Description=Media Processing Worker %i
 After=network.target
 
 [Service]
 Type=simple
 User=www-data
 WorkingDirectory=/path/to/your/project
-ExecStart=/usr/bin/php artisan queue:work redis --queue=thumbnails --timeout=300 --tries=1 --memory=512
+ExecStart=/usr/bin/php artisan queue:work redis --queue=video-processing,audio-processing,sermon-processing,livestream-processing,speaker-identification,default --timeout=7200 --tries=3 --memory=512
 Restart=always
 RestartSec=3
 
@@ -247,14 +242,14 @@ WantedBy=multi-user.target
 **Enable and start services:**
 ```bash
 # Enable and start 2 worker instances
-sudo systemctl enable thumbnail-worker@1
-sudo systemctl enable thumbnail-worker@2
-sudo systemctl start thumbnail-worker@1
-sudo systemctl start thumbnail-worker@2
+sudo systemctl enable processing-worker@1
+sudo systemctl enable processing-worker@2
+sudo systemctl start processing-worker@1
+sudo systemctl start processing-worker@2
 
 # Check status
-sudo systemctl status thumbnail-worker@1
-sudo systemctl status thumbnail-worker@2
+sudo systemctl status processing-worker@1
+sudo systemctl status processing-worker@2
 ```
 
 ### 6. Install Brand Assets (Optional)
@@ -327,12 +322,9 @@ php artisan tinker
 ### 4. Test Queue Processing
 
 ```bash
-# Dispatch test thumbnail job
-php artisan tinker
->>> App\Jobs\GenerateThumbnail::dispatch(1, '/path/to/test/video.mp4');
-
-# Monitor queue processing
-php artisan queue:monitor thumbnails
+# Thumbnail jobs run on shared media-processing queues.
+php artisan queue:monitor video-processing
+php artisan queue:monitor livestream-processing
 
 # Check job completion
 tail -f storage/logs/laravel.log | grep "Thumbnail generation"
@@ -352,8 +344,6 @@ THUMBNAIL_LOG_FFMPEG=false
 THUMBNAIL_MAX_CONCURRENT=4
 THUMBNAIL_FFMPEG_THREADS=4
 
-# Use Redis for better queue performance
-THUMBNAIL_QUEUE_CONNECTION=redis
 ```
 
 ### 2. Performance Optimization
@@ -393,8 +383,8 @@ post_max_size = 100M
 **Log Rotation:**
 ```bash
 # Create logrotate configuration
-sudo tee /etc/logrotate.d/thumbnail-worker << EOF
-/var/log/thumbnail-worker.log {
+sudo tee /etc/logrotate.d/processing-worker << EOF
+/var/log/processing-worker.log {
     daily
     missingok
     rotate 14
@@ -402,7 +392,7 @@ sudo tee /etc/logrotate.d/thumbnail-worker << EOF
     notifempty
     create 0644 www-data www-data
     postrotate
-        supervisorctl restart thumbnail-worker:*
+        supervisorctl restart processing-worker:*
     endscript
 }
 EOF
@@ -420,8 +410,8 @@ if ! command -v ffmpeg &> /dev/null; then
 fi
 
 # Check queue workers
-if ! pgrep -f "queue:work.*thumbnails" > /dev/null; then
-    echo "CRITICAL: No thumbnail queue workers running"
+if ! pgrep -f "queue:work.*(video-processing|livestream-processing)" > /dev/null; then
+    echo "CRITICAL: No media-processing queue workers running"
     exit 2
 fi
 
@@ -471,13 +461,13 @@ php artisan storage:link
 **3. Queue Workers Not Processing:**
 ```bash
 # Check worker status
-sudo supervisorctl status thumbnail-worker:*
+sudo supervisorctl status processing-worker:*
 
 # Restart workers
-sudo supervisorctl restart thumbnail-worker:*
+sudo supervisorctl restart processing-worker:*
 
 # Check logs
-tail -f /var/log/thumbnail-worker.log
+tail -f /var/log/processing-worker.log
 ```
 
 **4. Memory Issues:**
@@ -486,7 +476,7 @@ tail -f /var/log/thumbnail-worker.log
 echo "memory_limit = 1G" >> /etc/php/8.2/cli/php.ini
 
 # Monitor memory usage
-ps aux | grep "queue:work.*thumbnails"
+ps aux | grep "queue:work.*video-processing\\|queue:work.*livestream-processing"
 ```
 
 ### Verification Checklist
@@ -510,9 +500,6 @@ ps aux | grep "queue:work.*thumbnails"
 ```bash
 # Disable in environment
 echo "THUMBNAIL_GENERATION_ENABLED=false" >> .env
-
-# Stop queue workers
-sudo supervisorctl stop thumbnail-worker:*
 
 # Clear configuration cache
 php artisan config:clear

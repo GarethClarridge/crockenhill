@@ -57,7 +57,6 @@ THUMBNAIL_STORAGE_PATH=sermons/thumbnails
 
 # Processing limits
 THUMBNAIL_FFMPEG_TIMEOUT=300
-THUMBNAIL_QUEUE_TIMEOUT=300
 THUMBNAIL_MAX_CONCURRENT=3
 ```
 
@@ -116,13 +115,15 @@ php artisan tinker
 
 ### Queue Configuration
 
-**Dedicated Queue Setup:**
+**Shared Queue Setup:**
 ```bash
-# Start thumbnail queue worker
-php artisan queue:work --queue=thumbnails --timeout=300
+# Thumbnail jobs inherit the video or livestream processing queue.
+# Start the shared processing workers used by the pipeline.
+php artisan queue:work redis --queue=video-processing,audio-processing,sermon-processing,livestream-processing,speaker-identification,default --timeout=7200
 
-# Monitor queue status
-php artisan queue:monitor thumbnails
+# Monitor the queues that can carry GenerateThumbnail
+php artisan queue:monitor video-processing
+php artisan queue:monitor livestream-processing
 
 # Check failed jobs
 php artisan queue:failed
@@ -130,16 +131,16 @@ php artisan queue:failed
 
 **Supervisor Configuration:**
 ```ini
-[program:thumbnail-worker]
+[program:processing-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /path/to/artisan queue:work --queue=thumbnails --timeout=300 --tries=1
+command=php /path/to/artisan queue:work redis --queue=video-processing,audio-processing,sermon-processing,livestream-processing,speaker-identification,default --timeout=7200 --tries=3
 directory=/path/to/project
 autostart=true
 autorestart=true
 user=www-data
 numprocs=2
 redirect_stderr=true
-stdout_logfile=/path/to/logs/thumbnail-worker.log
+stdout_logfile=/path/to/logs/processing-worker.log
 ```
 
 ### Queue Monitoring
@@ -147,13 +148,14 @@ stdout_logfile=/path/to/logs/thumbnail-worker.log
 **Monitor Queue Health:**
 ```bash
 # Check queue size
-php artisan queue:monitor thumbnails
+php artisan queue:monitor video-processing
+php artisan queue:monitor livestream-processing
 
 # View recent jobs
 php artisan horizon:status  # If using Horizon
 
 # Check failed thumbnail jobs
-php artisan queue:failed --queue=thumbnails
+php artisan queue:failed | grep GenerateThumbnail
 ```
 
 **Performance Metrics:**
@@ -162,7 +164,7 @@ php artisan queue:failed --queue=thumbnails
 tail -f storage/logs/laravel.log | grep "Thumbnail generation"
 
 # Check memory usage
-ps aux | grep "queue:work.*thumbnails"
+ps aux | grep "queue:work.*video-processing\\|queue:work.*livestream-processing"
 ```
 
 ## Monitoring & Alerting
@@ -200,10 +202,10 @@ else
 fi
 
 # Check queue workers
-if pgrep -f "queue:work.*thumbnails" > /dev/null; then
-    echo "✓ Thumbnail queue worker running"
+if pgrep -f "queue:work.*(video-processing|livestream-processing)" > /dev/null; then
+    echo "✓ Shared media-processing queue worker running"
 else
-    echo "✗ No thumbnail queue worker found"
+    echo "✗ No shared media-processing queue worker found"
 fi
 ```
 
@@ -313,8 +315,8 @@ php artisan storage:link
 # Increase PHP memory limit
 echo "memory_limit = 512M" >> /etc/php/8.2/cli/php.ini
 
-# Update job timeout
-echo "THUMBNAIL_QUEUE_TIMEOUT=600" >> .env
+# Increase the shared worker timeout if FFmpeg needs longer than 5 minutes
+# Example: update your supervisor/systemd queue:work command to use --timeout=600
 
 # Monitor memory usage
 php artisan tinker
@@ -335,8 +337,8 @@ php artisan queue:restart
 # Clear failed jobs
 php artisan queue:flush
 
-# Start dedicated worker
-php artisan queue:work --queue=thumbnails --timeout=300 --tries=1
+# Start shared processing worker
+php artisan queue:work redis --queue=video-processing,audio-processing,sermon-processing,livestream-processing,speaker-identification,default --timeout=7200 --tries=3
 
 # Check worker status
 ps aux | grep "queue:work"
@@ -356,9 +358,10 @@ php artisan tinker
 
 **Manual Job Dispatch:**
 ```bash
-# Manually dispatch thumbnail job
+# Run the thumbnail job synchronously for a known processing log
 php artisan tinker
->>> App\Jobs\GenerateThumbnail::dispatch(1, '/path/to/video.mp4');
+>>> $log = App\Models\MediaProcessingLog::first();
+>>> dispatch_sync(new App\Jobs\GenerateThumbnail($log));
 ```
 
 **Configuration Testing:**
@@ -377,7 +380,8 @@ php artisan tinker
 **Daily Tasks:**
 ```bash
 # Check queue health
-php artisan queue:monitor thumbnails
+php artisan queue:monitor video-processing
+php artisan queue:monitor livestream-processing
 
 # Review error logs
 grep "$(date +%Y-%m-%d).*Thumbnail.*error" storage/logs/laravel.log
@@ -443,19 +447,17 @@ php artisan thumbnail:clear-all --confirm
 **Worker Configuration:**
 ```bash
 # Optimize worker count based on server capacity
-# Rule of thumb: 1-2 workers per CPU core for thumbnail queue
+# Rule of thumb: 1-2 workers per CPU core for shared media-processing queues
 
 # Monitor worker performance
-php artisan queue:monitor thumbnails --verbose
-
-# Adjust timeout based on average processing time
-echo "THUMBNAIL_QUEUE_TIMEOUT=300" >> .env  # 5 minutes
+php artisan queue:monitor video-processing --verbose
+php artisan queue:monitor livestream-processing --verbose
 ```
 
 **Memory Management:**
 ```bash
 # Monitor memory usage per job
-php artisan queue:work --queue=thumbnails --memory=256
+php artisan queue:work redis --queue=video-processing,livestream-processing --memory=256
 
 # Optimize PHP memory settings
 echo "memory_limit = 512M" >> php.ini

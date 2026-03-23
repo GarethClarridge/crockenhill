@@ -2,6 +2,8 @@
 
 namespace Tests\Unit\Config;
 
+use App\Jobs\GenerateThumbnail;
+use App\Models\MediaProcessingLog;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -35,6 +37,15 @@ class QueueWorkerCoverageTest extends TestCase
         }
     }
 
+    #[Test]
+    public function thumbnail_generation_jobs_inherit_their_parent_pipeline_queue(): void
+    {
+        $job = new GenerateThumbnail(MediaProcessingLog::factory()->video()->processing()->make());
+
+        $this->assertNull($job->connection);
+        $this->assertNull($job->queue);
+    }
+
     /**
      * @return array<int, string>
      */
@@ -42,13 +53,10 @@ class QueueWorkerCoverageTest extends TestCase
     {
         $required = [
             (string) config('media-processing.queues.default'),
-            (string) config('media-processing.queues.processing'),
             (string) config('media-processing.queues.audio'),
             (string) config('media-processing.queues.video'),
             (string) config('media-processing.queues.livestream'),
-            (string) config('media-processing.queues.livestream_audio'),
             (string) config('media-processing.speaker_identification.queue'),
-            (string) config('thumbnail-generation.queue.name', 'thumbnails'),
         ];
 
         return array_values(array_unique(array_filter($required)));

@@ -54,6 +54,7 @@ class GenerateThumbnailJobTest extends TestCase
 
         $this->assertSame(1, $job->tries);
         $this->assertSame(300, $job->timeout);
+        $this->assertNull($job->connection);
         $this->assertNull($job->queue);
     }
 

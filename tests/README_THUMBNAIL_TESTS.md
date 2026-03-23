@@ -172,7 +172,6 @@ php artisan test tests/Performance/ThumbnailGenerationPerformanceTest.php
 ```bash
 # Required for thumbnail tests
 THUMBNAIL_GENERATION_ENABLED=true
-THUMBNAIL_QUEUE=thumbnails
 RUN_PERFORMANCE_TESTS=false  # Set to true for performance testing
 ```
 
