@@ -327,8 +327,8 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
-      image_sha: ${{ steps.image.outputs.sha }}
+      image_tag: ${{ steps.image.outputs.tag }}
+      image_ref: ${{ steps.image.outputs.ref }}
 
     steps:
       - uses: actions/checkout@v6
@@ -358,7 +358,8 @@ jobs:
           set -euo pipefail
           image_repo="${REGISTRY}/${IMAGE_NAME}"
           image_repo="${image_repo,,}"
-          echo "sha=${image_repo}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "ref=${image_repo}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -367,7 +368,7 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta.outputs.tags }}
-            ${{ steps.image.outputs.sha }}
+            ${{ steps.image.outputs.ref }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -389,7 +390,7 @@ jobs:
 
       - name: Smoke test built image
         env:
-          IMAGE: ${{ needs.build.outputs.image_sha }}
+          IMAGE: ${{ needs.build.outputs.image_ref }}
         run: |
           set -euo pipefail
 
@@ -436,14 +437,20 @@ jobs:
     steps:
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         with:
           host: ${{ secrets.PROD_HOST }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           command_timeout: 240m
+          envs: IMAGE_TAG
           script: |
-            set -e
+            set -eu
             cd /srv/crockenhill
+
+            export IMAGE_TAG
+            echo "Deploying app image tag: ${IMAGE_TAG}"
 
             # Free disk space before pulling (remove unused images and build cache)
             docker system prune -f

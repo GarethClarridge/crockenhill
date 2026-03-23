@@ -1,8 +1,8 @@
 # Production Docker Compose - standalone file for the server
 # Usage: docker compose -f docker-compose.prod.yml up -d
 #
-# IMPORTANT: Replace OWNER with your GitHub username or organization name
-# Example: ghcr.io/garethclarridge/crockenhill:latest
+# Set IMAGE_TAG to the smoke-tested Git SHA before deploying
+# Example: IMAGE_TAG=<git-sha> docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 
 services:
   caddy:
@@ -21,7 +21,7 @@ services:
       - crockenhill
 
   app:
-    image: ghcr.io/garethclarridge/crockenhill:${IMAGE_TAG:-latest}
+    image: ghcr.io/garethclarridge/crockenhill:${IMAGE_TAG:?IMAGE_TAG must be set to the smoke-tested Git SHA}
     restart: always
     expose:
       - "80"
