@@ -12,7 +12,7 @@
     {{-- Filters --}}
     <div class="flex flex-wrap gap-4">
         <x-input placeholder="Search users..." wire:model.live.debounce="search"
-            icon="magnifying-glass" clearable class="w-64" />
+            icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
         <x-select placeholder="Email Status" wire:model.live="verifiedFilter"
             :options="[['id' => '1', 'name' => 'Verified'], ['id' => '0', 'name' => 'Unverified']]"

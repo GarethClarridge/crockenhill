@@ -12,7 +12,7 @@
     {{-- Filters --}}
     <div class="flex flex-wrap gap-4">
         <x-input placeholder="Search events..." wire:model.live.debounce="search"
-            icon="magnifying-glass" clearable class="w-64" />
+            icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
         <x-select placeholder="All Meetings" wire:model.live="meetingFilter"
             :options="$meetings->map(fn($name, $slug) => ['id' => $slug, 'name' => $name])->values()->toArray()"

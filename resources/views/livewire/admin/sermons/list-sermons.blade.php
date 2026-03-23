@@ -12,7 +12,7 @@
     {{-- Filters --}}
     <div class="flex flex-wrap gap-4">
         <x-input placeholder="Search..." wire:model.live.debounce="search"
-            icon="magnifying-glass" clearable class="w-64" />
+            icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
         <x-select placeholder="Service" wire:model.live="serviceFilter"
             :options="collect($services)->map(fn($s) => ['id' => $s->value, 'name' => $s->label()])->toArray()"

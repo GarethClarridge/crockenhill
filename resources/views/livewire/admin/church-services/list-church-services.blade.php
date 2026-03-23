@@ -32,7 +32,8 @@
             wire:model.live.debounce="search"
             icon="magnifying-glass"
             clearable
-            class="w-72" />
+            class="w-72"
+            shortcut="slash" />
 
         <x-select
             placeholder="Service"

@@ -12,7 +12,7 @@
     {{-- Filters --}}
     <div class="flex flex-wrap gap-4">
         <x-input placeholder="Search preachers..." wire:model.live.debounce="search"
-            icon="magnifying-glass" clearable class="w-64" />
+            icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
         <x-select placeholder="Active status" wire:model.live="activeFilter"
             :options="[['id' => '1', 'name' => 'Active'], ['id' => '0', 'name' => 'Inactive']]"
