@@ -20,13 +20,9 @@ class SermonSitemapPresenter
 
         // Use updated_at if valid, otherwise fall back to date.
         // Note: old records may have invalid updated_at values (0000-00-00) that aren't null.
-        // Also, timestamps are disabled so updated_at returns as string, not Carbon.
         $lastModified = $sermon->date;
-        if ($sermon->updated_at) {
-            $updatedAt = Carbon::parse($sermon->updated_at);
-            if ($updatedAt->year > 0) {
-                $lastModified = $updatedAt;
-            }
+        if ($sermon->updated_at instanceof \Carbon\CarbonInterface && $sermon->updated_at->year > 0) {
+            $lastModified = $sermon->updated_at;
         }
 
         $videoUrl = $this->sermonViewPresenter->videoUrl($sermon);
