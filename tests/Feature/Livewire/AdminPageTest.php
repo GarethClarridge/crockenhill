@@ -154,6 +154,25 @@ class AdminPageTest extends TestCase
     }
 
     #[Test]
+    public function admin_create_page_defaults_to_public_visibility(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreatePage::class)
+            ->set('heading', 'Welcome')
+            ->set('description', 'Welcome page description.')
+            ->set('area', PageArea::CHURCH->value)
+            ->set('navigation', false)
+            ->set('markdown', 'Welcome page copy')
+            ->call('save')
+            ->assertRedirect(route('admin.pages.index'));
+
+        $page = Page::query()->where('slug', 'welcome')->firstOrFail();
+
+        $this->assertSame('no', $page->admin);
+    }
+
+    #[Test]
     public function create_page_preserves_manual_slug_when_heading_changes(): void
     {
         $this->actingAs($this->admin);

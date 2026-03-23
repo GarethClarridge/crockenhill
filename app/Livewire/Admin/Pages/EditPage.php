@@ -24,7 +24,7 @@ class EditPage extends Component
         $this->heading = $page->heading;
         $this->slug = $page->slug;
         $this->area = $page->area->value;
-        $this->admin = $page->admin === 'yes';
+        $this->admin = $page->isAdminOnly();
         $this->navigation = $page->navigation;
         $this->description = $page->description;
         $this->markdown = $page->markdown ?? '';

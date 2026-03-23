@@ -6,6 +6,7 @@ namespace App\Livewire\Admin\Pages;
 
 use App\Enums\PageArea;
 use App\Services\SafeMarkdownRenderer;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 trait PageForm
@@ -68,6 +69,8 @@ trait PageForm
      */
     protected function pagePayload(array $validated): array
     {
+        $validated = Arr::except($validated, ['admin']);
+
         return [
             ...$validated,
             'admin' => $this->admin ? 'yes' : 'no',

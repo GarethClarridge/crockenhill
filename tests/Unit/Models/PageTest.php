@@ -69,6 +69,16 @@ class PageTest extends TestCase
     }
 
     #[Test]
+    public function page_admin_visibility_helper_reflects_the_legacy_enum_value(): void
+    {
+        $adminOnlyPage = \App\Models\Page::factory()->create(['admin' => 'yes']);
+        $publicPage = \App\Models\Page::factory()->create(['admin' => 'no']);
+
+        $this->assertTrue($adminOnlyPage->isAdminOnly());
+        $this->assertFalse($publicPage->isAdminOnly());
+    }
+
+    #[Test]
     public function page_scopes()
     {
         \App\Models\Page::query()->delete(); // Clear pages before this test

@@ -135,6 +135,14 @@ class Page extends Model implements HasMedia, Sitemapable
     }
 
     /**
+     * Determine whether this page is restricted to administrators.
+     */
+    public function isAdminOnly(): bool
+    {
+        return $this->admin === 'yes';
+    }
+
+    /**
      * Get the meeting associated with this page.
      */
     /**

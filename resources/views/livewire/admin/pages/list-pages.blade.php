@@ -105,8 +105,8 @@
                             </td>
                             {{-- Visibility --}}
                             <td class="px-4 py-3">
-                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $page->admin === 'yes' ? 'bg-rose-100 text-rose-800' : 'bg-gray-100 text-gray-700' }}">
-                                    {{ $page->admin === 'yes' ? 'Admin only' : 'Public' }}
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $page->isAdminOnly() ? 'bg-rose-100 text-rose-800' : 'bg-gray-100 text-gray-700' }}">
+                                    {{ $page->isAdminOnly() ? 'Admin only' : 'Public' }}
                                 </span>
                             </td>
                             {{-- Navigation --}}
