@@ -17,7 +17,7 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->assertHeaderMissing('X-XSS-Protection');
+        $response->assertHeader('X-XSS-Protection', '0');
         $response->assertHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
         $response->assertHeader('Content-Security-Policy');
     }
@@ -30,7 +30,7 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $response->assertHeaderMissing('X-XSS-Protection');
+        $response->assertHeader('X-XSS-Protection', '0');
         $response->assertHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
         $response->assertHeader('Content-Security-Policy');
     }
@@ -54,7 +54,30 @@ class SecurityHeadersTest extends TestCase
         $this->assertStringContainsString("script-src 'self' 'unsafe-inline' 'unsafe-eval'", $csp);
         $this->assertStringContainsString("style-src 'self' 'unsafe-inline'", $csp);
         $this->assertStringContainsString("img-src 'self' data:", $csp);
+        $this->assertStringContainsString("frame-ancestors 'self'", $csp);
         $this->assertStringContainsString("object-src 'none'", $csp);
+    }
+
+    #[Test]
+    public function it_includes_upgrade_insecure_requests_in_non_local_environments(): void
+    {
+        $this->app['env'] = 'production';
+
+        $response = $this->get('/');
+        $csp = $response->headers->get('Content-Security-Policy');
+
+        $this->assertStringContainsString('upgrade-insecure-requests', $csp);
+    }
+
+    #[Test]
+    public function it_does_not_include_upgrade_insecure_requests_in_local_environment(): void
+    {
+        $this->app['env'] = 'local';
+
+        $response = $this->get('/');
+        $csp = $response->headers->get('Content-Security-Policy');
+
+        $this->assertStringNotContainsString('upgrade-insecure-requests', $csp);
     }
 
     #[Test]
