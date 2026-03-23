@@ -44,9 +44,9 @@ echo "=== Media Processing System Health Check ==="
 echo "Date: $(date)"
 echo
 
-# Check application health (via HTTP)
-echo "1. Application Health:"
-curl -f http://localhost/health || echo "Health endpoint not responding"
+# Check the supported post-deploy smoke path
+echo "1. Operational Smoke Check:"
+./scripts/post-deploy-smoke.sh
 
 # Check queue status
 echo "2. Queue Status:"
@@ -494,8 +494,8 @@ php artisan queue:flush
 
 3. **Verify application:**
    ```bash
-   # Test health endpoint
-   curl -f http://localhost/health
+   # Run the supported smoke path
+   ./scripts/post-deploy-smoke.sh
    
    # Check queue processing
    php artisan queue:work --once
@@ -701,27 +701,16 @@ Monitor for:
 
 ### 3. Alert Configuration
 
-#### Using Laravel Health Checks
+#### Supported Built-In HTTP Health Check
 
-```php
-// config/health.php
-'notifications' => [
-    'mail' => [
-        'to' => 'admin@your-domain.com',
-        'subject' => 'Livestream Processing Health Alert',
-    ],
-    'slack' => [
-        'webhook_url' => env('SLACK_WEBHOOK_URL'),
-        'channel' => '#alerts',
-    ],
-],
-```
+Use Laravel's built-in `/up` route for HTTP health probes, and use
+`./scripts/post-deploy-smoke.sh` for the full operational pass/fail check.
 
 #### Using External Monitoring
 
 ```bash
 # Nagios check
-/usr/lib/nagios/plugins/check_http -H localhost -u /health -s "healthy"
+/usr/lib/nagios/plugins/check_http -H localhost -u /up
 
 # Prometheus metrics
 curl http://localhost/metrics | grep livestream_

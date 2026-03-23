@@ -456,32 +456,15 @@ Get list of failed processing operations.
 }
 ```
 
-### 11. System Health
+### 11. Platform Health and Status
 
-Check system health and service availability.
+There is no dedicated processing-health endpoint.
 
-**Endpoint**: `GET /api/sermons/processing/health`
+Use these supported surfaces instead:
 
-**Authentication**: Required  
-
-#### Response Format
-
-```json
-{
-  "status": "healthy",
-  "services": {
-    "transcription": "available",
-    "ai_analysis": "available", 
-    "file_storage": "available",
-    "queue_workers": "running"
-  },
-  "system": {
-    "ffmpeg_available": true,
-    "storage_space": "87% available",
-    "queue_backlog": 2
-  }
-}
-```
+- `GET /up` for the platform-level HTTP health check
+- `GET /api/media/processing/{processingId}/status` for a specific media-processing run
+- `./scripts/post-deploy-smoke.sh` for the full post-deploy operational smoke check in production
 
 ---
 

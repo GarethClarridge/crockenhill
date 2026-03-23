@@ -21,6 +21,7 @@ services:
       - crockenhill
 
   app:
+    # Runs nginx, php-fpm, Redis queue workers, and Laravel's scheduler via Supervisor.
     image: ghcr.io/garethclarridge/crockenhill:${IMAGE_TAG:?IMAGE_TAG must be set to the smoke-tested Git SHA}
     restart: always
     expose:

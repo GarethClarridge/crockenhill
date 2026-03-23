@@ -470,101 +470,15 @@ curl -X GET "https://your-domain.com/api/sermons/processing/failed?limit=10" \
 
 ---
 
-### 7. System health check
+### 7. Platform health and processing status
 
-Check the health status of the automated sermon processing system.
+There is no dedicated processing-health endpoint.
 
-**Endpoint**: `GET /api/sermons/processing/health`
+Use these supported surfaces instead:
 
-**Authentication**: Required
-
-**Rate Limit**: `api` (60 requests/minute)
-
-**Example Request**:
-```bash
-curl -X GET https://your-domain.com/api/sermons/processing/health \
-  -H "Authorization: Bearer your-api-token"
-```
-
-**Healthy response** (200 OK):
-```json
-{
-  "overall_status": "healthy",
-  "services": {
-    "openai_api": {
-      "status": "healthy",
-      "response_time": 245,
-      "last_check": "2024-01-15T10:29:00Z"
-    },
-    "queue_system": {
-      "status": "healthy",
-      "pending_jobs": 2,
-      "failed_jobs": 0,
-      "last_check": "2024-01-15T10:29:30Z"
-    },
-    "storage": {
-      "status": "healthy",
-      "disk_usage": 45.2,
-      "available_space": "2.1TB",
-      "last_check": "2024-01-15T10:29:45Z"
-    }
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-**Degraded response** (200 OK):
-```json
-{
-  "overall_status": "degraded",
-  "services": {
-    "openai_api": {
-      "status": "degraded",
-      "response_time": 2450,
-      "last_check": "2024-01-15T10:29:00Z",
-      "message": "High response times detected"
-    },
-    "queue_system": {
-      "status": "healthy",
-      "pending_jobs": 15,
-      "failed_jobs": 2,
-      "last_check": "2024-01-15T10:29:30Z"
-    },
-    "storage": {
-      "status": "healthy",
-      "disk_usage": 45.2,
-      "available_space": "2.1TB",
-      "last_check": "2024-01-15T10:29:45Z"
-    }
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-**Error response** (503 Service unavailable):
-```json
-{
-  "overall_status": "error",
-  "services": {
-    "openai_api": {
-      "status": "error",
-      "last_check": "2024-01-15T10:29:00Z",
-      "message": "API endpoint unreachable"
-    },
-    "queue_system": {
-      "status": "error",
-      "message": "Queue worker not responding"
-    },
-    "storage": {
-      "status": "healthy",
-      "disk_usage": 45.2,
-      "available_space": "2.1TB",
-      "last_check": "2024-01-15T10:29:45Z"
-    }
-  },
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
+- `GET /up` for the platform-level HTTP health check
+- `GET /api/media/processing/{processingId}/status` for a specific processing run
+- `./scripts/post-deploy-smoke.sh` for the full post-deploy operational smoke check after production deploys
 
 ---
 
@@ -645,7 +559,7 @@ Examples:
 
 ### Monitoring
 
-- Regularly check system health via the `/health` endpoint
+- Regularly check platform health via `GET /up`
 - Monitor processing statistics for performance trends
 - Set up alerts for failed processing jobs
 - Review failed processing logs for manual intervention

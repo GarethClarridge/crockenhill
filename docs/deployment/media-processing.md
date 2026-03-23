@@ -406,19 +406,21 @@ php artisan queue:work database --queue=default --sleep=3 --tries=3 --max-time=3
 
 ## Health Checks and Monitoring
 
-### Built-in Health Checks
+### Supported Production Smoke Path
 
-The system includes several health checks:
+Production health checks are supported through Laravel's built-in `GET /up`
+endpoint plus the repository smoke script:
 
 ```bash
-# Check system health
-php artisan health:check
-
-# Specific checks available:
-# - ffmpeg-availability
-# - livestream-queue
-# - video-storage
+./scripts/post-deploy-smoke.sh
 ```
+
+That single command verifies:
+- the web stack responds on `/up`
+- the application can reach the database
+- Redis and queue workers are running
+- writable storage volumes are writable
+- the scheduler process is running and the expected scheduled commands are registered
 
 ### Custom Monitoring
 
@@ -732,7 +734,7 @@ crontab -e
 2. **Logs and Debugging**
    - Enable debug mode for development
    - Check Laravel logs
-   - Use health check commands
+   - Run `./scripts/post-deploy-smoke.sh`
 
 3. **Community Support**
    - Laravel community forums

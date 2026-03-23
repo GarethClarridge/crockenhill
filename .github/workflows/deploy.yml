@@ -435,6 +435,27 @@ jobs:
     environment: production
 
     steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare remote smoke script directory
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: mkdir -p /srv/crockenhill/scripts
+
+      - name: Upload post-deploy smoke script
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: scripts/post-deploy-smoke.sh
+          target: /srv/crockenhill/scripts
+          strip_components: 1
+          overwrite: true
+
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
         env:
@@ -448,6 +469,8 @@ jobs:
           script: |
             set -eu
             cd /srv/crockenhill
+
+            chmod +x ./scripts/post-deploy-smoke.sh
 
             export IMAGE_TAG
             echo "Deploying app image tag: ${IMAGE_TAG}"
@@ -507,6 +530,5 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
               php artisan optimize --except=views
 
-            # Health check
-            sleep 15
-            curl -fsS http://localhost/up || exit 1
+            # Post-deploy operational smoke check
+            ./scripts/post-deploy-smoke.sh
