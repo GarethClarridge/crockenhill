@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Pages;
 
+use App\Livewire\Forms\PageFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
@@ -12,31 +13,25 @@ use Livewire\Component;
 
 class EditPage extends Component
 {
-    use PageForm, WithAdminAuthorization, WithNotifications;
+    use WithAdminAuthorization, WithNotifications;
 
     public Page $page;
+
+    public PageFormData $form;
 
     public function mount(Page $page): void
     {
         $this->authorizeAdmin();
 
         $this->page = $page;
-        $this->heading = $page->heading;
-        $this->slug = $page->slug;
-        $this->area = $page->area->value;
-        $this->admin = $page->isAdminOnly();
-        $this->navigation = $page->navigation;
-        $this->description = $page->description;
-        $this->markdown = $page->markdown ?? '';
+        $this->form->setPage($page);
     }
 
     public function save(): void
     {
         $this->authorizeAdmin();
 
-        $validated = $this->validate();
-
-        $this->page->update($this->pagePayload($validated));
+        $this->form->update();
 
         $this->success('Page updated');
     }
@@ -45,7 +40,8 @@ class EditPage extends Component
     {
         return view('livewire.admin.pages.page-form', [
             'title' => 'Edit Page',
-            'areas' => $this->getAreaOptions(),
+            'areas' => $this->form->areaOptions(),
+            'page' => $this->page,
         ])->layout('layouts.admin', ['title' => 'Edit: '.$this->page->heading, 'heading' => 'Edit Page']);
     }
 }

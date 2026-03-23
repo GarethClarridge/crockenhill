@@ -2,15 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Livewire\Admin\Pages;
+namespace App\Livewire\Forms;
 
 use App\Enums\PageArea;
+use App\Models\Page;
 use App\Services\SafeMarkdownRenderer;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Livewire\Form;
 
-trait PageForm
+class PageFormData extends Form
 {
+    public ?Page $page = null;
+
     public string $heading = '';
 
     public string $slug = '';
@@ -25,13 +30,26 @@ trait PageForm
 
     public string $markdown = '';
 
+    public function setPage(Page $page): void
+    {
+        $this->page = $page;
+
+        $this->fill([
+            'heading' => $page->heading,
+            'slug' => $page->slug,
+            'area' => $page->area->value,
+            'admin' => $page->isAdminOnly(),
+            'navigation' => $page->navigation,
+            'description' => $page->description,
+            'markdown' => $page->markdown ?? '',
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
     protected function rules(): array
     {
-        $pageId = isset($this->page) && $this->page->exists ? $this->page->id : '';
-
         return [
             'heading' => 'required|string|max:255',
             'slug' => [
@@ -39,9 +57,9 @@ trait PageForm
                 'string',
                 'max:255',
                 'alpha_dash',
-                \Illuminate\Validation\Rule::unique('pages', 'slug')
+                Rule::unique('pages', 'slug')
                     ->where('area', $this->area)
-                    ->ignore($pageId),
+                    ->ignore($this->page),
             ],
             'area' => ['required', 'string', 'in:'.implode(',', PageArea::values())],
             'admin' => 'boolean',
@@ -51,16 +69,47 @@ trait PageForm
         ];
     }
 
-    public function updatedHeading(): void
+    public function updatedHeading(string $value): void
     {
-        if (empty($this->slug) || $this->slug === Str::slug($this->heading)) {
-            $this->slug = Str::slug($this->heading);
+        if (empty($this->slug)) {
+            $this->slug = Str::slug($value);
         }
+    }
+
+    public function store(): Page
+    {
+        $this->normalizeForSave();
+
+        return Page::create($this->pagePayload($this->validate()));
+    }
+
+    public function update(): void
+    {
+        $this->normalizeForSave();
+
+        $this->page?->update($this->pagePayload($this->validate()));
+    }
+
+    /**
+     * @return array<int, array{id: string, name: string}>
+     */
+    public function areaOptions(): array
+    {
+        return collect(PageArea::cases())
+            ->map(fn (PageArea $area): array => ['id' => $area->value, 'name' => $area->label()])
+            ->toArray();
     }
 
     protected function convertMarkdown(): string
     {
         return app(SafeMarkdownRenderer::class)->convert($this->markdown);
+    }
+
+    protected function normalizeForSave(): void
+    {
+        if ($this->slug === '') {
+            $this->slug = Str::slug($this->heading);
+        }
     }
 
     /**
@@ -76,15 +125,5 @@ trait PageForm
             'admin' => $this->admin ? 'yes' : 'no',
             'body' => $this->convertMarkdown(),
         ];
-    }
-
-    /**
-     * @return array<int, array{id: string, name: string}>
-     */
-    protected function getAreaOptions(): array
-    {
-        return collect(PageArea::cases())
-            ->map(fn ($area) => ['id' => $area->value, 'name' => $area->label()])
-            ->toArray();
     }
 }

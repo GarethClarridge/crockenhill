@@ -1385,7 +1385,7 @@ The backlog is ordered for safety:
   - `laravel-livewire-idioms-review-2026-03-18.md`
 
 ### TD-032 - Replace PageForm and MeetingForm traits with Livewire\Form objects
-- Status: `Open`
+- Status: `Completed`
 - Priority: P1
 - Impact: Medium
 - Risk: Low

@@ -70,13 +70,13 @@ class MeetingIntegrityTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(CreateMeeting::class)
-            ->set('slug', 'new-meeting')
-            ->set('type', 'Adults')
-            ->set('day', 'Monday')
-            ->set('who', 'Anyone')
-            ->set('pageId', $page->id)
+            ->set('form.slug', 'new-meeting')
+            ->set('form.type', 'Adults')
+            ->set('form.day', 'Monday')
+            ->set('form.who', 'Anyone')
+            ->set('form.pageId', $page->id)
             ->call('save')
-            ->assertHasErrors(['pageId' => 'unique']);
+            ->assertHasErrors(['form.pageId' => 'unique']);
     }
 
     #[Test]
@@ -89,14 +89,14 @@ class MeetingIntegrityTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(EditMeeting::class, ['meeting' => $meeting1])
-            ->set('pageId', $page2->id)
+            ->set('form.pageId', $page2->id)
             ->call('save')
-            ->assertHasErrors(['pageId' => 'unique']);
+            ->assertHasErrors(['form.pageId' => 'unique']);
 
         Livewire::actingAs($this->admin)
             ->test(EditMeeting::class, ['meeting' => $meeting1])
-            ->set('pageId', $page1->id)
+            ->set('form.pageId', $page1->id)
             ->call('save')
-            ->assertHasNoErrors(['pageId']);
+            ->assertHasNoErrors(['form.pageId']);
     }
 }

@@ -53,9 +53,9 @@ class MeetingPageIntegrityTest extends TestCase
         $this->actingAs($this->adminUser);
 
         Livewire::test(EditMeeting::class, ['meeting' => $meeting2])
-            ->set('pageId', $page->id)
+            ->set('form.pageId', $page->id)
             ->call('save')
-            ->assertHasErrors(['pageId' => 'unique']);
+            ->assertHasErrors(['form.pageId' => 'unique']);
     }
 
     #[Test]
@@ -67,9 +67,9 @@ class MeetingPageIntegrityTest extends TestCase
         $this->actingAs($this->adminUser);
 
         Livewire::test(EditMeeting::class, ['meeting' => $meeting])
-            ->set('pageId', $page->id)
+            ->set('form.pageId', $page->id)
             ->call('save')
-            ->assertHasNoErrors(['pageId']);
+            ->assertHasNoErrors(['form.pageId']);
 
         $this->assertEquals($page->id, $meeting->fresh()->page_id);
     }

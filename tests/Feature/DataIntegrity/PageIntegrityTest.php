@@ -74,12 +74,12 @@ class PageIntegrityTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(CreatePage::class)
-            ->set('area', PageArea::CHURCH->value)
-            ->set('slug', 'about')
-            ->set('heading', 'New About')
-            ->set('description', 'Test Description')
+            ->set('form.area', PageArea::CHURCH->value)
+            ->set('form.slug', 'about')
+            ->set('form.heading', 'New About')
+            ->set('form.description', 'Test Description')
             ->call('save')
-            ->assertHasErrors(['slug' => 'unique']);
+            ->assertHasErrors(['form.slug' => 'unique']);
     }
 
     #[Test]
@@ -94,10 +94,10 @@ class PageIntegrityTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(CreatePage::class)
-            ->set('area', PageArea::COMMUNITY->value)
-            ->set('slug', 'about')
-            ->set('heading', 'Community About')
-            ->set('description', 'Test Description')
+            ->set('form.area', PageArea::COMMUNITY->value)
+            ->set('form.slug', 'about')
+            ->set('form.heading', 'Community About')
+            ->set('form.description', 'Test Description')
             ->call('save')
             ->assertHasNoErrors();
 

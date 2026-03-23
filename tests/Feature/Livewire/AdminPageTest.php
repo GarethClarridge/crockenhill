@@ -135,12 +135,12 @@ class AdminPageTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(CreatePage::class)
-            ->set('heading', 'About Crockenhill')
-            ->set('description', 'Information about our church and mission.')
-            ->set('area', PageArea::CHURCH->value)
-            ->set('admin', true)
-            ->set('navigation', true)
-            ->set('markdown', '# Welcome to Crockenhill')
+            ->set('form.heading', 'About Crockenhill')
+            ->set('form.description', 'Information about our church and mission.')
+            ->set('form.area', PageArea::CHURCH->value)
+            ->set('form.admin', true)
+            ->set('form.navigation', true)
+            ->set('form.markdown', '# Welcome to Crockenhill')
             ->call('save')
             ->assertRedirect(route('admin.pages.index'));
 
@@ -159,11 +159,11 @@ class AdminPageTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(CreatePage::class)
-            ->set('heading', 'Welcome')
-            ->set('description', 'Welcome page description.')
-            ->set('area', PageArea::CHURCH->value)
-            ->set('navigation', false)
-            ->set('markdown', 'Welcome page copy')
+            ->set('form.heading', 'Welcome')
+            ->set('form.description', 'Welcome page description.')
+            ->set('form.area', PageArea::CHURCH->value)
+            ->set('form.navigation', false)
+            ->set('form.markdown', 'Welcome page copy')
             ->call('save')
             ->assertRedirect(route('admin.pages.index'));
 
@@ -178,9 +178,9 @@ class AdminPageTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(CreatePage::class)
-            ->set('slug', 'custom-manual-slug')
-            ->set('heading', 'Brand New Heading')
-            ->assertSet('slug', 'custom-manual-slug');
+            ->set('form.slug', 'custom-manual-slug')
+            ->set('form.heading', 'Brand New Heading')
+            ->assertSet('form.slug', 'custom-manual-slug');
     }
 
     #[Test]
@@ -189,11 +189,11 @@ class AdminPageTest extends TestCase
         $this->actingAs($this->admin);
 
         Livewire::test(CreatePage::class)
-            ->set('heading', '')
-            ->set('slug', '')
-            ->set('description', '')
+            ->set('form.heading', '')
+            ->set('form.slug', '')
+            ->set('form.description', '')
             ->call('save')
-            ->assertHasErrors(['heading', 'slug', 'description']);
+            ->assertHasErrors(['form.heading', 'form.slug', 'form.description']);
     }
 
     #[Test]
@@ -212,13 +212,13 @@ class AdminPageTest extends TestCase
         ]);
 
         Livewire::test(EditPage::class, ['page' => $page])
-            ->assertSet('heading', 'Existing Page')
-            ->assertSet('slug', 'existing-page')
-            ->assertSet('area', PageArea::COMMUNITY->value)
-            ->assertSet('admin', true)
-            ->assertSet('navigation', true)
-            ->assertSet('description', 'Existing page description.')
-            ->assertSet('markdown', 'Existing markdown');
+            ->assertSet('form.heading', 'Existing Page')
+            ->assertSet('form.slug', 'existing-page')
+            ->assertSet('form.area', PageArea::COMMUNITY->value)
+            ->assertSet('form.admin', true)
+            ->assertSet('form.navigation', true)
+            ->assertSet('form.description', 'Existing page description.')
+            ->assertSet('form.markdown', 'Existing markdown');
     }
 
     #[Test]
@@ -237,13 +237,13 @@ class AdminPageTest extends TestCase
         ]);
 
         Livewire::test(EditPage::class, ['page' => $page])
-            ->set('heading', 'Updated Heading')
-            ->set('slug', 'updated-heading')
-            ->set('area', PageArea::MEMBERS->value)
-            ->set('admin', true)
-            ->set('navigation', true)
-            ->set('description', 'Updated page description.')
-            ->set('markdown', '## Updated Markdown')
+            ->set('form.heading', 'Updated Heading')
+            ->set('form.slug', 'updated-heading')
+            ->set('form.area', PageArea::MEMBERS->value)
+            ->set('form.admin', true)
+            ->set('form.navigation', true)
+            ->set('form.description', 'Updated page description.')
+            ->set('form.markdown', '## Updated Markdown')
             ->call('save')
             ->assertDispatched('notify', type: 'success', message: 'Page updated');
 
@@ -288,8 +288,8 @@ class AdminPageTest extends TestCase
         $editable = Page::factory()->create(['slug' => 'editable-slug', 'area' => PageArea::CHURCH->value]);
 
         Livewire::test(EditPage::class, ['page' => $editable])
-            ->set('slug', $existing->slug)
+            ->set('form.slug', $existing->slug)
             ->call('save')
-            ->assertHasErrors(['slug' => ['unique']]);
+            ->assertHasErrors(['form.slug' => ['unique']]);
     }
 }

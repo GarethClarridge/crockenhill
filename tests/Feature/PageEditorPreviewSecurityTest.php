@@ -43,7 +43,7 @@ class PageEditorPreviewSecurityTest extends TestCase
         ]);
 
         Livewire::test(EditPage::class, ['page' => $page])
-            ->set('markdown', '<script>alert("xss")</script>'."\n\n".'Safe content.')
+            ->set('form.markdown', '<script>alert("xss")</script>'."\n\n".'Safe content.')
             ->call('save');
 
         $page->refresh();
@@ -67,7 +67,7 @@ class PageEditorPreviewSecurityTest extends TestCase
         ]);
 
         Livewire::test(EditPage::class, ['page' => $page])
-            ->set('markdown', '[Click me](javascript:alert("link"))')
+            ->set('form.markdown', '[Click me](javascript:alert("link"))')
             ->call('save');
 
         $page->refresh();

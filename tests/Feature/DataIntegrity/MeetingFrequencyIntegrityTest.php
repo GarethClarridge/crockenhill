@@ -76,14 +76,14 @@ class MeetingFrequencyIntegrityTest extends TestCase
     {
         Livewire::actingAs($this->admin)
             ->test(CreateMeeting::class)
-            ->set('slug', 'new-meeting')
-            ->set('type', 'Adults')
-            ->set('day', 'Monday')
-            ->set('who', 'Anyone')
-            ->set('isRecurring', true)
-            ->set('frequency', 'invalid-frequency')
+            ->set('form.slug', 'new-meeting')
+            ->set('form.type', 'Adults')
+            ->set('form.day', 'Monday')
+            ->set('form.who', 'Anyone')
+            ->set('form.isRecurring', true)
+            ->set('form.frequency', 'invalid-frequency')
             ->call('save')
-            ->assertHasErrors(['frequency' => 'in']);
+            ->assertHasErrors(['form.frequency' => 'in']);
     }
 
     #[Test]
@@ -91,13 +91,13 @@ class MeetingFrequencyIntegrityTest extends TestCase
     {
         Livewire::actingAs($this->admin)
             ->test(CreateMeeting::class)
-            ->set('slug', 'new-meeting')
-            ->set('type', 'Adults')
-            ->set('day', 'Monday')
-            ->set('who', 'Anyone')
-            ->set('isRecurring', true)
-            ->set('frequency', '')
+            ->set('form.slug', 'new-meeting')
+            ->set('form.type', 'Adults')
+            ->set('form.day', 'Monday')
+            ->set('form.who', 'Anyone')
+            ->set('form.isRecurring', true)
+            ->set('form.frequency', '')
             ->call('save')
-            ->assertHasErrors(['frequency' => 'required_if']);
+            ->assertHasErrors(['form.frequency' => 'required_if']);
     }
 }

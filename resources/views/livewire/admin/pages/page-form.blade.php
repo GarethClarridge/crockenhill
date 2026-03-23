@@ -1,4 +1,31 @@
-<div>
+<div
+    x-data="{
+        heading: $wire.entangle('form.heading').live,
+        slug: $wire.entangle('form.slug').live,
+        lastGeneratedSlug: '',
+        slugify(value) {
+            return value
+                .toLowerCase()
+                .trim()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/[\s_-]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        },
+        init() {
+            this.lastGeneratedSlug = this.slugify(this.heading);
+
+            this.$watch('heading', (value) => {
+                const generatedSlug = this.slugify(value);
+
+                if (this.slug === '' || this.slug === this.lastGeneratedSlug) {
+                    this.slug = generatedSlug;
+                }
+
+                this.lastGeneratedSlug = generatedSlug;
+            });
+        },
+    }"
+>
     <div class="flex justify-between items-center mb-6">
         <h1 class="font-display text-3xl">{{ $title }}</h1>
         <div class="flex gap-2">
@@ -16,12 +43,12 @@
         <div class="lg:col-span-2 space-y-6">
             <x-card heading="Page Details">
                 <div class="space-y-4">
-                    <x-input label="Heading" wire:model.live.debounce="heading" required />
+                    <x-input label="Heading" wire:model.live.debounce="form.heading" required />
 
-                    <x-input label="Slug" wire:model="slug" required
+                    <x-input label="Slug" wire:model="form.slug" required
                         hint="URL-friendly identifier (auto-generated from heading)" />
 
-                    <x-textarea label="Description" wire:model="description" rows="3" required
+                    <x-textarea label="Description" wire:model="form.description" rows="3" required
                         maxlength="500" hint="Brief summary for listings and SEO" />
                 </div>
             </x-card>
@@ -30,7 +57,7 @@
                 {{-- Simple textarea for markdown - could enhance with editor later --}}
                 <x-textarea
                     label="Content (Markdown)"
-                    wire:model="markdown"
+                    wire:model="form.markdown"
                     rows="20"
                     class="font-mono text-sm"
                     hint="Supports Markdown formatting" />
@@ -41,15 +68,15 @@
         <div class="space-y-6">
             <x-card heading="Settings">
                 <div class="space-y-4">
-                    <x-select label="Area" wire:model="area" :options="$areas" required />
+                    <x-select label="Area" wire:model="form.area" :options="$areas" required />
 
                     <x-toggle
                         label="Admin only"
-                        wire:model="admin"
+                        wire:model="form.admin"
                         hint="Restrict this page so only administrators can view it."
                     />
 
-                    <x-toggle label="Show in Navigation" wire:model="navigation" />
+                    <x-toggle label="Show in Navigation" wire:model="form.navigation" />
                 </div>
             </x-card>
 
