@@ -27,10 +27,10 @@ class ReviewInboundEmails extends Component
     use WithNotifications;
     use WithPagination;
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'statusFilter', except: '')]
+    #[Url(except: '')]
     public string $statusFilter = '';
 
     public function mount(): void

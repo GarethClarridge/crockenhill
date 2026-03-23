@@ -33,7 +33,7 @@ class ManageChurchService extends Component
 
     public string $service = '';
 
-    #[Url(as: 'inboundEmailId', except: null)]
+    #[Url(except: null)]
     public ?int $inboundEmailId = null;
 
     /**

@@ -29,21 +29,21 @@ class ListUsers extends Component
         'created_at',
     ];
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'verifiedFilter', except: null)]
+    #[Url(except: null)]
     public ?bool $verifiedFilter = null;
 
-    #[Url(as: 'adminFilter', except: null)]
+    #[Url(except: null)]
     public ?bool $adminFilter = null;
 
     public bool $hasFilters = false;
 
-    #[Url(as: 'sortBy', except: self::DEFAULT_SORT_COLUMN)]
+    #[Url(except: self::DEFAULT_SORT_COLUMN)]
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
-    #[Url(as: 'sortDirection', except: self::DEFAULT_SORT_DIRECTION)]
+    #[Url(except: self::DEFAULT_SORT_DIRECTION)]
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
     public function mount(): void

@@ -31,10 +31,10 @@ class ListPreachers extends Component
         'updated_at',
     ];
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'activeFilter', except: null)]
+    #[Url(except: null)]
     public ?bool $activeFilter = null;
 
     public bool $hasFilters = false;

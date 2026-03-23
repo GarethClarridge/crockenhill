@@ -31,13 +31,13 @@ class ListPages extends Component
         'updated_at',
     ];
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'areaFilter', except: null)]
+    #[Url(except: null)]
     public ?string $areaFilter = null;
 
-    #[Url(as: 'navigationFilter', except: null)]
+    #[Url(except: null)]
     public ?bool $navigationFilter = null;
 
     public bool $hasFilters = false;

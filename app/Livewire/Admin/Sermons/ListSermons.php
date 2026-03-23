@@ -36,25 +36,25 @@ class ListSermons extends Component
         'updated_at',
     ];
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'serviceFilter', except: null)]
+    #[Url(except: null)]
     public ?string $serviceFilter = null;
 
-    #[Url(as: 'preacherFilter', except: null)]
+    #[Url(except: null)]
     public ?int $preacherFilter = null;
 
-    #[Url(as: 'seriesFilter', except: null)]
+    #[Url(except: null)]
     public ?string $seriesFilter = null;
 
-    #[Url(as: 'hasVideoFilter', except: false)]
+    #[Url(except: false)]
     public bool $hasVideoFilter = false;
 
-    #[Url(as: 'needsReviewFilter', except: false)]
+    #[Url(except: false)]
     public bool $needsReviewFilter = false;
 
-    #[Url(as: 'last12Months', except: true)]
+    #[Url(except: true)]
     public bool $last12Months = true;
 
     public bool $hasFilters = false;

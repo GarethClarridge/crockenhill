@@ -310,7 +310,7 @@ class AdminUrlStateTest extends TestCase
         ])->test(ListChurchServices::class)
             ->assertSet('search', '2026-01-19')
             ->assertSet('serviceFilter', SermonService::EVENING->value)
-            ->assertSet('needsReviewFilter', '1')
+            ->assertSet('needsReviewFilter', true)
             ->assertSee('2026-01-19 PM.osz')
             ->assertDontSee('2026-01-12 AM.osz');
     }

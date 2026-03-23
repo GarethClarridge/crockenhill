@@ -36,13 +36,13 @@ class ListMeetings extends Component
         'updated_at',
     ];
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'typeFilter', except: null)]
+    #[Url(except: null)]
     public ?string $typeFilter = null;
 
-    #[Url(as: 'recurringFilter', except: null)]
+    #[Url(except: null)]
     public ?bool $recurringFilter = null;
 
     public bool $hasFilters = false;

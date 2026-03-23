@@ -18,16 +18,16 @@ class ListCalendarEvents extends Component
 {
     use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination;
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'meetingFilter', except: null)]
+    #[Url(except: null)]
     public ?string $meetingFilter = null;
 
-    #[Url(as: 'uncategorizedOnly', except: false)]
+    #[Url(except: false)]
     public bool $uncategorizedOnly = false;
 
-    #[Url(as: 'upcomingOnly', except: true)]
+    #[Url(except: true)]
     public bool $upcomingOnly = true;
 
     public bool $hasFilters = false;

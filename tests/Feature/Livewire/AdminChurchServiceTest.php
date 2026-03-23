@@ -88,7 +88,7 @@ class AdminChurchServiceTest extends TestCase
             ->assertSee('2026-01-19 PM.osz')
             ->assertDontSee('2026-01-12 AM.osz')
             ->set('serviceFilter', null)
-            ->set('needsReviewFilter', '1')
+            ->set('needsReviewFilter', true)
             ->assertSee('2026-01-19 PM.osz')
             ->assertDontSee('2026-01-12 AM.osz');
     }

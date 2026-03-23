@@ -223,7 +223,7 @@ class SearchSecurityAndGroupingTest extends TestCase
 
         Livewire::test(ListChurchServices::class)
             ->set('search', 'Match')
-            ->set('needsReviewFilter', '1')
+            ->set('needsReviewFilter', true)
             ->assertDontSee('Match Ready')
             ->assertSee('Match Review');
     }

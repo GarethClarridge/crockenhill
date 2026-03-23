@@ -32,16 +32,16 @@ class ListSongs extends Component
         'ccli_number',
     ];
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'serviceFilter', except: null)]
+    #[Url(except: null)]
     public ?string $serviceFilter = null;
 
-    #[Url(as: 'dateFrom', except: null)]
+    #[Url(except: null)]
     public ?string $dateFrom = null;
 
-    #[Url(as: 'dateTo', except: null)]
+    #[Url(except: null)]
     public ?string $dateTo = null;
 
     public string $sortBy = self::DEFAULT_SORT_COLUMN;

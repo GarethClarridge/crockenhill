@@ -23,10 +23,10 @@ class ListSectionPublications extends Component
     use WithNotifications;
     use WithPagination;
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'publicationStatus', except: 'pending_approval')]
+    #[Url(except: 'pending_approval')]
     public string $publicationStatus = ServiceSectionPublicationStatus::PENDING_APPROVAL->value;
 
     public function mount(): void

@@ -32,14 +32,14 @@ class ListChurchServices extends Component
         'updated_at',
     ];
 
-    #[Url(as: 'search', except: '')]
+    #[Url(except: '')]
     public string $search = '';
 
-    #[Url(as: 'serviceFilter', except: null)]
+    #[Url(except: null)]
     public ?string $serviceFilter = null;
 
-    #[Url(as: 'needsReviewFilter', except: null)]
-    public ?string $needsReviewFilter = null;
+    #[Url(except: null)]
+    public ?bool $needsReviewFilter = null;
 
     public bool $hasFilters = false;
 
@@ -79,8 +79,8 @@ class ListChurchServices extends Component
         $this->sanitizeSorting();
 
         $this->hasFilters = $this->search !== ''
-            || ($this->serviceFilter !== null && $this->serviceFilter !== '')
-            || ($this->needsReviewFilter !== null && $this->needsReviewFilter !== '');
+            || $this->serviceFilter !== null
+            || $this->needsReviewFilter !== null;
 
         $search = trim($this->search);
         $escapedSearch = $this->escapeLike($search);
@@ -104,12 +104,12 @@ class ListChurchServices extends Component
                 });
             })
             ->when(
-                $this->serviceFilter !== null && $this->serviceFilter !== '',
+                $this->serviceFilter !== null,
                 fn (Builder $query): Builder => $query->where('service', $this->serviceFilter)
             )
             ->when(
-                $this->needsReviewFilter !== null && $this->needsReviewFilter !== '',
-                fn (Builder $query): Builder => $query->where('needs_review', $this->needsReviewFilter === '1')
+                $this->needsReviewFilter !== null,
+                fn (Builder $query): Builder => $query->where('needs_review', $this->needsReviewFilter)
             )
             ->orderBy($this->sortBy, $this->sortDirection)
             ->paginate(20);

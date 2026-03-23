@@ -1355,7 +1355,7 @@ The backlog is ordered for safety:
   - `authorization-exposure-boundary-review-2026-03-18.md`
 
 ### TD-031 - Convert admin list/filter components from $queryString to Livewire 3 #[Url]
-- Status: `Open`
+- Status: `Completed`
 - Priority: P1
 - Impact: Medium
 - Risk: Low
