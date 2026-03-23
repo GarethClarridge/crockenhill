@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\PageArea;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\PageSitemapPresenter;
 use App\Repositories\SermonRepository;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -70,6 +72,7 @@ class SitemapService
             ->add(
                 Page::query()
                     ->public()
+                    ->where('area', '!=', PageArea::MEMBERS->value)
                     ->select(['id', 'slug', 'area', 'updated_at', 'description', 'heading'])
                     /**
                      * Performance Optimization: Only eager load 'media' (needed for images),
@@ -86,7 +89,11 @@ class SitemapService
                      * to reduce memory usage.
                      */
                     ->select(['id', 'slug', 'updated_at', 'page_id'])
-                    ->publiclyAccessible()
+                    ->whereDoesntHave('page', function (Builder $query): void {
+                        $query
+                            ->where('admin', 'yes')
+                            ->orWhere('area', PageArea::MEMBERS->value);
+                    })
                     ->lazy()
             )
             ->add(

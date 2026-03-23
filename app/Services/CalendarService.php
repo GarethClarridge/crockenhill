@@ -24,7 +24,7 @@ class CalendarService
         $query = CalendarEvent::query()
             ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
             ->where('meeting_slug', $meetingSlug)
-            ->where('status', '!=', 'cancelled')
+            ->confirmed()
             ->orderBy('start_datetime');
 
         if ($startDate) {
@@ -72,6 +72,7 @@ class CalendarService
         return CalendarEvent::query()
             ->select(['id', 'meeting_slug', 'title', 'description', 'speaker', 'location', 'start_datetime', 'end_datetime'])
             ->whereNull('meeting_slug')
+            ->confirmed()
             ->orderBy('start_datetime')
             ->get();
     }

@@ -194,6 +194,51 @@ class PublicReadSideInvariantsTest extends TestCase
         );
     }
 
+    #[Test]
+    public function sitemap_does_not_include_members_area_pages(): void
+    {
+        Page::factory()->create([
+            'area' => PageArea::MEMBERS,
+            'slug' => 'members-only-page',
+            'admin' => 'no',
+        ]);
+
+        Cache::forget('sitemap');
+        @unlink(public_path('sitemap.xml'));
+
+        $sitemapResponse = $this->get('/sitemap.xml');
+
+        $this->assertStringNotContainsString(
+            '/members/members-only-page',
+            (string) $sitemapResponse->getContent()
+        );
+    }
+
+    #[Test]
+    public function sitemap_does_not_include_meetings_linked_to_members_pages(): void
+    {
+        $membersPage = Page::factory()->create([
+            'area' => PageArea::MEMBERS,
+            'slug' => 'members-meeting-page',
+            'admin' => 'no',
+        ]);
+
+        Meeting::factory()->create([
+            'slug' => 'members-backed-meeting',
+            'page_id' => $membersPage->id,
+        ]);
+
+        Cache::forget('sitemap');
+        @unlink(public_path('sitemap.xml'));
+
+        $sitemapResponse = $this->get('/sitemap.xml');
+
+        $this->assertStringNotContainsString(
+            '/community/members-backed-meeting',
+            (string) $sitemapResponse->getContent()
+        );
+    }
+
     // -------------------------------------------------------------------------
     // 5. Canonical URL, sitemap, and HTML all agree on the same sermon URL shape
     // -------------------------------------------------------------------------

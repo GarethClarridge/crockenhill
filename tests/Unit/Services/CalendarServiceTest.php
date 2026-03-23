@@ -51,6 +51,28 @@ class CalendarServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_only_returns_confirmed_events_for_a_meeting(): void
+    {
+        Meeting::factory()->create(['slug' => 'sunday-morning']);
+
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'title' => 'Confirmed Event',
+            'status' => 'confirmed',
+        ]);
+        CalendarEvent::factory()->create([
+            'meeting_slug' => 'sunday-morning',
+            'title' => 'Tentative Event',
+            'status' => 'tentative',
+        ]);
+
+        $events = $this->service->getEventsForMeeting('sunday-morning');
+
+        $this->assertCount(1, $events);
+        $this->assertSame('Confirmed Event', $events->sole()->title);
+    }
+
+    #[Test]
     public function it_filters_events_by_start_date(): void
     {
         Meeting::factory()->create(['slug' => 'sunday-morning']);
@@ -145,13 +167,33 @@ class CalendarServiceTest extends TestCase
     {
         Meeting::factory()->create(['slug' => 'sunday-morning']);
 
-        CalendarEvent::factory()->count(2)->create(['meeting_slug' => null]);
+        CalendarEvent::factory()->count(2)->create(['meeting_slug' => null, 'status' => 'confirmed']);
         CalendarEvent::factory()->count(3)->create(['meeting_slug' => 'sunday-morning']);
 
         $events = $this->service->getUncategorizedEvents();
 
         $this->assertCount(2, $events);
         $events->each(fn ($event) => $this->assertNull($event->meeting_slug));
+    }
+
+    #[Test]
+    public function it_only_returns_confirmed_uncategorized_events(): void
+    {
+        CalendarEvent::factory()->create([
+            'meeting_slug' => null,
+            'title' => 'Confirmed Uncategorized Event',
+            'status' => 'confirmed',
+        ]);
+        CalendarEvent::factory()->create([
+            'meeting_slug' => null,
+            'title' => 'Tentative Uncategorized Event',
+            'status' => 'tentative',
+        ]);
+
+        $events = $this->service->getUncategorizedEvents();
+
+        $this->assertCount(1, $events);
+        $this->assertSame('Confirmed Uncategorized Event', $events->sole()->title);
     }
 
     #[Test]

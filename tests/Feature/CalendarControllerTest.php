@@ -82,14 +82,14 @@ class CalendarControllerTest extends TestCase
 
         $event2 = CalendarEvent::factory()->create([
             'meeting_slug' => 'specific-meeting',
-            'title' => 'Meeting Event 2',
-            'status' => 'tentative', // Should be shown as it's not 'cancelled'
+            'title' => 'Tentative Meeting Event',
+            'status' => 'tentative',
         ]);
 
         $cancelledEvent = CalendarEvent::factory()->create([
             'meeting_slug' => 'specific-meeting',
             'title' => 'Cancelled Event',
-            'status' => 'cancelled', // Should NOT be shown
+            'status' => 'cancelled',
         ]);
 
         $otherEvent = CalendarEvent::factory()->create([
@@ -102,7 +102,7 @@ class CalendarControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Meeting Event 1');
-        $response->assertSee('Meeting Event 2');
+        $response->assertDontSee('Tentative Meeting Event');
         $response->assertDontSee('Cancelled Event');
         $response->assertDontSee('Other Meeting Event');
     }
@@ -115,18 +115,28 @@ class CalendarControllerTest extends TestCase
         $uncategorizedUpcoming = CalendarEvent::factory()->create([
             'meeting_slug' => null,
             'start_datetime' => now()->addDays(1),
+            'status' => 'confirmed',
             'title' => 'Uncategorized Upcoming',
         ]);
 
         $uncategorizedPast = CalendarEvent::factory()->create([
             'meeting_slug' => null,
             'start_datetime' => now()->subDays(1),
+            'status' => 'confirmed',
             'title' => 'Uncategorized Past',
+        ]);
+
+        $uncategorizedTentative = CalendarEvent::factory()->create([
+            'meeting_slug' => null,
+            'start_datetime' => now()->addDays(2),
+            'status' => 'tentative',
+            'title' => 'Uncategorized Tentative',
         ]);
 
         $categorizedUpcoming = CalendarEvent::factory()->create([
             'meeting_slug' => 'some-meeting',
             'start_datetime' => now()->addDays(1),
+            'status' => 'confirmed',
             'title' => 'Categorized Upcoming',
         ]);
 
@@ -135,6 +145,7 @@ class CalendarControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Uncategorized Upcoming');
         $response->assertDontSee('Uncategorized Past');
+        $response->assertDontSee('Uncategorized Tentative');
         $response->assertDontSee('Categorized Upcoming');
     }
 
