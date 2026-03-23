@@ -11,7 +11,7 @@
 
     {{-- Filters --}}
     <div class="flex flex-wrap gap-4">
-        <x-input placeholder="Search meetings..." wire:model.live.debounce="search" icon="magnifying-glass" clearable class="w-64" />
+        <x-input placeholder="Search meetings..." wire:model.live.debounce="search" icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
 
         <x-select
             placeholder="All Types"
