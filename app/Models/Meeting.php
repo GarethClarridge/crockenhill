@@ -298,7 +298,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public static function getForAdminList(): \Illuminate\Support\Collection
     {
-        return \Illuminate\Support\Facades\Cache::flexible('admin_meeting_list', [86400, 172800], function () {
+        return \Illuminate\Support\Facades\Cache::flexible('admin_meeting_list', [86400, 172800], function (): \Illuminate\Support\Collection {
             return self::query()
                 ->select(['id', 'slug', 'page_id'])
                 ->with('page:id,heading')

@@ -38,7 +38,7 @@ class SermonRepository
      */
     public function getLatestSermons(): Collection
     {
-        return Cache::flexible('latest_sermons', [86400, 172800], function () {
+        return Cache::flexible('latest_sermons', [86400, 172800], function (): Collection {
             $distinct_dates = Sermon::query()
                 ->whereSermon()
                 ->select('date')
@@ -67,12 +67,12 @@ class SermonRepository
      */
     public function getAllSermons(): Collection
     {
-        return Cache::flexible('all_sermons', [86400, 172800], function () {
+        return Cache::flexible('all_sermons', [86400, 172800], function (): Collection {
             return $this->publicSermonQuery()
                 ->orderBy('date', 'desc')
                 ->orderBy('service', 'asc')
                 ->get()
-                ->groupBy(function ($sermon) {
+                ->groupBy(function (Sermon $sermon): string {
                     return $sermon->date->format('Y-m-d');
                 });
         });
@@ -85,7 +85,7 @@ class SermonRepository
      */
     public function getSermonsBySeries(string $seriesName): Collection
     {
-        return Cache::flexible('sermons_series_'.Str::slug($seriesName), [86400, 172800], function () use ($seriesName) {
+        return Cache::flexible('sermons_series_'.Str::slug($seriesName), [86400, 172800], function () use ($seriesName): Collection {
             return $this->publicSermonQuery()
                 ->where('series', $seriesName)
                 ->orderBy('date', 'desc')
@@ -103,7 +103,7 @@ class SermonRepository
      */
     public function getSermonsByPreacher(Preacher $preacher): Collection
     {
-        return Cache::flexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher) {
+        return Cache::flexible($this->preacherCacheKey($preacher), [86400, 172800], function () use ($preacher): Collection {
             return $this->publicSermonQuery()
                 ->where('preacher_id', $preacher->id)
                 ->orderBy('date', 'desc')
@@ -118,7 +118,7 @@ class SermonRepository
      */
     public function getSermonsByService(SermonService $service): Collection
     {
-        return Cache::flexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service) {
+        return Cache::flexible("sermons_service_{$service->value}", [86400, 172800], function () use ($service): Collection {
             return $this->publicSermonQuery()
                 ->where('service', $service)
                 ->orderBy('date', 'desc')
@@ -229,7 +229,7 @@ class SermonRepository
      */
     public function getSeriesForDisplay(): array
     {
-        return Cache::flexible('sermon_series', [86400, 172800], function () {
+        return Cache::flexible('sermon_series', [86400, 172800], function (): array {
             $series = $this->getExistingSeries();
             sort($series);
 
