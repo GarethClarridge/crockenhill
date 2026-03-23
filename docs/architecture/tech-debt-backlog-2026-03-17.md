@@ -605,7 +605,7 @@ The backlog is ordered for safety:
   - `ci-deployment-environment-review-2026-03-18.md`
 
 ### TD-023 - Restore podcast feed cache invalidation on sermon changes
-- Status: `Open`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Low

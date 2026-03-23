@@ -10,6 +10,7 @@ use App\Services\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -29,7 +30,7 @@ class PodcastFeedTest extends TestCase
         $this->mockStorageService();
     }
 
-    protected function mockStorageService(): void
+    protected function mockStorageService(): MockInterface
     {
         $mock = Mockery::mock(SermonStorageService::class);
         $mock->shouldReceive('getPublicUrl')
@@ -41,6 +42,30 @@ class PodcastFeedTest extends TestCase
         $mock->shouldReceive('getVideoUrl')
             ->andReturn(null);
         $mock->shouldReceive('clearCachedMetadata')
+            ->andReturnNull();
+
+        $this->app->instance(SermonStorageService::class, $mock);
+
+        return $mock;
+    }
+
+    protected function mockStorageServiceWithCallCounts(int $publicUrlCalls, int $fileSizeCalls): void
+    {
+        $mock = Mockery::mock(SermonStorageService::class);
+        $mock->shouldReceive('getPublicUrl')
+            ->times($publicUrlCalls)
+            ->andReturnUsing(fn (Sermon $sermon) => "https://example.com/sermons/{$sermon->audio_file_path}");
+        $mock->shouldReceive('getFileSize')
+            ->times($fileSizeCalls)
+            ->andReturn(10485760);
+        $mock->shouldReceive('getThumbnailUrl')
+            ->zeroOrMoreTimes()
+            ->andReturn(null);
+        $mock->shouldReceive('getVideoUrl')
+            ->zeroOrMoreTimes()
+            ->andReturn(null);
+        $mock->shouldReceive('clearCachedMetadata')
+            ->zeroOrMoreTimes()
             ->andReturnNull();
 
         $this->app->instance(SermonStorageService::class, $mock);
@@ -406,7 +431,25 @@ class PodcastFeedTest extends TestCase
     }
 
     #[Test]
-    public function feed_cache_is_invalidated_when_sermon_changes(): void
+    public function feed_uses_cache_when_underlying_data_does_not_change(): void
+    {
+        $this->mockStorageServiceWithCallCounts(publicUrlCalls: 1, fileSizeCalls: 1);
+
+        Sermon::factory()->create([
+            'service' => SermonService::MORNING->value,
+            'audio_file_path' => 'test.mp3',
+            'title' => 'Cached Sermon',
+        ]);
+
+        $this->get('/christ/sermons/morning/feed')
+            ->assertSee('Cached Sermon');
+
+        $this->get('/christ/sermons/morning/feed')
+            ->assertSee('Cached Sermon');
+    }
+
+    #[Test]
+    public function feed_cache_is_invalidated_when_sermon_is_created(): void
     {
         Sermon::factory()->create([
             'service' => SermonService::MORNING->value,
@@ -431,6 +474,48 @@ class PodcastFeedTest extends TestCase
         $content2 = $response2->getContent();
         $this->assertStringContainsString('Cached Sermon', $content2);
         $this->assertStringContainsString('New Sermon After Cache', $content2);
+    }
+
+    #[Test]
+    public function feed_cache_is_invalidated_when_sermon_is_updated(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'service' => SermonService::MORNING->value,
+            'audio_file_path' => 'test.mp3',
+            'title' => 'Original Sermon Title',
+        ]);
+
+        $this->get('/christ/sermons/morning/feed')
+            ->assertSee('Original Sermon Title');
+
+        $sermon->update([
+            'title' => 'Updated Sermon Title',
+        ]);
+
+        $response = $this->get('/christ/sermons/morning/feed');
+
+        $response->assertSee('Updated Sermon Title');
+        $response->assertDontSee('Original Sermon Title');
+    }
+
+    #[Test]
+    public function feed_cache_is_invalidated_when_sermon_is_deleted(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'service' => SermonService::MORNING->value,
+            'audio_file_path' => 'test.mp3',
+            'title' => 'Sermon To Delete',
+        ]);
+
+        $this->get('/christ/sermons/morning/feed')
+            ->assertSee('Sermon To Delete');
+
+        $sermon->delete();
+
+        $response = $this->get('/christ/sermons/morning/feed');
+
+        $response->assertDontSee('Sermon To Delete');
+        $this->assertStringNotContainsString('<item>', $response->getContent());
     }
 
     #[Test]

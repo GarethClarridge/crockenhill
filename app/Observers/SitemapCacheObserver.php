@@ -86,6 +86,15 @@ class SitemapCacheObserver implements ShouldHandleEventsAfterCommit
             : null;
 
         $this->sermonRepository->clearListingCaches($targetModel);
+        $this->clearPodcastFeedCache($model);
+    }
+
+    private function clearPodcastFeedCache(mixed $model): void
+    {
+        if (! $model instanceof Sermon && ! $model instanceof Preacher) {
+            return;
+        }
+
         $this->podcastFeedService->clearCache();
     }
 }
