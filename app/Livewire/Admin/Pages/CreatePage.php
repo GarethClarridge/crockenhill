@@ -27,10 +27,7 @@ class CreatePage extends Component
 
         $validated = $this->validate();
 
-        $page = Page::create([
-            ...$validated,
-            'body' => $this->convertMarkdown(),
-        ]);
+        Page::create($this->pagePayload($validated));
 
         $this->success('Page created', redirectTo: route('admin.pages.index'));
     }

@@ -138,6 +138,7 @@ class AdminPageTest extends TestCase
             ->set('heading', 'About Crockenhill')
             ->set('description', 'Information about our church and mission.')
             ->set('area', PageArea::CHURCH->value)
+            ->set('admin', true)
             ->set('navigation', true)
             ->set('markdown', '# Welcome to Crockenhill')
             ->call('save')
@@ -147,6 +148,7 @@ class AdminPageTest extends TestCase
 
         $this->assertSame('About Crockenhill', $page->heading);
         $this->assertSame(PageArea::CHURCH, $page->area);
+        $this->assertSame('yes', $page->admin);
         $this->assertTrue($page->navigation);
         $this->assertStringContainsString('<h1>Welcome to Crockenhill</h1>', $page->body);
     }
@@ -184,6 +186,7 @@ class AdminPageTest extends TestCase
             'heading' => 'Existing Page',
             'slug' => 'existing-page',
             'area' => PageArea::COMMUNITY->value,
+            'admin' => 'yes',
             'navigation' => true,
             'description' => 'Existing page description.',
             'markdown' => 'Existing markdown',
@@ -193,6 +196,7 @@ class AdminPageTest extends TestCase
             ->assertSet('heading', 'Existing Page')
             ->assertSet('slug', 'existing-page')
             ->assertSet('area', PageArea::COMMUNITY->value)
+            ->assertSet('admin', true)
             ->assertSet('navigation', true)
             ->assertSet('description', 'Existing page description.')
             ->assertSet('markdown', 'Existing markdown');
@@ -207,6 +211,7 @@ class AdminPageTest extends TestCase
             'heading' => 'Old Heading',
             'slug' => 'old-heading',
             'area' => PageArea::CHURCH->value,
+            'admin' => 'no',
             'navigation' => false,
             'description' => 'Old description.',
             'markdown' => '# Old Markdown',
@@ -216,6 +221,7 @@ class AdminPageTest extends TestCase
             ->set('heading', 'Updated Heading')
             ->set('slug', 'updated-heading')
             ->set('area', PageArea::MEMBERS->value)
+            ->set('admin', true)
             ->set('navigation', true)
             ->set('description', 'Updated page description.')
             ->set('markdown', '## Updated Markdown')
@@ -227,9 +233,31 @@ class AdminPageTest extends TestCase
         $this->assertSame('Updated Heading', $page->heading);
         $this->assertSame('updated-heading', $page->slug);
         $this->assertSame(PageArea::MEMBERS, $page->area);
+        $this->assertSame('yes', $page->admin);
         $this->assertTrue($page->navigation);
         $this->assertSame('Updated page description.', $page->description);
         $this->assertStringContainsString('<h2>Updated Markdown</h2>', $page->body);
+    }
+
+    #[Test]
+    public function it_shows_whether_pages_are_admin_only_in_the_listing(): void
+    {
+        $this->actingAs($this->admin);
+
+        Page::factory()->create([
+            'heading' => 'Admin Page',
+            'admin' => 'yes',
+        ]);
+
+        Page::factory()->create([
+            'heading' => 'Public Page',
+            'admin' => 'no',
+        ]);
+
+        Livewire::test(ListPages::class)
+            ->assertSee('Visibility')
+            ->assertSee('Admin only')
+            ->assertSee('Public');
     }
 
     #[Test]

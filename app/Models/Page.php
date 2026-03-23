@@ -30,6 +30,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property PageArea $area
  * @property string $body
  * @property ?string $markdown
+ * @property string $admin
  * @property bool $navigation
  * @property bool $published
  * @property ?int $sort_order
@@ -67,8 +68,8 @@ class Page extends Model implements HasMedia, Sitemapable
         'markdown',
         'body',
         'description',
+        'admin',
         'navigation',
-        // 'admin' field from migration is not included here, assuming it's not mass assignable
     ];
 
     /**

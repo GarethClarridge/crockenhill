@@ -24,6 +24,7 @@ class EditPage extends Component
         $this->heading = $page->heading;
         $this->slug = $page->slug;
         $this->area = $page->area->value;
+        $this->admin = $page->admin === 'yes';
         $this->navigation = $page->navigation;
         $this->description = $page->description;
         $this->markdown = $page->markdown ?? '';
@@ -35,10 +36,7 @@ class EditPage extends Component
 
         $validated = $this->validate();
 
-        $this->page->update([
-            ...$validated,
-            'body' => $this->convertMarkdown(),
-        ]);
+        $this->page->update($this->pagePayload($validated));
 
         $this->success('Page updated');
     }

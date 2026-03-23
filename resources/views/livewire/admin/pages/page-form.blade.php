@@ -43,6 +43,12 @@
                 <div class="space-y-4">
                     <x-select label="Area" wire:model="area" :options="$areas" required />
 
+                    <x-toggle
+                        label="Admin only"
+                        wire:model="admin"
+                        hint="Restrict this page so only administrators can view it."
+                    />
+
                     <x-toggle label="Show in Navigation" wire:model="navigation" />
                 </div>
             </x-card>

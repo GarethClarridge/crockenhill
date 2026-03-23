@@ -16,6 +16,8 @@ trait PageForm
 
     public string $area = 'church';
 
+    public bool $admin = false;
+
     public bool $navigation = false;
 
     public string $description = '';
@@ -41,6 +43,7 @@ trait PageForm
                     ->ignore($pageId),
             ],
             'area' => ['required', 'string', 'in:'.implode(',', PageArea::values())],
+            'admin' => 'boolean',
             'navigation' => 'boolean',
             'description' => 'required|string|max:500',
             'markdown' => 'nullable|string',
@@ -57,6 +60,19 @@ trait PageForm
     protected function convertMarkdown(): string
     {
         return app(SafeMarkdownRenderer::class)->convert($this->markdown);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    protected function pagePayload(array $validated): array
+    {
+        return [
+            ...$validated,
+            'admin' => $this->admin ? 'yes' : 'no',
+            'body' => $this->convertMarkdown(),
+        ];
     }
 
     /**

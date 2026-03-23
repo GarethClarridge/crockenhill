@@ -25,6 +25,7 @@ class ListPages extends Component
     protected const ALLOWED_SORT_COLUMNS = [
         'heading',
         'area',
+        'admin',
         'navigation',
         'updated_at',
     ];
@@ -91,7 +92,7 @@ class ListPages extends Component
         $escapedSearch = $this->escapeLike(trim($this->search));
 
         $pages = Page::query()
-            ->select(['id', 'slug', 'heading', 'description', 'area', 'navigation', 'updated_at'])
+            ->select(['id', 'slug', 'heading', 'description', 'area', 'admin', 'navigation', 'updated_at'])
             ->with(['media', 'meeting'])
             ->when($this->search !== '', fn ($q) => $q->where(fn ($sub) => $sub->where('heading', 'like', "%{$escapedSearch}%")
                 ->orWhere('description', 'like', "%{$escapedSearch}%")))
@@ -104,6 +105,7 @@ class ListPages extends Component
             ['key' => 'image', 'label' => '', 'sortable' => false],
             ['key' => 'heading', 'label' => 'Heading', 'sortable' => true],
             ['key' => 'area', 'label' => 'Area', 'sortable' => true],
+            ['key' => 'admin', 'label' => 'Visibility', 'sortable' => true],
             ['key' => 'navigation', 'label' => 'Nav', 'sortable' => true],
             ['key' => 'meeting', 'label' => 'Meeting', 'sortable' => false],
             ['key' => 'updated_at', 'label' => 'Updated', 'sortable' => true],

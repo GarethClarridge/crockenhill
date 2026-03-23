@@ -144,11 +144,14 @@ class TestCommand extends Command
             '--runner=\Illuminate\Testing\ParallelRunner',
         ], $options);
 
-        $inputDefinition = new InputDefinition();
+        $inputDefinition = new InputDefinition;
         Options::setInputDefinition($inputDefinition);
         $input = new ArgvInput($options, $inputDefinition);
 
-        $paraTestOptions = Options::fromConsoleInput($input, base_path());
+        /** @var non-empty-string $basePath */
+        $basePath = base_path();
+
+        $paraTestOptions = Options::fromConsoleInput($input, $basePath);
 
         if (! $paraTestOptions->configuration->hasCoverageCacheDirectory()) {
             $cacheDirectory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'__laravel_test_cache_directory';
@@ -189,11 +192,11 @@ class TestCommand extends Command
             $arguments[] = Coverage::getPath();
         }
 
-        if ($this->option('ansi')) {
+        if ($this->hasArgvOption('--ansi')) {
             $arguments[] = '--colors=always';
-        } elseif ($this->option('no-ansi')) {
+        } elseif ($this->hasArgvOption('--no-ansi')) {
             $arguments[] = '--colors=never';
-        } elseif ((new EnvironmentConsole())->hasColorSupport()) {
+        } elseif ((new EnvironmentConsole)->hasColorSupport()) {
             $arguments[] = '--colors=always';
         }
 
@@ -303,7 +306,7 @@ class TestCommand extends Command
 
         $vars = [];
 
-        foreach ((new Parser())->parse($content) as $entry) {
+        foreach ((new Parser)->parse($content) as $entry) {
             $vars[] = $entry->getName();
         }
 
@@ -313,6 +316,11 @@ class TestCommand extends Command
     protected function isParallelDependenciesInstalled(): bool
     {
         return class_exists(\ParaTest\ParaTestCommand::class);
+    }
+
+    private function hasArgvOption(string $option): bool
+    {
+        return in_array($option, $_SERVER['argv'], true);
     }
 
     /**
