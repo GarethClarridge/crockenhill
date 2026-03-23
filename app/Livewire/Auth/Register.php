@@ -62,6 +62,8 @@ class Register extends Component
             'password' => Hash::make($this->password),
         ]);
 
+        // "Members only" currently means "has a user account", so registration signs
+        // the user in immediately and verification remains a separate concern.
         Auth::login($user);
         Session::regenerate();
         $user->sendEmailVerificationNotification();

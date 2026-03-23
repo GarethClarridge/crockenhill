@@ -1327,18 +1327,23 @@ The backlog is ordered for safety:
   - `database-model-integrity-review-2026-03-18.md`
 
 ### TD-030 - Decide and enforce consistent access model for members-area and Children's Corner
-- Status: `Open`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium
 - Effort: M
-- Dependencies: None (product decision required before implementation)
+- Dependencies: None
 - Scope:
   - `app/Livewire/Auth/Register.php` self-registration and immediate login behavior
   - `routes/web.php` members dashboard, songs, and catch-all page auth requirements
   - `app/Services/SermonExposurePolicy.php` Children's Corner auth-only check
   - `app/Http/Middleware/EnsureChildrensCornerAccess.php`
   - Decision: is "members only" meant to be "has a user account" or "trusted church member"?
+- Decision:
+  - "Members only" means "has a user account".
+  - Self-registration remains open and signs the user in immediately.
+  - Email verification is not part of the members-area or Children's Corner access boundary at this stage.
+  - A stricter "verified members" layer can be added later if there is a real product need.
 - Tests needed first:
   - Characterization test documenting current behavior: self-registered, unverified user can reach members dashboard, songs, and Children's Corner
   - Regression test preventing unauthorized access once the chosen policy is implemented

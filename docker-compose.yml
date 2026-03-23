@@ -65,7 +65,7 @@ services:
           --innodb_doublewrite=OFF
           --performance-schema=OFF
           --sync_binlog=0
-        mem_limit: 2g
+        mem_limit: 4g
         ports:
             - '${FORWARD_DB_PORT:-3306}:3306'
         environment:

@@ -186,6 +186,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/users/{user}/edit', App\Livewire\Admin\Users\EditUser::class)->name('users.edit');
 });
 
+// "Members only" currently means "has a user account", not "verified/invited member".
 Route::middleware('auth')->prefix('church/members')->group(function () {
     Route::get('', MemberController::class)->name('memberHome');
 });

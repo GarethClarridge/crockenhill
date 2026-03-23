@@ -17,6 +17,8 @@ class SermonExposurePolicy
 
     public function canAccessChildrensCorner(?Authenticatable $user): bool
     {
+        // This matches the current members-area policy: any authenticated account
+        // may access non-public Children's Corner content.
         return $this->childrensTalksArePublic() || $user !== null;
     }
 

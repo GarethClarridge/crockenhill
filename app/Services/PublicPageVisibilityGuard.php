@@ -23,6 +23,8 @@ class PublicPageVisibilityGuard
             abort(403, 'Unauthorized action.');
         }
 
+        // Members-area pages follow the same rule as the rest of the members area:
+        // any authenticated account may view them.
         if ($page->area === PageArea::MEMBERS && $user === null) {
             return redirect()->guest(route('login'));
         }
