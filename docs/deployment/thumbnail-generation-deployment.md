@@ -122,7 +122,7 @@ THUMBNAIL_BRAND_MARGIN=20
 
 # Queue configuration
 THUMBNAIL_QUEUE_NAME=thumbnails
-THUMBNAIL_QUEUE_CONNECTION=database
+THUMBNAIL_QUEUE_CONNECTION=redis
 THUMBNAIL_QUEUE_TIMEOUT=300
 THUMBNAIL_QUEUE_TRIES=1
 
@@ -187,6 +187,11 @@ php artisan tinker
 
 ### 5. Configure Queue Workers
 
+Production uses the Docker Compose and Redis runtime described in
+[`media-processing.md`](./media-processing.md#production-stack-authoritative).
+If you are running workers outside that containerized production setup, keep the
+worker connection aligned with Redis as shown below.
+
 **Supervisor Configuration:**
 
 Create `/etc/supervisor/conf.d/thumbnail-worker.conf`:
@@ -194,7 +199,7 @@ Create `/etc/supervisor/conf.d/thumbnail-worker.conf`:
 ```ini
 [program:thumbnail-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /path/to/your/project/artisan queue:work --queue=thumbnails --timeout=300 --tries=1 --memory=512
+command=php /path/to/your/project/artisan queue:work redis --queue=thumbnails --timeout=300 --tries=1 --memory=512
 directory=/path/to/your/project
 autostart=true
 autorestart=true
@@ -231,7 +236,7 @@ After=network.target
 Type=simple
 User=www-data
 WorkingDirectory=/path/to/your/project
-ExecStart=/usr/bin/php artisan queue:work --queue=thumbnails --timeout=300 --tries=1 --memory=512
+ExecStart=/usr/bin/php artisan queue:work redis --queue=thumbnails --timeout=300 --tries=1 --memory=512
 Restart=always
 RestartSec=3
 

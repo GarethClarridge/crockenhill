@@ -4,6 +4,11 @@
 
 This document provides comprehensive deployment configuration for the automated sermon processing feature, including environment variables, queue worker setup, monitoring, and backup procedures.
 
+Production uses the Docker Compose and Redis runtime described in
+[`media-processing.md`](./media-processing.md#production-stack-authoritative).
+Treat that section as the canonical production reference for queue workers,
+scheduler, and post-deploy verification.
+
 ## Environment Variables
 
 ### Production Environment Configuration
@@ -24,7 +29,7 @@ DB_USERNAME=your-db-username
 DB_PASSWORD=your-secure-db-password
 
 # Queue System
-QUEUE_CONNECTION=database
+QUEUE_CONNECTION=redis
 
 # OpenAI for Transcription
 OPENAI_API_KEY=your-production-openai-api-key
@@ -101,7 +106,7 @@ User=www-data
 Group=www-data
 Restart=always
 RestartSec=5s
-ExecStart=/usr/bin/php /var/www/laravel/artisan queue:work database --sleep=3 --tries=3 --max-time=3600 --timeout=1800
+ExecStart=/usr/bin/php /var/www/laravel/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --timeout=1800
 WorkingDirectory=/var/www/laravel
 StandardOutput=journal
 StandardError=journal
@@ -246,7 +251,7 @@ mysql -u your-db-username -p your-database-name < backup_YYYYMMDD.sql
 
 1. **Deploy Application Code**
    ```bash
-   git pull origin main
+   git pull origin master
    composer install --no-dev --optimize-autoloader
    php artisan config:cache
    php artisan route:cache

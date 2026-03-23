@@ -4,6 +4,20 @@
 
 This guide covers the deployment requirements and setup for the unified media processing system. The system handles audio files, sermon videos, and full livestream recordings through a single pipeline with intelligent routing and processing capabilities.
 
+## Production Stack (Authoritative)
+
+Use [`docker-compose.prod.yml`](../../docker-compose.prod.yml) as the source of
+truth for production. The deployed stack is Docker Compose with `caddy`, `app`,
+`mysql`, and `redis`; the `app` container runs Laravel's scheduler and
+Supervisor-managed `queue:work redis` workers from
+[`docker/production/supervisord.conf`](../../docker/production/supervisord.conf).
+
+That means production `.env.production` should use `QUEUE_CONNECTION=redis`, and
+worker examples in this repository should be treated as Redis-backed. After
+deploying, run [`./scripts/post-deploy-smoke.sh`](../../scripts/post-deploy-smoke.sh)
+to verify web, database, Redis, queue workers, and scheduler health. If another
+deployment note conflicts with this section, follow this section.
+
 ## System Requirements
 
 ### Server Requirements
@@ -126,7 +140,7 @@ LIVESTREAM_TEMP_PATH=temp/livestreams
 
 # Queue Configuration
 LIVESTREAM_QUEUE_NAME=livestream-processing
-LIVESTREAM_QUEUE_CONNECTION=database
+LIVESTREAM_QUEUE_CONNECTION=redis
 
 # Notification Configuration
 LIVESTREAM_ADMIN_EMAIL=admin@your-domain.com
@@ -223,84 +237,29 @@ chown -R www-data:www-data storage/app/sermons
 
 #### Queue Setup
 
-Configure database queues in your `.env`:
+Configure Redis queues in your `.env`:
 
 ```env
-QUEUE_CONNECTION=database
+QUEUE_CONNECTION=redis
 ```
 
 #### Queue Worker Setup
 
-Create systemd services for queue workers. You need separate workers for different queue types:
+Production does not use host-level systemd queue units. Follow the canonical
+Docker Compose deployment path from
+[`docker-compose.prod.yml`](../../docker-compose.prod.yml): the `app` container
+starts the Redis-backed queue workers under Supervisor using
+[`docker/production/supervisord.conf`](../../docker/production/supervisord.conf).
 
-**Livestream Processing Worker:**
-
-```bash
-sudo nano /etc/systemd/system/crockenhill-livestream-worker.service
-```
-
-```ini
-[Unit]
-Description=Crockenhill Livestream Processing Worker
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-Group=www-data
-Restart=always
-RestartSec=5s
-ExecStart=/usr/bin/php /var/www/laravel/artisan queue:work database --queue=livestream-processing --sleep=3 --tries=3 --max-time=7200 --timeout=3600
-WorkingDirectory=/var/www/laravel
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**General Processing Worker:**
+After deployment, verify worker health with the smoke script or inspect
+Supervisor directly:
 
 ```bash
-sudo nano /etc/systemd/system/crockenhill-sermon-worker.service
-```
+./scripts/post-deploy-smoke.sh
 
-```ini
-[Unit]
-Description=Crockenhill Sermon Processing Worker
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-Group=www-data
-Restart=always
-RestartSec=5s
-ExecStart=/usr/bin/php /var/www/laravel/artisan queue:work database --queue=sermon-processing,default --sleep=3 --tries=3 --max-time=3600
-WorkingDirectory=/var/www/laravel
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start both services:
-
-```bash
-sudo systemctl daemon-reload
-
-# Enable services to start on boot
-sudo systemctl enable crockenhill-livestream-worker
-sudo systemctl enable crockenhill-sermon-worker
-
-# Start services
-sudo systemctl start crockenhill-livestream-worker
-sudo systemctl start crockenhill-sermon-worker
-
-# Check status
-sudo systemctl status crockenhill-livestream-worker
-sudo systemctl status crockenhill-sermon-worker
+# Or inspect Supervisor inside the app container
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+  supervisorctl -c /etc/supervisor/conf.d/supervisord.conf status
 ```
 
 ### 6. Web Server Configuration
@@ -386,22 +345,23 @@ LIVESTREAM_SERMON_DISK=sermon_disk
 
 ```env
 # Separate queue for livestream processing
-LIVESTREAM_QUEUE_NAME=livestream
+LIVESTREAM_QUEUE_NAME=livestream-processing
 
-# Use database queue connection
-LIVESTREAM_QUEUE_CONNECTION=database
+# Use Redis queue connection
+LIVESTREAM_QUEUE_CONNECTION=redis
 ```
 
 #### Worker Configuration
 
-Run dedicated workers for livestream processing:
+For ad hoc debugging outside the production containerized stack, you can run the
+same Redis-backed worker commands manually:
 
 ```bash
 # Dedicated livestream worker
-php artisan queue:work database --queue=livestream --sleep=3 --tries=3 --max-time=7200
+php artisan queue:work redis --queue=livestream-processing --sleep=3 --tries=3 --max-time=7200
 
 # General worker for other jobs
-php artisan queue:work database --queue=default --sleep=3 --tries=3 --max-time=3600
+php artisan queue:work redis --queue=sermon-processing,default --sleep=3 --tries=3 --max-time=3600
 ```
 
 ## Health Checks and Monitoring
@@ -430,7 +390,7 @@ Monitor queue status:
 
 ```bash
 # Check queue size
-php artisan queue:monitor database:livestream --max=10
+php artisan queue:monitor redis:livestream-processing --max=10
 
 # Check failed jobs
 php artisan queue:failed
@@ -502,7 +462,7 @@ echo "0 2 * * * find /path/to/temp -type f -mtime +1 -delete" | crontab -
 ```bash
 # Run multiple workers for parallel processing
 for i in {1..4}; do
-    php artisan queue:work redis --queue=livestream --daemon &
+    php artisan queue:work redis --queue=livestream-processing --daemon &
 done
 ```
 
@@ -636,11 +596,12 @@ sudo setsebool -P httpd_can_network_connect 1
 
 ```bash
 # Check queue workers
-ps aux | grep "queue:work"
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+  supervisorctl -c /etc/supervisor/conf.d/supervisord.conf status
 
 # Restart workers
-sudo systemctl restart crockenhill-livestream-worker
-sudo systemctl restart crockenhill-sermon-worker
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T app \
+  supervisorctl -c /etc/supervisor/conf.d/supervisord.conf restart queue-worker:*
 
 # Check database connection
 php artisan tinker
