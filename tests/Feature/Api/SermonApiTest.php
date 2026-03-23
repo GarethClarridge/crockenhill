@@ -237,6 +237,52 @@ class SermonApiTest extends TestCase
             ]);
     }
 
+    public function test_api_omits_points_when_show_points_is_false(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'title' => 'Hidden Outline Sermon',
+            'show_points' => false,
+            'points' => [
+                'Hidden point one',
+                'Hidden point two',
+            ],
+        ]);
+
+        $response = $this->getJson("/api/sermons/{$sermon->id}");
+
+        $response->assertStatus(200);
+
+        $this->assertArrayNotHasKey('points', $response->json('data'));
+    }
+
+    public function test_api_omits_internal_thumbnail_paths_from_thumbnail_metadata(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'title' => 'Sanitized Thumbnail Metadata Sermon',
+            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_metadata' => [
+                'width' => 1280,
+                'height' => 720,
+                'plain_thumbnail_path' => 'sermons/thumbnails/test-plain.jpg',
+                'overlay_thumbnail_path' => 'sermons/thumbnails/test-overlay.jpg',
+            ],
+        ]);
+
+        Storage::disk('public')->put('sermons/thumbnails/test-thumbnail.jpg', 'fake image content');
+
+        $response = $this->getJson("/api/sermons/{$sermon->id}");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.thumbnail_metadata.width', 1280)
+            ->assertJsonPath('data.thumbnail_metadata.height', 720);
+
+        $thumbnailMetadata = $response->json('data.thumbnail_metadata');
+
+        $this->assertIsArray($thumbnailMetadata);
+        $this->assertArrayNotHasKey('plain_thumbnail_path', $thumbnailMetadata);
+        $this->assertArrayNotHasKey('overlay_thumbnail_path', $thumbnailMetadata);
+    }
+
     public function test_api_handles_missing_thumbnail_metadata_gracefully(): void
     {
         $sermon = Sermon::factory()->create([

@@ -93,6 +93,26 @@ class SermonSeoTest extends TestCase
     }
 
     #[Test]
+    public function it_excludes_summary_excerpt_when_show_summary_is_false(): void
+    {
+        $summary = 'This summary should stay off the public metadata.';
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Test Sermon',
+            'preacher' => 'John Smith',
+            'summary' => $summary,
+            'show_summary' => false,
+            'meta_description' => null,
+            'reference' => null,
+            'series' => null,
+        ]);
+
+        $metaDescription = $sermon->meta_description;
+
+        $this->assertStringNotContainsString($summary, $metaDescription);
+    }
+
+    #[Test]
     public function it_strips_html_from_summary_in_meta_description(): void
     {
         $sermon = Sermon::factory()->create([

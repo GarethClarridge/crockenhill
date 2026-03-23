@@ -95,4 +95,28 @@ class SermonJsonLdTest extends TestCase
         $this->assertStringNotContainsString('"duration"', $content);
         $this->assertStringNotContainsString('"transcript"', $content);
     }
+
+    #[Test]
+    public function sermon_page_does_not_expose_hidden_summary_in_meta_or_json_ld(): void
+    {
+        $hiddenSummary = 'Hidden metadata leak summary should not be exposed.';
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Hidden Summary Sermon',
+            'slug' => 'hidden-summary-sermon',
+            'date' => '2024-03-22',
+            'summary' => $hiddenSummary,
+            'show_summary' => false,
+        ]);
+
+        $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}");
+
+        $response->assertStatus(200);
+        $response->assertSee('<meta name="description"', false);
+        $response->assertSee('<script type="application/ld+json">', false);
+
+        $content = $response->getContent();
+
+        $this->assertStringNotContainsString($hiddenSummary, $content);
+    }
 }

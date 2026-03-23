@@ -46,10 +46,10 @@ class SermonResource extends JsonResource
             'needs_preacher_review' => $this->needs_preacher_review,
             'series' => $this->series,
             'reference' => $this->displayReference(),
-            'points' => $this->points,
+            'points' => $this->when($this->show_points, $this->points),
             'audio_url' => $sermonView['audio_url'],
             'thumbnail_url' => $sermonView['thumbnail_url'],
-            'thumbnail_metadata' => $this->thumbnail_metadata,
+            'thumbnail_metadata' => $this->publicThumbnailMetadata(),
             'series_url' => $this->series_url,
             'preacher_url' => $sermonView['preacher_url'],
         ];
@@ -84,5 +84,21 @@ class SermonResource extends JsonResource
          *     video_url: ?string
          * } $sermonView */
         return $sermonView;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function publicThumbnailMetadata(): ?array
+    {
+        $thumbnailMetadata = $this->thumbnailMetadataData()?->toArray();
+
+        if ($thumbnailMetadata === null) {
+            return null;
+        }
+
+        unset($thumbnailMetadata['plain_thumbnail_path'], $thumbnailMetadata['overlay_thumbnail_path']);
+
+        return $thumbnailMetadata;
     }
 }

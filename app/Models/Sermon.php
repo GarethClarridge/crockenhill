@@ -657,7 +657,7 @@ class Sermon extends Model implements Sitemapable
         }
 
         // Add excerpt from summary if available
-        if ($this->summary) {
+        if ($this->show_summary && $this->summary) {
             $excerpt = Str::limit(strip_tags($this->summary), 80);
             $description .= ". {$excerpt}";
         }
