@@ -48,6 +48,14 @@ class ChildrensCornerPagesTest extends TestCase
         $response->assertSee("Children's Talk One");
         $response->assertDontSee('Sunday Sermon');
         $response->assertSee('Browse full sermon library');
+
+        // SEO: Check title and meta description
+        $response->assertSee('Children&#039;s Corner | Crockenhill Baptist Church');
+        $response->assertSee('Short Bible talks for children');
+
+        // SEO: Check ItemList JSON-LD
+        $response->assertSee('"@type": "ItemList"', false);
+        $response->assertSee('Children&#039;s Talk One', false);
     }
 
     #[Test]
@@ -72,6 +80,16 @@ class ChildrensCornerPagesTest extends TestCase
         $response->assertSee('Watch');
         $response->assertSee('Listen');
         $response->assertDontSee('Summary');
+
+        // SEO: Check speaker-enriched title
+        $talk->load('preacherProfile');
+        $speakerName = $talk->displayPreacherName();
+        $response->assertSee("Little Listeners | {$speakerName} | Crockenhill Baptist Church");
+
+        // SEO: Check Sermon structured data (Article)
+        $response->assertSee('"@type": "Article"', false);
+        $response->assertSee('"headline": "Little Listeners"', false);
+        $response->assertSee('"publisher":', false);
     }
 
     #[Test]
@@ -112,6 +130,9 @@ class ChildrensCornerPagesTest extends TestCase
     public function listing_paginates_results(): void
     {
         $this->actingAs(User::factory()->create());
+
+        // Ensure we start with a clean slate for pagination counts
+        Sermon::query()->where('content_type', SermonContentType::ChildrensTalk)->delete();
 
         Sermon::factory()->count(13)->create([
             'content_type' => SermonContentType::ChildrensTalk,

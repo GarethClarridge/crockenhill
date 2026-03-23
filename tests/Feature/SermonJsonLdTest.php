@@ -42,6 +42,13 @@ class SermonJsonLdTest extends TestCase
         $this->assertStringContainsString('"@type": "Article"', $content);
         $this->assertStringContainsString('"headline": "Enhanced JSON-LD Sermon"', $content);
 
+        // Verify Publisher and mainEntityOfPage (added via x-schema.sermon)
+        $this->assertStringContainsString('"publisher":', $content);
+        $this->assertStringContainsString('"@type": "Organization"', $content);
+        $this->assertStringContainsString('"name": "Crockenhill Baptist Church"', $content);
+        $this->assertStringContainsString('"mainEntityOfPage":', $content);
+        $this->assertStringContainsString('"@type": "WebPage"', $content);
+
         // Assert the meta description is correctly present in JSON-LD.
         // The Sermon model auto-generates meta_description if not set.
         $expectedDescription = $sermon->meta_description;

@@ -1,5 +1,20 @@
 @extends('layouts.page')
 
+@section('title', $heading)
+
+@section('meta_description', $description)
+
+@section('meta_tags')
+    <x-meta-tags :title="$heading" :description="$description" />
+
+    {{-- JSON-LD ItemList --}}
+    @if (isset($json_ld_data))
+        <script type="application/ld+json">
+            {!! json_encode($json_ld_data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+        </script>
+    @endif
+@endsection
+
 @section('dynamic_content')
     <section class="space-y-8">
         <div class="overflow-hidden rounded-2xl border border-cbc-teal/15 bg-[linear-gradient(135deg,rgba(36,154,151,0.12)_0%,rgba(29,104,106,0.08)_50%,rgba(20,85,87,0.16)_100%)] p-8 shadow-sm">

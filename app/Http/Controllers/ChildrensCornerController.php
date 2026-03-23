@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Presenters\RelatedPagePresenter;
+use App\Presenters\SermonItemListPresenter;
 use App\Presenters\SermonViewPresenter;
 use Illuminate\View\View;
 
@@ -15,6 +16,7 @@ class ChildrensCornerController extends Controller
     public function __construct(
         private readonly RelatedPagePresenter $relatedPagePresenter,
         private readonly SermonViewPresenter $sermonViewPresenter,
+        private readonly SermonItemListPresenter $itemListPresenter,
     ) {}
 
     public function index(): View
@@ -50,6 +52,7 @@ class ChildrensCornerController extends Controller
                 extraExcludedSlugs: ['privacy-policy'],
             ),
             'talks' => $talks,
+            'json_ld_data' => $this->itemListPresenter->toItemList($talks->getCollection()),
         ]);
     }
 
