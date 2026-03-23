@@ -10,6 +10,7 @@ use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -30,8 +31,10 @@ class ListPreachers extends Component
         'updated_at',
     ];
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
+    #[Url(as: 'activeFilter', except: null)]
     public ?bool $activeFilter = null;
 
     public bool $hasFilters = false;
@@ -39,9 +42,6 @@ class ListPreachers extends Component
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
-
-    /** @var array<int, string> */
-    protected array $queryString = ['search', 'activeFilter'];
 
     public function mount(): void
     {

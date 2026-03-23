@@ -11,6 +11,7 @@ use App\Models\ChurchService;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -31,10 +32,13 @@ class ListChurchServices extends Component
         'updated_at',
     ];
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
+    #[Url(as: 'serviceFilter', except: null)]
     public ?string $serviceFilter = null;
 
+    #[Url(as: 'needsReviewFilter', except: null)]
     public ?string $needsReviewFilter = null;
 
     public bool $hasFilters = false;
@@ -42,9 +46,6 @@ class ListChurchServices extends Component
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
-
-    /** @var array<int, string> */
-    protected array $queryString = ['search', 'serviceFilter', 'needsReviewFilter'];
 
     public function mount(): void
     {

@@ -10,6 +10,7 @@ use App\Livewire\Traits\WithSortableListing;
 use App\Models\User;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -28,20 +29,22 @@ class ListUsers extends Component
         'created_at',
     ];
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
+    #[Url(as: 'verifiedFilter', except: null)]
     public ?bool $verifiedFilter = null;
 
+    #[Url(as: 'adminFilter', except: null)]
     public ?bool $adminFilter = null;
 
     public bool $hasFilters = false;
 
+    #[Url(as: 'sortBy', except: self::DEFAULT_SORT_COLUMN)]
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
+    #[Url(as: 'sortDirection', except: self::DEFAULT_SORT_DIRECTION)]
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
-
-    /** @var array<int, string> */
-    protected array $queryString = ['search', 'verifiedFilter', 'adminFilter', 'sortBy', 'sortDirection'];
 
     public function mount(): void
     {

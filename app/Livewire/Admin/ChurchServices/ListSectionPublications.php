@@ -11,6 +11,7 @@ use App\Livewire\Traits\WithNotifications;
 use App\Models\ServiceSection;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -22,12 +23,11 @@ class ListSectionPublications extends Component
     use WithNotifications;
     use WithPagination;
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
+    #[Url(as: 'publicationStatus', except: 'pending_approval')]
     public string $publicationStatus = ServiceSectionPublicationStatus::PENDING_APPROVAL->value;
-
-    /** @var array<int, string> */
-    protected array $queryString = ['search', 'publicationStatus'];
 
     public function mount(): void
     {

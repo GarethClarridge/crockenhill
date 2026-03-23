@@ -16,6 +16,7 @@ use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -26,12 +27,11 @@ class ReviewInboundEmails extends Component
     use WithNotifications;
     use WithPagination;
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
+    #[Url(as: 'statusFilter', except: '')]
     public string $statusFilter = '';
-
-    /** @var array<int, string> */
-    protected array $queryString = ['search', 'statusFilter'];
 
     public function mount(): void
     {

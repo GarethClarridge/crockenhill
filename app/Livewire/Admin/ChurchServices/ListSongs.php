@@ -12,6 +12,7 @@ use App\Models\Song;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -31,20 +32,21 @@ class ListSongs extends Component
         'ccli_number',
     ];
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
+    #[Url(as: 'serviceFilter', except: null)]
     public ?string $serviceFilter = null;
 
+    #[Url(as: 'dateFrom', except: null)]
     public ?string $dateFrom = null;
 
+    #[Url(as: 'dateTo', except: null)]
     public ?string $dateTo = null;
 
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
-
-    /** @var array<int, string> */
-    protected array $queryString = ['search', 'serviceFilter', 'dateFrom', 'dateTo'];
 
     public function mount(): void
     {

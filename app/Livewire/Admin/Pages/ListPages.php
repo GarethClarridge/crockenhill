@@ -11,6 +11,7 @@ use App\Livewire\Traits\WithSortableListing;
 use App\Models\Page;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -30,10 +31,13 @@ class ListPages extends Component
         'updated_at',
     ];
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
+    #[Url(as: 'areaFilter', except: null)]
     public ?string $areaFilter = null;
 
+    #[Url(as: 'navigationFilter', except: null)]
     public ?bool $navigationFilter = null;
 
     public bool $hasFilters = false;
@@ -44,9 +48,6 @@ class ListPages extends Component
 
     /** @var array<int, int|string> */
     public array $selected = [];
-
-    /** @var array<int, string> */
-    protected array $queryString = ['search', 'areaFilter', 'navigationFilter'];
 
     public function mount(): void
     {

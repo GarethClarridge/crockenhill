@@ -485,7 +485,7 @@ The backlog is ordered for safety:
   - `read-path-performance-review-2026-03-18.md`
 
 ### TD-018 - Fix self-contradicting CI bootstrap safety guard
-- Status: `Open`
+- Status: `Completed`
 - Priority: P0
 - Impact: High
 - Risk: Low
@@ -508,7 +508,7 @@ The backlog is ordered for safety:
   - `ci-deployment-environment-review-2026-03-18.md`
 
 ### TD-019 - Pin production deploys to smoke-tested image SHA
-- Status: `Open`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Low
@@ -530,7 +530,7 @@ The backlog is ordered for safety:
   - `ci-deployment-environment-review-2026-03-18.md`
 
 ### TD-020 - Add scheduler to production runtime and a post-deploy operational smoke path
-- Status: `Open`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Low-Medium
@@ -556,7 +556,7 @@ The backlog is ordered for safety:
   - `ci-deployment-environment-review-2026-03-18.md`
 
 ### TD-021 - Align deployment documentation to actual production queue and runtime
-- Status: `Open`
+- Status: `Completed`
 - Priority: P1
 - Impact: Medium
 - Risk: Low
@@ -656,7 +656,7 @@ The backlog is ordered for safety:
   - `authorization-exposure-boundary-review-2026-03-18.md`
 
 ### TD-025 - Normalize admin verification requirement across all admin mutation paths
-- Status: `Open`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Low
@@ -683,7 +683,7 @@ The backlog is ordered for safety:
   - `laravel-livewire-idioms-review-2026-03-18.md`
 
 ### TD-026 - Align calendar side routes and sitemap visibility with the confirmed-only exposure policy
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: Medium
 - Risk: Low
@@ -710,7 +710,7 @@ The backlog is ordered for safety:
   - `authorization-exposure-boundary-review-2026-03-18.md`
 
 ### TD-027 - Bring sermon API and metadata exposure in line with show_summary and show_points
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: Medium
 - Risk: Low
@@ -737,7 +737,7 @@ The backlog is ordered for safety:
   - `authorization-exposure-boundary-review-2026-03-18.md`
 
 ### TD-028 - Expose page visibility admin flag in the page editor UI
-- Status: `Open`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Low

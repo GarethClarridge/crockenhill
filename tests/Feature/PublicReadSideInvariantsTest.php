@@ -10,8 +10,10 @@ use App\Models\Page;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\SermonExposurePolicy;
+use App\Services\SitemapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -184,8 +186,7 @@ class PublicReadSideInvariantsTest extends TestCase
             'page_id' => $adminPage->id,
         ]);
 
-        Cache::forget('sitemap');
-        @unlink(public_path('sitemap.xml'));
+        $this->forgetGeneratedSitemap();
 
         $sitemapResponse = $this->get('/sitemap.xml');
         $this->assertStringNotContainsString(
@@ -203,8 +204,7 @@ class PublicReadSideInvariantsTest extends TestCase
             'admin' => 'no',
         ]);
 
-        Cache::forget('sitemap');
-        @unlink(public_path('sitemap.xml'));
+        $this->forgetGeneratedSitemap();
 
         $sitemapResponse = $this->get('/sitemap.xml');
 
@@ -228,8 +228,7 @@ class PublicReadSideInvariantsTest extends TestCase
             'page_id' => $membersPage->id,
         ]);
 
-        Cache::forget('sitemap');
-        @unlink(public_path('sitemap.xml'));
+        $this->forgetGeneratedSitemap();
 
         $sitemapResponse = $this->get('/sitemap.xml');
 
@@ -257,8 +256,7 @@ class PublicReadSideInvariantsTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('<link rel="canonical" href="'.$canonicalUrl.'">', false);
 
-        Cache::forget('sitemap');
-        @unlink(public_path('sitemap.xml'));
+        $this->forgetGeneratedSitemap();
 
         $sitemapContent = (string) $this->get('/sitemap.xml')->getContent();
         $this->assertStringContainsString(
@@ -281,5 +279,11 @@ class PublicReadSideInvariantsTest extends TestCase
         $this->get($slugRoute)
             ->assertRedirect($canonicalUrl)
             ->assertStatus(301);
+    }
+
+    private function forgetGeneratedSitemap(): void
+    {
+        Cache::forget('sitemap');
+        File::delete(app(SitemapService::class)->getFilePath());
     }
 }

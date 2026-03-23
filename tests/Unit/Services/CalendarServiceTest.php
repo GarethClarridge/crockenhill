@@ -163,6 +163,29 @@ class CalendarServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_only_returns_confirmed_upcoming_events(): void
+    {
+        $windowStart = Carbon::create(2099, 3, 1, 0, 0, 0);
+        $windowEnd = Carbon::create(2099, 3, 31, 23, 59, 59);
+
+        CalendarEvent::factory()->create([
+            'start_datetime' => Carbon::create(2099, 3, 5, 10, 0, 0),
+            'title' => 'Confirmed Upcoming Event',
+            'status' => 'confirmed',
+        ]);
+        CalendarEvent::factory()->create([
+            'start_datetime' => Carbon::create(2099, 3, 10, 10, 0, 0),
+            'title' => 'Tentative Upcoming Event',
+            'status' => 'tentative',
+        ]);
+
+        $events = $this->service->getAllUpcomingEvents($windowStart, $windowEnd);
+
+        $this->assertCount(1, $events);
+        $this->assertSame('Confirmed Upcoming Event', $events->sole()->title);
+    }
+
+    #[Test]
     public function it_returns_uncategorized_events(): void
     {
         Meeting::factory()->create(['slug' => 'sunday-morning']);

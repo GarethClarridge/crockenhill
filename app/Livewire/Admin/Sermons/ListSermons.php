@@ -14,6 +14,7 @@ use App\Repositories\SermonRepository;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -35,18 +36,25 @@ class ListSermons extends Component
         'updated_at',
     ];
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
+    #[Url(as: 'serviceFilter', except: null)]
     public ?string $serviceFilter = null;
 
+    #[Url(as: 'preacherFilter', except: null)]
     public ?int $preacherFilter = null;
 
+    #[Url(as: 'seriesFilter', except: null)]
     public ?string $seriesFilter = null;
 
+    #[Url(as: 'hasVideoFilter', except: false)]
     public bool $hasVideoFilter = false;
 
+    #[Url(as: 'needsReviewFilter', except: false)]
     public bool $needsReviewFilter = false;
 
+    #[Url(as: 'last12Months', except: true)]
     public bool $last12Months = true;
 
     public bool $hasFilters = false;
@@ -54,9 +62,6 @@ class ListSermons extends Component
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
-
-    /** @var array<int, string> */
-    protected array $queryString = ['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months'];
 
     public function mount(): void
     {

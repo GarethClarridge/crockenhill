@@ -11,7 +11,6 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\PageSitemapPresenter;
 use App\Repositories\SermonRepository;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Spatie\Sitemap\Sitemap;
 use Spatie\Sitemap\Tags\Url;
@@ -89,11 +88,7 @@ class SitemapService
                      * to reduce memory usage.
                      */
                     ->select(['id', 'slug', 'updated_at', 'page_id'])
-                    ->whereDoesntHave('page', function (Builder $query): void {
-                        $query
-                            ->where('admin', 'yes')
-                            ->orWhere('area', PageArea::MEMBERS->value);
-                    })
+                    ->publiclyAccessible()
                     ->lazy()
             )
             ->add(

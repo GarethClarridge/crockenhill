@@ -10,6 +10,7 @@ use App\Models\CalendarEvent;
 use App\Models\Meeting;
 use App\Traits\EscapesLikeWildcards;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -17,18 +18,19 @@ class ListCalendarEvents extends Component
 {
     use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination;
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
+    #[Url(as: 'meetingFilter', except: null)]
     public ?string $meetingFilter = null;
 
+    #[Url(as: 'uncategorizedOnly', except: false)]
     public bool $uncategorizedOnly = false;
 
+    #[Url(as: 'upcomingOnly', except: true)]
     public bool $upcomingOnly = true;
 
     public bool $hasFilters = false;
-
-    /** @var array<int, string> */
-    protected array $queryString = ['search', 'meetingFilter', 'uncategorizedOnly', 'upcomingOnly'];
 
     public function mount(): void
     {

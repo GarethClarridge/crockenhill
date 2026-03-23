@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 class ManageChurchService extends Component
@@ -32,15 +33,13 @@ class ManageChurchService extends Component
 
     public string $service = '';
 
+    #[Url(as: 'inboundEmailId', except: null)]
     public ?int $inboundEmailId = null;
 
     /**
      * @var array<int, array{key:string,section_type:string,title:string,song_id:int|null}>
      */
     public array $items = [];
-
-    /** @var array<int, string> */
-    protected array $queryString = ['inboundEmailId'];
 
     public function mount(PrefillChurchServiceFromInboundEmail $prefillAction): void
     {

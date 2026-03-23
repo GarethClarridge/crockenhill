@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\MeetingFrequency;
 use App\Enums\MeetingType;
+use App\Enums\PageArea;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -155,7 +156,7 @@ class Meeting extends Model implements HasMedia, Sitemapable
     }
 
     /**
-     * Scope to meetings that are not backed by an admin-only page.
+     * Scope to meetings whose linked page, if any, is visible to guests.
      *
      * Meetings without a linked page are considered publicly accessible.
      *
@@ -164,7 +165,11 @@ class Meeting extends Model implements HasMedia, Sitemapable
      */
     public function scopePubliclyAccessible(Builder $query): Builder
     {
-        return $query->whereDoesntHave('page', fn (Builder $q) => $q->where('admin', 'yes'));
+        return $query->whereDoesntHave('page', function (Builder $query): void {
+            $query
+                ->where('admin', 'yes')
+                ->orWhere('area', PageArea::MEMBERS->value);
+        });
     }
 
     /**
