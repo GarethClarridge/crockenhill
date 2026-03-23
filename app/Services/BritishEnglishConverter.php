@@ -57,7 +57,7 @@ class BritishEnglishConverter
      */
     private function getCorrections(): array
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
+        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function (): array {
             return $this->buildCorrections();
         });
     }

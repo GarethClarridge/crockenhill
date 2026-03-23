@@ -314,14 +314,13 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get only automated sermons
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
     public function scopeAutomated(Builder $query): Builder
     {
-        return $query->where(function ($q) {
+        return $query->where(function (Builder $q): void {
             $q->whereNotNull('transcript_file_path')
                 ->orWhereHas('processingLogs');
         });
@@ -329,14 +328,13 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get only manually created sermons
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
     public function scopeManual(Builder $query): Builder
     {
-        return $query->where(function ($q) {
+        return $query->where(function (Builder $q): void {
             $q->whereNull('transcript_file_path')
                 ->whereDoesntHave('processingLogs');
         });
@@ -344,42 +342,39 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get sermons with completed processing
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
     public function scopeProcessingCompleted(Builder $query): Builder
     {
-        return $query->whereHas('processingLogs', function ($q) {
+        return $query->whereHas('processingLogs', function (Builder $q): void {
             $q->where('status', \App\Enums\ProcessingStatus::COMPLETED);
         });
     }
 
     /**
      * Scope to get sermons with failed processing
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
     public function scopeProcessingFailed(Builder $query): Builder
     {
-        return $query->whereHas('processingLogs', function ($q) {
+        return $query->whereHas('processingLogs', function (Builder $q): void {
             $q->where('status', \App\Enums\ProcessingStatus::FAILED);
         });
     }
 
     /**
      * Scope to get sermons currently being processed
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
     public function scopeProcessingInProgress(Builder $query): Builder
     {
-        return $query->whereHas('processingLogs', function ($q) {
+        return $query->whereHas('processingLogs', function (Builder $q): void {
             $q->where('status', \App\Enums\ProcessingStatus::PROCESSING);
         });
     }
@@ -578,8 +573,7 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get only livestream sermons
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
@@ -590,8 +584,7 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get sermons with video files
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
@@ -602,8 +595,7 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get sermons by source type
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
@@ -614,8 +606,7 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope to get sermons with thumbnails
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
@@ -687,8 +678,7 @@ class Sermon extends Model implements Sitemapable
 
     /**
      * Scope for podcast-ready sermons (must have audio file)
-     */
-    /**
+     *
      * @param  Builder<Sermon>  $query
      * @return Builder<Sermon>
      */
