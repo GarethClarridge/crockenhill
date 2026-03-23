@@ -22,8 +22,11 @@ class SecurityHeaders
         // Security Header: Prevent MIME type sniffing
         $response->headers->set('X-Content-Type-Options', 'nosniff');
 
-        // Security Header: Prevent Clickjacking
+        // Security Header: Prevent Clickjacking (legacy browsers)
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
+
+        // Security Header: Disable legacy browser XSS filters in favor of CSP
+        $response->headers->set('X-XSS-Protection', '0');
 
         // Security Header: Referrer Policy
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -40,7 +43,7 @@ class SecurityHeaders
 
         // Security Header: Content Security Policy (CSP)
         // Provides an additional layer of security by restricting where resources can be loaded from.
-        $this->applyContentSecurityPolicy($response);
+        $this->applyContentSecurityPolicy($response, $request);
 
         return $response;
     }
@@ -48,7 +51,7 @@ class SecurityHeaders
     /**
      * Apply Content Security Policy (CSP) headers to the response.
      */
-    protected function applyContentSecurityPolicy(Response $response): void
+    protected function applyContentSecurityPolicy(Response $response, Request $request): void
     {
         $mediaOrigins = $this->getMediaOrigins();
         $mediaSource = $mediaOrigins !== [] ? ' '.implode(' ', $mediaOrigins) : '';
@@ -67,10 +70,17 @@ class SecurityHeaders
             "font-src 'self'".($isLocal ? ' data: http://localhost:* http://127.0.0.1:*' : ''),
             "media-src 'self'{$mediaSource}",
             "frame-src 'self' https://www.youtube.com",
+            // Modern clickjacking protection
+            "frame-ancestors 'self'",
             "object-src 'none'",
             "base-uri 'self'",
             "form-action 'self'",
         ];
+
+        // Ensure all resources are loaded over HTTPS when the request is secure
+        if ($request->isSecure()) {
+            $policy[] = 'upgrade-insecure-requests';
+        }
 
         $response->headers->set('Content-Security-Policy', implode('; ', $policy));
     }
