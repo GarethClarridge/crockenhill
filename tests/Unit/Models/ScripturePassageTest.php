@@ -41,6 +41,17 @@ class ScripturePassageTest extends TestCase
     }
 
     #[Test]
+    public function it_derives_display_fields_from_an_overridden_normalized_reference(): void
+    {
+        $passage = ScripturePassage::factory()->create([
+            'normalized_reference' => 'Romans 8:28',
+        ]);
+
+        $this->assertSame('Romans 8:28', $passage->display_reference);
+        $this->assertSame('ROMANS.8.28', $passage->api_passage_id);
+    }
+
+    #[Test]
     public function it_returns_false_when_recently_fetched(): void
     {
         Config::set('services.api_bible.refresh_after_days', 28);
