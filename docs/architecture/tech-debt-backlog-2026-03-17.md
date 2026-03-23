@@ -629,7 +629,7 @@ The backlog is ordered for safety:
   - `ci-deployment-environment-review-2026-03-18.md`
 
 ### TD-024 - Move unpublished section-publication media off the public disk
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P0
 - Impact: Very high
 - Risk: Medium

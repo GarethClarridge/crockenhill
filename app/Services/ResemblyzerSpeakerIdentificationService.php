@@ -8,6 +8,7 @@ use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerEmbeddingResult;
 use App\Data\SpeakerMatchResult;
 use App\Models\SpeakerProfile;
+use App\Support\MediaAssetPath;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -234,7 +235,7 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
      */
     private function prepareAudioForExtraction(string $audioPath, ?string $disk = null): array
     {
-        $sermonDisk = $disk ?? (string) config('media-processing.storage.sermon_disk', 'public');
+        $sermonDisk = $disk ?? MediaAssetPath::diskForPath($audioPath);
         $sermonFilesystem = Storage::disk($sermonDisk);
 
         if ($this->usesRemoteStorage($sermonDisk)) {

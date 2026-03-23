@@ -124,6 +124,8 @@ class VideoStorageService
             $inputVideoPath,
             $segment,
             $outputFilename,
+            null,
+            null,
             fn (string $localFilePath, string $permanentPath): string => $this->storageHelper->uploadWithRetry($localFilePath, $permanentPath, $this->permanentDisk)
         );
     }

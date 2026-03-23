@@ -282,36 +282,28 @@ class ServiceSectionSyncService
 
     private function cleanupExtractedAssets(ServiceSection $section): void
     {
-        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
-
-        $this->deletePathOnKnownDisks($section->extracted_video_path, [$sermonDisk, $tempDisk]);
-        $this->deletePathOnKnownDisks($section->extracted_audio_path, [$sermonDisk, $tempDisk]);
+        $this->deleteResolvedPath($section, $section->extracted_video_path);
+        $this->deleteResolvedPath($section, $section->extracted_audio_path);
     }
 
-    /**
-     * @param  array<int, string>  $disks
-     */
-    private function deletePathOnKnownDisks(?string $path, array $disks): void
+    private function deleteResolvedPath(ServiceSection $section, ?string $path): void
     {
         if (! is_string($path) || $path === '') {
             return;
         }
 
-        foreach ($disks as $disk) {
-            try {
-                if (Storage::disk($disk)->exists($path)) {
-                    Storage::disk($disk)->delete($path);
+        $disk = $section->extractedAssetDisk($path);
 
-                    return;
-                }
-            } catch (\Throwable $throwable) {
-                Log::warning('Failed to clean up extracted section asset on disk', [
-                    'disk' => $disk,
-                    'path' => $path,
-                    'error' => $throwable->getMessage(),
-                ]);
+        try {
+            if (Storage::disk($disk)->exists($path)) {
+                Storage::disk($disk)->delete($path);
             }
+        } catch (\Throwable $throwable) {
+            Log::warning('Failed to clean up extracted section asset on disk', [
+                'disk' => $disk,
+                'path' => $path,
+                'error' => $throwable->getMessage(),
+            ]);
         }
     }
 }

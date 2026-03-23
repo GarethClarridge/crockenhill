@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\CalendarAdminController;
 use App\Http\Controllers\Admin\SermonAdminController;
+use App\Http\Controllers\Admin\ServiceSectionCandidateMediaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ChildrensCornerController;
@@ -166,6 +167,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('/services/songs', App\Livewire\Admin\ChurchServices\ListSongs::class)->name('services.songs.index');
     Route::get('/services/songs/{song}', App\Livewire\Admin\ChurchServices\ShowSong::class)->name('services.songs.show');
     Route::get('/services/section-publications', App\Livewire\Admin\ChurchServices\ListSectionPublications::class)->name('services.section-publications');
+    Route::get('/services/section-publications/{serviceSection}/preview/audio', [ServiceSectionCandidateMediaController::class, 'serveAudio'])
+        ->name('services.section-publications.preview-audio');
+    Route::get('/services/section-publications/{serviceSection}/preview/video', [ServiceSectionCandidateMediaController::class, 'serveVideo'])
+        ->name('services.section-publications.preview-video');
     Route::get('/services/processing/review', App\Livewire\Admin\ChurchServices\ProcessingReviewList::class)->name('services.processing.review.index');
     Route::get('/services/processing/{processingLog}/review', App\Livewire\Admin\ChurchServices\ProcessingReview::class)->name('services.processing.review');
     Route::get('/services/{churchService}/edit', App\Livewire\Admin\ChurchServices\ManageChurchService::class)->name('services.edit');

@@ -57,8 +57,6 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
             $this->warn('DRY RUN enabled. No files or rows will be modified.');
         }
 
-        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
         $cleanedCount = 0;
         $failedCount = 0;
 
@@ -75,14 +73,14 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
             $previousStatus = $section->publication_status->value;
 
             try {
-                DB::transaction(function () use ($section, $videoPath, $audioPath, $sermonDisk, $tempDisk): void {
+                DB::transaction(function () use ($section, $videoPath, $audioPath): void {
                     app(ExpireSectionPublicationAssets::class)->execute($section, [
                         'reason' => 'asset_expiry',
                         'cleaned_by' => 'scheduler',
                     ]);
-                    DB::afterCommit(function () use ($videoPath, $audioPath, $sermonDisk, $tempDisk): void {
-                        $this->deletePathOnKnownDisks($videoPath, [$sermonDisk, $tempDisk]);
-                        $this->deletePathOnKnownDisks($audioPath, [$sermonDisk, $tempDisk]);
+                    DB::afterCommit(function () use ($section, $videoPath, $audioPath): void {
+                        $this->deleteResolvedPath($section, $videoPath);
+                        $this->deleteResolvedPath($section, $audioPath);
                     });
                 });
             } catch (\RuntimeException $e) {
@@ -120,21 +118,16 @@ class CleanupUnpublishedSectionAssetsCommand extends Command
         return is_string($path) && $path !== '' ? $path : '-';
     }
 
-    /**
-     * @param  array<int, string>  $disks
-     */
-    private function deletePathOnKnownDisks(?string $path, array $disks): void
+    private function deleteResolvedPath(ServiceSection $section, ?string $path): void
     {
         if (! is_string($path) || $path === '') {
             return;
         }
 
-        foreach ($disks as $disk) {
-            if (Storage::disk($disk)->exists($path)) {
-                Storage::disk($disk)->delete($path);
+        $disk = $section->extractedAssetDisk($path);
 
-                return;
-            }
+        if (Storage::disk($disk)->exists($path)) {
+            Storage::disk($disk)->delete($path);
         }
     }
 }

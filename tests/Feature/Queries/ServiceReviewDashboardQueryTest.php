@@ -10,10 +10,12 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Queries\ServiceReviewDashboardQuery;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -180,6 +182,59 @@ class ServiceReviewDashboardQueryTest extends TestCase
         $this->assertSame(2, $groups[0]['pending_approval_count']);
         $this->assertSame(1, $groups[0]['batch_ready_count']);
         $this->assertSame(1, $groups[0]['batch_blocked_count']);
+    }
+
+    #[Test]
+    public function review_groups_generate_guarded_preview_urls_for_candidate_media(): void
+    {
+        Storage::fake('local');
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-24',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::PENDING_APPROVAL->value,
+            'extracted_audio_path' => 'private/section-publications/501/audio.mp3',
+            'extracted_video_path' => 'private/section-publications/501/video.mp4',
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertSame(
+            route('admin.services.section-publications.preview-audio', $section),
+            $groups[0]['sections'][0]['audio_url'],
+        );
+        $this->assertSame(
+            route('admin.services.section-publications.preview-video', $section),
+            $groups[0]['sections'][0]['video_url'],
+        );
+    }
+
+    #[Test]
+    public function review_groups_do_not_generate_candidate_preview_urls_for_published_sections(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-05-24',
+            'extracted_service' => SermonService::MORNING->value,
+        ]);
+        $sermon = Sermon::factory()->create();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::PUBLISHED->value,
+            'published_sermon_id' => $sermon->id,
+            'needs_manual_review' => true,
+            'extracted_audio_path' => 'private/section-publications/502/audio.mp3',
+            'extracted_video_path' => 'private/section-publications/502/video.mp4',
+        ]);
+
+        $groups = $this->query->reviewGroups();
+
+        $this->assertNull($groups[0]['sections'][0]['audio_url']);
+        $this->assertNull($groups[0]['sections'][0]['video_url']);
     }
 
     #[Test]

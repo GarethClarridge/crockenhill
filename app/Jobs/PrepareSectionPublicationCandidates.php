@@ -252,16 +252,18 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $audioResult = $videoExtractor->extractOptimizedAudio(
                 $localSourcePath,
                 $segment,
-                $this->processingLog->processing_id.'_section_'.$section->id.'.mp3'
+                $this->processingLog->processing_id.'_section_'.$section->id.'.mp3',
+                'local',
+                $this->candidateAudioDirectory($section)
             );
 
-            $videoStoragePath = 'sermons/sections/'.$section->id.'/video.mp4';
+            $videoStoragePath = $this->candidateVideoPath($section);
             $videoReadStream = Storage::disk($tempDisk)->readStream($tempVideoPath);
             if (! is_resource($videoReadStream)) {
                 throw new \RuntimeException('Failed to read extracted section video stream');
             }
 
-            Storage::disk($this->sermonDisk())->put($videoStoragePath, $videoReadStream);
+            Storage::disk($this->candidateDisk())->put($videoStoragePath, $videoReadStream);
             fclose($videoReadStream);
             Storage::disk($tempDisk)->delete($tempVideoPath);
 
@@ -285,9 +287,19 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         }
     }
 
-    private function sermonDisk(): string
+    private function candidateDisk(): string
     {
-        return (string) config('media-processing.storage.sermon_disk', 'public');
+        return 'local';
+    }
+
+    private function candidateAudioDirectory(ServiceSection $section): string
+    {
+        return 'private/section-publications/'.$section->id;
+    }
+
+    private function candidateVideoPath(ServiceSection $section): string
+    {
+        return $this->candidateAudioDirectory($section).'/video.mp4';
     }
 
     private function shouldReuseExtractedMedia(ServiceSection $section): bool

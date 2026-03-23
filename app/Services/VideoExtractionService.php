@@ -522,13 +522,19 @@ class VideoExtractionService
     public function extractOptimizedAudio(
         string $inputVideoPath,
         object $segment,
-        ?string $outputFilename = null
+        ?string $outputFilename = null,
+        ?string $permanentDisk = null,
+        ?string $audioPath = null,
     ): array {
+        $resolvedPermanentDisk = $permanentDisk ?? $this->permanentDisk;
+
         return $this->audioCompressor->extractOptimizedAudio(
             $inputVideoPath,
             $segment,
             $outputFilename,
-            fn (string $localFilePath, string $permanentPath): string => $this->storageHelper->uploadWithRetry($localFilePath, $permanentPath, $this->permanentDisk)
+            $resolvedPermanentDisk,
+            $audioPath,
+            fn (string $localFilePath, string $permanentPath): string => $this->storageHelper->uploadWithRetry($localFilePath, $permanentPath, $resolvedPermanentDisk)
         );
     }
 

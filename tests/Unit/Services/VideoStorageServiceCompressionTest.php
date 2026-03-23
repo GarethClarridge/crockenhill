@@ -60,6 +60,8 @@ class VideoStorageServiceCompressionTest extends TestCase
                 $this->testVideoPath,
                 $this->testSegment,
                 'test_sermon.mp3',
+                $this->isNull(),
+                $this->isNull(),
                 $this->isType('callable')
             )
             ->willReturn([

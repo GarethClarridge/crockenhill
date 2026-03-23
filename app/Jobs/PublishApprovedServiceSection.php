@@ -97,11 +97,10 @@ class PublishApprovedServiceSection implements ShouldQueue
                 throw new \RuntimeException('Section audio path missing for approved publication');
             }
 
-            $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
-            if (! Storage::disk($sermonDisk)->exists($videoPath)) {
+            if (! Storage::disk($section->extractedAssetDisk($videoPath))->exists($videoPath)) {
                 throw new \RuntimeException('Section video file is missing for approved publication');
             }
-            if (! Storage::disk($sermonDisk)->exists($audioPath)) {
+            if (! Storage::disk($section->extractedAssetDisk($audioPath))->exists($audioPath)) {
                 throw new \RuntimeException('Section audio file is missing for approved publication');
             }
 
@@ -127,6 +126,17 @@ class PublishApprovedServiceSection implements ShouldQueue
             if (! $section->hasResolvedChildrensTalkSpeaker()) {
                 throw new \RuntimeException("Children's talk speaker must be reviewed before publication");
             }
+
+            $section->extracted_video_path = $this->promoteExtractedAsset(
+                $section,
+                $videoPath,
+                'sermons/sections/'.$section->id.'/video.'.pathinfo($videoPath, PATHINFO_EXTENSION),
+            );
+            $section->extracted_audio_path = $this->promoteExtractedAsset(
+                $section,
+                $audioPath,
+                'sermons/audio/'.basename($audioPath),
+            );
 
             if (! $publicationTransitions->transition($section, ServiceSectionPublicationStatus::PUBLISHED)) {
                 throw new \RuntimeException('Invalid state transition when publishing approved section');
@@ -154,5 +164,39 @@ class PublishApprovedServiceSection implements ShouldQueue
             'service_section_id' => $this->serviceSectionId,
             'error' => $exception->getMessage(),
         ]);
+    }
+
+    private function promoteExtractedAsset(
+        ServiceSection $section,
+        string $sourcePath,
+        string $targetPath,
+    ): string {
+        $sourceDisk = $section->extractedAssetDisk($sourcePath);
+        $targetDisk = (string) config('media-processing.storage.sermon_disk', config('filesystems.default', 'local'));
+
+        if ($sourceDisk === $targetDisk && $sourcePath === $targetPath) {
+            return $sourcePath;
+        }
+
+        $sourceStream = Storage::disk($sourceDisk)->readStream($sourcePath);
+        if (! is_resource($sourceStream)) {
+            throw new \RuntimeException('Unable to read approved section asset for publication');
+        }
+
+        try {
+            $written = Storage::disk($targetDisk)->put($targetPath, $sourceStream);
+        } finally {
+            fclose($sourceStream);
+        }
+
+        if ($written !== true || ! Storage::disk($targetDisk)->exists($targetPath)) {
+            throw new \RuntimeException('Unable to publish approved section asset to the public sermon disk');
+        }
+
+        if ($sourceDisk !== $targetDisk || $sourcePath !== $targetPath) {
+            Storage::disk($sourceDisk)->delete($sourcePath);
+        }
+
+        return $targetPath;
     }
 }

@@ -29,6 +29,7 @@ class PublishApprovedServiceSectionTest extends TestCase
     #[Test]
     public function it_publishes_approved_section_and_links_created_sermon(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         config([
@@ -45,8 +46,8 @@ class PublishApprovedServiceSectionTest extends TestCase
             'media_processing_log_id' => $processingLog->id,
             'section_type' => ServiceSectionType::WELCOME->value,
             'publication_status' => ServiceSectionPublicationStatus::APPROVED->value,
-            'extracted_video_path' => 'sermons/sections/10/video.mp4',
-            'extracted_audio_path' => 'sermons/audio/section-10.mp3',
+            'extracted_video_path' => 'private/section-publications/10/video.mp4',
+            'extracted_audio_path' => 'private/section-publications/10/section-10.mp3',
             'start_time' => 500.0,
             'end_time' => 900.0,
             'duration' => 400.0,
@@ -60,8 +61,8 @@ class PublishApprovedServiceSectionTest extends TestCase
         ]);
         $section->save();
 
-        Storage::disk('public')->put('sermons/sections/10/video.mp4', 'video');
-        Storage::disk('public')->put('sermons/audio/section-10.mp3', 'audio');
+        Storage::disk('local')->put('private/section-publications/10/video.mp4', 'video');
+        Storage::disk('local')->put('private/section-publications/10/section-10.mp3', 'audio');
 
         $createdSermon = Sermon::factory()->create();
 
@@ -83,6 +84,12 @@ class PublishApprovedServiceSectionTest extends TestCase
         $this->assertSame($createdSermon->id, $section->published_sermon_id);
         $this->assertNotNull($section->published_at);
         $this->assertNull($section->unpublished_expires_at);
+        $this->assertSame('sermons/sections/'.$section->id.'/video.mp4', $section->extracted_video_path);
+        $this->assertSame('sermons/audio/section-10.mp3', $section->extracted_audio_path);
+        Storage::disk('public')->assertExists('sermons/sections/'.$section->id.'/video.mp4');
+        Storage::disk('public')->assertExists('sermons/audio/section-10.mp3');
+        Storage::disk('local')->assertMissing('private/section-publications/10/video.mp4');
+        Storage::disk('local')->assertMissing('private/section-publications/10/section-10.mp3');
     }
 
     #[Test]

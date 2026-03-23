@@ -69,6 +69,8 @@ class AudioCompressionService
         string $inputVideoPath,
         object $segment,
         ?string $outputFilename = null,
+        ?string $permanentDisk = null,
+        ?string $audioPath = null,
         ?callable $uploadHandler = null
     ): array {
         $startTime = $segment->startTime ?? $segment->start_time ?? 0;
@@ -77,7 +79,10 @@ class AudioCompressionService
 
         $outputFilename = $outputFilename ?: Str::uuid().'_sermon_optimized.mp3';
 
-        $pathInfo = $this->getProcessingOutputPath($outputFilename);
+        $resolvedPermanentDisk = $permanentDisk ?? $this->permanentDisk;
+        $resolvedAudioPath = $audioPath ?? $this->audioPath;
+
+        $pathInfo = $this->getProcessingOutputPath($outputFilename, $resolvedPermanentDisk, $resolvedAudioPath);
         $processingPath = $pathInfo['processing_path'];
         $permanentPath = $pathInfo['permanent_path'];
         $useS3Processing = $pathInfo['use_temp_processing'];
@@ -89,7 +94,7 @@ class AudioCompressionService
                 'processing_path' => $processingPath,
                 'permanent_path' => $permanentPath,
                 'use_s3_processing' => $useS3Processing,
-                'permanent_disk' => $this->permanentDisk,
+                'permanent_disk' => $resolvedPermanentDisk,
                 'start_time' => $startTime,
                 'duration' => $duration,
             ]);
@@ -158,7 +163,7 @@ class AudioCompressionService
 
                 return [
                     'audio_path' => $permanentPath,
-                    'full_path' => $useS3Processing ? Storage::disk($this->permanentDisk)->url($permanentPath) : $fallbackPath,
+                    'full_path' => $useS3Processing ? Storage::disk($resolvedPermanentDisk)->url($permanentPath) : $fallbackPath,
                     'original_size' => $validation['file_size'],
                     'final_size' => $finalValidation['file_size'],
                     'compression_applied' => true,
@@ -189,7 +194,7 @@ class AudioCompressionService
 
             return [
                 'audio_path' => $permanentPath,
-                'full_path' => $useS3Processing ? Storage::disk($this->permanentDisk)->url($permanentPath) : $processingPath,
+                'full_path' => $useS3Processing ? Storage::disk($resolvedPermanentDisk)->url($permanentPath) : $processingPath,
                 'original_size' => $validation['file_size'],
                 'final_size' => $validation['file_size'],
                 'compression_applied' => false,
@@ -300,12 +305,12 @@ class AudioCompressionService
      *
      * @return array{processing_path: string, permanent_path: string, use_temp_processing: bool}
      */
-    private function getProcessingOutputPath(string $filename): array
+    private function getProcessingOutputPath(string $filename, string $permanentDisk, string $audioPath): array
     {
         return $this->storageHelper->getProcessingOutputPath(
             $filename,
-            $this->audioPath,
-            $this->permanentDisk,
+            $audioPath,
+            $permanentDisk,
             $this->tempDisk,
             'temp/audio_extraction'
         );

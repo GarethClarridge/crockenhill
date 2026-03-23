@@ -14,7 +14,6 @@ use App\Support\ServiceSectionConfidence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ServiceReviewDashboardQuery
@@ -97,8 +96,8 @@ class ServiceReviewDashboardQuery
                 'section' => $section,
                 'reasons' => $reasons,
                 'review_reason' => $this->reviewReasonLabel($section),
-                'audio_url' => $this->assetUrl($section->extracted_audio_path),
-                'video_url' => $this->assetUrl($section->extracted_video_path),
+                'audio_url' => $this->assetUrl($section, 'audio', $section->extracted_audio_path),
+                'video_url' => $this->assetUrl($section, 'video', $section->extracted_video_path),
                 'manual_edit_url' => $serviceModel instanceof ChurchService
                     ? route('admin.services.edit', $serviceModel)
                     : null,
@@ -444,13 +443,24 @@ class ServiceReviewDashboardQuery
         return Str::headline($reason);
     }
 
-    private function assetUrl(?string $path): ?string
+    private function assetUrl(ServiceSection $section, string $asset, ?string $path): ?string
     {
         if (! is_string($path) || $path === '') {
             return null;
         }
 
-        return Storage::disk((string) config('media-processing.storage.sermon_disk', 'public'))->url($path);
+        if (
+            $section->publication_status === ServiceSectionPublicationStatus::PUBLISHED
+            || $section->published_sermon_id !== null
+        ) {
+            return null;
+        }
+
+        return match ($asset) {
+            'audio' => route('admin.services.section-publications.preview-audio', $section),
+            'video' => route('admin.services.section-publications.preview-video', $section),
+            default => null,
+        };
     }
 
     private function serviceKey(string $date, SermonService $service): string

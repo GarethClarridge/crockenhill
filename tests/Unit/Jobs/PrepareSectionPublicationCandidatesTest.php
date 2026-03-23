@@ -76,6 +76,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 120.0,
             'end_time' => 420.0,
         ]);
+        $expectedAudioPath = 'private/section-publications/'.$section->id.'/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -84,8 +85,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $videoExtractor->expects($this->once())
             ->method('extractOptimizedAudio')
             ->willReturn([
-                'audio_path' => 'sermons/audio/section.mp3',
-                'full_path' => Storage::disk('public')->path('sermons/audio/section.mp3'),
+                'audio_path' => $expectedAudioPath,
+                'full_path' => Storage::disk('local')->path($expectedAudioPath),
                 'original_size' => 1024,
                 'final_size' => 1024,
                 'compression_applied' => false,
@@ -105,8 +106,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $this->assertSame(ServiceSectionPublicationStatus::PENDING_APPROVAL, $section->publication_status);
         $this->assertFalse($section->needs_manual_review);
-        $this->assertSame('sermons/audio/section.mp3', $section->extracted_audio_path);
-        $this->assertSame('sermons/sections/'.$section->id.'/video.mp4', $section->extracted_video_path);
+        $this->assertSame($expectedAudioPath, $section->extracted_audio_path);
+        $this->assertSame('private/section-publications/'.$section->id.'/video.mp4', $section->extracted_video_path);
         $this->assertNotNull($section->extracted_at);
         $this->assertNotNull($section->unpublished_expires_at);
         $this->assertSame('matched', $section->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
@@ -116,7 +117,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'step' => ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
             'status' => 'completed',
         ]);
-        Storage::disk('public')->assertExists('sermons/sections/'.$section->id.'/video.mp4');
+        Storage::disk('local')->assertExists('private/section-publications/'.$section->id.'/video.mp4');
+        Storage::disk('public')->assertMissing('private/section-publications/'.$section->id.'/video.mp4');
     }
 
     #[Test]
@@ -232,6 +234,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 120.0,
             'end_time' => 420.0,
         ]);
+        $expectedAudioPath = 'private/section-publications/'.$section->id.'/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -240,8 +243,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $videoExtractor->expects($this->once())
             ->method('extractOptimizedAudio')
             ->willReturn([
-                'audio_path' => 'sermons/audio/section.mp3',
-                'full_path' => Storage::disk('public')->path('sermons/audio/section.mp3'),
+                'audio_path' => $expectedAudioPath,
+                'full_path' => Storage::disk('local')->path($expectedAudioPath),
                 'original_size' => 1024,
                 'final_size' => 1024,
                 'compression_applied' => false,
@@ -312,7 +315,6 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         Storage::disk('public')->put('sermons/sections/old/video.mp4', 'stale-video');
         Storage::disk('public')->put('sermons/audio/old.mp3', 'stale-audio');
         Storage::disk('local')->put('temp/section-video.mp4', 'fresh-section-video');
-        Storage::disk('public')->put('sermons/audio/fresh-section.mp3', 'fresh-section-audio');
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
@@ -333,6 +335,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 120.0,
             'end_time' => 420.0,
         ]);
+        $expectedAudioPath = 'private/section-publications/'.$section->id.'/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        Storage::disk('local')->put($expectedAudioPath, 'fresh-section-audio');
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -341,8 +345,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $videoExtractor->expects($this->once())
             ->method('extractOptimizedAudio')
             ->willReturn([
-                'audio_path' => 'sermons/audio/fresh-section.mp3',
-                'full_path' => Storage::disk('public')->path('sermons/audio/fresh-section.mp3'),
+                'audio_path' => $expectedAudioPath,
+                'full_path' => Storage::disk('local')->path($expectedAudioPath),
                 'original_size' => 1024,
                 'final_size' => 1024,
                 'compression_applied' => false,
@@ -360,8 +364,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame('sermons/audio/fresh-section.mp3', $section->extracted_audio_path);
-        $this->assertSame('sermons/sections/'.$section->id.'/video.mp4', $section->extracted_video_path);
+        $this->assertSame($expectedAudioPath, $section->extracted_audio_path);
+        $this->assertSame('private/section-publications/'.$section->id.'/video.mp4', $section->extracted_video_path);
         $this->assertSame(
             $section->classificationSignature(),
             $section->metadata['publication_candidate_extraction']['classification_signature'] ?? null

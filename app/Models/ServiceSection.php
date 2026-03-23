@@ -11,6 +11,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Support\MediaAssetPath;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -184,10 +185,13 @@ class ServiceSection extends Model
             return false;
         }
 
-        $sermonDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+        return Storage::disk($this->extractedAssetDisk($videoPath))->exists($videoPath)
+            && Storage::disk($this->extractedAssetDisk($audioPath))->exists($audioPath);
+    }
 
-        return Storage::disk($sermonDisk)->exists($videoPath)
-            && Storage::disk($sermonDisk)->exists($audioPath);
+    public function extractedAssetDisk(?string $path): string
+    {
+        return MediaAssetPath::diskForPath($path);
     }
 
     public function songMatchType(): ?ServiceSectionSongMatchType
