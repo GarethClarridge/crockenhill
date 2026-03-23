@@ -58,11 +58,12 @@ services:
     mysql:
         image: 'mysql:8.0'
         command: >
-          --innodb-buffer-pool-size=384M
-          --innodb-log-file-size=64M
-          --max-connections=200
+          --innodb-buffer-pool-size=256M
+          --innodb-redo-log-capacity=256M
+          --max-connections=120
           --innodb_flush_log_at_trx_commit=2
           --innodb_doublewrite=OFF
+          --performance-schema=OFF
           --sync_binlog=0
         mem_limit: 2g
         ports:

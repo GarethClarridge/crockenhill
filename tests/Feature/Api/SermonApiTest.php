@@ -255,11 +255,45 @@ class SermonApiTest extends TestCase
         $this->assertArrayNotHasKey('points', $response->json('data'));
     }
 
+    public function test_api_index_omits_points_when_show_points_is_false(): void
+    {
+        $hiddenOutlineSermon = Sermon::factory()->create([
+            'title' => 'Hidden Outline Sermon',
+            'show_points' => false,
+            'points' => [
+                'Hidden point one',
+                'Hidden point two',
+            ],
+        ]);
+
+        $visibleOutlineSermon = Sermon::factory()->create([
+            'title' => 'Visible Outline Sermon',
+            'show_points' => true,
+            'points' => [
+                'Visible point one',
+            ],
+        ]);
+
+        $response = $this->getJson('/api/sermons');
+
+        $response->assertStatus(200);
+
+        $hiddenSermonData = collect($response->json('data'))->firstWhere('id', $hiddenOutlineSermon->id);
+        $visibleSermonData = collect($response->json('data'))->firstWhere('id', $visibleOutlineSermon->id);
+
+        $this->assertIsArray($hiddenSermonData);
+        $this->assertArrayNotHasKey('points', $hiddenSermonData);
+        $this->assertIsArray($visibleSermonData);
+        $this->assertSame(['Visible point one'], $visibleSermonData['points']);
+    }
+
     public function test_api_omits_internal_thumbnail_paths_from_thumbnail_metadata(): void
     {
+        $thumbnailPath = 'sermons/thumbnails/'.uniqid('thumbnail-', true).'.jpg';
+
         $sermon = Sermon::factory()->create([
             'title' => 'Sanitized Thumbnail Metadata Sermon',
-            'thumbnail_file_path' => 'sermons/thumbnails/test-thumbnail.jpg',
+            'thumbnail_file_path' => $thumbnailPath,
             'thumbnail_metadata' => [
                 'width' => 1280,
                 'height' => 720,
@@ -268,7 +302,7 @@ class SermonApiTest extends TestCase
             ],
         ]);
 
-        Storage::disk('public')->put('sermons/thumbnails/test-thumbnail.jpg', 'fake image content');
+        Storage::disk('public')->put($thumbnailPath, 'fake image content');
 
         $response = $this->getJson("/api/sermons/{$sermon->id}");
 

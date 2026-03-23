@@ -11,12 +11,14 @@
     $preacherName = $sermon->displayPreacherName();
     $thumbnailUrl = $sermonView['thumbnail_url'] ?: asset('images/Primary.png');
     $datePublished = $sermon->date->toIso8601String();
+    // Sermon::getMetaDescriptionAttribute() is the single visibility gate for summary-derived description text.
+    $metaDescription = $sermon->meta_description;
 
     $schema = [
         '@context' => 'https://schema.org',
         '@type' => 'Article',
         'headline' => $sermon->title,
-        'description' => $sermon->meta_description,
+        'description' => $metaDescription,
         'image' => $thumbnailUrl,
         'datePublished' => $datePublished,
         'author' => [
@@ -41,7 +43,7 @@
         $schema['video'] = [
             '@type' => 'VideoObject',
             'name' => $sermon->title,
-            'description' => $sermon->meta_description,
+            'description' => $metaDescription,
             'thumbnailUrl' => $thumbnailUrl,
             'uploadDate' => $datePublished,
             'contentUrl' => $sermonView['video_url'],
@@ -61,7 +63,7 @@
             '@type' => 'AudioObject',
             'name' => $sermon->title,
             'contentUrl' => $sermonView['audio_url'],
-            'description' => $sermon->meta_description,
+            'description' => $metaDescription,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,
         ];

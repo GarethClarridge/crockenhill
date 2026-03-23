@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use LogicException;
@@ -46,7 +47,7 @@ class SermonResource extends JsonResource
             'needs_preacher_review' => $this->needs_preacher_review,
             'series' => $this->series,
             'reference' => $this->displayReference(),
-            'points' => $this->when($this->show_points, $this->points),
+            'points' => $this->when($this->show_points, fn (): ?array => $this->points),
             'audio_url' => $sermonView['audio_url'],
             'thumbnail_url' => $sermonView['thumbnail_url'],
             'thumbnail_metadata' => $this->publicThumbnailMetadata(),
@@ -97,8 +98,18 @@ class SermonResource extends JsonResource
             return null;
         }
 
-        unset($thumbnailMetadata['plain_thumbnail_path'], $thumbnailMetadata['overlay_thumbnail_path']);
-
-        return $thumbnailMetadata;
+        return Arr::only($thumbnailMetadata, [
+            'timestamp',
+            'video_duration',
+            'video_resolution',
+            'thumbnail_sizes',
+            'generated_at',
+            'width',
+            'height',
+            'size',
+            'generation_info',
+            'file_info',
+            'formats',
+        ]);
     }
 }
