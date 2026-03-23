@@ -19,13 +19,13 @@
 @endsection
 
 @section('dynamic_content')
-@can('manage-sermons')
+@if (auth()->user()?->canAccessAdmin())
 <div class="px-6 max-w-2xl mx-auto mt-6 my-12">
   <x-button link="{{ route('admin.sermon-upload.create') }}">
     Upload a new sermon
   </x-button>
 </div>
-@endcan
+@endif
 @stop
 
 @section('full_width_content')

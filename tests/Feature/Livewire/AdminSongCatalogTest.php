@@ -188,7 +188,7 @@ class AdminSongCatalogTest extends TestCase
 
         $this->actingAs($user);
 
-        Livewire::test(ListSongs::class)->assertForbidden();
-        Livewire::test(ShowSong::class, ['song' => $song])->assertForbidden();
+        $this->get(route('admin.services.songs.index'))->assertForbidden();
+        $this->get(route('admin.services.songs.show', $song))->assertForbidden();
     }
 }

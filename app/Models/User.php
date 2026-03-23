@@ -72,4 +72,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
         ];
     }
+
+    public function canAccessAdmin(): bool
+    {
+        return $this->is_admin && $this->hasVerifiedEmail();
+    }
 }

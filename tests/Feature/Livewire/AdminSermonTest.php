@@ -39,9 +39,9 @@ class AdminSermonTest extends TestCase
     public function it_requires_admin_to_view()
     {
         $user = User::factory()->create(['is_admin' => false]);
-        $this->actingAs($user);
 
-        Livewire::test(ListSermons::class)
+        $this->actingAs($user)
+            ->get(route('admin.sermons.index'))
             ->assertForbidden();
     }
 

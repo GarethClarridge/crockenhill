@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\ChurchServices;
 
 use App\Enums\SermonService;
-use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\ChurchService;
 use App\Traits\EscapesLikeWildcards;
@@ -17,7 +16,7 @@ use Livewire\WithPagination;
 
 class ListChurchServices extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'date';
 
@@ -49,7 +48,6 @@ class ListChurchServices extends Component
 
     public function mount(): void
     {
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
 

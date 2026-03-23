@@ -763,7 +763,7 @@ The backlog is ordered for safety:
   - `authorization-exposure-boundary-review-2026-03-18.md`
 
 ### TD-029 - Remove WithAdminAuthorization duplication from routed admin components
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Low

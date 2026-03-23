@@ -46,6 +46,6 @@ class MeetingPolicy
 
     private function canManageMeetings(User $user): bool
     {
-        return $user->is_admin && $user->hasVerifiedEmail();
+        return $user->canAccessAdmin();
     }
 }

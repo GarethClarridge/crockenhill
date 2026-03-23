@@ -472,8 +472,8 @@ class AdminInboundEmailReviewTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $this->actingAs($user);
-
-        Livewire::test(ReviewInboundEmails::class)->assertForbidden();
+        $this->actingAs($user)
+            ->get(route('admin.services.inbound-emails'))
+            ->assertForbidden();
     }
 }

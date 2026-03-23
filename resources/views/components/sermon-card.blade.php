@@ -86,7 +86,7 @@
       View Sermon
   </x-button>
 
-  @can ('manage-sermons')
+  @if (auth()->user()?->canAccessAdmin())
     <div class="mt-auto border-t border-gray-100">
       <x-admin-actions
         :editRoute="'/christ/sermons/' . $sermon->date->format('Y') . '/' . $sermon->date->format('m') . '/' . $sermon->slug . '/edit'"
@@ -95,5 +95,5 @@
         layout="grid"
         :withIcons="true" />
     </div>
-  @endcan
+  @endif
 </div>

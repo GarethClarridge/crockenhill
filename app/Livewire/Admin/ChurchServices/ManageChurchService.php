@@ -8,7 +8,6 @@ use App\Actions\PrefillChurchServiceFromInboundEmail;
 use App\Actions\SaveChurchServiceFromAdmin;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
-use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -24,7 +23,6 @@ use Livewire\Component;
 class ManageChurchService extends Component
 {
     use EscapesLikeWildcards;
-    use WithAdminAuthorization;
     use WithNotifications;
 
     public ?ChurchService $churchService = null;
@@ -43,7 +41,6 @@ class ManageChurchService extends Component
 
     public function mount(PrefillChurchServiceFromInboundEmail $prefillAction): void
     {
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         if ($this->churchService instanceof ChurchService && $this->churchService->exists) {
@@ -183,7 +180,6 @@ class ManageChurchService extends Component
 
     public function save(SaveChurchServiceFromAdmin $saveAction): mixed
     {
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $validated = $this->validate();

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices;
 
-use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\ChurchService;
 use App\Services\ImportChurchServiceFromOpenLp;
@@ -17,14 +16,13 @@ use Throwable;
 
 class UploadChurchService extends Component
 {
-    use WithAdminAuthorization, WithFileUploads, WithNotifications;
+    use WithFileUploads, WithNotifications;
 
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
     public mixed $file = null;
 
     public function mount(): void
     {
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
     }
 
@@ -55,7 +53,6 @@ class UploadChurchService extends Component
 
     public function save(): void
     {
-        $this->authorizeAdmin();
         $this->abortIfDisabled();
 
         $validated = $this->validate();

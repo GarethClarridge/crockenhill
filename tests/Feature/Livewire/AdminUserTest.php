@@ -35,21 +35,20 @@ class AdminUserTest extends TestCase
     }
 
     #[Test]
-    public function list_users_component_aborts_for_non_admin(): void
+    public function list_users_route_forbids_non_admins(): void
     {
         $user = User::factory()->create(['is_admin' => false]);
 
-        $this->actingAs($user);
-
-        Livewire::test(ListUsers::class)
-            ->assertStatus(403);
+        $this->actingAs($user)
+            ->get(route('admin.users.index'))
+            ->assertForbidden();
     }
 
     #[Test]
-    public function list_users_component_aborts_for_guest(): void
+    public function list_users_route_redirects_guests(): void
     {
-        Livewire::test(ListUsers::class)
-            ->assertStatus(403);
+        $this->get(route('admin.users.index'))
+            ->assertRedirect(route('login'));
     }
 
     #[Test]

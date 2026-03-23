@@ -1,5 +1,5 @@
 @if (isset($slug))
-@can ('manage-pages')
+@if (auth()->user()?->canAccessAdmin())
 <form class="m-6" action="/church/members/pages/{{$slug}}" method="POST">
   <input type="hidden" name="_method" value="DELETE">
   <input type="hidden" name="_token" value="{{ csrf_token() }}">
@@ -13,5 +13,5 @@
     </div>
   </x-button>
 </form>
-@endcan
+@endif
 @endif

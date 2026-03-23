@@ -978,9 +978,9 @@ class AdminChurchServiceTest extends TestCase
 
         $this->actingAs($user);
 
-        Livewire::test(ListChurchServices::class)->assertForbidden();
-        Livewire::test(ManageChurchService::class)->assertForbidden();
-        Livewire::test(UploadChurchService::class)->assertForbidden();
-        Livewire::test(ShowChurchService::class, ['churchService' => $service])->assertForbidden();
+        $this->get(route('admin.services.index'))->assertForbidden();
+        $this->get(route('admin.services.create'))->assertForbidden();
+        $this->get(route('admin.services.upload'))->assertForbidden();
+        $this->get(route('admin.services.show', $service))->assertForbidden();
     }
 }

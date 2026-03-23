@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
-use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
@@ -20,7 +19,7 @@ use Livewire\WithPagination;
 
 class ListSermons extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'date';
 
@@ -63,11 +62,6 @@ class ListSermons extends Component
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function mount(): void
-    {
-        $this->authorizeAdmin();
-    }
-
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -81,8 +75,6 @@ class ListSermons extends Component
 
     public function delete(Sermon $sermon): void
     {
-        $this->authorizeAdmin();
-
         $sermon->delete();
 
         $this->success('Sermon deleted');

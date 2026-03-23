@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Pages;
 
 use App\Livewire\Forms\PageFormData;
-use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Page;
 use Illuminate\View\View;
@@ -13,7 +12,7 @@ use Livewire\Component;
 
 class EditPage extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use WithNotifications;
 
     public Page $page;
 
@@ -21,16 +20,12 @@ class EditPage extends Component
 
     public function mount(Page $page): void
     {
-        $this->authorizeAdmin();
-
         $this->page = $page;
         $this->form->setPage($page);
     }
 
     public function save(): void
     {
-        $this->authorizeAdmin();
-
         $this->form->update();
 
         $this->success('Page updated');

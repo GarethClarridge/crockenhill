@@ -46,6 +46,6 @@ class SermonPolicy
 
     private function canManageSermons(User $user): bool
     {
-        return $user->is_admin && $user->hasVerifiedEmail();
+        return $user->canAccessAdmin();
     }
 }

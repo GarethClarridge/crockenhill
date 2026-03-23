@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Preachers;
 
-use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use Illuminate\Support\Str;
@@ -13,7 +12,7 @@ use Livewire\Component;
 
 class CreatePreacher extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use WithNotifications;
 
     public string $name = '';
 
@@ -22,11 +21,6 @@ class CreatePreacher extends Component
     public ?string $bio = null;
 
     public bool $isActive = true;
-
-    public function mount(): void
-    {
-        $this->authorizeAdmin();
-    }
 
     /**
      * @return array<string, mixed>
@@ -48,8 +42,6 @@ class CreatePreacher extends Component
 
     public function save(): void
     {
-        $this->authorizeAdmin();
-
         $validated = $this->validate();
 
         Preacher::create([

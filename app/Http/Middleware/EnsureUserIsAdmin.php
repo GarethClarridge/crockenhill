@@ -18,7 +18,7 @@ class EnsureUserIsAdmin
     {
         $user = Auth::user();
 
-        if ($user === null || ! $user->is_admin || ! $user->hasVerifiedEmail()) {
+        if ($user?->canAccessAdmin() !== true) {
             abort(403, 'Unauthorized action.');
         }
 

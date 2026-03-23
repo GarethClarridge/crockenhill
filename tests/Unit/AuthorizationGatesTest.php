@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit;
 
+use App\Models\Meeting;
+use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -12,113 +16,67 @@ class AuthorizationGatesTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function manage_sermons_gate_allows_verified_admins(): void
+    public function verified_admins_can_access_admin_routes(): void
     {
         $user = User::factory()->create([
             'is_admin' => true,
             'email_verified_at' => now(),
         ]);
 
-        $this->assertTrue($user->can('manage-sermons'));
+        $this->assertTrue($user->canAccessAdmin());
     }
 
     #[Test]
-    public function manage_sermons_gate_denies_unverified_admins(): void
-    {
-        $user = User::factory()->create([
-            'is_admin' => true,
-            'email_verified_at' => null,
-        ]);
-
-        $this->assertFalse($user->can('manage-sermons'));
-    }
-
-    #[Test]
-    public function manage_sermons_gate_denies_non_admin_users(): void
-    {
-        $user = User::factory()->create([
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-
-        $this->assertFalse($user->can('manage-sermons'));
-    }
-
-    #[Test]
-    public function manage_sermons_gate_denies_non_admin_crockenhill_domain_users(): void
-    {
-        $user = User::factory()->create([
-            'email' => 'staff@crockenhill.org',
-            'is_admin' => false,
-            'email_verified_at' => now(),
-        ]);
-
-        $this->assertFalse($user->can('manage-sermons'));
-    }
-
-    #[Test]
-    public function manage_meetings_gate_allows_verified_admins(): void
-    {
-        $user = User::factory()->create([
-            'is_admin' => true,
-            'email_verified_at' => now(),
-        ]);
-
-        $this->assertTrue($user->can('manage-meetings'));
-    }
-
-    #[Test]
-    public function manage_meetings_gate_denies_unverified_admins(): void
+    public function unverified_admins_cannot_access_admin_routes(): void
     {
         $user = User::factory()->create([
             'is_admin' => true,
             'email_verified_at' => null,
         ]);
 
-        $this->assertFalse($user->can('manage-meetings'));
+        $this->assertFalse($user->canAccessAdmin());
     }
 
     #[Test]
-    public function manage_meetings_gate_denies_non_admin_users(): void
+    public function non_admin_users_cannot_access_admin_routes(): void
     {
         $user = User::factory()->create([
             'is_admin' => false,
             'email_verified_at' => now(),
         ]);
 
-        $this->assertFalse($user->can('manage-meetings'));
+        $this->assertFalse($user->canAccessAdmin());
     }
 
     #[Test]
-    public function manage_pages_gate_allows_verified_admins(): void
+    public function sermon_policy_matches_the_admin_route_capability(): void
     {
-        $user = User::factory()->create([
+        $admin = User::factory()->create([
             'is_admin' => true,
             'email_verified_at' => now(),
         ]);
-
-        $this->assertTrue($user->can('manage-pages'));
-    }
-
-    #[Test]
-    public function manage_pages_gate_denies_unverified_admins(): void
-    {
-        $user = User::factory()->create([
-            'is_admin' => true,
-            'email_verified_at' => null,
-        ]);
-
-        $this->assertFalse($user->can('manage-pages'));
-    }
-
-    #[Test]
-    public function manage_pages_gate_denies_non_admin_users(): void
-    {
-        $user = User::factory()->create([
+        $nonAdmin = User::factory()->create([
             'is_admin' => false,
             'email_verified_at' => now(),
         ]);
 
-        $this->assertFalse($user->can('manage-pages'));
+        $this->assertTrue($admin->can('viewAny', Sermon::class));
+        $this->assertFalse($nonAdmin->can('viewAny', Sermon::class));
+    }
+
+    #[Test]
+    public function meeting_policy_matches_the_admin_route_capability(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => now(),
+        ]);
+        $nonAdmin = User::factory()->create([
+            'is_admin' => false,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->assertTrue($admin->can('viewAny', Meeting::class));
+        $this->assertFalse($nonAdmin->can('viewAny', Meeting::class));
     }
 }

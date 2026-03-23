@@ -38,20 +38,20 @@ class ListSermonsTest extends TestCase
     }
 
     #[Test]
-    public function it_aborts_403_for_non_admin(): void
+    public function it_forbids_non_admins_from_the_sermons_admin_route(): void
     {
         $user = User::factory()->create(['is_admin' => false]);
-        $this->actingAs($user);
 
-        Livewire::test(ListSermons::class)
-            ->assertStatus(403);
+        $this->actingAs($user)
+            ->get(route('admin.sermons.index'))
+            ->assertForbidden();
     }
 
     #[Test]
-    public function it_aborts_403_for_guest(): void
+    public function it_redirects_guests_from_the_sermons_admin_route(): void
     {
-        Livewire::test(ListSermons::class)
-            ->assertStatus(403);
+        $this->get(route('admin.sermons.index'))
+            ->assertRedirect(route('login'));
     }
 
     // -------------------------------------------------------------------------
@@ -174,20 +174,6 @@ class ListSermonsTest extends TestCase
             ->assertDispatched('notify', type: 'success', message: 'Sermon deleted');
 
         $this->assertModelMissing($sermon);
-    }
-
-    #[Test]
-    public function non_admin_cannot_delete_a_sermon(): void
-    {
-        $user = User::factory()->create(['is_admin' => false]);
-        $this->actingAs($user);
-
-        $sermon = Sermon::factory()->create();
-
-        Livewire::test(ListSermons::class)
-            ->assertStatus(403);
-
-        $this->assertModelExists($sermon);
     }
 
     #[Test]

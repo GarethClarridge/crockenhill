@@ -13,8 +13,6 @@ trait ManagesSectionPublication
 {
     public function approve(int $sectionId): void
     {
-        $this->authorizeAdmin();
-
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
             $this->error('Section not found.');
@@ -34,8 +32,6 @@ trait ManagesSectionPublication
 
     public function reject(int $sectionId): void
     {
-        $this->authorizeAdmin();
-
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
             $this->error('Section not found.');
@@ -54,8 +50,6 @@ trait ManagesSectionPublication
 
     public function requeue(int $sectionId): void
     {
-        $this->authorizeAdmin();
-
         $section = ServiceSection::query()->find($sectionId);
         if (! $section instanceof ServiceSection) {
             $this->error('Section not found.');

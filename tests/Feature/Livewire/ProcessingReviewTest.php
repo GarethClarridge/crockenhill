@@ -110,7 +110,7 @@ class ProcessingReviewTest extends TestCase
     {
         $this->actingAs($this->nonAdmin);
 
-        Livewire::test(ProcessingReviewList::class)
+        $this->get(route('admin.services.processing.review.index'))
             ->assertForbidden();
     }
 
@@ -252,7 +252,7 @@ class ProcessingReviewTest extends TestCase
 
         $log = $this->makeLogAwaitingReview();
 
-        Livewire::test(ProcessingReview::class, ['processingLog' => $log])
+        $this->get(route('admin.services.processing.review', $log))
             ->assertForbidden();
     }
 

@@ -32,9 +32,10 @@ class AdminCalendarEventTest extends TestCase
     public function non_admin_cannot_mount_list_calendar_events(): void
     {
         $user = User::factory()->create(['is_admin' => false]);
-        $this->actingAs($user);
 
-        Livewire::test(ListCalendarEvents::class)->assertForbidden();
+        $this->actingAs($user)
+            ->get(route('admin.calendar-events.index'))
+            ->assertForbidden();
     }
 
     #[Test]
@@ -48,7 +49,7 @@ class AdminCalendarEventTest extends TestCase
             'end_datetime' => now()->addDays(2)->addHour(),
         ]);
 
-        Livewire::test(EditCalendarEvent::class, ['calendarEvent' => $event])->assertForbidden();
+        $this->get(route('admin.calendar-events.edit', $event))->assertForbidden();
     }
 
     #[Test]

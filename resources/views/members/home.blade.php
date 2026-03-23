@@ -17,7 +17,7 @@
             <x-heroicon-s-user-circle class="h-7 w-7 text-cbc-teal flex-shrink-0" />
             <div>
               <h2 class="font-display text-xl text-cbc-teal">
-                Welcome back, {{ Auth::user()->name }}
+                Welcome back, {{ auth()->user()->name }}
               </h2>
               <p class="text-sm text-gray-600">What would you like to do today?</p>
             </div>
@@ -25,7 +25,7 @@
         </div>
 
         {{-- Sermons Section --}}
-        @can('manage-sermons')
+        @if (auth()->user()?->canAccessAdmin())
         <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
             <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
@@ -73,10 +73,10 @@
             </x-button>
           </div>
         </div>
-        @endcan
+        @endif
 
         {{-- Calendar & Meetings Section --}}
-        @can('manage-meetings')
+        @if (auth()->user()?->canAccessAdmin())
         <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
             <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
@@ -105,10 +105,10 @@
             </form>
           </div>
         </div>
-        @endcan
+        @endif
 
         {{-- Content Section --}}
-        @can('manage-pages')
+        @if (auth()->user()?->canAccessAdmin())
         <div class="rounded-lg shadow bg-white border border-gray-300 overflow-hidden">
           <div class="bg-gray-50 border-b border-gray-200 px-4 py-3">
             <h3 class="font-display text-lg text-gray-900 flex items-center gap-2">
@@ -122,7 +122,7 @@
             </x-button>
           </div>
         </div>
-        @endcan
+        @endif
 
         {{-- Log out --}}
         <form action="/logout" method="post">

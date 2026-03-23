@@ -7,7 +7,6 @@ namespace App\Livewire\Admin\Sermons;
 use App\Actions\QueueScriptureEnrichment;
 use App\Enums\PreacherSource;
 use App\Enums\SermonService;
-use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -19,7 +18,7 @@ use Livewire\Component;
 
 class EditSermon extends Component
 {
-    use WithAdminAuthorization, WithNotifications;
+    use WithNotifications;
 
     public Sermon $sermon;
 
@@ -78,7 +77,6 @@ class EditSermon extends Component
 
     public function mount(Sermon $sermon): void
     {
-        $this->authorizeAdmin();
         $sermon->loadMissing('preacherProfile', 'scripturePassage');
 
         $service = $sermon->service;
@@ -122,8 +120,6 @@ class EditSermon extends Component
 
     public function save(): void
     {
-        $this->authorizeAdmin();
-
         $validated = $this->validate();
 
         if ($validated['preacherId']) {

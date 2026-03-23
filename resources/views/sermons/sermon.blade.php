@@ -330,7 +330,7 @@ $displayReference = $sermon->displayReference();
       @endif
 
       {{-- ── Admin Actions ──────────────────────────────────── --}}
-      @can ('manage-sermons')
+      @if (auth()->user()?->canAccessAdmin())
       <div>
 
         @if ($sermon->source_type === 'livestream' && $sermon->livestreamProcessing)
@@ -385,7 +385,7 @@ $displayReference = $sermon->displayReference();
           layout="grid"
           :withIcons="true" />
       </div>
-      @endcan
+      @endif
 
     </div>{{-- end right column --}}
 

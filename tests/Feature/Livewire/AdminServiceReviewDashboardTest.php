@@ -604,9 +604,8 @@ class AdminServiceReviewDashboardTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $this->actingAs($user);
-
-        Livewire::test(ServiceReviewDashboard::class)
+        $this->actingAs($user)
+            ->get(route('admin.services.review'))
             ->assertForbidden();
     }
 }

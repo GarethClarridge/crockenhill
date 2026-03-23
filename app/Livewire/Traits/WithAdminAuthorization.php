@@ -11,7 +11,7 @@ trait WithAdminAuthorization
         $user = auth()->user();
 
         abort_unless(
-            $user?->is_admin === true && $user->hasVerifiedEmail(),
+            $user?->canAccessAdmin() === true,
             403,
             'Unauthorized',
         );

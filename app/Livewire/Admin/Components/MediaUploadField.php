@@ -15,6 +15,8 @@ use Spatie\MediaLibrary\HasMedia;
 
 class MediaUploadField extends Component
 {
+    // This child component has no route of its own, so its Livewire actions still need
+    // explicit admin checks even after TD-029 moved routed admin pages to middleware.
     use WithAdminAuthorization, WithFileUploads, WithNotifications;
 
     public ?HasMedia $model = null;

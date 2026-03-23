@@ -39,9 +39,9 @@ class ChurchServiceAdminAuthTest extends TestCase
     #[Test]
     public function non_admin_cannot_mount_submit_email_text(): void
     {
-        $this->actingAs($this->regularUser);
-
-        Livewire::test(SubmitEmailText::class)->assertForbidden();
+        $this->actingAs($this->regularUser)
+            ->get(route('admin.services.submit-email'))
+            ->assertForbidden();
     }
 
     #[Test]
@@ -74,9 +74,9 @@ class ChurchServiceAdminAuthTest extends TestCase
     #[Test]
     public function non_admin_cannot_mount_upload_church_service(): void
     {
-        $this->actingAs($this->regularUser);
-
-        Livewire::test(UploadChurchService::class)->assertForbidden();
+        $this->actingAs($this->regularUser)
+            ->get(route('admin.services.upload'))
+            ->assertForbidden();
     }
 
     #[Test]

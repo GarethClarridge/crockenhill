@@ -214,9 +214,8 @@ class AdminSectionPublicationQueueTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $this->actingAs($user);
-
-        Livewire::test(ListSectionPublications::class)
+        $this->actingAs($user)
+            ->get(route('admin.services.section-publications'))
             ->assertForbidden();
     }
 }

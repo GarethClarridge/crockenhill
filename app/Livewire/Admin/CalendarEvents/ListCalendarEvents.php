@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\CalendarEvents;
 
-use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
@@ -16,7 +15,7 @@ use Livewire\WithPagination;
 
 class ListCalendarEvents extends Component
 {
-    use EscapesLikeWildcards, WithAdminAuthorization, WithNotifications, WithPagination;
+    use EscapesLikeWildcards, WithNotifications, WithPagination;
 
     #[Url(except: '')]
     public string $search = '';
@@ -32,11 +31,6 @@ class ListCalendarEvents extends Component
 
     public bool $hasFilters = false;
 
-    public function mount(): void
-    {
-        $this->authorizeAdmin();
-    }
-
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -50,8 +44,6 @@ class ListCalendarEvents extends Component
 
     public function categorize(int $eventId, ?string $meetingSlug): void
     {
-        $this->authorizeAdmin();
-
         CalendarEvent::find($eventId)?->update([
             'meeting_slug' => $meetingSlug,
             'is_categorized_automatically' => false,

@@ -135,8 +135,8 @@ class SubmitEmailTextTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $this->actingAs($user);
-
-        Livewire::test(SubmitEmailText::class)->assertForbidden();
+        $this->actingAs($user)
+            ->get(route('admin.services.submit-email'))
+            ->assertForbidden();
     }
 }
