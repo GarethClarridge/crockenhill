@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Livewire;
 
-use App\Contracts\ProcessingStatusContract;
 use App\Data\ProcessingLogEntry;
 use App\Livewire\Traits\HasConditionalLogging;
+use App\Services\GetMediaProcessingStatus;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -17,6 +17,8 @@ use Livewire\Component;
 class ProcessingLogsViewer extends Component
 {
     use HasConditionalLogging;
+
+    private GetMediaProcessingStatus $getMediaProcessingStatus;
 
     public string $processingId;
 
@@ -56,6 +58,11 @@ class ProcessingLogsViewer extends Component
         'filterStep' => 'string',
     ];
 
+    public function boot(GetMediaProcessingStatus $getMediaProcessingStatus): void
+    {
+        $this->getMediaProcessingStatus = $getMediaProcessingStatus;
+    }
+
     public function mount(
         string $processingId,
         bool $autoRefresh = true,
@@ -81,23 +88,7 @@ class ProcessingLogsViewer extends Component
     public function fetchLogs(): void
     {
         try {
-            // Find the appropriate controller to handle this processing ID
-            $controller = $this->findControllerForProcessingId($this->processingId);
-
-            if (! $controller) {
-                $this->logWarning('ProcessingLogsViewer: No controller found for processing ID', [
-                    'processing_id' => $this->processingId,
-                ]);
-
-                return;
-            }
-
-            // Get processing status with logs
-            $response = $controller->getProcessingStatusWithLogs(
-                $this->processingId,
-                true,
-                $this->logLimit
-            );
+            $response = $this->getMediaProcessingStatus->getWithLogs($this->processingId, $this->logLimit);
 
             if ($response->found) {
                 $this->statusData = [
@@ -282,17 +273,6 @@ class ProcessingLogsViewer extends Component
             'info' => 'blue',
             'debug' => 'gray',
         ];
-    }
-
-    private function findControllerForProcessingId(string $processingId): ?ProcessingStatusContract
-    {
-        // Use the unified MediaController
-        $mediaController = app(\App\Http\Controllers\Api\MediaController::class);
-        if ($mediaController->canHandle($processingId)) {
-            return $mediaController;
-        }
-
-        return null;
     }
 
     private function formatBytes(int $bytes): string

@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
-use App\Contracts\ProcessingStatusContract;
-use App\Data\StandardProcessingResponse;
 use App\Enums\ApiTokenAbility;
 use App\Enums\MediaType;
 use App\Http\Controllers\Controller;
@@ -16,11 +14,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-class MediaController extends Controller implements ProcessingStatusContract
+class MediaController extends Controller
 {
     public function __construct(
         private readonly UnifiedMediaProcessor $mediaProcessor,
-        private readonly MediaValidationService $validation
+        private readonly MediaValidationService $validation,
     ) {}
 
     /**
@@ -98,8 +96,8 @@ class MediaController extends Controller implements ProcessingStatusContract
             $logLimit = $request->integer('log_limit', 20);
 
             $response = $includeLogs
-                ? $this->getProcessingStatusWithLogs($processingId, true, $logLimit)
-                : $this->getProcessingStatus($processingId);
+                ? $this->mediaProcessor->getStatusWithLogs($processingId, true, $logLimit)
+                : $this->mediaProcessor->getStatus($processingId);
 
             if (! $response->found) {
                 return response()->json($response->toArray(), 404);
@@ -122,29 +120,12 @@ class MediaController extends Controller implements ProcessingStatusContract
         }
     }
 
-    // Implement ProcessingStatusContract methods
-    public function getProcessingStatus(string $processingId): StandardProcessingResponse
-    {
-        return $this->mediaProcessor->getStatus($processingId);
-    }
-
-    public function getProcessingStatusWithLogs(string $processingId, bool $includeLogs = false, int $logLimit = 20): StandardProcessingResponse
-    {
-        // Delegate to the media processor which knows how to handle logs properly
-        return $this->mediaProcessor->getStatusWithLogs($processingId, $includeLogs, $logLimit);
-    }
-
     /**
      * @return array<string, mixed>
      */
     public function cancelProcessing(string $processingId): array
     {
         return $this->mediaProcessor->cancel($processingId);
-    }
-
-    public function canHandle(string $processingId): bool
-    {
-        return $this->mediaProcessor->canHandle($processingId);
     }
 
     /**

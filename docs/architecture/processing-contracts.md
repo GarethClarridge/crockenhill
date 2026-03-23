@@ -2,20 +2,21 @@
 
 ## Overview
 
-The Processing Contracts system provides a unified interface for all media processing controllers, ensuring consistent API responses and enabling polymorphic processing operations across different processing types.
+The media-processing read side now uses a shared query service, `GetMediaProcessingStatus`, to provide consistent status responses for both HTTP and Livewire consumers. `StandardProcessingResponse` remains the common response shape.
 
 ## Core Components
 
-### ProcessingStatusContract Interface
+### GetMediaProcessingStatus Service
 
-The `ProcessingStatusContract` interface defines the required methods for all processing controllers:
+The `GetMediaProcessingStatus` service owns status lookups, visibility scoping, and optional log enrichment:
 
 ```php
-interface ProcessingStatusContract
+class GetMediaProcessingStatus
 {
-    public function getProcessingStatus(string $processingId): StandardProcessingResponse;
-    public function cancelProcessing(string $processingId): array;
+    public function get(string $processingId): StandardProcessingResponse;
+    public function getWithLogs(string $processingId, int $logLimit = 20): StandardProcessingResponse;
     public function canHandle(string $processingId): bool;
+    public function find(string $processingId): ?MediaProcessingLog;
 }
 ```
 
@@ -43,66 +44,40 @@ class StandardProcessingResponse
 }
 ```
 
-## Contract Implementation
+## Integration Pattern
 
-### AutomatedSermonController Implementation
+### MediaController Integration
 
 ```php
-class AutomatedSermonController extends Controller implements ProcessingStatusContract
+class MediaController extends Controller
 {
-    public function getProcessingStatus(string $processingId): StandardProcessingResponse
+    public function status(Request $request, string $processingId): JsonResponse
     {
-        // Get status from SermonProcessingLog
-        $result = $this->sermonProcessingService->getProcessingStatus($processingId);
-        
-        return StandardProcessingResponse::fromProcessingStatusResult($result);
-    }
+        $includeLogs = $request->boolean('include_logs');
+        $logLimit = $request->integer('log_limit', 20);
 
-    public function cancelProcessing(string $processingId): array
-    {
-        return $this->sermonProcessingService->cancelProcessing($processingId);
-    }
+        $response = $includeLogs
+            ? $this->mediaProcessor->getStatusWithLogs($processingId, true, $logLimit)
+            : $this->mediaProcessor->getStatus($processingId);
 
-    public function canHandle(string $processingId): bool
-    {
-        return SermonProcessingLog::where('processing_id', $processingId)->exists();
+        return response()->json($response->toArray(), $response->found ? 200 : 404);
     }
 }
 ```
 
-### LivestreamProcessingController Implementation
+### ProcessingLogsViewer Integration
 
 ```php
-class LivestreamProcessingController extends Controller implements ProcessingStatusContract  
+class ProcessingLogsViewer extends Component
 {
-    public function getProcessingStatus(string $processingId): StandardProcessingResponse
+    public function boot(GetMediaProcessingStatus $getMediaProcessingStatus): void
     {
-        // Get status from LivestreamProcessingLog
-        $status = $this->videoProcessingService->getProcessingStatus($processingId);
-        
-        return StandardProcessingResponse::found(
-            processingId: $status->processingId,
-            status: $status->status,
-            currentStep: $status->currentStep,
-            progressPercentage: $status->progressPercentage,
-            // ... additional data
-        );
-    }
-
-    public function cancelProcessing(string $processingId): array
-    {
-        $cancelled = $this->videoProcessingService->cancelProcessing($processingId);
-        return ['success' => $cancelled, 'processing_id' => $processingId];
-    }
-
-    public function canHandle(string $processingId): bool
-    {
-        return LivestreamProcessingLog::where('processing_id', $processingId)->exists();
+        $this->getMediaProcessingStatus = $getMediaProcessingStatus;
     }
 }
 ```
 
-## Benefits of Contract-Based Architecture
+## Benefits of the Shared Query Service
 
 ### 1. API Consistency
 
@@ -134,36 +109,13 @@ This consistency enables:
 }
 ```
 
-### 2. Polymorphic Processing
+### 2. Shared Read Boundary
 
-The contract system enables polymorphic operations across different processing types:
+The shared service keeps status lookup logic out of both controllers and Livewire components:
 
-```php
-// Generic status checker that works with any processing type
-class ProcessingStatusChecker
-{
-    public function checkStatus(string $processingId): StandardProcessingResponse
-    {
-        $controllers = [
-            app(AutomatedSermonController::class),
-            app(LivestreamProcessingController::class),
-        ];
-        
-        foreach ($controllers as $controller) {
-            if ($controller->canHandle($processingId)) {
-                return $controller->getProcessingStatus($processingId);
-            }
-        }
-        
-        return StandardProcessingResponse::notFound();
-    }
-}
-```
-
-This enables:
-- **Single status endpoint**: One endpoint can handle all processing types
-- **Automatic routing**: System automatically finds appropriate handler
-- **Easy extension**: New processing types integrate seamlessly
+- **Single query path**: status visibility, lookup, and log enrichment live in one place
+- **Thinner framework layers**: controllers adapt HTTP and Livewire adapts UI
+- **Safer refactors**: read-side behavior can be tested directly without resolving controllers from the container
 
 ### 3. Enhanced Monitoring
 

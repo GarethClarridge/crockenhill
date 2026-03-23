@@ -5,9 +5,9 @@ namespace Tests\Feature\Livewire;
 use App\Data\ProcessingLogCollection;
 use App\Data\ProcessingLogEntry;
 use App\Data\StandardProcessingResponse;
-use App\Http\Controllers\Api\MediaController;
 use App\Livewire\ProcessingLogsViewer;
 use App\Models\User;
+use App\Services\GetMediaProcessingStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
@@ -27,7 +27,7 @@ class ProcessingLogsViewerTest extends TestCase
         $this->admin = User::factory()->crockenhillAdmin()->create(['is_admin' => true]);
     }
 
-    protected function mockControllerResponse(string $status = 'processing', int $progress = 50, array $logEntries = [])
+    protected function mockStatusQueryResponse(string $status = 'processing', int $progress = 50, array $logEntries = [])
     {
         $entries = collect($logEntries)->map(fn ($data) => new ProcessingLogEntry(
             step: $data['step'] ?? 'test-step',
@@ -63,11 +63,16 @@ class ProcessingLogsViewerTest extends TestCase
             ]
         );
 
-        $mockController = $this->createMock(MediaController::class);
-        $mockController->method('canHandle')->with($this->processingId)->willReturn(true);
-        $mockController->method('getProcessingStatusWithLogs')->willReturn($response);
+        $mockStatusQuery = $this->createMock(GetMediaProcessingStatus::class);
+        $mockStatusQuery->method('getWithLogs')
+            ->willReturnCallback(function (string $processingId, int $logLimit) use ($response): StandardProcessingResponse {
+                $this->assertSame($this->processingId, $processingId);
+                $this->assertGreaterThanOrEqual(5, $logLimit);
 
-        $this->app->instance(MediaController::class, $mockController);
+                return $response;
+            });
+
+        $this->app->instance(GetMediaProcessingStatus::class, $mockStatusQuery);
 
         return $response;
     }
@@ -76,7 +81,7 @@ class ProcessingLogsViewerTest extends TestCase
     public function it_renders_successfully_and_fetches_logs()
     {
         $this->actingAs($this->admin);
-        $this->mockControllerResponse('processing', 45, [
+        $this->mockStatusQueryResponse('processing', 45, [
             ['message' => 'First step started', 'step' => 'init'],
             ['message' => 'Processing audio', 'step' => 'audio'],
         ]);
@@ -92,7 +97,7 @@ class ProcessingLogsViewerTest extends TestCase
     public function it_can_toggle_expansion()
     {
         $this->actingAs($this->admin);
-        $this->mockControllerResponse();
+        $this->mockStatusQueryResponse();
 
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId, 'expanded' => false])
             ->assertSet('expanded', false)
@@ -106,7 +111,7 @@ class ProcessingLogsViewerTest extends TestCase
     public function it_can_toggle_auto_refresh()
     {
         $this->actingAs($this->admin);
-        $this->mockControllerResponse();
+        $this->mockStatusQueryResponse();
 
         // Note: autoRefresh is disabled by default in testing environment in the component's mount
         $component = Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId]);
@@ -121,7 +126,7 @@ class ProcessingLogsViewerTest extends TestCase
     public function it_filters_logs_by_level()
     {
         $this->actingAs($this->admin);
-        $this->mockControllerResponse('processing', 50, [
+        $this->mockStatusQueryResponse('processing', 50, [
             ['message' => 'Info log', 'level' => 'info'],
             ['message' => 'Error log', 'level' => 'error'],
         ]);
@@ -139,7 +144,7 @@ class ProcessingLogsViewerTest extends TestCase
     public function it_filters_logs_by_step()
     {
         $this->actingAs($this->admin);
-        $this->mockControllerResponse('processing', 50, [
+        $this->mockStatusQueryResponse('processing', 50, [
             ['message' => 'Init message', 'step' => 'init'],
             ['message' => 'Audio message', 'step' => 'audio'],
         ]);
@@ -159,12 +164,12 @@ class ProcessingLogsViewerTest extends TestCase
         $this->actingAs($this->admin);
 
         // Test green for completed
-        $this->mockControllerResponse('completed');
+        $this->mockStatusQueryResponse('completed');
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
             ->assertSet('statusColor', 'green');
 
         // Test red for failed
-        $this->mockControllerResponse('failed');
+        $this->mockStatusQueryResponse('failed');
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
             ->assertSet('statusColor', 'red');
     }
@@ -175,7 +180,7 @@ class ProcessingLogsViewerTest extends TestCase
         $this->actingAs($this->admin);
 
         // 300 seconds = 5 minutes
-        $this->mockControllerResponse();
+        $this->mockStatusQueryResponse();
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
             ->assertSet('processingTime', '5m 0s');
     }
@@ -184,7 +189,7 @@ class ProcessingLogsViewerTest extends TestCase
     public function it_validates_log_limit_boundaries(): void
     {
         $this->actingAs($this->admin);
-        $this->mockControllerResponse();
+        $this->mockStatusQueryResponse();
 
         $component = Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId]);
 
@@ -211,7 +216,7 @@ class ProcessingLogsViewerTest extends TestCase
 
         // Default mock has 50 MB (52428800 bytes)
         // Standardized Number::fileSize(..., precision: 2) includes decimals for consistency
-        $this->mockControllerResponse();
+        $this->mockStatusQueryResponse();
         Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId])
             ->assertSet('memoryPeak', '50.00 MB');
     }
@@ -221,10 +226,11 @@ class ProcessingLogsViewerTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        // Mock controller that cannot handle the ID
-        $mockController = $this->createMock(\App\Http\Controllers\Api\MediaController::class);
-        $mockController->method('canHandle')->willReturn(false);
-        $this->app->instance(\App\Http\Controllers\Api\MediaController::class, $mockController);
+        $mockStatusQuery = $this->createMock(GetMediaProcessingStatus::class);
+        $mockStatusQuery->method('getWithLogs')
+            ->with('non-existent-id', 20)
+            ->willReturn(StandardProcessingResponse::notFound());
+        $this->app->instance(GetMediaProcessingStatus::class, $mockStatusQuery);
 
         $component = Livewire::test(ProcessingLogsViewer::class, ['processingId' => 'non-existent-id']);
 

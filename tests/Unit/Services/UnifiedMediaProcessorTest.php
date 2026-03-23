@@ -5,6 +5,7 @@ namespace Tests\Unit\Services;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
+use App\Services\GetMediaProcessingStatus;
 use App\Services\LivestreamSegmentationService;
 use App\Services\MediaValidationService;
 use App\Services\MetadataExtractionService;
@@ -52,14 +53,15 @@ class UnifiedMediaProcessorTest extends TestCase
 
         $this->app->instance(LivestreamSegmentationService::class, $this->livestreamService);
         $this->app->instance(ProcessingPipelineBuilder::class, $this->pipelineBuilder);
+        $this->app->instance(ProcessingLogService::class, $this->processingLogService);
         $this->app->forgetInstance(ProcessingRunOrchestrator::class);
 
         $this->processor = new UnifiedMediaProcessor(
-            $this->processingLogService,
             $this->processingInitiator,
             $this->metadataService,
             $this->mediaValidation,
-            app(ProcessingRunOrchestrator::class)
+            app(ProcessingRunOrchestrator::class),
+            app(GetMediaProcessingStatus::class),
         );
     }
 

@@ -108,6 +108,18 @@ class StandardProcessingResponseTest extends TestCase
         $this->assertEquals(100, $response->progressPercentage);
     }
 
+    #[Test]
+    public function from_processing_log_includes_video_file_path_when_present(): void
+    {
+        $log = MediaProcessingLog::factory()->video()->completed()->create([
+            'video_file_path' => 'sermons/2026/03/video.mp4',
+        ]);
+
+        $response = StandardProcessingResponse::fromProcessingLog($log);
+
+        $this->assertSame('sermons/2026/03/video.mp4', $response->additionalData['video_file_path']);
+    }
+
     // -------------------------------------------------------------------------
     // Status check helpers
     // -------------------------------------------------------------------------

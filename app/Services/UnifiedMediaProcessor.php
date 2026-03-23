@@ -10,8 +10,6 @@ use App\Data\StandardProcessingResponse;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
-use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -20,11 +18,11 @@ use Illuminate\Support\Str;
 class UnifiedMediaProcessor
 {
     public function __construct(
-        private readonly ProcessingLogService $processingLogService,
         private readonly ProcessingInitiator $processingInitiator,
         private readonly MetadataExtractionService $metadataService,
         private readonly MediaValidationService $mediaValidation,
         private readonly ProcessingRunOrchestrator $processingRunOrchestrator,
+        private readonly GetMediaProcessingStatus $getMediaProcessingStatus,
     ) {}
 
     public function process(string $type, UploadedFile $file, ?string $clientFileDate = null): ProcessingResult
@@ -62,45 +60,16 @@ class UnifiedMediaProcessor
 
     public function getStatus(string $processingId): StandardProcessingResponse
     {
-        $log = $this->findProcessingLog($processingId);
-
-        if (! $log) {
-            return StandardProcessingResponse::notFound();
-        }
-
-        return StandardProcessingResponse::fromProcessingLog($log);
+        return $this->getMediaProcessingStatus->get($processingId);
     }
 
     public function getStatusWithLogs(string $processingId, bool $includeLogs = false, int $logLimit = 20): StandardProcessingResponse
     {
-        $baseStatus = $this->getStatus($processingId);
-
-        if (! $baseStatus->found || ! $includeLogs) {
-            return $baseStatus;
+        if (! $includeLogs) {
+            return $this->getStatus($processingId);
         }
 
-        $logs = $this->processingLogService->getProcessingLogs($processingId, $logLimit);
-        $metrics = $this->processingLogService->getPerformanceMetrics($processingId);
-
-        if ($baseStatus->processingId === null || $baseStatus->status === null) {
-            return $baseStatus;
-        }
-
-        return StandardProcessingResponse::withLogs(
-            processingId: $baseStatus->processingId,
-            status: $baseStatus->status,
-            currentStep: $baseStatus->currentStep,
-            progressPercentage: $baseStatus->progressPercentage,
-            errorMessage: $baseStatus->errorMessage,
-            sermonId: $baseStatus->sermonId,
-            sermonUrl: $baseStatus->sermonUrl,
-            startedAt: $baseStatus->startedAt,
-            updatedAt: $baseStatus->updatedAt,
-            estimatedCompletion: $baseStatus->estimatedCompletion,
-            additionalData: $baseStatus->additionalData,
-            logs: $logs,
-            metrics: $metrics
-        );
+        return $this->getMediaProcessingStatus->getWithLogs($processingId, $logLimit);
     }
 
     /**
@@ -108,7 +77,7 @@ class UnifiedMediaProcessor
      */
     public function cancel(string $processingId): array
     {
-        $log = $this->findProcessingLog($processingId);
+        $log = $this->getMediaProcessingStatus->find($processingId);
 
         if (! $log) {
             return ['success' => false, 'message' => 'Processing ID not found'];
@@ -124,7 +93,7 @@ class UnifiedMediaProcessor
 
     public function retry(string $processingId): ProcessingResult
     {
-        $log = $this->findProcessingLog($processingId);
+        $log = $this->getMediaProcessingStatus->find($processingId);
 
         if (! $log) {
             return ProcessingResult::failure(
@@ -139,36 +108,12 @@ class UnifiedMediaProcessor
 
     public function canHandle(string $processingId): bool
     {
-        return $this->processingLogQuery()
-            ->where('processing_id', $processingId)
-            ->exists();
-    }
-
-    private function findProcessingLog(string $processingId): ?MediaProcessingLog
-    {
-        return $this->processingLogQuery()
-            ->where('processing_id', $processingId)
-            ->first();
+        return $this->getMediaProcessingStatus->canHandle($processingId);
     }
 
     private function livestreamService(): LivestreamSegmentationService
     {
         return app(LivestreamSegmentationService::class);
-    }
-
-    /**
-     * @return Builder<MediaProcessingLog>
-     */
-    private function processingLogQuery(): Builder
-    {
-        $query = MediaProcessingLog::query();
-        $user = Auth::user();
-
-        if ($user instanceof User) {
-            $query->visibleTo($user);
-        }
-
-        return $query;
     }
 
     /**

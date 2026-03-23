@@ -38,6 +38,7 @@ This file provides guidance to Claude Code when working with this Laravel church
 - **SermonStorageService**: Multi-pattern file detection and CDN URL generation
 - **ThumbnailGenerationService**: Branded thumbnail generation from sermon video frames
 - **PageImageService**: Image processing and storage for page heading images
+- **GetMediaProcessingStatus**: Shared read-side status query service for API and Livewire consumers
 
 ### Processing Pipelines
 1. **Audio**: Direct transcription and AI analysis → sermon record
@@ -51,7 +52,7 @@ This file provides guidance to Claude Code when working with this Laravel church
 
 ### API Endpoints
 - `POST /api/sermons/{audio|video|livestream}` - Unified upload endpoints
-- `GET /api/sermons/processing/{id}/status` - Unified status checking (ProcessingStatusContract)
+- `GET /api/sermons/processing/{id}/status` - Unified status checking via `UnifiedMediaProcessor` and `GetMediaProcessingStatus`
 - `DELETE /api/sermons/processing/{id}` - Cancel processing
 
 ## Development Workflow
@@ -144,9 +145,9 @@ All emails use `Mail::queue()` for async delivery. Queue driver (`QUEUE_DRIVER`)
 - `/church/members/*` - Authenticated members area
 
 ### API Patterns
-- Unified processing endpoints using `ProcessingStatusContract`
+- Unified processing endpoints using `StandardProcessingResponse`
 - `StandardProcessingResponse` for consistent API responses
-- Polymorphic status checking across processing types
+- Shared status querying via `GetMediaProcessingStatus`
 
 ### Storage Conventions
 - **Local**: `storage/app/public/sermons/` for development
@@ -166,7 +167,7 @@ All emails use `Mail::queue()` for async delivery. Queue driver (`QUEUE_DRIVER`)
 - ✅ **Formatting**: Pint enforced — run `vendor/bin/sail bin pint --dirty` before committing
 - ✅ **Testing**: Parallel test suite; high coverage across models, services, and HTTP routes
 - ✅ **S3 Storage**: Production-ready hybrid processing with retry logic
-- ✅ **API Consistency**: Unified response format via `ProcessingStatusContract`
+- ✅ **API Consistency**: Unified response format via `StandardProcessingResponse`
 - ✅ **Image Processing**: `intervention/image-laravel` (v1.x) used throughout — not the legacy `intervention/image` v2
 
 ## Development Notes

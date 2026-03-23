@@ -1411,7 +1411,7 @@ The backlog is ordered for safety:
   - `laravel-livewire-idioms-review-2026-03-18.md`
 
 ### TD-033 - Extract media-processing status query service from ProcessingLogsViewer
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: High
 - Risk: Medium
@@ -1419,14 +1419,14 @@ The backlog is ordered for safety:
 - Dependencies: `TD-012`
 - Scope:
   - `app/Livewire/ProcessingLogsViewer.php` controller-resolution in `findControllerForProcessingId()`
-  - `app/Http/Controllers/Api/MediaController.php` `ProcessingStatusContract` implementation
+  - `app/Http/Controllers/Api/MediaController.php` former `ProcessingStatusContract`-style status implementation
   - New `GetMediaProcessingStatus` service or equivalent
 - Tests needed first:
   - Test for the new status query service covering processing log retrieval
   - Regression that the Livewire viewer still receives the same data after refactor
 - Safest implementation order:
-  1. Extract a dedicated `GetMediaProcessingStatus` service from the controller's `ProcessingStatusContract` implementation.
-  2. Update `MediaController` to call the new service for JSON responses.
+  1. Extract a dedicated `GetMediaProcessingStatus` service from the controller's status-query implementation.
+  2. Update `MediaController` to share that service for JSON responses, directly or through `UnifiedMediaProcessor`.
   3. Update `ProcessingLogsViewer` to inject the new service directly rather than resolving `MediaController` from the container.
   4. Remove `ProcessingStatusContract` from the controller layer once the shared service exists.
 - Acceptance criteria:
