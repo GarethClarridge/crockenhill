@@ -193,7 +193,10 @@ class AdminInboundEmailReviewTest extends TestCase
         $component = Livewire::test(ReviewInboundEmails::class)
             ->call('approve', $email->id);
 
-        $service = ChurchService::query()->firstOrFail();
+        $service = ChurchService::query()
+            ->where('date', '2026-06-22')
+            ->where('service', SermonService::MORNING->value)
+            ->sole();
 
         $component->assertRedirect(route('admin.services.show', $service));
 
@@ -202,6 +205,7 @@ class AdminInboundEmailReviewTest extends TestCase
 
         $email->refresh();
         $this->assertSame(InboundEmailStatus::PROCESSED, $email->status);
+        $this->assertSame($service->id, $email->processing_metadata['imported_church_service_id'] ?? null);
         $this->assertSame('direct_approve', $email->processing_metadata['review']['mode'] ?? null);
         $this->assertSame($this->admin->id, $email->processing_metadata['review']['approved_by_user_id'] ?? null);
     }
@@ -228,7 +232,10 @@ class AdminInboundEmailReviewTest extends TestCase
         $component = Livewire::test(ReviewInboundEmails::class)
             ->call('approve', $email->id);
 
-        $service = ChurchService::query()->firstOrFail();
+        $service = ChurchService::query()
+            ->where('date', '2026-06-29')
+            ->where('service', SermonService::MORNING->value)
+            ->sole();
 
         $component->assertRedirect(route('admin.services.show', $service));
 
@@ -242,6 +249,7 @@ class AdminInboundEmailReviewTest extends TestCase
     {
         $this->actingAs($this->admin);
         $this->travelTo(\Illuminate\Support\Carbon::parse('2026-03-12 11:30:00'));
+        $baselineServiceCount = ChurchService::count();
 
         $this->bindExtractor(new OosEmailItemExtractionResult(
             items: [
@@ -287,7 +295,8 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->assertSame('2026-06-29', $email->processing_metadata['parsing']['resolved_date'] ?? null);
         $this->assertSame('morning', $email->processing_metadata['parsing']['resolved_service'] ?? null);
         $this->assertSame(['Call to Worship', 'Sermon'], collect($email->processing_metadata['parsing']['items'] ?? [])->pluck('title')->all());
-        $this->assertSame(0, ChurchService::count());
+        $this->assertArrayNotHasKey('imported_church_service_id', $email->processing_metadata ?? []);
+        $this->assertSame($baselineServiceCount, ChurchService::count());
 
         $this->travelBack();
     }
@@ -296,6 +305,7 @@ class AdminInboundEmailReviewTest extends TestCase
     public function failed_emails_can_be_reparsed_without_duplication_or_auto_import(): void
     {
         $this->actingAs($this->admin);
+        $baselineServiceCount = ChurchService::count();
 
         $this->bindExtractor(new OosEmailItemExtractionResult(
             items: [
@@ -336,13 +346,15 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->assertNull($email->processing_metadata['failure'] ?? null);
         $this->assertSame('evening', $email->processing_metadata['parsing']['resolved_service'] ?? null);
         $this->assertCount(2, $email->processing_metadata['parsing']['items'] ?? []);
-        $this->assertSame(0, ChurchService::count());
+        $this->assertArrayNotHasKey('imported_church_service_id', $email->processing_metadata ?? []);
+        $this->assertSame($baselineServiceCount, ChurchService::count());
     }
 
     #[Test]
     public function reparse_handles_parser_failure_gracefully_and_leaves_email_unchanged(): void
     {
         $this->actingAs($this->admin);
+        $baselineServiceCount = ChurchService::count();
 
         $this->bindFailingExtractor();
 
@@ -369,7 +381,8 @@ class AdminInboundEmailReviewTest extends TestCase
         $this->assertNull($email->processing_metadata['reparsed_at'] ?? null);
         $this->assertSame('2026-06-29', $email->processing_metadata['parsing']['resolved_date'] ?? null);
         $this->assertSame('Welcome', $email->processing_metadata['parsing']['items'][0]['title'] ?? null);
-        $this->assertSame(0, ChurchService::count());
+        $this->assertArrayNotHasKey('imported_church_service_id', $email->processing_metadata ?? []);
+        $this->assertSame($baselineServiceCount, ChurchService::count());
     }
 
     #[Test]
@@ -436,7 +449,10 @@ class AdminInboundEmailReviewTest extends TestCase
             ->assertSet('items.1.title', 'Opening Prayer')
             ->call('save');
 
-        $service = ChurchService::query()->firstOrFail();
+        $service = ChurchService::query()
+            ->where('date', '2026-07-06')
+            ->where('service', SermonService::MORNING->value)
+            ->sole();
 
         $component->assertRedirect(route('admin.services.show', $service));
 

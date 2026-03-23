@@ -91,6 +91,46 @@ class SermonIdentitySyncService
      */
     private function syncScriptureIdentity(Sermon $sermon): void
     {
+        $trimmedReference = $this->trimReference($sermon->reference);
+        $scripturePassageIdChanged = $sermon->isDirty('scripture_passage_id');
+
+        if ($sermon->scripture_passage_id !== null && $scripturePassageIdChanged) {
+            $passage = ScripturePassage::query()->find($sermon->scripture_passage_id);
+
+            if ($passage instanceof ScripturePassage) {
+                $sermon->reference = $this->canonicalPassageReference($passage);
+            }
+
+            return;
+        }
+
+        if ($sermon->isDirty('reference')) {
+            if ($trimmedReference === null) {
+                $sermon->reference = null;
+                $sermon->scripture_passage_id = null;
+
+                return;
+            }
+
+            if ($sermon->scripture_passage_id !== null) {
+                $passage = ScripturePassage::query()->find($sermon->scripture_passage_id);
+
+                if ($passage instanceof ScripturePassage) {
+                    if ($this->referenceMatchesPassage($trimmedReference, $passage)) {
+                        $sermon->reference = $this->canonicalPassageReference($passage);
+
+                        return;
+                    }
+
+                    $sermon->scripture_passage_id = null;
+                }
+            }
+
+            $sermon->reference = $trimmedReference;
+
+            return;
+        }
+
         if ($sermon->scripture_passage_id !== null) {
             $passage = ScripturePassage::query()->find($sermon->scripture_passage_id);
 
@@ -101,19 +141,13 @@ class SermonIdentitySyncService
             return;
         }
 
-        if (! is_string($sermon->reference)) {
-            return;
-        }
-
-        $reference = trim($sermon->reference);
-
-        if ($reference === '') {
+        if ($trimmedReference === null) {
             $sermon->reference = null;
 
             return;
         }
 
-        $sermon->reference = $reference;
+        $sermon->reference = $trimmedReference;
     }
 
     private function matchExistingPreacher(?string $rawPreacherName): ?Preacher
@@ -146,5 +180,33 @@ class SermonIdentitySyncService
     private function canonicalPassageReference(ScripturePassage $passage): string
     {
         return trim((string) ($passage->display_reference ?: $passage->normalized_reference));
+    }
+
+    private function trimReference(?string $reference): ?string
+    {
+        if (! is_string($reference)) {
+            return null;
+        }
+
+        $trimmed = trim($reference);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    private function referenceMatchesPassage(string $reference, ScripturePassage $passage): bool
+    {
+        $canonicalReferences = array_filter([
+            $this->trimReference($passage->display_reference),
+            $this->trimReference($passage->normalized_reference),
+        ]);
+
+        if (in_array($reference, $canonicalReferences, true)) {
+            return true;
+        }
+
+        $normalizedReference = $this->scriptureReferenceResolver->normalize($reference);
+
+        return $normalizedReference !== null
+            && in_array($normalizedReference, $canonicalReferences, true);
     }
 }

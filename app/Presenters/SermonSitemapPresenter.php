@@ -3,7 +3,6 @@
 namespace App\Presenters;
 
 use App\Models\Sermon;
-use Carbon\Carbon;
 use Spatie\Sitemap\Tags\Url;
 
 class SermonSitemapPresenter
