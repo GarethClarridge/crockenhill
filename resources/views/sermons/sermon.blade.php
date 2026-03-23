@@ -25,66 +25,7 @@ $displayReference = $sermon->displayReference();
   :video="$sermonView['video_url']"
   :canonical="$sermonView['canonical_url']" />
 
-{{-- JSON-LD Structured Data --}}
-@php
-$transcript = $sermonView['transcript'];
-$duration = $sermon->duration ? \Carbon\CarbonInterval::seconds($sermon->duration)->cascade()->spec() : null;
-
-$schema = [
-'@context' => 'https://schema.org',
-'@type' => 'Article',
-'headline' => $sermon->title,
-'description' => $sermon->meta_description,
-'image' => $sermonView['thumbnail_url'] ?: asset('images/Primary.png'),
-'datePublished' => $sermon->date->toIso8601String(),
-'author' => [
-'@type' => 'Person',
-'name' => $sermon->displayPreacherName(),
-],
-];
-
-if ($sermonView['video_url']) {
-$schema['video'] = [
-'@type' => 'VideoObject',
-'name' => $sermon->title,
-'description' => $sermon->meta_description,
-'thumbnailUrl' => $sermonView['thumbnail_url'] ?: asset('images/Primary.png'),
-'uploadDate' => $sermon->date->toIso8601String(),
-'contentUrl' => $sermonView['video_url'],
-];
-
-if ($duration) {
-$schema['video']['duration'] = $duration;
-}
-
-if ($transcript) {
-$schema['video']['transcript'] = $transcript;
-}
-}
-
-if ($sermonView['audio_url']) {
-$schema['audio'] = [
-'@type' => 'AudioObject',
-'name' => $sermon->title,
-'contentUrl' => $sermonView['audio_url'],
-'description' => $sermon->meta_description,
-'encodingFormat' => 'audio/mpeg',
-'uploadDate' => $sermon->date->toIso8601String(),
-];
-
-if ($duration) {
-$schema['audio']['duration'] = $duration;
-}
-
-if ($transcript) {
-$schema['audio']['transcript'] = $transcript;
-}
-}
-
-@endphp
-<script type="application/ld+json">
-    {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
-</script>
+<x-schema.sermon :$sermon :$sermonView />
 @endsection
 
 @section('dynamic_content')
@@ -204,7 +145,7 @@ $schema['audio']['transcript'] = $transcript;
       @endif
 
       {{-- ── Transcript ───────────────────────────────────────── --}}
-      @if (is_string($transcript) && trim($transcript) !== '')
+      @if (is_string($sermonView['transcript']) && trim($sermonView['transcript']) !== '')
       <div
         x-data="{
           expanded: false,
@@ -214,7 +155,7 @@ $schema['audio']['transcript'] = $transcript;
               return;
             }
 
-            await navigator.clipboard.writeText(@js($transcript));
+            await navigator.clipboard.writeText(@js($sermonView['transcript']));
             this.copied = true;
             setTimeout(() => this.copied = false, 2000);
           }
@@ -260,7 +201,7 @@ $schema['audio']['transcript'] = $transcript;
           x-transition:enter-end="opacity-100 translate-y-0"
           class="p-6 max-h-96 overflow-y-auto">
           <div class="prose prose-gray max-w-none text-gray-700">
-            {!! Str::markdown($transcript, [
+            {!! Str::markdown($sermonView['transcript'], [
             'html_input' => 'escape',
             'allow_unsafe_links' => false,
             ]) !!}
@@ -302,7 +243,7 @@ $schema['audio']['transcript'] = $transcript;
           @if ($sermon->displayPreacherName() != null)
           <div class="flex items-center gap-3">
             <x-heroicon-o-user class="h-4 w-4 text-cbc-teal flex-shrink-0" aria-hidden="true" />
-            <div>
+<div>
               <dt class="sr-only">Preacher</dt>
               <dd class="text-gray-900 font-medium">
                 <a href="{{ $sermonView['preacher_url'] }}" wire:navigate class="text-cbc-teal-dark hover:text-cbc-teal transition-colors underline underline-offset-2 decoration-cbc-teal/40">{{ $sermon->displayPreacherName() }}</a>

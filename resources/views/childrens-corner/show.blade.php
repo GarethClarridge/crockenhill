@@ -1,8 +1,15 @@
 @extends('layouts.page')
 
+@php
+    $speakerName = $sermon->displayPreacherName();
+    $fullTitle = $sermon->title . ($speakerName ? ' | ' . $speakerName : '');
+@endphp
+
+@section('title'){{ $fullTitle }}@stop
+
 @section('meta_tags')
     <x-meta-tags
-        :title="$sermon->title"
+        :title="$fullTitle"
         :description="$sermon->meta_description ?: $sermon->title"
         type="article"
         :image="$sermonView['thumbnail_url']"
@@ -13,11 +20,12 @@
         :video="$sermonView['video_url']"
         :canonical="$sermonView['public_url']"
     />
+
+    <x-schema.sermon :$sermon :$sermonView />
 @endsection
 
 @section('dynamic_content')
     @php
-        $speakerName = $sermon->displayPreacherName();
         $hasAudio = filled($sermon->audio_file_path);
         $hasVideo = filled($sermon->video_file_path);
     @endphp
