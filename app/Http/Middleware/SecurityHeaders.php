@@ -43,7 +43,7 @@ class SecurityHeaders
 
         // Security Header: Content Security Policy (CSP)
         // Provides an additional layer of security by restricting where resources can be loaded from.
-        $this->applyContentSecurityPolicy($response);
+        $this->applyContentSecurityPolicy($response, $request);
 
         return $response;
     }
@@ -51,7 +51,7 @@ class SecurityHeaders
     /**
      * Apply Content Security Policy (CSP) headers to the response.
      */
-    protected function applyContentSecurityPolicy(Response $response): void
+    protected function applyContentSecurityPolicy(Response $response, Request $request): void
     {
         $mediaOrigins = $this->getMediaOrigins();
         $mediaSource = $mediaOrigins !== [] ? ' '.implode(' ', $mediaOrigins) : '';
@@ -77,8 +77,8 @@ class SecurityHeaders
             "form-action 'self'",
         ];
 
-        // Ensure all resources are loaded over HTTPS in production
-        if (! $isLocal) {
+        // Ensure all resources are loaded over HTTPS when the request is secure
+        if ($request->isSecure()) {
             $policy[] = 'upgrade-insecure-requests';
         }
 

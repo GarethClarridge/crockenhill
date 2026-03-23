@@ -59,22 +59,18 @@ class SecurityHeadersTest extends TestCase
     }
 
     #[Test]
-    public function it_includes_upgrade_insecure_requests_in_non_local_environments(): void
+    public function it_includes_upgrade_insecure_requests_on_secure_requests(): void
     {
-        $this->app['env'] = 'production';
-
-        $response = $this->get('/');
+        $response = $this->get('https://localhost/');
         $csp = $response->headers->get('Content-Security-Policy');
 
         $this->assertStringContainsString('upgrade-insecure-requests', $csp);
     }
 
     #[Test]
-    public function it_does_not_include_upgrade_insecure_requests_in_local_environment(): void
+    public function it_does_not_include_upgrade_insecure_requests_on_insecure_requests(): void
     {
-        $this->app['env'] = 'local';
-
-        $response = $this->get('/');
+        $response = $this->get('http://localhost/');
         $csp = $response->headers->get('Content-Security-Policy');
 
         $this->assertStringNotContainsString('upgrade-insecure-requests', $csp);
