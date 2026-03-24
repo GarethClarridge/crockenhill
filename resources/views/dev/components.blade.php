@@ -117,6 +117,15 @@
                 </div>
             </div>
 
+            {{-- navigate prop --}}
+            <div>
+                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Navigate prop — use <code>:navigate="false"</code> for external links or non-SPA destinations</p>
+                <div class="flex flex-wrap gap-4">
+                    <x-button link="#" variant="outline" inline>Internal (navigate default)</x-button>
+                    <x-button link="#" variant="outline" :navigate="false" inline>External / download (:navigate="false")</x-button>
+                </div>
+            </div>
+
             {{-- Sizes --}}
             <div>
                 <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Sizes (variant: primary)</p>
@@ -249,13 +258,22 @@
 
             {{-- x-card --}}
             <div>
-                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-card — admin surface</p>
+                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-card — neutral surface (default). Add <code>prose</code> prop for rich prose content.</p>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <x-card>
-                        Card without heading. Wraps content in a prose block inside a white rounded surface with shadow.
+                        Card without heading. Default neutral surface — no prose typography applied.
                     </x-card>
                     <x-card heading="Card with Heading">
                         This card has a display-font heading. Used for admin sections and informational panels.
+                    </x-card>
+                    <x-card prose>
+                        <p>This card uses <code>prose</code> typography. Links, <strong>bold text</strong>, and lists receive Tailwind Typography styles. Pass <code>prose</code> on the component to enable.</p>
+                    </x-card>
+                    <x-card heading="With Footer">
+                        Card content goes here.
+                        <x-slot:footer>
+                            <x-button link="#" variant="outline" size="sm" :navigate="false" inline>View All</x-button>
+                        </x-slot:footer>
                     </x-card>
                 </div>
             </div>
@@ -512,6 +530,132 @@
             </div>
             <div class="rounded-md bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">
                 <strong>Info:</strong> Processing may take a few minutes.
+            </div>
+        </div>
+    </section>
+
+    {{-- ─────────────────────────────────────── --}}
+    {{-- ALERT — x-alert --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Alert — <code class="text-lg font-mono">x-alert</code></h2>
+
+        <div class="space-y-4">
+            <p class="text-xs uppercase tracking-widest text-gray-400">Props: type (info|success|warning|error), title, dismissible</p>
+            <x-alert type="success">Sermon has been saved successfully.</x-alert>
+            <x-alert type="error">There was a problem saving the sermon. Please try again.</x-alert>
+            <x-alert type="warning">This action cannot be undone.</x-alert>
+            <x-alert type="info">Processing may take a few minutes.</x-alert>
+            <x-alert type="success" title="Saved">Your changes have been applied and the sermon is now published.</x-alert>
+            <x-alert type="warning" title="Review required" dismissible>One or more segments could not be automatically identified. Please review the timestamps below.</x-alert>
+        </div>
+    </section>
+
+    {{-- ─────────────────────────────────────── --}}
+    {{-- BADGE — x-badge --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Badge — <code class="text-lg font-mono">x-badge</code></h2>
+
+        <div class="bg-white rounded-lg p-8 shadow-sm border border-gray-200 space-y-6">
+            <div>
+                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Variants (size: sm)</p>
+                <div class="flex flex-wrap gap-3">
+                    <x-badge>default</x-badge>
+                    <x-badge variant="success">success</x-badge>
+                    <x-badge variant="warning">warning</x-badge>
+                    <x-badge variant="danger">danger</x-badge>
+                    <x-badge variant="info">info</x-badge>
+                    <x-badge variant="teal">teal</x-badge>
+                </div>
+            </div>
+            <div>
+                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Sizes</p>
+                <div class="flex flex-wrap items-center gap-3">
+                    <x-badge size="xs" variant="success">xs published</x-badge>
+                    <x-badge size="sm" variant="info">sm morning</x-badge>
+                    <x-badge size="md" variant="teal">md crockenhill</x-badge>
+                </div>
+            </div>
+            <div>
+                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Example in-context (table cell)</p>
+                <div class="flex flex-wrap gap-3">
+                    <x-badge variant="success">Published</x-badge>
+                    <x-badge variant="warning">Draft</x-badge>
+                    <x-badge variant="info">Morning</x-badge>
+                    <x-badge variant="info">Evening</x-badge>
+                    <x-badge variant="danger">Needs Review</x-badge>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {{-- ─────────────────────────────────────── --}}
+    {{-- CHECKBOX — x-checkbox --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Checkbox — <code class="text-lg font-mono">x-checkbox</code></h2>
+
+        <div class="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
+            <div class="space-y-4">
+                <p class="text-xs uppercase tracking-widest text-gray-400">Props: label, hint. Accepts name, wire:model, checked.</p>
+                <x-checkbox label="Published" name="published" />
+                <x-checkbox label="Show in navigation" hint="Displays this page in the main site navigation." name="navigation" />
+                <x-checkbox label="Send notification email" name="notify" checked />
+                <x-checkbox label="I agree to the terms" name="agree" />
+            </div>
+        </div>
+    </section>
+
+    {{-- ─────────────────────────────────────── --}}
+    {{-- ICON BUTTON — x-icon-button --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Icon Button — <code class="text-lg font-mono">x-icon-button</code></h2>
+
+        <div class="bg-white rounded-lg p-8 shadow-sm border border-gray-200 space-y-6">
+            <div>
+                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Props: icon (required), label (required, sets aria-label + title), variant, size, type</p>
+                <div class="flex flex-wrap gap-3">
+                    <x-icon-button icon="pencil" label="Edit" />
+                    <x-icon-button icon="trash" label="Delete" variant="danger" />
+                    <x-icon-button icon="eye" label="View" variant="teal" />
+                    <x-icon-button icon="arrow-up" label="Move up" variant="outline" />
+                </div>
+            </div>
+            <div>
+                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Sizes</p>
+                <div class="flex flex-wrap items-center gap-3">
+                    <x-icon-button icon="pencil" label="Edit (xs)" size="xs" />
+                    <x-icon-button icon="pencil" label="Edit (sm)" size="sm" />
+                    <x-icon-button icon="pencil" label="Edit (md)" size="md" />
+                    <x-icon-button icon="pencil" label="Edit (lg)" size="lg" />
+                </div>
+            </div>
+            <div>
+                <p class="mb-4 text-xs uppercase tracking-widest text-gray-400">Example: compact table action row</p>
+                <div class="flex gap-1">
+                    <x-icon-button icon="pencil" label="Edit sermon" size="sm" />
+                    <x-icon-button icon="eye" label="View sermon" size="sm" variant="teal" />
+                    <x-icon-button icon="trash" label="Delete sermon" size="sm" variant="danger" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {{-- ─────────────────────────────────────── --}}
+    {{-- TOGGLE — x-toggle (updated) --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Toggle — <code class="text-lg font-mono">x-toggle</code></h2>
+
+        <div class="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
+            <div class="space-y-4">
+                <p class="text-xs uppercase tracking-widest text-gray-400">Livewire mode: <code>wire:model="..."</code> — Plain Blade mode: <code>name="..." :checked="true/false"</code></p>
+                <p class="text-sm text-gray-500 italic">Livewire entangle requires a live component — shown in structure only below.</p>
+                <x-toggle label="Plain Blade toggle (off)" name="show_notes" />
+                <x-toggle label="Plain Blade toggle (on)" name="featured" :checked="true" />
+                <x-toggle label="With hint" name="navigation" hint="Displays in the main navigation menu." />
             </div>
         </div>
     </section>

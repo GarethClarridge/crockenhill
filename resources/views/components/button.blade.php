@@ -7,6 +7,7 @@
     'iconStyle' => 'outline',
     'iconClass' => '',
     'inline' => false,
+    'navigate' => true,
 ])
 
 @php
@@ -50,7 +51,7 @@ $resolvedIconClass = trim(($iconSizeClasses[$size] ?? 'h-4 w-4').' '.$iconClass)
 @endphp
 
 <div class="{{ $wrapperClasses }}">
-  <a {{ $attributes->merge(['class' => $classes]) }} href="{{ $link }}" @if(!str_starts_with($link, '#')) wire:navigate @endif>
+  <a {{ $attributes->merge(['class' => $classes]) }} href="{{ $link }}" @if($navigate) wire:navigate @endif>
     @if($icon && $iconPosition !== 'trailing')
       <x-dynamic-component :component="$iconComponent" class="{{ $resolvedIconClass }}" />
     @endif

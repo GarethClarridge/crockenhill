@@ -1,5 +1,6 @@
 @props([
-    'heading',
+    'heading' => null,
+    'prose' => false,
 ])
 
 <div class="rounded-lg shadow bg-white border-1 border-gray-300">
@@ -9,7 +10,7 @@
                 {{ $heading }}
             </h3>
         @endisset
-        <div class="prose max-w-none">
+        <div @class(['prose max-w-none' => $prose])>
             {{ $slot }}
         </div>
     </div>
