@@ -4,14 +4,29 @@
 Church
 @stop
 
-@section('meta_description', 'Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical Baptist church in Kent.')
+@section('meta_description', 'Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical church in Kent.')
 
 @section('meta_tags')
 <x-meta-tags
     title="Church"
-    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical Baptist church in Kent."
+    description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical baptist church in Kent."
 />
 <x-breadcrumbs area="church" heading="Church" :jsonOnly="true" />
+
+<x-schema.faq :questions="[
+    [
+        'question' => 'When do we meet?',
+        'answer' => 'We meet each Sunday morning at 10:30am for worship and Bible teaching, and again at 6:00pm for Bible teaching and prayer. During the week we meet in homes for Bible study.',
+    ],
+    [
+        'question' => 'Who are we?',
+        'answer' => 'We are a loving community of local people from many backgrounds and ages, united by our love for Jesus Christ and commitment to the Bible.',
+    ],
+    [
+        'question' => 'What kind of church are we?',
+        'answer' => 'We are an independent, evangelical church. This means we focus on the gospel: the good news that God has saved us by the death and resurrection of Jesus Christ.',
+    ],
+]" />
 @stop
 
 @section('content')

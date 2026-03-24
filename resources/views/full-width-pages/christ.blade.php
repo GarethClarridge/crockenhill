@@ -9,6 +9,25 @@
   title="Christ"
   description="Learn about Jesus Christ - who he is, why you need him, and what he has done for you. Find out more about the good news of Christianity at Crockenhill Baptist Church." />
 <x-breadcrumbs area="christ" heading="Christ" :jsonOnly="true" />
+
+<x-schema.faq :questions="[
+    [
+        'question' => 'Who is Jesus?',
+        'answer' => 'The Lord Jesus Christ is fully God and fully man. He was conceived by the Holy Spirit, born of a virgin, and lived a sinless life in obedience to the Father. He taught with authority and all his words are true. On the cross he died in the place of sinners, bearing God’s punishment for their sin, redeeming them by his blood. He rose from the dead and in his resurrection body ascended into heaven where he is exalted as Lord of all. He intercedes for his people in the presence of the Father.',
+    ],
+    [
+        'question' => 'Why do I need Jesus?',
+        'answer' => 'We have all rejected God\'s authority and chosen to live our own way, leading to broken relationships, guilt, and eventually eternal separation from God. We need Jesus to be reconciled to God and receive eternal life.',
+    ],
+    [
+        'question' => 'What has Jesus done for me?',
+        'answer' => 'Jesus lived the perfect life we failed to live and died on the cross to take the penalty for our rebellion. By rising from the dead three days later, he defeated death entirely, offering us forgiveness and eternal life.',
+    ],
+    [
+        'question' => 'Where can I find out more?',
+        'answer' => 'You can come along, get in touch with our pastor, or start reading Mark\'s gospel in the Bible to decide for yourself who Jesus is. If you need a Bible get in touch - we\'d be happy to provide one',
+    ],
+]" />
 @stop
 
 @section('content')

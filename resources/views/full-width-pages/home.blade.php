@@ -7,7 +7,8 @@
 @section('meta_tags')
 <x-meta-tags
   title="Crockenhill Baptist Church"
-  description="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all." />
+  description="We are an independent evangelical church in Crockenhill, Kent. Worshipping God, strengthening believers, proclaiming Jesus Christ to all."
+  :image="asset('/images/homepage/may2024wide.webp')" />
 <x-schema.organization />
 @endsection
 
