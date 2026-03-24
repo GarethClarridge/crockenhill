@@ -121,27 +121,18 @@ class LegacyAdminScreenRegressionTest extends TestCase
     // --- sermons/edit ---
 
     #[Test]
-    public function sermon_edit_with_date_requires_authentication(): void
+    public function legacy_sermon_edit_with_date_route_is_removed(): void
     {
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
+        // Legacy date-based GET edit route removed — unauthenticated gets 404, not login redirect
         $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}/edit");
 
-        $response->assertRedirect('/login');
+        $response->assertStatus(404);
     }
 
     #[Test]
-    public function sermon_edit_with_date_redirects_admin_to_livewire_editor(): void
-    {
-        $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
-
-        $response = $this->actingAs($this->admin)->get("/christ/sermons/2024/03/{$sermon->slug}/edit");
-
-        $response->assertRedirect(route('admin.sermons.edit', $sermon->slug));
-    }
-
-    #[Test]
-    public function admin_sermons_edit_route_loads_for_admin(): void
+    public function admin_sermons_edit_route_is_the_only_sermon_edit_surface(): void
     {
         $sermon = Sermon::factory()->create();
 

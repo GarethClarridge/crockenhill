@@ -76,13 +76,6 @@ Route::group(['prefix' => 'christ/sermons'], function () {
     Route::get('/{year}/{month}/{sermon:slug}', [SermonController::class, 'showWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
         ->name('showSermonWithDate');
-    // Legacy edit GET — redirects to the canonical Livewire admin editor
-    Route::get('/{year}/{month}/{sermon:slug}/edit', function (string $year, string $month, \App\Models\Sermon $sermon) {
-        return redirect()->route('admin.sermons.edit', $sermon->slug);
-    })
-        ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->middleware(['auth', 'admin'])
-        ->name('editSermonWithDate');
     Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonAdminController::class, 'destroyWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
         ->middleware(['auth', 'verified', 'admin'])
@@ -104,10 +97,6 @@ Route::group(['prefix' => 'christ/sermons'], function () {
 
     // Fallback slug-only routes
     Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');
-    // Legacy edit GET — redirects to the canonical Livewire admin editor
-    Route::get('/{sermon:slug}/edit', function (\App\Models\Sermon $sermon) {
-        return redirect()->route('admin.sermons.edit', $sermon->slug);
-    })->middleware(['auth', 'admin'])->name('editSermon');
     Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'verified', 'admin'])->name('destroySermon');
 });
 

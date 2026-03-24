@@ -48,23 +48,14 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
-    public function admin_edit_get_route_redirects_to_livewire_editor(): void
+    public function legacy_slug_edit_get_route_is_removed(): void
     {
         $sermon = Sermon::factory()->create();
 
+        // Legacy GET edit route removed — no handler, no redirect
         $response = $this->actingAs($this->admin)->get("/christ/sermons/{$sermon->slug}/edit");
 
-        $response->assertRedirect(route('admin.sermons.edit', $sermon->slug));
-    }
-
-    #[Test]
-    public function non_admin_cannot_access_edit_page(): void
-    {
-        $sermon = Sermon::factory()->create();
-
-        $response = $this->actingAs($this->user)->get("/christ/sermons/{$sermon->slug}/edit");
-
-        $response->assertStatus(403);
+        $response->assertStatus(404);
     }
 
     #[Test]
@@ -156,13 +147,14 @@ class SermonAdminControllerTest extends TestCase
     }
 
     #[Test]
-    public function admin_edit_with_date_get_route_redirects_to_livewire_editor(): void
+    public function legacy_date_edit_get_route_is_removed(): void
     {
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
+        // Legacy date-based GET edit route removed — no handler, no redirect
         $response = $this->actingAs($this->admin)->get("/christ/sermons/2024/03/{$sermon->slug}/edit");
 
-        $response->assertRedirect(route('admin.sermons.edit', $sermon->slug));
+        $response->assertStatus(404);
     }
 
     #[Test]
@@ -204,7 +196,7 @@ class SermonAdminControllerTest extends TestCase
     {
         $sermon = Sermon::factory()->create();
 
-        // The legacy POST update route no longer exists — canonical edit is via Livewire admin editor
+        // The legacy edit route is fully removed — no route exists for this URL at all
         $response = $this->actingAs($this->admin)->post("/christ/sermons/{$sermon->slug}/edit", [
             'title' => 'New Title',
             'date' => '2024-03-15',
@@ -212,6 +204,6 @@ class SermonAdminControllerTest extends TestCase
             'preacher' => 'Test Preacher',
         ]);
 
-        $response->assertStatus(405);
+        $response->assertStatus(404);
     }
 }
