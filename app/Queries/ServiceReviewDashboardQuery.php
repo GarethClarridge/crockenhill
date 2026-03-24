@@ -62,7 +62,7 @@ class ServiceReviewDashboardQuery
             $key = $this->serviceKey($service->date->toDateString(), $service->service);
             $groups[$key] = $this->makeGroup(
                 key: $key,
-                date: $service->date->toDateString(),
+                date: $service->date,
                 service: $service->service,
                 serviceModel: $service
             );
@@ -349,7 +349,7 @@ class ServiceReviewDashboardQuery
      * @param  array<string, ChurchService>  $serviceLookup
      * @return array{
      *     key:string,
-     *     date:string|null,
+     *     date:Carbon|null,
      *     service:SermonService|null,
      *     service_model:ChurchService|null
      * }
@@ -360,7 +360,7 @@ class ServiceReviewDashboardQuery
         if ($service instanceof ChurchService) {
             return [
                 'key' => $this->serviceKey($service->date->toDateString(), $service->service),
-                'date' => $service->date->toDateString(),
+                'date' => $service->date,
                 'service' => $service->service,
                 'service_model' => $service,
             ];
@@ -372,7 +372,7 @@ class ServiceReviewDashboardQuery
 
             return [
                 'key' => $key,
-                'date' => $identity['date'],
+                'date' => Carbon::parse($identity['date']),
                 'service' => $identity['service'],
                 'service_model' => $serviceLookup[$key] ?? null,
             ];
@@ -411,17 +411,20 @@ class ServiceReviewDashboardQuery
      */
     private function makeGroup(
         string $key,
-        ?string $date,
+        ?Carbon $date,
         ?SermonService $service,
         ?ChurchService $serviceModel
     ): array {
+        $dateInstance = $date ?? $serviceModel?->date;
+        $dateString = $dateInstance?->toDateString();
+
         return [
             'key' => $key,
-            'date' => $date,
-            'date_label' => $date !== null ? Carbon::parse($date)->format('j M Y') : 'Unknown date',
+            'date' => $dateString,
+            'date_label' => $dateInstance?->format('j M Y') ?? 'Unknown date',
             'service_label' => $service?->label() ?? 'Unknown service',
             'service_enum' => $service,
-            'sort_date' => $date ?? '',
+            'sort_date' => $dateString ?? '',
             'service_sort' => $this->serviceSort($service),
             'service' => $serviceModel,
             'pending_approval_count' => 0,
