@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\SermonService;
 use App\Models\Sermon; // Added for type hinting and fetching model
 use Illuminate\Foundation\Http\FormRequest; // Added for Enum validation
-use Illuminate\Validation\Rules\Enum; // Added Enum import
+use Illuminate\Validation\Rule; // Added Rule import
 
 class UpdateSermonRequest extends FormRequest
 {
@@ -31,7 +31,7 @@ class UpdateSermonRequest extends FormRequest
             // 'file' is not included here; file updates are typically handled separately or not at all in this form.
             // If file updates were allowed, it would be 'nullable|file|mimes:mp3|max:51200'.
             'date' => 'required|date_format:Y-m-d',
-            'service' => ['required', new Enum(SermonService::class)],
+            'service' => ['required', Rule::enum(SermonService::class)],
             'series' => 'nullable|string|max:255',
             'reference' => 'nullable|string|max:255',
             'preacher' => 'required|string|max:255',

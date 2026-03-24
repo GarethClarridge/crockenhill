@@ -13,6 +13,7 @@ use App\Models\Sermon;
 use App\Services\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -63,7 +64,7 @@ class EditSermon extends Component
             'title' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:sermons,slug,'.$this->sermon->id,
             'date' => 'required|date',
-            'service' => ['required', 'string', 'in:'.implode(',', SermonService::values())],
+            'service' => ['required', Rule::enum(SermonService::class)],
             'preacher' => 'required|string|max:255',
             'preacherId' => 'nullable|integer|exists:preachers,id',
             'reference' => 'nullable|string|max:255',

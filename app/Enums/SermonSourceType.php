@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum SermonSourceType: string
 {
+    use HasValues;
+
     case Manual = 'manual';
     case AudioUpload = 'audio_upload';
     case VideoUpload = 'video_upload';

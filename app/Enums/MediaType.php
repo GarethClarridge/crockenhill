@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Enums\Concerns\HasValues;
+
 enum MediaType: string
 {
+    use HasValues;
+
     case Audio = 'audio';
     case Video = 'video';
     case Livestream = 'livestream';
