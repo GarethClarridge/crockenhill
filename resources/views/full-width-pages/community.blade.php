@@ -28,7 +28,7 @@ Community
     </p>
     <p>
       We believe the best way we can help people is by making
-      <a href="/christ">the good news about Jesus Christ</a> known
+      <a href="/christ" wire:navigate>the good news about Jesus Christ</a> known
       to everyone in Crockenhill and the surrounding area, although
       we're also keen to help meet people's physical needs where we
       can.

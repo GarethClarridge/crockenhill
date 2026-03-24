@@ -25,13 +25,7 @@
                         A simple place to find our recent children's talks, with quick access to audio and video whenever they are available.
                     </p>
                 </div>
-                <div class="mx-auto w-full max-w-[34rem] px-2 text-center">
-                    <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
-                        <x-button link="/christ/sermons" variant="secondary" size="lg" class="w-full rounded-[11px]">
-                            Browse full sermon library
-                        </x-button>
-                    </div>
-                </div>
+                <x-public-cta link="/christ/sermons" label="Browse full sermon library" />
             </div>
         </div>
 

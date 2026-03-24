@@ -1295,7 +1295,7 @@ The backlog is ordered for safety:
   - `json-metadata-inventory-2026-03-17.md`
 
 ### TD-014A - Add targeted schema guardrails with safe rollout patterns
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium-High
 - Risk: Medium
@@ -1606,7 +1606,7 @@ The backlog is ordered for safety:
   - `frontend-view-architecture-review-2026-03-18.md`
 
 ### TD-039 - Sweep internal link navigation and CTA component consistency
-- Status: `Open`
+- Status: `Complete`
 - Priority: P3
 - Impact: Low
 - Risk: Low
@@ -1805,7 +1805,7 @@ The backlog is ordered for safety:
   - `database-model-integrity-review-2026-03-18.md`
 
 ### TD-017B - Formalize review/publication state and ordering invariants
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P1
 - Impact: Very high
 - Risk: High

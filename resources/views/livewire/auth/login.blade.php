@@ -41,10 +41,10 @@
 
         <div class="mt-6 space-y-2 text-center text-sm">
             <div>
-                <a href="{{ route('password.request') }}" class="text-blue-600 hover:text-blue-800 transition-colors">Forgot your password?</a>
+                <a href="{{ route('password.request') }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">Forgot your password?</a>
             </div>
             <div>
-                <a href="{{ route('register') }}" class="text-blue-600 hover:text-blue-800 transition-colors">Don't have an account? Register</a>
+                <a href="{{ route('register') }}" wire:navigate class="text-blue-600 hover:text-blue-800 transition-colors">Don't have an account? Register</a>
             </div>
         </div>
     </div>

@@ -96,7 +96,7 @@ Church
   </x-text>
 
   <div class="px-6 max-w-2xl mx-auto mt-6">
-    <x-button link="/community">
+    <x-button link="/community" wire:navigate>
       <div class="flex items-center justify-center">
         See our other activities
         <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
@@ -183,7 +183,7 @@ Church
       life of Christ.
     </p>
 
-    <x-button link="/christ">
+    <x-button link="/christ" wire:navigate>
       <div class="flex items-center justify-center">
         Find out more about the good news of Jesus Christ
         <x-heroicon-s-arrow-right-circle class="h-6 w-6 ml-2" />
@@ -214,7 +214,7 @@ Church
     </p>
     <p>
       For more detail on what we believe, see our
-      <a href="/church/statement-of-faith">
+      <a href="/church/statement-of-faith" wire:navigate>
         statement of faith
       </a>.
     </p>
@@ -224,7 +224,7 @@ Church
 
   <x-text>
     <p>
-      Our church <a href="/church/history">started life as "Union Chapel"</a>, a mixture
+      Our church <a href="/church/history" wire:navigate>started life as "Union Chapel"</a>, a mixture
       of Baptists and Congregationalists.
     </p>
 

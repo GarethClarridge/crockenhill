@@ -91,11 +91,7 @@
                         @endif
 
                         <div class="mt-6">
-                            <div class="w-full rounded-xl bg-[linear-gradient(120deg,theme(colors.cbc-teal.light)_0%,theme(colors.cbc-teal.DEFAULT)_55%,theme(colors.cbc-teal.dark)_100%)] p-[1.5px]">
-                                <x-button link="{{ route('church.songs.show', $song->slug) }}" variant="secondary" class="w-full rounded-[11px]">
-                                    View song
-                                </x-button>
-                            </div>
+                            <x-public-cta :link="route('church.songs.show', $song->slug)" label="View song" max-width="" />
                         </div>
                     </article>
                 @endforeach

@@ -6,7 +6,7 @@
 
 <div class="prose max-w-none mb-8">
   <p>All events for <strong>{{ $meeting->slug }}</strong> from our calendar.</p>
-  <p><a href="/community/{{ $meeting->slug }}" class="text-blue-600 hover:underline">&larr; Back to {{ $meeting->slug }}</a></p>
+  <p><a href="/community/{{ $meeting->slug }}" wire:navigate class="text-blue-600 hover:underline">&larr; Back to {{ $meeting->slug }}</a></p>
 </div>
 
 @if($events->count() > 0)

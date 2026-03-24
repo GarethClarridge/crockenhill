@@ -125,7 +125,7 @@
                 />
 
                 <div class="flex items-center justify-between">
-                    <a href="/church/members" class="text-gray-600 hover:text-gray-800 transition-colors duration-200">
+                    <a href="/church/members" wire:navigate class="text-gray-600 hover:text-gray-800 transition-colors duration-200">
                         ← Back to Members Area
                     </a>
 

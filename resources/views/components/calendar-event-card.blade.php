@@ -68,7 +68,7 @@ $cardClasses = match($variant) {
                 @if($showMeetingBadge)
                     <div class="flex items-center">
                         @if($meeting)
-                            <a href="/community/{{ $meeting->slug }}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors">
+                            <a href="/community/{{ $meeting->slug }}" wire:navigate class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors">
                                 {{ $meeting->slug }}
                             </a>
                         @else
@@ -82,7 +82,7 @@ $cardClasses = match($variant) {
                     </div>
                 @endif
             </div>
-            
+
             {{ $slot }}
         </div>
     @elseif($variant === 'compact')
@@ -128,7 +128,7 @@ $cardClasses = match($variant) {
                 @if($showMeetingBadge)
                     <div class="flex items-center">
                         @if($meeting)
-                            <a href="/community/{{ $meeting->slug }}" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors">
+                            <a href="/community/{{ $meeting->slug }}" wire:navigate class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors">
                                 {{ $meeting->slug }}
                             </a>
                         @else
@@ -142,7 +142,7 @@ $cardClasses = match($variant) {
                     </div>
                 @endif
             </div>
-            
+
             {{ $slot }}
         </div>
     @else
@@ -185,7 +185,7 @@ $cardClasses = match($variant) {
                 <li class="my-2 flex items-center">
                     <x-heroicon-o-tag class="h-5 w-5 mr-2" aria-hidden="true" />
                     @if($meeting)
-                        <a href="/community/{{ $meeting->slug }}" class="hover:underline">{{ $meeting->slug }}</a>
+                        <a href="/community/{{ $meeting->slug }}" wire:navigate class="hover:underline">{{ $meeting->slug }}</a>
                     @else
                         <span class="{{ $isUncategorized ? 'text-yellow-600' : 'text-gray-600' }}">
                             {{ $meetingLabel }}
