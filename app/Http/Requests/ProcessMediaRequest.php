@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\MediaType;
 use App\Services\MediaValidationService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ProcessMediaRequest extends FormRequest
 {
@@ -42,7 +43,7 @@ class ProcessMediaRequest extends FormRequest
 
         return [
             ...$fileRules,
-            'type' => 'required|string|in:audio,video,livestream',
+            'type' => ['required', Rule::enum(MediaType::class)],
         ];
     }
 
@@ -70,7 +71,7 @@ class ProcessMediaRequest extends FormRequest
             'file.mimes' => "Invalid file type. Supported formats: {$extensions}.",
             'file.max' => "The file size must not exceed {$maxSize}.",
             'type.required' => 'Please specify the media type.',
-            'type.in' => 'The media type must be audio, video, or livestream.',
+            'type.enum' => 'The media type must be '.implode(', ', MediaType::values()).'.',
         ];
     }
 

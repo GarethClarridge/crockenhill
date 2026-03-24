@@ -13,6 +13,7 @@ use App\Models\Sermon;
 use App\Services\PreacherResolutionService;
 use App\Services\SermonIdentitySyncService;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Component;
 
@@ -33,6 +34,8 @@ class EditSermon extends Component
     public string $preacher = '';
 
     public ?int $preacherId = null;
+
+    public ?string $preacherSource = null;
 
     public ?string $reference = null;
 
@@ -63,9 +66,10 @@ class EditSermon extends Component
             'title' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:sermons,slug,'.$this->sermon->id,
             'date' => 'required|date',
-            'service' => ['required', 'string', 'in:'.implode(',', SermonService::values())],
+            'service' => ['required', Rule::enum(SermonService::class)],
             'preacher' => 'required|string|max:255',
             'preacherId' => 'nullable|integer|exists:preachers,id',
+            'preacherSource' => ['nullable', Rule::enum(PreacherSource::class)],
             'reference' => 'nullable|string|max:255',
             'series' => 'nullable|string|max:255',
             'summary' => 'nullable|string|max:1000',
@@ -94,6 +98,7 @@ class EditSermon extends Component
         $this->service = $service->value;
         $this->preacher = $sermon->displayPreacherName() ?? '';
         $this->preacherId = $sermon->preacher_id;
+        $this->preacherSource = $sermon->preacher_source?->value;
         $this->reference = $sermon->displayReference();
         $this->series = $sermon->series;
         $this->summary = $sermon->summary;
@@ -146,7 +151,7 @@ class EditSermon extends Component
             'service' => $validated['service'],
             'preacher' => $preacher ? $preacher->name : $validated['preacher'],
             'preacher_id' => $preacher?->id,
-            'preacher_source' => $preacher ? PreacherSource::MANUAL->value : null,
+            'preacher_source' => $preacher ? PreacherSource::MANUAL->value : $validated['preacherSource'],
             'needs_preacher_review' => false,
             'reference' => $newReference,
             'scripture_passage_id' => $scripturePassageId,
