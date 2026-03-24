@@ -12,6 +12,21 @@ Church
     description="Learn about Crockenhill Baptist Church - who we are, when we meet, and what kind of church we are. An independent evangelical Baptist church in Kent."
 />
 <x-breadcrumbs area="church" heading="Church" :jsonOnly="true" />
+
+<x-schema.faq :questions="[
+    [
+        'question' => 'When do we meet?',
+        'answer' => 'We meet each Sunday morning at 10:30am for worship and Bible teaching, and again at 6:00pm for prayer. During the week we meet in homes for Bible study.',
+    ],
+    [
+        'question' => 'Who are we?',
+        'answer' => 'We are a loving community of ordinary people from many backgrounds and ages, united by our love for Jesus Christ and commitment to the Bible.',
+    ],
+    [
+        'question' => 'What kind of church are we?',
+        'answer' => 'We are an independent, evangelical Baptist church. This means we focus on the gospel, the authority of the Bible, and practice adult baptism for those who trust in Jesus.',
+    ],
+]" />
 @stop
 
 @section('content')
