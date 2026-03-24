@@ -15,7 +15,7 @@ if ($hasError) $describedBy[] = $id . '-error';
 $describedBy = implode(' ', $describedBy);
 @endphp
 
-<div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }} }"
+<div x-data="{ count: 0, limit: {{ $maxlength ?? 'null' }}, focused: false }"
      x-init="count = $refs.input.value.length"
      @if($shortcut === 'slash') @keydown.window.slash="if (!['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) && !document.activeElement.isContentEditable) { $event.preventDefault(); $refs.input.focus(); }" @endif>
     @if($label)
@@ -36,6 +36,8 @@ $describedBy = implode(' ', $describedBy);
             @if($id) id="{{ $id }}" @endif
             x-ref="input"
             @input="count = $el.value.length"
+            @focus="focused = true"
+            @blur="focused = false"
             {{ $attributes->merge(['type' => 'text', 'class' => $inputClasses]) }}
             @if($maxlength) maxlength="{{ $maxlength }}" @endif
             @if(!$label && $attributes->get('placeholder')) aria-label="{{ $attributes->get('placeholder') }}" @endif
@@ -67,6 +69,17 @@ $describedBy = implode(' ', $describedBy);
                 wire:loading.remove wire:target="{{ $modelName }}">
                 <x-heroicon-o-x-mark class="h-4 w-4" />
             </button>
+        @endif
+
+        @if($shortcut === 'slash')
+            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
+                 x-show="!focused && count === 0"
+                 x-transition
+                 wire:loading.remove @if($modelName) wire:target="{{ $modelName }}" @endif>
+                <kbd class="inline-flex items-center rounded border border-gray-300 px-1.5 font-sans text-xs font-medium text-gray-500 bg-gray-100">
+                    /
+                </kbd>
+            </div>
         @endif
     </div>
 

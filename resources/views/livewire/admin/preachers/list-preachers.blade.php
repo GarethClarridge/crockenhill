@@ -65,7 +65,7 @@
                             </td>
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">
-                                <div class="flex gap-1 justify-end">
+                                <div class="flex gap-1 justify-end" role="group" aria-label="Actions for {{ $preacher->name }}">
                                     <x-button link="{{ route('admin.preachers.edit', $preacher) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit preacher: {{ $preacher->name }}" />
                                     <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
                                         wire:click="delete({{ $preacher->id }})"
