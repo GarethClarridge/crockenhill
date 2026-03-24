@@ -22,6 +22,11 @@ class Progress extends Component
     #[Reactive]
     public ?string $currentFileName = null;
 
+    public function requestCancelUpload(): void
+    {
+        $this->dispatch('media-upload:cancel-upload');
+    }
+
     public function render(): View
     {
         return view('livewire.media-upload.progress');

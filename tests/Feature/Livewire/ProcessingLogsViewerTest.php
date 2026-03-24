@@ -222,6 +222,35 @@ class ProcessingLogsViewerTest extends TestCase
     }
 
     #[Test]
+    public function expanded_state_is_owned_by_livewire_and_toggles_correctly(): void
+    {
+        $this->actingAs($this->admin);
+        $this->mockStatusQueryResponse();
+
+        Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId, 'expanded' => false])
+            ->assertSet('expanded', false)
+            ->call('toggleExpanded')
+            ->assertSet('expanded', true)
+            ->call('toggleExpanded')
+            ->assertSet('expanded', false);
+    }
+
+    #[Test]
+    public function auto_refresh_state_is_owned_by_livewire_and_toggles_correctly(): void
+    {
+        $this->actingAs($this->admin);
+        $this->mockStatusQueryResponse();
+
+        // In testing env, autoRefresh is forced false in mount()
+        Livewire::test(ProcessingLogsViewer::class, ['processingId' => $this->processingId, 'autoRefresh' => true])
+            ->assertSet('autoRefresh', false) // overridden by testing env guard
+            ->call('toggleAutoRefresh')
+            ->assertSet('autoRefresh', true)
+            ->call('toggleAutoRefresh')
+            ->assertSet('autoRefresh', false);
+    }
+
+    #[Test]
     public function it_handles_missing_processing_id_gracefully(): void
     {
         $this->actingAs($this->admin);

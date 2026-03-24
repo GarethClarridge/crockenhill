@@ -1437,7 +1437,7 @@ The backlog is ordered for safety:
   - `laravel-livewire-idioms-review-2026-03-18.md`
 
 ### TD-034 - Build admin shell component family
-- Status: `Open`
+- Status: `Completed`
 - Priority: P2
 - Impact: High
 - Risk: Low
@@ -1466,7 +1466,7 @@ The backlog is ordered for safety:
   - `laravel-livewire-idioms-review-2026-03-18.md`
 
 ### TD-035 - Refactor shared primitive components for design-system neutrality
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: High
 - Risk: Low-Medium
@@ -1495,7 +1495,7 @@ The backlog is ordered for safety:
   - `frontend-view-architecture-review-2026-03-18.md`
 
 ### TD-036 - Migrate legacy admin Blade screens onto the modern admin architecture
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Medium
@@ -1523,7 +1523,7 @@ The backlog is ordered for safety:
   - `frontend-view-architecture-review-2026-03-18.md`
 
 ### TD-036A - Retire legacy sermon admin edit/update controller path after Livewire cutover
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Low-Medium

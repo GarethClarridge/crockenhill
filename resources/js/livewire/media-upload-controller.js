@@ -71,6 +71,16 @@ export const mediaUploadController = (config = {}) => {
         },
 
         registerUploadListeners() {
+            this.registerListener('media-upload:cancel-upload', () => {
+                this.clearUploadTimeout();
+                this.processingTriggered = false;
+
+                const component = findLivewireComponent(this.componentId);
+                if (component) {
+                    component.cancelUpload('mediaFile');
+                }
+            });
+
             this.registerListener('livewire-upload-start', (event) => {
                 if (! hasMediaFileDetail(event, this.componentId)) {
                     return;

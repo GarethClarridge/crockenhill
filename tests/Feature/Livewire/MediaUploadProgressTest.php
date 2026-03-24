@@ -34,4 +34,17 @@ class MediaUploadProgressTest extends TestCase
         ])
             ->assertDontSee('Processing will start automatically when upload completes');
     }
+
+    #[Test]
+    public function it_dispatches_cancel_upload_event_when_cancel_is_requested(): void
+    {
+        Livewire::test(Progress::class, [
+            'isUploading' => true,
+            'status' => 'uploading',
+            'uploadProgress' => 55,
+            'currentFileName' => 'sermon.mp3',
+        ])
+            ->call('requestCancelUpload')
+            ->assertDispatched('media-upload:cancel-upload');
+    }
 }

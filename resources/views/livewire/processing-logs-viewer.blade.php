@@ -1,4 +1,4 @@
-<div x-data="logsViewer()" x-init="init()" class="bg-white rounded-lg shadow-sm border">
+<div x-data="logsViewerAutoRefresh()" x-init="init()" class="bg-white rounded-lg shadow-sm border">
     {{-- Header --}}
     <div class="flex items-center justify-between p-4 border-b">
         <div class="flex items-center space-x-3">
@@ -42,22 +42,22 @@
 
             {{-- Toggle expanded --}}
             <button
-                @click="toggleExpanded()"
+                wire:click="toggleExpanded"
                 class="text-gray-500 hover:text-gray-700 focus:outline-none"
             >
-                <span x-show="!expanded" class="text-sm">Show Logs</span>
-                <span x-show="expanded" class="text-sm">Hide Logs</span>
-                <svg x-show="!expanded" class="inline w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span x-show="!$wire.expanded" class="text-sm">Show Logs</span>
+                <span x-show="$wire.expanded" class="text-sm">Hide Logs</span>
+                <svg x-show="!$wire.expanded" class="inline w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
-                <svg x-show="expanded" class="inline w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg x-show="$wire.expanded" class="inline w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
                 </svg>
             </button>
         </div>
     </div>
 
-    <div x-show="expanded" x-transition class="p-4">
+    <div x-show="$wire.expanded" x-transition class="p-4">
         {{-- Performance Summary --}}
         @if($showMetrics && !empty($performanceMetrics))
             <div class="grid grid-cols-3 gap-4 mb-6">
@@ -247,26 +247,16 @@
 
     @script
     <script>
-        // Ensure the function is available globally for Alpine.js
-        window.logsViewer = function() {
+        function logsViewerAutoRefresh() {
             return {
-                expanded: $wire.entangle('expanded'),
-                autoRefresh: $wire.entangle('autoRefresh'),
                 refreshInterval: null,
 
                 init() {
                     this.setupAutoRefresh();
                 },
 
-                toggleExpanded() {
-                    this.expanded = !this.expanded;
-                    if (this.expanded) {
-                        $wire.fetchLogs();
-                    }
-                },
-
                 setupAutoRefresh() {
-                    this.$watch('autoRefresh', (value) => {
+                    this.$watch('$wire.autoRefresh', (value) => {
                         if (value) {
                             this.startAutoRefresh();
                         } else {
@@ -274,15 +264,15 @@
                         }
                     });
 
-                    if (this.autoRefresh) {
+                    if ($wire.autoRefresh) {
                         this.startAutoRefresh();
                     }
                 },
 
                 startAutoRefresh() {
-                    this.stopAutoRefresh(); // Clear any existing interval
+                    this.stopAutoRefresh();
                     this.refreshInterval = setInterval(() => {
-                        if (this.expanded && this.autoRefresh) {
+                        if ($wire.expanded && $wire.autoRefresh) {
                             $wire.fetchLogs();
                         }
                     }, @json($refreshInterval));
@@ -293,7 +283,7 @@
                         clearInterval(this.refreshInterval);
                         this.refreshInterval = null;
                     }
-                }
+                },
             }
         }
     </script>

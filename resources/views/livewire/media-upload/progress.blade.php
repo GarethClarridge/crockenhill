@@ -6,7 +6,7 @@
                     Uploading {{ $currentFileName ?? 'file' }}...
                 </h3>
                 <button
-                    x-on:click="cancelUpload()"
+                    wire:click="requestCancelUpload"
                     class="text-sm font-medium text-red-600 transition-colors hover:text-red-800"
                     type="button"
                 >

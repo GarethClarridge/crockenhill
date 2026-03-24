@@ -188,6 +188,12 @@ class Form extends Component
         $this->showProcessingStatus = false;
     }
 
+    #[On('media-upload:cancel-upload')]
+    public function handleCancelUploadRequest(): void
+    {
+        $this->cancelUpload();
+    }
+
     #[On('media-upload:cancel-processing')]
     public function handleCancelProcessingRequest(): void
     {

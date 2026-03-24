@@ -201,6 +201,20 @@ class MediaUploadTest extends TestCase
     }
 
     #[Test]
+    public function it_cancels_upload_when_cancel_upload_event_is_dispatched(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(MediaUpload::class)
+            ->set('isUploading', true)
+            ->set('status', 'uploading')
+            ->dispatch('media-upload:cancel-upload')
+            ->assertSet('isUploading', false)
+            ->assertSet('uploadCancelled', true)
+            ->assertSet('status', 'idle');
+    }
+
+    #[Test]
     public function it_handles_processing_cancellation_without_treating_it_as_failure(): void
     {
         $this->actingAs($this->admin);
