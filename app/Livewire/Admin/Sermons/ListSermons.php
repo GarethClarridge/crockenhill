@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
+use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
@@ -19,7 +20,7 @@ use Livewire\WithPagination;
 
 class ListSermons extends Component
 {
-    use EscapesLikeWildcards, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'date';
 
@@ -56,21 +57,24 @@ class ListSermons extends Component
     #[Url(except: true)]
     public bool $last12Months = true;
 
-    public bool $hasFilters = false;
-
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function updatedSearch(): void
+    /**
+     * @return array<string, mixed>
+     */
+    protected function filterProperties(): array
     {
-        $this->resetPage();
-    }
-
-    public function resetFilters(): void
-    {
-        $this->reset(['search', 'serviceFilter', 'preacherFilter', 'seriesFilter', 'hasVideoFilter', 'needsReviewFilter', 'last12Months']);
-        $this->resetPage();
+        return [
+            'search' => '',
+            'serviceFilter' => null,
+            'preacherFilter' => null,
+            'seriesFilter' => null,
+            'hasVideoFilter' => false,
+            'needsReviewFilter' => false,
+            'last12Months' => true,
+        ];
     }
 
     public function delete(Sermon $sermon): void
@@ -99,14 +103,7 @@ class ListSermons extends Component
     public function render(): View
     {
         $this->sanitizeSorting();
-
-        $this->hasFilters = ! empty($this->search)
-            || $this->serviceFilter !== null
-            || $this->preacherFilter !== null
-            || $this->seriesFilter !== null
-            || $this->hasVideoFilter === true
-            || $this->needsReviewFilter === true
-            || $this->last12Months === false;
+        $this->computeHasFilters();
 
         $escapedSearch = $this->escapeLike(trim($this->search));
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Users;
 
+use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\User;
@@ -15,7 +16,7 @@ use Livewire\WithPagination;
 
 class ListUsers extends Component
 {
-    use EscapesLikeWildcards, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'created_at';
 
@@ -37,23 +38,24 @@ class ListUsers extends Component
     #[Url(except: null)]
     public ?bool $adminFilter = null;
 
-    public bool $hasFilters = false;
-
     #[Url(except: self::DEFAULT_SORT_COLUMN)]
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     #[Url(except: self::DEFAULT_SORT_DIRECTION)]
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function updatedSearch(): void
+    /**
+     * @return array<string, mixed>
+     */
+    protected function filterProperties(): array
     {
-        $this->resetPage();
-    }
-
-    public function resetFilters(): void
-    {
-        $this->reset(['search', 'verifiedFilter', 'adminFilter', 'sortBy', 'sortDirection']);
-        $this->resetPage();
+        return [
+            'search' => '',
+            'verifiedFilter' => null,
+            'adminFilter' => null,
+            'sortBy' => self::DEFAULT_SORT_COLUMN,
+            'sortDirection' => self::DEFAULT_SORT_DIRECTION,
+        ];
     }
 
     public function delete(User $user): void
@@ -86,12 +88,7 @@ class ListUsers extends Component
     public function render(): View
     {
         $this->sanitizeSorting();
-
-        $this->hasFilters = ! empty($this->search)
-            || $this->verifiedFilter !== null
-            || $this->adminFilter !== null
-            || $this->sortBy !== self::DEFAULT_SORT_COLUMN
-            || $this->sortDirection !== self::DEFAULT_SORT_DIRECTION;
+        $this->computeHasFilters();
 
         $escapedSearch = $this->escapeLike(trim($this->search));
 

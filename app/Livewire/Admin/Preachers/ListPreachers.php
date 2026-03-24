@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\Preachers;
 
+use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Preacher;
@@ -15,7 +16,7 @@ use Livewire\WithPagination;
 
 class ListPreachers extends Component
 {
-    use EscapesLikeWildcards, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'name';
 
@@ -36,21 +37,19 @@ class ListPreachers extends Component
     #[Url(except: null)]
     public ?bool $activeFilter = null;
 
-    public bool $hasFilters = false;
-
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function updatedSearch(): void
+    /**
+     * @return array<string, mixed>
+     */
+    protected function filterProperties(): array
     {
-        $this->resetPage();
-    }
-
-    public function resetFilters(): void
-    {
-        $this->reset(['search', 'activeFilter']);
-        $this->resetPage();
+        return [
+            'search' => '',
+            'activeFilter' => null,
+        ];
     }
 
     public function delete(Preacher $preacher): void
@@ -63,9 +62,7 @@ class ListPreachers extends Component
     public function render(): View
     {
         $this->sanitizeSorting();
-
-        $this->hasFilters = ! empty($this->search)
-            || $this->activeFilter !== null;
+        $this->computeHasFilters();
 
         $escapedSearch = $this->escapeLike(trim($this->search));
 

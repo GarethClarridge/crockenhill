@@ -26,46 +26,38 @@
         },
     }"
 >
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="font-display text-3xl">{{ $title }}</h1>
-        <div class="flex gap-2">
+    <x-admin.form-shell :title="$title">
+        <x-slot:actions>
             <x-button link="{{ route('admin.pages.index') }}" variant="outline" inline>
                 Cancel
             </x-button>
             <x-form-button variant="primary" wire:click="save" icon="check">
                 Save
             </x-form-button>
-        </div>
-    </div>
+        </x-slot:actions>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {{-- Main content --}}
-        <div class="lg:col-span-2 space-y-6">
-            <x-card heading="Page Details">
-                <div class="space-y-4">
-                    <x-input label="Heading" wire:model.live.debounce="form.heading" required />
+        <x-card heading="Page Details">
+            <div class="space-y-4">
+                <x-input label="Heading" wire:model.live.debounce="form.heading" required />
 
-                    <x-input label="Slug" wire:model="form.slug" required
-                        hint="URL-friendly identifier (auto-generated from heading)" />
+                <x-input label="Slug" wire:model="form.slug" required
+                    hint="URL-friendly identifier (auto-generated from heading)" />
 
-                    <x-textarea label="Description" wire:model="form.description" rows="3" required
-                        maxlength="500" hint="Brief summary for listings and SEO" />
-                </div>
-            </x-card>
+                <x-textarea label="Description" wire:model="form.description" rows="3" required
+                    maxlength="500" hint="Brief summary for listings and SEO" />
+            </div>
+        </x-card>
 
-            <x-card heading="Content">
-                {{-- Simple textarea for markdown - could enhance with editor later --}}
-                <x-textarea
-                    label="Content (Markdown)"
-                    wire:model="form.markdown"
-                    rows="20"
-                    class="font-mono text-sm"
-                    hint="Supports Markdown formatting" />
-            </x-card>
-        </div>
+        <x-card heading="Content">
+            <x-textarea
+                label="Content (Markdown)"
+                wire:model="form.markdown"
+                rows="20"
+                class="font-mono text-sm"
+                hint="Supports Markdown formatting" />
+        </x-card>
 
-        {{-- Sidebar --}}
-        <div class="space-y-6">
+        <x-slot:sidebar>
             <x-card heading="Settings">
                 <div class="space-y-4">
                     <x-select label="Area" wire:model="form.area" :options="$areas" required />
@@ -92,6 +84,6 @@
                     <p class="text-sm text-gray-500">Save the page first to upload an image.</p>
                 </x-card>
             @endif
-        </div>
-    </div>
+        </x-slot:sidebar>
+    </x-admin.form-shell>
 </div>

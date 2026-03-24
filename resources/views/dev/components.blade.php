@@ -302,6 +302,117 @@
     </section>
 
     {{-- ─────────────────────────────────────── --}}
+    {{-- ADMIN SHELL COMPONENTS --}}
+    {{-- ─────────────────────────────────────── --}}
+    <section>
+        <h2 class="mb-6 font-display text-2xl text-gray-700 border-b border-gray-200 pb-2">Admin Shell Components</h2>
+
+        <div class="space-y-10">
+
+            {{-- x-admin.page --}}
+            <div>
+                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-admin.page — base title row wrapper (props: title, description; slot: actions)</p>
+                <x-admin.page title="Example Page" description="Optional subtitle text goes here.">
+                    <x-slot:actions>
+                        <x-button link="#" variant="primary" icon="plus" inline>Create</x-button>
+                    </x-slot:actions>
+                    <p class="text-sm text-gray-500 italic">Default slot content goes here (child components).</p>
+                </x-admin.page>
+            </div>
+
+            {{-- x-admin.filter-bar --}}
+            <div>
+                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-admin.filter-bar — flex filter row wrapper</p>
+                <x-admin.filter-bar>
+                    <x-input placeholder="Search..." icon="magnifying-glass" clearable class="w-64" />
+                    <x-select placeholder="All Areas"
+                        :options="[['id' => 'christ', 'name' => 'Christ'], ['id' => 'church', 'name' => 'Church']]"
+                        class="w-40" />
+                    <div x-data="{ show: false }">
+                        <x-form-button variant="ghost" size="sm" icon="x-mark" @click="show = false">
+                            Clear Filters
+                        </x-form-button>
+                    </div>
+                </x-admin.filter-bar>
+            </div>
+
+            {{-- x-admin.list-shell --}}
+            <div>
+                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-admin.list-shell — full list page shell (props: title, description; slots: actions, filters, pagination)</p>
+                <x-admin.list-shell
+                    title="Sermons &amp; Talks"
+                    description="Manage sermon recordings and published children's talks."
+                >
+                    <x-slot:actions>
+                        <x-button link="#" variant="primary" icon="cloud-arrow-up" inline>Upload Sermon</x-button>
+                    </x-slot:actions>
+
+                    <x-slot:filters>
+                        <x-input placeholder="Search..." icon="magnifying-glass" clearable class="w-64" />
+                        <x-select placeholder="Service"
+                            :options="[['id' => 'morning', 'name' => 'Morning'], ['id' => 'evening', 'name' => 'Evening']]"
+                            class="w-40" />
+                    </x-slot:filters>
+
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3"><p class="font-medium">The Good Shepherd</p></td>
+                                <td class="px-4 py-3 text-sm">2 Mar 2025</td>
+                                <td class="px-4 py-3 text-right">
+                                    <div class="flex gap-1 justify-end">
+                                        <x-button link="#" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit" />
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </x-admin.list-shell>
+            </div>
+
+            {{-- x-admin.form-shell --}}
+            <div>
+                <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-admin.form-shell — 2/3 + 1/3 form layout (props: title, description; slots: actions, sidebar)</p>
+                <x-admin.form-shell
+                    title="Edit Page"
+                    description="Update page content and settings."
+                >
+                    <x-slot:actions>
+                        <x-button link="#" variant="outline" inline>Cancel</x-button>
+                        <x-form-button variant="primary" icon="check">Save</x-form-button>
+                    </x-slot:actions>
+
+                    {{-- Default slot = lg:col-span-2 main area --}}
+                    <x-card heading="Page Details">
+                        <div class="space-y-4">
+                            <x-input label="Heading" placeholder="Page heading" />
+                            <x-textarea label="Description" rows="3" placeholder="Brief description..." />
+                        </div>
+                    </x-card>
+
+                    <x-slot:sidebar>
+                        <x-card heading="Settings">
+                            <div class="space-y-4">
+                                <x-select label="Area"
+                                    :options="[['id' => 'church', 'name' => 'Church'], ['id' => 'christ', 'name' => 'Christ']]" />
+                                <x-toggle label="Show in Navigation" />
+                            </div>
+                        </x-card>
+                    </x-slot:sidebar>
+                </x-admin.form-shell>
+            </div>
+
+        </div>
+    </section>
+
+    {{-- ─────────────────────────────────────── --}}
     {{-- ADMIN TABLE PATTERN --}}
     {{-- ─────────────────────────────────────── --}}
     <section>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Meetings;
 
 use App\Enums\MeetingType;
+use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Livewire\Traits\WithSortableListing;
 use App\Models\Meeting;
@@ -16,7 +17,7 @@ use Livewire\WithPagination;
 
 class ListMeetings extends Component
 {
-    use EscapesLikeWildcards, WithNotifications, WithPagination, WithSortableListing;
+    use EscapesLikeWildcards, WithFilterableListing, WithNotifications, WithPagination, WithSortableListing;
 
     protected const DEFAULT_SORT_COLUMN = 'updated_at';
 
@@ -44,21 +45,20 @@ class ListMeetings extends Component
     #[Url(except: null)]
     public ?bool $recurringFilter = null;
 
-    public bool $hasFilters = false;
-
     public string $sortBy = self::DEFAULT_SORT_COLUMN;
 
     public string $sortDirection = self::DEFAULT_SORT_DIRECTION;
 
-    public function updatedSearch(): void
+    /**
+     * @return array<string, mixed>
+     */
+    protected function filterProperties(): array
     {
-        $this->resetPage();
-    }
-
-    public function resetFilters(): void
-    {
-        $this->reset(['search', 'typeFilter', 'recurringFilter']);
-        $this->resetPage();
+        return [
+            'search' => '',
+            'typeFilter' => null,
+            'recurringFilter' => null,
+        ];
     }
 
     public function delete(Meeting $meeting): void
@@ -70,10 +70,7 @@ class ListMeetings extends Component
     public function render(): View
     {
         $this->sanitizeSorting();
-
-        $this->hasFilters = ! empty($this->search)
-            || $this->typeFilter !== null
-            || $this->recurringFilter !== null;
+        $this->computeHasFilters();
 
         $escapedSearch = $this->escapeLike(trim($this->search));
 

@@ -1,28 +1,19 @@
-<div>
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="font-display text-3xl">Edit {{ $contentTypeLabel }}</h1>
-            <p class="text-gray-600">
-                @if($isChildrensTalk)
-                    Update the published children's-talk details. Sermon-only fields stay hidden on this form.
-                @else
-                    Update sermon details, metadata, and any AI-assisted content shown publicly.
-                @endif
-            </p>
-        </div>
-        <div class="flex gap-2">
-            <x-button link="{{ route('admin.sermons.index') }}" variant="outline" inline>
-                Cancel
-            </x-button>
-            <x-form-button variant="primary" wire:click="save" icon="check">
-                Save
-            </x-form-button>
-        </div>
-    </div>
+<x-admin.form-shell
+    :title="'Edit ' . $contentTypeLabel"
+    :description="$isChildrensTalk
+        ? 'Update the published children\'s-talk details. Sermon-only fields stay hidden on this form.'
+        : 'Update sermon details, metadata, and any AI-assisted content shown publicly.'"
+>
+    <x-slot:actions>
+        <x-button link="{{ route('admin.sermons.index') }}" variant="outline" inline>
+            Cancel
+        </x-button>
+        <x-form-button variant="primary" wire:click="save" icon="check">
+            Save
+        </x-form-button>
+    </x-slot:actions>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {{-- Main content --}}
-        <div class="lg:col-span-2 space-y-6">
+    {{-- Main content (default slot = lg:col-span-2) --}}
             <x-card heading="{{ $contentTypeLabel }} Details">
                 <div class="space-y-4">
                     <x-input label="Title" wire:model.live.debounce="title" required />
@@ -122,50 +113,47 @@
                     </x-slot:footer>
                 </x-card>
             @endif
-        </div>
 
-        {{-- Sidebar --}}
-        <div class="space-y-6">
-            @unless($isChildrensTalk)
-                <x-card heading="Display Options">
-                    <div class="space-y-4">
-                        <x-toggle label="Show Summary" wire:model="showSummary"
-                            hint="Display AI-generated summary on sermon page" />
+    <x-slot:sidebar>
+        @unless($isChildrensTalk)
+            <x-card heading="Display Options">
+                <div class="space-y-4">
+                    <x-toggle label="Show Summary" wire:model="showSummary"
+                        hint="Display AI-generated summary on sermon page" />
 
-                        <x-toggle label="Show Points" wire:model="showPoints"
-                            hint="Display AI-generated points on sermon page" />
-                    </div>
-                </x-card>
-            @endunless
-
-            <x-card heading="{{ $isChildrensTalk ? 'Published Media' : 'Media Files' }}">
-                <div class="space-y-3">
-                    @if($sermon->audio_file_path)
-                        <div class="flex items-center gap-2">
-                            <x-heroicon-o-musical-note class="w-5 h-5 text-green-500" />
-                            <span class="text-sm">Audio: Available</span>
-                        </div>
-                    @endif
-
-                    @if($sermon->video_file_path)
-                        <div class="flex items-center gap-2">
-                            <x-heroicon-o-video-camera class="w-5 h-5 text-blue-500" />
-                            <span class="text-sm">Video: Available</span>
-                        </div>
-                    @endif
-
-                    @if($sermon->transcript_file_path)
-                        <div class="flex items-center gap-2">
-                            <x-heroicon-o-document-text class="w-5 h-5 text-amber-500" />
-                            <span class="text-sm">Transcript: Available</span>
-                        </div>
-                    @endif
-
-                    @if(!$sermon->audio_file_path && !$sermon->video_file_path && !$sermon->transcript_file_path)
-                        <p class="text-sm text-gray-500">No media files</p>
-                    @endif
+                    <x-toggle label="Show Points" wire:model="showPoints"
+                        hint="Display AI-generated points on sermon page" />
                 </div>
             </x-card>
-        </div>
-    </div>
-</div>
+        @endunless
+
+        <x-card heading="{{ $isChildrensTalk ? 'Published Media' : 'Media Files' }}">
+            <div class="space-y-3">
+                @if($sermon->audio_file_path)
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-o-musical-note class="w-5 h-5 text-green-500" />
+                        <span class="text-sm">Audio: Available</span>
+                    </div>
+                @endif
+
+                @if($sermon->video_file_path)
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-o-video-camera class="w-5 h-5 text-blue-500" />
+                        <span class="text-sm">Video: Available</span>
+                    </div>
+                @endif
+
+                @if($sermon->transcript_file_path)
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-o-document-text class="w-5 h-5 text-amber-500" />
+                        <span class="text-sm">Transcript: Available</span>
+                    </div>
+                @endif
+
+                @if(!$sermon->audio_file_path && !$sermon->video_file_path && !$sermon->transcript_file_path)
+                    <p class="text-sm text-gray-500">No media files</p>
+                @endif
+            </div>
+        </x-card>
+    </x-slot:sidebar>
+</x-admin.form-shell>

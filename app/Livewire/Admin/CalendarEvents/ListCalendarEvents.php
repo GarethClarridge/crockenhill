@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\CalendarEvents;
 
+use App\Livewire\Traits\WithFilterableListing;
 use App\Livewire\Traits\WithNotifications;
 use App\Models\CalendarEvent;
 use App\Models\Meeting;
@@ -15,7 +16,7 @@ use Livewire\WithPagination;
 
 class ListCalendarEvents extends Component
 {
-    use EscapesLikeWildcards, WithNotifications, WithPagination;
+    use EscapesLikeWildcards, WithFilterableListing, WithNotifications, WithPagination;
 
     #[Url(except: '')]
     public string $search = '';
@@ -29,17 +30,17 @@ class ListCalendarEvents extends Component
     #[Url(except: true)]
     public bool $upcomingOnly = true;
 
-    public bool $hasFilters = false;
-
-    public function updatedSearch(): void
+    /**
+     * @return array<string, mixed>
+     */
+    protected function filterProperties(): array
     {
-        $this->resetPage();
-    }
-
-    public function resetFilters(): void
-    {
-        $this->reset(['search', 'meetingFilter', 'uncategorizedOnly', 'upcomingOnly']);
-        $this->resetPage();
+        return [
+            'search' => '',
+            'meetingFilter' => null,
+            'uncategorizedOnly' => false,
+            'upcomingOnly' => true,
+        ];
     }
 
     public function categorize(int $eventId, ?string $meetingSlug): void
@@ -53,10 +54,7 @@ class ListCalendarEvents extends Component
 
     public function render(): View
     {
-        $this->hasFilters = ! empty($this->search)
-            || $this->meetingFilter !== null
-            || $this->uncategorizedOnly === true
-            || $this->upcomingOnly === false;
+        $this->computeHasFilters();
 
         /**
          * Performance Optimization: Limits retrieved columns for calendar events and eager-loaded
