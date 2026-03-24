@@ -8,10 +8,6 @@ $displayReference = $sermon->displayReference();
 
 @section('title'){{ $fullTitle }}@stop
 
-@section('canonical')
-<link rel="canonical" href="{{ $sermonView['canonical_url'] }}">
-@endsection
-
 @section('meta_tags')
 <x-meta-tags
   :title="$fullTitle"
