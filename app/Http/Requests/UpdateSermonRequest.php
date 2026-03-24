@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\PreacherSource;
 use App\Enums\SermonService;
 use App\Models\Sermon; // Added for type hinting and fetching model
 use Illuminate\Foundation\Http\FormRequest; // Added for Enum validation
@@ -35,6 +36,7 @@ class UpdateSermonRequest extends FormRequest
             'series' => 'nullable|string|max:255',
             'reference' => 'nullable|string|max:255',
             'preacher' => 'required|string|max:255',
+            'preacher_source' => ['nullable', Rule::enum(PreacherSource::class)],
             'points' => 'nullable|json', // Expects a JSON string or null
             'summary' => 'nullable|string|max:1000',
             'show_summary' => 'nullable|boolean',
