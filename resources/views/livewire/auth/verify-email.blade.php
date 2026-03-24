@@ -3,14 +3,11 @@
         <h2 class="text-2xl font-bold mb-6">Verify Your Email Address</h2>
         <p class="mb-4">Before proceeding, please check your email for a verification link. If you did not receive the email, click below to request another.</p>
         @if ($resent)
-            <div class="mb-4 px-3 py-3 border rounded bg-green-50 border-green-200 text-green-800">A fresh verification link has been sent to your email address.</div>
+            <x-alert type="success" class="mb-4 text-left">A fresh verification link has been sent to your email address.</x-alert>
         @endif
 
         @if ($error)
-            <div class="mb-4 px-4 py-3 border rounded-md bg-red-50 border-red-200 text-red-800 flex items-start gap-3 text-left" role="alert">
-                <x-heroicon-o-exclamation-circle class="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                <span>{{ $error }}</span>
-            </div>
+            <x-alert type="error" class="mb-4 text-left">{{ $error }}</x-alert>
         @endif
         <form wire:submit.prevent="resend" class="form-actions my-3">
             <x-form-button variant="primary" class="w-full text-xl py-3">

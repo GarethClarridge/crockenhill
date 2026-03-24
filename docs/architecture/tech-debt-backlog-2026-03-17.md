@@ -1551,7 +1551,7 @@ The backlog is ordered for safety:
   - `laravel-livewire-idioms-review-2026-03-18.md`
 
 ### TD-037 - Resolve upload and log-viewer frontend state ownership
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Medium
@@ -1579,7 +1579,7 @@ The backlog is ordered for safety:
   - `laravel-livewire-idioms-review-2026-03-18.md`
 
 ### TD-038 - Centralise accessibility primitives and fix known gaps
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P2
 - Impact: Medium
 - Risk: Low

@@ -20,7 +20,7 @@
                 <select 
                     wire:model.live="mediaType"
                     id="media-type" 
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-cbc-teal focus:border-cbc-teal"
                     required
                 >
                     <option value="">Select media type...</option>
@@ -65,7 +65,7 @@
                         x-on:dragleave.prevent="isDragOver = false"
                         x-on:drop.prevent="isDragOver = false"
                         x-bind:class="{
-                            'border-blue-400 bg-blue-50': isDragOver,
+                            'border-cbc-teal bg-cbc-teal/5': isDragOver,
                             'border-gray-300': !isDragOver
                         }"
                         class="border-2 border-dashed rounded-lg p-8 text-center hover:border-gray-400 transition-colors duration-200"
@@ -86,7 +86,7 @@
                         </div>
 
                         <div wire:loading wire:target="mediaFile" class="inline-block align-middle mt-4 mr-4">
-                            <span class="text-blue-600 inline-flex items-center py-2">
+                            <span class="text-cbc-teal inline-flex items-center py-2">
                                 <svg class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -105,7 +105,7 @@
                         />
                         <input type="hidden" x-model="fileModifiedDate" />
                         <label for="media-file" class="cursor-pointer inline-block align-middle">
-                            <span class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200">
+                            <span class="mt-4 inline-flex items-center px-4 py-2 bg-cbc-teal text-white rounded-md hover:bg-cbc-teal-dark transition-colors duration-200">
                                 Choose File
                             </span>
                         </label>
