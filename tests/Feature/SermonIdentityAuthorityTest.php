@@ -57,7 +57,7 @@ class SermonIdentityAuthorityTest extends TestCase
         ]);
 
         $this->followingRedirects()
-            ->get(route('showSermon', $sermon->slug))
+            ->get(route('sermons.show', $sermon->slug))
             ->assertOk()
             ->assertSee('Canonical Preacher')
             ->assertSee('John 3:16')

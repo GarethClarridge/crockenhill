@@ -29,7 +29,7 @@ class CanonicalUrlTest extends TestCase
 
         $canonicalUrl = url('/christ/sermons/2024/01/test-sermon');
 
-        $dateRoute = route('showSermonWithDate', [
+        $dateRoute = route('sermons.show.dated', [
             'year' => '2024',
             'month' => '01',
             'sermon' => $sermon->slug,
@@ -41,7 +41,7 @@ class CanonicalUrlTest extends TestCase
         $response->assertSee('<link rel="canonical" href="'.$canonicalUrl.'">', false);
 
         // The slug-only route 301-redirects to the canonical date-based URL.
-        $slugRoute = route('showSermon', $sermon->slug);
+        $slugRoute = route('sermons.show', $sermon->slug);
         $this->get($slugRoute)->assertRedirect($canonicalUrl)->assertStatus(301);
     }
 }

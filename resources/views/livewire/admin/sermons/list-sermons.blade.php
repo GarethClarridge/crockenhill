@@ -59,7 +59,7 @@
                 @php
                     $publicUrl = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
                         ? route('childrens-corner.show', ['sermon' => $sermon->slug])
-                        : route('showSermon', ['sermon' => $sermon->slug]);
+                        : route('sermons.show', ['sermon' => $sermon->slug]);
                 @endphp
                 <tr class="hover:bg-gray-50">
                     {{-- Title --}}

@@ -51,7 +51,7 @@ class SermonExposurePolicy
     {
         return $sermon->content_type === SermonContentType::ChildrensTalk
             ? 'childrens-corner.show'
-            : 'showSermon';
+            : 'sermons.show';
     }
 
     /**

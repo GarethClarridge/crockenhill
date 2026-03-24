@@ -164,7 +164,7 @@ class SeoMetaTagsTest extends TestCase
             'date' => '2024-01-15',
         ]);
 
-        $response = $this->followingRedirects()->get(route('showSermon', $sermon->slug));
+        $response = $this->followingRedirects()->get(route('sermons.show', $sermon->slug));
 
         $response->assertStatus(200);
         $response->assertSee('<meta name="description"', false);
@@ -183,7 +183,7 @@ class SeoMetaTagsTest extends TestCase
             'date' => '2024-01-15',
         ]);
 
-        $response = $this->followingRedirects()->get(route('showSermon', $sermon->slug));
+        $response = $this->followingRedirects()->get(route('sermons.show', $sermon->slug));
 
         $response->assertStatus(200);
         $response->assertSee('<meta property="og:title"', false);

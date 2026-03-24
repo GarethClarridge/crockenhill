@@ -23,7 +23,7 @@ class SeoRegressionTest extends TestCase
             'slug' => 'test-sermon',
         ]);
 
-        $response = $this->get(route('showSermonWithDate', [
+        $response = $this->get(route('sermons.show.dated', [
             'year' => $sermon->date->format('Y'),
             'month' => $sermon->date->format('m'),
             'sermon' => $sermon->slug,
@@ -53,7 +53,7 @@ class SeoRegressionTest extends TestCase
         ]);
 
         $description = 'Listen to recent sermons from Crockenhill Baptist Church. Worshipping God, strengthening believers, and proclaiming Jesus Christ.';
-        $response = $this->get(route('sermonIndex'));
+        $response = $this->get(route('sermons.index'));
 
         $response->assertOk();
         $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
@@ -88,7 +88,7 @@ class SeoRegressionTest extends TestCase
             'evening' => 'Sunday Evening',
         ] as $service => $label) {
             $description = "Listen to recent {$label} sermons from Crockenhill Baptist Church.";
-            $response = $this->get(route('getService', $service));
+            $response = $this->get(route('sermons.service', $service));
 
             $response->assertOk();
             $response->assertSee("<title>{$label} Services | Crockenhill Baptist Church</title>", false);
@@ -109,7 +109,7 @@ class SeoRegressionTest extends TestCase
             'date' => '2026-03-03',
         ]);
 
-        $response = $this->get(route('getService', 'other'));
+        $response = $this->get(route('sermons.service', 'other'));
 
         $response->assertOk();
         $response->assertSee('<title>Other Services | Crockenhill Baptist Church</title>', false);

@@ -27,7 +27,7 @@ class SermonAdminController extends Controller
 
         $sermon->delete();
 
-        return redirect()->route('sermonIndex')->with('message', 'Sermon successfully deleted!');
+        return redirect()->route('sermons.index')->with('message', 'Sermon successfully deleted!');
     }
 
     /**
@@ -60,7 +60,7 @@ class SermonAdminController extends Controller
 
             if ($result->success) {
                 return redirect()
-                    ->route('sermonIndex')
+                    ->route('sermons.index')
                     ->with('message', "Processing started for \"{$file->getClientOriginalName()}\". Processing ID: {$result->processingId}");
             } else {
                 return redirect()

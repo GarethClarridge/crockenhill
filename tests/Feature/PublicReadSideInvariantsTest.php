@@ -273,7 +273,7 @@ class PublicReadSideInvariantsTest extends TestCase
             'date' => '2024-06-15',
         ]);
 
-        $slugRoute = route('showSermon', $sermon->slug);
+        $slugRoute = route('sermons.show', $sermon->slug);
         $canonicalUrl = app(SermonExposurePolicy::class)->canonicalUrl($sermon);
 
         $this->get($slugRoute)

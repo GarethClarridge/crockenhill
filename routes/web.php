@@ -58,46 +58,46 @@ Route::get('/community/{meeting:slug}', [MeetingController::class, 'show'])->nam
 
 // Sermon routes
 Route::group(['prefix' => 'christ/sermons'], function () {
-    Route::get('/', [SermonController::class, 'index'])->name('sermonIndex');
-    Route::get('all', [SermonController::class, 'getAll'])->name('allSermons');
-    Route::get('preachers', [SermonController::class, 'getPreachers'])->name('getPreachers');
-    Route::get('preachers/{preacher:slug}', [SermonController::class, 'getPreacher'])->name('getPreacher');
-    Route::get('series', [SermonController::class, 'getSerieses'])->name('getSerieses');
-    Route::get('series/{series}', [SermonController::class, 'getSeries'])->name('getSeries');
+    Route::get('/', [SermonController::class, 'index'])->name('sermons.index');
+    Route::get('all', [SermonController::class, 'all'])->name('sermons.all');
+    Route::get('preachers', [SermonController::class, 'preachers'])->name('sermons.preachers');
+    Route::get('preachers/{preacher:slug}', [SermonController::class, 'preacher'])->name('sermons.preacher');
+    Route::get('series', [SermonController::class, 'series'])->name('sermons.series');
+    Route::get('series/{series}', [SermonController::class, 'seriesShow'])->name('sermons.series.show');
 
     // Podcast RSS feeds (must be before {service} catch-all)
     Route::get('{service}/feed', [PodcastFeedController::class, 'show'])
         ->where('service', 'morning|evening')
         ->name('podcast.feed');
 
-    Route::get('{service}', [SermonController::class, 'getService'])->where('service', 'morning|evening|other')->name('getService');
+    Route::get('{service}', [SermonController::class, 'service'])->where('service', 'morning|evening|other')->name('sermons.service');
 
     // Date-based sermon routes (must come before slug-only routes)
-    Route::get('/{year}/{month}/{sermon:slug}', [SermonController::class, 'showWithDate'])
+    Route::get('/{year}/{month}/{sermon:slug}', [SermonController::class, 'showDated'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
-        ->name('showSermonWithDate');
+        ->name('sermons.show.dated');
     Route::post('/{year}/{month}/{sermon:slug}/delete', [SermonAdminController::class, 'destroyWithDate'])
         ->where(['year' => '[0-9]{4}', 'month' => '[0-9]{2}'])
         ->middleware(['auth', 'verified', 'admin'])
-        ->name('destroySermonWithDate');
+        ->name('sermons.destroy.dated');
 
     // Audio serving route
     Route::get('/{sermon:slug}/audio', [SermonAssetController::class, 'serveAudio'])
         ->middleware('throttle:media-audio')
-        ->name('serveSermonAudio');
+        ->name('sermons.audio');
 
     // Thumbnail serving route
     Route::get('/{sermon:slug}/thumbnail', [SermonAssetController::class, 'serveThumbnail'])
         ->middleware('throttle:media-thumbnail')
-        ->name('serveSermonThumbnail');
+        ->name('sermons.thumbnail');
 
     Route::get('/{sermon:slug}/thumbnail/card', [SermonAssetController::class, 'serveCardThumbnail'])
         ->middleware('throttle:media-thumbnail')
-        ->name('serveSermonCardThumbnail');
+        ->name('sermons.thumbnail.card');
 
     // Fallback slug-only routes
-    Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('showSermon');
-    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'verified', 'admin'])->name('destroySermon');
+    Route::get('/{sermon:slug}', [SermonController::class, 'show'])->name('sermons.show');
+    Route::post('/{sermon:slug}/delete', [SermonAdminController::class, 'destroy'])->middleware(['auth', 'verified', 'admin'])->name('sermons.destroy');
 });
 
 // Members routes

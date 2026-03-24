@@ -132,7 +132,7 @@
                                         @php
                                             $publishedSermonUrl = $section->publishedSermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
                                                 ? route('childrens-corner.show', ['sermon' => $section->publishedSermon->slug])
-                                                : route('showSermon', ['sermon' => $section->publishedSermon->slug]);
+                                                : route('sermons.show', ['sermon' => $section->publishedSermon->slug]);
                                         @endphp
                                         <x-button
                                             link="{{ $publishedSermonUrl }}"

@@ -65,7 +65,7 @@ class SermonAdminControllerTest extends TestCase
 
         $response = $this->actingAs($this->admin)->post("/christ/sermons/{$sermon->slug}/delete");
 
-        $response->assertRedirect(route('sermonIndex'));
+        $response->assertRedirect(route('sermons.index'));
         $this->assertDatabaseMissing('sermons', ['id' => $sermon->id]);
     }
 
@@ -120,7 +120,7 @@ class SermonAdminControllerTest extends TestCase
             'type' => 'audio',
         ]);
 
-        $response->assertRedirect(route('sermonIndex'));
+        $response->assertRedirect(route('sermons.index'));
         $response->assertSessionHas('message', 'Processing started for "sermon.mp3". Processing ID: proc-123');
     }
 
@@ -164,7 +164,7 @@ class SermonAdminControllerTest extends TestCase
 
         $response = $this->actingAs($this->admin)->post("/christ/sermons/2024/03/{$sermon->slug}/delete");
 
-        $response->assertRedirect(route('sermonIndex'));
+        $response->assertRedirect(route('sermons.index'));
         $this->assertDatabaseMissing('sermons', ['id' => $sermon->id]);
     }
 

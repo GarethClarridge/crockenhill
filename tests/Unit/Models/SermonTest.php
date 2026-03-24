@@ -210,7 +210,7 @@ class SermonTest extends TestCase
 
         $policy = app(SermonExposurePolicy::class);
 
-        $this->assertSame(route('showSermon', $sermon), $policy->publicUrl($sermon));
+        $this->assertSame(route('sermons.show', $sermon), $policy->publicUrl($sermon));
         $this->assertSame(url('/christ/sermons/2026/02/date-based-sermon'), $policy->canonicalUrl($sermon));
         $this->assertSame(route('childrens-corner.show', $childrensTalk), $policy->publicUrl($childrensTalk));
         $this->assertSame(route('childrens-corner.show', $childrensTalk), $policy->canonicalUrl($childrensTalk));

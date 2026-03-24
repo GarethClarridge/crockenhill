@@ -102,7 +102,7 @@ class SermonExposurePolicyTest extends TestCase
         $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
         $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
 
-        $this->assertSame('showSermon', $this->policy->publicRouteName($sermon));
+        $this->assertSame('sermons.show', $this->policy->publicRouteName($sermon));
         $this->assertSame('childrens-corner.show', $this->policy->publicRouteName($childrensTalk));
     }
 
@@ -119,7 +119,7 @@ class SermonExposurePolicyTest extends TestCase
         $sermon = Sermon::factory()->create(['slug' => 'sermon-slug', 'content_type' => SermonContentType::Sermon]);
         $childrensTalk = Sermon::factory()->create(['slug' => 'talk-slug', 'content_type' => SermonContentType::ChildrensTalk]);
 
-        $this->assertSame(route('showSermon', ['sermon' => 'sermon-slug']), $this->policy->publicUrl($sermon));
+        $this->assertSame(route('sermons.show', ['sermon' => 'sermon-slug']), $this->policy->publicUrl($sermon));
         $this->assertSame(route('childrens-corner.show', ['sermon' => 'talk-slug']), $this->policy->publicUrl($childrensTalk));
     }
 

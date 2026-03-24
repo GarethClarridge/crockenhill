@@ -1606,7 +1606,7 @@ The backlog is ordered for safety:
   - `frontend-view-architecture-review-2026-03-18.md`
 
 ### TD-039 - Sweep internal link navigation and CTA component consistency
-- Status: `Complete`
+- Status: `Completed`
 - Priority: P3
 - Impact: Low
 - Risk: Low
@@ -1633,7 +1633,7 @@ The backlog is ordered for safety:
   - `frontend-view-architecture-review-2026-03-18.md`
 
 ### TD-040 - Decompose overloaded shared components
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P3
 - Impact: Medium
 - Risk: Medium
@@ -1660,7 +1660,7 @@ The backlog is ordered for safety:
   - `frontend-view-architecture-review-2026-03-18.md`
 
 ### TD-041 - Normalize legacy sermon route naming to Laravel conventions
-- Status: `Ready after prerequisite`
+- Status: `Completed`
 - Priority: P3
 - Impact: Low
 - Risk: Low-Medium

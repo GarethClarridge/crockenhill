@@ -156,10 +156,10 @@ class ChildrensCornerPagesTest extends TestCase
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
 
-        $this->get(route('showSermon', $talk))
+        $this->get(route('sermons.show', $talk))
             ->assertNotFound();
 
-        $this->get(route('showSermonWithDate', [
+        $this->get(route('sermons.show.dated', [
             'year' => '2026',
             'month' => '02',
             'sermon' => $talk->slug,
@@ -177,10 +177,10 @@ class ChildrensCornerPagesTest extends TestCase
             'content_type' => SermonContentType::ChildrensTalk,
         ]);
 
-        $this->get(route('showSermon', $talk))
+        $this->get(route('sermons.show', $talk))
             ->assertRedirect(route('childrens-corner.show', $talk));
 
-        $this->get(route('showSermonWithDate', [
+        $this->get(route('sermons.show.dated', [
             'year' => '2026',
             'month' => '02',
             'sermon' => $talk->slug,

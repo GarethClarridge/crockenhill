@@ -30,7 +30,7 @@ class SermonSeoTest extends TestCase
             'content_type' => \App\Enums\SermonContentType::Sermon,
         ]);
 
-        $response = $this->get(route('sermonIndex'));
+        $response = $this->get(route('sermons.index'));
 
         $response->assertStatus(200);
         $response->assertSee('Sermons | Crockenhill Baptist Church');
@@ -51,7 +51,7 @@ class SermonSeoTest extends TestCase
             'content_type' => \App\Enums\SermonContentType::Sermon,
         ]);
 
-        $response = $this->get(route('allSermons'));
+        $response = $this->get(route('sermons.all'));
 
         $response->assertStatus(200);
         $response->assertSee('All Sermons | Crockenhill Baptist Church');
@@ -73,7 +73,7 @@ class SermonSeoTest extends TestCase
             'date' => now(),
         ]);
 
-        $response = $this->get(route('sermonIndex'));
+        $response = $this->get(route('sermons.index'));
 
         $response->assertStatus(200);
         $response->assertSee('Guest Preacher');

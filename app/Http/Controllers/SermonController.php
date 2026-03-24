@@ -52,7 +52,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getAll(): View
+    public function all(): View
     {
         /**
          * Performance Optimization: Use Repository to fetch cached full sermon listing.
@@ -123,7 +123,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getPreachers(PreacherItemListPresenter $itemListPresenter): View
+    public function preachers(PreacherItemListPresenter $itemListPresenter): View
     {
         $page = Page::query()
             ->select(['id', 'slug', 'body'])
@@ -154,7 +154,7 @@ class SermonController extends Controller
      * Performance Optimization: Uses the cached sermon listing from the repository
      * to reduce redundant DB queries when viewing preacher profiles.
      */
-    public function getPreacher(Preacher $preacher): View
+    public function preacher(Preacher $preacher): View
     {
         /**
          * Performance Optimization: Use Repository to fetch cached preacher sermon listing.
@@ -173,7 +173,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getSerieses(SeriesItemListPresenter $itemListPresenter): View
+    public function series(SeriesItemListPresenter $itemListPresenter): View
     {
         $series = collect($this->sermonRepository->getSeriesForDisplay());
 
@@ -188,7 +188,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getSeries(string $series): View
+    public function seriesShow(string $series): View
     {
         $series_name = str_replace('-', ' ', Str::title($series));
 
@@ -208,7 +208,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function getService(string $service): View
+    public function service(string $service): View
     {
         $serviceEnum = SermonService::from($service);
 
@@ -235,7 +235,7 @@ class SermonController extends Controller
         ]);
     }
 
-    public function showWithDate(
+    public function showDated(
         int $year,
         int $month,
         Sermon $sermon,

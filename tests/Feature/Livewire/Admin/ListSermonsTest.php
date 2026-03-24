@@ -103,7 +103,7 @@ class ListSermonsTest extends TestCase
             ->assertSee("Admin Children's Talk")
             ->assertSee('Sermon')
             ->assertSee("Children's Talk")
-            ->assertSee(route('showSermon', ['sermon' => $sermon->slug]))
+            ->assertSee(route('sermons.show', ['sermon' => $sermon->slug]))
             ->assertSee(route('childrens-corner.show', ['sermon' => $childrensTalk->slug]));
     }
 
