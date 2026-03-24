@@ -44,8 +44,14 @@ class SermonTranscriptReader
 
         $cacheKey = $this->cacheKey($sermon, $path);
 
-        /** @var string|null */
-        return Cache::flexible($cacheKey, [86400, 172800], function () use ($sermon, $path): ?string {
+        /**
+         * Performance Optimization: Use a non-null placeholder (false) when transcript
+         * is not found to ensure we don't cache a temporary failure for the full TTL.
+         * Cache::flexible would otherwise cache the null result.
+         *
+         * @var string|false
+         */
+        $result = Cache::flexible($cacheKey, [86400, 172800], function () use ($sermon, $path): string|bool {
             $transcript = $this->transcriptStorageService->readTranscriptFromPath($path);
 
             if ($transcript === null) {
@@ -54,10 +60,14 @@ class SermonTranscriptReader
                     'sermon_id' => $sermon->id,
                     'transcript_file_path' => $path,
                 ]);
+
+                return false;
             }
 
             return $transcript;
         });
+
+        return $result === false ? null : $result;
     }
 
     /**

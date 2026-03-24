@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Services;
+namespace Tests\Feature;
 
 use App\Models\Sermon;
 use App\Services\SermonTranscriptReader;
 use App\Services\TranscriptStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use PHPUnit\Framework\Attributes\Test;
+use Mockery;
 use Tests\TestCase;
 
 class SermonTranscriptCachingTest extends TestCase
@@ -22,21 +22,22 @@ class SermonTranscriptCachingTest extends TestCase
         Cache::flush();
     }
 
-    #[Test]
-    public function it_caches_the_transcript_content(): void
+    public function test_it_caches_the_transcript_content(): void
     {
         $transcriptContent = 'This is a cached transcript content.';
         $sermon = Sermon::factory()->create([
             'transcript_file_path' => 'transcripts/cached-test.md',
         ]);
+        assert($sermon instanceof Sermon);
 
-        $storageService = $this->mock(TranscriptStorageService::class);
-        $storageService->shouldReceive('readTranscriptFromPath')
-            ->once()
-            ->with('transcripts/cached-test.md')
-            ->andReturn($transcriptContent);
+        $this->mock(TranscriptStorageService::class, function ($mock) use ($transcriptContent) {
+            $mock->shouldReceive('readTranscriptFromPath')
+                ->once()
+                ->with('transcripts/cached-test.md')
+                ->andReturn($transcriptContent);
+        });
 
-        $reader = new SermonTranscriptReader($storageService);
+        $reader = app(SermonTranscriptReader::class);
 
         // First call should hit storage and cache the result
         $result1 = $reader->read($sermon);
@@ -47,21 +48,22 @@ class SermonTranscriptCachingTest extends TestCase
         $this->assertSame($transcriptContent, $result2);
     }
 
-    #[Test]
-    public function it_invalidates_cache_when_sermon_is_updated(): void
+    public function test_it_invalidates_cache_when_sermon_is_updated(): void
     {
         $transcriptContent = 'Transcript content.';
         $sermon = Sermon::factory()->create([
             'transcript_file_path' => 'transcripts/invalidate-test.md',
         ]);
+        assert($sermon instanceof Sermon);
 
-        $storageService = $this->mock(TranscriptStorageService::class);
-        $storageService->shouldReceive('readTranscriptFromPath')
-            ->twice()
-            ->with('transcripts/invalidate-test.md')
-            ->andReturn($transcriptContent);
+        $this->mock(TranscriptStorageService::class, function ($mock) use ($transcriptContent) {
+            $mock->shouldReceive('readTranscriptFromPath')
+                ->twice()
+                ->with('transcripts/invalidate-test.md')
+                ->andReturn($transcriptContent);
+        });
 
-        $reader = new SermonTranscriptReader($storageService);
+        $reader = app(SermonTranscriptReader::class);
 
         // First call
         $reader->read($sermon);
@@ -76,26 +78,26 @@ class SermonTranscriptCachingTest extends TestCase
         $reader->read($sermon);
     }
 
-    #[Test]
-    public function it_invalidates_cache_when_path_changes(): void
+    public function test_it_invalidates_cache_when_path_changes(): void
     {
         $sermon = Sermon::factory()->create([
             'transcript_file_path' => 'transcripts/path1.md',
         ]);
+        assert($sermon instanceof Sermon);
 
-        $storageService = $this->mock(TranscriptStorageService::class);
+        $this->mock(TranscriptStorageService::class, function ($mock) {
+            $mock->shouldReceive('readTranscriptFromPath')
+                ->once()
+                ->with('transcripts/path1.md')
+                ->andReturn('Content 1');
 
-        $storageService->shouldReceive('readTranscriptFromPath')
-            ->once()
-            ->with('transcripts/path1.md')
-            ->andReturn('Content 1');
+            $mock->shouldReceive('readTranscriptFromPath')
+                ->once()
+                ->with('transcripts/path2.md')
+                ->andReturn('Content 2');
+        });
 
-        $storageService->shouldReceive('readTranscriptFromPath')
-            ->once()
-            ->with('transcripts/path2.md')
-            ->andReturn('Content 2');
-
-        $reader = new SermonTranscriptReader($storageService);
+        $reader = app(SermonTranscriptReader::class);
 
         // First call with path1
         $this->assertSame('Content 1', $reader->read($sermon));
@@ -105,5 +107,35 @@ class SermonTranscriptCachingTest extends TestCase
 
         // Second call with path2 should hit storage again
         $this->assertSame('Content 2', $reader->read($sermon));
+    }
+
+    public function test_it_does_not_cache_null_results_permanently(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'transcript_file_path' => 'transcripts/null-test.md',
+        ]);
+        assert($sermon instanceof Sermon);
+
+        $this->mock(TranscriptStorageService::class, function ($mock) {
+            // First call fails (returns null)
+            $mock->shouldReceive('readTranscriptFromPath')
+                ->once()
+                ->with('transcripts/null-test.md')
+                ->andReturn(null);
+
+            // Second call succeeds
+            $mock->shouldReceive('readTranscriptFromPath')
+                ->once()
+                ->with('transcripts/null-test.md')
+                ->andReturn('Recovered content');
+        });
+
+        $reader = app(SermonTranscriptReader::class);
+
+        // First call should return null
+        $this->assertNull($reader->read($sermon));
+
+        // Second call should NOT be cached as null and should hit storage again
+        $this->assertSame('Recovered content', $reader->read($sermon));
     }
 }
