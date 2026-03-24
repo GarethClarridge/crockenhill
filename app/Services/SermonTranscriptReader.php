@@ -17,10 +17,10 @@ class SermonTranscriptReader
     /**
      * Read the transcript content for a sermon.
      *
-     * Performance Optimization: Caches the transcript content for 24-48 hours using
-     * flexible cache to avoid redundant remote storage hits (S3/Spaces) on every
-     * sermon page view. The cache is invalidated if the transcript path or the
-     * sermon record itself is updated.
+     * Performance Optimization: Caches successful transcript reads for 24 hours
+     * to avoid redundant remote storage hits (S3/Spaces) on every sermon page view.
+     * Failed reads (null results) are not cached, ensuring the system retries
+     * on subsequent requests if storage was temporarily unavailable.
      *
      * @param  Sermon  $sermon  The sermon model
      * @return string|null The transcript content or null if not found
@@ -44,30 +44,28 @@ class SermonTranscriptReader
 
         $cacheKey = $this->cacheKey($sermon, $path);
 
-        /**
-         * Performance Optimization: Use a non-null placeholder (false) when transcript
-         * is not found to ensure we don't cache a temporary failure for the full TTL.
-         * Cache::flexible would otherwise cache the null result.
-         *
-         * @var string|false
-         */
-        $result = Cache::flexible($cacheKey, [86400, 172800], function () use ($sermon, $path): string|bool {
-            $transcript = $this->transcriptStorageService->readTranscriptFromPath($path);
+        // Try to retrieve from cache first
+        $cached = Cache::get($cacheKey);
+        if (is_string($cached)) {
+            return $cached;
+        }
 
-            if ($transcript === null) {
-                Log::warning('Transcript file not found on any configured disk', [
-                    'disks_checked' => $this->transcriptStorageService->getTranscriptReadDisks(),
-                    'sermon_id' => $sermon->id,
-                    'transcript_file_path' => $path,
-                ]);
+        $transcript = $this->transcriptStorageService->readTranscriptFromPath($path);
 
-                return false;
-            }
+        if ($transcript !== null) {
+            // Cache successful reads for 24 hours
+            Cache::put($cacheKey, $transcript, 86400);
 
             return $transcript;
-        });
+        }
 
-        return $result === false ? null : $result;
+        Log::warning('Transcript file not found on any configured disk', [
+            'disks_checked' => $this->transcriptStorageService->getTranscriptReadDisks(),
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => $path,
+        ]);
+
+        return null;
     }
 
     /**
