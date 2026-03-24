@@ -13,7 +13,7 @@
 <x-schema.faq :questions="[
     [
         'question' => 'Who is Jesus?',
-        'answer' => 'Jesus Christ is God himself in human form, the most influential person in history. He proved his authority by healing the sick and raising the dead, showing he is God\'s King with supreme authority over the universe.',
+        'answer' => 'The Lord Jesus Christ is fully God and fully man. He was conceived by the Holy Spirit, born of a virgin, and lived a sinless life in obedience to the Father. He taught with authority and all his words are true. On the cross he died in the place of sinners, bearing God’s punishment for their sin, redeeming them by his blood. He rose from the dead and in his resurrection body ascended into heaven where he is exalted as Lord of all. He intercedes for his people in the presence of the Father.',
     ],
     [
         'question' => 'Why do I need Jesus?',
@@ -25,7 +25,7 @@
     ],
     [
         'question' => 'Where can I find out more?',
-        'answer' => 'You can get in touch with our pastor, explore the Christianity Explored website, or start reading Mark\'s gospel in the Bible to decide for yourself who Jesus is.',
+        'answer' => 'You can come along, get in touch with our pastor, or start reading Mark\'s gospel in the Bible to decide for yourself who Jesus is. If you need a Bible get in touch - we\'d be happy to provide one',
     ],
 ]" />
 @stop
