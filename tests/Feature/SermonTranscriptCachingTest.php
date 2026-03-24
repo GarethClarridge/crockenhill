@@ -9,7 +9,6 @@ use App\Services\SermonTranscriptReader;
 use App\Services\TranscriptStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Mockery;
 use Tests\TestCase;
 
 class SermonTranscriptCachingTest extends TestCase
@@ -122,6 +121,11 @@ class SermonTranscriptCachingTest extends TestCase
                 ->once()
                 ->with('transcripts/null-test.md')
                 ->andReturn(null);
+
+            // Called when logging the null result warning
+            $mock->shouldReceive('getTranscriptReadDisks')
+                ->once()
+                ->andReturn([]);
 
             // Second call succeeds
             $mock->shouldReceive('readTranscriptFromPath')
