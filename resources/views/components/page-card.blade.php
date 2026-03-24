@@ -52,6 +52,6 @@
         </x-button>
     </div>
 
-    <x-edit-buttons slug="{{ $pageSlug }}" />
+    <x-page-card-admin-overlay slug="{{ $pageSlug }}" />
 </div>
 @endif

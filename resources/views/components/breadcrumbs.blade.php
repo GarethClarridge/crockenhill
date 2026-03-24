@@ -5,66 +5,10 @@
 ])
 
 @php
-use Illuminate\Support\Str;
-
-$breadcrumbItems = [];
-$breadcrumbItems[] = ['name' => 'Home', 'item' => url('/')];
-
-// Handle admin routes (e.g., /admin/pages, /admin/sermons)
-if (\Request::segment(1) === 'admin') {
-$breadcrumbItems[] = ['name' => 'Church', 'item' => url('church')];
-$breadcrumbItems[] = ['name' => 'Members', 'item' => url('church/members')];
-
-// Add section breadcrumb for admin subsections
-if (count(\Request::segments()) >= 2) {
-$section = \Request::segment(2);
-$sectionName = match($section) {
-'pages' => 'Pages',
-'sermons' => 'Sermons',
-'meetings' => 'Meetings',
-'calendar-events' => 'Calendar Events',
-'sermon-upload' => 'Upload Sermon',
-default => Str::title(str_replace('-', ' ', $section)),
-};
-// Only add section breadcrumb if we're deeper than the section index
-if (count(\Request::segments()) >= 3) {
-$breadcrumbItems[] = ['name' => $sectionName, 'item' => url('admin/' . $section)];
-}
-}
-} elseif (count(\Request::segments()) >= 2 || !empty($area)) {
-// Always include the area in the breadcrumb path if explicitly provided,
-// supporting future 1-segment pages that may reside within a specific area.
-$breadcrumbItems[] = ['name' => Str::title($area), 'item' => url($area)];
-
-    // If the current page is the area page itself, don't add it twice
-    if (count(\Request::segments()) >= 3 || (count(\Request::segments()) === 2 && \Request::segment(2) !== null)) {
-        if (\Request::segment(2) === 'sermons') {
-$breadcrumbItems[] = ['name' => 'Sermons', 'item' => url('christ/sermons')];
-if (count(\Request::segments()) === 4) {
-$breadcrumbItems[] = ['name' => Str::title(\Request::segment(3)), 'item' => url('christ/sermons/' . \Request::segment(3))];
-}
-} elseif (\Request::segment(2) === 'members') {
-$breadcrumbItems[] = ['name' => 'Members', 'item' => url('church/members')];
-}
-}
-}
-
-    if (end($breadcrumbItems)['item'] !== url()->current()) {
-        $breadcrumbItems[] = ['name' => $heading, 'item' => url()->current()];
-    }
-
-$breadcrumbList = [
-'@context' => 'https://schema.org',
-'@type' => 'BreadcrumbList',
-'itemListElement' => array_map(function ($item, $index) {
-return [
-'@type' => 'ListItem',
-'position' => $index + 1,
-'name' => $item['name'],
-'item' => $item['item'],
-];
-}, $breadcrumbItems, array_keys($breadcrumbItems)),
-];
+/** @var \App\Presenters\BreadcrumbPresenter $presenter */
+$presenter = app(\App\Presenters\BreadcrumbPresenter::class);
+$breadcrumbItems = $presenter->items($area, $heading);
+$breadcrumbList = $presenter->jsonLd($breadcrumbItems);
 @endphp
 
 <script type="application/ld+json">
@@ -72,16 +16,7 @@ return [
 </script>
 
 @if(!$jsonOnly)
-<div class="my-6 flex flex-wrap items-center justify-between gap-4" x-data="{
-    copied: false,
-    copy() {
-        if (!navigator.clipboard) return;
-        navigator.clipboard.writeText('{{ url()->current() }}').then(() => {
-            this.copied = true;
-            setTimeout(() => this.copied = false, 2000);
-        });
-    }
-}">
+<div class="my-6 flex flex-wrap items-center justify-between gap-4">
   <nav aria-label="Breadcrumb">
     <ol class="inline-flex flex-wrap items-center space-x-1 md:space-x-2">
       @foreach ($breadcrumbItems as $index => $item)
@@ -120,18 +55,6 @@ return [
     </ol>
   </nav>
 
-  <button
-    type="button"
-    x-show="navigator.clipboard"
-    @click="copy()"
-    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-cbc-teal-dark hover:text-cbc-teal bg-white border border-gray-200 hover:border-cbc-teal-light/30 rounded-md shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal focus-visible:ring-offset-1"
-    aria-label="Copy page link"
-    title="Copy link to clipboard"
-    x-cloak
-  >
-    <x-heroicon-o-link x-show="!copied" class="w-4 h-4" aria-hidden="true" />
-    <x-heroicon-o-check x-show="copied" class="w-4 h-4 text-cbc-teal" aria-hidden="true" x-cloak />
-    <span x-text="copied ? 'Copied!' : 'Copy link'" aria-live="polite"></span>
-  </button>
+  <x-clipboard-button :url="url()->current()" />
 </div>
 @endif
