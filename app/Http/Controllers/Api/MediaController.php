@@ -93,7 +93,7 @@ class MediaController extends Controller
 
         try {
             $includeLogs = $request->boolean('include_logs');
-            $logLimit = $request->integer('log_limit', 20);
+            $logLimit = min(max($request->integer('log_limit', 20), 1), 100);
 
             $response = $includeLogs
                 ? $this->mediaProcessor->getStatusWithLogs($processingId, true, $logLimit)
