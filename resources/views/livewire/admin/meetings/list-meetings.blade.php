@@ -95,7 +95,7 @@
                             </td>
                             {{-- Actions --}}
                             <td class="px-4 py-3 text-right">
-                                <div class="flex gap-1 justify-end">
+                                <div class="flex gap-1 justify-end" role="group" aria-label="Actions for {{ $meeting->page?->heading ?? $meeting->slug }}">
                                     <x-button link="{{ route('meetings.show', $meeting) }}" variant="ghost" size="xs" icon="eye" inline aria-label="View meeting: {{ $meeting->page?->heading ?? $meeting->slug }}" />
                                     <x-button link="{{ route('admin.meetings.edit', $meeting) }}" variant="ghost" size="xs" icon="pencil" inline aria-label="Edit meeting: {{ $meeting->page?->heading ?? $meeting->slug }}" />
                                     <x-form-button variant="ghost" size="xs" icon="trash" class="text-red-600"
