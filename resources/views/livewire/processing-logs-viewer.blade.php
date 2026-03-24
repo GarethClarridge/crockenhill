@@ -247,7 +247,7 @@
 
     @script
     <script>
-        function logsViewerAutoRefresh() {
+        window.logsViewerAutoRefresh = function logsViewerAutoRefresh() {
             return {
                 refreshInterval: null,
 

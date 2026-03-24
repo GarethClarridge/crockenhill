@@ -1,4 +1,4 @@
-@props(['label' => null, 'hint' => null])
+@props(['label' => null, 'hint' => null, 'checked' => false])
 
 @php
 $modelName = $attributes->wire('model')->value();
@@ -14,6 +14,7 @@ $hasError = $modelName && $errors->has($modelName);
             type="checkbox"
             @if($id) id="{{ $id }}" @endif
             {{ $attributes->merge(['class' => 'h-4 w-4 rounded border-gray-300 text-cbc-teal focus:ring-cbc-teal' . ($hasError ? ' border-red-300' : '')]) }}
+            @checked($checked)
             @if($hasError) aria-invalid="true" aria-describedby="{{ $id }}-error" @endif
         />
     </div>
