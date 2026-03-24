@@ -45,7 +45,8 @@
 
       {{-- Main Content --}}
       <div class="mt-6">
-        {{ $slot }}
+        {{ $slot ?? '' }}
+        @yield('dynamic_content')
       </div>
 
     </x-content-wrapper>

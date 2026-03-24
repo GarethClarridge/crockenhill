@@ -1,0 +1,165 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature;
+
+use App\Models\Meeting;
+use App\Models\Sermon;
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+/**
+ * Route regression tests for the four legacy admin screens being migrated in TD-036.
+ * These assert the routes still respond correctly before and after the Blade migration.
+ */
+class LegacyAdminScreenRegressionTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    private User $admin;
+
+    private User $regularUser;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->admin = User::factory()->create([
+            'is_admin' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->regularUser = User::factory()->create([
+            'is_admin' => false,
+            'email_verified_at' => now(),
+        ]);
+    }
+
+    // --- meetings/index ---
+
+    #[Test]
+    public function meetings_index_requires_authentication(): void
+    {
+        $response = $this->get(route('meetings.index'));
+
+        $response->assertRedirect('/login');
+    }
+
+    #[Test]
+    public function meetings_index_forbids_non_admin(): void
+    {
+        $response = $this->actingAs($this->regularUser)->get(route('meetings.index'));
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function meetings_index_loads_for_admin(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('meetings.index'));
+
+        $response->assertOk();
+    }
+
+    // --- admin/calendar/uncategorized ---
+
+    #[Test]
+    public function calendar_uncategorized_requires_authentication(): void
+    {
+        $response = $this->get('/admin/calendar/uncategorized');
+
+        $response->assertRedirect('/login');
+    }
+
+    #[Test]
+    public function calendar_uncategorized_forbids_non_admin(): void
+    {
+        $response = $this->actingAs($this->regularUser)->get('/admin/calendar/uncategorized');
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function calendar_uncategorized_loads_for_admin(): void
+    {
+        $response = $this->actingAs($this->admin)->get('/admin/calendar/uncategorized');
+
+        $response->assertOk();
+        $response->assertViewIs('admin.calendar.uncategorized');
+    }
+
+    // --- admin/calendar/patterns ---
+
+    #[Test]
+    public function calendar_patterns_requires_authentication(): void
+    {
+        $response = $this->get('/admin/calendar/patterns');
+
+        $response->assertRedirect('/login');
+    }
+
+    #[Test]
+    public function calendar_patterns_forbids_non_admin(): void
+    {
+        $response = $this->actingAs($this->regularUser)->get('/admin/calendar/patterns');
+
+        $response->assertForbidden();
+    }
+
+    #[Test]
+    public function calendar_patterns_loads_for_admin(): void
+    {
+        $response = $this->actingAs($this->admin)->get('/admin/calendar/patterns');
+
+        $response->assertOk();
+        $response->assertViewIs('admin.calendar.patterns');
+    }
+
+    // --- sermons/edit ---
+
+    #[Test]
+    public function sermon_edit_with_date_requires_authentication(): void
+    {
+        $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
+
+        $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}/edit");
+
+        $response->assertRedirect('/login');
+    }
+
+    #[Test]
+    public function sermon_edit_with_date_redirects_admin_to_livewire_editor(): void
+    {
+        $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
+
+        $response = $this->actingAs($this->admin)->get("/christ/sermons/2024/03/{$sermon->slug}/edit");
+
+        $response->assertRedirect(route('admin.sermons.edit', $sermon->slug));
+    }
+
+    #[Test]
+    public function admin_sermons_edit_route_loads_for_admin(): void
+    {
+        $sermon = Sermon::factory()->create();
+
+        $response = $this->actingAs($this->admin)->get(route('admin.sermons.edit', $sermon->slug));
+
+        $response->assertOk();
+    }
+
+    // --- meetings/index view data ---
+
+    #[Test]
+    public function meetings_index_passes_meetings_to_view(): void
+    {
+        Meeting::factory()->count(3)->create();
+
+        $response = $this->actingAs($this->admin)->get(route('meetings.index'));
+
+        $response->assertOk();
+        $response->assertViewHas('meetings');
+    }
+}
