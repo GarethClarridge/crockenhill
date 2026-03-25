@@ -26,7 +26,7 @@ class ChurchServiceReviewSynchronizer
      */
     public function sync(ChurchService $churchService, EloquentCollection $sections, array $reviewTriggers): void
     {
-        $importMetadata = $churchService->importMetadataData()->toArray();
+        $importMetadata = $churchService->import_metadata?->toArray() ?? [];
 
         if ($reviewTriggers === []) {
             unset($importMetadata['review_triggers']);
