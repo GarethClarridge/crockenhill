@@ -112,7 +112,13 @@
                     colspan="{{ count($headers) + 1 }}"
                     title="No users found"
                     :hasFilters="$hasFilters"
-                />
+                >
+                    @if(!$hasFilters)
+                        <x-button link="{{ route('admin.users.create') }}" variant="primary" icon="plus" inline>
+                            Create User
+                        </x-button>
+                    @endif
+                </x-admin.empty-state>
             @endforelse
         </tbody>
     </table>

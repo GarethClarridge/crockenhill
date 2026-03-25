@@ -106,7 +106,13 @@
                     colspan="{{ count($headers) + 1 }}"
                     title="No events found"
                     :hasFilters="$hasFilters"
-                />
+                >
+                    @if(!$hasFilters)
+                        <x-button link="{{ route('admin.calendar.sync') }}" variant="primary" icon="arrow-path" inline>
+                            Sync Calendar
+                        </x-button>
+                    @endif
+                </x-admin.empty-state>
             @endforelse
         </tbody>
     </table>
