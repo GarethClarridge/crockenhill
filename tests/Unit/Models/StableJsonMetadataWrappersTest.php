@@ -54,13 +54,13 @@ class StableJsonMetadataWrappersTest extends TestCase
 
         $this->assertInstanceOf(ChurchServiceImportMetadata::class, $service->import_metadata);
 
-        $metadata = $service->importMetadataData();
+        $metadata = $service->import_metadata;
 
         $this->assertSame(0.82, $metadata->confidenceScore);
         $this->assertSame('openlp', $metadata->parseMethod);
         $this->assertSame('2026-03-17T12:00:00+00:00', $metadata->manualReview?->reviewedAt);
         $this->assertSame('openlp', $metadata->canonicalConflict?->incomingSource);
-        $this->assertSame($payload, $metadata->toArray());
+        $this->assertSame($payload, $metadata?->toArray());
     }
 
     #[Test]
@@ -120,7 +120,7 @@ class StableJsonMetadataWrappersTest extends TestCase
         $this->assertSame('inferred', $metadata->oosAlignment?->songMatchType);
         $this->assertSame('Mary Helper', $metadata->childrensTalkSpeaker?->reviewed['preacher_name'] ?? null);
         $this->assertSame('Mary Helper', $section->publicationChildrensTalkSpeaker()['preacher_name'] ?? null);
-        $serialized = $metadata->toArray();
+        $serialized = $metadata?->toArray();
 
         $this->assertArrayNotHasKey('song_match_type', $serialized['oos_alignment'] ?? []);
         $this->assertArrayNotHasKey('matched_item_id', $serialized['oos_alignment'] ?? []);

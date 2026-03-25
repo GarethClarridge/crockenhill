@@ -95,7 +95,7 @@ class SermonThumbnailTest extends TestCase
         ]);
 
         $this->assertInstanceOf(ThumbnailMetadata::class, $sermon->thumbnail_metadata);
-        $this->assertEquals($metadata, $sermon->thumbnail_metadata->toArray());
+        $this->assertEquals($metadata, $sermon->thumbnail_metadata?->toArray());
     }
 
     public function test_plain_thumbnail_file_path_attribute_returns_metadata_value(): void
@@ -240,7 +240,7 @@ class SermonThumbnailTest extends TestCase
         ]);
 
         $this->assertInstanceOf(ThumbnailMetadata::class, $sermon->thumbnail_metadata);
-        $this->assertEquals($complexMetadata, $sermon->thumbnail_metadata->toArray());
+        $this->assertEquals($complexMetadata, $sermon->thumbnail_metadata?->toArray());
         $this->assertEquals(1280, $sermon->thumbnail_metadata['width']);
         $this->assertEquals('bottom-right', $sermon->thumbnail_metadata['generation_info']['brand_position']);
         $this->assertEquals(245760, $sermon->thumbnail_metadata['file_info']['size_bytes']);
@@ -262,7 +262,7 @@ class SermonThumbnailTest extends TestCase
         ]);
 
         $this->assertInstanceOf(ThumbnailMetadata::class, $sermon->thumbnail_metadata);
-        $this->assertSame([], $sermon->thumbnail_metadata->toArray());
+        $this->assertSame([], $sermon->thumbnail_metadata?->toArray());
     }
 
     public function test_thumbnail_metadata_round_trips_extra_historical_keys(): void
