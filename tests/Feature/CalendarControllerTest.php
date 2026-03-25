@@ -21,6 +21,7 @@ class CalendarControllerTest extends TestCase
         $upcoming = CalendarEvent::factory()->create([
             'meeting_slug' => 'test-meeting',
             'start_datetime' => now()->addDays(1),
+            'end_datetime' => now()->addDays(1)->addHour(),
             'status' => 'confirmed',
             'title' => 'Upcoming Event',
         ]);
@@ -29,6 +30,7 @@ class CalendarControllerTest extends TestCase
         $past = CalendarEvent::factory()->create([
             'meeting_slug' => 'test-meeting',
             'start_datetime' => now()->subDays(1),
+            'end_datetime' => now()->subDays(1)->addHour(),
             'status' => 'confirmed',
             'title' => 'Past Event',
         ]);
@@ -37,6 +39,7 @@ class CalendarControllerTest extends TestCase
         $unconfirmed = CalendarEvent::factory()->create([
             'meeting_slug' => 'test-meeting',
             'start_datetime' => now()->addDays(2),
+            'end_datetime' => now()->addDays(2)->addHour(),
             'status' => 'tentative',
             'title' => 'Unconfirmed Event',
         ]);
@@ -45,6 +48,7 @@ class CalendarControllerTest extends TestCase
         $farFuture = CalendarEvent::factory()->create([
             'meeting_slug' => 'test-meeting',
             'start_datetime' => now()->addMonths(7),
+            'end_datetime' => now()->addMonths(7)->addHour(),
             'status' => 'confirmed',
             'title' => 'Far Future Event',
         ]);
@@ -78,24 +82,32 @@ class CalendarControllerTest extends TestCase
             'meeting_slug' => 'specific-meeting',
             'title' => 'Meeting Event 1',
             'status' => 'confirmed',
+            'start_datetime' => now()->addDays(1),
+            'end_datetime' => now()->addDays(1)->addHour(),
         ]);
 
         $event2 = CalendarEvent::factory()->create([
             'meeting_slug' => 'specific-meeting',
             'title' => 'Tentative Meeting Event',
             'status' => 'tentative',
+            'start_datetime' => now()->addDays(2),
+            'end_datetime' => now()->addDays(2)->addHour(),
         ]);
 
         $cancelledEvent = CalendarEvent::factory()->create([
             'meeting_slug' => 'specific-meeting',
             'title' => 'Cancelled Event',
             'status' => 'cancelled',
+            'start_datetime' => now()->addDays(3),
+            'end_datetime' => now()->addDays(3)->addHour(),
         ]);
 
         $otherEvent = CalendarEvent::factory()->create([
             'meeting_slug' => 'other-meeting',
             'title' => 'Other Meeting Event',
             'status' => 'confirmed',
+            'start_datetime' => now()->addDays(1),
+            'end_datetime' => now()->addDays(1)->addHour(),
         ]);
 
         $response = $this->get(route('meetings.events', $meeting));
@@ -115,6 +127,7 @@ class CalendarControllerTest extends TestCase
         $uncategorizedUpcoming = CalendarEvent::factory()->create([
             'meeting_slug' => null,
             'start_datetime' => now()->addDays(1),
+            'end_datetime' => now()->addDays(1)->addHour(),
             'status' => 'confirmed',
             'title' => 'Uncategorized Upcoming',
         ]);
@@ -122,6 +135,7 @@ class CalendarControllerTest extends TestCase
         $uncategorizedPast = CalendarEvent::factory()->create([
             'meeting_slug' => null,
             'start_datetime' => now()->subDays(1),
+            'end_datetime' => now()->subDays(1)->addHour(),
             'status' => 'confirmed',
             'title' => 'Uncategorized Past',
         ]);
@@ -129,6 +143,7 @@ class CalendarControllerTest extends TestCase
         $uncategorizedTentative = CalendarEvent::factory()->create([
             'meeting_slug' => null,
             'start_datetime' => now()->addDays(2),
+            'end_datetime' => now()->addDays(2)->addHour(),
             'status' => 'tentative',
             'title' => 'Uncategorized Tentative',
         ]);
@@ -136,6 +151,7 @@ class CalendarControllerTest extends TestCase
         $categorizedUpcoming = CalendarEvent::factory()->create([
             'meeting_slug' => 'some-meeting',
             'start_datetime' => now()->addDays(1),
+            'end_datetime' => now()->addDays(1)->addHour(),
             'status' => 'confirmed',
             'title' => 'Categorized Upcoming',
         ]);

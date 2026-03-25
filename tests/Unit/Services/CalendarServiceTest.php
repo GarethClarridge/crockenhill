@@ -82,10 +82,12 @@ class CalendarServiceTest extends TestCase
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
             'start_datetime' => $future,
+            'end_datetime' => (clone $future)->addHour(),
         ]);
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
             'start_datetime' => $past,
+            'end_datetime' => (clone $past)->addHour(),
         ]);
 
         $events = $this->service->getEventsForMeeting('sunday-morning', Carbon::now());
@@ -104,10 +106,12 @@ class CalendarServiceTest extends TestCase
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
             'start_datetime' => $soonDate,
+            'end_datetime' => (clone $soonDate)->addHour(),
         ]);
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
             'start_datetime' => $farDate,
+            'end_datetime' => (clone $farDate)->addHour(),
         ]);
 
         $events = $this->service->getEventsForMeeting('sunday-morning', null, Carbon::now()->addDays(10));
@@ -127,14 +131,17 @@ class CalendarServiceTest extends TestCase
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
             'start_datetime' => Carbon::create(2099, 1, 5, 10, 0, 0),
+            'end_datetime' => Carbon::create(2099, 1, 5, 11, 0, 0),
         ]);
         CalendarEvent::factory()->create([
             'meeting_slug' => 'other-meeting',
             'start_datetime' => Carbon::create(2099, 1, 10, 10, 0, 0),
+            'end_datetime' => Carbon::create(2099, 1, 10, 11, 0, 0),
         ]);
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
             'start_datetime' => Carbon::create(2098, 12, 31, 10, 0, 0),
+            'end_datetime' => Carbon::create(2098, 12, 31, 11, 0, 0),
         ]);
 
         $events = $this->service->getAllUpcomingEvents($windowStart, $windowEnd);
@@ -150,10 +157,12 @@ class CalendarServiceTest extends TestCase
 
         CalendarEvent::factory()->create([
             'start_datetime' => Carbon::create(2099, 2, 5, 10, 0, 0),
+            'end_datetime' => Carbon::create(2099, 2, 5, 11, 0, 0),
             'status' => 'confirmed',
         ]);
         CalendarEvent::factory()->create([
             'start_datetime' => Carbon::create(2099, 2, 10, 10, 0, 0),
+            'end_datetime' => Carbon::create(2099, 2, 10, 11, 0, 0),
             'status' => 'cancelled',
         ]);
 
@@ -170,11 +179,13 @@ class CalendarServiceTest extends TestCase
 
         CalendarEvent::factory()->create([
             'start_datetime' => Carbon::create(2099, 3, 5, 10, 0, 0),
+            'end_datetime' => Carbon::create(2099, 3, 5, 11, 0, 0),
             'title' => 'Confirmed Upcoming Event',
             'status' => 'confirmed',
         ]);
         CalendarEvent::factory()->create([
             'start_datetime' => Carbon::create(2099, 3, 10, 10, 0, 0),
+            'end_datetime' => Carbon::create(2099, 3, 10, 11, 0, 0),
             'title' => 'Tentative Upcoming Event',
             'status' => 'tentative',
         ]);
@@ -276,17 +287,23 @@ class CalendarServiceTest extends TestCase
     {
         Meeting::factory()->create(['slug' => 'sunday-morning']);
 
+        $date1 = Carbon::now()->addDays(5);
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
-            'start_datetime' => Carbon::now()->addDays(5),
+            'start_datetime' => $date1,
+            'end_datetime' => (clone $date1)->addHour(),
         ]);
+        $date2 = Carbon::now()->addDays(2);
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
-            'start_datetime' => Carbon::now()->addDays(2),
+            'start_datetime' => $date2,
+            'end_datetime' => (clone $date2)->addHour(),
         ]);
+        $date3 = Carbon::now()->addDays(8);
         CalendarEvent::factory()->create([
             'meeting_slug' => 'sunday-morning',
-            'start_datetime' => Carbon::now()->addDays(8),
+            'start_datetime' => $date3,
+            'end_datetime' => (clone $date3)->addHour(),
         ]);
 
         $events = $this->service->getEventsForMeeting('sunday-morning');
