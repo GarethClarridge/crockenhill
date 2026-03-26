@@ -12,18 +12,22 @@ use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use OpenAI\Exceptions\ErrorException as OpenAIErrorException;
+use OpenAI\Exceptions\TransporterException;
 
 class IdentifySpeaker extends ProcessingJob implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
     /**
-     * Speaker identification is best-effort: one attempt only.
+     * Transient infrastructure failures (network, 5xx) will be retried up to 3 times.
+     * Deterministic no-match outcomes are caught internally and do not consume retries.
      */
-    public int $tries = 1;
+    public int $tries = 3;
 
     /**
      * Allow up to 5 minutes for embedding extraction.
@@ -195,7 +199,18 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
             $this->logStepComplete('identifying_speaker', "Speaker identification completed: {$mode}");
 
         } catch (\Throwable $e) {
-            // Non-blocking: log but do NOT re-throw so the pipeline chain continues
+            if ($this->isTransientException($e)) {
+                // Re-throw so the queue retries the job up to $tries times
+                Log::warning('IdentifySpeaker job transient failure — will retry', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'error' => $e->getMessage(),
+                    'attempts_remaining' => $this->tries - $this->attempts(),
+                ]);
+
+                throw $e;
+            }
+
+            // Deterministic failure: log and continue so the pipeline chain is not blocked
             Log::error('IdentifySpeaker job failed (non-blocking)', [
                 'processing_id' => $this->processingLog->processing_id,
                 'error' => $e->getMessage(),
@@ -207,17 +222,39 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Handle a permanent job failure.
-     * Non-blocking: we intentionally do not mark the processing log as failed.
+     * Called by the queue after all retries are exhausted.
+     * Non-blocking: we do not mark the processing log as failed so the pipeline chain continues.
      */
     public function failed(\Throwable $exception): void
     {
-        Log::error('IdentifySpeaker job failed permanently (non-blocking)', [
+        Log::error('IdentifySpeaker job exhausted all retries (non-blocking)', [
             'processing_id' => $this->processingLog->processing_id,
             'error' => $exception->getMessage(),
         ]);
 
-        $this->storeDecision('error', 'Job failed: '.$exception->getMessage());
+        $this->storeDecision('failed', 'All retries exhausted: '.$exception->getMessage());
+        $this->logStepFailed('identifying_speaker', $exception->getMessage());
+    }
+
+    /**
+     * Transient infrastructure failures should be retried by the queue.
+     * These are distinct from deterministic no-match outcomes which must not retry.
+     */
+    private function isTransientException(\Throwable $e): bool
+    {
+        if ($e instanceof TransporterException) {
+            return true;
+        }
+
+        if ($e instanceof ConnectionException) {
+            return true;
+        }
+
+        if ($e instanceof OpenAIErrorException && $e->getStatusCode() >= 500) {
+            return true;
+        }
+
+        return false;
     }
 
     private function applyMatch(Sermon $sermon, SpeakerMatchResult $result): void
