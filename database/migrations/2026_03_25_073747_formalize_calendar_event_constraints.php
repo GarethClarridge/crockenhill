@@ -37,13 +37,15 @@ return new class extends Migration
      */
     public function down(): void
     {
-        $isSqlite = DB::getDriverName() === 'sqlite';
+        $driver = DB::getDriverName();
 
-        Schema::table('calendar_events', function (Blueprint $table) use ($isSqlite) {
-            if (! $isSqlite) {
-                DB::statement('ALTER TABLE calendar_events DROP CONSTRAINT calendar_events_timing_check');
-            }
+        if ($driver === 'mysql') {
+            DB::statement('ALTER TABLE calendar_events DROP CHECK calendar_events_timing_check');
+        } elseif ($driver === 'pgsql') {
+            DB::statement('ALTER TABLE calendar_events DROP CONSTRAINT calendar_events_timing_check');
+        }
 
+        Schema::table('calendar_events', function (Blueprint $table) {
             $table->string('status', 255)->default('confirmed')->change();
         });
     }
